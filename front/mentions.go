@@ -34,29 +34,16 @@ func (h *Handler) mentions(w text.Writer, r *request, args ...string) {
 		"📞 Mentions",
 		func(offset int) (*sql.Rows, error) {
 			return r.Query(`
-				select notes.object, authors.actor, sharers.actor, feed.inserted from
+				select note, author, sharer, inserted from
 				feed
-				join
-				notes
-				on
-					notes.id = feed.note
-				join
-				persons authors
-				on
-					authors.id = notes.author
-				left join
-				persons sharers
-				on
-					sharers.id = feed.sharer
 				where
-					feed.follower = $1 and
+					follower = $1 and
 					(
-						$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-						(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $1)) or
-						(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $1))
+						exists (select 1 from json_each(note->'$.to') where value = $1)) or
+						exists (select 1 from json_each(note->'$.cc') where value = $1))
 					)
 				order by
-					feed.inserted desc
+					inserted desc
 				limit $2
 				offset $3`,
 				r.User.ID,

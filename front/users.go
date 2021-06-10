@@ -34,20 +34,12 @@ func (h *Handler) users(w text.Writer, r *request, args ...string) {
 		"📻 My Feed",
 		func(offset int) (*sql.Rows, error) {
 			return r.Query(`
-				select notes.object, authors.actor, sharers.actor, feed.inserted from
-				feed join notes
-				on
-					notes.id = feed.note
-				join persons authors
-				on
-					authors.id = notes.author
-				left join persons sharers
-				on
-					sharers.id = feed.sharer
+				select note, author, sharer, inserted from
+				feed
 				where
-					feed.follower = $1
+					follower = $1
 				order by
-					feed.inserted desc
+					inserted desc
 				limit $2
 				offset $3`,
 				r.User.ID,

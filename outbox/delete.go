@@ -92,7 +92,7 @@ func Delete(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`DELETE FROM feed WHERE note = ?`,
+		`DELETE FROM feed WHERE note->>'$.id' = ?`,
 		note.ID,
 	); err != nil {
 		return fmt.Errorf("failed to delete note: %w", err)

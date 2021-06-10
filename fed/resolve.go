@@ -148,7 +148,11 @@ func deleteActor(ctx context.Context, log *slog.Logger, db *sql.DB, id string) {
 		log.Warn("Failed to delete shares by actor", "id", id, "error", err)
 	}
 
-	if _, err := db.ExecContext(ctx, `delete from feed where sharer = ? or exists (select 1 from notes where notes.author = ? and notes.id = feed.note)`, id); err != nil {
+	if _, err := db.ExecContext(ctx, `delete from feed where sharer->>'$.id' = ?`, id); err != nil {
+		log.Warn("Failed to delete shares by actor", "id", id, "error", err)
+	}
+
+	if _, err := db.ExecContext(ctx, `delete from feed where author->>'$.id' = ?`, id); err != nil {
 		log.Warn("Failed to delete shares by actor", "id", id, "error", err)
 	}
 
