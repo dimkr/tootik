@@ -10,6 +10,8 @@
 
 tootik is a federated federated nanoblogging service with a Gemini frontend.
 
+It's a single executable that handles both the federation (using ActivityPub) and the frontend (using Gemini) aspects, while [sqlite](https://sqlite.org/) takes care of persistency. It should be lightweight and efficient enough to host a small community even on a cheap server, and hopefully, easy to hack on.
+
 tooktik allows Gemini users to participate in the fediverse using their Gemini client of choice and makes the fediverse more accessible.
 
 It implements a small subset of ActivityPub, and probably doesn't really conform to the spec.
