@@ -40,29 +40,22 @@ type webFingerResponse struct {
 }
 
 func userHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-	fmt.Println(r.URL)
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
 	name := filepath.Base(r.URL.Path)
-	fmt.Println(name)
 
 	u, err := data.Objects.GetByID(fmt.Sprintf("https://%s/user/%s", cfg.Domain, name), db)
-	//fmt.Println(err)
-	//fmt.Println(u)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
 		return
 	}
 
 	j := map[string]any{}
 	if err := json.Unmarshal([]byte(u.Object), &j); err != nil {
-		fmt.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
 		return
 	}
 
@@ -71,15 +64,10 @@ func userHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	resp, err := json.Marshal(j)
 	if err != nil {
-		fmt.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
 		return
 	}
 
-	fmt.Println(string(resp))
-
 	w.Header().Add("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
-	//w.Header().Add("Content-Type", "application/activity+json; charset=utf-8")
 	w.Write(resp)
 }

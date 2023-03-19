@@ -113,7 +113,6 @@ ok:
 			m := map[string]any{}
 			if err := json.Unmarshal([]byte(user.Object), &m); err != nil {
 				log.WithField("user", id).WithError(err).Warn("Failed to parse user: %w", err)
-				conn.Write([]byte(err.Error()))
 				return
 			}
 

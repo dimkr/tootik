@@ -34,7 +34,6 @@ func webFingerHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	}
 
 	resource := r.URL.Query().Get("resource")
-	fmt.Println(resource)
 
 	if !strings.HasPrefix(resource, "acct:") {
 		w.WriteHeader(http.StatusBadRequest)
@@ -59,7 +58,6 @@ func webFingerHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	_, err := data.Objects.GetByID(fmt.Sprintf("https://%s/user/%s", cfg.Domain, fields[0]), db)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
 		return
 	}
 
@@ -74,10 +72,8 @@ func webFingerHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			},
 		},
 	})
-
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
 		return
 	}
 

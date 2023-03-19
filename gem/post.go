@@ -70,7 +70,7 @@ func postInternal(ctx context.Context, conn io.Writer, requestUrl *url.URL, para
 	content, err := url.QueryUnescape(requestUrl.RawQuery)
 	if err != nil {
 		conn.Write([]byte("40 Error\r\n"))
-		conn.Write([]byte(err.Error()))
+		return
 	}
 
 	now := time.Now()
@@ -114,9 +114,7 @@ func postInternal(ctx context.Context, conn io.Writer, requestUrl *url.URL, para
 
 	body, err := json.Marshal(note)
 	if err != nil {
-		fmt.Println(err)
 		conn.Write([]byte("40 Error\r\n"))
-		conn.Write([]byte(err.Error()))
 		return
 	}
 
@@ -130,7 +128,6 @@ func postInternal(ctx context.Context, conn io.Writer, requestUrl *url.URL, para
 	if err := data.Objects.Insert(db, &o); err != nil {
 		log.WithField("author", user.ID).Warn("Failed to insert post")
 		conn.Write([]byte("40 Error\r\n"))
-		conn.Write([]byte(err.Error()))
 		return
 	}
 

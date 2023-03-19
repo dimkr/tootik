@@ -93,16 +93,12 @@ func send(db *sql.DB, sender *data.Object, actor *activitypub.Actor, req *http.R
 		}
 
 		req.Header.Add("Digest", "SHA-256="+base64.StdEncoding.EncodeToString(hash[:]))
-		fmt.Println(time.Now().Format(http.TimeFormat))
 		req.Header.Add("Date", time.Now().UTC().Format(http.TimeFormat))
 		req.Header.Add("Host", u.Host)
 
 		if err := hs.Sign(key.PublicKey.ID, req); err != nil {
 			return nil, fmt.Errorf("Failed to sign request for %s: %w", urlString, err)
 		}
-
-		fmt.Println(req.Header)
-		fmt.Println(string(body))
 	}
 
 	client := http.Client{}

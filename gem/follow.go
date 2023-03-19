@@ -72,9 +72,6 @@ func follow(ctx context.Context, conn io.Writer, requestUrl *url.URL, params []s
 		return
 	}
 
-	fmt.Println("body:" + string(body))
-	fmt.Println(user)
-	fmt.Println("followed:" + followed)
 	if err := fed.Send(ctx, db, user, followed, string(body)); err != nil {
 		log.WithFields(log.Fields{"follower": user.ID, "followed": followed}).WithError(err).Warn("Failed to request Follow")
 		conn.Write([]byte("40 Error\r\n"))
