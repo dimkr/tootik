@@ -94,11 +94,6 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB) {
 		return
 	}
 
-	if reqUrl.Path == "/" {
-		conn.Write([]byte("30 /public\r\n"))
-		return
-	}
-
 	var user *data.Object
 
 	if len(state.PeerCertificates) > 0 {
@@ -214,6 +209,14 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB) {
 			conn.Write([]byte("40 Error\r\n"))
 			return
 		}
+	}
+
+	if reqUrl.Path == "/" && user == nil {
+		conn.Write([]byte("30 /public\r\n"))
+		return
+	} else if reqUrl.Path == "/" {
+		conn.Write([]byte("30 /users\r\n"))
+		return
 	}
 
 	for re, handler := range handlers {
