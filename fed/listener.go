@@ -20,14 +20,10 @@ import (
 	"context"
 	"database/sql"
 	_ "github.com/mattn/go-sqlite3"
-	log "github.com/sirupsen/logrus"
 	"net"
 	"net/http"
+	"time"
 )
-
-func handler(w http.ResponseWriter, r *http.Request) {
-	log.Info(r.URL)
-}
 
 func robots(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("User-agent: *\n"))
@@ -36,7 +32,6 @@ func robots(w http.ResponseWriter, r *http.Request) {
 
 func ListenAndServe(ctx context.Context, db *sql.DB, addr, cert, key string) error {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", handler)
 	mux.HandleFunc("/robots.txt", robots)
 	mux.HandleFunc("/.well-known/webfinger",
 		func(w http.ResponseWriter, r *http.Request) {
@@ -50,10 +45,6 @@ func ListenAndServe(ctx context.Context, db *sql.DB, addr, cert, key string) err
 		func(w http.ResponseWriter, r *http.Request) {
 			inboxHandler(w, r, db)
 		})
-	mux.HandleFunc("/outbox/",
-		func(w http.ResponseWriter, r *http.Request) {
-			outboxHandler(w, r, db)
-		})
 
 	server := http.Server{
 		Addr:    addr,
@@ -61,6 +52,7 @@ func ListenAndServe(ctx context.Context, db *sql.DB, addr, cert, key string) err
 		BaseContext: func(net.Listener) context.Context {
 			return ctx
 		},
+		ReadTimeout: time.Second * 30,
 	}
 
 	go func() {
