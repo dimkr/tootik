@@ -46,6 +46,11 @@ var handlers = map[*regexp.Regexp]func(context.Context, io.Writer, *url.URL, []s
 func handle(ctx context.Context, conn net.Conn, db *sql.DB) {
 	defer conn.Close()
 
+	if err := conn.SetDeadline(time.Now().Add(reqTimeout)); err != nil {
+		log.WithError(err).Warn("Failed to set deadline")
+		return
+	}
+
 	tlsConn, ok := conn.(*tls.Conn)
 	if !ok {
 		log.Warn("Invalid connection")
