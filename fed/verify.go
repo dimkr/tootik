@@ -18,10 +18,12 @@ package fed
 
 import (
 	"context"
+	"crypto/x509"
 	"database/sql"
+	"encoding/pem"
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/igor-pavlenko/httpsignatures-go"
+	"github.com/go-fed/httpsig"
 	"net/http"
 )
 
@@ -32,22 +34,24 @@ func verify(ctx context.Context, actorID string, r *http.Request, db *sql.DB) er
 	}
 
 	keyID := string(actor.PublicKey.ID.GetLink())
-	secrets := map[string]httpsignatures.Secret{
-		keyID: {
-			KeyID:     keyID,
-			PublicKey: actor.PublicKey.PublicKeyPem,
-			Algorithm: "RSA-SHA256",
-		},
+
+	verifier, err := httpsig.NewVerifier(r)
+	if err != nil {
+		return fmt.Errorf("Failed to verify message from %s using %s: %w", actorID, keyID, err)
 	}
-	ss := httpsignatures.NewSimpleSecretsStorage(secrets)
-	hs := httpsignatures.NewHTTPSignatures(ss)
-	hs.SetDefaultTimeGap(60 * 60 * 24)
+
+	publicKeyPem, _ := pem.Decode([]byte(actor.PublicKey.PublicKeyPem))
+
+	publicKey, err := x509.ParsePKIXPublicKey(publicKeyPem.Bytes)
+	if err != nil {
+		return fmt.Errorf("Failed to verify message from %s using %s: %w", actorID, keyID, err)
+	}
 
 	if r.Header.Get("Host") == "" {
 		r.Header.Add("Host", cfg.Domain)
 	}
 
-	if err := hs.Verify(r); err != nil {
+	if err := verifier.Verify(publicKey, httpsig.RSA_SHA256); err != nil {
 		return fmt.Errorf("Failed to verify message from %s using %s: %w", actorID, keyID, err)
 	}
 

@@ -103,7 +103,7 @@ func Resolve(ctx context.Context, db *sql.DB, sender *data.Object, actorID strin
 			continue
 		}
 
-		if t, ok := link["type"].(string); !ok || t != "application/activity+json" {
+		if t, ok := link["type"].(string); !ok || (t != "application/activity+json" && t != `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`) {
 			continue
 		}
 

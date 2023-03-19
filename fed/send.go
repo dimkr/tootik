@@ -20,13 +20,15 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"github.com/dimkr/tootik/data"
 	"github.com/go-ap/activitypub"
-	"github.com/igor-pavlenko/httpsignatures-go"
+	"github.com/go-fed/httpsig"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
@@ -64,18 +66,15 @@ func send(db *sql.DB, sender *data.Object, actor *activitypub.Actor, req *http.R
 			return nil, fmt.Errorf("Sender %s has no key: %w", actor.ID, err)
 		}
 
-		secrets := map[string]httpsignatures.Secret{
-			key.PublicKey.ID: {
-				KeyID:      key.PublicKey.ID,
-				PublicKey:  key.PublicKey.PublicKeyPem,
-				PrivateKey: key.PrivateKey,
-				Algorithm:  "rsa-sha256",
-			},
+		signer, _, err := httpsig.NewSigner([]httpsig.Algorithm{httpsig.RSA_SHA256},
+			httpsig.DigestSha256,
+			[]string{httpsig.RequestTarget, "host", "date", "digest"},
+			httpsig.Signature,
+			int64(time.Hour*12/time.Second),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to sign body for %s: %w", urlString, err)
 		}
-		ss := httpsignatures.NewSimpleSecretsStorage(secrets)
-		hs := httpsignatures.NewHTTPSignatures(ss)
-		// TODO: drop digest from GET?
-		hs.SetDefaultSignatureHeaders([]string{"(request-target)", "host", "date", "digest"})
 
 		var body []byte
 		var hash [sha256.Size]byte
@@ -92,11 +91,19 @@ func send(db *sql.DB, sender *data.Object, actor *activitypub.Actor, req *http.R
 			hash = sha256.Sum256(body)
 		}
 
+		privateKeyPem, _ := pem.Decode([]byte(key.PrivateKey))
+
+		privateKey, err := x509.ParsePKCS1PrivateKey(privateKeyPem.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to sign body for %s: %w", urlString, err)
+		}
+
 		req.Header.Add("Digest", "SHA-256="+base64.StdEncoding.EncodeToString(hash[:]))
 		req.Header.Add("Date", time.Now().UTC().Format(http.TimeFormat))
 		req.Header.Add("Host", u.Host)
 
-		if err := hs.Sign(key.PublicKey.ID, req); err != nil {
+		// TODO: drop digest from GET?
+		if err := signer.SignRequest(privateKey, key.PublicKey.ID, req, nil); err != nil {
 			return nil, fmt.Errorf("Failed to sign request for %s: %w", urlString, err)
 		}
 	}
@@ -123,7 +130,7 @@ func send(db *sql.DB, sender *data.Object, actor *activitypub.Actor, req *http.R
 func Send(ctx context.Context, db *sql.DB, sender *data.Object, receiver, body string) error {
 	actor, err := Resolve(ctx, db, sender, receiver)
 	if err != nil {
-		return fmt.Errorf("Cannot send message to %s: failed to resolve", receiver)
+		return fmt.Errorf("Cannot send message to %s: %w", receiver, err)
 	}
 
 	if actor.Inbox == nil || !actor.Inbox.IsLink() {
