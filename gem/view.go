@@ -159,6 +159,23 @@ func printNote(ctx context.Context, db *sql.DB, w io.Writer, actorID string, not
 		links[string(note.URL.GetLink())] = struct{}{}
 	}
 
+	if note.Attachment != nil {
+		attachments, ok := note.Attachment.(activitypub.ItemCollection)
+		if ok {
+			for _, attachment := range attachments {
+				if attachment.IsLink() {
+					links[string(attachment.GetLink())] = struct{}{}
+				} else if attachmentObject, ok := attachment.(*activitypub.Object); ok {
+					links[string(attachmentObject.URL.GetLink())] = struct{}{}
+				} else {
+					log.WithField("post", note.ID).Info("Skipping invalid attachment")
+				}
+			}
+		} else {
+			log.WithFields(log.Fields{"post": note.ID, "type": note.Attachment.GetType()}).Info("Bad attachment type")
+		}
+	}
+
 	for _, link := range urlRegex.FindAllString(content, -1) {
 		links[link] = struct{}{}
 	}
