@@ -79,15 +79,15 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB) {
 		total += n
 
 		if total == cap(req) {
+			log.Warn("Request is too big")
 			return
 		}
 
 		if total > 2 && req[total-2] == '\r' && req[total-1] == '\n' {
-			goto ok
+			break
 		}
 	}
 
-ok:
 	reqUrl, err := url.Parse(string(req[:total-2]))
 	if err != nil {
 		log.WithError(err).Warnf("Failed to parse request: %s", string(req[:total-2]))
@@ -95,7 +95,7 @@ ok:
 	}
 
 	if reqUrl.Path == "/" {
-		home(ctx, conn, reqUrl, nil, nil, db)
+		conn.Write([]byte("30 /public\r\n"))
 		return
 	}
 
@@ -224,7 +224,11 @@ ok:
 		}
 	}
 
-	conn.Write([]byte("30 /\r\n"))
+	if user == nil {
+		conn.Write([]byte("30 /public\r\n"))
+	} else {
+		conn.Write([]byte("30 /users\r\n"))
+	}
 }
 
 func ListenAndServe(ctx context.Context, db *sql.DB, addr, certPath, keyPath string) error {
