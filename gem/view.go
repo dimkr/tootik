@@ -181,7 +181,7 @@ func printNote(ctx context.Context, db *sql.DB, w io.Writer, actorID string, not
 	}
 
 	for link, _ := range links {
-		fmt.Fprintf(w, "=> %s 🔗 %s\n", link, link)
+		fmt.Fprintf(w, "=> %s %s\n", link, link)
 	}
 
 	if !compact {
