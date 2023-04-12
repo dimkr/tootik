@@ -27,7 +27,7 @@ type writer struct {
 }
 
 func Wrap(w io.Writer) text.Writer {
-	return &writer{Base: text.Base{w}}
+	return &writer{Base: text.Base{Writer: w}}
 }
 
 func (w *writer) Status(code int, meta string) {
