@@ -1,0 +1,73 @@
+/*
+Copyright 2023 Dima Krasner
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package fed
+
+import (
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"github.com/dimkr/tootik/cfg"
+	_ "github.com/mattn/go-sqlite3"
+	log "github.com/sirupsen/logrus"
+	"net/http"
+	"path/filepath"
+)
+
+type userHandler struct {
+	Log *log.Logger
+	DB  *sql.DB
+}
+
+func (h *userHandler) Handle(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	name := filepath.Base(r.URL.Path)
+	actorID := fmt.Sprintf("https://%s/user/%s", cfg.Domain, name)
+
+	h.Log.WithField("id", actorID).Info("Looking up user")
+
+	actorString := ""
+	if err := h.DB.QueryRowContext(r.Context(), `select actor from persons where id = ?`, actorID).Scan(&actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
+		h.Log.WithField("id", actorID).Info("Notifying about deleted user")
+		w.WriteHeader(http.StatusNotFound)
+		return
+	} else if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	actor := map[string]any{}
+	if err := json.Unmarshal([]byte(actorString), &actor); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	delete(actor, "privateKey")
+	delete(actor, "clientCertificate")
+
+	resp, err := json.Marshal(actor)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", `application/activity+json; charset=utf-8`)
+	w.Write(resp)
+}

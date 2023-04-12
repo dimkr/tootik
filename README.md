@@ -1,0 +1,110 @@
+```
+   __              __  _ __  
+  / /_____  ____  / /_(_) /__
+ / __/ __ \/ __ \/ __/ / //_/
+/ /_/ /_/ / /_/ / /_/ / ,<   
+\__/\____/\____/\__/_/_/|_|  
+```
+
+## Overview
+
+tootik is a federated nanoblogging service with a Gemini frontend.
+
+It's a single executable that handles both the federation (using ActivityPub) and the frontend (using Gemini) aspects, while [sqlite](https://sqlite.org/) takes care of persistency. It should be lightweight and efficient enough to host a small community even on a cheap server, and hopefully, easy to hack on.
+
+tootik allows Gemini users to participate in the fediverse using their Gemini client of choice and makes the fediverse more accessible.
+
+It implements a small subset of ActivityPub, and probably doesn't really conform to the spec.
+
+## Directory Structure
+
+* cmd/ implements main().
+
+* fed/ implements federation: outgoing requests and handling of incoming posts.
+* gem/ containts the Gemini frontend.
+
+* ap/ implements ActivityPub vocabulary.
+* data/ contains the database schema and useful data structures.
+* note/ handles insertion of posts.
+
+* gmi/ contains a HTML to gemtext converter.
+* icon/ generates pseudo-random icons used as avatars.
+
+* cfg/ contains global configuration parameters.
+* logger/ contains logging utilities.
+
+## Gemini Frontend
+
+* /local shows a compact list of local posts; each entry contains a link to /view.
+* / is the homepage: it shows an ASCII art logo, a short description of this server and a list of local posts.
+* /federated shows a compact list of federated posts.
+* /active shows a list of active users (local or federated).
+* /instances shows a list of other servers in the network.
+* /stats shows statistics and server health metrics.
+
+* /view shows a complete post with extra details like links in the post, a list mentioned users, a link to the author's outbox, a list of replies and a link to the parent post (if any).
+* /outbox shows list of posts by a user.
+
+Users are authenticated using TLS client certificates; see [Gemini protocol specification](https://gemini.circumlunar.space/docs/specification.html) for more details. The following pages require authentication:
+
+* /users shows a list of posts by followed users and posts sent to the authenticated user.
+* /users/register creates a new user.
+* /users/follows shows a list of followed users, ordered by activity.
+* /users/resolve looks up federated user *user@domain* or local user *user*.
+* /users/whisper creates a post visible to followers.
+* /users/say creates a public post.
+* /users/reply replies to a post.
+* /users/follow sends a follow request to a user.
+* /users/unfollow deletes a follow request.
+* /users/outbox is equivalent to /outbox but also includes a link to /users/follow or /users/unfollow.
+
+Some clients generate a certificate for / (all pages of this capsule) when /foo requests a client certificate, while others use the certificate requested by /foo only for /foo and /foo/bar. Therefore, pages that don't require authentication are also mirrored under /users:
+
+* /users/local
+* /users/federated
+* /users/active
+* /users/instances
+* /users/stats
+* /users/view
+
+This way, users who prefer not to provide a client certificate when browsing to /x can reply to public posts by using /users/x instead.
+
+To make the transition to authenticated pages more seamless, links in the user menu at the bottom of each page point to /users/x rather than /x, if the user is authenticated.
+
+## Authentication
+
+If no client certificate is provided, all pages under /users redirect the client to /users.
+
+/users asks the client to provide a certificate. Well-behaved clients should generate a certificate, re-request /users, then reuse this certificate in future requests of /users and pages under it.
+
+If a certificate is provided but does not belong to any user, the client is redirected to /users/register.
+
+By default, the username associated with a client certificate is the common name specified in the certificate. If invalid or already in use by another user, /users/register asks the user to provide a different username. Once the user is registered, the client is redirected back to /users.
+
+Once the client certificate is associated with a user, all pages under /users look up the authenticated user's data using the certificate hash. 
+
+## Implementation Details
+
+### The "Nobody" User
+
+Outgoing requests, like the [WebFinger](https://www.rfc-editor.org/rfc/rfc7033) requests used to discover federated users, are usually associated with a user. For example, the key pair associated with local user A is used to digitally sign the Follow request sent to federated user B.
+
+To protect user's privacy, requests not initiated by a particular user or requests not triggered during handling of user requests (like requests made during validation of incoming public posts) are associated with a special user named "nobody".
+
+### Resolvers
+
+A resolver is responsible for resolving a user ID (local or federated) into an Actor object that contains the user's information, like the user's display name. Actor objects for federated users are cached in the database and updated once in a while.
+
+This is an expensive but common operation that involves outgoing HTTPS requests. Therefore, to protect underpowered servers against heavy load and a big number of concurrent outgoing requests, the maximum number of resolvers is capped and resolvers are returned to a shared pool after use.
+
+### Delivery Queue
+
+Once saved to the database, new posts can be viewed by local users. However, delivery to federated followers can take time and generate many outgoing requests.
+
+Therefore, every time a new post is saved, it is accompanied by a "delivery". A delivery contains a delivery attempts counter, creation time and last attempt time. A single worker thread polls the deliveries table, prioritizes deliveries by the number of delivery attempts and the interval between attempts, then tries to deliver a post to federated followers of its author.
+
+## Credits and Legal Information
+
+tootik is free and unencumbered software released under the terms of the [Apache License Version 2.0](https://www.apache.org/licenses/LICENSE-2.0); see LICENSE for the license text.
+
+The ASCII art logo at the top was made using [FIGlet](http://www.figlet.org/).

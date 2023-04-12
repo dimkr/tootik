@@ -1,0 +1,223 @@
+/*
+Copyright 2023 Dima Krasner
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package gem
+
+import (
+	"context"
+	"crypto/sha256"
+	"crypto/tls"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/logger"
+	log "github.com/sirupsen/logrus"
+	"io"
+	"net"
+	"net/url"
+	"regexp"
+	"sync"
+	"time"
+)
+
+const reqTimeout = time.Second * 30
+
+var (
+	handlers         = map[*regexp.Regexp]func(io.Writer, *request){}
+	errNotRegistered = errors.New("User is not registered")
+)
+
+func getUser(ctx context.Context, db *sql.DB, conn net.Conn, tlsConn *tls.Conn) (*ap.Actor, error) {
+	state := tlsConn.ConnectionState()
+
+	if len(state.PeerCertificates) == 0 {
+		return nil, nil
+	}
+
+	clientCert := state.PeerCertificates[0]
+
+	certHash := fmt.Sprintf("%x", sha256.Sum256(clientCert.Raw))
+
+	id := ""
+	actorString := ""
+	if err := db.QueryRowContext(ctx, `select id, actor from persons where id like ? and actor->>'clientCertificate' = ?`, fmt.Sprintf("https://%s/user/%%", cfg.Domain), certHash).Scan(&id, &actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
+		return nil, errNotRegistered
+	} else if err != nil {
+		return nil, fmt.Errorf("Failed to fetch user for %s: %w", certHash, err)
+	}
+
+	log.WithFields(log.Fields{"hash": certHash, "user": id}).Debug("Found existing user")
+
+	actor := ap.Actor{}
+	if err := json.Unmarshal([]byte(actorString), &actor); err != nil {
+		return nil, fmt.Errorf("Failed to unmarshal %s: %w", id, err)
+	}
+
+	return &actor, nil
+}
+
+func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup) {
+	if err := conn.SetDeadline(time.Now().Add(reqTimeout)); err != nil {
+		log.WithError(err).Warn("Failed to set deadline")
+		return
+	}
+
+	tlsConn, ok := conn.(*tls.Conn)
+	if !ok {
+		log.Warn("Invalid connection")
+		return
+	}
+
+	if err := tlsConn.HandshakeContext(ctx); err != nil {
+		log.WithError(err).Warn("Handshake failed")
+		return
+	}
+
+	req := make([]byte, 2048)
+	total := 0
+	for {
+		n, err := conn.Read(req[total:])
+		if err != nil {
+			log.WithError(err).Warn("Failed to receive request")
+			return
+		}
+		if n <= 0 {
+			log.Warn("Failed to receive request")
+			return
+		}
+		total += n
+
+		if total == cap(req) {
+			log.Warn("Request is too big")
+			return
+		}
+
+		if total > 2 && req[total-2] == '\r' && req[total-1] == '\n' {
+			break
+		}
+	}
+
+	reqUrl, err := url.Parse(string(req[:total-2]))
+	if err != nil {
+		log.WithError(err).Warnf("Failed to parse request: %s", string(req[:total-2]))
+		return
+	}
+
+	user, err := getUser(ctx, db, conn, tlsConn)
+	if err != nil && errors.Is(err, errNotRegistered) && reqUrl.Path == "/users" {
+		log.Info("Redirecting new user")
+		conn.Write([]byte("30 /users/register\r\n"))
+		return
+	} else if err != nil && !errors.Is(err, errNotRegistered) {
+		log.WithError(err).Warn("Failed to get user")
+		conn.Write([]byte("40 Error\r\n"))
+		return
+	}
+
+	for re, handler := range handlers {
+		if re.MatchString(reqUrl.Path) {
+			logFields := log.Fields{"path": reqUrl.Path}
+			if user != nil {
+				logFields["user"] = user.ID
+			}
+
+			handler(conn, &request{
+				Context:   ctx,
+				URL:       reqUrl,
+				User:      user,
+				DB:        db,
+				WaitGroup: wg,
+				Log:       logger.New(logFields),
+			})
+			return
+		}
+	}
+
+	log.WithField("path", reqUrl.Path).Warnf("Received an invalid request")
+
+	if user == nil {
+		conn.Write([]byte("30 /oops\r\n"))
+	} else {
+		conn.Write([]byte("30 /users/oops\r\n"))
+	}
+}
+
+func ListenAndServe(ctx context.Context, db *sql.DB, addr, certPath, keyPath string) error {
+	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+	if err != nil {
+		return err
+	}
+
+	config := tls.Config{
+		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS12,
+		ClientAuth:   tls.RequestClientCert,
+	}
+	l, err := tls.Listen("tcp", addr, &config)
+	if err != nil {
+		return err
+	}
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		<-ctx.Done()
+		l.Close()
+		wg.Done()
+	}()
+
+	conns := make(chan net.Conn)
+
+	wg.Add(1)
+	go func() {
+		for ctx.Err() == nil {
+			conn, err := l.Accept()
+			if err != nil {
+				log.WithError(err).Warn("Failed to accept a connection")
+				continue
+			}
+
+			conns <- conn
+		}
+		wg.Done()
+	}()
+
+	for ctx.Err() == nil {
+		select {
+		case <-ctx.Done():
+		case conn := <-conns:
+			requestCtx, cancelRequest := context.WithTimeout(ctx, reqTimeout)
+
+			timer := time.AfterFunc(reqTimeout, cancelRequest)
+
+			wg.Add(1)
+			go func() {
+				handle(requestCtx, conn, db, &wg)
+				conn.Close()
+				timer.Stop()
+				cancelRequest()
+				wg.Done()
+			}()
+		}
+	}
+
+	wg.Wait()
+	return nil
+}
