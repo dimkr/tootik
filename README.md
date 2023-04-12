@@ -107,6 +107,12 @@ Once saved to the database, new posts can be viewed by local users. However, del
 
 Therefore, every time a new post is saved, it is accompanied by a "delivery". A delivery contains a delivery attempts counter, creation time and last attempt time. A single worker thread polls the deliveries table, prioritizes deliveries by the number of delivery attempts and the interval between attempts, then tries to deliver a post to federated followers of its author.
 
+### Incoming Requests
+
+The server verifies HTTP signatures of requests to /inbox/%s, using the sender's key. They key is cached to reduce the amount of outgoing requests.
+
+In addition, the server ignores incoming requests from users not followed by any local user. This means that federated user A cannot follow local user B (= send a Follow activity) until at least one local user (B or another user) follows A.
+
 ## Credits and Legal Information
 
 tootik is free and unencumbered software released under the terms of the [Apache License Version 2.0](https://www.apache.org/licenses/LICENSE-2.0); see LICENSE for the license text.
