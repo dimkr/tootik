@@ -22,7 +22,8 @@ import (
 	"flag"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/fed"
-	"github.com/dimkr/tootik/gem"
+	"github.com/dimkr/tootik/front/gemini"
+	"github.com/dimkr/tootik/front/gopher"
 	"github.com/dimkr/tootik/logger"
 	"github.com/dimkr/tootik/user"
 	_ "github.com/mattn/go-sqlite3"
@@ -34,13 +35,14 @@ import (
 )
 
 var (
-	dbPath  = flag.String("db", "db.sqlite3", "database path")
-	gemCert = flag.String("gemcert", "gemini-cert.pem", "Gemini TLS certificate")
-	gemKey  = flag.String("gemkey", "gemini-key.pem", "Gemini TLS key")
-	gemAddr = flag.String("gemaddr", ":8965", "Gemini listening address")
-	cert    = flag.String("cert", "cert.pem", "HTTPS TLS certificate")
-	key     = flag.String("key", "key.pem", "HTTPS TLS key")
-	addr    = flag.String("addr", ":8443", "HTTPS listening address")
+	dbPath     = flag.String("db", "db.sqlite3", "database path")
+	gemCert    = flag.String("gemcert", "gemini-cert.pem", "Gemini TLS certificate")
+	gemKey     = flag.String("gemkey", "gemini-key.pem", "Gemini TLS key")
+	gemAddr    = flag.String("gemaddr", ":8965", "Gemini listening address")
+	gopherAddr = flag.String("gopheraddr", ":8070", "Gopher listening address")
+	cert       = flag.String("cert", "cert.pem", "HTTPS TLS certificate")
+	key        = flag.String("key", "key.pem", "HTTPS TLS key")
+	addr       = flag.String("addr", ":8443", "HTTPS listening address")
 )
 
 func main() {
@@ -88,7 +90,7 @@ func main() {
 	wg.Add(1)
 	go func() {
 		if err := fed.ListenAndServe(ctx, db, *addr, *cert, *key); err != nil {
-			log.WithError(err).Error("Listener has failed")
+			log.WithError(err).Error("HTTPS listener has failed")
 		}
 		cancel()
 		wg.Done()
@@ -96,8 +98,17 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		if err := gem.ListenAndServe(ctx, db, *gemAddr, *gemCert, *gemKey); err != nil {
-			log.WithError(err).Error("Listener has failed")
+		if err := gemini.ListenAndServe(ctx, db, *gemAddr, *gemCert, *gemKey); err != nil {
+			log.WithError(err).Error("Gemini listener has failed")
+		}
+		cancel()
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		if err := gopher.ListenAndServe(ctx, db, *gopherAddr); err != nil {
+			log.WithError(err).Error("Gopher listener has failed")
 		}
 		cancel()
 		wg.Done()

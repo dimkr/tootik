@@ -20,14 +20,18 @@ It implements a small subset of ActivityPub, and probably doesn't really conform
 
 * cmd/ implements main().
 
-* fed/ implements federation: outgoing requests and handling of incoming posts.
-* gem/ containts the Gemini frontend.
+* fed/ implements federation (server to server communication): outgoing requests and handling of incoming posts.
+* front/ containts the frontend (client to server communication).
+* front/gemini/ exposes the frontend over Gemini.
+* front/gopher/ exposes the frontend over Gopher.
 
 * ap/ implements ActivityPub vocabulary.
 * data/ contains the database schema and useful data structures.
 * note/ handles insertion of posts.
 
-* gmi/ contains a HTML to gemtext converter.
+* text/plain/ converts HTML to plain text.
+* text/gmi/ contains a gemtext writer.
+* text/gmap/ contains a gophermap writer with line wrapping.
 * icon/ generates pseudo-random icons used as avatars.
 
 * cfg/ contains global configuration parameters.
