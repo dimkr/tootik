@@ -118,6 +118,7 @@ func ListenAndServe(ctx context.Context, db *sql.DB, addr string) error {
 			wg.Add(1)
 			go func() {
 				handle(requestCtx, conn, db, &wg)
+				conn.Write([]byte(".\r\n"))
 				conn.Close()
 				timer.Stop()
 				cancelRequest()
