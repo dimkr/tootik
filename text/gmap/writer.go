@@ -129,7 +129,7 @@ func (w *writer) Linkf(link, format string, a ...any) {
 }
 
 func (w *writer) Itemf(format string, a ...any) {
-	w.wrap('1', "* ", fmt.Sprintf(format, a...), "/", "0", "0")
+	w.wrap('i', "* ", fmt.Sprintf(format, a...), "/", "0", "0")
 }
 
 func (w *writer) Quote(quote string) {
