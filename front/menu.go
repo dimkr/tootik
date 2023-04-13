@@ -50,7 +50,7 @@ func writeUserMenu(w text.Writer, user *ap.Actor) {
 		w.Link("/users", "🔑 Sign in")
 	} else {
 		w.Link("/users/whisper", "🔔 New post")
-		w.Link("/users/say", "‍📣 New public post")
+		w.Link("/users/say", "📣 New public post")
 	}
 }
 
