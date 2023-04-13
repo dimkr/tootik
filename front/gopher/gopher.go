@@ -36,7 +36,7 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup) 
 		return
 	}
 
-	req := make([]byte, 2048)
+	req := make([]byte, 128)
 	total := 0
 	for {
 		n, err := conn.Read(req[total:])
