@@ -47,8 +47,12 @@ func getTextAndLinks(s string, maxLines int) (string, []string, []string) {
 	lines := strings.Split(text, "\n")
 
 	if maxLines > 0 && len(lines) > maxLines {
-		lines[maxLines] = "[...]"
-		return text, lines[:maxLines+1], links
+		for i := maxLines - 1; i >= 0; i-- {
+			if i == 0 || strings.TrimSpace(lines[i]) != "" {
+				lines[i+1] = "[...]"
+				return text, lines[:i+2], links
+			}
+		}
 	}
 
 	return text, lines, links
