@@ -133,8 +133,8 @@ func printNote(w text.Writer, r *request, note *ap.Object, author *ap.Actor, com
 		links.Store(link, struct{}{})
 	}
 
-	hashtags := map[string]struct{}{}
-	mentionedUsers := map[string]struct{}{}
+	hashtags := data.OrderedMap[string, struct{}]{}
+	mentionedUsers := data.OrderedMap[string, struct{}]{}
 
 	for _, tag := range note.Tag {
 		switch tag.Type {
@@ -143,13 +143,13 @@ func printNote(w text.Writer, r *request, note *ap.Object, author *ap.Actor, com
 				continue
 			}
 			if tag.Name[0] == '#' {
-				hashtags[tag.Name[1:]] = struct{}{}
+				hashtags.Store(tag.Name, struct{}{})
 			} else {
-				hashtags[tag.Name] = struct{}{}
+				hashtags.Store("#"+tag.Name, struct{}{})
 			}
 
 		case ap.MentionMention:
-			mentionedUsers[tag.Href] = struct{}{}
+			mentionedUsers.Store(tag.Href, struct{}{})
 
 		default:
 			r.Log.WithField("type", tag.Type).Warn("Skipping unsupported mention type")
@@ -217,6 +217,10 @@ func printNote(w text.Writer, r *request, note *ap.Object, author *ap.Actor, com
 	}
 
 	if !compact {
+		if len(hashtags) > 0 {
+			w.Textf("Tags: %s", strings.Join(hashtags.Keys(), ", "))
+		}
+
 		links.Range(func(link string, _ struct{}) bool {
 			w.Link(link, link)
 			return true
@@ -228,11 +232,7 @@ func printNote(w text.Writer, r *request, note *ap.Object, author *ap.Actor, com
 			w.Link(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(author.ID))), authorDisplayName)
 		}
 
-		for hashtag, _ := range hashtags {
-			w.Itemf("#️%s", hashtag)
-		}
-
-		for mentionID, _ := range mentionedUsers {
+		for _, mentionID := range mentionedUsers.Keys() {
 			mention, err := r.Resolve(mentionID)
 			if err != nil {
 				r.Log.WithField("mention", mentionID).WithError(err).Warn("Failed to resolve mentioned user")
