@@ -42,7 +42,7 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 	}
 
 	var throttle int
-	if err := r.QueryRow(`select exists (select 1 from notes where author = ? and inserted > ?)`, r.User.ID, time.Now().Add(-minPostInterval)).Scan(&throttle); err != nil {
+	if err := r.QueryRow(`select exists (select 1 from notes where author = ? and inserted > ?)`, r.User.ID, time.Now().Add(-minPostInterval).Unix()).Scan(&throttle); err != nil {
 		w.Error()
 		return
 	}
