@@ -32,7 +32,7 @@ func init() {
 func stats(w text.Writer, r *request) {
 	prefix := fmt.Sprintf("https://%s/%%", cfg.Domain)
 
-	var usersCount, postsCount, federatedPostsCount, lastPost, lastFederatedPost, lastRegister, lastFederatedUser int64
+	var usersCount, postsCount, postsToday, federatedPostsCount, federatedPostsToday, lastPost, lastFederatedPost, lastRegister, lastFederatedUser int64
 	var queueSize int
 
 	if err := r.QueryRow(`select count(*) from persons where id like ?`, prefix).Scan(&usersCount); err != nil {
@@ -47,8 +47,20 @@ func stats(w text.Writer, r *request) {
 		return
 	}
 
+	if err := r.QueryRow(`select count(*) from notes where id like ? and inserted >= unixepoch() - 24*60*60`, prefix).Scan(&postsToday); err != nil {
+		r.Log.WithError(err).Info("Failed to get daily posts count")
+		w.Error()
+		return
+	}
+
 	if err := r.QueryRow(`select count(*) from notes where id not like ?`, prefix).Scan(&federatedPostsCount); err != nil {
 		r.Log.WithError(err).Info("Failed to get federated posts count")
+		w.Error()
+		return
+	}
+
+	if err := r.QueryRow(`select count(*) from notes where id not like ? and inserted >= unixepoch() - 24*60*60`, prefix).Scan(&federatedPostsToday); err != nil {
+		r.Log.WithError(err).Info("Failed to get daily federated posts count")
 		w.Error()
 		return
 	}
@@ -87,8 +99,10 @@ func stats(w text.Writer, r *request) {
 
 	w.Title("📊 Statistics")
 
-	w.Itemf("Lastest local post: %s", time.Unix(lastPost, 0).Format(time.UnixDate))
-	w.Itemf("Lastest federated post: %s", time.Unix(lastFederatedPost, 0).Format(time.UnixDate))
+	w.Itemf("Latest local post: %s", time.Unix(lastPost, 0).Format(time.UnixDate))
+	w.Itemf("Latest federated post: %s", time.Unix(lastFederatedPost, 0).Format(time.UnixDate))
+	w.Itemf("Local posts today: %d", postsToday)
+	w.Itemf("Federated posts today: %d", federatedPostsToday)
 	w.Itemf("Local users: %d", usersCount)
 	w.Itemf("Local posts: %d", postsCount)
 	w.Itemf("Federated posts: %d", federatedPostsCount)
