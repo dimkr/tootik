@@ -31,8 +31,6 @@ import (
 	"time"
 )
 
-const minPostInterval = time.Minute * 5
-
 var mentionRegex = regexp.MustCompile(`\B@([a-zA-Z0-9]+)(@[a-z0-9.]+){0,1}`)
 
 func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap.Audience) {
@@ -41,16 +39,29 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 		return
 	}
 
-	var throttle int
-	if err := r.QueryRow(`select exists (select 1 from notes where author = ? and inserted > ?)`, r.User.ID, time.Now().Add(-minPostInterval).Unix()).Scan(&throttle); err != nil {
+	now := time.Now()
+
+	var today, last sql.NullInt64
+	if err := r.QueryRow(`select count(*), max(inserted) from notes where author = ? and inserted > ?`, r.User.ID, now.Add(-24*time.Hour).Unix()).Scan(&today, &last); err != nil {
+		r.Log.WithError(err).Warn("Failed to check if new post needs to be throttled")
 		w.Error()
 		return
 	}
 
-	if throttle == 1 {
-		r.Log.Warn("User is posting too frequently")
+	if today.Valid && today.Int64 >= 30 {
+		r.Log.WithField("posts", today.Int64).Warn("User has exceeded the daily posts quota")
 		w.Status(40, "Please wait before posting again")
 		return
+	}
+
+	if today.Valid && last.Valid {
+		t := time.Unix(last.Int64, 0)
+		interval := time.Duration(today.Int64/2) * time.Minute
+		if now.Sub(t) < interval {
+			r.Log.WithFields(log.Fields{"last": t, "can": t.Add(interval)}).Warn("User is posting too frequently")
+			w.Status(40, "Please wait before posting again")
+			return
+		}
 	}
 
 	if r.URL.RawQuery == "" {
@@ -68,7 +79,6 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 		return
 	}
 
-	now := time.Now()
 	postID := fmt.Sprintf("https://%s/post/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", r.User.ID, content, now.Unix()))))
 
 	tags := ap.Mentions{}
