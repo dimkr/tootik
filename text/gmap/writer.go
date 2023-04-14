@@ -26,7 +26,7 @@ import (
 	"unicode/utf8"
 )
 
-const lineWidth = 80
+const lineWidth = 70
 
 type writer struct {
 	text.Base
