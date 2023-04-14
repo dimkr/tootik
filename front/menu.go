@@ -18,7 +18,9 @@ package front
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/text"
 )
 
@@ -47,7 +49,7 @@ func writeUserMenu(w text.Writer, user *ap.Actor) {
 	w.Link(prefix+"/stats", "📊 Statistics")
 
 	if user == nil {
-		w.Link("/users", "🔑 Sign in")
+		w.Link(fmt.Sprintf("gemini://%s/users", cfg.Domain), "🔑 Sign in")
 	} else {
 		w.Link("/users/whisper", "🔔 New post")
 		w.Link("/users/say", "📣 New public post")
