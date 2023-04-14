@@ -75,15 +75,21 @@ func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var followed int
-	if err := h.DB.QueryRowContext(r.Context(), `select exists (select 1 from follows where followed = ?)`, sender.ID).Scan(&followed); err != nil {
+	var known int
+	if err := h.DB.QueryRowContext(r.Context(), `select exists (select 1 from follows where followed = ?)`, sender.ID).Scan(&known); err != nil {
 		h.Log.WithField("sender", sender.ID).WithError(err).Warn("Failed to check if sender is followed")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
-	} else if followed == 0 {
-		h.Log.WithField("sender", sender.ID).Warn("Sender is not followed")
-		w.WriteHeader(http.StatusOK)
-		return
+	} else if known == 0 {
+		if err := h.DB.QueryRowContext(r.Context(), `select exists (select 1 from notes where author like $1 and ($2 in (to0, to1, to2, cc0, cc1, cc2) or (to2 is not null and exists (select 1 from json_each(object->'to') where value = $2)) or (cc2 is not null and exists (select 1 from json_each(object->'cc') where value = $2))))`, fmt.Sprintf("https://%s/%%", cfg.Domain), sender.ID).Scan(&known); err != nil {
+			h.Log.WithField("sender", sender.ID).WithError(err).Warn("Failed to check if sender has received any post")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		} else if known == 0 {
+			h.Log.WithField("sender", sender.ID).Warn("Sender is unknown")
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 	}
 
 	var req ap.Activity
@@ -291,7 +297,7 @@ func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 
 		resolver, err := Resolvers.Borrow(r.Context())
 		if err != nil {
-			h.Log.WithFields(log.Fields{"follower": req.Actor, "followed": followed}).WithError(err).Info("Failed to get resolver to resolve author")
+			h.Log.WithFields(log.Fields{"create": req.ID, "author": post.AttributedTo}).WithError(err).Info("Failed to get resolver to resolve author")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
