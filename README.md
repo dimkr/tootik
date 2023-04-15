@@ -42,11 +42,12 @@ It implements a small subset of ActivityPub, and probably doesn't really conform
 * /local shows a compact list of local posts; each entry contains a link to /view.
 * / is the homepage: it shows an ASCII art logo, a short description of this server and a list of local posts.
 * /federated shows a compact list of federated posts.
+* /hashtag shows a compact list of posts with a given hashtag.
 * /active shows a list of active users (local or federated).
 * /instances shows a list of other servers in the network.
 * /stats shows statistics and server health metrics.
 
-* /view shows a complete post with extra details like links in the post, a list mentioned users, a link to the author's outbox, a list of replies and a link to the parent post (if any).
+* /view shows a complete post with extra details like links in the post, a list mentioned users, a list of hashtags, a link to the author's outbox, a list of replies and a link to the parent post (if any).
 * /outbox shows list of posts by a user.
 
 Users are authenticated using TLS client certificates; see [Gemini protocol specification](https://gemini.circumlunar.space/docs/specification.html) for more details. The following pages require authentication:
@@ -66,6 +67,7 @@ Some clients generate a certificate for / (all pages of this capsule) when /foo 
 
 * /users/local
 * /users/federated
+* /users/hashtag
 * /users/active
 * /users/instances
 * /users/stats

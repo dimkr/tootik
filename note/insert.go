@@ -22,11 +22,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/dimkr/tootik/ap"
+	log "github.com/sirupsen/logrus"
 )
 
-func Insert(ctx context.Context, db *sql.DB, note *ap.Object) error {
+func Insert(ctx context.Context, db *sql.DB, note *ap.Object, logger *log.Logger) error {
 	body, err := json.Marshal(note)
 	if err != nil {
 		return fmt.Errorf("Failed to marshal note %s: %w", note.ID, err)
@@ -64,6 +66,24 @@ func Insert(ctx context.Context, db *sql.DB, note *ap.Object) error {
 		cc2.String = cc[2]
 	}
 
+	hashtags := map[string]struct{}{}
+
+	for _, tag := range note.Tag {
+		if tag.Type != ap.HashtagMention {
+			continue
+		}
+
+		if tag.Name == "" {
+			continue
+		}
+
+		if tag.Name[0] == '#' {
+			hashtags[strings.ToLower(tag.Name[1:])] = struct{}{}
+		} else {
+			hashtags[strings.ToLower(tag.Name)] = struct{}{}
+		}
+	}
+
 	if _, err = db.ExecContext(
 		ctx,
 		`INSERT INTO notes (id, hash, author, object, to0, to1, to2, cc0, cc1, cc2) VALUES(?,?,?,?,?,?,?,?,?,?)`,
@@ -79,6 +99,12 @@ func Insert(ctx context.Context, db *sql.DB, note *ap.Object) error {
 		cc2,
 	); err != nil {
 		return fmt.Errorf("Failed to insert note %s: %w", note.ID, err)
+	}
+
+	for hashtag, _ := range hashtags {
+		if _, err = db.ExecContext(ctx, `insert into hashtags (note, hashtag) values(?,?)`, note.ID, hashtag); err != nil {
+			log.WithFields(log.Fields{"note": note.ID, "hashtag": hashtag}).WithError(err).Warn("Failed to tag post")
+		}
 	}
 
 	return nil

@@ -133,7 +133,7 @@ func printNote(w text.Writer, r *request, note *ap.Object, author *ap.Actor, com
 		links.Store(link, struct{}{})
 	}
 
-	hashtags := data.OrderedMap[string, struct{}]{}
+	hashtags := data.OrderedMap[string, string]{}
 	mentionedUsers := data.OrderedMap[string, struct{}]{}
 
 	for _, tag := range note.Tag {
@@ -143,9 +143,9 @@ func printNote(w text.Writer, r *request, note *ap.Object, author *ap.Actor, com
 				continue
 			}
 			if tag.Name[0] == '#' {
-				hashtags.Store(tag.Name, struct{}{})
+				hashtags.Store(strings.ToLower(tag.Name[1:]), tag.Name[1:])
 			} else {
-				hashtags.Store("#"+tag.Name, struct{}{})
+				hashtags.Store(strings.ToLower(tag.Name), tag.Name)
 			}
 
 		case ap.MentionMention:
@@ -217,10 +217,6 @@ func printNote(w text.Writer, r *request, note *ap.Object, author *ap.Actor, com
 	}
 
 	if !compact {
-		if len(hashtags) > 0 {
-			w.Textf("Tags: %s", strings.Join(hashtags.Keys(), ", "))
-		}
-
 		links.Range(func(link string, _ struct{}) bool {
 			w.Link(link, link)
 			return true
@@ -247,6 +243,22 @@ func printNote(w text.Writer, r *request, note *ap.Object, author *ap.Actor, com
 				w.Link(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(mentionID))), mentionDisplayName)
 			}
 		}
+
+		hashtags.Range(func(_ string, tag string) bool {
+			var exists int
+			if err := r.QueryRow(`select exists (select 1 from hashtags where hashtag = ? and note != ?)`, tag, note.ID).Scan(&exists); err != nil {
+				r.Log.WithFields(log.Fields{"note": note.ID, "hashtag": tag}).Warn("Failed to check if hashtag is used by other posts")
+				return true
+			}
+
+			if exists == 1 && r.User == nil {
+				w.Linkf("/hashtag/"+tag, "Posts tagged #%s", tag)
+			} else if exists == 1 {
+				w.Linkf("/users/hashtag/"+tag, "Posts tagged #%s", tag)
+			}
+
+			return true
+		})
 	}
 
 	if r.User != nil {

@@ -35,6 +35,10 @@ func CollectGarbage(ctx context.Context, db *sql.DB) error {
 		return fmt.Errorf("Failed to remove old posts: %w", err)
 	}
 
+	if _, err := db.ExecContext(ctx, `delete from hashtags where note in (select distinct hashtags.note from hashtags left join notes on notes.id = hashtags.note where notes.id is null)`); err != nil {
+		return fmt.Errorf("Failed to remove old hashtags: %w", err)
+	}
+
 	if _, err := db.ExecContext(ctx, `delete from deliveries where inserted < ?`, now.Add(-deliveryTTL).Unix()); err != nil {
 		return fmt.Errorf("Failed to remove old posts: %w", err)
 	}

@@ -314,7 +314,7 @@ func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		if duplicate == 1 {
 			h.Log.WithField("create", req.ID).Info("Note is a duplicate")
 		} else {
-			if err := note.Insert(r.Context(), h.DB, post); err != nil {
+			if err := note.Insert(r.Context(), h.DB, post, h.Log); err != nil {
 				h.Log.WithField("create", req.ID).WithError(err).Info("Failed to insert Note")
 				w.WriteHeader(http.StatusInternalServerError)
 				return

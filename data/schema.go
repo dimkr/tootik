@@ -41,6 +41,10 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 
+	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS hashtags(note id STRING NOT NULL, hashtag STRING NOT NULL)`); err != nil {
+		return err
+	}
+
 	if _, err := db.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS personsidhash ON persons(id, hash)`); err != nil {
 		return err
 	}
@@ -54,6 +58,10 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 	}
 
 	if _, err := db.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS notesidhash ON notes(id, hash)`); err != nil {
+		return err
+	}
+
+	if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS hashtagshashtag ON hashtags(hashtag)`); err != nil {
 		return err
 	}
 

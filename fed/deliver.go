@@ -205,7 +205,7 @@ func deliver(ctx context.Context, db *sql.DB, logger *log.Logger, post *ap.Objec
 }
 
 func Deliver(ctx context.Context, db *sql.DB, logger *log.Logger, post *ap.Object, author *ap.Actor) error {
-	if err := note.Insert(ctx, db, post); err != nil {
+	if err := note.Insert(ctx, db, post, logger); err != nil {
 		return fmt.Errorf("Failed to insert post: %w", err)
 	}
 
