@@ -20,8 +20,10 @@ import (
 	"context"
 	"database/sql"
 	"flag"
+
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/fed"
+	"github.com/dimkr/tootik/front/finger"
 	"github.com/dimkr/tootik/front/gemini"
 	"github.com/dimkr/tootik/front/gopher"
 	"github.com/dimkr/tootik/logger"
@@ -40,6 +42,7 @@ var (
 	gemKey     = flag.String("gemkey", "gemini-key.pem", "Gemini TLS key")
 	gemAddr    = flag.String("gemaddr", ":8965", "Gemini listening address")
 	gopherAddr = flag.String("gopheraddr", ":8070", "Gopher listening address")
+	fingerAddr = flag.String("fingeraddr", ":8079", "Finger listening address")
 	cert       = flag.String("cert", "cert.pem", "HTTPS TLS certificate")
 	key        = flag.String("key", "key.pem", "HTTPS TLS key")
 	addr       = flag.String("addr", ":8443", "HTTPS listening address")
@@ -109,6 +112,15 @@ func main() {
 	go func() {
 		if err := gopher.ListenAndServe(ctx, db, *gopherAddr); err != nil {
 			log.WithError(err).Error("Gopher listener has failed")
+		}
+		cancel()
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		if err := finger.ListenAndServe(ctx, db, *fingerAddr); err != nil {
+			log.WithError(err).Error("Finger listener has failed")
 		}
 		cancel()
 		wg.Done()

@@ -24,6 +24,7 @@ It implements a small subset of ActivityPub, and probably doesn't really conform
 * front/ containts the frontend (client to server communication).
 * front/gemini/ exposes the frontend over Gemini.
 * front/gopher/ exposes the frontend over Gopher.
+* front/finger/ exposes some content over Finger.
 
 * ap/ implements ActivityPub vocabulary.
 * data/ contains the database schema and useful data structures.
