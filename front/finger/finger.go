@@ -19,12 +19,15 @@ package finger
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/logger"
@@ -72,18 +75,32 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup) 
 		return
 	}
 
+	sep := strings.IndexByte(user, '@')
+	if sep > 0 && user[sep+1:] != cfg.Domain {
+		log.Warn("Invalid domain specified")
+		return
+	} else if sep > 0 {
+		user = user[:sep]
+	}
+
 	id := fmt.Sprintf("https://%s/user/%s", cfg.Domain, user)
 
-	var exists int
-	if err := db.QueryRowContext(ctx, `select exists (select 1 from persons where id = ?)`, id).Scan(&exists); err != nil {
+	var actorString string
+	if err := db.QueryRowContext(ctx, `select actor from persons where id = ?`, id).Scan(&actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
+		log.Info("User does not exist")
+		fmt.Fprintf(conn, "Login: %s\r\nPlan:\r\nNo Plan.\r\n", user)
+		return
+	} else if err != nil {
 		log.WithError(err).Warn("Failed to check if user exists")
 		return
 	}
-	if exists == 0 {
-		log.Info("User does not exist")
-		fmt.Fprintf(conn, "Login: %s\nPlan:\nNo Plan.\n", user)
+
+	var actor ap.Actor
+	if err := json.Unmarshal([]byte(actorString), &actor); err != nil {
+		log.WithError(err).Warn("Failed to unmarshal actor")
 		return
 	}
+	summary, links := plain.FromHTML(actor.Summary)
 
 	posts := data.OrderedMap[string, int64]{}
 
@@ -105,30 +122,54 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup) 
 		rows.Close()
 	}
 
-	if len(posts) == 0 {
-		fmt.Fprintf(conn, "Login: %s\nPlan:\nNo Plan.\n", user)
-		return
+	fmt.Fprintf(conn, "Login: %s\r\nPlan:\r\n", user)
+
+	for _, line := range strings.Split(summary, "\n") {
+		conn.Write([]byte(line))
+		conn.Write([]byte{'\r', '\n'})
 	}
 
-	fmt.Fprintf(conn, "Login: %s\nPlan:\n", user)
+	for _, link := range links {
+		if !strings.Contains(summary, link) {
+			conn.Write([]byte(link))
+			conn.Write([]byte{'\r', '\n'})
+		}
+	}
+
+	if summary != "" || len(links) > 0 {
+		conn.Write([]byte{'\r', '\n'})
+	}
 
 	i := 0
 	last := len(posts) - 1
 	posts.Range(func(content string, inserted int64) bool {
-		text, _ := plain.FromHTML(content)
+		text, links := plain.FromHTML(content)
 
 		conn.Write([]byte(time.Unix(inserted, 0).Format(time.DateOnly)))
-		conn.Write([]byte{'\n'})
-		conn.Write([]byte(text))
-		conn.Write([]byte{'\n'})
+		conn.Write([]byte{'\r', '\n'})
+		for _, line := range strings.Split(text, "\n") {
+			conn.Write([]byte(line))
+			conn.Write([]byte{'\r', '\n'})
+		}
+
+		for _, link := range links {
+			if !strings.Contains(text, link) {
+				conn.Write([]byte(link))
+				conn.Write([]byte{'\r', '\n'})
+			}
+		}
 
 		if i < last {
-			conn.Write([]byte{'\n'})
+			conn.Write([]byte{'\r', '\n'})
 		}
 
 		i++
 		return true
 	})
+
+	if len(posts) == 0 && summary == "" && len(links) == 0 {
+		conn.Write([]byte("No Plan.\r\n"))
+	}
 }
 
 func ListenAndServe(ctx context.Context, db *sql.DB, addr string) error {
