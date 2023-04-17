@@ -66,7 +66,7 @@ func Insert(ctx context.Context, db *sql.DB, note *ap.Object, logger *log.Logger
 		cc2.String = cc[2]
 	}
 
-	hashtags := map[string]struct{}{}
+	hashtags := map[string]string{}
 
 	for _, tag := range note.Tag {
 		if tag.Type != ap.HashtagMention {
@@ -78,9 +78,9 @@ func Insert(ctx context.Context, db *sql.DB, note *ap.Object, logger *log.Logger
 		}
 
 		if tag.Name[0] == '#' {
-			hashtags[strings.ToLower(tag.Name[1:])] = struct{}{}
+			hashtags[strings.ToLower(tag.Name[1:])] = tag.Name[1:]
 		} else {
-			hashtags[strings.ToLower(tag.Name)] = struct{}{}
+			hashtags[strings.ToLower(tag.Name)] = tag.Name
 		}
 	}
 
@@ -101,7 +101,7 @@ func Insert(ctx context.Context, db *sql.DB, note *ap.Object, logger *log.Logger
 		return fmt.Errorf("Failed to insert note %s: %w", note.ID, err)
 	}
 
-	for hashtag, _ := range hashtags {
+	for _, hashtag := range hashtags {
 		if _, err = db.ExecContext(ctx, `insert into hashtags (note, hashtag) values(?,?)`, note.ID, hashtag); err != nil {
 			log.WithFields(log.Fields{"note": note.ID, "hashtag": hashtag}).WithError(err).Warn("Failed to tag post")
 		}

@@ -27,8 +27,8 @@ import (
 )
 
 func init() {
-	handlers[regexp.MustCompile(`^/hashtag/[a-z0-9]+$`)] = withCache(withUserMenu(hashtag), time.Minute*5)
-	handlers[regexp.MustCompile(`^/users/hashtag/[a-z0-9]+$`)] = withCache(withUserMenu(hashtag), time.Minute*5)
+	handlers[regexp.MustCompile(`^/hashtag/[a-zA-Z0-9]+$`)] = withCache(withUserMenu(hashtag), time.Minute*5)
+	handlers[regexp.MustCompile(`^/users/hashtag/[a-zA-Z0-9]+$`)] = withCache(withUserMenu(hashtag), time.Minute*5)
 }
 
 func hashtag(w text.Writer, r *request) {
