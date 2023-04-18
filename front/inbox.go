@@ -95,6 +95,10 @@ func inbox(w text.Writer, r *request) {
 		group by notes.id
 		order by
 			notes.inserted / 86400 desc,
+			(case
+				when $1 in (notes.to0, notes.to1, notes.to2, notes.cc0, notes.cc1, notes.cc2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $1)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $1)) then 0
+				else 1
+			end),
 			replies.count desc,
 			follows.avg asc,
 			follows.last asc,
