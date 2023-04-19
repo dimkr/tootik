@@ -8,13 +8,13 @@
 
 ## Overview
 
-tootik is a federated nanoblogging service with a Gemini frontend.
+tootik is a federated nanoblogging service for the small internet.
+
+tootik allows people to participate in the fediverse using their Gemini, Gopher or Finger client of choice and makes the fediverse lighter, more private and more accessible. tootik's interface strips content to bare essentials (like text and links), puts the users in control of the content they see and tries to "slow down" the fediverse to make it more compatible with the slower pace of the small internet.
 
 It's a single executable that handles both the federation (using ActivityPub) and the frontend (using Gemini) aspects, while [sqlite](https://sqlite.org/) takes care of persistency. It should be lightweight and efficient enough to host a small community even on a cheap server, and hopefully, be easy to hack on.
 
-tootik allows Gemini users to participate in the fediverse using their Gemini client of choice and makes the fediverse more accessible.
-
-It implements a small subset of ActivityPub, and probably doesn't really conform to the spec.
+tootik implements only a small subset of ActivityPub, and probably doesn't really conform to the spec.
 
 ## Directory Structure
 
@@ -53,7 +53,8 @@ It implements a small subset of ActivityPub, and probably doesn't really conform
 
 Users are authenticated using TLS client certificates; see [Gemini protocol specification](https://gemini.circumlunar.space/docs/specification.html) for more details. The following pages require authentication:
 
-* /users shows a list of posts by followed users and posts sent to the authenticated user.
+* /users shows the number of incoming posts by date.
+* /users/inbox shows a list of posts by followed users and posts sent to the authenticated user.
 * /users/register creates a new user.
 * /users/follows shows a list of followed users, ordered by activity.
 * /users/resolve looks up federated user *user@domain* or local user *user*.
@@ -77,6 +78,8 @@ Some clients generate a certificate for / (all pages of this capsule) when /foo 
 This way, users who prefer not to provide a client certificate when browsing to /x can reply to public posts by using /users/x instead.
 
 To make the transition to authenticated pages more seamless, links in the user menu at the bottom of each page point to /users/x rather than /x, if the user is authenticated.
+
+All pages follow the [subscription convention](https://gemini.circumlunar.space/docs/companion/subscription.gmi), so users can "subscribe" to a user, a hashtag, posts by followed users or other activity. This way, tootik can act as a personal, curated and prioritized fediverse aggregator. In addition, /users/inbox always shows posts received within a given day, to interrupt the endless stream of incoming content, make the content consumption more intentional and prevent doomscrolling.
 
 ## Authentication
 

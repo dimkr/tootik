@@ -72,7 +72,11 @@ func hashtag(w text.Writer, r *request) {
 		w.Titlef("Posts Tagged #%s", tag)
 	}
 
-	printNotes(w, r, notes, true, true)
+	if count == 0 {
+		w.Text("No posts.")
+	} else {
+		printNotes(w, r, notes, true, true)
+	}
 
 	if offset >= postsPerPage || count == postsPerPage {
 		w.Separator()

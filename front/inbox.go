@@ -19,19 +19,37 @@ package front
 import (
 	"database/sql"
 	"fmt"
-	"github.com/dimkr/tootik/data"
-	"github.com/dimkr/tootik/text"
+	"path/filepath"
 	"regexp"
 	"time"
+
+	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/text"
 )
 
 func init() {
-	handlers[regexp.MustCompile("^/users$")] = withUserMenu(inbox)
+	handlers[regexp.MustCompile("^/users/inbox/[0-9]{4}-[0-9]{2}-[0-9]{2}$")] = withUserMenu(inbox)
 }
 
 func inbox(w text.Writer, r *request) {
 	if r.User == nil {
 		w.Status(61, "Peer certificate is required")
+		return
+	}
+
+	dayString := filepath.Base(r.URL.Path)
+
+	day, err := time.Parse(time.DateOnly, dayString)
+	if err != nil {
+		r.Log.WithError(err).Info("Failed to parse date")
+		w.Status(40, "Invalid date")
+		return
+	}
+
+	now := time.Now()
+	if day.After(now) {
+		r.Log.WithError(err).Info("Date is in the future")
+		w.Redirect("/users/oops")
 		return
 	}
 
@@ -44,7 +62,6 @@ func inbox(w text.Writer, r *request) {
 
 	r.Log.WithField("offset", offset).Info("Viewing inbox")
 
-	now := time.Now()
 	since := now.Add(-time.Hour * 24 * 2)
 
 	rows, err := r.Query(`
@@ -92,6 +109,9 @@ func inbox(w text.Writer, r *request) {
 		left join persons
 		on
 			persons.id = notes.author
+		where
+			notes.inserted >= $4 and
+			notes.inserted < $4 + 60*60*24
 		group by notes.id
 		order by
 			notes.inserted / 86400 desc,
@@ -105,8 +125,8 @@ func inbox(w text.Writer, r *request) {
 			notes.inserted / 3600 desc,
 			follows.type = 'Person' desc,
 			notes.inserted desc
-		limit $4
-		offset $5`, r.User.ID, now.Sub(since)/time.Hour, since.Unix(), postsPerPage, offset)
+		limit $5
+		offset $6`, r.User.ID, now.Sub(since)/time.Hour, since.Unix(), day.Unix(), postsPerPage, offset)
 	if err != nil {
 		r.Log.WithError(err).Warn("Failed to fetch posts")
 		w.Error()
@@ -133,21 +153,29 @@ func inbox(w text.Writer, r *request) {
 	w.OK()
 
 	if offset >= postsPerPage || count == postsPerPage {
-		w.Titlef("📻 My Radio (%d-%d)", offset, offset+postsPerPage)
+		w.Titlef("📻 Posts From %s (%d-%d)", dayString, offset, offset+postsPerPage)
 	} else {
-		w.Title("📻 My Radio")
+		w.Titlef("📻 Posts From %s", dayString)
 	}
 
-	printNotes(w, r, notes, true, true)
+	if count == 0 {
+		w.Text("No posts.")
+	} else {
+		printNotes(w, r, notes, true, true)
+	}
 
 	if offset >= postsPerPage || count == postsPerPage {
 		w.Separator()
 	}
 
 	if offset >= postsPerPage {
-		w.Linkf(fmt.Sprintf("/users?%d", offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
+		w.Linkf(fmt.Sprintf("/users/inbox/%s?%d", dayString, offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
 	}
 	if count == postsPerPage {
-		w.Linkf(fmt.Sprintf("/users?%d", offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
+		w.Linkf(fmt.Sprintf("/users/inbox/%s?%d", dayString, offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
+	}
+
+	if offset >= postsPerPage || count == postsPerPage {
+		w.Empty()
 	}
 }
