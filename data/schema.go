@@ -49,6 +49,10 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 
+	if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS personstype ON persons(actor->>'type')`); err != nil {
+		return err
+	}
+
 	if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS notesauthor ON notes(author)`); err != nil {
 		return err
 	}
