@@ -60,8 +60,8 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 	rows, err := r.Query(`
 		select notes.object, persons.actor from
 		notes
-		join (
-			select follows.followed, persons.actor->>'followers' as followers, stats.avg, stats.last, persons.actor->>'type' as type from
+		left join (
+			select follows.followed, persons.actor->>'followers' as followers, stats.avg, stats.last from
 			(
 				select followed from follows where follower = $1
 			) follows
@@ -77,10 +77,9 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 				stats.author = persons.id
 		) follows
 		on
-			$1 in (notes.to0, notes.to1, notes.to2, notes.cc0, notes.cc1, notes.cc2) or
 			follows.followers in (notes.to0, notes.to1, notes.to2, notes.cc0, notes.cc1, notes.cc2) or
-			(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value in ($1, follows.followers))) or
-			(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value in ($1, follows.followers))) or
+			(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.followers)) or
+			(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.followers)) or
 			(
 				notes.public = 1 and
 				(
@@ -98,9 +97,15 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 		on
 			persons.id = notes.author
 		where
-			notes.author != $1 and
 			notes.inserted >= $4 and
-			notes.inserted < $4 + 60*60*24
+			notes.inserted < $4 + 60*60*24 and
+			notes.author != $1 and
+			(
+				follows.followed is not null or
+				$1 in (notes.to0, notes.to1, notes.to2, notes.cc0, notes.cc1, notes.cc2) or
+				(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $1)) or
+				(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $1))
+			)
 		group by notes.id
 		order by
 			notes.inserted / 86400 desc,
@@ -112,7 +117,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 			follows.avg asc,
 			follows.last asc,
 			notes.inserted / 3600 desc,
-			follows.type = 'Person' desc,
+			persons.actor->>'type' = 'Person' desc,
 			notes.inserted desc
 		limit $5
 		offset $6`, r.User.ID, now.Sub(since)/time.Hour, since.Unix(), day.Unix(), postsPerPage, offset)
