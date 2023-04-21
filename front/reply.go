@@ -17,7 +17,9 @@ limitations under the License.
 package front
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/text"
 	"path/filepath"
@@ -32,7 +34,11 @@ func reply(w text.Writer, r *request) {
 	hash := filepath.Base(r.URL.Path)
 
 	var noteString string
-	if err := r.QueryRow(`select object from notes where hash = ?`, hash).Scan(&noteString); err != nil {
+	if err := r.QueryRow(`select object from notes where hash = ?`, hash).Scan(&noteString); err != nil && errors.Is(err, sql.ErrNoRows) {
+		r.Log.WithField("hash", hash).Warn("Post does not exist")
+		w.Status(40, "Post does not exist")
+		return
+	} else if err != nil {
 		r.Log.WithField("hash", hash).WithError(err).Warn("Failed to find post by hash")
 		w.Error()
 		return
@@ -50,16 +56,21 @@ func reply(w text.Writer, r *request) {
 	to := ap.Audience{}
 	cc := ap.Audience{}
 
-	if note.AttributedTo == r.User.ID && note.IsPublic() {
-		to.Add(ap.Public)
-	} else if note.AttributedTo == r.User.ID && !note.IsPublic() {
-		to.Add(r.User.Followers)
-	} else if note.AttributedTo != r.User.ID && note.IsPublic() {
+	if note.AttributedTo == r.User.ID {
+		to = note.To
+		cc = note.CC
+	} else if (len(note.To.OrderedMap) == 0 || len(note.To.OrderedMap) == 1 && note.To.Contains(r.User.ID)) && (len(note.CC.OrderedMap) == 0 || len(note.CC.OrderedMap) == 1 && note.CC.Contains(r.User.ID)) {
+		to.Add(note.AttributedTo)
+	} else if note.IsPublic() {
 		to.Add(note.AttributedTo)
 		cc.Add(ap.Public)
-	} else {
+	} else if !note.IsPublic() {
 		to.Add(note.AttributedTo)
 		cc.Add(r.User.Followers)
+	} else {
+		r.Log.WithField("post", note.ID).Error("Post audience is invalid")
+		w.Error()
+		return
 	}
 
 	post(w, r, &note, to, cc)

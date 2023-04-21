@@ -206,6 +206,10 @@ func printNote(w text.Writer, r *request, note *ap.Object, author *ap.Actor, com
 		}
 	}
 
+	if r.User != nil && ((len(note.To.OrderedMap) == 0 || len(note.To.OrderedMap) == 1 && note.To.Contains(r.User.ID)) && (len(note.CC.OrderedMap) == 0 || len(note.CC.OrderedMap) == 1 && note.CC.Contains(r.User.ID))) {
+		title += " ┃ DM"
+	}
+
 	if r.User == nil {
 		w.Link(fmt.Sprintf("/view/%x", sha256.Sum256([]byte(note.ID))), title)
 	} else {

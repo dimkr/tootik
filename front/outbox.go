@@ -179,5 +179,7 @@ func outbox(w text.Writer, r *request) {
 			w.Separator()
 			w.Linkf(fmt.Sprintf("/users/unfollow/%x", sha256.Sum256([]byte(actorID))), "🔌 Unfollow %s", displayName)
 		}
+
+		w.Linkf(fmt.Sprintf("/users/dm/%x", sha256.Sum256([]byte(actorID))), "📟 Message %s", displayName)
 	}
 }

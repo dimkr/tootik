@@ -58,6 +58,7 @@ Users are authenticated using TLS client certificates; see [Gemini protocol spec
 * /users/register creates a new user.
 * /users/follows shows a list of followed users, ordered by activity.
 * /users/resolve looks up federated user *user@domain* or local user *user*.
+* /users/dm creates a post visible to a given user.
 * /users/whisper creates a post visible to followers.
 * /users/say creates a public post.
 * /users/reply replies to a post.
@@ -92,6 +93,30 @@ If a certificate is provided but does not belong to any user, the client is redi
 By default, the username associated with a client certificate is the common name specified in the certificate. If invalid or already in use by another user, /users/register asks the user to provide a different username. Once the user is registered, the client is redirected back to /users.
 
 Once the client certificate is associated with a user, all pages under /users look up the authenticated user's data using the certificate hash. 
+
+## Posts
+
+tootik has three kinds of posts:
+* Messages: posts visible to their author and a single recipient
+* Posts: posts visible to followers of a user
+* Public posts: posts visible to anyone
+
+### Post Visibility
+
+
+|             | To                 | CC |
+|-------------|--------------------|----|
+| Message     | Receiving user     | -  |
+| Post        | Author's followers | -  |
+| Public post | Public             | -  |
+
+### Reply Visibility
+
+|             | To          | CC                        |
+|-------------|-------------|---------------------------|
+| Message     | Post author | -                         |
+| Post        | Post author | Followers of reply author |
+| Public post | Post author | Public                    |
 
 ## Implementation Details
 
