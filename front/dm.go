@@ -38,7 +38,7 @@ func dm(w text.Writer, r *request) {
 		r.Log.WithField("hash", hash).Warn("User does not exist")
 		w.Status(40, "User does not exist")
 		return
-	} else {
+	} else if err != nil {
 		r.Log.WithField("hash", hash).WithError(err).Warn("Failed to find user by hash")
 		w.Error()
 		return
