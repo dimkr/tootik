@@ -43,7 +43,7 @@ func follows(w text.Writer, r *request) {
 		return
 	}
 
-	rows, err := r.Query(`select persons.actor, stats.last, stats.count from (select followed, inserted from follows where follower = ?) follows join (select id, actor from persons) persons on persons.id = follows.followed left join (select author, max(inserted) as last, count(*) as count from notes where inserted >= unixepoch() - 7*24*60*60 group by author) stats on stats.author = follows.followed order by stats.last desc, follows.inserted desc`, r.User.ID)
+	rows, err := r.Query(`with followed as (select followed as id, inserted from follows where follower = ?) select persons.actor, stats.last, stats.count from followed join (select id, actor from persons) persons on persons.id = followed.id left join (select author, max(inserted) as last, count(*) as count from notes where inserted >= unixepoch() - 7*24*60*60 and exists (select 1 from followed where notes.author = followed.id) group by author) stats on stats.author = followed.id order by stats.last desc, followed.inserted desc`, r.User.ID)
 	if err != nil {
 		r.Log.WithField("follower", r.User.ID).WithError(err).Warn("Failed to list followed users")
 		w.Error()
