@@ -259,9 +259,9 @@ func printNote(w text.Writer, r *request, note *ap.Object, author *ap.Actor, com
 
 			return true
 		})
-	}
 
-	if r.User != nil {
-		w.Link(fmt.Sprintf("/users/reply/%x", sha256.Sum256([]byte(note.ID))), "💬 Reply")
+		if r.User != nil {
+			w.Link(fmt.Sprintf("/users/reply/%x", sha256.Sum256([]byte(note.ID))), "💬 Reply")
+		}
 	}
 }
