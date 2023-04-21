@@ -142,15 +142,14 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 	}
 	rows.Close()
 
-	dayString := day.Format(time.DateOnly)
 	count := len(notes)
 
 	w.OK()
 
 	if offset >= postsPerPage || count == postsPerPage {
-		w.Titlef("📻 Posts From %s (%d-%d)", dayString, offset, offset+postsPerPage)
+		w.Titlef("📻 Posts From %s (%d-%d)", day.Format(time.DateOnly), offset, offset+postsPerPage)
 	} else {
-		w.Titlef("📻 Posts From %s", dayString)
+		w.Titlef("📻 Posts From %s", day.Format(time.DateOnly))
 	}
 
 	if count == 0 {
@@ -164,10 +163,10 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 	}
 
 	if offset >= postsPerPage {
-		w.Linkf(fmt.Sprintf("/users/inbox/%s?%d", dayString, offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
+		w.Linkf(fmt.Sprintf("%s?%d", r.URL.Path, offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
 	}
 	if count == postsPerPage {
-		w.Linkf(fmt.Sprintf("/users/inbox/%s?%d", dayString, offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
+		w.Linkf(fmt.Sprintf("%s?%d", r.URL.Path, offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
 	}
 
 	if offset >= postsPerPage || count == postsPerPage {
