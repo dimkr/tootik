@@ -27,6 +27,12 @@ import (
 	"time"
 )
 
+type followedUserActivity struct {
+	Actor ap.Actor
+	Last  sql.NullInt64
+	Count sql.NullInt64
+}
+
 func init() {
 	handlers[regexp.MustCompile(`^/users/follows$`)] = withUserMenu(follows)
 }
@@ -37,41 +43,71 @@ func follows(w text.Writer, r *request) {
 		return
 	}
 
-	since := time.Now().Add(-time.Hour * 24 * 7)
-
-	rows, err := r.Query(`select persons.actor, stats.last, stats.count from (select followed, inserted from follows where follower = ?) follows join (select id, actor from persons) persons on persons.id = follows.followed left join (select author, max(inserted) as last, count(*) as count from notes where inserted >= ? group by author) stats on stats.author = follows.followed order by stats.last desc, follows.inserted desc`, r.User.ID, since.Unix())
+	rows, err := r.Query(`select persons.actor, stats.last, stats.count from (select followed, inserted from follows where follower = ?) follows join (select id, actor from persons) persons on persons.id = follows.followed left join (select author, max(inserted) as last, count(*) as count from notes where inserted >= unixepoch() - 7*24*60*60 group by author) stats on stats.author = follows.followed order by stats.last desc, follows.inserted desc`, r.User.ID)
 	if err != nil {
 		r.Log.WithField("follower", r.User.ID).WithError(err).Warn("Failed to list followed users")
 		w.Error()
 		return
 	}
 
-	w.OK()
-	w.Title("⚡ Followed Users")
-
-	sinceString := since.Format(time.DateOnly)
+	var active []followedUserActivity
+	var inactive []followedUserActivity
 
 	for rows.Next() {
+		var row followedUserActivity
 		var actorString string
-		var lastOrNull sql.NullInt64
-		var countOrNull sql.NullInt64
-		if err := rows.Scan(&actorString, &lastOrNull, &countOrNull); err != nil {
+		if err := rows.Scan(&actorString, &row.Last, &row.Count); err != nil {
 			r.Log.WithField("follower", r.User.ID).WithError(err).Warn("Failed to list a followed user")
 			continue
 		}
 
-		followed := ap.Actor{}
-		if err := json.Unmarshal([]byte(actorString), &followed); err != nil {
+		if err := json.Unmarshal([]byte(actorString), &row.Actor); err != nil {
 			r.Log.WithField("follower", r.User.ID).WithError(err).Warn("Failed to unmarshal a followed user")
 			continue
 		}
 
-		displayName := getActorDisplayName(&followed)
-
-		if countOrNull.Valid {
-			w.Linkf(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(followed.ID))), "%s ┃ %d since %s, last %s", displayName, countOrNull.Int64, sinceString, time.Unix(lastOrNull.Int64, 0).Format(time.DateOnly))
+		if row.Last.Valid {
+			active = append(active, row)
 		} else {
-			w.Link(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(followed.ID))), displayName)
+			inactive = append(inactive, row)
+		}
+	}
+	rows.Close()
+
+	w.OK()
+	w.Title("⚡ Followed Users")
+
+	if len(active) == 0 && len(inactive) == 0 {
+		w.Text("No followed users.")
+		return
+	}
+
+	if len(active) > 0 {
+		w.Text("Followed users who posted in the last week:")
+		w.Empty()
+
+		for _, row := range active {
+			displayName := getActorDisplayName(&row.Actor)
+
+			if row.Count.Valid && row.Count.Int64 > 1 {
+				w.Linkf(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(row.Actor.ID))), "%s %s: %d posts", time.Unix(row.Last.Int64, 0).Format(time.DateOnly), displayName, row.Count.Int64)
+			} else if row.Count.Valid {
+				w.Linkf(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(row.Actor.ID))), "%s %s: 1 post", time.Unix(row.Last.Int64, 0).Format(time.DateOnly), displayName)
+			} else {
+				w.Link(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(row.Actor.ID))), displayName)
+			}
+		}
+	}
+
+	if len(inactive) > 0 {
+		if len(active) > 0 {
+			w.Empty()
+		}
+		w.Text("Followed users who haven't posted in the last week:")
+		w.Empty()
+
+		for _, row := range inactive {
+			w.Link(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(row.Actor.ID))), getActorDisplayName(&row.Actor))
 		}
 	}
 }
