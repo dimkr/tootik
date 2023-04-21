@@ -89,12 +89,7 @@ func inbox(w text.Writer, r *request) {
 			(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value in ($1, follows.followers))) or
 			(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value in ($1, follows.followers))) or
 			(
-				(
-					'https://www.w3.org/ns/activitystreams#Public' in (notes.to0, notes.to1, notes.to2, notes.cc0, notes.cc1, notes.cc2) or
-					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = 'https://www.w3.org/ns/activitystreams#Public')) or
-					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = 'https://www.w3.org/ns/activitystreams#Public'))
-				)
-				and
+				notes.public = 1 and
 				(
 					follows.followed in (notes.author, notes.to0, notes.to1, notes.to2, notes.cc0, notes.cc1, notes.cc2) or
 					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.followed)) or

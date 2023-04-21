@@ -104,7 +104,7 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup) 
 
 	posts := data.OrderedMap[string, int64]{}
 
-	rows, err := db.QueryContext(ctx, `select object->>'content', inserted from notes where author = ? and ('https://www.w3.org/ns/activitystreams#Public' in (to0, to1, to2, cc0, cc1, cc2) or (to2 is not null and exists (select 1 from json_each(object->'to') where value = 'https://www.w3.org/ns/activitystreams#Public')) or (cc2 is not null and exists (select 1 from json_each(object->'cc') where value = 'https://www.w3.org/ns/activitystreams#Public'))) order by inserted desc limit 5`, id)
+	rows, err := db.QueryContext(ctx, `select object->>'content', inserted from notes where public = 1 and author = ? order by inserted desc limit 5`, id)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		log.WithError(err).Warn("Failed to query posts")
 		return

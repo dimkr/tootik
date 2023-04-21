@@ -25,7 +25,7 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 
-	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS notes(id STRING NOT NULL PRIMARY KEY, hash STRING NOT NULL, author STRING NOT NULL, object JSON NOT NULL, to0 STRING, to1 STRING, to2 STRING, cc0 STRING, cc1 STRING, cc2 STRING, inserted INTEGER DEFAULT (UNIXEPOCH()))`); err != nil {
+	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS notes(id STRING NOT NULL PRIMARY KEY, hash STRING NOT NULL, author STRING NOT NULL, object JSON NOT NULL, public INTEGER NOT NULL, to0 STRING, to1 STRING, to2 STRING, cc0 STRING, cc1 STRING, cc2 STRING, inserted INTEGER DEFAULT (UNIXEPOCH()))`); err != nil {
 		return err
 	}
 
@@ -69,7 +69,19 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 
+	if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS notespublicauthor ON notes(public, author)`); err != nil {
+		return err
+	}
+
 	if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS hashtagshashtag ON hashtags(hashtag)`); err != nil {
+		return err
+	}
+
+	if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS followsfollower ON follows(follower)`); err != nil {
+		return err
+	}
+
+	if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS followsfollowed ON follows(followed)`); err != nil {
 		return err
 	}
 
