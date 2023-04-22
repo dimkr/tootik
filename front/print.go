@@ -48,7 +48,9 @@ func getTextAndLinks(s string, maxRunes, maxLines int) (string, []string, []stri
 	raw, links := plain.FromHTML(s)
 
 	if maxRunes > 6 {
-		raw = text.WordWrap(raw, maxRunes-6, 1)[0] + " [...]"
+		if cut := text.WordWrap(raw, maxRunes-6, 1)[0]; len(cut) < len(raw) {
+			raw = cut + " [...]"
+		}
 	}
 
 	lines := strings.Split(raw, "\n")
