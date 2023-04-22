@@ -98,6 +98,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 		on
 			persons.id = notes.author
 		where
+			notes.author != $1 and
 			notes.inserted >= $4 and
 			notes.inserted < $4 + 60*60*24
 		group by notes.id
