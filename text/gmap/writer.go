@@ -23,7 +23,6 @@ import (
 	"io"
 	"net/url"
 	"strings"
-	"unicode/utf8"
 )
 
 const lineWidth = 70
@@ -51,19 +50,8 @@ func (w *writer) Error() {
 }
 
 func (w *writer) wrap(t byte, prefix, name, selector, host, port string) {
-	width := utf8.RuneCountInString(name)
-
-	if width == 0 {
-		fmt.Fprintf(w, "%c%s\t%s\t%s\t%s\r\n", t, prefix, selector, host, port)
-		return
-	}
-
-	for i := 0; i < width/(lineWidth-len(prefix)); i += 1 {
-		fmt.Fprintf(w, "%c%s%s\t%s\t%s\t%s\r\n", t, prefix, name[i*(lineWidth-len(prefix)):(i+1)*(lineWidth-len(prefix))], selector, host, port)
-	}
-
-	if width%lineWidth > 0 {
-		fmt.Fprintf(w, "%c%s%s\t%s\t%s\t%s\r\n", t, prefix, name[width/(lineWidth-len(prefix))*(lineWidth-len(prefix)):], selector, host, port)
+	for _, line := range text.WordWrap(name, lineWidth, -1) {
+		fmt.Fprintf(w, "%c%s%s\t%s\t%s\t%s\r\n", t, prefix, line, selector, host, port)
 	}
 }
 
