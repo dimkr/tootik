@@ -71,13 +71,13 @@ func users(w text.Writer, r *request) {
 		u := time.Unix(t, 0)
 		s := u.Format(time.DateOnly)
 		if t == today && posts > 1 {
-			w.Linkf("/users/inbox/"+s, "%s (%s, today) - %d posts", s, u.Weekday().String(), posts)
+			w.Linkf("/users/inbox/today", "%s (today, %s) - %d posts", s, u.Weekday().String(), posts)
 		} else if t == today {
-			w.Linkf("/users/inbox/"+s, "%s (%s, today) - 1 post", s, u.Weekday().String())
+			w.Linkf("/users/inbox/today", "%s (today, %s) - 1 post", s, u.Weekday().String())
 		} else if t == yesterday && posts > 1 {
-			w.Linkf("/users/inbox/"+s, "%s (%s, yesterday) - %d posts", s, u.Weekday().String(), posts)
+			w.Linkf("/users/inbox/yesterday", "%s (yesterday, %s) - %d posts", s, u.Weekday().String(), posts)
 		} else if t == yesterday {
-			w.Linkf("/users/inbox/"+s, "%s (%s, yesterday) - 1 post", s, u.Weekday().String())
+			w.Linkf("/users/inbox/yesterday", "%s (yesterday, %s) - 1 post", s, u.Weekday().String())
 		} else if posts > 1 {
 			w.Linkf("/users/inbox/"+s, "%s (%s) - %d posts", s, u.Weekday().String(), posts)
 		} else {

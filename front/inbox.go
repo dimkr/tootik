@@ -28,27 +28,20 @@ import (
 )
 
 func init() {
-	handlers[regexp.MustCompile("^/users/inbox/[0-9]{4}-[0-9]{2}-[0-9]{2}$")] = withUserMenu(inbox)
+	handlers[regexp.MustCompile("^/users/inbox/[0-9]{4}-[0-9]{2}-[0-9]{2}$")] = withUserMenu(byDate)
+	handlers[regexp.MustCompile("^/users/inbox/today$")] = withUserMenu(today)
+	handlers[regexp.MustCompile("^/users/inbox/yesterday$")] = withUserMenu(yesterday)
 }
 
-func inbox(w text.Writer, r *request) {
+func dailyPosts(w text.Writer, r *request, day time.Time) {
 	if r.User == nil {
 		w.Status(61, "Peer certificate is required")
 		return
 	}
 
-	dayString := filepath.Base(r.URL.Path)
-
-	day, err := time.Parse(time.DateOnly, dayString)
-	if err != nil {
-		r.Log.WithError(err).Info("Failed to parse date")
-		w.Status(40, "Invalid date")
-		return
-	}
-
 	now := time.Now()
 	if day.After(now) {
-		r.Log.WithError(err).Info("Date is in the future")
+		r.Log.WithField("day", day).Info("Date is in the future")
 		w.Redirect("/users/oops")
 		return
 	}
@@ -143,6 +136,7 @@ func inbox(w text.Writer, r *request) {
 	}
 	rows.Close()
 
+	dayString := day.Format(time.DateOnly)
 	count := len(notes)
 
 	w.OK()
@@ -173,4 +167,23 @@ func inbox(w text.Writer, r *request) {
 	if offset >= postsPerPage || count == postsPerPage {
 		w.Empty()
 	}
+}
+
+func byDate(w text.Writer, r *request) {
+	day, err := time.Parse(time.DateOnly, filepath.Base(r.URL.Path))
+	if err != nil {
+		r.Log.WithError(err).Info("Failed to parse date")
+		w.Status(40, "Invalid date")
+		return
+	}
+
+	dailyPosts(w, r, day)
+}
+
+func today(w text.Writer, r *request) {
+	dailyPosts(w, r, time.Unix(time.Now().Unix()/86400*86400, 0))
+}
+
+func yesterday(w text.Writer, r *request) {
+	dailyPosts(w, r, time.Unix((time.Now().Unix()/86400-1)*86400, 0))
 }
