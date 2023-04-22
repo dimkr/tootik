@@ -32,17 +32,40 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode"
 )
 
-const compactViewMaxLines = 4
+const (
+	compactViewMaxRunes = 200
+	compactViewMaxLines = 4
+)
 
 var (
 	urlRegex      = regexp.MustCompile(`\b(https|http|gemini|gopher|gophers):\/\/[-a-zA-Z0-9()!@:%_\+.~#?&\/\/=]+`)
 	verifiedRegex = regexp.MustCompile(`(\s*:[a-zA-Z0-9_]+:\s*)+`)
 )
 
-func getTextAndLinks(s string, maxLines int) (string, []string, []string) {
+func getTextAndLinks(s string, maxRunes, maxLines int) (string, []string, []string) {
 	text, links := plain.FromHTML(s)
+
+	runes := []rune(text)
+	if maxRunes > 0 && len(runes) > maxRunes {
+		runes := runes[:maxRunes]
+
+		lastSpace := -1
+		for i := maxRunes - 1; i > 0; i-- {
+			if unicode.IsSpace(runes[i]) {
+				lastSpace = i
+				break
+			}
+		}
+
+		if lastSpace > 0 {
+			text = string(runes[:lastSpace+1]) + "[...]"
+		} else {
+			text = string(runes[:maxRunes]) + "[...]"
+		}
+	}
 
 	lines := strings.Split(text, "\n")
 
@@ -119,11 +142,13 @@ func printNote(w text.Writer, r *request, note *ap.Object, author *ap.Actor, com
 	}
 
 	maxLines := -1
+	maxRunes := -1
 	if compact {
 		maxLines = compactViewMaxLines
+		maxRunes = compactViewMaxRunes
 	}
 
-	content, contentLines, inlineLinks := getTextAndLinks(note.Content, maxLines)
+	content, contentLines, inlineLinks := getTextAndLinks(note.Content, maxRunes, maxLines)
 
 	for _, link := range inlineLinks {
 		links.Store(link, struct{}{})
