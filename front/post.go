@@ -31,7 +31,10 @@ import (
 	"time"
 )
 
-var mentionRegex = regexp.MustCompile(`\B@([a-zA-Z0-9]+)(@[a-z0-9.]+){0,1}`)
+var (
+	mentionRegex = regexp.MustCompile(`\B@([a-zA-Z0-9]+)(@[a-z0-9.]+){0,1}`)
+	hashtagRegex = regexp.MustCompile(`(\B#[^\s]{1,32})`)
+)
 
 func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap.Audience) {
 	if r.User == nil {
@@ -82,6 +85,10 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 	postID := fmt.Sprintf("https://%s/post/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", r.User.ID, content, now.Unix()))))
 
 	tags := ap.Mentions{}
+
+	for _, hashtag := range hashtagRegex.FindAllString(content, -1) {
+		tags = append(tags, ap.Mention{Type: ap.HashtagMention, Name: hashtag})
+	}
 
 	for _, mention := range mentionRegex.FindAllStringSubmatch(content, -1) {
 		if len(mention) < 3 {
