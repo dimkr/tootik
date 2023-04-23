@@ -115,6 +115,12 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup) 
 
 	w := gmi.Wrap(conn)
 
+	if reqUrl.Host != cfg.Domain {
+		log.WithField("host", reqUrl.Host).Info("Wrong host")
+		w.Status(53, "Wrong host")
+		return
+	}
+
 	user, err := getUser(ctx, db, conn, tlsConn)
 	if err != nil && errors.Is(err, front.ErrNotRegistered) && reqUrl.Path == "/users" {
 		log.Info("Redirecting new user")
