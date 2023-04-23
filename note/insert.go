@@ -28,43 +28,35 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+func expand(aud ap.Audience, arr *[3]sql.NullString) {
+	have := 0
+
+	for _, id := range aud.Keys() {
+		if id == ap.Public {
+			continue
+		}
+
+		if !arr[have].Valid {
+			arr[have].Valid = true
+			arr[have].String = id
+			have++
+			if have == len(arr) {
+				break
+			}
+		}
+	}
+}
+
 func Insert(ctx context.Context, db *sql.DB, note *ap.Object, logger *log.Logger) error {
 	body, err := json.Marshal(note)
 	if err != nil {
 		return fmt.Errorf("Failed to marshal note %s: %w", note.ID, err)
 	}
 
-	var to0, to1, to2, cc0, cc1, cc2 sql.NullString
+	var to, cc [3]sql.NullString
 
-	to := note.To.Keys()
-
-	if len(to) > 0 {
-		to0.Valid = true
-		to0.String = to[0]
-	}
-	if len(to) > 1 {
-		to1.Valid = true
-		to1.String = to[1]
-	}
-	if len(to) > 2 {
-		to2.Valid = true
-		to2.String = to[2]
-	}
-
-	cc := note.CC.Keys()
-
-	if len(cc) > 0 {
-		cc0.Valid = true
-		cc0.String = cc[0]
-	}
-	if len(cc) > 1 {
-		cc1.Valid = true
-		cc1.String = cc[1]
-	}
-	if len(cc) > 2 {
-		cc2.Valid = true
-		cc2.String = cc[2]
-	}
+	expand(note.To, &to)
+	expand(note.CC, &cc)
 
 	hashtags := map[string]string{}
 
@@ -97,12 +89,12 @@ func Insert(ctx context.Context, db *sql.DB, note *ap.Object, logger *log.Logger
 		note.AttributedTo,
 		string(body),
 		public,
-		to0,
-		to1,
-		to2,
-		cc0,
-		cc1,
-		cc2,
+		to[0],
+		to[1],
+		to[2],
+		cc[0],
+		cc[1],
+		cc[2],
 	); err != nil {
 		return fmt.Errorf("Failed to insert note %s: %w", note.ID, err)
 	}
