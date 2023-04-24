@@ -83,7 +83,6 @@ func Create(ctx context.Context, db *sql.DB, id, name, certHash string) (*ap.Act
 			"id":                id,
 			"type":              ap.Person,
 			"preferredUsername": name,
-			"summary":           fmt.Sprintf(`<p><a href="gemini://%s/users/resolve?%s" target="_blank">♊ Me on Gemini</a></p>`, cfg.Domain, name),
 			"icon": map[string]any{
 				"type":      ap.ImageAttachment,
 				"mediaType": icon.MediaType,
