@@ -55,13 +55,13 @@ func printNotes(w text.Writer, r *request, rows data.OrderedMap[string, sql.Null
 				return true
 			}
 
-			printNote(w, r, &note, &author, true, printAuthor, printParentAuthor)
+			printNote(w, r, &note, &author, true, printAuthor, printParentAuthor, true)
 		} else {
 			if author, err := r.Resolve(note.AttributedTo); err != nil {
 				r.Log.WithFields(log.Fields{"note": note.ID, "author": note.AttributedTo}).WithError(err).Warn("Failed to resolve post author")
 				return true
 			} else {
-				printNote(w, r, &note, author, true, printAuthor, printParentAuthor)
+				printNote(w, r, &note, author, true, printAuthor, printParentAuthor, true)
 			}
 		}
 		w.Empty()

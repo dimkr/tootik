@@ -113,7 +113,7 @@ func getActorDisplayName(actor *ap.Actor) string {
 	return getDisplayName(actor.ID, userName, name, actor.Type)
 }
 
-func printNote(w text.Writer, r *request, note *ap.Object, author *ap.Actor, compact, printAuthor, printParentAuthor bool) {
+func printNote(w text.Writer, r *request, note *ap.Object, author *ap.Actor, compact, printAuthor, printParentAuthor, titleIsLink bool) {
 	if note.AttributedTo == "" {
 		r.Log.WithField("id", note.ID).Warn("Note has no author")
 		return
@@ -225,7 +225,9 @@ func printNote(w text.Writer, r *request, note *ap.Object, author *ap.Actor, com
 		title += " ┃ DM"
 	}
 
-	if r.User == nil {
+	if !titleIsLink {
+		w.Text(title)
+	} else if r.User == nil {
 		w.Link(fmt.Sprintf("/view/%x", sha256.Sum256([]byte(note.ID))), title)
 	} else {
 		w.Link(fmt.Sprintf("/users/view/%x", sha256.Sum256([]byte(note.ID))), title)
