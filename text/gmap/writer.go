@@ -50,7 +50,7 @@ func (w *writer) Error() {
 }
 
 func (w *writer) wrap(t byte, prefix, name, selector, host, port string) {
-	for _, line := range text.WordWrap(name, lineWidth, -1) {
+	for _, line := range text.WordWrap(name, lineWidth-len(prefix), -1) {
 		fmt.Fprintf(w, "%c%s%s\t%s\t%s\t%s\r\n", t, prefix, line, selector, host, port)
 	}
 }
