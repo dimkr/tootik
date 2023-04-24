@@ -129,7 +129,7 @@ func outbox(w text.Writer, r *request) {
 
 	var summary []string
 	var links []string
-	if offset == 0 {
+	if offset == 0 && actor.Summary != "" {
 		_, summary, links = getTextAndLinks(actor.Summary, -1, -1)
 	}
 
