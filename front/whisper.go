@@ -32,5 +32,5 @@ func whisper(w text.Writer, r *request) {
 
 	to.Add(r.User.Followers)
 
-	post(w, r, nil, to, cc)
+	post(w, r, nil, to, cc, "Post content")
 }

@@ -58,5 +58,5 @@ func dm(w text.Writer, r *request) {
 
 	cc := ap.Audience{}
 
-	post(w, r, nil, to, cc)
+	post(w, r, nil, to, cc, "Message")
 }

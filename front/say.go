@@ -32,5 +32,5 @@ func say(w text.Writer, r *request) {
 
 	to.Add(ap.Public)
 
-	post(w, r, nil, to, cc)
+	post(w, r, nil, to, cc, "Post content")
 }

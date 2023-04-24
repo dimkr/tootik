@@ -36,7 +36,7 @@ var (
 	hashtagRegex = regexp.MustCompile(`(\B#[^\s]{1,32})`)
 )
 
-func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap.Audience) {
+func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap.Audience, prompt string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -68,11 +68,7 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 	}
 
 	if r.URL.RawQuery == "" {
-		if inReplyTo == nil {
-			w.Status(10, "Post content")
-		} else {
-			w.Status(10, "Reply content")
-		}
+		w.Status(10, prompt)
 		return
 	}
 
