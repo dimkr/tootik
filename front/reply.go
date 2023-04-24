@@ -73,5 +73,5 @@ func reply(w text.Writer, r *request) {
 		return
 	}
 
-	post(w, r, &note, to, cc)
+	post(w, r, &note, to, cc, "Reply content")
 }
