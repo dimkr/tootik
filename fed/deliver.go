@@ -139,12 +139,11 @@ func deliver(ctx context.Context, db *sql.DB, logger *log.Logger, post *ap.Objec
 		return true
 	})
 
-	prefix := fmt.Sprintf("https://%s/", cfg.Domain)
 	actorIDs := data.OrderedMap[string, struct{}]{}
 
 	// list the author's federated followers
-	if recipients.Contains(author.Followers) {
-		followers, err := db.QueryContext(ctx, `select distinct follower from follows where followed = ?`, author.ID)
+	if post.IsPublic() || recipients.Contains(author.Followers) {
+		followers, err := db.QueryContext(ctx, `select distinct follower from follows where followed = ? and follower not like ?`, author.ID, fmt.Sprintf("https://%s/%%", cfg.Domain))
 		if err != nil {
 			logger.WithField("post", post.ID).WithError(err).Warn("Failed to list followers")
 		} else {
@@ -155,9 +154,7 @@ func deliver(ctx context.Context, db *sql.DB, logger *log.Logger, post *ap.Objec
 					continue
 				}
 
-				if !strings.HasPrefix(follower, prefix) {
-					actorIDs.Store(follower, struct{}{})
-				}
+				actorIDs.Store(follower, struct{}{})
 			}
 
 			followers.Close()
@@ -165,6 +162,7 @@ func deliver(ctx context.Context, db *sql.DB, logger *log.Logger, post *ap.Objec
 	}
 
 	// assume that all other federated recipients are actors and not collections
+	prefix := fmt.Sprintf("https://%s/", cfg.Domain)
 	recipients.Range(func(recipient string, _ struct{}) bool {
 		if recipient != ap.Public && !strings.HasPrefix(recipient, prefix) {
 			actorIDs.Store(recipient, struct{}{})
