@@ -119,18 +119,6 @@ func printNote(w text.Writer, r *request, note *ap.Object, author *ap.Actor, com
 		return
 	}
 
-	links := data.OrderedMap[string, struct{}]{}
-
-	if note.URL != "" {
-		links.Store(note.URL, struct{}{})
-	}
-
-	for _, attachment := range note.Attachment {
-		if attachment.URL != "" {
-			links.Store(attachment.URL, struct{}{})
-		}
-	}
-
 	maxLines := -1
 	maxRunes := -1
 	if compact {
@@ -140,16 +128,10 @@ func printNote(w text.Writer, r *request, note *ap.Object, author *ap.Actor, com
 
 	content, contentLines, inlineLinks := getTextAndLinks(note.Content, maxRunes, maxLines)
 
-	for _, link := range inlineLinks {
-		links.Store(link, struct{}{})
-	}
-
-	for _, link := range urlRegex.FindAllString(content, -1) {
-		links.Store(link, struct{}{})
-	}
-
 	hashtags := data.OrderedMap[string, string]{}
+	hashtagLinks := data.OrderedMap[string, struct{}]{}
 	mentionedUsers := data.OrderedMap[string, struct{}]{}
+	mentionLinks := data.OrderedMap[string, struct{}]{}
 
 	for _, tag := range note.Tag {
 		switch tag.Type {
@@ -163,11 +145,49 @@ func printNote(w text.Writer, r *request, note *ap.Object, author *ap.Actor, com
 				hashtags.Store(strings.ToLower(tag.Name), tag.Name)
 			}
 
+			// ignore inline links to hashtags
+			hashtagLinks.Store(tag.Href, struct{}{})
+
 		case ap.MentionMention:
 			mentionedUsers.Store(tag.Href, struct{}{})
 
+			// ignore inline links to mentioned users
+			var tokens []string
+			if tag.Name[0] == '@' {
+				tokens = strings.Split(tag.Name[1:], "@")
+			} else {
+				tokens = strings.Split(tag.Name, "@")
+			}
+			if len(tokens) == 2 {
+				mentionLinks.Store(fmt.Sprintf("https://%s/@%s", tokens[1], tokens[0]), struct{}{})
+			}
+
 		default:
 			r.Log.WithField("type", tag.Type).Warn("Skipping unsupported mention type")
+		}
+	}
+
+	links := data.OrderedMap[string, struct{}]{}
+
+	if note.URL != "" {
+		links.Store(note.URL, struct{}{})
+	}
+
+	for _, link := range inlineLinks {
+		if !mentionLinks.Contains(link) && !hashtagLinks.Contains(link) {
+			links.Store(link, struct{}{})
+		}
+	}
+
+	for _, link := range urlRegex.FindAllString(content, -1) {
+		if !mentionLinks.Contains(link) && !hashtagLinks.Contains(link) {
+			links.Store(link, struct{}{})
+		}
+	}
+
+	for _, attachment := range note.Attachment {
+		if attachment.URL != "" {
+			links.Store(attachment.URL, struct{}{})
 		}
 	}
 
@@ -188,24 +208,29 @@ func printNote(w text.Writer, r *request, note *ap.Object, author *ap.Actor, com
 		title = note.Published.Format(time.DateOnly)
 	}
 
-	if len(links) > 0 || len(hashtags) > 0 || len(mentionedUsers) > 0 || replies > 0 {
-		title += " ┃"
-	}
+	if compact {
+		if len(links) > 0 || len(hashtags) > 0 || len(mentionedUsers) > 0 || replies > 0 {
+			title += " ┃"
+		}
 
-	if len(links) > 0 {
-		title += fmt.Sprintf(" %d🔗", len(links))
-	}
+		// show link # only if at least one link doesn't point to the post
+		if note.URL == "" && len(links) > 0 {
+			title += fmt.Sprintf(" %d🔗", len(links))
+		} else if note.URL != "" && len(links) > 1 {
+			title += fmt.Sprintf(" %d🔗", len(links)-1)
+		}
 
-	if len(hashtags) > 0 {
-		title += fmt.Sprintf(" %d#️", len(hashtags))
-	}
+		if len(hashtags) > 0 {
+			title += fmt.Sprintf(" %d#️", len(hashtags))
+		}
 
-	if len(mentionedUsers) > 0 {
-		title += fmt.Sprintf(" %d👤", len(mentionedUsers))
-	}
+		if len(mentionedUsers) > 0 {
+			title += fmt.Sprintf(" %d👤", len(mentionedUsers))
+		}
 
-	if replies > 0 {
-		title += fmt.Sprintf(" %d💬", replies)
+		if replies > 0 {
+			title += fmt.Sprintf(" %d💬", replies)
+		}
 	}
 
 	if printParentAuthor && note.InReplyTo != "" {
@@ -217,10 +242,8 @@ func printNote(w text.Writer, r *request, note *ap.Object, author *ap.Actor, com
 			r.Log.WithField("id", note.InReplyTo).WithError(err).Warn("Failed to query parent post author")
 		} else if err := json.Unmarshal([]byte(parentAuthorString), &parentAuthor); err != nil {
 			r.Log.WithField("id", note.InReplyTo).WithError(err).Warn("Failed to unmarshal parent post author")
-		} else if compact {
-			title += fmt.Sprintf(" ┃ RE: %s", parentAuthor.PreferredUsername)
 		} else {
-			title += fmt.Sprintf(" ┃ RE: %s", getActorDisplayName(&parentAuthor))
+			title += fmt.Sprintf(" ┃ RE: %s", parentAuthor.PreferredUsername)
 		}
 	}
 
