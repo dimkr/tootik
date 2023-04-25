@@ -64,7 +64,10 @@ func printNotes(w text.Writer, r *request, rows data.OrderedMap[string, sql.Null
 				printNote(w, r, &note, author, true, printAuthor, printParentAuthor, true)
 			}
 		}
-		w.Empty()
+
+		if len(rows) > 1 {
+			w.Empty()
+		}
 
 		return true
 	})
@@ -149,7 +152,11 @@ func outbox(w text.Writer, r *request) {
 		w.Separator()
 	}
 
-	printNotes(w, r, notes, false, true)
+	if count == 0 {
+		w.Text("No posts.")
+	} else {
+		printNotes(w, r, notes, false, true)
+	}
 
 	if offset >= postsPerPage || count == postsPerPage {
 		w.Separator()
