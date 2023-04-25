@@ -176,7 +176,10 @@ func printNote(w text.Writer, r *request, note *ap.Object, author *ap.Actor, com
 		r.Log.WithField("id", note.ID).WithError(err).Warn("Failed to count replies")
 	}
 
-	authorDisplayName := getActorDisplayName(author)
+	authorDisplayName := author.PreferredUsername
+	if !compact {
+		authorDisplayName = getActorDisplayName(author)
+	}
 
 	var title string
 	if printAuthor {
