@@ -28,6 +28,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"net/url"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -112,6 +113,14 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 		r.Log.WithFields(log.Fields{"name": mention[0], "actor": actorID}).Info("Adding mention")
 		tags = append(tags, ap.Mention{Type: ap.MentionMention, Name: mention[0], Href: actorID})
 		to.Add(actorID)
+	}
+
+	links := map[string]struct{}{}
+	for _, link := range urlRegex.FindAllString(content, -1) {
+		links[link] = struct{}{}
+	}
+	for link, _ := range links {
+		content = strings.ReplaceAll(content, link, fmt.Sprintf(`<a href="%s" target="_blank">%s</a>`, link, link))
 	}
 
 	note := ap.Object{
