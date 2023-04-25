@@ -83,7 +83,7 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 	tags := ap.Mentions{}
 
 	for _, hashtag := range hashtagRegex.FindAllString(content, -1) {
-		tags = append(tags, ap.Mention{Type: ap.HashtagMention, Name: hashtag})
+		tags = append(tags, ap.Mention{Type: ap.HashtagMention, Name: hashtag, Href: fmt.Sprintf("gemini://%s/hashtag/%s", cfg.Domain, hashtag[1:])})
 	}
 
 	for _, mention := range mentionRegex.FindAllStringSubmatch(content, -1) {
