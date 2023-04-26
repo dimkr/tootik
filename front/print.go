@@ -113,7 +113,7 @@ func getActorDisplayName(actor *ap.Actor) string {
 	return getDisplayName(actor.ID, userName, name, actor.Type)
 }
 
-func printNote(w text.Writer, r *request, note *ap.Object, author *ap.Actor, compact, printAuthor, printParentAuthor, titleIsLink bool) {
+func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, compact, printAuthor, printParentAuthor, titleIsLink bool) {
 	if note.AttributedTo == "" {
 		r.Log.WithField("id", note.ID).Warn("Note has no author")
 		return
@@ -313,7 +313,7 @@ func printNote(w text.Writer, r *request, note *ap.Object, author *ap.Actor, com
 	}
 }
 
-func printNotes(w text.Writer, r *request, rows data.OrderedMap[string, sql.NullString], printAuthor, printParentAuthor bool) {
+func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, sql.NullString], printAuthor, printParentAuthor bool) {
 	rows.Range(func(noteString string, actorString sql.NullString) bool {
 		note := ap.Object{}
 		if err := json.Unmarshal([]byte(noteString), &note); err != nil {
@@ -333,13 +333,13 @@ func printNotes(w text.Writer, r *request, rows data.OrderedMap[string, sql.Null
 				return true
 			}
 
-			printNote(w, r, &note, &author, true, printAuthor, printParentAuthor, true)
+			r.PrintNote(w, &note, &author, true, printAuthor, printParentAuthor, true)
 		} else {
 			if author, err := r.Resolve(note.AttributedTo); err != nil {
 				r.Log.WithFields(log.Fields{"note": note.ID, "author": note.AttributedTo}).WithError(err).Warn("Failed to resolve post author")
 				return true
 			} else {
-				printNote(w, r, &note, author, true, printAuthor, printParentAuthor, true)
+				r.PrintNote(w, &note, author, true, printAuthor, printParentAuthor, true)
 			}
 		}
 

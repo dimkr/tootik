@@ -156,7 +156,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 	if count == 0 {
 		w.Text("No posts.")
 	} else {
-		printNotes(w, r, notes, true, true)
+		r.PrintNotes(w, notes, true, true)
 	}
 
 	if offset >= postsPerPage || count == postsPerPage {

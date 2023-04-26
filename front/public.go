@@ -76,7 +76,7 @@ func printPublicPosts(w text.Writer, r *request) error {
 	if count == 0 {
 		w.Text("No posts.")
 	} else {
-		printNotes(w, r, notes, true, true)
+		r.PrintNotes(w, notes, true, true)
 	}
 
 	if offset >= postsPerPage || count == postsPerPage {
@@ -148,7 +148,7 @@ func printFederatedPosts(w text.Writer, r *request) error {
 		w.Title("✨️ Outer Space")
 	}
 
-	printNotes(w, r, notes, true, true)
+	r.PrintNotes(w, notes, true, true)
 
 	if offset >= postsPerPage || count == postsPerPage {
 		w.Separator()

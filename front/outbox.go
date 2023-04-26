@@ -117,7 +117,7 @@ func outbox(w text.Writer, r *request) {
 	if count == 0 {
 		w.Text("No posts.")
 	} else {
-		printNotes(w, r, notes, false, true)
+		r.PrintNotes(w, notes, false, true)
 	}
 
 	if offset >= postsPerPage || count == postsPerPage {

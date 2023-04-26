@@ -112,7 +112,7 @@ func view(w text.Writer, r *request) {
 			w.Titlef("🔔 Post by %s", authorDisplayName)
 		}
 
-		printNote(w, r, &note, author, false, false, true, false)
+		r.PrintNote(w, &note, author, false, false, true, false)
 
 		if count > 0 && offset >= repliesPerPage {
 			w.Empty()
@@ -123,7 +123,7 @@ func view(w text.Writer, r *request) {
 		}
 	}
 
-	printNotes(w, r, replies, true, false)
+	r.PrintNotes(w, replies, true, false)
 
 	if note.InReplyTo != "" || offset >= repliesPerPage || count == repliesPerPage {
 		w.Separator()
