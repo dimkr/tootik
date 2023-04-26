@@ -189,27 +189,29 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 	}
 
 	if compact {
-		if len(links) > 0 || len(hashtags) > 0 || len(mentionedUsers) > 0 || replies > 0 {
-			title += " ┃"
-		}
+		meta := ""
 
 		// show link # only if at least one link doesn't point to the post
 		if note.URL == "" && len(links) > 0 {
-			title += fmt.Sprintf(" %d🔗", len(links))
+			meta += fmt.Sprintf(" %d🔗", len(links))
 		} else if note.URL != "" && len(links) > 1 {
-			title += fmt.Sprintf(" %d🔗", len(links)-1)
+			meta += fmt.Sprintf(" %d🔗", len(links)-1)
 		}
 
 		if len(hashtags) > 0 {
-			title += fmt.Sprintf(" %d#️", len(hashtags))
+			meta += fmt.Sprintf(" %d#️", len(hashtags))
 		}
 
 		if len(mentionedUsers) > 0 {
-			title += fmt.Sprintf(" %d👤", len(mentionedUsers))
+			meta += fmt.Sprintf(" %d👤", len(mentionedUsers))
 		}
 
 		if replies > 0 {
-			title += fmt.Sprintf(" %d💬", replies)
+			meta += fmt.Sprintf(" %d💬", replies)
+		}
+
+		if meta != "" {
+			title += " ┃" + meta
 		}
 	}
 
