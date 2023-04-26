@@ -312,3 +312,41 @@ func printNote(w text.Writer, r *request, note *ap.Object, author *ap.Actor, com
 		}
 	}
 }
+
+func printNotes(w text.Writer, r *request, rows data.OrderedMap[string, sql.NullString], printAuthor, printParentAuthor bool) {
+	rows.Range(func(noteString string, actorString sql.NullString) bool {
+		note := ap.Object{}
+		if err := json.Unmarshal([]byte(noteString), &note); err != nil {
+			r.Log.WithError(err).Warn("Failed to unmarshal post")
+			return true
+		}
+
+		if note.Type != ap.NoteObject {
+			r.Log.WithField("type", note.Type).Warn("Post is note a note")
+			return true
+		}
+
+		if actorString.Valid && actorString.String != "" {
+			author := ap.Actor{}
+			if err := json.Unmarshal([]byte(actorString.String), &author); err != nil {
+				r.Log.WithError(err).Warn("Failed to unmarshal post author")
+				return true
+			}
+
+			printNote(w, r, &note, &author, true, printAuthor, printParentAuthor, true)
+		} else {
+			if author, err := r.Resolve(note.AttributedTo); err != nil {
+				r.Log.WithFields(log.Fields{"note": note.ID, "author": note.AttributedTo}).WithError(err).Warn("Failed to resolve post author")
+				return true
+			} else {
+				printNote(w, r, &note, author, true, printAuthor, printParentAuthor, true)
+			}
+		}
+
+		if len(rows) > 1 {
+			w.Empty()
+		}
+
+		return true
+	})
+}
