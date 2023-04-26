@@ -129,9 +129,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 	content, contentLines, inlineLinks := getTextAndLinks(note.Content, maxRunes, maxLines)
 
 	hashtags := data.OrderedMap[string, string]{}
-	hashtagLinks := data.OrderedMap[string, struct{}]{}
 	mentionedUsers := data.OrderedMap[string, struct{}]{}
-	mentionLinks := data.OrderedMap[string, struct{}]{}
 
 	for _, tag := range note.Tag {
 		switch tag.Type {
@@ -145,22 +143,8 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 				hashtags.Store(strings.ToLower(tag.Name), tag.Name)
 			}
 
-			// ignore inline links to hashtags
-			hashtagLinks.Store(tag.Href, struct{}{})
-
 		case ap.MentionMention:
 			mentionedUsers.Store(tag.Href, struct{}{})
-
-			// ignore inline links to mentioned users
-			var tokens []string
-			if tag.Name[0] == '@' {
-				tokens = strings.Split(tag.Name[1:], "@")
-			} else {
-				tokens = strings.Split(tag.Name, "@")
-			}
-			if len(tokens) == 2 {
-				mentionLinks.Store(fmt.Sprintf("https://%s/@%s", tokens[1], tokens[0]), struct{}{})
-			}
 
 		default:
 			r.Log.WithField("type", tag.Type).Warn("Skipping unsupported mention type")
@@ -174,15 +158,11 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 	}
 
 	for _, link := range inlineLinks {
-		if !mentionLinks.Contains(link) && !hashtagLinks.Contains(link) {
-			links.Store(link, struct{}{})
-		}
+		links.Store(link, struct{}{})
 	}
 
 	for _, link := range urlRegex.FindAllString(content, -1) {
-		if !mentionLinks.Contains(link) && !hashtagLinks.Contains(link) {
-			links.Store(link, struct{}{})
-		}
+		links.Store(link, struct{}{})
 	}
 
 	for _, attachment := range note.Attachment {

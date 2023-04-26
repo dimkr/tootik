@@ -23,17 +23,23 @@ import (
 )
 
 var (
-	spanTags  = regexp.MustCompile(`(?:<span(?:\s+[^>]*)*>)+`)
-	aTags     = regexp.MustCompile(`<a\s+(?:(?:[^>\s]+="[^"]*"\s+)*)href="([^"]*)"(?:\s*(?:\s+[^>\s]+="[^"]*")*\s*>)`)
-	brTags    = regexp.MustCompile(`<(?:br\s*\/*|\/p)>`)
-	openTags  = regexp.MustCompile(`(?:<[a-zA-Z0-9]+\s*[^>]*>)+`)
-	closeTags = regexp.MustCompile(`(?:<\/[a-zA-Z0-9]+\s*[^>]*>)+`)
+	spanTags    = regexp.MustCompile(`(?:<span(?:\s+[^>]*)*>)+`)
+	aTags       = regexp.MustCompile(`<a\s+(?:(?:[^>\s]+="[^"]*"\s+)*)href="([^"]*)"(?:\s*(?:\s+[^>\s]+="[^"]*")*\s*>)`)
+	mentionTags = regexp.MustCompile(`<a\s+(?:[^\s<]+\s+)*class="(?:[^\s"]+\s+)*mention(?:\s+[^\s"]+)*"[^>]*>`)
+	hashtagTags = regexp.MustCompile(`<a\s+(?:[^\s<]+\s+)*class="(?:[^\s"]+\s+)*hashtag(?:\s+[^\s"]+)*"[^>]*>`)
+	brTags      = regexp.MustCompile(`<(?:br\s*\/*|\/p)>`)
+	openTags    = regexp.MustCompile(`(?:<[a-zA-Z0-9]+\s*[^>]*>)+`)
+	closeTags   = regexp.MustCompile(`(?:<\/[a-zA-Z0-9]+\s*[^>]*>)+`)
 )
 
 func FromHTML(text string) (string, []string) {
 	res := html.UnescapeString(text)
 	links := map[string]struct{}{}
 	orderedLinks := []string{}
+
+	for _, m := range mentionTags.FindAllString(res, -1) {
+		res = strings.Replace(res, m, "", 1)
+	}
 
 	for _, m := range brTags.FindAllString(res, -1) {
 		res = strings.Replace(res, m, "\n\n", 1)
