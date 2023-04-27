@@ -141,14 +141,14 @@ func outbox(w text.Writer, r *request) {
 		err := r.QueryRow(`select id from follows where follower = ? and followed = ?`, r.User.ID, actorID).Scan(&followID)
 		if err != nil && errors.Is(err, sql.ErrNoRows) {
 			w.Separator()
-			w.Linkf(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(actorID))), "⚡ Follow %s", displayName)
+			w.Linkf(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(actorID))), "⚡ Follow %s", actor.PreferredUsername)
 		} else if err != nil {
 			r.Log.WithField("followed", actorID).WithError(err).Warn("Failed to check if user is followed")
 		} else {
 			w.Separator()
-			w.Linkf(fmt.Sprintf("/users/unfollow/%x", sha256.Sum256([]byte(actorID))), "🔌 Unfollow %s", displayName)
+			w.Linkf(fmt.Sprintf("/users/unfollow/%x", sha256.Sum256([]byte(actorID))), "🔌 Unfollow %s", actor.PreferredUsername)
 		}
 
-		w.Linkf(fmt.Sprintf("/users/dm/%x", sha256.Sum256([]byte(actorID))), "📟 Message %s", displayName)
+		w.Linkf(fmt.Sprintf("/users/dm/%x", sha256.Sum256([]byte(actorID))), "📟 Message %s", actor.PreferredUsername)
 	}
 }

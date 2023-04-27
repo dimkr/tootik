@@ -177,15 +177,24 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 	}
 
 	authorDisplayName := author.PreferredUsername
-	if !compact {
-		authorDisplayName = getActorDisplayName(author)
-	}
 
 	var title string
 	if printAuthor {
 		title = fmt.Sprintf("%s %s", note.Published.Format(time.DateOnly), authorDisplayName)
 	} else {
 		title = note.Published.Format(time.DateOnly)
+	}
+
+	var parentAuthor ap.Actor
+	if note.InReplyTo != "" {
+		var parentAuthorString string
+		if err := r.QueryRow(`select persons.actor from notes join persons on persons.id = notes.author where notes.id = ?`, note.InReplyTo).Scan(&parentAuthorString); err != nil && errors.Is(err, sql.ErrNoRows) {
+			r.Log.WithField("id", note.InReplyTo).Info("Parent post or author is missing")
+		} else if err != nil {
+			r.Log.WithField("id", note.InReplyTo).WithError(err).Warn("Failed to query parent post author")
+		} else if err := json.Unmarshal([]byte(parentAuthorString), &parentAuthor); err != nil {
+			r.Log.WithField("id", note.InReplyTo).WithError(err).Warn("Failed to unmarshal parent post author")
+		}
 	}
 
 	if compact {
@@ -202,7 +211,9 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 			meta += fmt.Sprintf(" %d#️", len(hashtags))
 		}
 
-		if len(mentionedUsers) > 0 {
+		if len(mentionedUsers) > 1 && parentAuthor.ID != "" && mentionedUsers.Contains(parentAuthor.ID) {
+			meta += fmt.Sprintf(" %d👤", len(mentionedUsers)-1)
+		} else if len(mentionedUsers) > 0 && (parentAuthor.ID == "" || !mentionedUsers.Contains(parentAuthor.ID)) {
 			meta += fmt.Sprintf(" %d👤", len(mentionedUsers))
 		}
 
@@ -215,18 +226,10 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 		}
 	}
 
-	if printParentAuthor && note.InReplyTo != "" {
-		var parentAuthorString string
-		var parentAuthor ap.Actor
-		if err := r.QueryRow(`select persons.actor from notes join persons on persons.id = notes.author where notes.id = ?`, note.InReplyTo).Scan(&parentAuthorString); err != nil && errors.Is(err, sql.ErrNoRows) {
-			r.Log.WithField("id", note.InReplyTo).Info("Parent post or author is missing")
-		} else if err != nil {
-			r.Log.WithField("id", note.InReplyTo).WithError(err).Warn("Failed to query parent post author")
-		} else if err := json.Unmarshal([]byte(parentAuthorString), &parentAuthor); err != nil {
-			r.Log.WithField("id", note.InReplyTo).WithError(err).Warn("Failed to unmarshal parent post author")
-		} else {
-			title += fmt.Sprintf(" ┃ RE: %s", parentAuthor.PreferredUsername)
-		}
+	if printParentAuthor && parentAuthor.PreferredUsername != "" {
+		title += fmt.Sprintf(" ┃ RE: %s", parentAuthor.PreferredUsername)
+	} else if printParentAuthor && note.InReplyTo != "" && parentAuthor.PreferredUsername == "" {
+		title += " ┃ RE: ?"
 	}
 
 	if r.User != nil && ((len(note.To.OrderedMap) == 0 || len(note.To.OrderedMap) == 1 && note.To.Contains(r.User.ID)) && (len(note.CC.OrderedMap) == 0 || len(note.CC.OrderedMap) == 1 && note.CC.Contains(r.User.ID))) {
@@ -264,12 +267,10 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 				continue
 			}
 
-			mentionDisplayName := getActorDisplayName(mention)
-
 			if r.User == nil {
-				w.Link(fmt.Sprintf("/outbox/%x", sha256.Sum256([]byte(mentionID))), mentionDisplayName)
+				w.Link(fmt.Sprintf("/outbox/%x", sha256.Sum256([]byte(mentionID))), mention.PreferredUsername)
 			} else {
-				w.Link(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(mentionID))), mentionDisplayName)
+				w.Link(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(mentionID))), mention.PreferredUsername)
 			}
 		}
 

@@ -95,28 +95,26 @@ func view(w text.Writer, r *request) {
 
 	count := len(replies)
 
-	authorDisplayName := getActorDisplayName(author)
-
 	w.OK()
 
 	if offset > 0 {
-		w.Titlef("💬 Replies to %s (%d-%d)", authorDisplayName, offset, offset+repliesPerPage)
+		w.Titlef("💬 Replies to %s (%d-%d)", author.PreferredUsername, offset, offset+repliesPerPage)
 	} else {
 		if r.User != nil && ((len(note.To.OrderedMap) == 0 || len(note.To.OrderedMap) == 1 && note.To.Contains(r.User.ID)) && (len(note.CC.OrderedMap) == 0 || len(note.CC.OrderedMap) == 1 && note.CC.Contains(r.User.ID))) {
-			w.Titlef("📟 Message from %s", authorDisplayName)
+			w.Titlef("📟 Message from %s", author.PreferredUsername)
 		} else if note.InReplyTo != "" {
-			w.Titlef("💬 Reply by %s", authorDisplayName)
+			w.Titlef("💬 Reply by %s", author.PreferredUsername)
 		} else if note.IsPublic() {
-			w.Titlef("📣 Post by %s", authorDisplayName)
+			w.Titlef("📣 Post by %s", author.PreferredUsername)
 		} else {
-			w.Titlef("🔔 Post by %s", authorDisplayName)
+			w.Titlef("🔔 Post by %s", author.PreferredUsername)
 		}
 
 		r.PrintNote(w, &note, author, false, false, true, false)
 
 		if count > 0 && offset >= repliesPerPage {
 			w.Empty()
-			w.Subtitlef("💬 Replies to %s (%d-%d)", authorDisplayName, offset, offset+repliesPerPage)
+			w.Subtitlef("💬 Replies to %s (%d-%d)", author.PreferredUsername, offset, offset+repliesPerPage)
 		} else if count > 0 {
 			w.Empty()
 			w.Subtitle("💬 Replies")
@@ -129,10 +127,15 @@ func view(w text.Writer, r *request) {
 		w.Separator()
 	}
 
-	if note.InReplyTo != "" && r.User == nil {
-		w.Link(fmt.Sprintf("/view/%x", sha256.Sum256([]byte(note.InReplyTo))), "View original post")
-	} else if note.InReplyTo != "" {
-		w.Link(fmt.Sprintf("/users/view/%x", sha256.Sum256([]byte(note.InReplyTo))), "View original post")
+	if note.InReplyTo != "" {
+		var exists int
+		if err := r.QueryRow(`select exists (select 1 from notes where id = ?)`, note.InReplyTo).Scan(&exists); err != nil {
+			r.Log.WithField("post", note.ID).WithError(err).Warn("Failed to check if original post exists")
+		} else if exists == 1 && r.User == nil {
+			w.Link(fmt.Sprintf("/view/%x", sha256.Sum256([]byte(note.InReplyTo))), "View original post")
+		} else if exists == 1 {
+			w.Link(fmt.Sprintf("/users/view/%x", sha256.Sum256([]byte(note.InReplyTo))), "View original post")
+		}
 	}
 
 	if offset > repliesPerPage && r.User == nil {
