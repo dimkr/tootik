@@ -211,10 +211,12 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 			meta += fmt.Sprintf(" %d#️", len(hashtags))
 		}
 
-		if len(mentionedUsers) > 1 && parentAuthor.ID != "" && mentionedUsers.Contains(parentAuthor.ID) {
-			meta += fmt.Sprintf(" %d👤", len(mentionedUsers)-1)
-		} else if len(mentionedUsers) > 0 && (parentAuthor.ID == "" || !mentionedUsers.Contains(parentAuthor.ID)) {
+		if len(mentionedUsers) == 1 && (parentAuthor.ID == "" || !mentionedUsers.Contains(parentAuthor.ID)) {
+			meta += " 1👤"
+		} else if len(mentionedUsers) > 1 && (parentAuthor.ID == "" || !mentionedUsers.Contains(parentAuthor.ID)) {
 			meta += fmt.Sprintf(" %d👤", len(mentionedUsers))
+		} else if len(mentionedUsers) > 1 && parentAuthor.ID != "" && mentionedUsers.Contains(parentAuthor.ID) {
+			meta += fmt.Sprintf(" %d👤", len(mentionedUsers)-1)
 		}
 
 		if replies > 0 {
