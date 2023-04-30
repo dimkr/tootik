@@ -105,7 +105,7 @@ tootik has three kinds of posts:
 
 ### Post Visibility
 
-|             | To                 | CC |
+| Post type   | To                 | CC |
 |-------------|--------------------|----|
 | Message     | Receiving user     | -  |
 | Post        | Author's followers | -  |
@@ -113,7 +113,7 @@ tootik has three kinds of posts:
 
 ### Reply Visibility
 
-|             | To          | CC                        |
+| Post type   | To          | CC                        |
 |-------------|-------------|---------------------------|
 | Message     | Post author | -                         |
 | Post        | Post author | Followers of reply author |
