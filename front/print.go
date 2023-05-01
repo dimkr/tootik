@@ -39,10 +39,7 @@ const (
 	compactViewMaxLines = 4
 )
 
-var (
-	urlRegex      = regexp.MustCompile(`\b(https|http|gemini|gopher|gophers):\/\/\S+\b`)
-	verifiedRegex = regexp.MustCompile(`(\s*:[a-zA-Z0-9_]+:\s*)+`)
-)
+var verifiedRegex = regexp.MustCompile(`(\s*:[a-zA-Z0-9_]+:\s*)+`)
 
 func getTextAndLinks(s string, maxRunes, maxLines int) (string, []string, []string) {
 	raw, links := plain.FromHTML(s)
@@ -161,7 +158,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 		links.Store(link, struct{}{})
 	}
 
-	for _, link := range urlRegex.FindAllString(content, -1) {
+	for link, _ := range plain.GetInlineLinks(content) {
 		links.Store(link, struct{}{})
 	}
 
