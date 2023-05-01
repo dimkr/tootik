@@ -40,7 +40,7 @@ const (
 )
 
 var (
-	urlRegex      = regexp.MustCompile(`\b(https|http|gemini|gopher|gophers):\/\/[-a-zA-Z0-9()!@:%_\+.~#?&\/\/=]+`)
+	urlRegex      = regexp.MustCompile(`\b(https|http|gemini|gopher|gophers):\/\/\S+\b`)
 	verifiedRegex = regexp.MustCompile(`(\s*:[a-zA-Z0-9_]+:\s*)+`)
 )
 

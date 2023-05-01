@@ -25,10 +25,10 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/text"
+	"github.com/dimkr/tootik/text/plain"
 	log "github.com/sirupsen/logrus"
 	"net/url"
 	"regexp"
-	"strings"
 	"time"
 )
 
@@ -115,19 +115,11 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 		to.Add(actorID)
 	}
 
-	links := map[string]struct{}{}
-	for _, link := range urlRegex.FindAllString(content, -1) {
-		links[link] = struct{}{}
-	}
-	for link, _ := range links {
-		content = strings.ReplaceAll(content, link, fmt.Sprintf(`<a href="%s" target="_blank">%s</a>`, link, link))
-	}
-
 	note := ap.Object{
 		Type:         ap.NoteObject,
 		ID:           postID,
 		AttributedTo: r.User.ID,
-		Content:      content,
+		Content:      plain.ToHTML(content),
 		Published:    now,
 		To:           to,
 		CC:           cc,

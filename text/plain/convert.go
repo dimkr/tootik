@@ -17,6 +17,7 @@ limitations under the License.
 package plain
 
 import (
+	"fmt"
 	"html"
 	"regexp"
 	"strings"
@@ -30,6 +31,7 @@ var (
 	brTags      = regexp.MustCompile(`<(?:br\s*\/*|\/p)>`)
 	openTags    = regexp.MustCompile(`(?:<[a-zA-Z0-9]+\s*[^>]*>)+`)
 	closeTags   = regexp.MustCompile(`(?:<\/[a-zA-Z0-9]+\s*[^>]*>)+`)
+	urlRegex    = regexp.MustCompile(`\b(https|http|gemini|gopher|gophers):\/\/\S+\b`)
 )
 
 func FromHTML(text string) (string, []string) {
@@ -67,4 +69,20 @@ func FromHTML(text string) (string, []string) {
 	}
 
 	return strings.TrimRight(res, " \n\r\t"), orderedLinks
+}
+
+func getInlineLinks(text string) map[string]struct{} {
+	links := map[string]struct{}{}
+	for _, link := range urlRegex.FindAllString(text, -1) {
+		links[link] = struct{}{}
+	}
+	return links
+}
+
+func ToHTML(text string) string {
+	for link, _ := range getInlineLinks(text) {
+		text = strings.ReplaceAll(text, link, fmt.Sprintf(`<a href="%s" target="_blank">%s</a>`, link, link))
+	}
+
+	return text
 }
