@@ -35,13 +35,12 @@ var cache sync.Map
 
 func callAndCache(r *request, w text.Writer, f func(text.Writer, *request), key string, now time.Time) []byte {
 	var buf bytes.Buffer
-	prev := w.Wrap(&buf)
-	defer w.Wrap(prev)
+	w2 := w.Clone(&buf)
 
-	clone := *r
-	clone.Context = context.Background()
+	r2 := *r
+	r2.Context = context.Background()
 
-	f(w, &clone)
+	f(w2, &r2)
 
 	resp := buf.Bytes()
 

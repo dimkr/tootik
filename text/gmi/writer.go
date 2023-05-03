@@ -127,3 +127,7 @@ func (w *writer) Raw(alt, raw string) {
 func (w *writer) Separator() {
 	w.Write([]byte("\n────\n\n"))
 }
+
+func (_ *writer) Clone(w io.Writer) text.Writer {
+	return &writer{Base: text.Base{Writer: w}}
+}

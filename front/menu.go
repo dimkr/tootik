@@ -59,10 +59,9 @@ func writeUserMenu(w text.Writer, user *ap.Actor) {
 func withUserMenu(f func(text.Writer, *request)) func(text.Writer, *request) {
 	return func(w text.Writer, r *request) {
 		var buf bytes.Buffer
-		prev := w.Wrap(&buf)
-		f(w, r)
-		writeUserMenu(w, r.User)
-		w.Wrap(prev)
+		clone := w.Clone(&buf)
+		f(clone, r)
+		writeUserMenu(clone, r.User)
 		w.Write(buf.Bytes())
 	}
 }

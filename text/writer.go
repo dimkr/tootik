@@ -21,7 +21,7 @@ import "io"
 type Writer interface {
 	io.Writer
 
-	Wrap(io.Writer) io.Writer
+	Clone(io.Writer) Writer
 	Unwrap() io.Writer
 
 	OK()

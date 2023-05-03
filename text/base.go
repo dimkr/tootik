@@ -22,12 +22,6 @@ type Base struct {
 	io.Writer
 }
 
-func (b *Base) Wrap(w io.Writer) io.Writer {
-	prev := b.Writer
-	b.Writer = w
-	return prev
-}
-
 func (b *Base) Unwrap() io.Writer {
 	return b.Writer
 }

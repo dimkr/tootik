@@ -137,3 +137,7 @@ func (w *writer) Separator() {
 	w.Text("────")
 	w.Empty()
 }
+
+func (_ *writer) Clone(w io.Writer) text.Writer {
+	return &writer{Base: text.Base{Writer: w}}
+}
