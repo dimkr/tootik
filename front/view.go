@@ -123,19 +123,21 @@ func view(w text.Writer, r *request) {
 
 	r.PrintNotes(w, replies, true, false)
 
-	if note.InReplyTo != "" || offset >= repliesPerPage || count == repliesPerPage {
+	var originalPostExists int
+	if note.InReplyTo != "" {
+		if err := r.QueryRow(`select exists (select 1 from notes where id = ?)`, note.InReplyTo).Scan(&originalPostExists); err != nil {
+			r.Log.WithField("post", note.ID).WithError(err).Warn("Failed to check if original post exists")
+		}
+	}
+
+	if originalPostExists == 1 || offset >= repliesPerPage || count == repliesPerPage {
 		w.Separator()
 	}
 
-	if note.InReplyTo != "" {
-		var exists int
-		if err := r.QueryRow(`select exists (select 1 from notes where id = ?)`, note.InReplyTo).Scan(&exists); err != nil {
-			r.Log.WithField("post", note.ID).WithError(err).Warn("Failed to check if original post exists")
-		} else if exists == 1 && r.User == nil {
-			w.Link(fmt.Sprintf("/view/%x", sha256.Sum256([]byte(note.InReplyTo))), "View original post")
-		} else if exists == 1 {
-			w.Link(fmt.Sprintf("/users/view/%x", sha256.Sum256([]byte(note.InReplyTo))), "View original post")
-		}
+	if originalPostExists == 1 && r.User == nil {
+		w.Link(fmt.Sprintf("/view/%x", sha256.Sum256([]byte(note.InReplyTo))), "View original post")
+	} else if originalPostExists == 1 {
+		w.Link(fmt.Sprintf("/users/view/%x", sha256.Sum256([]byte(note.InReplyTo))), "View original post")
 	}
 
 	if offset > repliesPerPage && r.User == nil {
