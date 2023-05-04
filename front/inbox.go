@@ -60,7 +60,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 	rows, err := r.Query(`
 		select notes.object, persons.actor from
 		notes
-		left join (
+		join (
 			select follows.followed, persons.actor->>'followers' as followers, stats.avg, stats.last from
 			(
 				select followed from follows where follower = $1
@@ -87,6 +87,14 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.followed)) or
 					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.followed))
 				)
+			) or
+			(
+				notes.author = follows.followed and
+				(
+					$1 in (notes.to0, notes.to1, notes.to2, notes.cc0, notes.cc1, notes.cc2) or
+					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $1)) or
+					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $1))
+				)
 			)
 		left join (
 			select object->>'inReplyTo' as id, count(*) as count from notes where inserted >= $3 group by object->>'inReplyTo'
@@ -99,13 +107,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 		where
 			notes.inserted >= $4 and
 			notes.inserted < $4 + 60*60*24 and
-			notes.author != $1 and
-			(
-				follows.followed is not null or
-				$1 in (notes.to0, notes.to1, notes.to2, notes.cc0, notes.cc1, notes.cc2) or
-				(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $1)) or
-				(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $1))
-			)
+			notes.author != $1
 		group by notes.id
 		order by
 			notes.inserted / 86400 desc,
