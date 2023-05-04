@@ -51,6 +51,17 @@ func dm(w text.Writer, r *request) {
 		return
 	}
 
+	var following int
+	if err := r.QueryRow(`select exists (select 1 from follows where follower = ? and followed = ?)`, actor.ID, r.User.ID).Scan(&following); err != nil {
+		r.Log.WithField("follower", actor.ID).WithError(err).Warn("Failed to check if user is a follower")
+		w.Error()
+		return
+	} else if following == 0 {
+		r.Log.WithField("follower", actor.ID).Warn("Cannot DM a user not following")
+		w.Error()
+		return
+	}
+
 	r.Log.WithField("to", actor.ID).Info("Sending DM to user")
 
 	to := ap.Audience{}

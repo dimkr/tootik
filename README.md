@@ -101,6 +101,8 @@ tootik has three kinds of posts:
 * Posts: posts visible to followers of a user
 * Public posts: posts visible to anyone
 
+User A is allowed to send a message to user B only if B follows A.
+
 **However, tootik does not implement access control.** Messages and posts are "unlisted" (in [Mastodon](https://github.com/mastodon/mastodon) jargon) and users who haven't received them can "discover" them. Every post is associated with an ID and /view will display a post given a hash of this ID: anyone who knows the hash associated with a message can see the message, even if the message was sent to another user and even if unauthenticated.
 
 ### Post Visibility
