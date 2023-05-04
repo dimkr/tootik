@@ -47,8 +47,8 @@ func callAndCache(r *request, w text.Writer, f func(text.Writer, *request), key 
 	raw := make([]byte, len(resp))
 	copy(raw, resp)
 
-	w.Empty()
-	w.Textf("(Cached response generated on %s)", now.Format(time.UnixDate))
+	w2.Empty()
+	w2.Textf("(Cached response generated on %s)", now.Format(time.UnixDate))
 
 	cache.Store(key, cacheEntry{buf.Bytes(), now})
 	return raw
