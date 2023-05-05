@@ -41,7 +41,7 @@ const (
 
 var verifiedRegex = regexp.MustCompile(`(\s*:[a-zA-Z0-9_]+:\s*)+`)
 
-func getTextAndLinks(s string, maxRunes, maxLines int) (string, []string, []string) {
+func getTextAndLinks(s string, maxRunes, maxLines int) ([]string, []string) {
 	raw, links := plain.FromHTML(s)
 
 	if raw == "" {
@@ -60,12 +60,12 @@ func getTextAndLinks(s string, maxRunes, maxLines int) (string, []string, []stri
 		for i := maxLines - 1; i >= 0; i-- {
 			if i == 0 || strings.TrimSpace(lines[i]) != "" {
 				lines[i+1] = "[...]"
-				return raw, lines[:i+2], links
+				return lines[:i+2], links
 			}
 		}
 	}
 
-	return raw, lines, links
+	return lines, links
 }
 
 func getDisplayName(id, preferredUsername, name string, t ap.ActorType) string {
@@ -123,7 +123,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 		maxRunes = compactViewMaxRunes
 	}
 
-	content, contentLines, inlineLinks := getTextAndLinks(note.Content, maxRunes, maxLines)
+	contentLines, inlineLinks := getTextAndLinks(note.Content, maxRunes, maxLines)
 
 	hashtags := data.OrderedMap[string, string]{}
 	mentionedUsers := data.OrderedMap[string, struct{}]{}
@@ -155,10 +155,6 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 	}
 
 	for _, link := range inlineLinks {
-		links.Store(link, struct{}{})
-	}
-
-	for link, _ := range plain.GetInlineLinks(content) {
 		links.Store(link, struct{}{})
 	}
 

@@ -71,7 +71,7 @@ func FromHTML(text string) (string, []string) {
 	return strings.TrimRight(res, " \n\r\t"), orderedLinks
 }
 
-func GetInlineLinks(text string) map[string]struct{} {
+func getPlainLinks(text string) map[string]struct{} {
 	links := map[string]struct{}{}
 	for _, link := range urlRegex.FindAllString(text, -1) {
 		links[link] = struct{}{}
@@ -80,7 +80,7 @@ func GetInlineLinks(text string) map[string]struct{} {
 }
 
 func ToHTML(text string) string {
-	for link, _ := range GetInlineLinks(text) {
+	for link, _ := range getPlainLinks(text) {
 		text = strings.ReplaceAll(text, link, fmt.Sprintf(`<a href="%s" target="_blank">%s</a>`, link, link))
 	}
 
