@@ -63,7 +63,7 @@ func TestFromHTML_LineBreak(t *testing.T) {
 
 func TestFromHTML_MentionAndLink(t *testing.T) {
 	post := `hi <span class="h-card"><a href="https://a.b/@x" class="u-url mention">@<span>x</span></a></span>, have you seen <a href="https://c.d/efg" target="_blank" rel="nofollow noopener noreferrer"><span class="invisible">https://</span><span class="ellipsis">c.d/e</span><span class="invisible">fg</span></a>?`
-	expected := "hi @x, have you seen https://c.d/efg?"
+	expected := "hi @x, have you seen c.d/e…?"
 	expectedLinks := []string{"https://c.d/efg"}
 
 	raw, links := FromHTML(post)
@@ -73,7 +73,7 @@ func TestFromHTML_MentionAndLink(t *testing.T) {
 
 func TestFromHTML_MentionAndLinks(t *testing.T) {
 	post := `hi <span class="h-card"><a href="https://a.b/@x" class="u-url mention">@<span>x</span></a></span>, have you seen <a href="https://c.d/efg" target="_blank" rel="nofollow noopener noreferrer"><span class="invisible">https://</span><span class="ellipsis">c.d/e</span><span class="invisible">fg</span></a> and <a href="https://h.i/jkl" target="_blank" rel="nofollow noopener noreferrer"><span class="invisible">https://</span><span class="ellipsis">h.i/jk</span><span class="invisible">l</span></a>?`
-	expected := "hi @x, have you seen https://c.d/efg and https://h.i/jkl?"
+	expected := "hi @x, have you seen c.d/e… and h.i/jk…?"
 	expectedLinks := []string{"https://c.d/efg", "https://h.i/jkl"}
 
 	raw, links := FromHTML(post)
@@ -82,7 +82,7 @@ func TestFromHTML_MentionAndLinks(t *testing.T) {
 }
 
 func TestFromHTML_MentionAndLinkAltText(t *testing.T) {
-	post := `hi <span class="h-card"><a href="https://a.b/@x" class="u-url mention">@<span>x</span></a></span>, have you seen <a href="https://c.d/efg" target="_blank" rel="nofollow noopener noreferrer"><span class="ellipsis">this</span> <span>link</span></a>?`
+	post := `hi <span class="h-card"><a href="https://a.b/@x" class="u-url mention">@<span>x</span></a></span>, have you seen <a href="https://c.d/efg" target="_blank" rel="nofollow noopener noreferrer">this <span>link</span></a>?`
 	expected := "hi @x, have you seen this link?"
 	expectedLinks := []string{"https://c.d/efg"}
 
