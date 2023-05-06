@@ -45,6 +45,7 @@ tootik implements only a small subset of ActivityPub, and probably doesn't reall
 * /federated shows a compact list of federated posts (without posts by bots).
 * /hashtag shows a compact list of posts with a given hashtag.
 * /active shows a list of active users (local or federated).
+* /hashtags shows a list of popular hashtags.
 * /instances shows a list of other servers in the network.
 * /stats shows statistics and server health metrics.
 
@@ -72,6 +73,7 @@ Some clients generate a certificate for / (all pages of this capsule) when /foo 
 * /users/federated
 * /users/hashtag
 * /users/active
+* /users/hashtags
 * /users/instances
 * /users/stats
 * /users/view
