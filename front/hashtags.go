@@ -28,7 +28,7 @@ func init() {
 }
 
 func hashtags(w text.Writer, r *request) {
-	rows, err := r.Query(`select hashtag from (select hashtags.hashtag, notes.author from hashtags join notes where notes.id = hashtags.note group by hashtags.hashtag, notes.author) group by hashtag order by count(*) desc limit 30`)
+	rows, err := r.Query(`select hashtag from (select distinct hashtags.hashtag, notes.author from hashtags join notes where notes.id = hashtags.note) group by hashtag order by count(*) desc limit 30`)
 	if err != nil {
 		r.Log.WithError(err).Warn("Failed to list hashtags")
 		w.Error()
