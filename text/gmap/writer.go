@@ -49,9 +49,15 @@ func (w *writer) Error() {
 	w.Text("40: Error")
 }
 
-func (w *writer) wrap(t byte, prefix, name, selector, host, port string) {
-	for _, line := range text.WordWrap(name, lineWidth-len(prefix), -1) {
-		fmt.Fprintf(w, "%c%s%s\t%s\t%s\t%s\r\n", t, prefix, line, selector, host, port)
+func (w *writer) wrap(t byte, prefix, cont, name, selector, host, port string) {
+	lines := text.WordWrap(name, lineWidth-len(prefix), -1)
+
+	if len(lines) > 0 {
+		fmt.Fprintf(w, "%c%s%s\t%s\t%s\t%s\r\n", t, prefix, lines[0], selector, host, port)
+	}
+
+	for _, line := range lines[1:] {
+		fmt.Fprintf(w, "%c%s%s\t%s\t%s\t%s\r\n", t, cont, line, selector, host, port)
 	}
 }
 
@@ -64,7 +70,7 @@ func (w *writer) Redirectf(format string, a ...any) {
 }
 
 func (w *writer) Title(title string) {
-	w.wrap('i', "# ", title, "/", "0", "0")
+	w.wrap('i', "# ", "  ", title, "/", "0", "0")
 	w.Empty()
 }
 
@@ -73,7 +79,7 @@ func (w *writer) Titlef(format string, a ...any) {
 }
 
 func (w *writer) Subtitle(subtitle string) {
-	w.wrap('i', "## ", subtitle, "/", "0", "0")
+	w.wrap('i', "## ", "   ", subtitle, "/", "0", "0")
 	w.Empty()
 }
 
@@ -82,7 +88,7 @@ func (w *writer) Subtitlef(format string, a ...any) {
 }
 
 func (w *writer) Text(line string) {
-	w.wrap('i', "", line, "/", "0", "0")
+	w.wrap('i', "", "", line, "/", "0", "0")
 }
 
 func (w *writer) Textf(format string, a ...any) {
@@ -90,25 +96,25 @@ func (w *writer) Textf(format string, a ...any) {
 }
 
 func (w *writer) Empty() {
-	w.wrap('i', "", "", "/", "0", "0")
+	w.wrap('i', "", "", "", "/", "0", "0")
 }
 
 func (w *writer) Link(link, name string) {
 	if link[0] == '/' {
-		w.wrap('1', "", name, link, cfg.Domain, "70")
+		w.wrap('1', "", "", name, link, cfg.Domain, "70")
 	} else if u, err := url.Parse(link); err == nil {
 		if u.Scheme == "gopher" {
 			port := u.Port()
 			if port == "" {
-				w.wrap('1', "", name, u.Path, u.Host, "70")
+				w.wrap('1', "", "", name, u.Path, u.Host, "70")
 			} else {
-				w.wrap('1', "", name, u.Path, u.Host, port)
+				w.wrap('1', "", "", name, u.Path, u.Host, port)
 			}
 		} else {
-			w.wrap('h', "", name, "URL:"+link, "0", "0")
+			w.wrap('h', "", "", name, "URL:"+link, "0", "0")
 		}
 	} else {
-		w.wrap('h', "", name, "URL:"+link, "0", "0")
+		w.wrap('h', "", "", name, "URL:"+link, "0", "0")
 	}
 }
 
@@ -116,12 +122,16 @@ func (w *writer) Linkf(link, format string, a ...any) {
 	w.Link(link, fmt.Sprintf(format, a...))
 }
 
+func (w *writer) Item(item string) {
+	w.wrap('i', "* ", "  ", item, "/", "0", "0")
+}
+
 func (w *writer) Itemf(format string, a ...any) {
-	w.wrap('i', "* ", fmt.Sprintf(format, a...), "/", "0", "0")
+	w.wrap('i', "* ", "  ", fmt.Sprintf(format, a...), "/", "0", "0")
 }
 
 func (w *writer) Quote(quote string) {
-	w.wrap('i', "> ", quote, "/", "0", "0")
+	w.wrap('i', "> ", "> ", quote, "/", "0", "0")
 }
 
 func (w *writer) Raw(alt, raw string) {

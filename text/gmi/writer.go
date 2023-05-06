@@ -106,6 +106,12 @@ func (w *writer) Linkf(url, format string, a ...any) {
 	w.Write([]byte{'\n'})
 }
 
+func (w *writer) Item(item string) {
+	w.Write([]byte("* "))
+	w.Write([]byte(item))
+	w.Write([]byte{'\n'})
+}
+
 func (w *writer) Itemf(format string, a ...any) {
 	w.Write([]byte("* "))
 	fmt.Fprintf(w, format, a...)

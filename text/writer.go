@@ -39,6 +39,7 @@ type Writer interface {
 	Empty()
 	Link(string, string)
 	Linkf(string, string, ...any)
+	Item(string)
 	Itemf(string, ...any)
 	Quote(string)
 	Raw(string, string)
