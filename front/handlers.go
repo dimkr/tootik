@@ -43,12 +43,13 @@ func Handle(ctx context.Context, w text.Writer, reqUrl *url.URL, user *ap.Actor,
 			}
 
 			handler(w, &request{
-				Context:   ctx,
-				URL:       reqUrl,
-				User:      user,
-				DB:        db,
-				WaitGroup: wg,
-				Log:       logger.New(logFields),
+				Context:    ctx,
+				URL:        reqUrl,
+				User:       user,
+				AuthPrefix: "/users",
+				DB:         db,
+				WaitGroup:  wg,
+				Log:        logger.New(logFields),
 			})
 			return
 		}

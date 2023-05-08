@@ -89,16 +89,12 @@ func local(w text.Writer, r *request) {
 		w.Separator()
 	}
 
-	if offset >= postsPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/local?%d", offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
-	} else if offset >= postsPerPage {
-		w.Linkf(fmt.Sprintf("/users/local?%d", offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
+	if offset >= postsPerPage {
+		w.Linkf(fmt.Sprintf("%s/local?%d", r.AuthPrefix, offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
 	}
 
-	if count == postsPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/local?%d", offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
-	} else if count == postsPerPage {
-		w.Linkf(fmt.Sprintf("/users/local?%d", offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
+	if count == postsPerPage {
+		w.Linkf(fmt.Sprintf("%s/local?%d", r.AuthPrefix, offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
 	}
 }
 
@@ -151,16 +147,12 @@ func federated(w text.Writer, r *request) {
 		w.Separator()
 	}
 
-	if offset >= postsPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/federated?%d", offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
-	} else if offset >= postsPerPage {
-		w.Linkf(fmt.Sprintf("/users/federated?%d", offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
+	if offset >= postsPerPage {
+		w.Linkf(fmt.Sprintf("%s/federated?%d", r.AuthPrefix, offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
 	}
 
-	if count == postsPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/federated?%d", offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
-	} else if count == postsPerPage {
-		w.Linkf(fmt.Sprintf("/users/federated?%d", offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
+	if count == postsPerPage {
+		w.Linkf(fmt.Sprintf("%s/federated?%d", r.AuthPrefix, offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
 	}
 }
 

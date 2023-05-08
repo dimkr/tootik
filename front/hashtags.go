@@ -17,6 +17,7 @@ limitations under the License.
 package front
 
 import (
+	"fmt"
 	"github.com/dimkr/tootik/text"
 	"regexp"
 	"time"
@@ -53,10 +54,6 @@ func hashtags(w text.Writer, r *request) {
 	w.Empty()
 
 	for _, tag := range tags {
-		if r.User == nil {
-			w.Link("/hashtag/"+tag, "#"+tag)
-		} else {
-			w.Link("/users/hashtag/"+tag, "#"+tag)
-		}
+		w.Link(fmt.Sprintf("%s/hashtag/%s", r.AuthPrefix, tag), "#"+tag)
 	}
 }

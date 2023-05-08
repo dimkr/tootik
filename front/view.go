@@ -134,27 +134,19 @@ func view(w text.Writer, r *request) {
 		w.Separator()
 	}
 
-	if originalPostExists == 1 && r.User == nil {
-		w.Link(fmt.Sprintf("/view/%x", sha256.Sum256([]byte(note.InReplyTo))), "View original post")
-	} else if originalPostExists == 1 {
-		w.Link(fmt.Sprintf("/users/view/%x", sha256.Sum256([]byte(note.InReplyTo))), "View original post")
+	if originalPostExists == 1 {
+		w.Link(fmt.Sprintf("%s/view/%x", r.AuthPrefix, sha256.Sum256([]byte(note.InReplyTo))), "View original post")
 	}
 
-	if offset > repliesPerPage && r.User == nil {
-		w.Link("/view/"+hash, "First page")
-	} else if offset > repliesPerPage {
-		w.Link("/users/view/"+hash, "First page")
+	if offset > repliesPerPage {
+		w.Link(fmt.Sprintf("%s/view/%s", r.AuthPrefix, hash), "First page")
 	}
 
-	if offset >= repliesPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/view/%s?%d", hash, offset-repliesPerPage), "Previous page (%d-%d)", offset-repliesPerPage, offset)
-	} else if offset >= repliesPerPage {
-		w.Linkf(fmt.Sprintf("/users/view/%s?%d", hash, offset-repliesPerPage), "Previous page (%d-%d)", offset-repliesPerPage, offset)
+	if offset >= repliesPerPage {
+		w.Linkf(fmt.Sprintf("%s/view/%s?%d", r.AuthPrefix, hash, offset-repliesPerPage), "Previous page (%d-%d)", offset-repliesPerPage, offset)
 	}
 
-	if count == repliesPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/view/%s?%d", hash, offset+repliesPerPage), "Next page (%d-%d)", offset+repliesPerPage, offset+2*repliesPerPage)
-	} else if count == repliesPerPage {
-		w.Linkf(fmt.Sprintf("/users/view/%s?%d", hash, offset+repliesPerPage), "Next page (%d-%d)", offset+repliesPerPage, offset+2*repliesPerPage)
+	if count == repliesPerPage {
+		w.Linkf(fmt.Sprintf("%s/view/%s?%d", r.AuthPrefix, hash, offset+repliesPerPage), "Next page (%d-%d)", offset+repliesPerPage, offset+2*repliesPerPage)
 	}
 }

@@ -28,12 +28,13 @@ import (
 )
 
 type request struct {
-	Context   context.Context
-	URL       *url.URL
-	User      *ap.Actor
-	DB        *sql.DB
-	WaitGroup *sync.WaitGroup
-	Log       *log.Logger
+	Context    context.Context
+	URL        *url.URL
+	User       *ap.Actor
+	AuthPrefix string
+	DB         *sql.DB
+	WaitGroup  *sync.WaitGroup
+	Log        *log.Logger
 }
 
 func (r *request) Resolve(actorID string) (*ap.Actor, error) {

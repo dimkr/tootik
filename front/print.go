@@ -233,10 +233,8 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 
 	if !titleIsLink {
 		w.Text(title)
-	} else if r.User == nil {
-		w.Link(fmt.Sprintf("/view/%x", sha256.Sum256([]byte(note.ID))), title)
 	} else {
-		w.Link(fmt.Sprintf("/users/view/%x", sha256.Sum256([]byte(note.ID))), title)
+		w.Link(fmt.Sprintf("%s/view/%x", r.AuthPrefix, sha256.Sum256([]byte(note.ID))), title)
 	}
 
 	for _, line := range contentLines {
@@ -249,11 +247,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 			return true
 		})
 
-		if r.User == nil {
-			w.Link(fmt.Sprintf("/outbox/%x", sha256.Sum256([]byte(author.ID))), authorDisplayName)
-		} else {
-			w.Link(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(author.ID))), authorDisplayName)
-		}
+		w.Link(fmt.Sprintf("%s/outbox/%x", r.AuthPrefix, sha256.Sum256([]byte(author.ID))), authorDisplayName)
 
 		for _, mentionID := range mentionedUsers.Keys() {
 			mention, err := r.Resolve(mentionID)
@@ -262,11 +256,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 				continue
 			}
 
-			if r.User == nil {
-				w.Link(fmt.Sprintf("/outbox/%x", sha256.Sum256([]byte(mentionID))), mention.PreferredUsername)
-			} else {
-				w.Link(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(mentionID))), mention.PreferredUsername)
-			}
+			w.Link(fmt.Sprintf("%s/outbox/%x", r.AuthPrefix, sha256.Sum256([]byte(mentionID))), mention.PreferredUsername)
 		}
 
 		hashtags.Range(func(_ string, tag string) bool {
@@ -276,17 +266,15 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 				return true
 			}
 
-			if exists == 1 && r.User == nil {
-				w.Linkf("/hashtag/"+tag, "Posts tagged #%s", tag)
-			} else if exists == 1 {
-				w.Linkf("/users/hashtag/"+tag, "Posts tagged #%s", tag)
+			if exists == 1 {
+				w.Linkf(fmt.Sprintf("/%s/hashtag/%s", r.AuthPrefix, tag), "Posts tagged #%s", tag)
 			}
 
 			return true
 		})
 
 		if r.User != nil {
-			w.Link(fmt.Sprintf("/users/reply/%x", sha256.Sum256([]byte(note.ID))), "💬 Reply")
+			w.Link(fmt.Sprintf("%s/reply/%x", r.AuthPrefix, sha256.Sum256([]byte(note.ID))), "💬 Reply")
 		}
 	}
 }

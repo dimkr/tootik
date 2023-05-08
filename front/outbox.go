@@ -124,16 +124,12 @@ func outbox(w text.Writer, r *request) {
 		w.Separator()
 	}
 
-	if offset >= postsPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/outbox/%s?%d", hash, offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
-	} else if offset >= postsPerPage {
-		w.Linkf(fmt.Sprintf("/users/outbox/%s?%d", hash, offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
+	if offset >= postsPerPage {
+		w.Linkf(fmt.Sprintf("%s/outbox/%s?%d", r.AuthPrefix, hash, offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
 	}
 
-	if count == postsPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/outbox/%s?%d", hash, offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
-	} else if count == postsPerPage {
-		w.Linkf(fmt.Sprintf("/users/outbox/%s?%d", hash, offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
+	if count == postsPerPage {
+		w.Linkf(fmt.Sprintf("/%s/outbox/%s?%d", r.AuthPrefix, hash, offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
 	}
 
 	if r.User != nil && actorID != r.User.ID {
@@ -141,19 +137,19 @@ func outbox(w text.Writer, r *request) {
 		err := r.QueryRow(`select id from follows where follower = ? and followed = ?`, r.User.ID, actorID).Scan(&followID)
 		if err != nil && errors.Is(err, sql.ErrNoRows) {
 			w.Separator()
-			w.Linkf(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(actorID))), "⚡ Follow %s", actor.PreferredUsername)
+			w.Linkf(fmt.Sprintf("%s/follow/%x", r.AuthPrefix, sha256.Sum256([]byte(actorID))), "⚡ Follow %s", actor.PreferredUsername)
 		} else if err != nil {
 			r.Log.WithField("followed", actorID).WithError(err).Warn("Failed to check if user is followed")
 		} else {
 			w.Separator()
-			w.Linkf(fmt.Sprintf("/users/unfollow/%x", sha256.Sum256([]byte(actorID))), "🔌 Unfollow %s", actor.PreferredUsername)
+			w.Linkf(fmt.Sprintf("%s/unfollow/%x", r.AuthPrefix, sha256.Sum256([]byte(actorID))), "🔌 Unfollow %s", actor.PreferredUsername)
 		}
 
 		var following int
 		if err := r.QueryRow(`select exists (select 1 from follows where follower = ? and followed = ?)`, actorID, r.User.ID).Scan(&following); err != nil {
 			r.Log.WithField("follower", actorID).WithError(err).Warn("Failed to check if user is a follower")
 		} else if following == 1 {
-			w.Linkf(fmt.Sprintf("/users/dm/%x", sha256.Sum256([]byte(actorID))), "📟 Message %s", actor.PreferredUsername)
+			w.Linkf(fmt.Sprintf("%s/dm/%x", r.AuthPrefix, sha256.Sum256([]byte(actorID))), "📟 Message %s", actor.PreferredUsername)
 		}
 	}
 }

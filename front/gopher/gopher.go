@@ -19,6 +19,7 @@ package gopher
 import (
 	"context"
 	"database/sql"
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/text/gmap"
 	log "github.com/sirupsen/logrus"
@@ -29,6 +30,11 @@ import (
 )
 
 const reqTimeout = time.Second * 30
+
+func getUser(ctx context.Context, db *sql.DB, reqUrl *url.URL) (*ap.Actor, error) {
+	// TODO
+	return nil, nil
+}
 
 func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup) {
 	if err := conn.SetDeadline(time.Now().Add(reqTimeout)); err != nil {
@@ -73,7 +79,12 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup) 
 
 	w := gmap.Wrap(conn)
 
-	front.Handle(ctx, w, reqUrl, nil, db, wg)
+	user, err := getUser(ctx, db, reqUrl)
+	if err != nil {
+		log.WithError(err).Warn("Failed to get user")
+	}
+
+	front.Handle(ctx, w, reqUrl, user, db, wg)
 }
 
 func ListenAndServe(ctx context.Context, db *sql.DB, addr string) error {

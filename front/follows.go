@@ -90,11 +90,11 @@ func follows(w text.Writer, r *request) {
 			displayName := getActorDisplayName(&row.Actor)
 
 			if row.Count.Valid && row.Count.Int64 > 1 {
-				w.Linkf(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(row.Actor.ID))), "%s %s: %d posts", time.Unix(row.Last.Int64, 0).Format(time.DateOnly), displayName, row.Count.Int64)
+				w.Linkf(fmt.Sprintf("%s/outbox/%x", r.AuthPrefix, sha256.Sum256([]byte(row.Actor.ID))), "%s %s: %d posts", time.Unix(row.Last.Int64, 0).Format(time.DateOnly), displayName, row.Count.Int64)
 			} else if row.Count.Valid {
-				w.Linkf(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(row.Actor.ID))), "%s %s: 1 post", time.Unix(row.Last.Int64, 0).Format(time.DateOnly), displayName)
+				w.Linkf(fmt.Sprintf("/%s/outbox/%x", r.AuthPrefix, sha256.Sum256([]byte(row.Actor.ID))), "%s %s: 1 post", time.Unix(row.Last.Int64, 0).Format(time.DateOnly), displayName)
 			} else {
-				w.Link(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(row.Actor.ID))), displayName)
+				w.Link(fmt.Sprintf("/%s/outbox/%x", r.AuthPrefix, sha256.Sum256([]byte(row.Actor.ID))), displayName)
 			}
 		}
 	}
@@ -107,7 +107,7 @@ func follows(w text.Writer, r *request) {
 		w.Empty()
 
 		for _, row := range inactive {
-			w.Link(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(row.Actor.ID))), getActorDisplayName(&row.Actor))
+			w.Link(fmt.Sprintf("/%s/outbox/%x", r.AuthPrefix, sha256.Sum256([]byte(row.Actor.ID))), getActorDisplayName(&row.Actor))
 		}
 	}
 }

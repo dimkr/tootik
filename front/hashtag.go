@@ -82,15 +82,11 @@ func hashtag(w text.Writer, r *request) {
 		w.Separator()
 	}
 
-	if offset >= postsPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/hashtag/%s?%d", tag, offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
-	} else if offset >= postsPerPage {
-		w.Linkf(fmt.Sprintf("/users/hashtag/%s?%d", tag, offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
+	if offset >= postsPerPage {
+		w.Linkf(fmt.Sprintf("%s/hashtag/%s?%d", r.AuthPrefix, tag, offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
 	}
 
-	if count == postsPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/hashtag/%s?%d", tag, offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
-	} else if count == postsPerPage {
-		w.Linkf(fmt.Sprintf("/users/hashtag/%s?%d", tag, offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
+	if count == postsPerPage {
+		w.Linkf(fmt.Sprintf("%s/hashtag/%s?%d", r.AuthPrefix, tag, offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
 	}
 }

@@ -17,6 +17,7 @@ limitations under the License.
 package front
 
 import (
+	"fmt"
 	"regexp"
 	"time"
 
@@ -71,17 +72,17 @@ func users(w text.Writer, r *request) {
 		u := time.Unix(t, 0)
 		s := u.Format(time.DateOnly)
 		if t == today && posts > 1 {
-			w.Linkf("/users/inbox/today", "%s Today, %s: %d posts", s, u.Weekday().String(), posts)
+			w.Linkf(r.AuthPrefix+"/inbox/today", "%s Today, %s: %d posts", s, u.Weekday().String(), posts)
 		} else if t == today {
-			w.Linkf("/users/inbox/today", "%s Today, %s: 1 post", s, u.Weekday().String())
+			w.Linkf(r.AuthPrefix+"/inbox/today", "%s Today, %s: 1 post", s, u.Weekday().String())
 		} else if t == yesterday && posts > 1 {
-			w.Linkf("/users/inbox/yesterday", "%s Yesterday, %s: %d posts", s, u.Weekday().String(), posts)
+			w.Linkf(r.AuthPrefix+"/inbox/yesterday", "%s Yesterday, %s: %d posts", s, u.Weekday().String(), posts)
 		} else if t == yesterday {
-			w.Linkf("/users/inbox/yesterday", "%s Yesterday, %s: post", s, u.Weekday().String())
+			w.Linkf(r.AuthPrefix+"/inbox/yesterday", "%s Yesterday, %s: post", s, u.Weekday().String())
 		} else if posts > 1 {
-			w.Linkf("/users/inbox/"+s, "%s %s: %d posts", s, u.Weekday().String(), posts)
+			w.Linkf(fmt.Sprintf("%s/inbox/%s", r.AuthPrefix, s), "%s %s: %d posts", s, u.Weekday().String(), posts)
 		} else {
-			w.Linkf("/users/inbox/"+s, "%s %s: 1 post", s, u.Weekday().String())
+			w.Linkf(fmt.Sprintf("%s/inbox/%s", r.AuthPrefix, s), "%s %s: 1 post", s, u.Weekday().String())
 		}
 		return true
 	})

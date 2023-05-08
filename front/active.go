@@ -64,10 +64,6 @@ func active(w text.Writer, r *request) {
 
 		displayName := getDisplayName(authorID, preferredUsername, nameIfValid, ap.ActorType(authorType))
 
-		if r.User == nil {
-			w.Linkf(fmt.Sprintf("/outbox/%x", sha256.Sum256([]byte(authorID))), "%s %s (%d)", time.Unix(lastInsert, 0).Format(time.DateOnly), displayName, count)
-		} else {
-			w.Linkf(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(authorID))), "%s %s (%d)", time.Unix(lastInsert, 0).Format(time.DateOnly), displayName, count)
-		}
+		w.Linkf(fmt.Sprintf("%s/outbox/%x", r.AuthPrefix, sha256.Sum256([]byte(authorID))), "%s %s (%d)", time.Unix(lastInsert, 0).Format(time.DateOnly), displayName, count)
 	}
 }
