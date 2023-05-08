@@ -60,7 +60,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 	rows, err := r.Query(`
 		select notes.object, persons.actor from
 		notes
-		join (
+		left join (
 			select follows.followed, persons.actor->>'followers' as followers, stats.avg, stats.last from
 			(
 				select followed from follows where follower = $1
@@ -86,6 +86,11 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 				(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.followers or value = $1))
 			)
 		left join (
+			select id from notes where author = $1
+		) myposts
+		on
+			myposts.id = notes.object->>'inReplyTo'
+		left join (
 			select object->>'inReplyTo' as id, count(*) as count from notes where inserted >= $3 group by object->>'inReplyTo'
 		) replies
 		on
@@ -100,7 +105,8 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 			persons.id = notes.author
 		where
 			notes.inserted >= $4 and
-			notes.inserted < $4 + 60*60*24
+			notes.inserted < $4 + 60*60*24 and
+			(follows.followed is not null or myposts.id is not null)
 		group by notes.id
 		order by
 			notes.inserted / 86400 desc,
