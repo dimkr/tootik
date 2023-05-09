@@ -17,6 +17,7 @@ limitations under the License.
 package fed
 
 import (
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -26,6 +27,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"path/filepath"
+	"strings"
 )
 
 type userHandler struct {
@@ -41,6 +43,16 @@ func (h *userHandler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	name := filepath.Base(r.URL.Path)
 	actorID := fmt.Sprintf("https://%s/user/%s", cfg.Domain, name)
+
+	// redirect browsers to the outbox page over Gemini
+	accept := strings.ReplaceAll(r.Header.Get("Accept"), " ", "")
+	if strings.HasPrefix(accept, "text/html,") || strings.HasSuffix(accept, ",text/html") || strings.Contains(accept, ",text/html,") {
+		outbox := fmt.Sprintf("gemini://%s/outbox/%x", cfg.Domain, sha256.Sum256([]byte(actorID)))
+		h.Log.WithField("outbox", outbox).Info("Redirecting to outbox over Gemini")
+		w.Header().Set("Location", outbox)
+		w.WriteHeader(http.StatusMovedPermanently)
+		return
+	}
 
 	h.Log.WithField("id", actorID).Info("Looking up user")
 
