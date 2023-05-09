@@ -31,6 +31,7 @@ func say(w text.Writer, r *request) {
 	cc := ap.Audience{}
 
 	to.Add(ap.Public)
+	cc.Add(r.User.Followers)
 
 	post(w, r, nil, to, cc, "Post content")
 }

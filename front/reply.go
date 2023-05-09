@@ -63,6 +63,7 @@ func reply(w text.Writer, r *request) {
 		to.Add(note.AttributedTo)
 	} else if note.IsPublic() {
 		to.Add(note.AttributedTo)
+		cc.Add(r.User.Followers)
 		cc.Add(ap.Public)
 	} else if !note.IsPublic() {
 		to.Add(note.AttributedTo)

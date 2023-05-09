@@ -112,7 +112,7 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 
 		r.Log.WithFields(log.Fields{"name": mention[0], "actor": actorID}).Info("Adding mention")
 		tags = append(tags, ap.Mention{Type: ap.MentionMention, Name: mention[0], Href: actorID})
-		to.Add(actorID)
+		cc.Add(actorID)
 	}
 
 	note := ap.Object{

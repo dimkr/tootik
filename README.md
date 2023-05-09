@@ -109,19 +109,19 @@ User A is allowed to send a message to user B only if B follows A.
 
 ### Post Visibility
 
-| Post type   | To                 | CC |
-|-------------|--------------------|----|
-| Message     | Receiving user     | -  |
-| Post        | Author's followers | -  |
-| Public post | Public             | -  |
+| Post type   | To                 | CC                              |
+|-------------|--------------------|---------------------------------|
+| Message     | Receiving user     | -                               |
+| Post        | Author's followers | Mentions                        |
+| Public post | Public             | Mentions and author's followers |
 
 ### Reply Visibility
 
-| Post type   | To          | CC                        |
-|-------------|-------------|---------------------------|
-| Message     | Post author | -                         |
-| Post        | Post author | Followers of reply author |
-| Public post | Post author | Public                    |
+| Post type   | To          | CC                                             |
+|-------------|-------------|------------------------------------------------|
+| Message     | Post author | -                                              |
+| Post        | Post author | Mentions and followers of reply author         |
+| Public post | Post author | Mentions, followers of reply author and Public |
 
 ## Implementation Details
 
