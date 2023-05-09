@@ -77,43 +77,36 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 				stats.author = persons.id
 		) follows
 		on
-			follows.followers in (notes.to0, notes.to1, notes.to2, notes.cc0, notes.cc1, notes.cc2) or
-			(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.followers)) or
-			(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.followers)) or
+			notes.author = follows.followed and
 			(
-				notes.public = 1 and
-				(
-					follows.followed in (notes.author, notes.to0, notes.to1, notes.to2, notes.cc0, notes.cc1, notes.cc2) or
-					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.followed)) or
-					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.followed))
-				)
-			) or
-			(
-				notes.author = follows.followed and
-				(
-					$1 in (notes.to0, notes.to1, notes.to2, notes.cc0, notes.cc1, notes.cc2) or
-					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $1)) or
-					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $1))
-				)
+				notes.public = 1 or
+				follows.followers in (notes.to0, notes.to1, notes.to2, notes.cc0, notes.cc1, notes.cc2) or
+				$1 in (notes.to0, notes.to1, notes.to2, notes.cc0, notes.cc1, notes.cc2) or
+				(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.followers or value = $1)) or
+				(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.followers or value = $1))
 			)
 		left join (
 			select object->>'inReplyTo' as id, count(*) as count from notes where inserted >= $3 group by object->>'inReplyTo'
 		) replies
 		on
 			replies.id = notes.id
+		left join (
+			select object->>'inReplyTo' as replyto from notes where author = $1 and inserted >= $3
+		) myreplies
+		on
+			myreplies.replyto = notes.id
 		left join persons
 		on
 			persons.id = notes.author
 		where
 			notes.inserted >= $4 and
-			notes.inserted < $4 + 60*60*24 and
-			notes.author != $1
+			notes.inserted < $4 + 60*60*24
 		group by notes.id
 		order by
 			notes.inserted / 86400 desc,
 			(case
 				when $1 in (notes.to0, notes.to1, notes.to2, notes.cc0, notes.cc1, notes.cc2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $1)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $1)) then 0
-				when notes.author = follows.followed then 1
+				when myreplies.replyto is not null then 1
 				else 2
 			end),
 			replies.count desc,
