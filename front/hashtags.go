@@ -28,7 +28,7 @@ func init() {
 }
 
 func hashtags(w text.Writer, r *request) {
-	rows, err := r.Query(`select hashtag from (select distinct hashtags.hashtag, notes.author from hashtags join notes where notes.id = hashtags.note) group by hashtag order by count(*) desc limit 30`)
+	rows, err := r.Query(`select hashtag from (select hashtag, max(inserted)/86400 as last, count(distinct author) as users, count(*) as posts from (select hashtags.hashtag, notes.author, notes.inserted from hashtags join notes on notes.id = hashtags.note where inserted > unixepoch()-60*60*24*7) group by hashtag) where users > 1 order by users desc, posts desc, last desc limit 100`)
 	if err != nil {
 		r.Log.WithError(err).Warn("Failed to list hashtags")
 		w.Error()
@@ -51,11 +51,24 @@ func hashtags(w text.Writer, r *request) {
 	w.OK()
 	w.Title("🔥 Hashtags")
 
-	for _, tag := range tags {
-		if r.User == nil {
-			w.Link("/hashtag/"+tag, "#"+tag)
-		} else {
-			w.Link("/users/hashtag/"+tag, "#"+tag)
+	if len(tags) > 0 {
+		w.Text("Most popular hashtags in the last week:")
+		w.Empty()
+
+		for _, tag := range tags {
+			if r.User == nil {
+				w.Link("/hashtag/"+tag, "#"+tag)
+			} else {
+				w.Link("/users/hashtag/"+tag, "#"+tag)
+			}
 		}
+
+		w.Separator()
+	}
+
+	if r.User == nil {
+		w.Link("/search", "🔎 Posts by hashtag")
+	} else {
+		w.Link("/users/search", "🔎 Posts by hashtag")
 	}
 }

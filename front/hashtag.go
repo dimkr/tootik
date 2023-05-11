@@ -93,4 +93,12 @@ func hashtag(w text.Writer, r *request) {
 	} else if count == postsPerPage {
 		w.Linkf(fmt.Sprintf("/users/hashtag/%s?%d", tag, offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
 	}
+
+	w.Separator()
+
+	if r.User == nil {
+		w.Link("/search", "🔎 Posts by hashtag")
+	} else {
+		w.Link("/users/search", "🔎 Posts by hashtag")
+	}
 }

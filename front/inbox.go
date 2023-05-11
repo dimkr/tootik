@@ -175,10 +175,6 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 	if count == postsPerPage {
 		w.Linkf(fmt.Sprintf("%s?%d", r.URL.Path, offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
 	}
-
-	if offset >= postsPerPage || count == postsPerPage {
-		w.Empty()
-	}
 }
 
 func byDate(w text.Writer, r *request) {
