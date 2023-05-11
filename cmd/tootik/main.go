@@ -132,6 +132,15 @@ func main() {
 		wg.Done()
 	}()
 
+	wg.Add(1)
+	go func() {
+		if err := fed.ProcessActivities(ctx, db, log); err != nil {
+			log.WithError(err).Error("Failed to process activities")
+		}
+		cancel()
+		wg.Done()
+	}()
+
 	ticker := time.NewTicker(time.Hour * 12)
 
 	wg.Add(1)

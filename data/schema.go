@@ -41,6 +41,10 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 
+	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS activities(id INTEGER PRIMARY KEY, sender STRING NOT NULL, activity STRING NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()))`); err != nil {
+		return err
+	}
+
 	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS hashtags(note id STRING NOT NULL, hashtag STRING COLLATE NOCASE NOT NULL)`); err != nil {
 		return err
 	}

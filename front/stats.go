@@ -33,7 +33,7 @@ func stats(w text.Writer, r *request) {
 	prefix := fmt.Sprintf("https://%s/%%", cfg.Domain)
 
 	var usersCount, postsCount, postsToday, federatedPostsCount, federatedPostsToday, lastPost, lastFederatedPost, lastRegister, lastFederatedUser int64
-	var queueSize int
+	var deliveriesQueueSize, activitiesQueueSize int
 
 	if err := r.QueryRow(`select count(*) from persons where id like ?`, prefix).Scan(&usersCount); err != nil {
 		r.Log.WithError(err).Info("Failed to get users count")
@@ -89,7 +89,13 @@ func stats(w text.Writer, r *request) {
 		return
 	}
 
-	if err := r.QueryRow(`select count(*) from deliveries`).Scan(&queueSize); err != nil {
+	if err := r.QueryRow(`select count(*) from activities`).Scan(&activitiesQueueSize); err != nil {
+		r.Log.WithError(err).Info("Failed to get activities queue size")
+		w.Error()
+		return
+	}
+
+	if err := r.QueryRow(`select count(*) from deliveries`).Scan(&deliveriesQueueSize); err != nil {
 		r.Log.WithError(err).Info("Failed to get delivery queue size")
 		w.Error()
 		return
@@ -108,5 +114,6 @@ func stats(w text.Writer, r *request) {
 	w.Itemf("Federated posts: %d", federatedPostsCount)
 	w.Itemf("Newest user: %s", time.Unix(lastRegister, 0).Format(time.UnixDate))
 	w.Itemf("Latest federated user update: %s", time.Unix(lastFederatedUser, 0).Format(time.UnixDate))
-	w.Itemf("Outgoing posts queue size: %d", queueSize)
+	w.Itemf("Incoming posts queue size: %d", activitiesQueueSize)
+	w.Itemf("Outgoing posts queue size: %d", deliveriesQueueSize)
 }

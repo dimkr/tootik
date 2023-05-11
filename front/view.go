@@ -46,27 +46,27 @@ func view(w text.Writer, r *request) {
 
 	r.Log.WithField("hash", hash).Info("Viewing post")
 
-	id := ""
-	noteString := ""
-	if err := r.QueryRow(`select id, object from notes where hash = ?`, hash).Scan(&id, &noteString); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.WithField("post", id).Info("Post was not found")
+	var noteString, authorString string
+	if err := r.QueryRow(`select notes.object, persons.actor from notes join persons on persons.id = notes.author where notes.hash = ?`, hash).Scan(&noteString, &authorString); err != nil && errors.Is(err, sql.ErrNoRows) {
+		r.Log.WithField("hash", hash).Info("Post was not found")
 		w.Status(40, "Post not found")
 		return
 	} else if err != nil {
-		r.Log.WithField("post", id).WithError(err).Info("Failed to find post")
+		r.Log.WithField("hash", hash).WithError(err).Info("Failed to find post")
 		w.Error()
 		return
 	}
 
 	note := ap.Object{}
 	if err := json.Unmarshal([]byte(noteString), &note); err != nil {
+		r.Log.WithField("hash", hash).WithError(err).Info("Failed to unmarshal post")
 		w.Error()
 		return
 	}
 
-	author, err := r.Resolve(note.AttributedTo)
-	if err != nil {
-		r.Log.WithField("post", id).WithError(err).Info("Failed to resolve post author")
+	author := ap.Actor{}
+	if err := json.Unmarshal([]byte(authorString), &author); err != nil {
+		r.Log.WithField("post", note.ID).WithError(err).Info("Failed to unmarshal post author")
 		w.Error()
 		return
 	}
@@ -110,7 +110,7 @@ func view(w text.Writer, r *request) {
 			w.Titlef("🔔 Post by %s", author.PreferredUsername)
 		}
 
-		r.PrintNote(w, &note, author, false, false, true, false)
+		r.PrintNote(w, &note, &author, false, false, true, false)
 
 		if count > 0 && offset >= repliesPerPage {
 			w.Empty()

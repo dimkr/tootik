@@ -48,18 +48,6 @@ func (r *request) Resolve(actorID string) (*ap.Actor, error) {
 	return actor, err
 }
 
-func (r *request) Send(receiver *ap.Actor, body []byte) error {
-	resolver, err := fed.Resolvers.Borrow(r.Context)
-	if err != nil {
-		return fmt.Errorf("Failed to send a request to %s: %w", receiver.ID, err)
-	}
-
-	err = fed.Send(r.Context, r.DB, r.User, resolver, receiver, body)
-
-	fed.Resolvers.Return(resolver)
-	return err
-}
-
 func (r *request) Exec(query string, args ...any) (sql.Result, error) {
 	return r.DB.ExecContext(r.Context, query, args...)
 }

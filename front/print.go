@@ -256,16 +256,19 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 		}
 
 		for _, mentionID := range mentionedUsers.Keys() {
-			mention, err := r.Resolve(mentionID)
-			if err != nil {
-				r.Log.WithField("mention", mentionID).WithError(err).Warn("Failed to resolve mentioned user")
+			var mentionUserName string
+			if err := r.QueryRow(`select actor->>'preferredUsername' from persons where id = ?`, mentionID).Scan(&mentionUserName); err != nil && errors.Is(err, sql.ErrNoRows) {
+				r.Log.WithField("mention", mentionID).Warn("Mentioned user is unknown")
+				continue
+			} else if err != nil {
+				r.Log.WithField("mention", mentionID).WithError(err).Warn("Failed to get mentioned user name")
 				continue
 			}
 
 			if r.User == nil {
-				w.Link(fmt.Sprintf("/outbox/%x", sha256.Sum256([]byte(mentionID))), mention.PreferredUsername)
+				w.Link(fmt.Sprintf("/outbox/%x", sha256.Sum256([]byte(mentionID))), mentionUserName)
 			} else {
-				w.Link(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(mentionID))), mention.PreferredUsername)
+				w.Link(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(mentionID))), mentionUserName)
 			}
 		}
 
@@ -304,22 +307,18 @@ func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, sql.Nul
 			return true
 		}
 
-		if actorString.Valid && actorString.String != "" {
-			author := ap.Actor{}
-			if err := json.Unmarshal([]byte(actorString.String), &author); err != nil {
-				r.Log.WithError(err).Warn("Failed to unmarshal post author")
-				return true
-			}
-
-			r.PrintNote(w, &note, &author, true, printAuthor, printParentAuthor, true)
-		} else {
-			if author, err := r.Resolve(note.AttributedTo); err != nil {
-				r.Log.WithFields(log.Fields{"note": note.ID, "author": note.AttributedTo}).WithError(err).Warn("Failed to resolve post author")
-				return true
-			} else {
-				r.PrintNote(w, &note, author, true, printAuthor, printParentAuthor, true)
-			}
+		if !actorString.Valid {
+			r.Log.WithFields(log.Fields{"note": note.ID, "author": note.AttributedTo}).Warn("Post author is unknown")
+			return true
 		}
+
+		author := ap.Actor{}
+		if err := json.Unmarshal([]byte(actorString.String), &author); err != nil {
+			r.Log.WithError(err).Warn("Failed to unmarshal post author")
+			return true
+		}
+
+		r.PrintNote(w, &note, &author, true, printAuthor, printParentAuthor, true)
 
 		if len(rows) > 1 {
 			w.Empty()

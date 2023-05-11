@@ -44,6 +44,7 @@ var DeliveryQueueFull = errors.New("Delivery queue is full")
 
 func DeliverPosts(ctx context.Context, db *sql.DB, logger *log.Logger) {
 	t := time.NewTicker(pollingInterval)
+	defer t.Stop()
 
 	for {
 		select {

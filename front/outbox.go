@@ -82,7 +82,7 @@ func outbox(w text.Writer, r *request) {
 			continue
 		}
 
-		notes.Store(noteString, sql.NullString{})
+		notes.Store(noteString, sql.NullString{Valid: true, String: actorString})
 	}
 	rows.Close()
 

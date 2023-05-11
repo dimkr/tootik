@@ -182,7 +182,6 @@ func home(w text.Writer, r *request) {
 	w.Text("It allows people to write short posts, follow others and message each other.")
 	w.Empty()
 	w.Text("tootik can interact with users and posts on other, ActivityPub-compatible social networks, but:")
-	w.Item("Users are trusted if they have at least one follower or post from " + cfg.Domain)
 	w.Itemf("tootik doesn't fetch posts: it receives posts by authors with followers on %s", cfg.Domain)
 	w.Item("Users can't message users who don't follow them")
 	w.Itemf("tootik makes no attempt to send old posts in %s to a new follower", cfg.Domain)
