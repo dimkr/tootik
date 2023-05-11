@@ -50,7 +50,6 @@ func hashtags(w text.Writer, r *request) {
 
 	w.OK()
 	w.Title("🔥 Hashtags")
-	w.Empty()
 
 	for _, tag := range tags {
 		if r.User == nil {
