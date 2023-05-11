@@ -295,6 +295,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 }
 
 func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, sql.NullString], printAuthor, printParentAuthor bool) {
+	first := true
 	rows.Range(func(noteString string, actorString sql.NullString) bool {
 		note := ap.Object{}
 		if err := json.Unmarshal([]byte(noteString), &note); err != nil {
@@ -318,12 +319,13 @@ func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, sql.Nul
 			return true
 		}
 
-		r.PrintNote(w, &note, &author, true, printAuthor, printParentAuthor, true)
-
-		if len(rows) > 1 {
+		if !first {
 			w.Empty()
 		}
 
+		r.PrintNote(w, &note, &author, true, printAuthor, printParentAuthor, true)
+
+		first = false
 		return true
 	})
 }
