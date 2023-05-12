@@ -80,8 +80,8 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 			notes.author = follows.followed and
 			(
 				notes.public = 1 or
-				follows.followers in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.cc2) or
-				$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.cc2) or
+				follows.followers in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+				$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
 				(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.followers or value = $1)) or
 				(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.followers or value = $1))
 			)
@@ -112,7 +112,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 			notes.inserted / 86400 desc,
 			(case
 				when notes.to0 = $1 and notes.to1 is null and notes.cc0 is null then 0
-				when $1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.cc2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $1)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $1)) then 1
+				when $1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $1)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $1)) then 1
 				else 2
 			end),
 			(case
