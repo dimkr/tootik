@@ -65,7 +65,7 @@ func outbox(w text.Writer, r *request) {
 
 	r.Log.WithFields(log.Fields{"actor": actorID, "offset": offset}).Info("Viewing outbox")
 
-	rows, err := r.Query(`select object from (select object, inserted from notes where public = 1 and author = $1 union select notes.object, notes.inserted from notes join persons on persons.actor->>'followers' in (notes.to0, notes.to1, notes.to2, notes.cc0, notes.cc1, notes.cc2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = persons.actor->>'followers')) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = persons.actor->>'followers')) where notes.public = 0 and notes.author = $1 and persons.id = $1 order by inserted desc limit $2 offset $3)`, actorID, postsPerPage, offset)
+	rows, err := r.Query(`select object from (select object, inserted from notes where public = 1 and author = $1 union select notes.object, notes.inserted from notes join persons on persons.actor->>'followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.cc2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = persons.actor->>'followers')) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = persons.actor->>'followers')) where notes.public = 0 and notes.author = $1 and persons.id = $1 order by inserted desc limit $2 offset $3)`, actorID, postsPerPage, offset)
 	if err != nil {
 		r.Log.WithError(err).Warn("Failed to fetch posts")
 		w.Error()
