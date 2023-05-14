@@ -32,6 +32,8 @@ import (
 	"time"
 )
 
+const maxPostsLength = 200
+
 var (
 	mentionRegex = regexp.MustCompile(`\B@([a-zA-Z0-9]+)(@[a-z0-9.]+){0,1}`)
 	hashtagRegex = regexp.MustCompile(`(\B#[^\s]{1,32})`)
@@ -76,6 +78,11 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 	content, err := url.QueryUnescape(r.URL.RawQuery)
 	if err != nil {
 		w.Error()
+		return
+	}
+
+	if len(content) > maxPostsLength {
+		w.Status(40, "Post is too long")
 		return
 	}
 
