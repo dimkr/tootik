@@ -19,6 +19,7 @@ package front
 import (
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/graph"
 	"github.com/dimkr/tootik/text"
 	"regexp"
 	"time"
@@ -27,6 +28,45 @@ import (
 func init() {
 	handlers[regexp.MustCompile(`^/stats$`)] = withCache(withUserMenu(stats), time.Minute*5)
 	handlers[regexp.MustCompile(`^/users/stats$`)] = withCache(withUserMenu(stats), time.Minute*5)
+}
+
+func getGraph(r *request, query string, keys []string, values []int64) string {
+	rows, err := r.Query(query)
+	if err != nil {
+		r.Log.WithField("query", query).WithError(err).Warn("Failed to data points")
+		return ""
+	}
+	defer rows.Close()
+
+	i := 0
+	for rows.Next() {
+		if err := rows.Scan(&keys[i], &values[i]); err != nil {
+			r.Log.WithError(err).Warn("Failed to data point")
+			i++
+			continue
+		}
+		i++
+	}
+
+	return graph.Bars(keys, values)
+}
+
+func getDailyPostsGraph(r *request) string {
+	keys := make([]string, 24)
+	values := make([]int64, 24)
+	return getGraph(r, `select strftime('%Y-%m-%d %H:%M', datetime(inserted*60*60, 'unixepoch')), count(*) from (select inserted/(60*60) as inserted from notes where inserted>unixepoch()-60*60*24 and inserted<unixepoch()-60*60) group by inserted order by inserted`, keys, values)
+}
+
+func getWeeklyPostsGraph(r *request) string {
+	keys := make([]string, 7)
+	values := make([]int64, 7)
+	return getGraph(r, `select strftime('%Y-%m-%d', datetime(inserted*60*60*24, 'unixepoch')), count(*) from (select inserted/(60*60*24) as inserted from notes where inserted>unixepoch()-60*60*24*7 and inserted<unixepoch()/(60*60*24)*(60*60*24)) group by inserted order by inserted`, keys, values)
+}
+
+func getUsersGraph(r *request) string {
+	keys := make([]string, 24)
+	values := make([]int64, 24)
+	return getGraph(r, `select strftime('%Y-%m-%d %H:%M', datetime(inserted*60*60, 'unixepoch')), count(*) from (select inserted/(60*60) as inserted from persons where inserted>unixepoch()-60*60*24 and inserted<unixepoch()-60*60) group by inserted order by inserted`, keys, values)
 }
 
 func stats(w text.Writer, r *request) {
@@ -101,10 +141,33 @@ func stats(w text.Writer, r *request) {
 		return
 	}
 
+	dailyPostsGraph := getDailyPostsGraph(r)
+	weeklyPostsGraph := getWeeklyPostsGraph(r)
+	usersGraph := getUsersGraph(r)
+
 	w.OK()
 
 	w.Title("📊 Statistics")
 
+	if dailyPostsGraph != "" {
+		w.Subtitle("Posts Per Hour")
+		w.Raw("Daily posts graph", dailyPostsGraph)
+		w.Empty()
+	}
+
+	if weeklyPostsGraph != "" {
+		w.Subtitle("Posts Per Day")
+		w.Raw("Weekly posts graph", weeklyPostsGraph)
+		w.Empty()
+	}
+
+	if usersGraph != "" {
+		w.Subtitle("New Federated Users Per Hour")
+		w.Raw("Users graph", usersGraph)
+		w.Empty()
+	}
+
+	w.Subtitle("Other Statistics")
 	w.Itemf("Latest local post: %s", time.Unix(lastPost, 0).Format(time.UnixDate))
 	w.Itemf("Latest federated post: %s", time.Unix(lastFederatedPost, 0).Format(time.UnixDate))
 	w.Itemf("Local posts today: %d", postsToday)

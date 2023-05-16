@@ -127,6 +127,9 @@ func (w *writer) Quote(quote string) {
 func (w *writer) Raw(alt, raw string) {
 	fmt.Fprintf(w, "```%s\n", alt)
 	w.Write([]byte(raw))
+	if len(raw) > 0 && raw[len(raw)-1] != '\n' {
+		w.Write([]byte{'\n'})
+	}
 	w.Write([]byte("```\n"))
 }
 
