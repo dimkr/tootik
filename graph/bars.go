@@ -37,6 +37,10 @@ func Bars(keys []string, values []int64) string {
 	var w bytes.Buffer
 
 	for i := 0; i < len(keys); i++ {
+		if keys[i] == "" {
+			continue
+		}
+
 		var bar [8]rune
 		for j, v := 0, float64(values[i]); j < 8; j, v = j+1, v-unit {
 			if v >= unit {

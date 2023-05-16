@@ -54,7 +54,7 @@ func getGraph(r *request, query string, keys []string, values []int64) string {
 func getDailyPostsGraph(r *request) string {
 	keys := make([]string, 24)
 	values := make([]int64, 24)
-	return getGraph(r, `select strftime('%Y-%m-%d %H:%M', datetime(inserted*60*60, 'unixepoch')), count(*) from (select inserted/(60*60) as inserted from notes where inserted>unixepoch()-60*60*24 and inserted<unixepoch()-60*60) group by inserted order by inserted`, keys, values)
+	return getGraph(r, `select strftime('%Y-%m-%d %H:%M', datetime(inserted*60*60, 'unixepoch')), count(*) from (select inserted/(60*60) as inserted from notes where inserted>unixepoch()-60*60*24 and inserted<unixepoch()/(60*60)*60*60) group by inserted order by inserted`, keys, values)
 }
 
 func getWeeklyPostsGraph(r *request) string {
@@ -66,7 +66,7 @@ func getWeeklyPostsGraph(r *request) string {
 func getUsersGraph(r *request) string {
 	keys := make([]string, 24)
 	values := make([]int64, 24)
-	return getGraph(r, `select strftime('%Y-%m-%d %H:%M', datetime(inserted*60*60, 'unixepoch')), count(*) from (select inserted/(60*60) as inserted from persons where inserted>unixepoch()-60*60*24 and inserted<unixepoch()-60*60) group by inserted order by inserted`, keys, values)
+	return getGraph(r, `select strftime('%Y-%m-%d %H:%M', datetime(inserted*60*60, 'unixepoch')), count(*) from (select inserted/(60*60) as inserted from persons where inserted>unixepoch()-60*60*24 and inserted<unixepoch()/(60*60)*60*60) group by inserted order by inserted`, keys, values)
 }
 
 func stats(w text.Writer, r *request) {
