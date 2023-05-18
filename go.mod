@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/go-fed/httpsig v1.1.0
 	github.com/mattn/go-sqlite3 v1.14.16
-	github.com/sirupsen/logrus v1.9.1
+	github.com/sirupsen/logrus v1.9.2
 	github.com/stretchr/testify v1.8.2
 	golang.org/x/sync v0.2.0
 )
