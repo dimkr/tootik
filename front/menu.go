@@ -47,8 +47,6 @@ func writeUserMenu(w text.Writer, user *ap.Actor) {
 		w.Link("/users/hashtags", "🔥 Hashtags")
 	}
 
-	w.Link(prefix+"/active", "🐾 Active users")
-	w.Link(prefix+"/instances", "🌕 Other servers")
 	w.Link(prefix+"/stats", "📊 Statistics")
 
 	if user == nil {

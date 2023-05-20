@@ -69,6 +69,18 @@ func getUsersGraph(r *request) string {
 	return getGraph(r, `select strftime('%Y-%m-%d %H:%M', datetime(inserted*60*60, 'unixepoch')), count(*) from (select inserted/(60*60) as inserted from persons where inserted>unixepoch()-60*60*24 and inserted<unixepoch()/(60*60)*60*60) group by inserted order by inserted`, keys, values)
 }
 
+func getInstancesGraph(r *request) string {
+	keys := make([]string, 7)
+	values := make([]int64, 7)
+	return getGraph(r, `select strftime('%Y-%m-%d', datetime(days.day, 'unixepoch')), count(*) from (select substr(substr(persons.id, 9), 1, instr(substr(persons.id, 9), '/')-1) as host, min(inserted/(60*60*24)*60*60*24) as day from persons group by host) hosts join (select distinct inserted/(60*60*24)*60*60*24 as day from persons where inserted>unixepoch()-60*60*24*7 and inserted<unixepoch()/(60*60*24)*60*60*24) days on hosts.day < days.day group by days.day`, keys, values)
+}
+
+func getActiveUsersGraph(r *request) string {
+	keys := make([]string, 7)
+	values := make([]int64, 7)
+	return getGraph(r, `select strftime('%Y-%m-%d', datetime(day, 'unixepoch')), count(distinct author) from (select notes.inserted/(60*60*24)*60*60*24 as day, persons.id as author from notes join persons on persons.id = notes.author where notes.inserted>unixepoch()-60*60*24*7 and notes.inserted<unixepoch()/(60*60*24)*60*60*24) group by day`, keys, values)
+}
+
 func stats(w text.Writer, r *request) {
 	prefix := fmt.Sprintf("https://%s/%%", cfg.Domain)
 
@@ -144,6 +156,8 @@ func stats(w text.Writer, r *request) {
 	dailyPostsGraph := getDailyPostsGraph(r)
 	weeklyPostsGraph := getWeeklyPostsGraph(r)
 	usersGraph := getUsersGraph(r)
+	activeUsersGraph := getActiveUsersGraph(r)
+	instancesGraph := getInstancesGraph(r)
 
 	w.OK()
 
@@ -164,6 +178,18 @@ func stats(w text.Writer, r *request) {
 	if usersGraph != "" {
 		w.Subtitle("New Federated Users Per Hour")
 		w.Raw("Users graph", usersGraph)
+		w.Empty()
+	}
+
+	if activeUsersGraph != "" {
+		w.Subtitle("Active Users Per Day")
+		w.Raw("Weekly active users graph", activeUsersGraph)
+		w.Empty()
+	}
+
+	if instancesGraph != "" {
+		w.Subtitle("Connected Instances Per Day")
+		w.Raw("Weekly connected instances graph", instancesGraph)
 		w.Empty()
 	}
 
