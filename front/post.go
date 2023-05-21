@@ -122,10 +122,13 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 		cc.Add(actorID)
 	}
 
+	hash := sha256.Sum256([]byte(postID))
+
 	note := ap.Object{
 		Type:         ap.NoteObject,
 		ID:           postID,
 		AttributedTo: r.User.ID,
+		URL:          fmt.Sprintf("gemini://%s/view/%x", cfg.Domain, hash),
 		Content:      plain.ToHTML(content),
 		Published:    now,
 		To:           to,
@@ -147,5 +150,5 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 		return
 	}
 
-	w.Redirectf("/users/view/%x", sha256.Sum256([]byte(postID)))
+	w.Redirectf("/users/view/%x", hash)
 }
