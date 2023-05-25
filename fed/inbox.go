@@ -75,7 +75,6 @@ func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		`INSERT INTO activities (sender, activity) VALUES(?,?)`,
 		sender.ID,
 		string(body),
-		string(body),
 	); err != nil {
 		h.Log.WithField("sender", sender.ID).WithError(err).Error("Failed to insert activity")
 		w.WriteHeader(http.StatusInternalServerError)
