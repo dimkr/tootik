@@ -35,6 +35,7 @@ import (
 )
 
 const (
+	maxActivitiesQueueSize    = 10000
 	activitiesBatchSize       = 64
 	activitiesPollingInterval = time.Second * 5
 	activitiesBatchDelay      = time.Millisecond * 100
@@ -266,7 +267,7 @@ func processsActivityWithTimeout(parent context.Context, sender *ap.Actor, body 
 func processsActivitiesBatch(ctx context.Context, db *sql.DB, logger *log.Logger) (int, error) {
 	logger.Debug("Polling activities queue")
 
-	rows, err := db.QueryContext(ctx, `select activities.id, persons.actor, activities.activity from activities left join persons on persons.id = activities.sender order by activities.id limit ?`, activitiesBatchSize)
+	rows, err := db.QueryContext(ctx, `select activities.id, persons.actor, activities.activity from (select * from activities limit -1 offset case when (select count(*) from activities) >= $1 then $1/10 else 0 end) activities left join persons on persons.id = activities.sender order by activities.id limit $2`, maxActivitiesQueueSize, activitiesBatchSize)
 	if err != nil {
 		return 0, fmt.Errorf("Failed to fetch activities to processs: %w", err)
 	}
