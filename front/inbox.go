@@ -95,11 +95,6 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 		) replies
 		on
 			replies.id = notes.id
-		left join (
-			select object->>'inReplyTo' as replyto from notes where author = $1 and inserted >= $3
-		) myreplies
-		on
-			myreplies.replyto = notes.id
 		left join persons
 		on
 			persons.id = notes.author
@@ -113,11 +108,6 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 			(case
 				when notes.to0 = $1 and notes.to1 is null and notes.cc0 is null then 0
 				when $1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $1)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $1)) then 1
-				else 2
-			end),
-			(case
-				when myreplies.replyto is not null and follows.followed is not null then 0
-				when myreplies.replyto is not null then 1
 				else 2
 			end),
 			replies.count desc,
