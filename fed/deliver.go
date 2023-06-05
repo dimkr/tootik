@@ -33,7 +33,7 @@ import (
 
 const (
 	batchSize             = 16
-	deliveryRetryInterval = (time.Hour / 2) / time.Second
+	deliveryRetryInterval = int64((time.Hour / 2) / time.Second)
 	maxDeliveryAttempts   = 5
 	pollingInterval       = time.Second * 5
 	deliveryTimeout       = time.Minute * 5
@@ -62,7 +62,7 @@ func DeliverPosts(ctx context.Context, db *sql.DB, logger *log.Logger) {
 func deliverPosts(ctx context.Context, db *sql.DB, logger *log.Logger) error {
 	logger.Debug("Polling delivery queue")
 
-	rows, err := db.QueryContext(ctx, `select deliveries.id, deliveries.attempts, notes.object, persons.actor from deliveries join notes on notes.id = deliveries.id join persons on persons.id = notes.author where deliveries.attempts < ? and deliveries.last > unixepoch() - ? order by deliveries.attempts asc, deliveries.last asc limit ?`, maxDeliveryAttempts, deliveryRetryInterval, batchSize)
+	rows, err := db.QueryContext(ctx, `select deliveries.id, deliveries.attempts, notes.object, persons.actor from deliveries join notes on notes.id = deliveries.id join persons on persons.id = notes.author where deliveries.attempts < ? and deliveries.last <= unixepoch() - ? order by deliveries.attempts asc, deliveries.last asc limit ?`, maxDeliveryAttempts, deliveryRetryInterval, batchSize)
 	if err != nil {
 		return fmt.Errorf("Failed to fetch posts to deliver: %w", err)
 	}
@@ -76,7 +76,7 @@ func deliverPosts(ctx context.Context, db *sql.DB, logger *log.Logger) error {
 			continue
 		}
 
-		if _, err := db.ExecContext(ctx, `update deliveries set last = unixepoch(), attempts = ? where id = ?`, deliveryID, deliveryAttempts+1); err != nil {
+		if _, err := db.ExecContext(ctx, `update deliveries set last = unixepoch(), attempts = ? where id = ?`, deliveryAttempts+1, deliveryID); err != nil {
 			logger.WithFields(log.Fields{"id": deliveryID, "attempts": deliveryAttempts}).WithError(err).Error("Failed to save last delivery attempt time")
 			continue
 		}
