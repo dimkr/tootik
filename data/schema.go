@@ -77,6 +77,10 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 
+	if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS deliveriesinserted ON deliveries(inserted)`); err != nil {
+		return err
+	}
+
 	if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS hashtagshashtag ON hashtags(hashtag)`); err != nil {
 		return err
 	}

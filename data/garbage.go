@@ -26,7 +26,7 @@ import (
 
 const (
 	notesTTL    = time.Hour * 24 * 30
-	deliveryTTL = time.Hour * 24
+	deliveryTTL = time.Hour * 24 * 7
 )
 
 func CollectGarbage(ctx context.Context, db *sql.DB) error {
