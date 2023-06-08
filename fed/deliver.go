@@ -62,7 +62,7 @@ func DeliverPosts(ctx context.Context, db *sql.DB, logger *log.Logger) {
 func deliverPosts(ctx context.Context, db *sql.DB, logger *log.Logger) error {
 	logger.Debug("Polling delivery queue")
 
-	rows, err := db.QueryContext(ctx, `select deliveries.id, deliveries.attempts, notes.object, persons.actor from deliveries join notes on notes.id = deliveries.id join persons on persons.id = notes.author where deliveries.attempts < ? and deliveries.last <= unixepoch() - ? order by deliveries.attempts asc, deliveries.last asc limit ?`, maxDeliveryAttempts, deliveryRetryInterval, batchSize)
+	rows, err := db.QueryContext(ctx, `select deliveries.id, deliveries.attempts, notes.object, persons.actor from deliveries join notes on notes.id = deliveries.id join persons on persons.id = notes.author where deliveries.attempts = 0 or (deliveries.attempts < ? and deliveries.last <= unixepoch() - ?) order by deliveries.attempts asc, deliveries.last asc limit ?`, maxDeliveryAttempts, deliveryRetryInterval, batchSize)
 	if err != nil {
 		return fmt.Errorf("Failed to fetch posts to deliver: %w", err)
 	}
