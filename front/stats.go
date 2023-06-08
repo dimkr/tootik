@@ -63,7 +63,7 @@ func getWeeklyPostsGraph(r *request) string {
 	return getGraph(r, `select strftime('%Y-%m-%d', datetime(inserted*60*60*24, 'unixepoch')), count(*) from (select inserted/(60*60*24) as inserted from notes where inserted>unixepoch()-60*60*24*7 and inserted<unixepoch()/(60*60*24)*(60*60*24)) group by inserted order by inserted`, keys, values)
 }
 
-func getWeeklyDeliveriesGraph(r *request) string {
+func getWeeklyFailedDeliveriesGraph(r *request) string {
 	keys := make([]string, 7)
 	values := make([]int64, 7)
 	return getGraph(r, `select strftime('%Y-%m-%d %H:%M', datetime(day*60*60*24, 'unixepoch')), count(*) from (select inserted/(60*60*24) as day from deliveries where inserted>unixepoch()-60*60*24*7 and inserted<unixepoch()/(60*60*24)*60*60*24) group by day order by day`, keys, values)
@@ -161,7 +161,7 @@ func stats(w text.Writer, r *request) {
 
 	dailyPostsGraph := getDailyPostsGraph(r)
 	weeklyPostsGraph := getWeeklyPostsGraph(r)
-	weeklyDeliveriesGraph := getWeeklyDeliveriesGraph(r)
+	weeklyFailedDeliveriesGraph := getWeeklyFailedDeliveriesGraph(r)
 	usersGraph := getUsersGraph(r)
 	activeUsersGraph := getActiveUsersGraph(r)
 	instancesGraph := getInstancesGraph(r)
@@ -182,9 +182,9 @@ func stats(w text.Writer, r *request) {
 		w.Empty()
 	}
 
-	if weeklyDeliveriesGraph != "" {
-		w.Subtitle("Outgoing Posts Per Day")
-		w.Raw("Outgoing posts graph", weeklyDeliveriesGraph)
+	if weeklyFailedDeliveriesGraph != "" {
+		w.Subtitle("Failed Outgoing Post Deliveries Per Day")
+		w.Raw("Failed outgoing post deliveries graph", weeklyFailedDeliveriesGraph)
 		w.Empty()
 	}
 
