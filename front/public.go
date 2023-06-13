@@ -26,6 +26,8 @@ import (
 	"time"
 )
 
+const maxOffset = postsPerPage * 30
+
 func init() {
 	handlers[regexp.MustCompile(`^/local$`)] = withCache(withUserMenu(local), time.Minute*15)
 	handlers[regexp.MustCompile(`^/users/local$`)] = withCache(withUserMenu(local), time.Minute*15)
@@ -44,10 +46,13 @@ func local(w text.Writer, r *request) {
 		return
 	}
 
-	now := time.Now()
-	since := now.Add(-time.Hour * 24 * 7)
+	if offset > maxOffset {
+		r.Log.WithField("offset", offset).Warn("Offset is too big")
+		w.Statusf(40, "Offset must be <= %d", maxOffset)
+		return
+	}
 
-	rows, err := r.Query(`select notes.object, persons.actor from notes left join (select object->>'inReplyTo' as id, count(*) as count from notes where inserted >= $2 group by object->>'inReplyTo') replies on notes.id = replies.id join persons on notes.author = persons.id left join (select author, max(inserted) as last, count(*) / $1 as avg from notes where inserted >= $2 group by author) stats on notes.author = stats.author left join (select followed as id, count(*) as count from follows group by followed) followers on notes.author = followers.id where notes.public = 1 and notes.author like $3 order by notes.inserted / 86400 desc, replies.count desc, followers.count desc, stats.avg asc, stats.last asc, notes.inserted / 3600 desc, notes.inserted desc limit $4 offset $5;`, now.Sub(since)/time.Hour, since.Unix(), fmt.Sprintf("https://%s/%%", cfg.Domain), postsPerPage, offset)
+	rows, err := r.Query(`select notes.object, persons.actor from notes left join (select object->>'inReplyTo' as id, count(*) as count from notes where inserted > unixepoch()-60*60*24*7 group by object->>'inReplyTo') replies on notes.id = replies.id join persons on notes.author = persons.id left join (select author, max(inserted) as last, count(*)/(60*60*24) as avg from notes where inserted > unixepoch()-60*60*24*7 group by author) stats on notes.author = stats.author where notes.public = 1 and notes.author like $1 order by notes.inserted / 86400 desc, replies.count desc, stats.avg asc, stats.last asc, notes.inserted / 3600 desc, notes.inserted desc limit $2 offset $3;`, fmt.Sprintf("https://%s/%%", cfg.Domain), postsPerPage, offset)
 	if err != nil {
 		r.Log.WithError(err).Warn("Failed to fetch public posts")
 		w.Error()
@@ -95,9 +100,9 @@ func local(w text.Writer, r *request) {
 		w.Linkf(fmt.Sprintf("/users/local?%d", offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
 	}
 
-	if count == postsPerPage && r.User == nil {
+	if count == postsPerPage && offset+postsPerPage <= maxOffset && r.User == nil {
 		w.Linkf(fmt.Sprintf("/local?%d", offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
-	} else if count == postsPerPage {
+	} else if count == postsPerPage && offset+postsPerPage <= maxOffset {
 		w.Linkf(fmt.Sprintf("/users/local?%d", offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
 	}
 }
@@ -110,10 +115,13 @@ func federated(w text.Writer, r *request) {
 		return
 	}
 
-	now := time.Now()
-	since := time.Now().Add(-time.Hour * 24 * 7)
+	if offset > maxOffset {
+		r.Log.WithField("offset", offset).Warn("Offset is too big")
+		w.Statusf(40, "Offset must be <= %d", maxOffset)
+		return
+	}
 
-	rows, err := r.Query(`select notes.object, persons.actor from notes left join (select object->>'inReplyTo' as id, count(*) as count from notes where inserted >= $2 group by object->>'inReplyTo') replies on notes.id = replies.id join persons on notes.author = persons.id left join (select author, max(inserted) as last, count(*) / $1 as avg from notes where inserted >= $2 group by author) stats on notes.author = stats.author left join (select followed as id, count(*) as count from follows group by followed) followers on notes.author = followers.id where notes.public = 1 and persons.actor->>'type' = 'Person' order by notes.inserted / 86400 desc, replies.count desc, followers.count desc, stats.avg asc, stats.last asc, notes.inserted / 3600 desc, notes.inserted desc limit $3 offset $4;`, now.Sub(since)/time.Hour, since.Unix(), postsPerPage, offset)
+	rows, err := r.Query(`select notes.object, persons.actor from notes join persons on notes.author = persons.id left join (select author, max(inserted) as last, count(*)/(60*60*24) as avg from notes where inserted > unixepoch()-60*60*24*7 group by author) stats on notes.author = stats.author where notes.public = 1 order by notes.inserted / 3600 desc, stats.avg asc, stats.last asc, notes.inserted desc limit $1 offset $2;`, postsPerPage, offset)
 	if err != nil {
 		r.Log.WithError(err).Warn("Failed to fetch federated posts")
 		w.Error()
@@ -140,9 +148,9 @@ func federated(w text.Writer, r *request) {
 	w.OK()
 
 	if offset >= postsPerPage || count == postsPerPage {
-		w.Titlef("✨️ Outer Space (%d-%d)", offset, offset+postsPerPage)
+		w.Titlef("✨️ FOMO From Outer Space (%d-%d)", offset, offset+postsPerPage)
 	} else {
-		w.Title("✨️ Outer Space")
+		w.Title("✨️ FOMO From Outer Space")
 	}
 
 	r.PrintNotes(w, notes, true, true)
@@ -157,9 +165,9 @@ func federated(w text.Writer, r *request) {
 		w.Linkf(fmt.Sprintf("/users/federated?%d", offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
 	}
 
-	if count == postsPerPage && r.User == nil {
+	if count == postsPerPage && offset+postsPerPage <= maxOffset && r.User == nil {
 		w.Linkf(fmt.Sprintf("/federated?%d", offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
-	} else if count == postsPerPage {
+	} else if count == postsPerPage && offset+postsPerPage <= maxOffset {
 		w.Linkf(fmt.Sprintf("/users/federated?%d", offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
 	}
 }

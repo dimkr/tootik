@@ -42,7 +42,7 @@ tootik implements only a small subset of ActivityPub, and probably doesn't reall
 
 * /local shows a compact list of local posts; each entry contains a link to /view.
 * / is the homepage: it shows an ASCII art logo, a short description of this server and a list of local posts.
-* /federated shows a compact list of federated posts (without posts by bots).
+* /federated shows a compact list of federated posts.
 * /hashtag shows a compact list of posts with a given hashtag.
 * /search shows an input prompt and redirects to /hashtag.
 * /hashtags shows a list of popular hashtags.
