@@ -180,7 +180,6 @@ func home(w text.Writer, r *request) {
 
 	w.OK()
 	w.Raw(logoAlt, logo)
-	w.Empty()
 	w.Title(cfg.Domain)
 	w.Textf("Welcome, fedinaut! %s is an instance of tootik, a federated nanoblogging service.", cfg.Domain)
 	w.Empty()
