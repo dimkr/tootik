@@ -26,6 +26,8 @@ import (
 	"regexp"
 )
 
+const maxFollowsPerUser = 150
+
 func init() {
 	handlers[regexp.MustCompile(`^/users/follow/[0-9a-f]{64}$`)] = withUserMenu(follow)
 }
@@ -46,6 +48,18 @@ func follow(w text.Writer, r *request) {
 	} else if err != nil {
 		r.Log.WithField("hash", hash).WithError(err).Warn("Failed to find followed user")
 		w.Error()
+		return
+	}
+
+	var follows int
+	if err := r.QueryRow(`select count(*) from follows where follower = ?`, r.User.ID).Scan(&follows); err != nil {
+		r.Log.WithError(err).Warn("Failed to count follows")
+		w.Error()
+		return
+	}
+
+	if follows >= maxFollowsPerUser {
+		w.Status(40, "Following too many users")
 		return
 	}
 
