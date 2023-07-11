@@ -1,6 +1,6 @@
 module github.com/dimkr/tootik
 
-go 1.20
+go 1.21
 
 require (
 	github.com/go-fed/httpsig v1.1.0
