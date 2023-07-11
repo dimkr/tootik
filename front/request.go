@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/fed"
-	log "github.com/sirupsen/logrus"
+	log "github.com/dimkr/tootik/slogru"
 	"net/url"
 	"sync"
 )

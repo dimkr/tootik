@@ -14,19 +14,38 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cfg
+package slogru
 
-import (
-	"flag"
-	"log/slog"
-)
+var def = new()
 
-var (
-	Domain   string
-	LogLevel int
-)
+func Default() *Logger {
+	return def
+}
 
-func init() {
-	flag.StringVar(&Domain, "domain", "localhost", "Domain name")
-	flag.IntVar(&LogLevel, "loglevel", int(slog.LevelInfo), "Logging verbosity")
+func WithField(k string, v any) Entry {
+	return def.WithField(k, v)
+}
+
+func WithFields(fields Fields) Entry {
+	return def.WithFields(fields)
+}
+
+func WithError(err error) Entry {
+	return def.WithError(err)
+}
+
+func With(args ...any) *Logger {
+	return &Logger{def.With(args...)}
+}
+
+func Fatal(err error) {
+	def.Fatal(err)
+}
+
+func Warn(msg string) {
+	def.Warn(msg)
+}
+
+func Info(msg string) {
+	def.Info(msg)
 }

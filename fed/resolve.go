@@ -25,7 +25,7 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	log "github.com/sirupsen/logrus"
+	log "github.com/dimkr/tootik/slogru"
 	"io/ioutil"
 	"net/http"
 	"net/url"

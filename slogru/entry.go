@@ -14,19 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cfg
+package slogru
 
-import (
-	"flag"
-	"log/slog"
-)
+type Entry interface {
+	// inherited
+	Error(msg string, args ...any)
+	Warn(msg string, args ...any)
+	Info(msg string, args ...any)
+	Debug(msg string, args ...any)
 
-var (
-	Domain   string
-	LogLevel int
-)
-
-func init() {
-	flag.StringVar(&Domain, "domain", "localhost", "Domain name")
-	flag.IntVar(&LogLevel, "loglevel", int(slog.LevelInfo), "Logging verbosity")
+	// extensions
+	Fatal(err error)
+	WithError(err error) Entry
+	Warnf(fmt string, args ...any)
 }

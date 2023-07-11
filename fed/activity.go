@@ -28,8 +28,8 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/note"
+	log "github.com/dimkr/tootik/slogru"
 	_ "github.com/mattn/go-sqlite3"
-	log "github.com/sirupsen/logrus"
 	"strings"
 	"time"
 )

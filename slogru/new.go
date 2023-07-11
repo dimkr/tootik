@@ -14,38 +14,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package logger
+package slogru
 
 import (
 	"github.com/dimkr/tootik/cfg"
-	log "github.com/sirupsen/logrus"
+	"log/slog"
 	"os"
 )
 
-type formatter struct {
-	formatter log.Formatter
-	fields    log.Fields
-}
+func new(fields ...slog.Attr) *Logger {
+	logLevel := slog.Level(cfg.LogLevel)
 
-func New(fields log.Fields) *log.Logger {
-	l := log.Logger{
-		Out:       os.Stderr,
-		Formatter: &formatter{formatter: &log.JSONFormatter{}, fields: fields},
-		Hooks:     log.LevelHooks{},
-		Level:     log.Level(cfg.LogLevel),
-		ExitFunc:  os.Exit,
+	var opts slog.HandlerOptions
+	if logLevel == slog.LevelDebug {
+		opts.AddSource = true
 	}
 
-	if l.Level == log.DebugLevel {
-		l.ReportCaller = true
+	return &Logger{
+		Logger: slog.New(slog.NewJSONHandler(os.Stderr, &opts).WithAttrs(fields)),
 	}
-
-	return &l
-}
-
-func (f *formatter) Format(e *log.Entry) ([]byte, error) {
-	for k, v := range f.fields {
-		e.Data[k] = v
-	}
-	return f.formatter.Format(e)
 }

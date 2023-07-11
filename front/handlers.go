@@ -21,9 +21,8 @@ import (
 	"database/sql"
 	"errors"
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/logger"
+	log "github.com/dimkr/tootik/slogru"
 	"github.com/dimkr/tootik/text"
-	log "github.com/sirupsen/logrus"
 	"net/url"
 	"regexp"
 	"sync"
@@ -37,9 +36,11 @@ var (
 func Handle(ctx context.Context, w text.Writer, reqUrl *url.URL, user *ap.Actor, db *sql.DB, wg *sync.WaitGroup) {
 	for re, handler := range handlers {
 		if re.MatchString(reqUrl.Path) {
-			logFields := log.Fields{"path": reqUrl.Path}
-			if user != nil {
-				logFields["user"] = user.ID
+			var l *log.Logger
+			if user == nil {
+				l = log.With("path", reqUrl.Path)
+			} else {
+				l = log.With("path", reqUrl.Path, "user", user.ID)
 			}
 
 			handler(w, &request{
@@ -48,7 +49,7 @@ func Handle(ctx context.Context, w text.Writer, reqUrl *url.URL, user *ap.Actor,
 				User:      user,
 				DB:        db,
 				WaitGroup: wg,
-				Log:       logger.New(logFields),
+				Log:       l,
 			})
 			return
 		}
