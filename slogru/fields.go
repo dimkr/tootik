@@ -14,19 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cfg
+package slogru
 
-import (
-	"flag"
-	"log/slog"
-)
-
-var (
-	Domain   string
-	LogLevel int
-)
-
-func init() {
-	flag.StringVar(&Domain, "domain", "localhost", "Domain name")
-	flag.IntVar(&LogLevel, "loglevel", int(slog.LevelInfo), "Logging verbosity")
-}
+type Fields map[string]any

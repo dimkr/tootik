@@ -25,7 +25,7 @@ import (
 	"strings"
 
 	"github.com/dimkr/tootik/ap"
-	log "github.com/sirupsen/logrus"
+	log "github.com/dimkr/tootik/slogru"
 )
 
 func expand(aud ap.Audience, arr *[3]sql.NullString) {

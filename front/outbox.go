@@ -24,8 +24,8 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
+	log "github.com/dimkr/tootik/slogru"
 	"github.com/dimkr/tootik/text"
-	log "github.com/sirupsen/logrus"
 	"path/filepath"
 	"regexp"
 )
