@@ -16,6 +16,12 @@ limitations under the License.
 
 package slogru
 
+import (
+	"fmt"
+	"log/slog"
+	"maps"
+)
+
 type Entry interface {
 	// inherited
 	Error(msg string, args ...any)
@@ -24,7 +30,36 @@ type Entry interface {
 	Debug(msg string, args ...any)
 
 	// extensions
-	Fatal(err error)
 	WithError(err error) Entry
 	Warnf(fmt string, args ...any)
+}
+
+type entry struct {
+	Logger *Logger
+	Fields map[string]any
+}
+
+func (e *entry) Error(msg string, args ...any) {
+	e.Logger.Error(msg, append(maps.Values(e.Fields), args...))
+}
+
+func (e *entry) Warn(msg string, args ...any) {
+	e.Logger.Warn(msg, append(maps.Values(e.Fields), args...))
+}
+
+func (e *entry) Info(msg string, args ...any) {
+	e.Logger.Info(msg, append(maps.Values(e.Fields), args...))
+}
+
+func (e *entry) Debug(msg string, args ...any) {
+	e.Logger.Debug(msg, append(maps.Values(e.Fields), args...))
+}
+
+func (e *entry) WithError(err error) Entry {
+	e.Fields["error"] = slog.Any("error", err)
+	return e
+}
+
+func (e *entry) Warnf(f string, args ...any) {
+	e.Logger.Warn(fmt.Sprintf(f, args...), maps.Values(e.Fields)...)
 }
