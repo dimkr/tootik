@@ -38,7 +38,7 @@ func resolve(w text.Writer, r *request) {
 
 	query, err := url.QueryUnescape(r.URL.RawQuery)
 	if err != nil {
-		r.Log.WithField("url", r.URL.String()).WithError(err).Info("Failed to decode user name")
+		r.Log.WithField("url", r.URL).WithError(err).Info("Failed to decode user name")
 		w.Status(40, "Bad input")
 		return
 	}

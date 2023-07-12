@@ -35,7 +35,7 @@ func search(w text.Writer, r *request) {
 
 	hashtag, err := url.QueryUnescape(r.URL.RawQuery)
 	if err != nil {
-		r.Log.WithField("url", r.URL.String()).WithError(err).Info("Failed to decode user name")
+		r.Log.WithField("url", r.URL).WithError(err).Info("Failed to decode user name")
 		w.Status(40, "Bad input")
 		return
 	}

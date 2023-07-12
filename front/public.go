@@ -41,7 +41,7 @@ func init() {
 func local(w text.Writer, r *request) {
 	offset, err := getOffset(r.URL)
 	if err != nil {
-		r.Log.WithField("url", r.URL.String()).WithError(err).Info("Failed to parse query")
+		r.Log.WithField("url", r.URL).WithError(err).Info("Failed to parse query")
 		w.Status(40, "Invalid query")
 		return
 	}
@@ -110,7 +110,7 @@ func local(w text.Writer, r *request) {
 func federated(w text.Writer, r *request) {
 	offset, err := getOffset(r.URL)
 	if err != nil {
-		r.Log.WithField("url", r.URL.String()).WithError(err).Info("Failed to parse query")
+		r.Log.WithField("url", r.URL).WithError(err).Info("Failed to parse query")
 		w.Status(40, "Invalid query")
 		return
 	}
