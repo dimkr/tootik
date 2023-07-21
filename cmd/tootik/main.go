@@ -76,11 +76,11 @@ func main() {
 		}
 	}()
 
-	if err := data.CollectGarbage(ctx, db); err != nil {
+	if err := data.Migrate(ctx, db); err != nil {
 		log.Fatal(err)
 	}
 
-	if err := data.Migrate(ctx, db); err != nil {
+	if err := data.CollectGarbage(ctx, db); err != nil {
 		log.Fatal(err)
 	}
 
