@@ -53,11 +53,16 @@ func processsActivity(ctx context.Context, sender *ap.Actor, body []byte, db *sq
 
 	switch req.Type {
 	case ap.DeleteActivity:
-		if _, ok := req.Object.(*ap.Object); !ok {
-			return errors.New("Deleted object is not an object")
+		deleted := ""
+		if _, ok := req.Object.(*ap.Object); ok {
+			deleted = req.Object.(*ap.Object).ID
+		} else if s, ok := req.Object.(string); ok {
+			deleted = s
+		}
+		if deleted == "" {
+			return errors.New("Received an invalid delete request")
 		}
 
-		deleted := req.Object.(*ap.Object).ID
 		logger.WithFields(log.Fields{"id": id, "sender": sender.ID, "deleted": deleted}).Info("Received delete request")
 
 		if deleted == sender.ID {
