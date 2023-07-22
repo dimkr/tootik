@@ -74,7 +74,9 @@ func getDisplayName(id, preferredUsername, name string, t ap.ActorType) string {
 	isLocal := strings.HasPrefix(id, prefix)
 
 	emoji := "👽"
-	if t != ap.Person {
+	if t == ap.Group {
+		emoji = "💩"
+	} else if t != ap.Person {
 		emoji = "🤖"
 	} else if isLocal {
 		emoji = "😈"
@@ -125,7 +127,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 
 	noteBody := note.Content
 	if note.Name != "" { // Page has a title
-		noteBody = fmt.Sprintf("<p>%s</p><br>%s", note.Name, note.Content)
+		noteBody = fmt.Sprintf("%s<br>%s", note.Name, note.Content)
 	}
 
 	contentLines, inlineLinks := getTextAndLinks(noteBody, maxRunes, maxLines)

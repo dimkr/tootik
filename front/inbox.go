@@ -61,7 +61,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 		select notes.object, persons.actor from
 		notes
 		left join (
-			select follows.followed, persons.actor->>'followers' as followers, stats.avg, stats.last from
+			select follows.followed, persons.actor->>'type' as type, persons.actor->>'followers' as followers, stats.avg, stats.last from
 			(
 				select followed from follows where follower = $1
 			) follows
@@ -77,13 +77,28 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 				stats.author = persons.id
 		) follows
 		on
-			notes.author = follows.followed and
 			(
-				notes.public = 1 or
-				follows.followers in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-				$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-				(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.followers or value = $1)) or
-				(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.followers or value = $1))
+				notes.author = follows.followed and
+				(
+					notes.public = 1 or
+					follows.followers in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+					$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.followers or value = $1)) or
+					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.followers or value = $1))
+				)
+			)
+			or
+			(
+				follows.type = 'Group' and
+				follows.followed in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) and
+				(
+					notes.object->>'inReplyTo' is null and
+					(
+						$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+						(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $1)) or
+						(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $1))
+					)
+				)
 			)
 		left join (
 			select id from notes where author = $1
