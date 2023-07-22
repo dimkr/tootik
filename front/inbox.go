@@ -92,12 +92,10 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 				follows.type = 'Group' and
 				follows.followed in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) and
 				(
-					notes.object->>'inReplyTo' is null and
-					(
-						$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-						(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $1)) or
-						(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $1))
-					)
+					(notes.public = 1 and (notes.object->>'inReplyTo' is null)) or
+					$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $1)) or
+					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $1))
 				)
 			)
 		left join (

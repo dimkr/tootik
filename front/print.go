@@ -159,9 +159,6 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 
 	if note.URL != "" {
 		links.Store(note.URL, struct{}{})
-	} else {
-		// the note ID usually leads to the post when opened in a browser
-		links.Store(note.ID, struct{}{})
 	}
 
 	for _, link := range inlineLinks {
