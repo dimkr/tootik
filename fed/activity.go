@@ -42,6 +42,69 @@ const (
 	activityProcessingTimeout = time.Second * 15
 )
 
+func processCreateActivity(ctx context.Context, sender *ap.Actor, req *ap.Activity, db *sql.DB, logger *log.Logger) error {
+	post, ok := req.Object.(*ap.Object)
+	if !ok {
+		return errors.New("Received invalid Create")
+	}
+
+	prefix := fmt.Sprintf("https://%s/", cfg.Domain)
+	if strings.HasPrefix(sender.ID, prefix) || strings.HasPrefix(post.ID, prefix) || strings.HasPrefix(post.AttributedTo, prefix) || strings.HasPrefix(req.Actor, prefix) {
+		return fmt.Errorf("Received invalid Create for %s by %s from %s", post.ID, post.AttributedTo, req.Actor)
+	}
+
+	var duplicate int
+	if err := db.QueryRowContext(ctx, `select exists (select 1 from notes where id = ?)`, post.ID).Scan(&duplicate); err != nil {
+		return fmt.Errorf("Failed to check of %s is a duplicate: %w", post.ID, err)
+	} else if duplicate == 1 {
+		logger.WithField("create", req.ID).Info("Note is a duplicate")
+		return nil
+	}
+
+	resolver, err := Resolvers.Borrow(ctx)
+	if err != nil {
+		return fmt.Errorf("Cannot resolve %s: %w", post.AttributedTo, err)
+	}
+
+	if _, err := resolver.Resolve(ctx, db, nil, post.AttributedTo); err != nil {
+		Resolvers.Return(resolver)
+		return fmt.Errorf("Failed to resolve %s: %w", post.AttributedTo, err)
+	}
+
+	Resolvers.Return(resolver)
+
+	if err := note.Insert(ctx, db, post, logger); err != nil {
+		return fmt.Errorf("Cannot insert %s: %w", post.ID, err)
+	}
+	logger.WithField("note", post.ID).Info("Received a new Note")
+
+	mentionedUsers := data.OrderedMap[string, struct{}]{}
+
+	for _, tag := range post.Tag {
+		if tag.Type == ap.MentionMention && tag.Href != post.AttributedTo {
+			mentionedUsers.Store(tag.Href, struct{}{})
+		}
+	}
+
+	mentionedUsers.Range(func(id string, _ struct{}) bool {
+		resolver, err := Resolvers.Borrow(ctx)
+		if err != nil {
+			logger.WithFields(log.Fields{"note": post.ID, "mention": id}).WithError(err).Warn("Cannot resolve mention")
+			return true
+		}
+
+		if _, err := resolver.Resolve(ctx, db, nil, post.AttributedTo); err != nil {
+			Resolvers.Return(resolver)
+			logger.WithFields(log.Fields{"note": post.ID, "mention": id}).WithError(err).Warn("Failed to resolve mention")
+			return true
+		}
+
+		Resolvers.Return(resolver)
+		return true
+	})
+
+	return nil
+}
 func processsActivity(ctx context.Context, sender *ap.Actor, body []byte, db *sql.DB, logger *log.Logger) error {
 	var req ap.Activity
 	if err := json.NewDecoder(bytes.NewReader(body)).Decode(&req); err != nil {
@@ -192,65 +255,18 @@ func processsActivity(ctx context.Context, sender *ap.Actor, body []byte, db *sq
 		logger.WithFields(log.Fields{"follow": follow.ID, "follower": follower}).Info("Removed a Follow")
 
 	case ap.CreateActivity:
-		post, ok := req.Object.(*ap.Object)
+		return processCreateActivity(ctx, sender, &req, db, logger)
+
+	case ap.AnnounceActivity:
+		create, ok := req.Object.(*ap.Activity)
 		if !ok {
-			return errors.New("Received invalid Create")
+			return errors.New("Received invalid Announce")
+		}
+		if create.Type != ap.CreateActivity {
+			return fmt.Errorf("Received unsupported Announce type: %s", create.Type)
 		}
 
-		prefix := fmt.Sprintf("https://%s/", cfg.Domain)
-		if strings.HasPrefix(sender.ID, prefix) || strings.HasPrefix(post.ID, prefix) || strings.HasPrefix(post.AttributedTo, prefix) || strings.HasPrefix(req.Actor, prefix) {
-			return fmt.Errorf("Received invalid Create for %s by %s from %s", post.ID, post.AttributedTo, req.Actor)
-		}
-
-		var duplicate int
-		if err := db.QueryRowContext(ctx, `select exists (select 1 from notes where id = ?)`, post.ID).Scan(&duplicate); err != nil {
-			return fmt.Errorf("Failed to check of %s is a duplicate: %w", post.ID, err)
-		} else if duplicate == 1 {
-			logger.WithField("create", req.ID).Info("Note is a duplicate")
-			return nil
-		}
-
-		resolver, err := Resolvers.Borrow(ctx)
-		if err != nil {
-			return fmt.Errorf("Cannot resolve %s: %w", post.AttributedTo, err)
-		}
-
-		if _, err := resolver.Resolve(ctx, db, nil, post.AttributedTo); err != nil {
-			Resolvers.Return(resolver)
-			return fmt.Errorf("Failed to resolve %s: %w", post.AttributedTo, err)
-		}
-
-		Resolvers.Return(resolver)
-
-		if err := note.Insert(ctx, db, post, logger); err != nil {
-			return fmt.Errorf("Cannot insert %s: %w", post.ID, err)
-		}
-		logger.WithField("note", post.ID).Info("Received a new Note")
-
-		mentionedUsers := data.OrderedMap[string, struct{}]{}
-
-		for _, tag := range post.Tag {
-			if tag.Type == ap.MentionMention && tag.Href != post.AttributedTo {
-				mentionedUsers.Store(tag.Href, struct{}{})
-			}
-		}
-
-		mentionedUsers.Range(func(id string, _ struct{}) bool {
-			resolver, err := Resolvers.Borrow(ctx)
-			if err != nil {
-				logger.WithFields(log.Fields{"note": post.ID, "mention": id}).WithError(err).Warn("Cannot resolve mention")
-				return true
-			}
-
-			if _, err := resolver.Resolve(ctx, db, nil, post.AttributedTo); err != nil {
-				Resolvers.Return(resolver)
-				logger.WithFields(log.Fields{"note": post.ID, "mention": id}).WithError(err).Warn("Failed to resolve mention")
-				return true
-			}
-
-			Resolvers.Return(resolver)
-			return true
-		})
+		return processCreateActivity(ctx, sender, create, db, logger)
 
 	default:
 		if sender.ID == req.Actor {
@@ -324,7 +340,9 @@ func processsActivitiesBatch(ctx context.Context, db *sql.DB, logger *log.Logger
 		logger.WithFields(log.Fields{"sender": sender.ID, "activity": activity.ID, "type": activity.Type}).Debug("Processing activity")
 
 		if err := processsActivity(ctx, &sender, []byte(activityString), db, logger); err != nil {
-			if _, ok := activity.Object.(*ap.Object); ok {
+			if _, ok := activity.Object.(*ap.Activity); ok {
+				logger.WithFields(log.Fields{"sender": sender.ID, "activity": activity.ID, "type": activity.Type, "inner": activity.Object.(*ap.Activity).ID}).WithError(err).Warn("Failed to process activity")
+			} else if _, ok := activity.Object.(*ap.Object); ok {
 				logger.WithFields(log.Fields{"sender": sender.ID, "activity": activity.ID, "type": activity.Type, "object": activity.Object.(*ap.Object).ID}).WithError(err).Warn("Failed to process activity")
 			} else {
 				logger.WithFields(log.Fields{"sender": sender.ID, "activity": activity.ID, "type": activity.Type, "object": activity.Object.(string)}).WithError(err).Warn("Failed to process activity")

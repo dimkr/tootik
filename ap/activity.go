@@ -16,16 +16,20 @@ limitations under the License.
 
 package ap
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 type ActivityType string
 
 const (
-	CreateActivity ActivityType = "Create"
-	FollowActivity ActivityType = "Follow"
-	AcceptActivity ActivityType = "Accept"
-	UndoActivity   ActivityType = "Undo"
-	DeleteActivity ActivityType = "Delete"
+	CreateActivity   ActivityType = "Create"
+	FollowActivity   ActivityType = "Follow"
+	AcceptActivity   ActivityType = "Accept"
+	UndoActivity     ActivityType = "Undo"
+	DeleteActivity   ActivityType = "Delete"
+	AnnounceActivity ActivityType = "Announce"
 )
 
 type anyActivity struct {
@@ -53,14 +57,16 @@ func (a *Activity) UnmarshalJSON(b []byte) error {
 	a.Actor = common.Actor
 
 	var object Object
+	var activity Activity
 	var link string
-	if err := json.Unmarshal(common.Object, &object); err != nil {
-		if err := json.Unmarshal(common.Object, &link); err != nil {
-			return err
-		}
+	if err := json.Unmarshal(common.Object, &activity); err == nil {
+		a.Object = &activity
+	} else if err := json.Unmarshal(common.Object, &object); err == nil {
+		a.Object = &object
+	} else if err := json.Unmarshal(common.Object, &link); err == nil {
 		a.Object = link
 	} else {
-		a.Object = &object
+		return fmt.Errorf("Invalid activity: %s", string(b))
 	}
 
 	return nil
