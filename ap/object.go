@@ -21,8 +21,10 @@ import "time"
 type ObjectType string
 
 const (
-	NoteObject   ObjectType = "Note"
-	FollowObject ObjectType = "Follow"
+	NoteObject    ObjectType = "Note"
+	FollowObject  ObjectType = "Follow"
+	PageObject    ObjectType = "Page"
+	ArticleObject ObjectType = "Article"
 )
 
 type Object struct {
@@ -31,6 +33,7 @@ type Object struct {
 	AttributedTo string       `json:"attributedTo,omitempty"`
 	InReplyTo    string       `json:"inReplyTo,omitempty"`
 	Content      string       `json:"content,omitempty"`
+	Name         string       `json:"name,omitempty"`
 	Published    time.Time    `json:"published,omitempty"`
 	To           Audience     `json:"to,omitempty"`
 	CC           Audience     `json:"cc,omitempty"`

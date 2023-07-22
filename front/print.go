@@ -74,7 +74,9 @@ func getDisplayName(id, preferredUsername, name string, t ap.ActorType) string {
 	isLocal := strings.HasPrefix(id, prefix)
 
 	emoji := "👽"
-	if t != ap.Person {
+	if t == ap.Group {
+		emoji = "👥"
+	} else if t != ap.Person {
 		emoji = "🤖"
 	} else if isLocal {
 		emoji = "😈"
@@ -123,7 +125,12 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 		maxRunes = compactViewMaxRunes
 	}
 
-	contentLines, inlineLinks := getTextAndLinks(note.Content, maxRunes, maxLines)
+	noteBody := note.Content
+	if note.Name != "" { // Page has a title
+		noteBody = fmt.Sprintf("%s<br>%s", note.Name, note.Content)
+	}
+
+	contentLines, inlineLinks := getTextAndLinks(noteBody, maxRunes, maxLines)
 
 	hashtags := data.OrderedMap[string, string]{}
 	mentionedUsers := data.OrderedMap[string, struct{}]{}
@@ -161,6 +168,8 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 	for _, attachment := range note.Attachment {
 		if attachment.URL != "" {
 			links.Store(attachment.URL, struct{}{})
+		} else if attachment.Href != "" {
+			links.Store(attachment.Href, struct{}{})
 		}
 	}
 
@@ -303,8 +312,8 @@ func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, sql.Nul
 			return true
 		}
 
-		if note.Type != ap.NoteObject {
-			r.Log.WithField("type", note.Type).Warn("Post is note a note")
+		if note.Type != ap.NoteObject && note.Type != ap.PageObject && note.Type != ap.ArticleObject {
+			r.Log.WithField("type", note.Type).Warn("Post type is unsupported")
 			return true
 		}
 
