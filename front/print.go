@@ -75,7 +75,7 @@ func getDisplayName(id, preferredUsername, name string, t ap.ActorType) string {
 
 	emoji := "👽"
 	if t == ap.Group {
-		emoji = "💩"
+		emoji = "👥"
 	} else if t != ap.Person {
 		emoji = "🤖"
 	} else if isLocal {
@@ -168,6 +168,8 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 	for _, attachment := range note.Attachment {
 		if attachment.URL != "" {
 			links.Store(attachment.URL, struct{}{})
+		} else if attachment.Href != "" {
+			links.Store(attachment.Href, struct{}{})
 		}
 	}
 

@@ -26,4 +26,5 @@ type Attachment struct {
 	Type      string `json:"type,omitempty"`
 	MediaType string `json:"mediaType,omitempty"`
 	URL       string `json:"url,omitempty"`
+	Href      string `json:"href,omitempty"`
 }
