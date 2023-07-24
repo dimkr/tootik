@@ -79,17 +79,17 @@ func view(w text.Writer, r *request) {
 	}
 	defer rows.Close()
 
-	replies := data.OrderedMap[string, sql.NullString]{}
+	replies := data.OrderedMap[string, noteMetadata]{}
 
 	for rows.Next() {
 		var replyString string
-		var replierString sql.NullString
-		if err := rows.Scan(&replyString, &replierString); err != nil {
+		var meta noteMetadata
+		if err := rows.Scan(&replyString, &meta.Author); err != nil {
 			r.Log.WithError(err).Warn("Failed to scan reply")
 			continue
 		}
 
-		replies.Store(replyString, replierString)
+		replies.Store(replyString, meta)
 	}
 	rows.Close()
 
@@ -110,7 +110,7 @@ func view(w text.Writer, r *request) {
 			w.Titlef("🔔 Post by %s", author.PreferredUsername)
 		}
 
-		r.PrintNote(w, &note, &author, false, false, true, false)
+		r.PrintNote(w, &note, &author, "", false, false, true, false)
 
 		if count > 0 && offset >= repliesPerPage {
 			w.Empty()

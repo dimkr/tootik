@@ -79,7 +79,8 @@ func outbox(w text.Writer, r *request) {
 	}
 	defer rows.Close()
 
-	notes := data.OrderedMap[string, sql.NullString]{}
+	notes := data.OrderedMap[string, noteMetadata]{}
+	meta := noteMetadata{Author: sql.NullString{Valid: true, String: actorString}}
 
 	for rows.Next() {
 		noteString := ""
@@ -88,7 +89,7 @@ func outbox(w text.Writer, r *request) {
 			continue
 		}
 
-		notes.Store(noteString, sql.NullString{Valid: true, String: actorString})
+		notes.Store(noteString, meta)
 	}
 	rows.Close()
 

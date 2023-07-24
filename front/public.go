@@ -17,7 +17,6 @@ limitations under the License.
 package front
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
@@ -60,17 +59,17 @@ func local(w text.Writer, r *request) {
 	}
 	defer rows.Close()
 
-	notes := data.OrderedMap[string, sql.NullString]{}
+	notes := data.OrderedMap[string, noteMetadata]{}
 
 	for rows.Next() {
 		noteString := ""
-		var actorString sql.NullString
-		if err := rows.Scan(&noteString, &actorString); err != nil {
+		var meta noteMetadata
+		if err := rows.Scan(&noteString, &meta.Author); err != nil {
 			r.Log.WithError(err).Warn("Failed to scan post")
 			continue
 		}
 
-		notes.Store(noteString, actorString)
+		notes.Store(noteString, meta)
 	}
 	rows.Close()
 
@@ -129,17 +128,17 @@ func federated(w text.Writer, r *request) {
 	}
 	defer rows.Close()
 
-	notes := data.OrderedMap[string, sql.NullString]{}
+	notes := data.OrderedMap[string, noteMetadata]{}
 
 	for rows.Next() {
 		noteString := ""
-		var actorString sql.NullString
-		if err := rows.Scan(&noteString, &actorString); err != nil {
+		var meta noteMetadata
+		if err := rows.Scan(&noteString, &meta.Author); err != nil {
 			r.Log.WithError(err).Warn("Failed to scan post")
 			continue
 		}
 
-		notes.Store(noteString, actorString)
+		notes.Store(noteString, meta)
 	}
 	rows.Close()
 

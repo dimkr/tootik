@@ -39,6 +39,11 @@ const (
 	compactViewMaxLines = 4
 )
 
+type noteMetadata struct {
+	Author sql.NullString
+	Group  sql.NullString
+}
+
 var verifiedRegex = regexp.MustCompile(`(\s*:[a-zA-Z0-9_]+:\s*)+`)
 
 func getTextAndLinks(s string, maxRunes, maxLines int) ([]string, []string) {
@@ -112,7 +117,7 @@ func getActorDisplayName(actor *ap.Actor) string {
 	return getDisplayName(actor.ID, userName, name, actor.Type)
 }
 
-func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, compact, printAuthor, printParentAuthor, titleIsLink bool) {
+func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, group string, compact, printAuthor, printParentAuthor, titleIsLink bool) {
 	if note.AttributedTo == "" {
 		r.Log.WithField("id", note.ID).Warn("Note has no author")
 		return
@@ -181,8 +186,10 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 	authorDisplayName := author.PreferredUsername
 
 	var title string
-	if printAuthor {
+	if printAuthor && group == "" {
 		title = fmt.Sprintf("%s %s", note.Published.Format(time.DateOnly), authorDisplayName)
+	} else if printAuthor && group != "" {
+		title = fmt.Sprintf("%s %s 🞂 %s", note.Published.Format(time.DateOnly), authorDisplayName, group)
 	} else {
 		title = note.Published.Format(time.DateOnly)
 	}
@@ -303,9 +310,9 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 	}
 }
 
-func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, sql.NullString], printAuthor, printParentAuthor bool) {
+func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, noteMetadata], printAuthor, printParentAuthor bool) {
 	first := true
-	rows.Range(func(noteString string, actorString sql.NullString) bool {
+	rows.Range(func(noteString string, meta noteMetadata) bool {
 		note := ap.Object{}
 		if err := json.Unmarshal([]byte(noteString), &note); err != nil {
 			r.Log.WithError(err).Warn("Failed to unmarshal post")
@@ -317,13 +324,13 @@ func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, sql.Nul
 			return true
 		}
 
-		if !actorString.Valid {
+		if !meta.Author.Valid {
 			r.Log.WithFields(log.Fields{"note": note.ID, "author": note.AttributedTo}).Warn("Post author is unknown")
 			return true
 		}
 
 		author := ap.Actor{}
-		if err := json.Unmarshal([]byte(actorString.String), &author); err != nil {
+		if err := json.Unmarshal([]byte(meta.Author.String), &author); err != nil {
 			r.Log.WithError(err).Warn("Failed to unmarshal post author")
 			return true
 		}
@@ -332,7 +339,11 @@ func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, sql.Nul
 			w.Empty()
 		}
 
-		r.PrintNote(w, &note, &author, true, printAuthor, printParentAuthor, true)
+		if meta.Group.Valid {
+			r.PrintNote(w, &note, &author, meta.Group.String, true, printAuthor, printParentAuthor, true)
+		} else {
+			r.PrintNote(w, &note, &author, "", true, printAuthor, printParentAuthor, true)
+		}
 
 		first = false
 		return true

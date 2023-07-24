@@ -17,7 +17,6 @@ limitations under the License.
 package front
 
 import (
-	"database/sql"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -58,10 +57,10 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 	since := now.Add(-time.Hour * 24 * 2)
 
 	rows, err := r.Query(`
-		select notes.object, persons.actor from
+		select notes.object, persons.actor, (case when follows.type = 'Group' then follows.name else null end) from
 		notes
 		left join (
-			select follows.followed, persons.actor->>'type' as type, persons.actor->>'followers' as followers, stats.avg, stats.last from
+			select follows.followed, persons.actor->>'type' as type, persons.actor->>'preferredUsername' as name, persons.actor->>'followers' as followers, stats.avg, stats.last from
 			(
 				select followed from follows where follower = $1
 			) follows
@@ -139,17 +138,17 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 	}
 	defer rows.Close()
 
-	notes := data.OrderedMap[string, sql.NullString]{}
+	notes := data.OrderedMap[string, noteMetadata]{}
 
 	for rows.Next() {
 		noteString := ""
-		var actorString sql.NullString
-		if err := rows.Scan(&noteString, &actorString); err != nil {
+		var meta noteMetadata
+		if err := rows.Scan(&noteString, &meta.Author, &meta.Group); err != nil {
 			r.Log.WithError(err).Warn("Failed to scan post")
 			continue
 		}
 
-		notes.Store(noteString, actorString)
+		notes.Store(noteString, meta)
 	}
 	rows.Close()
 
