@@ -190,6 +190,8 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 		title = fmt.Sprintf("%s %s", note.Published.Format(time.DateOnly), authorDisplayName)
 	} else if printAuthor && group != "" {
 		title = fmt.Sprintf("%s %s 🞂 %s", note.Published.Format(time.DateOnly), authorDisplayName, group)
+	} else if group != "" {
+		title = fmt.Sprintf("%s 🞂 %s", note.Published.Format(time.DateOnly), group)
 	} else {
 		title = note.Published.Format(time.DateOnly)
 	}
