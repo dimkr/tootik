@@ -65,7 +65,13 @@ func outbox(w text.Writer, r *request) {
 
 	r.Log.WithFields(log.Fields{"actor": actorID, "offset": offset}).Info("Viewing outbox")
 
-	rows, err := r.Query(`select object from (select object, inserted from notes where public = 1 and author = $1 union select notes.object, notes.inserted from notes join persons on persons.actor->>'followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = persons.actor->>'followers')) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = persons.actor->>'followers')) where notes.public = 0 and notes.author = $1 and persons.id = $1 order by inserted desc limit $2 offset $3)`, actorID, postsPerPage, offset)
+	var rows *sql.Rows
+	if actor.Type == ap.Group {
+		// if this is a group, show posts sent to this group instead of showing posts by the group
+		rows, err = r.Query(`select object, actor, null from (select notes.object, persons.actor from (select object, author, inserted from notes where public = 1 and $1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) and object->'inReplyTo' is null) notes join persons on persons.id = notes.author order by notes.inserted desc limit $2 offset $3)`, actorID, postsPerPage, offset)
+	} else {
+		rows, err = r.Query(`select object, $1, g from (select notes.object, notes.inserted, groups.name as g from (select id, object, inserted, cc0, to0, cc1, to1, cc2, to2 from notes where public = 1 and author = $2 union select notes.id, notes.object, notes.inserted, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2 from notes join persons on persons.actor->>'followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = persons.actor->>'followers')) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = persons.actor->>'followers')) where notes.public = 0 and notes.author = $2 and persons.id = $2 order by inserted desc limit $3 offset $4) notes left join (select id, actor->>'preferredUsername' as name from persons where actor->>'type' = 'Group') groups on groups.id in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = groups.id)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = groups.id)) group by notes.id)`, actorString, actorID, postsPerPage, offset)
+	}
 	if err != nil {
 		r.Log.WithError(err).Warn("Failed to fetch posts")
 		w.Error()
@@ -73,16 +79,17 @@ func outbox(w text.Writer, r *request) {
 	}
 	defer rows.Close()
 
-	notes := data.OrderedMap[string, sql.NullString]{}
+	notes := data.OrderedMap[string, noteMetadata]{}
 
 	for rows.Next() {
 		noteString := ""
-		if err := rows.Scan(&noteString); err != nil {
+		var meta noteMetadata
+		if err := rows.Scan(&noteString, &meta.Author, &meta.Group); err != nil {
 			r.Log.WithError(err).Warn("Failed to scan post")
 			continue
 		}
 
-		notes.Store(noteString, sql.NullString{Valid: true, String: actorString})
+		notes.Store(noteString, meta)
 	}
 	rows.Close()
 
@@ -116,6 +123,8 @@ func outbox(w text.Writer, r *request) {
 
 	if count == 0 {
 		w.Text("No posts.")
+	} else if actor.Type == ap.Group {
+		r.PrintNotes(w, notes, true, true)
 	} else {
 		r.PrintNotes(w, notes, false, true)
 	}

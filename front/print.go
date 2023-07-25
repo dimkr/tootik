@@ -39,6 +39,11 @@ const (
 	compactViewMaxLines = 4
 )
 
+type noteMetadata struct {
+	Author sql.NullString
+	Group  sql.NullString
+}
+
 var verifiedRegex = regexp.MustCompile(`(\s*:[a-zA-Z0-9_]+:\s*)+`)
 
 func getTextAndLinks(s string, maxRunes, maxLines int) ([]string, []string) {
@@ -74,7 +79,9 @@ func getDisplayName(id, preferredUsername, name string, t ap.ActorType) string {
 	isLocal := strings.HasPrefix(id, prefix)
 
 	emoji := "👽"
-	if t != ap.Person {
+	if t == ap.Group {
+		emoji = "👥"
+	} else if t != ap.Person {
 		emoji = "🤖"
 	} else if isLocal {
 		emoji = "😈"
@@ -110,7 +117,7 @@ func getActorDisplayName(actor *ap.Actor) string {
 	return getDisplayName(actor.ID, userName, name, actor.Type)
 }
 
-func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, compact, printAuthor, printParentAuthor, titleIsLink bool) {
+func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, group string, compact, printAuthor, printParentAuthor, titleIsLink bool) {
 	if note.AttributedTo == "" {
 		r.Log.WithField("id", note.ID).Warn("Note has no author")
 		return
@@ -123,7 +130,12 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 		maxRunes = compactViewMaxRunes
 	}
 
-	contentLines, inlineLinks := getTextAndLinks(note.Content, maxRunes, maxLines)
+	noteBody := note.Content
+	if note.Name != "" { // Page has a title
+		noteBody = fmt.Sprintf("%s<br>%s", note.Name, note.Content)
+	}
+
+	contentLines, inlineLinks := getTextAndLinks(noteBody, maxRunes, maxLines)
 
 	hashtags := data.OrderedMap[string, string]{}
 	mentionedUsers := data.OrderedMap[string, struct{}]{}
@@ -161,6 +173,8 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 	for _, attachment := range note.Attachment {
 		if attachment.URL != "" {
 			links.Store(attachment.URL, struct{}{})
+		} else if attachment.Href != "" {
+			links.Store(attachment.Href, struct{}{})
 		}
 	}
 
@@ -172,8 +186,12 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 	authorDisplayName := author.PreferredUsername
 
 	var title string
-	if printAuthor {
+	if printAuthor && group == "" {
 		title = fmt.Sprintf("%s %s", note.Published.Format(time.DateOnly), authorDisplayName)
+	} else if printAuthor && group != "" {
+		title = fmt.Sprintf("%s %s 🞂 %s", note.Published.Format(time.DateOnly), authorDisplayName, group)
+	} else if group != "" {
+		title = fmt.Sprintf("%s 🞂 %s", note.Published.Format(time.DateOnly), group)
 	} else {
 		title = note.Published.Format(time.DateOnly)
 	}
@@ -294,27 +312,27 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, co
 	}
 }
 
-func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, sql.NullString], printAuthor, printParentAuthor bool) {
+func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, noteMetadata], printAuthor, printParentAuthor bool) {
 	first := true
-	rows.Range(func(noteString string, actorString sql.NullString) bool {
+	rows.Range(func(noteString string, meta noteMetadata) bool {
 		note := ap.Object{}
 		if err := json.Unmarshal([]byte(noteString), &note); err != nil {
 			r.Log.WithError(err).Warn("Failed to unmarshal post")
 			return true
 		}
 
-		if note.Type != ap.NoteObject {
-			r.Log.WithField("type", note.Type).Warn("Post is note a note")
+		if note.Type != ap.NoteObject && note.Type != ap.PageObject && note.Type != ap.ArticleObject {
+			r.Log.WithField("type", note.Type).Warn("Post type is unsupported")
 			return true
 		}
 
-		if !actorString.Valid {
+		if !meta.Author.Valid {
 			r.Log.WithFields(log.Fields{"note": note.ID, "author": note.AttributedTo}).Warn("Post author is unknown")
 			return true
 		}
 
 		author := ap.Actor{}
-		if err := json.Unmarshal([]byte(actorString.String), &author); err != nil {
+		if err := json.Unmarshal([]byte(meta.Author.String), &author); err != nil {
 			r.Log.WithError(err).Warn("Failed to unmarshal post author")
 			return true
 		}
@@ -323,7 +341,11 @@ func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, sql.Nul
 			w.Empty()
 		}
 
-		r.PrintNote(w, &note, &author, true, printAuthor, printParentAuthor, true)
+		if meta.Group.Valid {
+			r.PrintNote(w, &note, &author, meta.Group.String, true, printAuthor, printParentAuthor, true)
+		} else {
+			r.PrintNote(w, &note, &author, "", true, printAuthor, printParentAuthor, true)
+		}
 
 		first = false
 		return true

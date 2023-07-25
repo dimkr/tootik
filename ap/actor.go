@@ -18,7 +18,10 @@ package ap
 
 type ActorType string
 
-const Person ActorType = "Person"
+const (
+	Person ActorType = "Person"
+	Group  ActorType = "Group"
+)
 
 type Actor struct {
 	ID                string    `json:"id"`

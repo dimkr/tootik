@@ -17,7 +17,6 @@ limitations under the License.
 package front
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
@@ -60,17 +59,17 @@ func local(w text.Writer, r *request) {
 	}
 	defer rows.Close()
 
-	notes := data.OrderedMap[string, sql.NullString]{}
+	notes := data.OrderedMap[string, noteMetadata]{}
 
 	for rows.Next() {
 		noteString := ""
-		var actorString sql.NullString
-		if err := rows.Scan(&noteString, &actorString); err != nil {
+		var meta noteMetadata
+		if err := rows.Scan(&noteString, &meta.Author); err != nil {
 			r.Log.WithError(err).Warn("Failed to scan post")
 			continue
 		}
 
-		notes.Store(noteString, actorString)
+		notes.Store(noteString, meta)
 	}
 	rows.Close()
 
@@ -121,7 +120,7 @@ func federated(w text.Writer, r *request) {
 		return
 	}
 
-	rows, err := r.Query(`select notes.object, persons.actor from notes join persons on notes.author = persons.id left join (select author, max(inserted) as last, count(*)/(60*60*24) as avg from notes where inserted > unixepoch()-60*60*24*7 group by author) stats on notes.author = stats.author where notes.public = 1 order by notes.inserted / 3600 desc, stats.avg asc, stats.last asc, notes.inserted desc limit $1 offset $2;`, postsPerPage, offset)
+	rows, err := r.Query(`select notes.object, persons.actor, groups.name from notes join persons on notes.author = persons.id left join (select author, max(inserted) as last, count(*)/(60*60*24) as avg from notes where inserted > unixepoch()-60*60*24*7 group by author) stats on notes.author = stats.author left join (select id, actor->>'preferredUsername' as name from persons where actor->>'type' = 'Group') groups on groups.id in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = groups.id)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = groups.id)) where notes.public = 1 group by notes.id order by notes.inserted / 3600 desc, stats.avg asc, stats.last asc, notes.inserted desc limit $1 offset $2;`, postsPerPage, offset)
 	if err != nil {
 		r.Log.WithError(err).Warn("Failed to fetch federated posts")
 		w.Error()
@@ -129,17 +128,17 @@ func federated(w text.Writer, r *request) {
 	}
 	defer rows.Close()
 
-	notes := data.OrderedMap[string, sql.NullString]{}
+	notes := data.OrderedMap[string, noteMetadata]{}
 
 	for rows.Next() {
 		noteString := ""
-		var actorString sql.NullString
-		if err := rows.Scan(&noteString, &actorString); err != nil {
+		var meta noteMetadata
+		if err := rows.Scan(&noteString, &meta.Author, &meta.Group); err != nil {
 			r.Log.WithError(err).Warn("Failed to scan post")
 			continue
 		}
 
-		notes.Store(noteString, actorString)
+		notes.Store(noteString, meta)
 	}
 	rows.Close()
 

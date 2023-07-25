@@ -17,7 +17,6 @@ limitations under the License.
 package front
 
 import (
-	"database/sql"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -58,10 +57,10 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 	since := now.Add(-time.Hour * 24 * 2)
 
 	rows, err := r.Query(`
-		select notes.object, persons.actor from
+		select notes.object, persons.actor, (case when follows.type = 'Group' then follows.name else null end) from
 		notes
 		left join (
-			select follows.followed, persons.actor->>'followers' as followers, stats.avg, stats.last from
+			select follows.followed, persons.actor->>'type' as type, persons.actor->>'preferredUsername' as name, persons.actor->>'followers' as followers, stats.avg, stats.last from
 			(
 				select followed from follows where follower = $1
 			) follows
@@ -77,13 +76,26 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 				stats.author = persons.id
 		) follows
 		on
-			notes.author = follows.followed and
 			(
-				notes.public = 1 or
-				follows.followers in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-				$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-				(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.followers or value = $1)) or
-				(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.followers or value = $1))
+				notes.author = follows.followed and
+				(
+					notes.public = 1 or
+					follows.followers in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+					$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.followers or value = $1)) or
+					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.followers or value = $1))
+				)
+			)
+			or
+			(
+				follows.type = 'Group' and
+				follows.followed in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) and
+				(
+					(notes.public = 1 and notes.object->>'inReplyTo' is null) or
+					$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $1)) or
+					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $1))
+				)
 			)
 		left join (
 			select id from notes where author = $1
@@ -126,17 +138,17 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 	}
 	defer rows.Close()
 
-	notes := data.OrderedMap[string, sql.NullString]{}
+	notes := data.OrderedMap[string, noteMetadata]{}
 
 	for rows.Next() {
 		noteString := ""
-		var actorString sql.NullString
-		if err := rows.Scan(&noteString, &actorString); err != nil {
+		var meta noteMetadata
+		if err := rows.Scan(&noteString, &meta.Author, &meta.Group); err != nil {
 			r.Log.WithError(err).Warn("Failed to scan post")
 			continue
 		}
 
-		notes.Store(noteString, actorString)
+		notes.Store(noteString, meta)
 	}
 	rows.Close()
 
