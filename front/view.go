@@ -47,7 +47,8 @@ func view(w text.Writer, r *request) {
 	r.Log.WithField("hash", hash).Info("Viewing post")
 
 	var noteString, authorString string
-	if err := r.QueryRow(`select notes.object, persons.actor from notes join persons on persons.id = notes.author where notes.hash = ?`, hash).Scan(&noteString, &authorString); err != nil && errors.Is(err, sql.ErrNoRows) {
+	var group sql.NullString
+	if err := r.QueryRow(`select notes.object, persons.actor, groups.name from notes join persons on persons.id = notes.author left join (select id, actor->>'preferredUsername' as name from persons where actor->>'type' = 'Group') groups on groups.id = notes.groupid where notes.hash = ?`, hash).Scan(&noteString, &authorString, &group); err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.WithField("hash", hash).Info("Post was not found")
 		w.Status(40, "Post not found")
 		return
@@ -110,7 +111,11 @@ func view(w text.Writer, r *request) {
 			w.Titlef("🔔 Post by %s", author.PreferredUsername)
 		}
 
-		r.PrintNote(w, &note, &author, "", false, false, true, false)
+		if group.Valid {
+			r.PrintNote(w, &note, &author, group.String, false, false, true, false)
+		} else {
+			r.PrintNote(w, &note, &author, "", false, false, true, false)
+		}
 
 		if count > 0 && offset >= repliesPerPage {
 			w.Empty()
