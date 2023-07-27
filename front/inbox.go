@@ -89,7 +89,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 			or
 			(
 				follows.type = 'Group' and
-				follows.followed in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) and
+				notes.groupid = follows.followed and
 				(
 					(notes.public = 1 and notes.object->>'inReplyTo' is null) or
 					$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
