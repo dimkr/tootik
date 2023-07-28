@@ -117,7 +117,7 @@ func getActorDisplayName(actor *ap.Actor) string {
 	return getDisplayName(actor.ID, userName, name, actor.Type)
 }
 
-func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, group string, compact, printAuthor, printParentAuthor, titleIsLink bool) {
+func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, group *ap.Actor, compact, printAuthor, printParentAuthor, titleIsLink bool) {
 	if note.AttributedTo == "" {
 		r.Log.WithField("id", note.ID).Warn("Note has no author")
 		return
@@ -186,12 +186,12 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 	authorDisplayName := author.PreferredUsername
 
 	var title string
-	if printAuthor && group == "" {
+	if printAuthor && group == nil {
 		title = fmt.Sprintf("%s %s", note.Published.Format(time.DateOnly), authorDisplayName)
-	} else if printAuthor && group != "" {
-		title = fmt.Sprintf("%s %s 🞂 %s", note.Published.Format(time.DateOnly), authorDisplayName, group)
-	} else if group != "" {
-		title = fmt.Sprintf("%s 🞂 %s", note.Published.Format(time.DateOnly), group)
+	} else if printAuthor && group != nil {
+		title = fmt.Sprintf("%s %s 🞂 %s", note.Published.Format(time.DateOnly), authorDisplayName, group.PreferredUsername)
+	} else if group != nil {
+		title = fmt.Sprintf("%s 🞂 %s", note.Published.Format(time.DateOnly), group.PreferredUsername)
 	} else {
 		title = note.Published.Format(time.DateOnly)
 	}
@@ -290,6 +290,12 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 			}
 		}
 
+		if r.User == nil && group != nil {
+			w.Linkf(fmt.Sprintf("/outbox/%x", sha256.Sum256([]byte(group.ID))), "👥 %s", group.PreferredUsername)
+		} else if group != nil {
+			w.Linkf(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(group.ID))), "👥 %s", group.PreferredUsername)
+		}
+
 		hashtags.Range(func(_ string, tag string) bool {
 			var exists int
 			if err := r.QueryRow(`select exists (select 1 from hashtags where hashtag = ? and note != ?)`, tag, note.ID).Scan(&exists); err != nil {
@@ -337,14 +343,22 @@ func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, noteMet
 			return true
 		}
 
+		group := ap.Actor{}
+		if meta.Group.Valid {
+			if err := json.Unmarshal([]byte(meta.Group.String), &group); err != nil {
+				r.Log.WithError(err).Warn("Failed to unmarshal post group")
+				return true
+			}
+		}
+
 		if !first {
 			w.Empty()
 		}
 
 		if meta.Group.Valid {
-			r.PrintNote(w, &note, &author, meta.Group.String, true, printAuthor, printParentAuthor, true)
+			r.PrintNote(w, &note, &author, &group, true, printAuthor, printParentAuthor, true)
 		} else {
-			r.PrintNote(w, &note, &author, "", true, printAuthor, printParentAuthor, true)
+			r.PrintNote(w, &note, &author, nil, true, printAuthor, printParentAuthor, true)
 		}
 
 		first = false

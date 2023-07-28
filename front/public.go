@@ -120,7 +120,7 @@ func federated(w text.Writer, r *request) {
 		return
 	}
 
-	rows, err := r.Query(`select notes.object, persons.actor, groups.name from notes join persons on notes.author = persons.id left join (select author, max(inserted) as last, count(*)/(60*60*24) as avg from notes where inserted > unixepoch()-60*60*24*7 group by author) stats on notes.author = stats.author left join (select id, actor->>'preferredUsername' as name from persons where actor->>'type' = 'Group') groups on groups.id = notes.groupid where notes.public = 1 group by notes.id order by notes.inserted / 3600 desc, stats.avg asc, stats.last asc, notes.inserted desc limit $1 offset $2;`, postsPerPage, offset)
+	rows, err := r.Query(`select notes.object, persons.actor, groups.actor from notes join persons on notes.author = persons.id left join (select author, max(inserted) as last, count(*)/(60*60*24) as avg from notes where inserted > unixepoch()-60*60*24*7 group by author) stats on notes.author = stats.author left join (select id, actor from persons where actor->>'type' = 'Group') groups on groups.id = notes.groupid where notes.public = 1 group by notes.id order by notes.inserted / 3600 desc, stats.avg asc, stats.last asc, notes.inserted desc limit $1 offset $2;`, postsPerPage, offset)
 	if err != nil {
 		r.Log.WithError(err).Warn("Failed to fetch federated posts")
 		w.Error()

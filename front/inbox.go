@@ -57,10 +57,10 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 	since := now.Add(-time.Hour * 24 * 2)
 
 	rows, err := r.Query(`
-		select notes.object, persons.actor, (case when follows.type = 'Group' then follows.name else null end) from
+		select notes.object, persons.actor, (case when follows.actor->>'type' = 'Group' then follows.actor else null end) from
 		notes
 		left join (
-			select follows.followed, persons.actor->>'type' as type, persons.actor->>'preferredUsername' as name, persons.actor->>'followers' as followers, stats.avg, stats.last from
+			select follows.followed, persons.actor, stats.avg, stats.last from
 			(
 				select followed from follows where follower = $1
 			) follows
@@ -80,15 +80,15 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 				notes.author = follows.followed and
 				(
 					notes.public = 1 or
-					follows.followers in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+					follows.actor->>'followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
 					$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.followers or value = $1)) or
-					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.followers or value = $1))
+					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.actor->>'followers' or value = $1)) or
+					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.actor->>'followers' or value = $1))
 				)
 			)
 			or
 			(
-				follows.type = 'Group' and
+				follows.actor->>'type' = 'Group' and
 				notes.groupid = follows.followed and
 				(
 					(notes.public = 1 and notes.object->>'inReplyTo' is null) or
