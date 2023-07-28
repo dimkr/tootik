@@ -189,9 +189,9 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 	if printAuthor && group == nil {
 		title = fmt.Sprintf("%s %s", note.Published.Format(time.DateOnly), authorDisplayName)
 	} else if printAuthor && group != nil {
-		title = fmt.Sprintf("%s %s 🞂 %s", note.Published.Format(time.DateOnly), authorDisplayName, group.PreferredUsername)
+		title = fmt.Sprintf("%s %s ┃ 👥 %s", note.Published.Format(time.DateOnly), authorDisplayName, group.PreferredUsername)
 	} else if group != nil {
-		title = fmt.Sprintf("%s 🞂 %s", note.Published.Format(time.DateOnly), group.PreferredUsername)
+		title = fmt.Sprintf("%s 👥 %s", note.Published.Format(time.DateOnly), group.PreferredUsername)
 	} else {
 		title = note.Published.Format(time.DateOnly)
 	}
