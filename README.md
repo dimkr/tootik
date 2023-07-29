@@ -144,7 +144,7 @@ Therefore, every time a new post is saved, it is accompanied by a "delivery". A 
 
 The server verifies HTTP signatures of requests to /inbox/%s, using the sender's key. They key is cached to reduce the amount of outgoing requests.
 
-## Migrations
+### Migrations
 
 To add a migration named `x` and add it to the list of migrations:
 
