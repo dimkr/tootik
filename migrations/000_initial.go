@@ -13,14 +13,14 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package data
+package migrations
 
 import (
 	"context"
 	"database/sql"
 )
 
-func Migrate(ctx context.Context, db *sql.DB) error {
+func initial(ctx context.Context, db *sql.DB) error {
 	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS persons(id STRING NOT NULL PRIMARY KEY, hash STRING NOT NULL, actor JSON NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()), updated INTEGER DEFAULT (UNIXEPOCH()))`); err != nil {
 		return err
 	}

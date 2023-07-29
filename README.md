@@ -144,6 +144,13 @@ Therefore, every time a new post is saved, it is accompanied by a "delivery". A 
 
 The server verifies HTTP signatures of requests to /inbox/%s, using the sender's key. They key is cached to reduce the amount of outgoing requests.
 
+## Migrations
+
+To add a migration named `x` and add it to the list of migrations:
+
+	./migrations/add.sh x
+	go generate ./migrations
+
 ## Credits and Legal Information
 
 tootik is free and unencumbered software released under the terms of the [Apache License Version 2.0](https://www.apache.org/licenses/LICENSE-2.0); see LICENSE for the license text.
