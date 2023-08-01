@@ -35,6 +35,7 @@ type Object struct {
 	Content      string       `json:"content,omitempty"`
 	Name         string       `json:"name,omitempty"`
 	Published    time.Time    `json:"published,omitempty"`
+	Updated      time.Time    `json:"updated,omitempty"`
 	To           Audience     `json:"to,omitempty"`
 	CC           Audience     `json:"cc,omitempty"`
 	Tag          []Mention    `json:"tag,omitempty"`
