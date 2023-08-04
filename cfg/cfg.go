@@ -21,6 +21,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const MaxPostsLength = 200
+
 var (
 	Domain   string
 	LogLevel int

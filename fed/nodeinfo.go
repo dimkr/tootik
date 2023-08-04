@@ -70,5 +70,39 @@ func addNodeInfo(mux *http.ServeMux) error {
 		})
 	}
 
+	if body, err := json.Marshal(map[string]any{
+		"uri":               cfg.Domain,
+		"title":             "tootik",
+		"short_description": "Federated nanoblogging service for the small internet",
+		"description":       "",
+		"email":             "",
+		"version":           "",
+		"stats": map[string]any{
+			"user_count":   0,
+			"status_count": 0,
+			"domain_count": 0,
+		},
+		"registrations":     true,
+		"approval_required": false,
+		"configuration": map[string]any{
+			"statuses": map[string]any{
+				"max_characters":        cfg.MaxPostsLength,
+				"max_media_attachments": 0,
+			},
+		},
+		"contact_account": map[string]any{
+			"username":     "nobody",
+			"acct":         "nobody",
+			"display_name": "nobody",
+		},
+	}); err != nil {
+		return err
+	} else {
+		mux.HandleFunc("/api/v1/instance", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(body)
+		})
+	}
+
 	return nil
 }
