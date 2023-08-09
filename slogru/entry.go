@@ -44,19 +44,19 @@ func (e *entry) getValues() []any {
 }
 
 func (e *entry) Error(msg string, args ...any) {
-	e.Logger.Error(msg, append(e.getValues(), args...))
+	e.Logger.Error(msg, append(e.getValues(), args...)...)
 }
 
 func (e *entry) Warn(msg string, args ...any) {
-	e.Logger.Warn(msg, append(e.getValues(), args...))
+	e.Logger.Warn(msg, append(e.getValues(), args...)...)
 }
 
 func (e *entry) Info(msg string, args ...any) {
-	e.Logger.Info(msg, append(e.getValues(), args...))
+	e.Logger.Info(msg, append(e.getValues(), args...)...)
 }
 
 func (e *entry) Debug(msg string, args ...any) {
-	e.Logger.Debug(msg, append(e.getValues(), args...))
+	e.Logger.Debug(msg, append(e.getValues(), args...)...)
 }
 
 func (e *entry) WithError(err error) Entry {
