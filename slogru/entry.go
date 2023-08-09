@@ -19,7 +19,6 @@ package slogru
 import (
 	"fmt"
 	"log/slog"
-	"maps"
 )
 
 type Entry interface {
@@ -33,23 +32,31 @@ type Entry interface {
 
 type entry struct {
 	Logger *Logger
-	Fields map[string]any
+	Fields map[string]slog.Attr
+}
+
+func (e *entry) getValues() []any {
+	values := make([]any, len(e.Fields))
+	for _, v := range e.Fields {
+		values = append(values, v)
+	}
+	return values
 }
 
 func (e *entry) Error(msg string, args ...any) {
-	e.Logger.Error(msg, append(maps.Values(e.Fields), args...))
+	e.Logger.Error(msg, append(e.getValues(), args...))
 }
 
 func (e *entry) Warn(msg string, args ...any) {
-	e.Logger.Warn(msg, append(maps.Values(e.Fields), args...))
+	e.Logger.Warn(msg, append(e.getValues(), args...))
 }
 
 func (e *entry) Info(msg string, args ...any) {
-	e.Logger.Info(msg, append(maps.Values(e.Fields), args...))
+	e.Logger.Info(msg, append(e.getValues(), args...))
 }
 
 func (e *entry) Debug(msg string, args ...any) {
-	e.Logger.Debug(msg, append(maps.Values(e.Fields), args...))
+	e.Logger.Debug(msg, append(e.getValues(), args...))
 }
 
 func (e *entry) WithError(err error) Entry {
@@ -58,5 +65,5 @@ func (e *entry) WithError(err error) Entry {
 }
 
 func (e *entry) Warnf(f string, args ...any) {
-	e.Logger.Warn(fmt.Sprintf(f, args...), maps.Values(e.Fields)...)
+	e.Logger.Warn(fmt.Sprintf(f, args...), e.getValues()...)
 }

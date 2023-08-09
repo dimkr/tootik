@@ -22,11 +22,11 @@ import (
 	"flag"
 
 	"github.com/dimkr/tootik/data"
-	"github.com/dimkr/tootik/migrations"
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/front/finger"
 	"github.com/dimkr/tootik/front/gemini"
 	"github.com/dimkr/tootik/front/gopher"
+	"github.com/dimkr/tootik/migrations"
 	log "github.com/dimkr/tootik/slogru"
 	"github.com/dimkr/tootik/user"
 	_ "github.com/mattn/go-sqlite3"
@@ -77,7 +77,7 @@ func main() {
 		}
 	}()
 
-	if err := migrations.Run(ctx, db, log); err != nil {
+	if err := migrations.Run(ctx, db, log.Default()); err != nil {
 		log.Fatal(err)
 	}
 

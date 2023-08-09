@@ -23,11 +23,11 @@ type Logger struct {
 }
 
 func (l *Logger) WithField(k string, v any) Entry {
-	return &entry{Logger: l, Fields: map[string]any{k: slog.Any(k, v)}}
+	return &entry{Logger: l, Fields: map[string]slog.Attr{k: slog.Any(k, v)}}
 }
 
 func (l *Logger) WithFields(fields Fields) Entry {
-	attrs := make(map[string]any, len(fields))
+	attrs := make(map[string]slog.Attr, len(fields))
 	for k, v := range fields {
 		attrs[k] = slog.Any(k, v)
 	}
@@ -35,7 +35,7 @@ func (l *Logger) WithFields(fields Fields) Entry {
 }
 
 func (l *Logger) WithError(err error) Entry {
-	return &entry{Logger: l, Fields: map[string]any{"error": slog.Any("error", slog.Any("error", err))}}
+	return &entry{Logger: l, Fields: map[string]slog.Attr{"error": slog.Any("error", slog.Any("error", err))}}
 }
 
 func (l *Logger) Fatal(err error) {

@@ -24,7 +24,6 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	log "github.com/dimkr/tootik/slogru"
 	_ "github.com/mattn/go-sqlite3"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
 	"net/http"
