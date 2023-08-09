@@ -30,6 +30,7 @@ const (
 	UndoActivity     ActivityType = "Undo"
 	DeleteActivity   ActivityType = "Delete"
 	AnnounceActivity ActivityType = "Announce"
+	UpdateActivity   ActivityType = "Update"
 )
 
 type anyActivity struct {

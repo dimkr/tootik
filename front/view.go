@@ -47,7 +47,8 @@ func view(w text.Writer, r *request) {
 	r.Log.WithField("hash", hash).Info("Viewing post")
 
 	var noteString, authorString string
-	if err := r.QueryRow(`select notes.object, persons.actor from notes join persons on persons.id = notes.author where notes.hash = ?`, hash).Scan(&noteString, &authorString); err != nil && errors.Is(err, sql.ErrNoRows) {
+	var groupString sql.NullString
+	if err := r.QueryRow(`select notes.object, persons.actor, groups.actor from notes join persons on persons.id = notes.author left join (select id, actor from persons where actor->>'type' = 'Group') groups on groups.id = notes.groupid where notes.hash = ?`, hash).Scan(&noteString, &authorString, &groupString); err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.WithField("hash", hash).Info("Post was not found")
 		w.Status(40, "Post not found")
 		return
@@ -69,6 +70,15 @@ func view(w text.Writer, r *request) {
 		r.Log.WithField("post", note.ID).WithError(err).Info("Failed to unmarshal post author")
 		w.Error()
 		return
+	}
+
+	group := ap.Actor{}
+	if groupString.Valid {
+		if err := json.Unmarshal([]byte(groupString.String), &group); err != nil {
+			r.Log.WithField("post", note.ID).WithError(err).Info("Failed to unmarshal post group")
+			w.Error()
+			return
+		}
 	}
 
 	rows, err := r.Query(`select replies.object, persons.actor from notes join notes replies on replies.object->>'inReplyTo' = notes.id left join persons on persons.id = replies.author where notes.hash = ? order by replies.inserted desc limit ? offset ?;`, hash, repliesPerPage, offset)
@@ -110,7 +120,11 @@ func view(w text.Writer, r *request) {
 			w.Titlef("🔔 Post by %s", author.PreferredUsername)
 		}
 
-		r.PrintNote(w, &note, &author, "", false, false, true, false)
+		if groupString.Valid {
+			r.PrintNote(w, &note, &author, &group, false, false, true, false)
+		} else {
+			r.PrintNote(w, &note, &author, nil, false, false, true, false)
+		}
 
 		if count > 0 && offset >= repliesPerPage {
 			w.Empty()

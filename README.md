@@ -16,6 +16,18 @@ It's a single executable that handles both the federation (using ActivityPub) an
 
 tootik implements only a small subset of ActivityPub, and probably doesn't really conform to the spec.
 
+## Building
+
+	go generate ./migrations
+
+Then:
+
+	go build ./cmd/tootik
+
+or, to build a static executable:
+
+	go build -tags netgo,sqlite_omit_load_extension -ldflags "-linkmode external -extldflags -static" ./cmd/tootik
+
 ## Directory Structure
 
 * cmd/ implements main().
@@ -27,7 +39,8 @@ tootik implements only a small subset of ActivityPub, and probably doesn't reall
 * front/finger/ exposes some content over Finger.
 
 * ap/ implements ActivityPub vocabulary.
-* data/ contains the database schema and useful data structures.
+* migrations/ contains the database schema.
+* data/ contains useful data structures.
 * note/ handles insertion of posts.
 
 * text/plain/ converts HTML to plain text.
@@ -143,6 +156,13 @@ Therefore, every time a new post is saved, it is accompanied by a "delivery". A 
 ### Incoming Requests
 
 The server verifies HTTP signatures of requests to /inbox/%s, using the sender's key. They key is cached to reduce the amount of outgoing requests.
+
+## Migrations
+
+To add a migration named `x` and add it to the list of migrations:
+
+	./migrations/add.sh x
+	go generate ./migrations
 
 ## Credits and Legal Information
 

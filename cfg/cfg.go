@@ -21,6 +21,8 @@ import (
 	"log/slog"
 )
 
+const MaxPostsLength = 200
+
 var (
 	Domain   string
 	LogLevel int

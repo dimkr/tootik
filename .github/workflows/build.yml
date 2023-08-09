@@ -16,7 +16,8 @@ jobs:
         with:
           go-version: '>=1.21.0'
       - run: |
+          go generate ./migrations
           go vet ./...
           go test ./... -failfast -vet off
       - run: go build ./cmd/tootik
-      - run: go build -tags netgo,sqlite_omit_load_extension -ldflags "-linkmode external -extldflags -static" ./cmd/tootik/main.go
+      - run: go build -tags netgo,sqlite_omit_load_extension -ldflags "-linkmode external -extldflags -static" ./cmd/tootik

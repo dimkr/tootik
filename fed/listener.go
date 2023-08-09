@@ -63,6 +63,10 @@ func ListenAndServe(ctx context.Context, db *sql.DB, addr, cert, key string) err
 	})
 	mux.HandleFunc("/", root)
 
+	if err := addNodeInfo(mux); err != nil {
+		return err
+	}
+
 	server := http.Server{
 		Addr:    addr,
 		Handler: mux,

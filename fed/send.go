@@ -114,7 +114,7 @@ func send(db *sql.DB, from *ap.Actor, resolver *Resolver, r *http.Request) (*htt
 	}
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		body, err := ioutil.ReadAll(resp.Body)
+		body, err := ioutil.ReadAll(io.LimitReader(resp.Body, maxBodySize))
 		resp.Body.Close()
 		if err != nil {
 			return resp, fmt.Errorf("Failed to send request to %s: %d, %w", urlString, resp.StatusCode, err)

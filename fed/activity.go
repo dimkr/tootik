@@ -268,6 +268,41 @@ func processsActivity(ctx context.Context, sender *ap.Actor, body []byte, db *sq
 
 		return processCreateActivity(ctx, sender, create, db, logger)
 
+	case ap.UpdateActivity:
+		post, ok := req.Object.(*ap.Object)
+		if !ok || post.ID == "" || post.AttributedTo == "" {
+			return errors.New("Received invalid Update")
+		}
+
+		if sender.ID != post.AttributedTo {
+			return fmt.Errorf("%s cannot update posts by %s", sender.ID, post.AttributedTo)
+		}
+
+		body, err := json.Marshal(post)
+		if err != nil {
+			return fmt.Errorf("Failed to update post %s: %w", post.ID, err)
+		}
+
+		var lastUpdate sql.NullInt64
+		if err := db.QueryRowContext(ctx, `select max(inserted, updated) from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastUpdate); err != nil {
+			return fmt.Errorf("Failed to get last update time for %s: %w", post.ID, err)
+		}
+
+		if !lastUpdate.Valid || lastUpdate.Int64 >= post.Updated.UnixNano() {
+			return fmt.Errorf("Received old update request for new post: %s", post.ID)
+		}
+
+		if _, err := db.ExecContext(
+			ctx,
+			`update notes set object = ?, updated = unixepoch() where id = ?`,
+			string(body),
+			post.ID,
+		); err != nil {
+			return fmt.Errorf("Failed to update post %s: %w", post.ID, err)
+		}
+
+		logger.WithField("post", post.ID).Info("Updated post")
+
 	default:
 		if sender.ID == req.Actor {
 			logger.WithFields(log.Fields{"sender": sender.ID, "type": req.Type, "body": string(body)}).Warn("Received unknown request")

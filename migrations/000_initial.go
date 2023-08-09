@@ -13,19 +13,19 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package data
+package migrations
 
 import (
 	"context"
 	"database/sql"
 )
 
-func Migrate(ctx context.Context, db *sql.DB) error {
+func initial(ctx context.Context, db *sql.DB) error {
 	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS persons(id STRING NOT NULL PRIMARY KEY, hash STRING NOT NULL, actor JSON NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()), updated INTEGER DEFAULT (UNIXEPOCH()))`); err != nil {
 		return err
 	}
 
-	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS notes(id STRING NOT NULL PRIMARY KEY, hash STRING NOT NULL, author STRING NOT NULL, object JSON NOT NULL, public INTEGER NOT NULL, to0 STRING, to1 STRING, to2 STRING, cc0 STRING, cc1 STRING, cc2 STRING, inserted INTEGER DEFAULT (UNIXEPOCH()))`); err != nil {
+	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS notes(id STRING NOT NULL PRIMARY KEY, hash STRING NOT NULL, author STRING NOT NULL, object JSON NOT NULL, public INTEGER NOT NULL, to0 STRING, to1 STRING, to2 STRING, cc0 STRING, cc1 STRING, cc2 STRING, inserted INTEGER DEFAULT (UNIXEPOCH()), groupid STRING)`); err != nil {
 		return err
 	}
 
@@ -53,7 +53,7 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 
-	if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS personstype ON persons(actor->>'type')`); err != nil {
+	if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS personstypeid ON persons(actor->>'type', id)`); err != nil {
 		return err
 	}
 
@@ -74,6 +74,10 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 	}
 
 	if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS notespublicauthor ON notes(public, author)`); err != nil {
+		return err
+	}
+
+	if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS notesgroupid ON notes(groupid)`); err != nil {
 		return err
 	}
 

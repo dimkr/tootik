@@ -24,10 +24,14 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	log "github.com/dimkr/tootik/slogru"
 	_ "github.com/mattn/go-sqlite3"
+	log "github.com/sirupsen/logrus"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
 )
+
+const maxBodySize = 1024 * 1024
 
 type inboxHandler struct {
 	Log *log.Logger
@@ -52,7 +56,7 @@ func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := ioutil.ReadAll(io.LimitReader(r.Body, maxBodySize))
 	if err != nil {
 		return
 	}

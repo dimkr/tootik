@@ -22,6 +22,7 @@ import (
 	"flag"
 
 	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/migrations"
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/front/finger"
 	"github.com/dimkr/tootik/front/gemini"
@@ -76,7 +77,7 @@ func main() {
 		}
 	}()
 
-	if err := data.Migrate(ctx, db); err != nil {
+	if err := migrations.Run(ctx, db, log); err != nil {
 		log.Fatal(err)
 	}
 
