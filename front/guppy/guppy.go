@@ -177,10 +177,11 @@ func ListenAndServe(ctx context.Context, db *sql.DB, addr string) error {
 	sessions := make(map[string]chan []byte)
 	done := make(chan string, 1)
 
+loop:
 	for {
 		select {
 		case <-ctx.Done():
-			break
+			break loop
 
 		case k := <-done:
 			acks := sessions[k]
