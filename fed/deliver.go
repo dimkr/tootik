@@ -26,7 +26,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/note"
-	log "github.com/sirupsen/logrus"
+	log "github.com/dimkr/tootik/slogru"
 	"strings"
 	"time"
 )

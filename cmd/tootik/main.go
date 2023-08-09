@@ -22,12 +22,12 @@ import (
 	"flag"
 
 	"github.com/dimkr/tootik/data"
-	"github.com/dimkr/tootik/migrations"
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/front/finger"
 	"github.com/dimkr/tootik/front/gemini"
 	"github.com/dimkr/tootik/front/gopher"
-	"github.com/dimkr/tootik/logger"
+	"github.com/dimkr/tootik/migrations"
+	log "github.com/dimkr/tootik/slogru"
 	"github.com/dimkr/tootik/user"
 	_ "github.com/mattn/go-sqlite3"
 	"os"
@@ -51,8 +51,6 @@ var (
 
 func main() {
 	flag.Parse()
-
-	log := logger.New(nil)
 
 	db, err := sql.Open("sqlite3", *dbPath+"?_journal_mode=WAL")
 	if err != nil {
@@ -79,7 +77,7 @@ func main() {
 		}
 	}()
 
-	if err := migrations.Run(ctx, db, log); err != nil {
+	if err := migrations.Run(ctx, db, log.Default()); err != nil {
 		log.Fatal(err)
 	}
 
@@ -129,13 +127,13 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		fed.DeliverPosts(ctx, db, log)
+		fed.DeliverPosts(ctx, db, log.Default())
 		wg.Done()
 	}()
 
 	wg.Add(1)
 	go func() {
-		if err := fed.ProcessActivities(ctx, db, log); err != nil {
+		if err := fed.ProcessActivities(ctx, db, log.Default()); err != nil {
 			log.WithError(err).Error("Failed to process activities")
 		}
 		cancel()

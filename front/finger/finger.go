@@ -30,9 +30,9 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
-	"github.com/dimkr/tootik/logger"
+	log "github.com/dimkr/tootik/slogru"
 	"github.com/dimkr/tootik/text/plain"
-	log "github.com/sirupsen/logrus"
+	"log/slog"
 )
 
 const reqTimeout = time.Second * 30
@@ -68,7 +68,7 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup) 
 	}
 
 	user := string(req[:total-2])
-	log := logger.New(log.Fields{"user": user})
+	log := log.With(slog.String("user", user))
 
 	if user == "" {
 		log.Warn("Invalid username specified")
