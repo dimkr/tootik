@@ -27,7 +27,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front"
-	"github.com/dimkr/tootik/text/gmi"
+	"github.com/dimkr/tootik/text/gemini"
 	log "github.com/sirupsen/logrus"
 	"net"
 	"net/url"
@@ -113,7 +113,7 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup) 
 		return
 	}
 
-	w := gmi.Wrap(conn)
+	w := gemini.Wrap(conn)
 
 	if reqUrl.Host != cfg.Domain {
 		log.WithField("host", reqUrl.Host).Info("Wrong host")

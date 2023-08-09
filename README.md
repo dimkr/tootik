@@ -10,7 +10,7 @@
 
 tootik is a federated nanoblogging service for the small internet.
 
-tootik allows people to participate in the fediverse using their Gemini, Gopher or Finger client of choice and makes the fediverse lighter, more private and more accessible. tootik's interface strips content to bare essentials (like text and links), puts the users in control of the content they see and tries to "slow down" the fediverse to make it more compatible with the slower pace of the small internet.
+tootik allows people to participate in the fediverse using their Gemini, Gopher, Guppy or Finger client of choice and makes the fediverse lighter, more private and more accessible. tootik's interface strips content to bare essentials (like text and links), puts the users in control of the content they see and tries to "slow down" the fediverse to make it more compatible with the slower pace of the small internet.
 
 It's a single executable that handles both the federation (using ActivityPub) and the frontend (using Gemini) aspects, while [sqlite](https://sqlite.org/) takes care of persistency. It should be lightweight and efficient enough to host a small community even on a cheap server, and hopefully, be easy to hack on.
 
@@ -37,6 +37,7 @@ or, to build a static executable:
 * front/gemini/ exposes the frontend over Gemini.
 * front/gopher/ exposes the frontend over Gopher.
 * front/finger/ exposes some content over Finger.
+* front/guppy/ exposes some content over Guppy.
 
 * ap/ implements ActivityPub vocabulary.
 * migrations/ contains the database schema.
@@ -44,8 +45,10 @@ or, to build a static executable:
 * note/ handles insertion of posts.
 
 * text/plain/ converts HTML to plain text.
-* text/gmi/ contains a gemtext writer.
+* text/gemtext/ contains a gemtext writer.
+* text/gemini/ contains a Gemini response writer.
 * text/gmap/ contains a gophermap writer with line wrapping.
+* text/guppy/ contains a Guppy response writer.
 * icon/ generates pseudo-random icons used as avatars.
 
 * cfg/ contains global configuration parameters.
