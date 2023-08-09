@@ -21,8 +21,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
+	log "github.com/dimkr/tootik/slogru"
 	_ "github.com/mattn/go-sqlite3"
-	log "github.com/sirupsen/logrus"
 	"net/http"
 	"strings"
 )

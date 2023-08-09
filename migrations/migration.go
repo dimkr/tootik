@@ -21,7 +21,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	log "github.com/sirupsen/logrus"
+	log "github.com/dimkr/tootik/slogru"
 )
 
 type migration struct {
