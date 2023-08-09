@@ -23,13 +23,10 @@ import (
 )
 
 type Entry interface {
-	// inherited
 	Error(msg string, args ...any)
 	Warn(msg string, args ...any)
 	Info(msg string, args ...any)
 	Debug(msg string, args ...any)
-
-	// extensions
 	WithError(err error) Entry
 	Warnf(fmt string, args ...any)
 }
