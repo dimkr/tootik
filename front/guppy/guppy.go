@@ -144,6 +144,8 @@ func handle(ctx context.Context, db *sql.DB, wg *sync.WaitGroup, from net.Addr, 
 			finSent = n == 0
 			expectedAck = statusLine
 
+			retry.Reset(retryInterval)
+
 		case <-retry.C:
 			log.WithFields(log.Fields{"path": reqUrl.Path, "from": from}).Debug("Resending previous packet")
 			s.WriteTo(prevPacket, from)
