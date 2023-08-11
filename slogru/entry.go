@@ -36,7 +36,7 @@ type entry struct {
 }
 
 func (e *entry) getValues() []any {
-	values := make([]any, len(e.Fields))
+	values := make([]any, 0, len(e.Fields))
 	for _, v := range e.Fields {
 		values = append(values, v)
 	}

@@ -35,7 +35,7 @@ func (l *Logger) WithFields(fields Fields) Entry {
 }
 
 func (l *Logger) WithError(err error) Entry {
-	return &entry{Logger: l, Fields: map[string]slog.Attr{"error": slog.Any("error", slog.Any("error", err))}}
+	return &entry{Logger: l, Fields: map[string]slog.Attr{"error": slog.Any("error", err)}}
 }
 
 func (l *Logger) Fatal(err error) {
