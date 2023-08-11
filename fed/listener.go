@@ -23,11 +23,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
-	logger "github.com/dimkr/tootik/slogru"
+	log "github.com/dimkr/tootik/slogru"
+	"github.com/fsnotify/fsnotify"
 	_ "github.com/mattn/go-sqlite3"
 	"log/slog"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -46,19 +48,19 @@ func ListenAndServe(ctx context.Context, db *sql.DB, addr, cert, key string) err
 	mux := http.NewServeMux()
 	mux.HandleFunc("/robots.txt", robots)
 	mux.HandleFunc("/.well-known/webfinger", func(w http.ResponseWriter, r *http.Request) {
-		handler := webFingerHandler{logger.With("query", r.URL.RawQuery), db}
+		handler := webFingerHandler{log.With("query", r.URL.RawQuery), db}
 		handler.Handle(w, r)
 	})
 	mux.HandleFunc("/user/", func(w http.ResponseWriter, r *http.Request) {
-		handler := userHandler{logger.With(slog.String("path", r.URL.Path)), db}
+		handler := userHandler{log.With(slog.String("path", r.URL.Path)), db}
 		handler.Handle(w, r)
 	})
 	mux.HandleFunc("/icon/", func(w http.ResponseWriter, r *http.Request) {
-		handler := iconHandler{logger.With(slog.String("path", r.URL.Path)), db}
+		handler := iconHandler{log.With(slog.String("path", r.URL.Path)), db}
 		handler.Handle(w, r)
 	})
 	mux.HandleFunc("/inbox/", func(w http.ResponseWriter, r *http.Request) {
-		handler := inboxHandler{logger.With(slog.String("path", r.URL.Path)), db}
+		handler := inboxHandler{log.With(slog.String("path", r.URL.Path)), db}
 		handler.Handle(w, r)
 	})
 	mux.HandleFunc("/", root)
@@ -67,25 +69,79 @@ func ListenAndServe(ctx context.Context, db *sql.DB, addr, cert, key string) err
 		return err
 	}
 
-	server := http.Server{
-		Addr:    addr,
-		Handler: mux,
-		BaseContext: func(net.Listener) context.Context {
-			return ctx
-		},
-		ReadTimeout: time.Second * 30,
-		TLSConfig: &tls.Config{
-			MinVersion: tls.VersionTLS12,
-		},
+	w, err := fsnotify.NewWatcher()
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+
+	if err := w.Add(cert); err != nil {
+		return err
+	}
+	if err := w.Add(key); err != nil {
+		return err
 	}
 
-	go func() {
-		<-ctx.Done()
-		server.Shutdown(context.Background())
-	}()
+	for ctx.Err() == nil {
+		var wg sync.WaitGroup
+		serverCtx, stopServer := context.WithCancel(ctx)
 
-	if err := server.ListenAndServeTLS(cert, key); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		return err
+		server := http.Server{
+			Addr:    addr,
+			Handler: mux,
+			BaseContext: func(net.Listener) context.Context {
+				return serverCtx
+			},
+			ReadTimeout: time.Second * 30,
+			TLSConfig: &tls.Config{
+				MinVersion: tls.VersionTLS12,
+			},
+		}
+
+		wg.Add(1)
+		go func() {
+			<-serverCtx.Done()
+			server.Shutdown(context.Background())
+			wg.Done()
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			for {
+				select {
+				case <-serverCtx.Done():
+					server.Shutdown(context.Background())
+					return
+
+				case event, ok := <-w.Events:
+					if !ok {
+						continue
+					}
+
+					if !event.Has(fsnotify.Write) && !event.Has(fsnotify.Create) && !event.Has(fsnotify.Rename) {
+						continue
+					}
+
+					log.WithField("name", event.Name).Info("Stopping HTTPS server: file has changed")
+					server.Shutdown(context.Background())
+					return
+
+				case <-w.Errors:
+				}
+			}
+		}()
+
+		log.Info("Starting HTTPS server")
+		err := server.ListenAndServeTLS(cert, key)
+
+		stopServer()
+		wg.Wait()
+
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return err
+		}
 	}
 
 	return nil
