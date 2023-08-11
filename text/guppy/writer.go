@@ -35,6 +35,8 @@ func Wrap(w io.Writer, seq int) *Writer {
 func (w *Writer) Status(code int, meta string) {
 	if code == 0 || code == 1 || code == w.seq {
 		fmt.Fprintf(w, "%d %s\r\n", code, meta)
+	} else if code == 10 {
+		fmt.Fprintf(w, "1 Input required: %s\r\n", meta)
 	} else {
 		fmt.Fprintf(w, "1 %s\r\n", meta)
 	}
