@@ -64,7 +64,7 @@ func handle(ctx context.Context, db *sql.DB, wg *sync.WaitGroup, from net.Addr, 
 		return
 	}
 
-	seq := rand.Intn(2 + math.MaxInt16)
+	seq := 2 + rand.Intn(math.MaxInt16/2)
 
 	var buf bytes.Buffer
 	w := guppy.Wrap(&buf, seq)
