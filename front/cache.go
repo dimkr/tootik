@@ -61,13 +61,13 @@ func withCache(f func(text.Writer, *request), d time.Duration) func(text.Writer,
 
 		entry, cached := cache.Load(key)
 		if !cached {
-			r.Log.WithField("key", key).Info("Generating first response")
+			r.Log.Info("Generating first response", "key", key)
 			w.Write(callAndCache(r, w, f, key, now))
 			return
 		}
 
 		if entry.(cacheEntry).Created.After(now.Add(-d)) {
-			r.Log.WithField("key", key).Info("Sending cached response")
+			r.Log.Info("Sending cached response", "key", key)
 			w.Write(entry.(cacheEntry).Value)
 			return
 		}
@@ -78,7 +78,7 @@ func withCache(f func(text.Writer, *request), d time.Duration) func(text.Writer,
 
 		r.WaitGroup.Add(1)
 		go func() {
-			r.Log.WithField("key", key).Info("Generating new response")
+			r.Log.Info("Generating new response", "key", key)
 			update <- callAndCache(r, w, f, key, now)
 			r.WaitGroup.Done()
 		}()
@@ -88,7 +88,7 @@ func withCache(f func(text.Writer, *request), d time.Duration) func(text.Writer,
 			w.Write(resp)
 
 		case <-timer.C:
-			r.Log.WithField("key", key).Warn("Timeout, sending old cached response")
+			r.Log.Warn("Timeout, sending old cached response", "key", key)
 			w.Write(entry.(cacheEntry).Value)
 		}
 	}

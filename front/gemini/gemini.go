@@ -27,8 +27,8 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front"
-	log "github.com/dimkr/tootik/slogru"
 	"github.com/dimkr/tootik/text/gmi"
+	"log/slog"
 	"net"
 	"net/url"
 	"sync"
@@ -37,7 +37,7 @@ import (
 
 const reqTimeout = time.Second * 30
 
-func getUser(ctx context.Context, db *sql.DB, conn net.Conn, tlsConn *tls.Conn) (*ap.Actor, error) {
+func getUser(ctx context.Context, db *sql.DB, conn net.Conn, tlsConn *tls.Conn, log *slog.Logger) (*ap.Actor, error) {
 	state := tlsConn.ConnectionState()
 
 	if len(state.PeerCertificates) == 0 {
@@ -56,7 +56,7 @@ func getUser(ctx context.Context, db *sql.DB, conn net.Conn, tlsConn *tls.Conn) 
 		return nil, fmt.Errorf("Failed to fetch user for %s: %w", certHash, err)
 	}
 
-	log.WithFields(log.Fields{"hash": certHash, "user": id}).Debug("Found existing user")
+	log.Debug("Found existing user", "hash", certHash, "user", id)
 
 	actor := ap.Actor{}
 	if err := json.Unmarshal([]byte(actorString), &actor); err != nil {
@@ -66,9 +66,9 @@ func getUser(ctx context.Context, db *sql.DB, conn net.Conn, tlsConn *tls.Conn) 
 	return &actor, nil
 }
 
-func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup) {
+func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup, log *slog.Logger) {
 	if err := conn.SetDeadline(time.Now().Add(reqTimeout)); err != nil {
-		log.WithError(err).Warn("Failed to set deadline")
+		log.Warn("Failed to set deadline", "error", err)
 		return
 	}
 
@@ -79,7 +79,7 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup) 
 	}
 
 	if err := tlsConn.HandshakeContext(ctx); err != nil {
-		log.WithError(err).Warn("Handshake failed")
+		log.Warn("Handshake failed", "error", err)
 		return
 	}
 
@@ -88,7 +88,7 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup) 
 	for {
 		n, err := conn.Read(req[total:])
 		if err != nil {
-			log.WithError(err).Warn("Failed to receive request")
+			log.Warn("Failed to receive request", "error", err)
 			return
 		}
 		if n <= 0 {
@@ -109,33 +109,35 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup) 
 
 	reqUrl, err := url.Parse(string(req[:total-2]))
 	if err != nil {
-		log.WithError(err).Warnf("Failed to parse request: %s", string(req[:total-2]))
+		log.Warn("Failed to parse request", "request", string(req[:total-2]), "error", err)
 		return
 	}
 
 	w := gmi.Wrap(conn)
 
 	if reqUrl.Host != cfg.Domain {
-		log.WithField("host", reqUrl.Host).Info("Wrong host")
+		log.Info("Wrong host", "host", reqUrl.Host)
 		w.Status(53, "Wrong host")
 		return
 	}
 
-	user, err := getUser(ctx, db, conn, tlsConn)
+	user, err := getUser(ctx, db, conn, tlsConn, log)
 	if err != nil && errors.Is(err, front.ErrNotRegistered) && reqUrl.Path == "/users" {
 		log.Info("Redirecting new user")
 		w.Redirect("/users/register")
 		return
 	} else if err != nil && !errors.Is(err, front.ErrNotRegistered) {
-		log.WithError(err).Warn("Failed to get user")
+		log.Warn("Failed to get user", "error", err)
 		w.Error()
 		return
+	} else if err == nil {
+		log = log.With(slog.String("user", user.ID))
 	}
 
-	front.Handle(ctx, w, reqUrl, user, db, wg)
+	front.Handle(ctx, log, w, reqUrl, user, db, wg)
 }
 
-func ListenAndServe(ctx context.Context, db *sql.DB, addr, certPath, keyPath string) error {
+func ListenAndServe(ctx context.Context, log *slog.Logger, db *sql.DB, addr, certPath, keyPath string) error {
 	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
 		return err
@@ -167,7 +169,7 @@ func ListenAndServe(ctx context.Context, db *sql.DB, addr, certPath, keyPath str
 		for ctx.Err() == nil {
 			conn, err := l.Accept()
 			if err != nil {
-				log.WithError(err).Warn("Failed to accept a connection")
+				log.Warn("Failed to accept a connection", "error", err)
 				continue
 			}
 
@@ -186,7 +188,7 @@ func ListenAndServe(ctx context.Context, db *sql.DB, addr, certPath, keyPath str
 
 			wg.Add(1)
 			go func() {
-				handle(requestCtx, conn, db, &wg)
+				handle(requestCtx, conn, db, &wg, log)
 				conn.Close()
 				timer.Stop()
 				cancelRequest()

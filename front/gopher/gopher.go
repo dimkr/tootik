@@ -20,8 +20,8 @@ import (
 	"context"
 	"database/sql"
 	"github.com/dimkr/tootik/front"
-	log "github.com/dimkr/tootik/slogru"
 	"github.com/dimkr/tootik/text/gmap"
+	"log/slog"
 	"net"
 	"net/url"
 	"sync"
@@ -30,9 +30,9 @@ import (
 
 const reqTimeout = time.Second * 30
 
-func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup) {
+func handle(ctx context.Context, log *slog.Logger, conn net.Conn, db *sql.DB, wg *sync.WaitGroup) {
 	if err := conn.SetDeadline(time.Now().Add(reqTimeout)); err != nil {
-		log.WithError(err).Warn("Failed to set deadline")
+		log.Warn("Failed to set deadline", "error", err)
 		return
 	}
 
@@ -41,7 +41,7 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup) 
 	for {
 		n, err := conn.Read(req[total:])
 		if err != nil {
-			log.WithError(err).Warn("Failed to receive request")
+			log.Warn("Failed to receive request", "error", err)
 			return
 		}
 		if n <= 0 {
@@ -67,16 +67,16 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup) 
 
 	reqUrl, err := url.Parse(path)
 	if err != nil {
-		log.WithError(err).Warnf("Failed to parse request: %s", path)
+		log.Warn("Failed to parse request", "path", path, "error", err)
 		return
 	}
 
 	w := gmap.Wrap(conn)
 
-	front.Handle(ctx, w, reqUrl, nil, db, wg)
+	front.Handle(ctx, log, w, reqUrl, nil, db, wg)
 }
 
-func ListenAndServe(ctx context.Context, db *sql.DB, addr string) error {
+func ListenAndServe(ctx context.Context, log *slog.Logger, db *sql.DB, addr string) error {
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
@@ -98,7 +98,7 @@ func ListenAndServe(ctx context.Context, db *sql.DB, addr string) error {
 		for ctx.Err() == nil {
 			conn, err := l.Accept()
 			if err != nil {
-				log.WithError(err).Warn("Failed to accept a connection")
+				log.Warn("Failed to accept a connection", "error", err)
 				continue
 			}
 
@@ -117,7 +117,7 @@ func ListenAndServe(ctx context.Context, db *sql.DB, addr string) error {
 
 			wg.Add(1)
 			go func() {
-				handle(requestCtx, conn, db, &wg)
+				handle(requestCtx, log, conn, db, &wg)
 				conn.Write([]byte(".\r\n"))
 				conn.Close()
 				timer.Stop()

@@ -25,9 +25,9 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	log "github.com/dimkr/tootik/slogru"
 	"io"
 	"io/ioutil"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"path"
@@ -39,39 +39,37 @@ const resolverCacheTTL = time.Hour * 24 * 3
 
 var goneError = errors.New("Actor is gone")
 
-type Resolver struct {
-	Log *log.Logger
-}
+type Resolver struct{}
 
-func (r *Resolver) Resolve(ctx context.Context, db *sql.DB, from *ap.Actor, to string) (*ap.Actor, error) {
+func (r *Resolver) Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, to string) (*ap.Actor, error) {
 	u, err := url.Parse(to)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot resolve %s: %w", to, err)
 	}
 	u.Fragment = ""
 
-	return r.resolve(ctx, db, from, u.String(), u)
+	return r.resolve(ctx, log, db, from, u.String(), u)
 }
 
-func (r *Resolver) deleteActor(ctx context.Context, db *sql.DB, id string) {
+func deleteActor(ctx context.Context, log *slog.Logger, db *sql.DB, id string) {
 	if _, err := db.ExecContext(ctx, `delete from notes where author = ?`, id); err != nil {
-		r.Log.WithField("id", id).WithError(err).Warn("Failed to delete notes by actor")
+		log.Warn("Failed to delete notes by actor", "id", id, "error", err)
 	}
 
 	if _, err := db.ExecContext(ctx, `delete from follows where follower = $1 or followed = $1`, id); err != nil {
-		r.Log.WithField("id", id).WithError(err).Warn("Failed to delete follows for actor")
+		log.Warn("Failed to delete follows for actor", "id", id, "error", err)
 	}
 
 	if _, err := db.ExecContext(ctx, `delete from persons where id = ?`, id); err != nil {
-		r.Log.WithField("id", id).WithError(err).Warn("Failed to delete actor")
+		log.Warn("Failed to delete actor", "id", id, "error", err)
 	}
 }
 
-func (r *Resolver) resolve(ctx context.Context, db *sql.DB, from *ap.Actor, to string, u *url.URL) (*ap.Actor, error) {
+func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, to string, u *url.URL) (*ap.Actor, error) {
 	if from == nil {
-		r.Log.WithField("to", to).Debug("Resolving actor")
+		log.Debug("Resolving actor", "to", to)
 	} else {
-		r.Log.WithFields(log.Fields{"from": from.ID, "to": to}).Debug("Resolving actor")
+		log.Debug("Resolving actor", "from", from.ID, "to", to)
 	}
 
 	isLocal := strings.HasPrefix(to, fmt.Sprintf("https://%s/", cfg.Domain))
@@ -85,13 +83,13 @@ func (r *Resolver) resolve(ctx context.Context, db *sql.DB, from *ap.Actor, to s
 		return nil, fmt.Errorf("Failed to fetch %s cache: %w", to, err)
 	} else if err == nil {
 		if !isLocal && time.Now().Sub(time.Unix(updated, 0)) > resolverCacheTTL {
-			r.Log.WithField("to", to).Info("Updating old cache entry for actor")
+			log.Info("Updating old cache entry for actor", "to", to)
 			update = true
 		} else {
 			if err := json.Unmarshal([]byte(actorString), &actor); err != nil {
 				return nil, fmt.Errorf("Failed to unmarshal %s cache: %w", to, err)
 			}
-			r.Log.WithField("to", to).Debug("Resolved actor using cache")
+			log.Debug("Resolved actor using cache", "to", to)
 			return &actor, nil
 		}
 	}
@@ -109,11 +107,11 @@ func (r *Resolver) resolve(ctx context.Context, db *sql.DB, from *ap.Actor, to s
 		return nil, fmt.Errorf("Failed to fetch %s: %w", finger, err)
 	}
 
-	resp, err := send(db, from, r, req)
+	resp, err := send(log, db, from, r, req)
 	if err != nil {
 		if resp != nil && (resp.StatusCode == http.StatusGone || resp.StatusCode == http.StatusNotFound) {
-			r.Log.WithField("to", to).Warn("Actor is gone, deleting associated objects")
-			r.deleteActor(ctx, db, to)
+			log.Warn("Actor is gone, deleting associated objects", "to", to)
+			deleteActor(ctx, log, db, to)
 			return nil, fmt.Errorf("Failed to fetch %s: %w", finger, goneError)
 		}
 
@@ -161,20 +159,20 @@ func (r *Resolver) resolve(ctx context.Context, db *sql.DB, from *ap.Actor, to s
 	}
 
 	if profile != to {
-		r.Log.WithFields(log.Fields{"before": to, "after": profile}).Info("Replacing actor ID")
+		log.Info("Replacing actor ID", "before", to, "after", profile)
 		to = profile
 
 		if err := db.QueryRowContext(ctx, `select actor, updated from persons where id = ?`, to).Scan(&actorString, &updated); err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("Failed to fetch %s cache: %w", to, err)
 		} else if err == nil {
 			if !isLocal && time.Now().Sub(time.Unix(updated, 0)) > resolverCacheTTL {
-				r.Log.WithField("to", to).Info("Updating old cache entry for actor")
+				log.Info("Updating old cache entry for actor", "to", to)
 				update = true
 			} else {
 				if err := json.Unmarshal([]byte(actorString), &actor); err != nil {
 					return nil, fmt.Errorf("Failed to unmarshal %s cache: %w", to, err)
 				}
-				r.Log.WithField("to", to).Debug("Resolved actor using cache")
+				log.Debug("Resolved actor using cache", "to", to)
 				return &actor, nil
 			}
 		}
@@ -186,7 +184,7 @@ func (r *Resolver) resolve(ctx context.Context, db *sql.DB, from *ap.Actor, to s
 	}
 	req.Header.Add("Accept", "application/activity+json")
 
-	resp, err = send(db, from, r, req)
+	resp, err = send(log, db, from, r, req)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch %s: %w", profile, err)
 	}
@@ -206,7 +204,7 @@ func (r *Resolver) resolve(ctx context.Context, db *sql.DB, from *ap.Actor, to s
 		return nil, fmt.Errorf("Failed to unmarshal %s: empty ID", profile)
 	}
 	if resolvedID != to {
-		r.Log.WithFields(log.Fields{"before": to, "after": resolvedID}).Info("Replacing actor ID")
+		log.Info("Replacing actor ID", "before", to, "after", resolvedID)
 	}
 
 	if update {

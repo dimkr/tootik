@@ -40,20 +40,20 @@ func init() {
 func local(w text.Writer, r *request) {
 	offset, err := getOffset(r.URL)
 	if err != nil {
-		r.Log.WithField("url", r.URL).WithError(err).Info("Failed to parse query")
+		r.Log.Info("Failed to parse query", "url", r.URL, "error", err)
 		w.Status(40, "Invalid query")
 		return
 	}
 
 	if offset > maxOffset {
-		r.Log.WithField("offset", offset).Warn("Offset is too big")
+		r.Log.Warn("Offset is too big", "offset", offset)
 		w.Statusf(40, "Offset must be <= %d", maxOffset)
 		return
 	}
 
 	rows, err := r.Query(`select notes.object, persons.actor from notes left join (select object->>'inReplyTo' as id, count(*) as count from notes where inserted > unixepoch()-60*60*24*7 group by object->>'inReplyTo') replies on notes.id = replies.id join persons on notes.author = persons.id left join (select author, max(inserted) as last, count(*)/(60*60*24) as avg from notes where inserted > unixepoch()-60*60*24*7 group by author) stats on notes.author = stats.author where notes.public = 1 and notes.author like $1 order by notes.inserted / 86400 desc, replies.count desc, stats.avg asc, stats.last asc, notes.inserted / 3600 desc, notes.inserted desc limit $2 offset $3;`, fmt.Sprintf("https://%s/%%", cfg.Domain), postsPerPage, offset)
 	if err != nil {
-		r.Log.WithError(err).Warn("Failed to fetch public posts")
+		r.Log.Warn("Failed to fetch public posts", "error", err)
 		w.Error()
 		return
 	}
@@ -65,7 +65,7 @@ func local(w text.Writer, r *request) {
 		noteString := ""
 		var meta noteMetadata
 		if err := rows.Scan(&noteString, &meta.Author); err != nil {
-			r.Log.WithError(err).Warn("Failed to scan post")
+			r.Log.Warn("Failed to scan post", "error", err)
 			continue
 		}
 
@@ -109,20 +109,20 @@ func local(w text.Writer, r *request) {
 func federated(w text.Writer, r *request) {
 	offset, err := getOffset(r.URL)
 	if err != nil {
-		r.Log.WithField("url", r.URL).WithError(err).Info("Failed to parse query")
+		r.Log.Info("Failed to parse query", "url", r.URL, "error", err)
 		w.Status(40, "Invalid query")
 		return
 	}
 
 	if offset > maxOffset {
-		r.Log.WithField("offset", offset).Warn("Offset is too big")
+		r.Log.Warn("Offset is too big", "offset", offset)
 		w.Statusf(40, "Offset must be <= %d", maxOffset)
 		return
 	}
 
 	rows, err := r.Query(`select notes.object, persons.actor, groups.actor from notes join persons on notes.author = persons.id left join (select author, max(inserted) as last, count(*)/(60*60*24) as avg from notes where inserted > unixepoch()-60*60*24*7 group by author) stats on notes.author = stats.author left join (select id, actor from persons where actor->>'type' = 'Group') groups on groups.id = notes.groupid where notes.public = 1 group by notes.id order by notes.inserted / 3600 desc, stats.avg asc, stats.last asc, notes.inserted desc limit $1 offset $2;`, postsPerPage, offset)
 	if err != nil {
-		r.Log.WithError(err).Warn("Failed to fetch federated posts")
+		r.Log.Warn("Failed to fetch federated posts", "error", err)
 		w.Error()
 		return
 	}
@@ -134,7 +134,7 @@ func federated(w text.Writer, r *request) {
 		noteString := ""
 		var meta noteMetadata
 		if err := rows.Scan(&noteString, &meta.Author, &meta.Group); err != nil {
-			r.Log.WithError(err).Warn("Failed to scan post")
+			r.Log.Warn("Failed to scan post", "error", err)
 			continue
 		}
 

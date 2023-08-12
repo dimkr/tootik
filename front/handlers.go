@@ -21,8 +21,8 @@ import (
 	"database/sql"
 	"errors"
 	"github.com/dimkr/tootik/ap"
-	log "github.com/dimkr/tootik/slogru"
 	"github.com/dimkr/tootik/text"
+	"log/slog"
 	"net/url"
 	"regexp"
 	"sync"
@@ -33,10 +33,10 @@ var (
 	ErrNotRegistered = errors.New("User is not registered")
 )
 
-func Handle(ctx context.Context, w text.Writer, reqUrl *url.URL, user *ap.Actor, db *sql.DB, wg *sync.WaitGroup) {
+func Handle(ctx context.Context, log *slog.Logger, w text.Writer, reqUrl *url.URL, user *ap.Actor, db *sql.DB, wg *sync.WaitGroup) {
 	for re, handler := range handlers {
 		if re.MatchString(reqUrl.Path) {
-			var l *log.Logger
+			var l *slog.Logger
 			if user == nil {
 				l = log.With("path", reqUrl.Path)
 			} else {
@@ -55,7 +55,7 @@ func Handle(ctx context.Context, w text.Writer, reqUrl *url.URL, user *ap.Actor,
 		}
 	}
 
-	log.WithField("path", reqUrl.Path).Warnf("Received an invalid request")
+	log.Warn("Received an invalid request", "path", reqUrl.Path)
 
 	if user == nil {
 		w.Redirect("/oops")

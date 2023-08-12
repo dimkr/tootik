@@ -28,8 +28,8 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/note"
-	log "github.com/dimkr/tootik/slogru"
 	_ "github.com/mattn/go-sqlite3"
+	"log/slog"
 	"strings"
 	"time"
 )
@@ -42,7 +42,7 @@ const (
 	activityProcessingTimeout = time.Second * 15
 )
 
-func processCreateActivity(ctx context.Context, sender *ap.Actor, req *ap.Activity, db *sql.DB, logger *log.Logger) error {
+func processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, req *ap.Activity, db *sql.DB) error {
 	post, ok := req.Object.(*ap.Object)
 	if !ok {
 		return errors.New("Received invalid Create")
@@ -57,7 +57,7 @@ func processCreateActivity(ctx context.Context, sender *ap.Actor, req *ap.Activi
 	if err := db.QueryRowContext(ctx, `select exists (select 1 from notes where id = ?)`, post.ID).Scan(&duplicate); err != nil {
 		return fmt.Errorf("Failed to check of %s is a duplicate: %w", post.ID, err)
 	} else if duplicate == 1 {
-		logger.WithField("create", req.ID).Info("Note is a duplicate")
+		log.Info("Note is a duplicate", "create", req.ID)
 		return nil
 	}
 
@@ -66,17 +66,17 @@ func processCreateActivity(ctx context.Context, sender *ap.Actor, req *ap.Activi
 		return fmt.Errorf("Cannot resolve %s: %w", post.AttributedTo, err)
 	}
 
-	if _, err := resolver.Resolve(ctx, db, nil, post.AttributedTo); err != nil {
+	if _, err := resolver.Resolve(ctx, log, db, nil, post.AttributedTo); err != nil {
 		Resolvers.Return(resolver)
 		return fmt.Errorf("Failed to resolve %s: %w", post.AttributedTo, err)
 	}
 
 	Resolvers.Return(resolver)
 
-	if err := note.Insert(ctx, db, post, logger); err != nil {
+	if err := note.Insert(ctx, db, post, log); err != nil {
 		return fmt.Errorf("Cannot insert %s: %w", post.ID, err)
 	}
-	logger.WithField("note", post.ID).Info("Received a new Note")
+	log.Info("Received a new Note", "note", post.ID)
 
 	mentionedUsers := data.OrderedMap[string, struct{}]{}
 
@@ -89,13 +89,13 @@ func processCreateActivity(ctx context.Context, sender *ap.Actor, req *ap.Activi
 	mentionedUsers.Range(func(id string, _ struct{}) bool {
 		resolver, err := Resolvers.Borrow(ctx)
 		if err != nil {
-			logger.WithFields(log.Fields{"note": post.ID, "mention": id}).WithError(err).Warn("Cannot resolve mention")
+			log.Warn("Cannot resolve mention", "note", post.ID, "mention", id, "error", err)
 			return true
 		}
 
-		if _, err := resolver.Resolve(ctx, db, nil, post.AttributedTo); err != nil {
+		if _, err := resolver.Resolve(ctx, log, db, nil, post.AttributedTo); err != nil {
 			Resolvers.Return(resolver)
-			logger.WithFields(log.Fields{"note": post.ID, "mention": id}).WithError(err).Warn("Failed to resolve mention")
+			log.Warn("Failed to resolve mention", "note", post.ID, "mention", id, "error", err)
 			return true
 		}
 
@@ -105,10 +105,11 @@ func processCreateActivity(ctx context.Context, sender *ap.Actor, req *ap.Activi
 
 	return nil
 }
-func processsActivity(ctx context.Context, sender *ap.Actor, body []byte, db *sql.DB, logger *log.Logger) error {
+
+func processsActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, body []byte, db *sql.DB) error {
 	var req ap.Activity
 	if err := json.NewDecoder(bytes.NewReader(body)).Decode(&req); err != nil {
-		logger.WithField("body", string(body)).WithError(err).Warn("Failed to unmarshal request")
+		log.Warn("Failed to unmarshal request", "body", string(body), "error", err)
 		return err
 	}
 
@@ -126,7 +127,7 @@ func processsActivity(ctx context.Context, sender *ap.Actor, body []byte, db *sq
 			return errors.New("Received an invalid delete request")
 		}
 
-		logger.WithFields(log.Fields{"id": id, "sender": sender.ID, "deleted": deleted}).Info("Received delete request")
+		log.Info("Received delete request", "id", id, "deleted", deleted)
 
 		if deleted == sender.ID {
 			if _, err := db.ExecContext(ctx, `delete from persons where id =`, deleted); err != nil {
@@ -169,7 +170,7 @@ func processsActivity(ctx context.Context, sender *ap.Actor, body []byte, db *sq
 			return fmt.Errorf("Failed to check if %s already follows %s: %w", req.Actor, followed, err)
 		}
 
-		logger.WithFields(log.Fields{"follower": req.Actor, "followed": followed}).Info("Approving follow request")
+		log.Info("Approving follow request", "follower", req.Actor, "followed", followed)
 
 		j, err := json.Marshal(map[string]any{
 			"@context": "https://www.w3.org/ns/activitystreams",
@@ -191,13 +192,13 @@ func processsActivity(ctx context.Context, sender *ap.Actor, body []byte, db *sq
 			return fmt.Errorf("Cannot resolve %s: %w", req.Actor, err)
 		}
 
-		to, err := resolver.Resolve(ctx, db, &from, req.Actor)
+		to, err := resolver.Resolve(ctx, log, db, &from, req.Actor)
 		if err != nil {
 			Resolvers.Return(resolver)
 			return fmt.Errorf("Failed to resolve %s: %w", req.Actor, err)
 		}
 
-		if err := Send(ctx, db, &from, resolver, to, j); err != nil {
+		if err := Send(ctx, log, db, &from, resolver, to, j); err != nil {
 			Resolvers.Return(resolver)
 			return fmt.Errorf("Failed to send Accept response to %s: %w", req.Actor, err)
 		}
@@ -205,7 +206,7 @@ func processsActivity(ctx context.Context, sender *ap.Actor, body []byte, db *sq
 		Resolvers.Return(resolver)
 
 		if duplicate == 1 {
-			logger.WithFields(log.Fields{"follower": req.Actor, "followed": followed, "dupicate": duplicate}).Info("User is already followed")
+			log.Info("User is already followed", "follower", req.Actor, "followed", followed, "duplicate", duplicate)
 		} else {
 			if _, err := db.ExecContext(
 				ctx,
@@ -224,9 +225,9 @@ func processsActivity(ctx context.Context, sender *ap.Actor, body []byte, db *sq
 		}
 
 		if follow, ok := req.Object.(string); ok && follow != "" {
-			logger.WithFields(log.Fields{"sender": sender.ID, "actor": req.Actor, "follow": follow}).Info("Follow is accepted")
+			log.Info("Follow is accepted", "actor", req.Actor, "follow", follow)
 		} else if followObject, ok := req.Object.(*ap.Object); ok && followObject.Type == ap.FollowObject && followObject.ID != "" {
-			logger.WithFields(log.Fields{"sender": sender.ID, "actor": req.Actor, "follow": followObject.ID}).Info("Follow is accepted")
+			log.Info("Follow is accepted", "actor", req.Actor, "follow", followObject.ID)
 		} else {
 			return errors.New("Received an invalid accept notification")
 		}
@@ -252,10 +253,10 @@ func processsActivity(ctx context.Context, sender *ap.Actor, body []byte, db *sq
 			return fmt.Errorf("Failed to remove follow %s: %w", follow.ID, err)
 		}
 
-		logger.WithFields(log.Fields{"follow": follow.ID, "follower": follower}).Info("Removed a Follow")
+		log.Info("Removed a Follow", "follow", follow.ID, "follower", follower)
 
 	case ap.CreateActivity:
-		return processCreateActivity(ctx, sender, &req, db, logger)
+		return processCreateActivity(ctx, log, sender, &req, db)
 
 	case ap.AnnounceActivity:
 		create, ok := req.Object.(*ap.Activity)
@@ -266,7 +267,7 @@ func processsActivity(ctx context.Context, sender *ap.Actor, body []byte, db *sq
 			return fmt.Errorf("Received unsupported Announce type: %s", create.Type)
 		}
 
-		return processCreateActivity(ctx, sender, create, db, logger)
+		return processCreateActivity(ctx, log, sender, create, db)
 
 	case ap.UpdateActivity:
 		post, ok := req.Object.(*ap.Object)
@@ -301,27 +302,27 @@ func processsActivity(ctx context.Context, sender *ap.Actor, body []byte, db *sq
 			return fmt.Errorf("Failed to update post %s: %w", post.ID, err)
 		}
 
-		logger.WithField("post", post.ID).Info("Updated post")
+		log.Info("Updated post", "post", post.ID)
 
 	default:
 		if sender.ID == req.Actor {
-			logger.WithFields(log.Fields{"sender": sender.ID, "type": req.Type, "body": string(body)}).Warn("Received unknown request")
+			log.Warn("Received unknown request", "type", req.Type, "body", string(body))
 		} else {
-			logger.WithFields(log.Fields{"sender": sender.ID, "actor": req.Actor, "type": req.Type, "body": string(body)}).Warn("Received unknown, unauthorized request")
+			log.Warn("Received unknown, unauthorized request", "actor", req.Actor, "type", req.Type, "body", string(body))
 		}
 	}
 
 	return nil
 }
 
-func processsActivityWithTimeout(parent context.Context, sender *ap.Actor, body []byte, db *sql.DB, logger *log.Logger) {
+func processsActivityWithTimeout(parent context.Context, log *slog.Logger, sender *ap.Actor, body []byte, db *sql.DB) error {
 	ctx, cancel := context.WithTimeout(parent, activityProcessingTimeout)
 	defer cancel()
-	processsActivity(ctx, sender, body, db, logger)
+	return processsActivity(ctx, log.With("sender", sender.ID), sender, body, db)
 }
 
-func processsActivitiesBatch(ctx context.Context, db *sql.DB, logger *log.Logger) (int, error) {
-	logger.Debug("Polling activities queue")
+func processsActivitiesBatch(ctx context.Context, log *slog.Logger, db *sql.DB) (int, error) {
+	log.Debug("Polling activities queue")
 
 	rows, err := db.QueryContext(ctx, `select activities.id, persons.actor, activities.activity from (select * from activities limit -1 offset case when (select count(*) from activities) >= $1 then $1/10 else 0 end) activities left join persons on persons.id = activities.sender order by activities.id limit $2`, maxActivitiesQueueSize, activitiesBatchSize)
 	if err != nil {
@@ -340,14 +341,14 @@ func processsActivitiesBatch(ctx context.Context, db *sql.DB, logger *log.Logger
 		var activityString string
 		var senderString sql.NullString
 		if err := rows.Scan(&id, &senderString, &activityString); err != nil {
-			logger.WithError(err).Error("Failed to scan activity")
+			log.Error("Failed to scan activity", "error", err)
 			continue
 		}
 
 		maxID = id
 
 		if !senderString.Valid {
-			logger.WithField("id", id).Warn("Sender is unknown")
+			log.Warn("Sender is unknown", "id", id)
 			continue
 		}
 
@@ -362,25 +363,25 @@ func processsActivitiesBatch(ctx context.Context, db *sql.DB, logger *log.Logger
 	activities.Range(func(activityString, senderString string) bool {
 		var activity ap.Activity
 		if err := json.Unmarshal([]byte(activityString), &activity); err != nil {
-			logger.WithError(err).Error("Failed to unmarshal activity")
+			log.Error("Failed to unmarshal activity", "error", err)
 			return true
 		}
 
 		var sender ap.Actor
 		if err := json.Unmarshal([]byte(senderString), &sender); err != nil {
-			logger.WithError(err).Error("Failed to unmarshal actor")
+			log.Error("Failed to unmarshal actor", "error", err)
 			return true
 		}
 
-		logger.WithFields(log.Fields{"sender": sender.ID, "activity": activity.ID, "type": activity.Type}).Debug("Processing activity")
+		log.Debug("Processing activity", "sender", sender.ID, "activity", activity.ID, "type", activity.Type)
 
-		if err := processsActivity(ctx, &sender, []byte(activityString), db, logger); err != nil {
+		if err := processsActivityWithTimeout(ctx, log, &sender, []byte(activityString), db); err != nil {
 			if _, ok := activity.Object.(*ap.Activity); ok {
-				logger.WithFields(log.Fields{"sender": sender.ID, "activity": activity.ID, "type": activity.Type, "inner": activity.Object.(*ap.Activity).ID}).WithError(err).Warn("Failed to process activity")
+				log.Warn("Failed to process activity", "sender", sender.ID, "activity", activity.ID, "type", activity.Type, "inner", activity.Object.(*ap.Activity).ID, "error", err)
 			} else if _, ok := activity.Object.(*ap.Object); ok {
-				logger.WithFields(log.Fields{"sender": sender.ID, "activity": activity.ID, "type": activity.Type, "object": activity.Object.(*ap.Object).ID}).WithError(err).Warn("Failed to process activity")
+				log.Warn("Failed to process activity", "sender", sender.ID, "activity", activity.ID, "type", activity.Type, "inner", activity.Object.(*ap.Object).ID, "error", err)
 			} else {
-				logger.WithFields(log.Fields{"sender": sender.ID, "activity": activity.ID, "type": activity.Type, "object": activity.Object.(string)}).WithError(err).Warn("Failed to process activity")
+				log.Warn("Failed to process activity", "sender", sender.ID, "activity", activity.ID, "type", activity.Type, "inner", activity.Object.(string), "error", err)
 			}
 		}
 
@@ -394,12 +395,12 @@ func processsActivitiesBatch(ctx context.Context, db *sql.DB, logger *log.Logger
 	return rowsCount, nil
 }
 
-func processsActivities(ctx context.Context, db *sql.DB, logger *log.Logger) error {
+func processsActivities(ctx context.Context, log *slog.Logger, db *sql.DB) error {
 	t := time.NewTicker(activitiesBatchDelay)
 	defer t.Stop()
 
 	for {
-		n, err := processsActivitiesBatch(ctx, db, logger)
+		n, err := processsActivitiesBatch(ctx, log, db)
 		if err != nil {
 			return err
 		}
@@ -417,7 +418,7 @@ func processsActivities(ctx context.Context, db *sql.DB, logger *log.Logger) err
 	}
 }
 
-func ProcessActivities(ctx context.Context, db *sql.DB, logger *log.Logger) error {
+func ProcessActivities(ctx context.Context, log *slog.Logger, db *sql.DB) error {
 	t := time.NewTicker(activitiesPollingInterval)
 	defer t.Stop()
 
@@ -427,7 +428,7 @@ func ProcessActivities(ctx context.Context, db *sql.DB, logger *log.Logger) erro
 			return nil
 
 		case <-t.C:
-			if err := processsActivities(ctx, db, logger); err != nil {
+			if err := processsActivities(ctx, log, db); err != nil {
 				return err
 			}
 		}

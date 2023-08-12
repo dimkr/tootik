@@ -45,7 +45,7 @@ func follows(w text.Writer, r *request) {
 
 	rows, err := r.Query(`with followed as (select followed as id, inserted from follows where follower = ?) select persons.actor, max(notes.inserted) as last, count(distinct notes.id) as count from followed join (select id, actor from persons) persons on persons.id = followed.id left join (select * from notes where inserted >= unixepoch() - 7*24*60*60) notes on (persons.actor->>'type' != 'Group' and notes.author = followed.id) or (persons.actor->>'type' = 'Group' and notes.object->'inReplyTo' is null and notes.groupid = followed.id) group by followed.id order by last desc, followed.inserted desc`, r.User.ID)
 	if err != nil {
-		r.Log.WithField("follower", r.User.ID).WithError(err).Warn("Failed to list followed users")
+		r.Log.Warn("Failed to list followed users", "error", err)
 		w.Error()
 		return
 	}
@@ -57,12 +57,12 @@ func follows(w text.Writer, r *request) {
 		var row followedUserActivity
 		var actorString string
 		if err := rows.Scan(&actorString, &row.Last, &row.Count); err != nil {
-			r.Log.WithField("follower", r.User.ID).WithError(err).Warn("Failed to list a followed user")
+			r.Log.Warn("Failed to list a followed user", "error", err)
 			continue
 		}
 
 		if err := json.Unmarshal([]byte(actorString), &row.Actor); err != nil {
-			r.Log.WithField("follower", r.User.ID).WithError(err).Warn("Failed to unmarshal a followed user")
+			r.Log.Warn("Failed to unmarshal a followed user", "error", err)
 			continue
 		}
 
@@ -87,7 +87,7 @@ func follows(w text.Writer, r *request) {
 		w.Empty()
 
 		for _, row := range active {
-			displayName := getActorDisplayName(&row.Actor)
+			displayName := getActorDisplayName(&row.Actor, r.Log)
 
 			if row.Count.Valid && row.Count.Int64 > 1 {
 				w.Linkf(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(row.Actor.ID))), "%s %s: %d posts", time.Unix(row.Last.Int64, 0).Format(time.DateOnly), displayName, row.Count.Int64)
@@ -107,7 +107,7 @@ func follows(w text.Writer, r *request) {
 		w.Empty()
 
 		for _, row := range inactive {
-			w.Link(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(row.Actor.ID))), getActorDisplayName(&row.Actor))
+			w.Link(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(row.Actor.ID))), getActorDisplayName(&row.Actor, r.Log))
 		}
 	}
 }

@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/fed"
-	log "github.com/dimkr/tootik/slogru"
+	"log/slog"
 	"net/url"
 	"sync"
 )
@@ -33,7 +33,7 @@ type request struct {
 	User      *ap.Actor
 	DB        *sql.DB
 	WaitGroup *sync.WaitGroup
-	Log       *log.Logger
+	Log       *slog.Logger
 }
 
 func (r *request) Resolve(actorID string) (*ap.Actor, error) {
@@ -42,7 +42,7 @@ func (r *request) Resolve(actorID string) (*ap.Actor, error) {
 		return nil, fmt.Errorf("Failed to resolve %s: %w", actorID, err)
 	}
 
-	actor, err := resolver.Resolve(r.Context, r.DB, r.User, actorID)
+	actor, err := resolver.Resolve(r.Context, r.Log, r.DB, r.User, actorID)
 
 	fed.Resolvers.Return(resolver)
 	return actor, err
@@ -58,4 +58,8 @@ func (r *request) Query(query string, args ...any) (*sql.Rows, error) {
 
 func (r *request) QueryRow(query string, args ...any) *sql.Row {
 	return r.DB.QueryRowContext(r.Context, query, args...)
+}
+
+func (r *request) AddLogContext(attrs ...any) {
+	r.Log = r.Log.With(attrs...)
 }

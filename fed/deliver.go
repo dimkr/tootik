@@ -26,7 +26,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/note"
-	log "github.com/dimkr/tootik/slogru"
+	"log/slog"
 	"strings"
 	"time"
 )
@@ -42,7 +42,7 @@ const (
 
 var DeliveryQueueFull = errors.New("Delivery queue is full")
 
-func DeliverPosts(ctx context.Context, db *sql.DB, logger *log.Logger) {
+func DeliverPosts(ctx context.Context, log *slog.Logger, db *sql.DB) {
 	t := time.NewTicker(pollingInterval)
 	defer t.Stop()
 
@@ -52,15 +52,15 @@ func DeliverPosts(ctx context.Context, db *sql.DB, logger *log.Logger) {
 			return
 
 		case <-t.C:
-			if err := deliverPosts(ctx, db, logger); err != nil {
-				logger.WithError(err).Error("Failed to deliver posts")
+			if err := deliverPosts(ctx, log, db); err != nil {
+				log.Error("Failed to deliver posts", "error", err)
 			}
 		}
 	}
 }
 
-func deliverPosts(ctx context.Context, db *sql.DB, logger *log.Logger) error {
-	logger.Debug("Polling delivery queue")
+func deliverPosts(ctx context.Context, log *slog.Logger, db *sql.DB) error {
+	log.Debug("Polling delivery queue")
 
 	rows, err := db.QueryContext(ctx, `select deliveries.id, deliveries.attempts, notes.object, persons.actor from deliveries join notes on notes.id = deliveries.id join persons on persons.id = notes.author where deliveries.attempts = 0 or (deliveries.attempts < ? and deliveries.last <= unixepoch() - ?) order by deliveries.attempts asc, deliveries.last asc limit ?`, maxDeliveryAttempts, deliveryRetryInterval, batchSize)
 	if err != nil {
@@ -72,50 +72,50 @@ func deliverPosts(ctx context.Context, db *sql.DB, logger *log.Logger) error {
 		var deliveryID, noteString, authorString string
 		var deliveryAttempts int
 		if err := rows.Scan(&deliveryID, &deliveryAttempts, &noteString, &authorString); err != nil {
-			logger.WithError(err).Error("Failed to fetch post to deliver")
+			log.Error("Failed to fetch post to deliver", "error", err)
 			continue
 		}
 
 		if _, err := db.ExecContext(ctx, `update deliveries set last = unixepoch(), attempts = ? where id = ?`, deliveryAttempts+1, deliveryID); err != nil {
-			logger.WithFields(log.Fields{"id": deliveryID, "attempts": deliveryAttempts}).WithError(err).Error("Failed to save last delivery attempt time")
+			log.Error("Failed to save last delivery attempt time", "id", deliveryID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
 
 		var note ap.Object
 		if err := json.Unmarshal([]byte(noteString), &note); err != nil {
-			logger.WithFields(log.Fields{"id": deliveryID, "attempts": deliveryAttempts}).WithError(err).Error("Failed to unmarshal undelivered post")
+			log.Error("Failed to unmarshal undelivered post", "id", deliveryID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
 
 		var author ap.Actor
 		if err := json.Unmarshal([]byte(authorString), &author); err != nil {
-			logger.WithFields(log.Fields{"id": deliveryID, "attempts": deliveryAttempts}).WithError(err).Error("Failed to unmarshal undelivered post author")
+			log.Error("Failed to unmarshal undelivered post author", "id", deliveryID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
 
-		if err := deliverWithTimeout(ctx, db, logger, &note, &author); err != nil {
-			logger.WithFields(log.Fields{"id": deliveryID, "attempts": deliveryAttempts}).WithError(err).Warn("Failed to deliver post")
+		if err := deliverWithTimeout(ctx, log, db, &note, &author); err != nil {
+			log.Warn("Failed to deliver post", "id", deliveryID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
 
 		if _, err := db.ExecContext(ctx, `delete from deliveries where id = ?`, deliveryID); err != nil {
-			logger.WithFields(log.Fields{"id": deliveryID, "attempts": deliveryAttempts}).WithError(err).Error("Failed to delete delivery")
+			log.Error("Failed to delete delivery", "id", deliveryID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
 
-		logger.WithFields(log.Fields{"id": deliveryID, "attempts": deliveryAttempts}).Info("Successfully delivered a post")
+		log.Info("Successfully delivered a post", "id", deliveryID, "attempts", deliveryAttempts)
 	}
 
 	return nil
 }
 
-func deliverWithTimeout(parent context.Context, db *sql.DB, logger *log.Logger, post *ap.Object, author *ap.Actor) error {
+func deliverWithTimeout(parent context.Context, log *slog.Logger, db *sql.DB, post *ap.Object, author *ap.Actor) error {
 	ctx, cancel := context.WithTimeout(parent, deliveryTimeout)
 	defer cancel()
-	return deliver(ctx, db, logger, post, author)
+	return deliver(ctx, log, db, post, author)
 }
 
-func deliver(ctx context.Context, db *sql.DB, logger *log.Logger, post *ap.Object, author *ap.Actor) error {
+func deliver(ctx context.Context, log *slog.Logger, db *sql.DB, post *ap.Object, author *ap.Actor) error {
 	create, err := json.Marshal(map[string]any{
 		"@context": "https://www.w3.org/ns/activitystreams",
 		"type":     ap.CreateActivity,
@@ -146,12 +146,12 @@ func deliver(ctx context.Context, db *sql.DB, logger *log.Logger, post *ap.Objec
 	if post.IsPublic() || recipients.Contains(author.Followers) {
 		followers, err := db.QueryContext(ctx, `select distinct follower from follows where followed = ? and follower not like ?`, author.ID, fmt.Sprintf("https://%s/%%", cfg.Domain))
 		if err != nil {
-			logger.WithField("post", post.ID).WithError(err).Warn("Failed to list followers")
+			log.Warn("Failed to list followers", "post", post.ID, "error", err)
 		} else {
 			for followers.Next() {
 				var follower string
 				if err := followers.Scan(&follower); err != nil {
-					logger.WithField("post", post.ID).WithError(err).Warn("Skipped a follower")
+					log.Warn("Skipped a follower", "post", post.ID, "error", err)
 					continue
 				}
 
@@ -175,20 +175,20 @@ func deliver(ctx context.Context, db *sql.DB, logger *log.Logger, post *ap.Objec
 	anyFailed := false
 
 	actorIDs.Range(func(actorID string, _ struct{}) bool {
-		logger.WithFields(log.Fields{"to": actorID, "post": post.ID}).Info("Delivering post to recipient")
+		log.Info("Delivering post to recipient", "to", actorID, "post", post.ID)
 
 		r, err := Resolvers.Borrow(ctx)
 		if err != nil {
-			logger.WithFields(log.Fields{"to": actorID, "post": post.ID}).WithError(err).Warn("Cannot resolve a recipient")
+			log.Warn("Cannot resolve a recipient", "to", actorID, "post", post.ID, "error", err)
 			anyFailed = true
 			return true
 		}
 
-		if to, err := r.Resolve(ctx, db, author, actorID); err != nil {
-			logger.WithFields(log.Fields{"to": actorID, "post": post.ID}).WithError(err).Warn("Failed to resolve a recipient")
+		if to, err := r.Resolve(ctx, log, db, author, actorID); err != nil {
+			log.Warn("Failed to resolve a recipient", "to", actorID, "post", post.ID, "error", err)
 			anyFailed = true
-		} else if err := Send(ctx, db, author, r, to, create); err != nil {
-			logger.WithFields(log.Fields{"to": to.ID, "post": post.ID}).WithError(err).Warn("Failed to send a post")
+		} else if err := Send(ctx, log, db, author, r, to, create); err != nil {
+			log.Warn("Failed to send a post", "to", actorID, "post", post.ID, "error", err)
 			anyFailed = true
 		}
 
@@ -203,8 +203,8 @@ func deliver(ctx context.Context, db *sql.DB, logger *log.Logger, post *ap.Objec
 	return nil
 }
 
-func Deliver(ctx context.Context, db *sql.DB, logger *log.Logger, post *ap.Object, author *ap.Actor) error {
-	if err := note.Insert(ctx, db, post, logger); err != nil {
+func Deliver(ctx context.Context, log *slog.Logger, db *sql.DB, post *ap.Object, author *ap.Actor) error {
+	if err := note.Insert(ctx, db, post, log); err != nil {
 		return fmt.Errorf("Failed to insert post: %w", err)
 	}
 

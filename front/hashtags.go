@@ -30,7 +30,7 @@ func init() {
 func hashtags(w text.Writer, r *request) {
 	rows, err := r.Query(`select hashtag from (select hashtag, max(inserted)/86400 as last, count(distinct author) as users, count(*) as posts from (select hashtags.hashtag, notes.author, notes.inserted from hashtags join notes on notes.id = hashtags.note where inserted > unixepoch()-60*60*24*7) group by hashtag) where users > 1 order by users desc, posts desc, last desc limit 100`)
 	if err != nil {
-		r.Log.WithError(err).Warn("Failed to list hashtags")
+		r.Log.Warn("Failed to list hashtags", "error", err)
 		w.Error()
 		return
 	}
@@ -40,7 +40,7 @@ func hashtags(w text.Writer, r *request) {
 	for rows.Next() {
 		var tag string
 		if err := rows.Scan(&tag); err != nil {
-			r.Log.WithError(err).Warn("Failed to scan hashtag")
+			r.Log.Warn("Failed to scan hashtag", "error", err)
 			continue
 		}
 

@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
-	logger "github.com/dimkr/tootik/slogru"
 	_ "github.com/mattn/go-sqlite3"
 	"log/slog"
 	"net"
@@ -42,23 +41,23 @@ func root(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusMovedPermanently)
 }
 
-func ListenAndServe(ctx context.Context, db *sql.DB, addr, cert, key string) error {
+func ListenAndServe(ctx context.Context, db *sql.DB, log *slog.Logger, addr, cert, key string) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/robots.txt", robots)
 	mux.HandleFunc("/.well-known/webfinger", func(w http.ResponseWriter, r *http.Request) {
-		handler := webFingerHandler{logger.With("query", r.URL.RawQuery), db}
+		handler := webFingerHandler{log.With("query", r.URL.RawQuery), db}
 		handler.Handle(w, r)
 	})
 	mux.HandleFunc("/user/", func(w http.ResponseWriter, r *http.Request) {
-		handler := userHandler{logger.With(slog.String("path", r.URL.Path)), db}
+		handler := userHandler{log.With(slog.String("path", r.URL.Path)), db}
 		handler.Handle(w, r)
 	})
 	mux.HandleFunc("/icon/", func(w http.ResponseWriter, r *http.Request) {
-		handler := iconHandler{logger.With(slog.String("path", r.URL.Path)), db}
+		handler := iconHandler{log.With(slog.String("path", r.URL.Path)), db}
 		handler.Handle(w, r)
 	})
 	mux.HandleFunc("/inbox/", func(w http.ResponseWriter, r *http.Request) {
-		handler := inboxHandler{logger.With(slog.String("path", r.URL.Path)), db}
+		handler := inboxHandler{log.With(slog.String("path", r.URL.Path)), db}
 		handler.Handle(w, r)
 	})
 	mux.HandleFunc("/", root)
@@ -68,8 +67,9 @@ func ListenAndServe(ctx context.Context, db *sql.DB, addr, cert, key string) err
 	}
 
 	server := http.Server{
-		Addr:    addr,
-		Handler: mux,
+		Addr:     addr,
+		Handler:  mux,
+		ErrorLog: slog.NewLogLogger(log.Handler(), slog.Level(cfg.LogLevel)),
 		BaseContext: func(net.Listener) context.Context {
 			return ctx
 		},
