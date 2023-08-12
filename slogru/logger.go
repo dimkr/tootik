@@ -22,27 +22,27 @@ type Logger struct {
 	*slog.Logger
 }
 
-func (l *Logger) WithField(k string, v any) Entry {
-	return &entry{Logger: l, Fields: map[string]slog.Attr{k: slog.Any(k, v)}}
+func (l Logger) WithField(k string, v any) Entry {
+	return entryWithField{Logger: l.Logger, Field: slog.Any(k, v)}
 }
 
-func (l *Logger) WithFields(fields Fields) Entry {
+func (l Logger) WithFields(fields Fields) Entry {
 	attrs := make(map[string]slog.Attr, len(fields))
 	for k, v := range fields {
 		attrs[k] = slog.Any(k, v)
 	}
-	return &entry{Logger: l, Fields: attrs}
+	return &entryWithFields{Logger: l.Logger, Fields: attrs}
 }
 
-func (l *Logger) WithError(err error) Entry {
-	return &entry{Logger: l, Fields: map[string]slog.Attr{"error": slog.Any("error", err)}}
+func (l Logger) WithError(err error) Entry {
+	return &entryWithField{Logger: l.Logger, Field: slog.Any("error", err)}
 }
 
-func (l *Logger) Fatal(err error) {
+func (l Logger) Fatal(err error) {
 	l.WithError(err).Error("Fatal")
 	panic(err)
 }
 
-func (l *Logger) Warnf(fmt string, args ...any) {
+func (l Logger) Warnf(fmt string, args ...any) {
 	l.Warn(fmt, args...)
 }
