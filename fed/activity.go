@@ -295,7 +295,7 @@ func processsActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, r
 			return fmt.Errorf("Failed to update post %s: %w", post.ID, err)
 		}
 
-		log.Info("Updated post", "post", post.ID)
+		log.Info("Updated post")
 
 	default:
 		if sender.ID == req.Actor {
