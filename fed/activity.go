@@ -123,8 +123,8 @@ func processsActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, r
 		log.Info("Received delete request", "deleted", deleted)
 
 		if deleted == sender.ID {
-			if _, err := db.ExecContext(ctx, `delete from persons where id =`, deleted); err != nil {
-				return fmt.Errorf("Failed to delete person %s", req.ID)
+			if _, err := db.ExecContext(ctx, `delete from persons where id = ?`, deleted); err != nil {
+				return fmt.Errorf("Failed to delete person %s: %w", req.ID, err)
 			}
 		} else if _, err := db.ExecContext(ctx, `delete from notes where id = ? and author = ?`, deleted, sender.ID); err != nil {
 			return fmt.Errorf("Failed to delete posts by %s", req.ID)
@@ -311,6 +311,7 @@ func processsActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, r
 func processsActivityWithTimeout(parent context.Context, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, db *sql.DB) error {
 	ctx, cancel := context.WithTimeout(parent, activityProcessingTimeout)
 	defer cancel()
+
 	if o, ok := activity.Object.(*ap.Object); ok {
 		log = log.With("sender", sender.ID, "type", activity.Type, "actor", activity.Actor, "object", o.ID, "object_type", o.Type)
 	} else if a, ok := activity.Object.(*ap.Activity); ok {
@@ -318,6 +319,7 @@ func processsActivityWithTimeout(parent context.Context, log *slog.Logger, sende
 	} else if s, ok := activity.Object.(string); ok {
 		log = log.With("sender", sender.ID, "type", activity.Type, "actor", activity.Actor, "inner", s)
 	}
+
 	return processsActivity(ctx, log, sender, activity, db)
 }
 
