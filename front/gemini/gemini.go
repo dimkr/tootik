@@ -130,8 +130,6 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup, 
 		log.Warn("Failed to get user", "error", err)
 		w.Error()
 		return
-	} else if err == nil {
-		log = log.With(slog.String("user", user.ID))
 	}
 
 	front.Handle(ctx, log, w, reqUrl, user, db, wg)

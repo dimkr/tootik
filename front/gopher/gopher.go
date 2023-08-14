@@ -73,7 +73,7 @@ func handle(ctx context.Context, log *slog.Logger, conn net.Conn, db *sql.DB, wg
 
 	w := gmap.Wrap(conn)
 
-	front.Handle(ctx, log, w, reqUrl, nil, db, wg)
+	front.Handle(ctx, log.With(slog.Group("request", "path", reqUrl.Path)), w, reqUrl, nil, db, wg)
 }
 
 func ListenAndServe(ctx context.Context, log *slog.Logger, db *sql.DB, addr string) error {

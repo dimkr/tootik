@@ -18,7 +18,7 @@ package ap
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 )
 
 type ActivityType string
@@ -47,6 +47,8 @@ type Activity struct {
 	Object any          `json:"object"`
 }
 
+var ErrInvalidActivity = errors.New("Invalid activity")
+
 func (a *Activity) UnmarshalJSON(b []byte) error {
 	var common anyActivity
 	if err := json.Unmarshal(b, &common); err != nil {
@@ -67,7 +69,7 @@ func (a *Activity) UnmarshalJSON(b []byte) error {
 	} else if err := json.Unmarshal(common.Object, &link); err == nil {
 		a.Object = link
 	} else {
-		return fmt.Errorf("Invalid activity: %s", string(b))
+		return ErrInvalidActivity
 	}
 
 	return nil

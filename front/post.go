@@ -139,7 +139,7 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 
 	if err := fed.Deliver(r.Context, r.Log, r.DB, &note, r.User); err != nil {
 		r.Log.Error("Failed to insert post", "error", err)
-		if errors.Is(err, fed.DeliveryQueueFull) {
+		if errors.Is(err, fed.ErrDeliveryQueueFull) {
 			w.Status(40, "Please try again later")
 		} else {
 			w.Error()

@@ -105,7 +105,7 @@ func processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Act
 	return nil
 }
 
-func processsActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, req *ap.Activity, db *sql.DB) error {
+func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, req *ap.Activity, db *sql.DB) error {
 	log.Debug("Processing activity")
 
 	switch req.Type {
@@ -308,27 +308,29 @@ func processsActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, r
 	return nil
 }
 
-func processsActivityWithTimeout(parent context.Context, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, db *sql.DB) error {
+func processActivityWithTimeout(parent context.Context, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, db *sql.DB) {
 	ctx, cancel := context.WithTimeout(parent, activityProcessingTimeout)
 	defer cancel()
 
 	if o, ok := activity.Object.(*ap.Object); ok {
-		log = log.With("sender", sender.ID, "type", activity.Type, "actor", activity.Actor, "object", o.ID, "object_type", o.Type)
+		log = log.With(slog.Group("activity", "sender", sender.ID, "type", activity.Type, "actor", activity.Actor, slog.Group("object", "kind", "object", "id", o.ID, "type", o.Type)))
 	} else if a, ok := activity.Object.(*ap.Activity); ok {
-		log = log.With("sender", sender.ID, "type", activity.Type, "actor", activity.Actor, "inner", a.ID, "inner_type", a.Type)
+		log = log.With(slog.Group("activity", "sender", sender.ID, "type", activity.Type, "actor", activity.Actor, slog.Group("object", "kind", "activity", "id", a.ID, "type", a.Type)))
 	} else if s, ok := activity.Object.(string); ok {
-		log = log.With("sender", sender.ID, "type", activity.Type, "actor", activity.Actor, "inner", s)
+		log = log.With(slog.Group("activity", "sender", sender.ID, "type", activity.Type, "actor", activity.Actor, slog.Group("object", "kind", "string", "id", s)))
 	}
 
-	return processsActivity(ctx, log, sender, activity, db)
+	if err := processActivity(ctx, log, sender, activity, db); err != nil {
+		log.Warn("Failed to process activity", "error", err)
+	}
 }
 
-func processsActivitiesBatch(ctx context.Context, log *slog.Logger, db *sql.DB) (int, error) {
+func processActivitiesBatch(ctx context.Context, log *slog.Logger, db *sql.DB) (int, error) {
 	log.Debug("Polling activities queue")
 
 	rows, err := db.QueryContext(ctx, `select activities.id, persons.actor, activities.activity from (select * from activities limit -1 offset case when (select count(*) from activities) >= $1 then $1/10 else 0 end) activities left join persons on persons.id = activities.sender order by activities.id limit $2`, maxActivitiesQueueSize, activitiesBatchSize)
 	if err != nil {
-		return 0, fmt.Errorf("Failed to fetch activities to processs: %w", err)
+		return 0, fmt.Errorf("Failed to fetch activities to process: %w", err)
 	}
 	defer rows.Close()
 
@@ -365,26 +367,17 @@ func processsActivitiesBatch(ctx context.Context, log *slog.Logger, db *sql.DB) 
 	activities.Range(func(activityString, senderString string) bool {
 		var activity ap.Activity
 		if err := json.Unmarshal([]byte(activityString), &activity); err != nil {
-			log.Error("Failed to unmarshal activity", "error", err)
+			log.Error("Failed to unmarshal activity", "raw", activityString, "error", err)
 			return true
 		}
 
 		var sender ap.Actor
 		if err := json.Unmarshal([]byte(senderString), &sender); err != nil {
-			log.Error("Failed to unmarshal actor", "error", err)
+			log.Error("Failed to unmarshal actor", "raw", senderString, "error", err)
 			return true
 		}
 
-		if err := processsActivityWithTimeout(ctx, log, &sender, &activity, db); err != nil {
-			if _, ok := activity.Object.(*ap.Activity); ok {
-				log.Warn("Failed to process activity", "sender", sender.ID, "activity", activity.ID, "type", activity.Type, "inner", activity.Object.(*ap.Activity).ID, "error", err)
-			} else if _, ok := activity.Object.(*ap.Object); ok {
-				log.Warn("Failed to process activity", "sender", sender.ID, "activity", activity.ID, "type", activity.Type, "inner", activity.Object.(*ap.Object).ID, "error", err)
-			} else {
-				log.Warn("Failed to process activity", "sender", sender.ID, "activity", activity.ID, "type", activity.Type, "inner", activity.Object.(string), "error", err)
-			}
-		}
-
+		processActivityWithTimeout(ctx, log, &sender, &activity, db)
 		return true
 	})
 
@@ -395,12 +388,12 @@ func processsActivitiesBatch(ctx context.Context, log *slog.Logger, db *sql.DB) 
 	return rowsCount, nil
 }
 
-func processsActivities(ctx context.Context, log *slog.Logger, db *sql.DB) error {
+func processActivities(ctx context.Context, log *slog.Logger, db *sql.DB) error {
 	t := time.NewTicker(activitiesBatchDelay)
 	defer t.Stop()
 
 	for {
-		n, err := processsActivitiesBatch(ctx, log, db)
+		n, err := processActivitiesBatch(ctx, log, db)
 		if err != nil {
 			return err
 		}
@@ -428,7 +421,7 @@ func ProcessActivities(ctx context.Context, log *slog.Logger, db *sql.DB) error 
 			return nil
 
 		case <-t.C:
-			if err := processsActivities(ctx, log, db); err != nil {
+			if err := processActivities(ctx, log, db); err != nil {
 				return err
 			}
 		}

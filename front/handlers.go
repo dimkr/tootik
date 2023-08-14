@@ -38,9 +38,9 @@ func Handle(ctx context.Context, log *slog.Logger, w text.Writer, reqUrl *url.UR
 		if re.MatchString(reqUrl.Path) {
 			var l *slog.Logger
 			if user == nil {
-				l = log.With("path", reqUrl.Path)
+				l = log.With(slog.Group("request", "path", reqUrl.Path))
 			} else {
-				l = log.With("path", reqUrl.Path, "user", user.ID)
+				l = log.With(slog.Group("request", "path", reqUrl.Path, "user", user.ID))
 			}
 
 			handler(w, &request{

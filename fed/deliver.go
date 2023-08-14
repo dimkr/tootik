@@ -40,7 +40,7 @@ const (
 	maxDeliveryQueueSize  = 128
 )
 
-var DeliveryQueueFull = errors.New("Delivery queue is full")
+var ErrDeliveryQueueFull = errors.New("Delivery queue is full")
 
 func DeliverPosts(ctx context.Context, log *slog.Logger, db *sql.DB) {
 	t := time.NewTicker(pollingInterval)
@@ -214,7 +214,7 @@ func Deliver(ctx context.Context, log *slog.Logger, db *sql.DB, post *ap.Object,
 	}
 
 	if queueSize >= maxDeliveryQueueSize {
-		return DeliveryQueueFull
+		return ErrDeliveryQueueFull
 	}
 
 	if _, err := db.ExecContext(ctx, `insert into deliveries(id) values(?)`, post.ID); err != nil {
