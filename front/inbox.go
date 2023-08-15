@@ -40,19 +40,19 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 
 	now := time.Now()
 	if day.After(now) {
-		r.Log.WithField("day", day).Info("Date is in the future")
+		r.Log.Info("Date is in the future", "day", day)
 		w.Redirect("/users/oops")
 		return
 	}
 
 	offset, err := getOffset(r.URL)
 	if err != nil {
-		r.Log.WithField("url", r.URL).WithError(err).Info("Failed to parse query")
+		r.Log.Info("Failed to parse query", "url", r.URL, "error", err)
 		w.Status(40, "Invalid query")
 		return
 	}
 
-	r.Log.WithField("offset", offset).Info("Viewing inbox")
+	r.Log.Info("Viewing inbox", "offset", offset)
 
 	since := now.Add(-time.Hour * 24 * 2)
 
@@ -132,7 +132,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 		limit $5
 		offset $6`, r.User.ID, now.Sub(since)/time.Hour, since.Unix(), day.Unix(), postsPerPage, offset)
 	if err != nil {
-		r.Log.WithError(err).Warn("Failed to fetch posts")
+		r.Log.Warn("Failed to fetch posts", "error", err)
 		w.Error()
 		return
 	}
@@ -144,7 +144,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 		noteString := ""
 		var meta noteMetadata
 		if err := rows.Scan(&noteString, &meta.Author, &meta.Group); err != nil {
-			r.Log.WithError(err).Warn("Failed to scan post")
+			r.Log.Warn("Failed to scan post", "error", err)
 			continue
 		}
 
@@ -183,7 +183,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 func byDate(w text.Writer, r *request) {
 	day, err := time.Parse(time.DateOnly, filepath.Base(r.URL.Path))
 	if err != nil {
-		r.Log.WithError(err).Info("Failed to parse date")
+		r.Log.Info("Failed to parse date", "error", err)
 		w.Status(40, "Invalid date")
 		return
 	}

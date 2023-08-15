@@ -42,18 +42,18 @@ func follow(w text.Writer, r *request) {
 
 	followed := ""
 	if err := r.QueryRow(`select id from persons where hash = ?`, hash).Scan(&followed); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.WithField("hash", hash).WithError(err).Warn("Cannot follow a non-existing user")
+		r.Log.Warn("Cannot follow a non-existing user", "hash", hash)
 		w.Status(40, "No such user")
 		return
 	} else if err != nil {
-		r.Log.WithField("hash", hash).WithError(err).Warn("Failed to find followed user")
+		r.Log.Warn("Failed to find followed user", "hash", hash, "error", err)
 		w.Error()
 		return
 	}
 
 	var follows int
 	if err := r.QueryRow(`select count(*) from follows where follower = ?`, r.User.ID).Scan(&follows); err != nil {
-		r.Log.WithError(err).Warn("Failed to count follows")
+		r.Log.Warn("Failed to count follows", "error", err)
 		w.Error()
 		return
 	}
@@ -63,8 +63,8 @@ func follow(w text.Writer, r *request) {
 		return
 	}
 
-	if err := fed.Follow(r.Context, r.User, followed, r.DB); err != nil {
-		r.Log.WithField("followed", followed).WithError(err).Warn("Failed to follow user")
+	if err := fed.Follow(r.Context, r.Log, r.User, followed, r.DB); err != nil {
+		r.Log.Warn("Failed to follow user", "followed", followed, "error", err)
 		w.Error()
 		return
 	}

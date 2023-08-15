@@ -18,7 +18,6 @@ package fed
 
 import (
 	"context"
-	log "github.com/dimkr/tootik/slogru"
 	"golang.org/x/sync/semaphore"
 	"sync"
 )
@@ -33,7 +32,7 @@ type ResolverPool struct {
 var Resolvers = ResolverPool{
 	Pool: sync.Pool{
 		New: func() any {
-			return &Resolver{Log: log.Default()}
+			return &Resolver{}
 		},
 	},
 	Weighted: semaphore.NewWeighted(poolSize),

@@ -39,35 +39,37 @@ func view(w text.Writer, r *request) {
 
 	offset, err := getOffset(r.URL)
 	if err != nil {
-		r.Log.WithError(err).Info("Failed to parse query")
+		r.Log.Info("Failed to parse query", "error", err)
 		w.Status(40, "Invalid query")
 		return
 	}
 
-	r.Log.WithField("hash", hash).Info("Viewing post")
+	r.Log.Info("Viewing post", "hash", hash)
 
 	var noteString, authorString string
 	var groupString sql.NullString
 	if err := r.QueryRow(`select notes.object, persons.actor, groups.actor from notes join persons on persons.id = notes.author left join (select id, actor from persons where actor->>'type' = 'Group') groups on groups.id = notes.groupid where notes.hash = ?`, hash).Scan(&noteString, &authorString, &groupString); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.WithField("hash", hash).Info("Post was not found")
+		r.Log.Info("Post was not found", "hash", hash)
 		w.Status(40, "Post not found")
 		return
 	} else if err != nil {
-		r.Log.WithField("hash", hash).WithError(err).Info("Failed to find post")
+		r.Log.Info("Failed to find post", "hash", hash, "error", err)
 		w.Error()
 		return
 	}
 
 	note := ap.Object{}
 	if err := json.Unmarshal([]byte(noteString), &note); err != nil {
-		r.Log.WithField("hash", hash).WithError(err).Info("Failed to unmarshal post")
+		r.Log.Info("Failed to unmarshal post", "hash", hash, "error", err)
 		w.Error()
 		return
 	}
 
+	r.AddLogContext("post", note.ID)
+
 	author := ap.Actor{}
 	if err := json.Unmarshal([]byte(authorString), &author); err != nil {
-		r.Log.WithField("post", note.ID).WithError(err).Info("Failed to unmarshal post author")
+		r.Log.Info("Failed to unmarshal post author", "error", err)
 		w.Error()
 		return
 	}
@@ -75,7 +77,7 @@ func view(w text.Writer, r *request) {
 	group := ap.Actor{}
 	if groupString.Valid {
 		if err := json.Unmarshal([]byte(groupString.String), &group); err != nil {
-			r.Log.WithField("post", note.ID).WithError(err).Info("Failed to unmarshal post group")
+			r.Log.Info("Failed to unmarshal post group", "error", err)
 			w.Error()
 			return
 		}
@@ -83,7 +85,7 @@ func view(w text.Writer, r *request) {
 
 	rows, err := r.Query(`select replies.object, persons.actor from notes join notes replies on replies.object->>'inReplyTo' = notes.id left join persons on persons.id = replies.author where notes.hash = ? order by replies.inserted desc limit ? offset ?;`, hash, repliesPerPage, offset)
 	if err != nil {
-		r.Log.WithField("post", note.ID).WithError(err).Info("Failed to fetch replies")
+		r.Log.Info("Failed to fetch replies", "error", err)
 		w.Error()
 		return
 	}
@@ -95,7 +97,7 @@ func view(w text.Writer, r *request) {
 		var replyString string
 		var meta noteMetadata
 		if err := rows.Scan(&replyString, &meta.Author); err != nil {
-			r.Log.WithError(err).Warn("Failed to scan reply")
+			r.Log.Warn("Failed to scan reply", "error", err)
 			continue
 		}
 
@@ -140,7 +142,7 @@ func view(w text.Writer, r *request) {
 	var originalPostExists int
 	if note.InReplyTo != "" {
 		if err := r.QueryRow(`select exists (select 1 from notes where id = ?)`, note.InReplyTo).Scan(&originalPostExists); err != nil {
-			r.Log.WithField("post", note.ID).WithError(err).Warn("Failed to check if original post exists")
+			r.Log.Warn("Failed to check if original post exists", "error", err)
 		}
 	}
 

@@ -33,7 +33,7 @@ func init() {
 func getGraph(r *request, query string, keys []string, values []int64) string {
 	rows, err := r.Query(query)
 	if err != nil {
-		r.Log.WithField("query", query).WithError(err).Warn("Failed to data points")
+		r.Log.Warn("Failed to data points", "query", query, "error", err)
 		return ""
 	}
 	defer rows.Close()
@@ -41,7 +41,7 @@ func getGraph(r *request, query string, keys []string, values []int64) string {
 	i := 0
 	for rows.Next() {
 		if err := rows.Scan(&keys[i], &values[i]); err != nil {
-			r.Log.WithError(err).Warn("Failed to data point")
+			r.Log.Warn("Failed to data point", "error", err)
 			i++
 			continue
 		}
@@ -94,67 +94,67 @@ func stats(w text.Writer, r *request) {
 	var deliveriesQueueSize, activitiesQueueSize int
 
 	if err := r.QueryRow(`select count(*) from persons where id like ?`, prefix).Scan(&usersCount); err != nil {
-		r.Log.WithError(err).Info("Failed to get users count")
+		r.Log.Info("Failed to get users count", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := r.QueryRow(`select count(*) from notes where id like ?`, prefix).Scan(&postsCount); err != nil {
-		r.Log.WithError(err).Info("Failed to get posts count")
+		r.Log.Info("Failed to get posts count", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := r.QueryRow(`select count(*) from notes where id like ? and inserted >= unixepoch() - 24*60*60`, prefix).Scan(&postsToday); err != nil {
-		r.Log.WithError(err).Info("Failed to get daily posts count")
+		r.Log.Info("Failed to get daily posts count", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := r.QueryRow(`select count(*) from notes where id not like ?`, prefix).Scan(&federatedPostsCount); err != nil {
-		r.Log.WithError(err).Info("Failed to get federated posts count")
+		r.Log.Info("Failed to get federated posts count", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := r.QueryRow(`select count(*) from notes where id not like ? and inserted >= unixepoch() - 24*60*60`, prefix).Scan(&federatedPostsToday); err != nil {
-		r.Log.WithError(err).Info("Failed to get daily federated posts count")
+		r.Log.Info("Failed to get daily federated posts count", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := r.QueryRow(`select max(inserted) from notes where id like ?`, prefix).Scan(&lastPost); err != nil {
-		r.Log.WithError(err).Info("Failed to get last post time")
+		r.Log.Info("Failed to get last post time", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := r.QueryRow(`select max(inserted) from notes where id not like ?`, prefix).Scan(&lastFederatedPost); err != nil {
-		r.Log.WithError(err).Info("Failed to get last federated post time")
+		r.Log.Info("Failed to get last federated post time", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := r.QueryRow(`select max(inserted) from persons where id like ?`, prefix).Scan(&lastRegister); err != nil {
-		r.Log.WithError(err).Info("Failed to get last post time")
+		r.Log.Info("Failed to get last post time", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := r.QueryRow(`select max(max(inserted), max(updated)) from persons where id not like ?`, prefix).Scan(&lastFederatedUser); err != nil {
-		r.Log.WithError(err).Info("Failed to get last post time")
+		r.Log.Info("Failed to get last post time", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := r.QueryRow(`select count(*) from activities`).Scan(&activitiesQueueSize); err != nil {
-		r.Log.WithError(err).Info("Failed to get activities queue size")
+		r.Log.Info("Failed to get activities queue size", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := r.QueryRow(`select count(*) from deliveries`).Scan(&deliveriesQueueSize); err != nil {
-		r.Log.WithError(err).Info("Failed to get delivery queue size")
+		r.Log.Info("Failed to get delivery queue size", "error", err)
 		w.Error()
 		return
 	}

@@ -24,7 +24,6 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/fed"
-	log "github.com/dimkr/tootik/slogru"
 	"github.com/dimkr/tootik/text"
 	"github.com/dimkr/tootik/text/plain"
 	"net/url"
@@ -47,13 +46,13 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 
 	var today, last sql.NullInt64
 	if err := r.QueryRow(`select count(*), max(inserted) from notes where author = ? and inserted > ?`, r.User.ID, now.Add(-24*time.Hour).Unix()).Scan(&today, &last); err != nil {
-		r.Log.WithError(err).Warn("Failed to check if new post needs to be throttled")
+		r.Log.Warn("Failed to check if new post needs to be throttled", "error", err)
 		w.Error()
 		return
 	}
 
 	if today.Valid && today.Int64 >= 30 {
-		r.Log.WithField("posts", today.Int64).Warn("User has exceeded the daily posts quota")
+		r.Log.Warn("User has exceeded the daily posts quota", "posts", today.Int64)
 		w.Status(40, "Please wait before posting again")
 		return
 	}
@@ -62,7 +61,7 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 		t := time.Unix(last.Int64, 0)
 		interval := time.Duration(today.Int64/2) * time.Minute
 		if now.Sub(t) < interval {
-			r.Log.WithFields(log.Fields{"last": t, "can": t.Add(interval)}).Warn("User is posting too frequently")
+			r.Log.Warn("User is posting too frequently", "last", t, "can", t.Add(interval))
 			w.Status(40, "Please wait before posting again")
 			return
 		}
@@ -108,14 +107,14 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				r.Log.WithField("mention", mention[0]).Warn("Failed to guess mentioned actor ID")
+				r.Log.Warn("Failed to guess mentioned actor ID", "mention", mention[0])
 			} else {
-				r.Log.WithField("mention", mention[0]).WithError(err).Warn("Failed to guess mentioned actor ID")
+				r.Log.Warn("Failed to guess mentioned actor ID", "mention", mention[0], "error", err)
 			}
 			continue
 		}
 
-		r.Log.WithFields(log.Fields{"name": mention[0], "actor": actorID}).Info("Adding mention")
+		r.Log.Info("Adding mention", "name", mention[0], "actor", actorID)
 		tags = append(tags, ap.Mention{Type: ap.MentionMention, Name: mention[0], Href: actorID})
 		cc.Add(actorID)
 	}
@@ -138,9 +137,9 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 		note.InReplyTo = inReplyTo.ID
 	}
 
-	if err := fed.Deliver(r.Context, r.DB, r.Log, &note, r.User); err != nil {
-		r.Log.WithField("author", r.User.ID).Error("Failed to insert post")
-		if errors.Is(err, fed.DeliveryQueueFull) {
+	if err := fed.Deliver(r.Context, r.Log, r.DB, &note, r.User); err != nil {
+		r.Log.Error("Failed to insert post", "error", err)
+		if errors.Is(err, fed.ErrDeliveryQueueFull) {
 			w.Status(40, "Please try again later")
 		} else {
 			w.Error()

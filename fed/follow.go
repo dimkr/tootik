@@ -25,9 +25,10 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"log/slog"
 )
 
-func Follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB) error {
+func Follow(ctx context.Context, log *slog.Logger, follower *ap.Actor, followed string, db *sql.DB) error {
 	if followed == follower.ID {
 		return fmt.Errorf("%s cannot follow %s", follower.ID, followed)
 	}
@@ -50,14 +51,14 @@ func Follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB
 		return fmt.Errorf("%s cannot follow %s: %w", follower.ID, followed, err)
 	}
 
-	to, err := resolver.Resolve(ctx, db, follower, followed)
+	to, err := resolver.Resolve(ctx, log, db, follower, followed)
 	if err != nil {
 		Resolvers.Return(resolver)
 		return fmt.Errorf("%s cannot follow %s: %w", follower.ID, followed, err)
 	}
 	followed = to.ID
 
-	if err := Send(ctx, db, follower, resolver, to, body); err != nil {
+	if err := Send(ctx, log, db, follower, resolver, to, body); err != nil {
 		Resolvers.Return(resolver)
 		return fmt.Errorf("Failed to send follow %s: %w", followID, err)
 	}

@@ -27,15 +27,15 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	log "github.com/dimkr/tootik/slogru"
 	"github.com/go-fed/httpsig"
 	"io"
 	"io/ioutil"
+	"log/slog"
 	"net/http"
 	"time"
 )
 
-func send(db *sql.DB, from *ap.Actor, resolver *Resolver, r *http.Request) (*http.Response, error) {
+func send(log *slog.Logger, db *sql.DB, from *ap.Actor, resolver *Resolver, r *http.Request) (*http.Response, error) {
 	urlString := r.URL.String()
 
 	if r.URL.Scheme != "https" {
@@ -48,20 +48,20 @@ func send(db *sql.DB, from *ap.Actor, resolver *Resolver, r *http.Request) (*htt
 
 	if from == nil {
 		var err error
-		from, err = resolver.Resolve(r.Context(), db, nil, fmt.Sprintf("https://%s/user/nobody", cfg.Domain))
+		from, err = resolver.Resolve(r.Context(), log, db, nil, fmt.Sprintf("https://%s/user/nobody", cfg.Domain))
 		if err != nil {
 			return nil, fmt.Errorf("Cannot resolve nobody user to send request: %w", err)
 		}
 	}
 
-	resolver.Log.WithFields(log.Fields{"url": urlString, "from": from.ID}).Info("Sending request")
+	log.Info("Sending request", "url", urlString, "from", from.ID)
 
 	r.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	if from != nil {
 		var publicKeyID, privateKeyPemString string
 		if err := db.QueryRowContext(r.Context(), `select actor->>'publicKey.id', actor->>'privateKey' from persons where id = ?`, from.ID).Scan(&publicKeyID, &privateKeyPemString); err != nil {
-			return nil, fmt.Errorf("Failed to fetch key for from %s: %w", from.ID, err)
+			return nil, fmt.Errorf("Failed to fetch key for %s: %w", from.ID, err)
 		}
 
 		signer, _, err := httpsig.NewSigner(
@@ -125,7 +125,7 @@ func send(db *sql.DB, from *ap.Actor, resolver *Resolver, r *http.Request) (*htt
 	return resp, nil
 }
 
-func Send(ctx context.Context, db *sql.DB, from *ap.Actor, resolver *Resolver, to *ap.Actor, body []byte) error {
+func Send(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, resolver *Resolver, to *ap.Actor, body []byte) error {
 	if to.Inbox == "" {
 		return fmt.Errorf("Cannot send request to %s: no inbox link", to.ID)
 	}
@@ -136,13 +136,13 @@ func Send(ctx context.Context, db *sql.DB, from *ap.Actor, resolver *Resolver, t
 	}
 
 	if r.URL.Host == cfg.Domain {
-		resolver.Log.WithFields(log.Fields{"to": to.ID, "from": from.ID}).Info("Skipping request")
+		log.Info("Skipping request", "to", to.ID, "from", from.ID)
 		return nil
 	}
 
 	r.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
-	resp, err := send(db, from, resolver, r)
+	resp, err := send(log, db, from, resolver, r)
 	if err != nil {
 		return fmt.Errorf("Failed to send request to %s: %w", to.ID, err)
 	}
@@ -153,6 +153,6 @@ func Send(ctx context.Context, db *sql.DB, from *ap.Actor, resolver *Resolver, t
 		return fmt.Errorf("Failed to send request to %s: %w", to.ID, err)
 	}
 
-	resolver.Log.WithFields(log.Fields{"to": to.ID, "body": string(respBody)}).Info("Successfully sent message")
+	log.Info("Successfully sent message", "to", to.ID, "body", string(respBody))
 	return nil
 }
