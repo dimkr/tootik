@@ -41,12 +41,7 @@ const (
 	activityProcessingTimeout = time.Second * 15
 )
 
-func processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, req *ap.Activity, db *sql.DB) error {
-	post, ok := req.Object.(*ap.Object)
-	if !ok {
-		return errors.New("Received invalid Create")
-	}
-
+func processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, req *ap.Activity, post *ap.Object, db *sql.DB) error {
 	prefix := fmt.Sprintf("https://%s/", cfg.Domain)
 	if strings.HasPrefix(sender.ID, prefix) || strings.HasPrefix(post.ID, prefix) || strings.HasPrefix(post.AttributedTo, prefix) || strings.HasPrefix(req.Actor, prefix) {
 		return fmt.Errorf("Received invalid Create for %s by %s from %s", post.ID, post.AttributedTo, req.Actor)
@@ -249,7 +244,12 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 		log.Info("Removed a Follow", "follow", follow.ID, "follower", follower)
 
 	case ap.CreateActivity:
-		return processCreateActivity(ctx, log, sender, req, db)
+		post, ok := req.Object.(*ap.Object)
+		if !ok {
+			return errors.New("Received invalid Create")
+		}
+
+		return processCreateActivity(ctx, log, sender, req, post, db)
 
 	case ap.AnnounceActivity:
 		create, ok := req.Object.(*ap.Activity)
@@ -260,7 +260,15 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			return fmt.Errorf("Received unsupported Announce type: %s", create.Type)
 		}
 
-		return processCreateActivity(ctx, log, sender, create, db)
+		post, ok := create.Object.(*ap.Object)
+		if !ok {
+			return errors.New("Received invalid Create")
+		}
+		if !post.IsPublic() {
+			return errors.New("Received Announce for private post")
+		}
+
+		return processCreateActivity(ctx, log, sender, create, post, db)
 
 	case ap.UpdateActivity:
 		post, ok := req.Object.(*ap.Object)
@@ -299,9 +307,9 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 
 	default:
 		if sender.ID == req.Actor {
-			log.Warn("Received unknown request", "req", req)
+			log.Warn("Received unknown request")
 		} else {
-			log.Warn("Received unknown, unauthorized request", "req", req)
+			log.Warn("Received unknown, unauthorized request")
 		}
 	}
 
@@ -313,9 +321,9 @@ func processActivityWithTimeout(parent context.Context, log *slog.Logger, sender
 	defer cancel()
 
 	if o, ok := activity.Object.(*ap.Object); ok {
-		log = log.With(slog.Group("activity", "sender", sender.ID, "type", activity.Type, "actor", activity.Actor, slog.Group("object", "kind", "object", "id", o.ID, "type", o.Type)))
+		log = log.With(slog.Group("activity", "sender", sender.ID, "type", activity.Type, "actor", activity.Actor, slog.Group("object", "kind", "object", "id", o.ID, "type", o.Type, "attributed_to", o.AttributedTo)))
 	} else if a, ok := activity.Object.(*ap.Activity); ok {
-		log = log.With(slog.Group("activity", "sender", sender.ID, "type", activity.Type, "actor", activity.Actor, slog.Group("object", "kind", "activity", "id", a.ID, "type", a.Type)))
+		log = log.With(slog.Group("activity", "sender", sender.ID, "type", activity.Type, "actor", activity.Actor, slog.Group("object", "kind", "activity", "id", a.ID, "type", a.Type, "actor", a.Actor)))
 	} else if s, ok := activity.Object.(string); ok {
 		log = log.With(slog.Group("activity", "sender", sender.ID, "type", activity.Type, "actor", activity.Actor, slog.Group("object", "kind", "string", "id", s)))
 	}
