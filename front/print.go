@@ -156,7 +156,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 			mentionedUsers.Store(tag.Href, struct{}{})
 
 		default:
-			r.Log.Warn("Skipping unsupported mention type", "type", tag.Type)
+			r.Log.Warn("Skipping unsupported mention type", "post", note.ID, "type", tag.Type)
 		}
 	}
 
