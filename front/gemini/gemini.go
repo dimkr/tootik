@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/text/gmi"
 	"log/slog"
@@ -66,7 +67,7 @@ func getUser(ctx context.Context, db *sql.DB, conn net.Conn, tlsConn *tls.Conn, 
 	return &actor, nil
 }
 
-func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup, log *slog.Logger) {
+func handle(ctx context.Context, conn net.Conn, db *sql.DB, resolver *fed.Resolver, wg *sync.WaitGroup, log *slog.Logger) {
 	if err := conn.SetDeadline(time.Now().Add(reqTimeout)); err != nil {
 		log.Warn("Failed to set deadline", "error", err)
 		return
@@ -132,10 +133,10 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup, 
 		return
 	}
 
-	front.Handle(ctx, log, w, reqUrl, user, db, wg)
+	front.Handle(ctx, log, w, reqUrl, user, db, resolver, wg)
 }
 
-func ListenAndServe(ctx context.Context, log *slog.Logger, db *sql.DB, addr, certPath, keyPath string) error {
+func ListenAndServe(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *fed.Resolver, addr, certPath, keyPath string) error {
 	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
 		return err
@@ -186,7 +187,7 @@ func ListenAndServe(ctx context.Context, log *slog.Logger, db *sql.DB, addr, cer
 
 			wg.Add(1)
 			go func() {
-				handle(requestCtx, conn, db, &wg, log)
+				handle(requestCtx, conn, db, resolver, &wg, log)
 				conn.Close()
 				timer.Stop()
 				cancelRequest()

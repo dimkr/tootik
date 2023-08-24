@@ -67,6 +67,8 @@ func main() {
 	}
 	defer db.Close()
 
+	resolver := fed.NewResolver()
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	sigs := make(chan os.Signal, 1)
@@ -100,7 +102,7 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		if err := fed.ListenAndServe(ctx, db, log, *addr, *cert, *key); err != nil {
+		if err := fed.ListenAndServe(ctx, db, resolver, log, *addr, *cert, *key); err != nil {
 			log.Error("HTTPS listener has failed", "error", err)
 		}
 		cancel()
@@ -109,7 +111,7 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		if err := gemini.ListenAndServe(ctx, log, db, *gemAddr, *gemCert, *gemKey); err != nil {
+		if err := gemini.ListenAndServe(ctx, log, db, resolver, *gemAddr, *gemCert, *gemKey); err != nil {
 			log.Error("Gemini listener has failed", "error", err)
 		}
 		cancel()
@@ -118,7 +120,7 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		if err := gopher.ListenAndServe(ctx, log, db, *gopherAddr); err != nil {
+		if err := gopher.ListenAndServe(ctx, log, db, resolver, *gopherAddr); err != nil {
 			log.Error("Gopher listener has failed", "error", err)
 		}
 		cancel()
@@ -136,13 +138,13 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		fed.DeliverPosts(ctx, log, db)
+		fed.DeliverPosts(ctx, log, db, resolver)
 		wg.Done()
 	}()
 
 	wg.Add(1)
 	go func() {
-		if err := fed.ProcessActivities(ctx, log, db); err != nil {
+		if err := fed.ProcessActivities(ctx, log, db, resolver); err != nil {
 			log.Error("Failed to process activities", "error", err)
 		}
 		cancel()

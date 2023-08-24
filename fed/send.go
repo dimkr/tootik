@@ -106,9 +106,7 @@ func send(log *slog.Logger, db *sql.DB, from *ap.Actor, resolver *Resolver, r *h
 		}
 	}
 
-	client := http.Client{}
-
-	resp, err := client.Do(r)
+	resp, err := resolver.Client.Do(r)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to send request to %s: %w", urlString, err)
 	}

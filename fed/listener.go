@@ -41,7 +41,7 @@ func root(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusMovedPermanently)
 }
 
-func ListenAndServe(ctx context.Context, db *sql.DB, log *slog.Logger, addr, cert, key string) error {
+func ListenAndServe(ctx context.Context, db *sql.DB, resolver *Resolver, log *slog.Logger, addr, cert, key string) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/robots.txt", robots)
 	mux.HandleFunc("/.well-known/webfinger", func(w http.ResponseWriter, r *http.Request) {
@@ -57,7 +57,7 @@ func ListenAndServe(ctx context.Context, db *sql.DB, log *slog.Logger, addr, cer
 		handler.Handle(w, r)
 	})
 	mux.HandleFunc("/inbox/", func(w http.ResponseWriter, r *http.Request) {
-		handler := inboxHandler{log.With(slog.String("path", r.URL.Path)), db}
+		handler := inboxHandler{log.With(slog.String("path", r.URL.Path)), db, resolver}
 		handler.Handle(w, r)
 	})
 	mux.HandleFunc("/", root)

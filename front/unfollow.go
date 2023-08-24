@@ -49,7 +49,7 @@ func unfollow(w text.Writer, r *request) {
 		return
 	}
 
-	if err := fed.Unfollow(r.Context, r.Log, r.DB, r.User, followed, followID); err != nil {
+	if err := fed.Unfollow(r.Context, r.Log, r.DB, r.Resolver, r.User, followed, followID); err != nil {
 		r.Log.Warn("Failed undo follow", "followed", followed, "error", err)
 		w.Error()
 		return

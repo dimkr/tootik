@@ -33,8 +33,9 @@ import (
 const maxBodySize = 1024 * 1024
 
 type inboxHandler struct {
-	Log *slog.Logger
-	DB  *sql.DB
+	Log      *slog.Logger
+	DB       *sql.DB
+	Resolver *Resolver
 }
 
 func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
@@ -62,7 +63,7 @@ func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	r.Body = ioutil.NopCloser(bytes.NewReader(body))
 
-	sender, err := verify(r.Context(), h.Log, r, h.DB)
+	sender, err := verify(r.Context(), h.Log, r, h.DB, h.Resolver)
 	if err != nil {
 		if errors.Is(err, goneError) {
 			w.WriteHeader(http.StatusOK)

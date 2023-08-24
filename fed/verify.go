@@ -33,13 +33,7 @@ import (
 
 var keyIdRegex = regexp.MustCompile(`(?:^|\s)keyId="(https:\/\/[^"]+)"`)
 
-func verify(ctx context.Context, log *slog.Logger, r *http.Request, db *sql.DB) (*ap.Actor, error) {
-	resolver, err := Resolvers.Borrow(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get resolver to verify message: %s", err)
-	}
-	defer Resolvers.Return(resolver)
-
+func verify(ctx context.Context, log *slog.Logger, r *http.Request, db *sql.DB, resolver *Resolver) (*ap.Actor, error) {
 	sig := r.Header.Get("Signature")
 	if sig == "" {
 		return nil, errors.New("Failed to verify message: no signature")

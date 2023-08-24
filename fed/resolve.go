@@ -25,6 +25,8 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"golang.org/x/sync/semaphore"
+	"hash/crc32"
 	"io"
 	"io/ioutil"
 	"log/slog"
@@ -35,11 +37,34 @@ import (
 	"time"
 )
 
-const resolverCacheTTL = time.Hour * 24 * 3
+const (
+	resolverCacheTTL        = time.Hour * 24 * 3
+	resolverMaxIdleConns    = 128
+	resolverIdleConnTimeout = time.Minute
+)
+
+type Resolver struct {
+	Client http.Client
+	locks  []*semaphore.Weighted
+}
 
 var goneError = errors.New("Actor is gone")
 
-type Resolver struct{}
+func NewResolver() *Resolver {
+	transport := http.Transport{
+		MaxIdleConns:    resolverMaxIdleConns,
+		IdleConnTimeout: resolverIdleConnTimeout,
+	}
+	r := Resolver{
+		Client: http.Client{Transport: &transport},
+		locks:  make([]*semaphore.Weighted, cfg.MaxResolverRequests),
+	}
+	for i := 0; i < len(r.locks); i++ {
+		r.locks[i] = semaphore.NewWeighted(1)
+	}
+
+	return &r
+}
 
 func (r *Resolver) Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, to string) (*ap.Actor, error) {
 	u, err := url.Parse(to)
@@ -47,6 +72,12 @@ func (r *Resolver) Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 		return nil, fmt.Errorf("Cannot resolve %s: %w", to, err)
 	}
 	u.Fragment = ""
+
+	lock := r.locks[crc32.ChecksumIEEE([]byte(to))%uint32(len(r.locks))]
+	if err := lock.Acquire(ctx, 1); err != nil {
+		return nil, err
+	}
+	defer lock.Release(1)
 
 	return r.resolve(ctx, log, db, from, u.String(), u)
 }

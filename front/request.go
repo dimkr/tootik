@@ -19,7 +19,6 @@ package front
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/fed"
 	"log/slog"
@@ -32,20 +31,13 @@ type request struct {
 	URL       *url.URL
 	User      *ap.Actor
 	DB        *sql.DB
+	Resolver  *fed.Resolver
 	WaitGroup *sync.WaitGroup
 	Log       *slog.Logger
 }
 
 func (r *request) Resolve(actorID string) (*ap.Actor, error) {
-	resolver, err := fed.Resolvers.Borrow(r.Context)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to resolve %s: %w", actorID, err)
-	}
-
-	actor, err := resolver.Resolve(r.Context, r.Log, r.DB, r.User, actorID)
-
-	fed.Resolvers.Return(resolver)
-	return actor, err
+	return r.Resolver.Resolve(r.Context, r.Log, r.DB, r.User, actorID)
 }
 
 func (r *request) Exec(query string, args ...any) (sql.Result, error) {

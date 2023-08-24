@@ -19,6 +19,7 @@ package gopher
 import (
 	"context"
 	"database/sql"
+	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/text/gmap"
 	"log/slog"
@@ -30,7 +31,7 @@ import (
 
 const reqTimeout = time.Second * 30
 
-func handle(ctx context.Context, log *slog.Logger, conn net.Conn, db *sql.DB, wg *sync.WaitGroup) {
+func handle(ctx context.Context, log *slog.Logger, conn net.Conn, db *sql.DB, resolver *fed.Resolver, wg *sync.WaitGroup) {
 	if err := conn.SetDeadline(time.Now().Add(reqTimeout)); err != nil {
 		log.Warn("Failed to set deadline", "error", err)
 		return
@@ -73,10 +74,10 @@ func handle(ctx context.Context, log *slog.Logger, conn net.Conn, db *sql.DB, wg
 
 	w := gmap.Wrap(conn)
 
-	front.Handle(ctx, log.With(slog.Group("request", "path", reqUrl.Path)), w, reqUrl, nil, db, wg)
+	front.Handle(ctx, log.With(slog.Group("request", "path", reqUrl.Path)), w, reqUrl, nil, db, resolver, wg)
 }
 
-func ListenAndServe(ctx context.Context, log *slog.Logger, db *sql.DB, addr string) error {
+func ListenAndServe(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *fed.Resolver, addr string) error {
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
@@ -117,7 +118,7 @@ func ListenAndServe(ctx context.Context, log *slog.Logger, db *sql.DB, addr stri
 
 			wg.Add(1)
 			go func() {
-				handle(requestCtx, log, conn, db, &wg)
+				handle(requestCtx, log, conn, db, resolver, &wg)
 				conn.Write([]byte(".\r\n"))
 				conn.Close()
 				timer.Stop()

@@ -42,7 +42,7 @@ const (
 
 var ErrDeliveryQueueFull = errors.New("Delivery queue is full")
 
-func DeliverPosts(ctx context.Context, log *slog.Logger, db *sql.DB) {
+func DeliverPosts(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver) {
 	t := time.NewTicker(pollingInterval)
 	defer t.Stop()
 
@@ -52,14 +52,14 @@ func DeliverPosts(ctx context.Context, log *slog.Logger, db *sql.DB) {
 			return
 
 		case <-t.C:
-			if err := deliverPosts(ctx, log, db); err != nil {
+			if err := deliverPosts(ctx, log, db, resolver); err != nil {
 				log.Error("Failed to deliver posts", "error", err)
 			}
 		}
 	}
 }
 
-func deliverPosts(ctx context.Context, log *slog.Logger, db *sql.DB) error {
+func deliverPosts(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver) error {
 	log.Debug("Polling delivery queue")
 
 	rows, err := db.QueryContext(ctx, `select deliveries.id, deliveries.attempts, notes.object, persons.actor from deliveries join notes on notes.id = deliveries.id join persons on persons.id = notes.author where deliveries.attempts = 0 or (deliveries.attempts < ? and deliveries.last <= unixepoch() - ?) order by deliveries.attempts asc, deliveries.last asc limit ?`, maxDeliveryAttempts, deliveryRetryInterval, batchSize)
@@ -93,7 +93,7 @@ func deliverPosts(ctx context.Context, log *slog.Logger, db *sql.DB) error {
 			continue
 		}
 
-		if err := deliverWithTimeout(ctx, log, db, &note, &author); err != nil {
+		if err := deliverWithTimeout(ctx, log, db, resolver, &note, &author); err != nil {
 			log.Warn("Failed to deliver post", "id", deliveryID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
@@ -109,13 +109,13 @@ func deliverPosts(ctx context.Context, log *slog.Logger, db *sql.DB) error {
 	return nil
 }
 
-func deliverWithTimeout(parent context.Context, log *slog.Logger, db *sql.DB, post *ap.Object, author *ap.Actor) error {
+func deliverWithTimeout(parent context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver, post *ap.Object, author *ap.Actor) error {
 	ctx, cancel := context.WithTimeout(parent, deliveryTimeout)
 	defer cancel()
-	return deliver(ctx, log, db, post, author)
+	return deliver(ctx, log, db, post, author, resolver)
 }
 
-func deliver(ctx context.Context, log *slog.Logger, db *sql.DB, post *ap.Object, author *ap.Actor) error {
+func deliver(ctx context.Context, log *slog.Logger, db *sql.DB, post *ap.Object, author *ap.Actor, resolver *Resolver) error {
 	create, err := json.Marshal(map[string]any{
 		"@context": "https://www.w3.org/ns/activitystreams",
 		"type":     ap.CreateActivity,
@@ -177,22 +177,14 @@ func deliver(ctx context.Context, log *slog.Logger, db *sql.DB, post *ap.Object,
 	actorIDs.Range(func(actorID string, _ struct{}) bool {
 		log.Info("Delivering post to recipient", "to", actorID, "post", post.ID)
 
-		r, err := Resolvers.Borrow(ctx)
-		if err != nil {
-			log.Warn("Cannot resolve a recipient", "to", actorID, "post", post.ID, "error", err)
-			anyFailed = true
-			return true
-		}
-
-		if to, err := r.Resolve(ctx, log, db, author, actorID); err != nil {
+		if to, err := resolver.Resolve(ctx, log, db, author, actorID); err != nil {
 			log.Warn("Failed to resolve a recipient", "to", actorID, "post", post.ID, "error", err)
 			anyFailed = true
-		} else if err := Send(ctx, log, db, author, r, to, create); err != nil {
+		} else if err := Send(ctx, log, db, author, resolver, to, create); err != nil {
 			log.Warn("Failed to send a post", "to", actorID, "post", post.ID, "error", err)
 			anyFailed = true
 		}
 
-		Resolvers.Return(r)
 		return true
 	})
 

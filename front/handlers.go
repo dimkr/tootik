@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"errors"
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/text"
 	"log/slog"
 	"net/url"
@@ -33,7 +34,7 @@ var (
 	ErrNotRegistered = errors.New("User is not registered")
 )
 
-func Handle(ctx context.Context, log *slog.Logger, w text.Writer, reqUrl *url.URL, user *ap.Actor, db *sql.DB, wg *sync.WaitGroup) {
+func Handle(ctx context.Context, log *slog.Logger, w text.Writer, reqUrl *url.URL, user *ap.Actor, db *sql.DB, resolver *fed.Resolver, wg *sync.WaitGroup) {
 	for re, handler := range handlers {
 		if re.MatchString(reqUrl.Path) {
 			var l *slog.Logger
@@ -48,6 +49,7 @@ func Handle(ctx context.Context, log *slog.Logger, w text.Writer, reqUrl *url.UR
 				URL:       reqUrl,
 				User:      user,
 				DB:        db,
+				Resolver:  resolver,
 				WaitGroup: wg,
 				Log:       l,
 			})

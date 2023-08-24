@@ -28,7 +28,7 @@ import (
 	"log/slog"
 )
 
-func Unfollow(ctx context.Context, log *slog.Logger, db *sql.DB, follower *ap.Actor, followed, followID string) error {
+func Unfollow(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver, follower *ap.Actor, followed, followID string) error {
 	if followed == follower.ID {
 		return fmt.Errorf("%s cannot unfollow %s", follower.ID, followed)
 	}
@@ -51,24 +51,15 @@ func Unfollow(ctx context.Context, log *slog.Logger, db *sql.DB, follower *ap.Ac
 		return fmt.Errorf("%s cannot unfollow %s: %w", follower.ID, followed, err)
 	}
 
-	resolver, err := Resolvers.Borrow(ctx)
-	if err != nil {
-		return fmt.Errorf("%s cannot unfollow %s: %w", follower.ID, followed, err)
-	}
-
 	to, err := resolver.Resolve(ctx, log, db, follower, followed)
 	if err != nil {
-		Resolvers.Return(resolver)
 		return fmt.Errorf("%s cannot unfollow %s: %w", follower.ID, followed, err)
 	}
 	followed = to.ID
 
 	if err := Send(ctx, log, db, follower, resolver, to, body); err != nil {
-		Resolvers.Return(resolver)
 		return fmt.Errorf("Failed to send unfollow %s: %w", followID, err)
 	}
-
-	Resolvers.Return(resolver)
 
 	if _, err := db.ExecContext(ctx, `delete from follows where id = ?`, followID); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("Failed to unfollow %s: %w", followID, err)
