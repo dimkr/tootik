@@ -41,7 +41,7 @@ const (
 	activityProcessingTimeout = time.Second * 15
 )
 
-func processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, req *ap.Activity, post *ap.Object, db *sql.DB, resolver *Resolver) error {
+func processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, req *ap.Activity, post *ap.Object, db *sql.DB, resolver *Resolver, from *ap.Actor) error {
 	prefix := fmt.Sprintf("https://%s/", cfg.Domain)
 	if strings.HasPrefix(sender.ID, prefix) || strings.HasPrefix(post.ID, prefix) || strings.HasPrefix(post.AttributedTo, prefix) || strings.HasPrefix(req.Actor, prefix) {
 		return fmt.Errorf("Received invalid Create for %s by %s from %s", post.ID, post.AttributedTo, req.Actor)
@@ -55,7 +55,7 @@ func processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Act
 		return nil
 	}
 
-	if _, err := resolver.Resolve(ctx, log, db, nil, post.AttributedTo); err != nil {
+	if _, err := resolver.Resolve(ctx, log, db, from, post.AttributedTo); err != nil {
 		return fmt.Errorf("Failed to resolve %s: %w", post.AttributedTo, err)
 	}
 
@@ -73,7 +73,7 @@ func processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Act
 	}
 
 	mentionedUsers.Range(func(id string, _ struct{}) bool {
-		if _, err := resolver.Resolve(ctx, log, db, nil, post.AttributedTo); err != nil {
+		if _, err := resolver.Resolve(ctx, log, db, from, post.AttributedTo); err != nil {
 			log.Warn("Failed to resolve mention", "mention", id, "error", err)
 		}
 
@@ -83,7 +83,7 @@ func processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Act
 	return nil
 }
 
-func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, req *ap.Activity, db *sql.DB, resolver *Resolver) error {
+func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, req *ap.Activity, db *sql.DB, resolver *Resolver, from *ap.Actor) error {
 	log.Debug("Processing activity")
 
 	switch req.Type {
@@ -223,7 +223,7 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			return errors.New("Received invalid Create")
 		}
 
-		return processCreateActivity(ctx, log, sender, req, post, db, resolver)
+		return processCreateActivity(ctx, log, sender, req, post, db, resolver, from)
 
 	case ap.AnnounceActivity:
 		create, ok := req.Object.(*ap.Activity)
@@ -242,7 +242,7 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			return errors.New("Received Announce for private post")
 		}
 
-		return processCreateActivity(ctx, log, sender, create, post, db, resolver)
+		return processCreateActivity(ctx, log, sender, create, post, db, resolver, from)
 
 	case ap.UpdateActivity:
 		post, ok := req.Object.(*ap.Object)
@@ -290,7 +290,7 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 	return nil
 }
 
-func processActivityWithTimeout(parent context.Context, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, db *sql.DB, resolver *Resolver) {
+func processActivityWithTimeout(parent context.Context, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, db *sql.DB, resolver *Resolver, from *ap.Actor) {
 	ctx, cancel := context.WithTimeout(parent, activityProcessingTimeout)
 	defer cancel()
 
@@ -302,12 +302,12 @@ func processActivityWithTimeout(parent context.Context, log *slog.Logger, sender
 		log = log.With(slog.Group("activity", "sender", sender.ID, "type", activity.Type, "actor", activity.Actor, slog.Group("object", "kind", "string", "id", s)))
 	}
 
-	if err := processActivity(ctx, log, sender, activity, db, resolver); err != nil {
+	if err := processActivity(ctx, log, sender, activity, db, resolver, from); err != nil {
 		log.Warn("Failed to process activity", "error", err)
 	}
 }
 
-func processActivitiesBatch(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver) (int, error) {
+func processActivitiesBatch(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver, from *ap.Actor) (int, error) {
 	log.Debug("Polling activities queue")
 
 	rows, err := db.QueryContext(ctx, `select activities.id, persons.actor, activities.activity from (select * from activities limit -1 offset case when (select count(*) from activities) >= $1 then $1/10 else 0 end) activities left join persons on persons.id = activities.sender order by activities.id limit $2`, maxActivitiesQueueSize, activitiesBatchSize)
@@ -359,7 +359,7 @@ func processActivitiesBatch(ctx context.Context, log *slog.Logger, db *sql.DB, r
 			return true
 		}
 
-		processActivityWithTimeout(ctx, log, &sender, &activity, db, resolver)
+		processActivityWithTimeout(ctx, log, &sender, &activity, db, resolver, from)
 		return true
 	})
 
@@ -370,12 +370,12 @@ func processActivitiesBatch(ctx context.Context, log *slog.Logger, db *sql.DB, r
 	return rowsCount, nil
 }
 
-func processActivities(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver) error {
+func processActivities(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver, from *ap.Actor) error {
 	t := time.NewTicker(activitiesBatchDelay)
 	defer t.Stop()
 
 	for {
-		n, err := processActivitiesBatch(ctx, log, db, resolver)
+		n, err := processActivitiesBatch(ctx, log, db, resolver, from)
 		if err != nil {
 			return err
 		}
@@ -393,7 +393,7 @@ func processActivities(ctx context.Context, log *slog.Logger, db *sql.DB, resolv
 	}
 }
 
-func ProcessActivities(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver) error {
+func ProcessActivities(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver, from *ap.Actor) error {
 	t := time.NewTicker(activitiesPollingInterval)
 	defer t.Stop()
 
@@ -403,7 +403,7 @@ func ProcessActivities(ctx context.Context, log *slog.Logger, db *sql.DB, resolv
 			return nil
 
 		case <-t.C:
-			if err := processActivities(ctx, log, db, resolver); err != nil {
+			if err := processActivities(ctx, log, db, resolver, from); err != nil {
 				return err
 			}
 		}

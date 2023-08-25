@@ -22,6 +22,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	_ "github.com/mattn/go-sqlite3"
 	"log/slog"
@@ -41,7 +42,7 @@ func root(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusMovedPermanently)
 }
 
-func ListenAndServe(ctx context.Context, db *sql.DB, resolver *Resolver, log *slog.Logger, addr, cert, key string) error {
+func ListenAndServe(ctx context.Context, db *sql.DB, resolver *Resolver, actor *ap.Actor, log *slog.Logger, addr, cert, key string) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/robots.txt", robots)
 	mux.HandleFunc("/.well-known/webfinger", func(w http.ResponseWriter, r *http.Request) {
@@ -57,7 +58,7 @@ func ListenAndServe(ctx context.Context, db *sql.DB, resolver *Resolver, log *sl
 		handler.Handle(w, r)
 	})
 	mux.HandleFunc("/inbox/", func(w http.ResponseWriter, r *http.Request) {
-		handler := inboxHandler{log.With(slog.String("path", r.URL.Path)), db, resolver}
+		handler := inboxHandler{log.With(slog.String("path", r.URL.Path)), db, resolver, actor}
 		handler.Handle(w, r)
 	})
 	mux.HandleFunc("/", root)

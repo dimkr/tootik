@@ -19,22 +19,26 @@ package user
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 )
 
-func CreateNobody(ctx context.Context, db *sql.DB) error {
+func CreateNobody(ctx context.Context, db *sql.DB) (*ap.Actor, error) {
 	id := fmt.Sprintf("https://%s/user/nobody", cfg.Domain)
 
-	var exists int
-	if err := db.QueryRowContext(ctx, `select exists (select 1 from persons where id = ?)`, id).Scan(&exists); err != nil {
-		return fmt.Errorf("Failed to create nobody user: %w", err)
+	var actorString string
+	if err := db.QueryRowContext(ctx, `select actor from persons where id = ?`, id).Scan(&actorString); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("Failed to create nobody user: %w", err)
+	} else if err == nil {
+		var actor ap.Actor
+		if err := json.Unmarshal([]byte(actorString), &actor); err != nil {
+			return nil, err
+		}
+		return &actor, nil
 	}
 
-	if exists == 1 {
-		return nil
-	}
-
-	_, err := Create(ctx, db, id, "nobody", "")
-	return err
+	return Create(ctx, db, id, "nobody", "")
 }

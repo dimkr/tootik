@@ -46,14 +46,6 @@ func send(log *slog.Logger, db *sql.DB, from *ap.Actor, resolver *Resolver, r *h
 		return nil, fmt.Errorf("Invalid host in %s: %s", urlString, r.URL.Host)
 	}
 
-	if from == nil {
-		var err error
-		from, err = resolver.Resolve(r.Context(), log, db, nil, fmt.Sprintf("https://%s/user/nobody", cfg.Domain))
-		if err != nil {
-			return nil, fmt.Errorf("Cannot resolve nobody user to send request: %w", err)
-		}
-	}
-
 	log.Info("Sending request", "url", urlString, "from", from.ID)
 
 	r.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)

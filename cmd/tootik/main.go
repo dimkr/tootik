@@ -96,13 +96,14 @@ func main() {
 		panic(err)
 	}
 
-	if err := user.CreateNobody(ctx, db); err != nil {
+	nobody, err := user.CreateNobody(ctx, db)
+	if err != nil {
 		panic(err)
 	}
 
 	wg.Add(1)
 	go func() {
-		if err := fed.ListenAndServe(ctx, db, resolver, log, *addr, *cert, *key); err != nil {
+		if err := fed.ListenAndServe(ctx, db, resolver, nobody, log, *addr, *cert, *key); err != nil {
 			log.Error("HTTPS listener has failed", "error", err)
 		}
 		cancel()
@@ -144,7 +145,7 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		if err := fed.ProcessActivities(ctx, log, db, resolver); err != nil {
+		if err := fed.ProcessActivities(ctx, log, db, resolver, nobody); err != nil {
 			log.Error("Failed to process activities", "error", err)
 		}
 		cancel()

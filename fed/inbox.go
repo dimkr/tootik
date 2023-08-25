@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	_ "github.com/mattn/go-sqlite3"
 	"io"
@@ -36,6 +37,7 @@ type inboxHandler struct {
 	Log      *slog.Logger
 	DB       *sql.DB
 	Resolver *Resolver
+	Actor    *ap.Actor
 }
 
 func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
@@ -63,7 +65,7 @@ func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	r.Body = ioutil.NopCloser(bytes.NewReader(body))
 
-	sender, err := verify(r.Context(), h.Log, r, h.DB, h.Resolver)
+	sender, err := verify(r.Context(), h.Log, r, h.DB, h.Resolver, h.Actor)
 	if err != nil {
 		if errors.Is(err, goneError) {
 			w.WriteHeader(http.StatusOK)
