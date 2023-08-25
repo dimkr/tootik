@@ -254,18 +254,21 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			return fmt.Errorf("%s cannot update posts by %s", sender.ID, post.AttributedTo)
 		}
 
-		body, err := json.Marshal(post)
-		if err != nil {
-			return fmt.Errorf("Failed to update post %s: %w", post.ID, err)
-		}
-
 		var lastUpdate sql.NullInt64
-		if err := db.QueryRowContext(ctx, `select max(inserted, updated) from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastUpdate); err != nil {
+		if err := db.QueryRowContext(ctx, `select max(inserted, updated) from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastUpdate); err != nil && errors.Is(err, sql.ErrNoRows) {
+			log.Info("Received Update for non-existing post")
+			return processCreateActivity(ctx, log, sender, req, post, db, resolver, from)
+		} else if err != nil {
 			return fmt.Errorf("Failed to get last update time for %s: %w", post.ID, err)
 		}
 
 		if !lastUpdate.Valid || lastUpdate.Int64 >= post.Updated.UnixNano() {
 			return fmt.Errorf("Received old update request for new post: %s", post.ID)
+		}
+
+		body, err := json.Marshal(post)
+		if err != nil {
+			return fmt.Errorf("Failed to update post %s: %w", post.ID, err)
 		}
 
 		if _, err := db.ExecContext(
