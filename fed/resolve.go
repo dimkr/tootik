@@ -73,12 +73,6 @@ func (r *Resolver) Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	}
 	u.Fragment = ""
 
-	lock := r.locks[crc32.ChecksumIEEE([]byte(to))%uint32(len(r.locks))]
-	if err := lock.Acquire(ctx, 1); err != nil {
-		return nil, err
-	}
-	defer lock.Release(1)
-
 	return r.resolve(ctx, log, db, from, u.String(), u)
 }
 
@@ -104,6 +98,14 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	}
 
 	isLocal := strings.HasPrefix(to, fmt.Sprintf("https://%s/", cfg.Domain))
+
+	if !isLocal {
+		lock := r.locks[crc32.ChecksumIEEE([]byte(to))%uint32(len(r.locks))]
+		if err := lock.Acquire(ctx, 1); err != nil {
+			return nil, err
+		}
+		defer lock.Release(1)
+	}
 
 	actor := ap.Actor{}
 	update := false
