@@ -62,7 +62,7 @@ func resolve(w text.Writer, r *request) {
 
 	r.Log.Info("Resolving user ID", "id", actorID)
 
-	person, err := r.Resolve(actorID)
+	person, err := r.Resolve(actorID, false)
 	if err != nil {
 		r.Log.Warn("Failed to resolve user ID", "id", actorID, "error", err)
 		w.Statusf(40, "Failed to resolve %s@%s", name, host)
