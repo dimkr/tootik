@@ -46,7 +46,7 @@ func Follow(ctx context.Context, log *slog.Logger, follower *ap.Actor, followed 
 		return fmt.Errorf("%s cannot follow %s: %w", follower.ID, followed, err)
 	}
 
-	to, err := resolver.Resolve(ctx, log, db, follower, followed)
+	to, err := resolver.Resolve(ctx, log, db, follower, followed, true)
 	if err != nil {
 		return fmt.Errorf("%s cannot follow %s: %w", follower.ID, followed, err)
 	}

@@ -55,7 +55,7 @@ func processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Act
 		return nil
 	}
 
-	if _, err := resolver.Resolve(ctx, log, db, from, post.AttributedTo); err != nil {
+	if _, err := resolver.Resolve(ctx, log, db, from, post.AttributedTo, false); err != nil {
 		return fmt.Errorf("Failed to resolve %s: %w", post.AttributedTo, err)
 	}
 
@@ -73,7 +73,7 @@ func processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Act
 	}
 
 	mentionedUsers.Range(func(id string, _ struct{}) bool {
-		if _, err := resolver.Resolve(ctx, log, db, from, post.AttributedTo); err != nil {
+		if _, err := resolver.Resolve(ctx, log, db, from, id, false); err != nil {
 			log.Warn("Failed to resolve mention", "mention", id, "error", err)
 		}
 
@@ -158,7 +158,7 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			return fmt.Errorf("Failed to marshal accept response: %w", err)
 		}
 
-		to, err := resolver.Resolve(ctx, log, db, &from, req.Actor)
+		to, err := resolver.Resolve(ctx, log, db, &from, req.Actor, false)
 		if err != nil {
 			return fmt.Errorf("Failed to resolve %s: %w", req.Actor, err)
 		}

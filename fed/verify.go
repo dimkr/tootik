@@ -46,7 +46,7 @@ func verify(ctx context.Context, log *slog.Logger, r *http.Request, db *sql.DB, 
 
 	keyID := match[1]
 
-	actor, err := resolver.Resolve(r.Context(), log, db, from, keyID)
+	actor, err := resolver.Resolve(r.Context(), log, db, from, keyID, false)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get key %s to verify message: %w", keyID, err)
 	}

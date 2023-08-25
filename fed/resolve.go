@@ -66,14 +66,14 @@ func NewResolver() *Resolver {
 	return &r
 }
 
-func (r *Resolver) Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, to string) (*ap.Actor, error) {
+func (r *Resolver) Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, to string, offline bool) (*ap.Actor, error) {
 	u, err := url.Parse(to)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot resolve %s: %w", to, err)
 	}
 	u.Fragment = ""
 
-	return r.resolve(ctx, log, db, from, u.String(), u)
+	return r.resolve(ctx, log, db, from, u.String(), u, offline)
 }
 
 func deleteActor(ctx context.Context, log *slog.Logger, db *sql.DB, id string) {
@@ -90,7 +90,7 @@ func deleteActor(ctx context.Context, log *slog.Logger, db *sql.DB, id string) {
 	}
 }
 
-func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, to string, u *url.URL) (*ap.Actor, error) {
+func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, to string, u *url.URL, offline bool) (*ap.Actor, error) {
 	if from == nil {
 		log.Debug("Resolving actor", "to", to)
 	} else {
@@ -99,7 +99,7 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 
 	isLocal := strings.HasPrefix(to, fmt.Sprintf("https://%s/", cfg.Domain))
 
-	if !isLocal {
+	if !isLocal && !offline {
 		lock := r.locks[crc32.ChecksumIEEE([]byte(to))%uint32(len(r.locks))]
 		if err := lock.Acquire(ctx, 1); err != nil {
 			return nil, err
@@ -115,7 +115,7 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	if err := db.QueryRowContext(ctx, `select actor, updated from persons where id = ?`, to).Scan(&actorString, &updated); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("Failed to fetch %s cache: %w", to, err)
 	} else if err == nil {
-		if !isLocal && time.Now().Sub(time.Unix(updated, 0)) > resolverCacheTTL {
+		if !isLocal && !offline && time.Now().Sub(time.Unix(updated, 0)) > resolverCacheTTL {
 			log.Info("Updating old cache entry for actor", "to", to)
 			update = true
 		} else {
@@ -129,6 +129,10 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 
 	if isLocal {
 		return nil, fmt.Errorf("Cannot resolve %s: no such local user", to)
+	}
+
+	if offline {
+		return nil, fmt.Errorf("Cannot resolve %s using cache", to)
 	}
 
 	name := path.Base(u.Path)

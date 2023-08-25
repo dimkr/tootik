@@ -51,7 +51,7 @@ func Unfollow(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *Resol
 		return fmt.Errorf("%s cannot unfollow %s: %w", follower.ID, followed, err)
 	}
 
-	to, err := resolver.Resolve(ctx, log, db, follower, followed)
+	to, err := resolver.Resolve(ctx, log, db, follower, followed, true)
 	if err != nil {
 		return fmt.Errorf("%s cannot unfollow %s: %w", follower.ID, followed, err)
 	}
