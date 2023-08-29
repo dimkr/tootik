@@ -19,6 +19,7 @@ package fed
 import (
 	"bytes"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
@@ -63,9 +64,22 @@ func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var activity ap.Activity
+	if err := json.Unmarshal(body, &activity); err != nil {
+		h.Log.Warn("Failed to unmarshal activity", "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	r.Body = ioutil.NopCloser(bytes.NewReader(body))
 
-	sender, err := verify(r.Context(), h.Log, r, h.DB, h.Resolver, h.Actor)
+	// if actor is deleted, ignore this activity if we don't know this actor
+	offline := false
+	if activity.Type == ap.DeleteActivity {
+		offline = true
+	}
+
+	sender, err := verify(r.Context(), h.Log, r, h.DB, h.Resolver, h.Actor, offline)
 	if err != nil {
 		if errors.Is(err, goneError) {
 			w.WriteHeader(http.StatusOK)
