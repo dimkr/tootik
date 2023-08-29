@@ -48,7 +48,10 @@ type Resolver struct {
 	locks  []*semaphore.Weighted
 }
 
-var goneError = errors.New("Actor is gone")
+var (
+	ErrActorGone      = errors.New("Actor is gone")
+	ErrActorNotCached = errors.New("Actor is not cached")
+)
 
 func NewResolver() *Resolver {
 	transport := http.Transport{
@@ -132,7 +135,7 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	}
 
 	if offline {
-		return nil, fmt.Errorf("Cannot resolve %s using cache", to)
+		return nil, fmt.Errorf("Cannot resolve %s: %w", to, ErrActorNotCached)
 	}
 
 	name := path.Base(u.Path)
@@ -149,7 +152,7 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 		if resp != nil && (resp.StatusCode == http.StatusGone || resp.StatusCode == http.StatusNotFound) {
 			log.Warn("Actor is gone, deleting associated objects", "to", to)
 			deleteActor(ctx, log, db, to)
-			return nil, fmt.Errorf("Failed to fetch %s: %w", finger, goneError)
+			return nil, fmt.Errorf("Failed to fetch %s: %w", finger, ErrActorGone)
 		}
 
 		return nil, fmt.Errorf("Failed to fetch %s: %w", finger, err)

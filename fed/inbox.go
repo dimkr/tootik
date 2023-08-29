@@ -81,12 +81,15 @@ func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	sender, err := verify(r.Context(), h.Log, r, h.DB, h.Resolver, h.Actor, offline)
 	if err != nil {
-		if errors.Is(err, goneError) {
+		if errors.Is(err, ErrActorGone) {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		h.Log.Warn("Failed to verify message", "error", err)
-		w.WriteHeader(http.StatusUnauthorized)
+		if errors.Is(err, ErrActorNotCached) {
+			h.Log.Info("Ignoring Delete activity for unknown actor", "error", err)
+		} else {
+			w.WriteHeader(http.StatusUnauthorized)
+		}
 		return
 	}
 
