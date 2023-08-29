@@ -242,6 +242,10 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			return errors.New("Received Announce for private post")
 		}
 
+		if post.AttributedTo != sender.ID && !post.To.Contains(sender.ID) && !post.CC.Contains(sender.ID) {
+			return errors.New("Sender is not post author or recipient")
+		}
+
 		return processCreateActivity(ctx, log, sender, create, post, db, resolver, from)
 
 	case ap.UpdateActivity:
