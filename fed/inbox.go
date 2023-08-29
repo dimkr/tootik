@@ -86,7 +86,7 @@ func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if errors.Is(err, ErrActorNotCached) {
-			h.Log.Info("Ignoring Delete activity for unknown actor", "error", err)
+			h.Log.Debug("Ignoring Delete activity for unknown actor", "error", err)
 		} else {
 			w.WriteHeader(http.StatusUnauthorized)
 		}

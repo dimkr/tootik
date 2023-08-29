@@ -256,14 +256,14 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 
 		var lastUpdate sql.NullInt64
 		if err := db.QueryRowContext(ctx, `select max(inserted, updated) from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastUpdate); err != nil && errors.Is(err, sql.ErrNoRows) {
-			log.Info("Received Update for non-existing post")
+			log.Debug("Received Update for non-existing post")
 			return processCreateActivity(ctx, log, sender, req, post, db, resolver, from)
 		} else if err != nil {
 			return fmt.Errorf("Failed to get last update time for %s: %w", post.ID, err)
 		}
 
 		if !lastUpdate.Valid || lastUpdate.Int64 >= post.Updated.UnixNano() {
-			log.Info("Received old update request for new post")
+			log.Debug("Received old update request for new post")
 			return nil
 		}
 
@@ -284,7 +284,7 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 		log.Info("Updated post")
 
 	case ap.LikeActivity:
-		log.Info("Ignoring Like activity")
+		log.Debug("Ignoring Like activity")
 
 	default:
 		if sender.ID == req.Actor {
