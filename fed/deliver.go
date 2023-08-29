@@ -177,7 +177,7 @@ func deliver(ctx context.Context, log *slog.Logger, db *sql.DB, post *ap.Object,
 	actorIDs.Range(func(actorID string, _ struct{}) bool {
 		log.Info("Delivering post to recipient", "to", actorID, "post", post.ID)
 
-		if to, err := resolver.Resolve(ctx, log, db, author, actorID, true); err != nil {
+		if to, err := resolver.Resolve(ctx, log, db, author, actorID, false); err != nil {
 			log.Warn("Failed to resolve a recipient", "to", actorID, "post", post.ID, "error", err)
 			anyFailed = true
 		} else if err := Send(ctx, log, db, author, resolver, to, create); err != nil {
