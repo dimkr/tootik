@@ -263,7 +263,8 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 		}
 
 		if !lastUpdate.Valid || lastUpdate.Int64 >= post.Updated.UnixNano() {
-			return fmt.Errorf("Received old update request for new post: %s", post.ID)
+			log.Info("Received old update request for new post")
+			return nil
 		}
 
 		body, err := json.Marshal(post)
@@ -281,6 +282,9 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 		}
 
 		log.Info("Updated post")
+
+	case ap.LikeActivity:
+		log.Info("Ignoring Like activity")
 
 	default:
 		if sender.ID == req.Actor {
