@@ -53,9 +53,8 @@ var (
 func main() {
 	flag.Parse()
 
-	logLevel := slog.Level(cfg.LogLevel)
-	var opts slog.HandlerOptions
-	if logLevel == slog.LevelDebug {
+	opts := slog.HandlerOptions{Level: slog.Level(cfg.LogLevel)}
+	if opts.Level == slog.LevelDebug {
 		opts.AddSource = true
 	}
 
