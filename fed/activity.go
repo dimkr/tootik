@@ -51,7 +51,7 @@ func processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Act
 	if err := db.QueryRowContext(ctx, `select exists (select 1 from notes where id = ?)`, post.ID).Scan(&duplicate); err != nil {
 		return fmt.Errorf("Failed to check of %s is a duplicate: %w", post.ID, err)
 	} else if duplicate == 1 {
-		log.Info("Post is a duplicate")
+		log.Debug("Post is a duplicate")
 		return nil
 	}
 

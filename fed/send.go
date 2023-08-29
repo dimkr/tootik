@@ -46,7 +46,7 @@ func send(log *slog.Logger, db *sql.DB, from *ap.Actor, resolver *Resolver, r *h
 		return nil, fmt.Errorf("Invalid host in %s: %s", urlString, r.URL.Host)
 	}
 
-	log.Info("Sending request", "url", urlString, "from", from.ID)
+	log.Debug("Sending request", "url", urlString, "from", from.ID)
 
 	r.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
