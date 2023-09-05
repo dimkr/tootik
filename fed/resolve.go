@@ -44,23 +44,26 @@ const (
 )
 
 type Resolver struct {
-	Client http.Client
-	locks  []*semaphore.Weighted
+	Client         http.Client
+	BlockedDomains map[string]struct{}
+	locks          []*semaphore.Weighted
 }
 
 var (
 	ErrActorGone      = errors.New("Actor is gone")
 	ErrActorNotCached = errors.New("Actor is not cached")
+	ErrBlockedDomain  = errors.New("Domain is blocked")
 )
 
-func NewResolver() *Resolver {
+func NewResolver(blockedDomains map[string]struct{}) *Resolver {
 	transport := http.Transport{
 		MaxIdleConns:    resolverMaxIdleConns,
 		IdleConnTimeout: resolverIdleConnTimeout,
 	}
 	r := Resolver{
-		Client: http.Client{Transport: &transport},
-		locks:  make([]*semaphore.Weighted, cfg.MaxResolverRequests),
+		Client:         http.Client{Transport: &transport},
+		BlockedDomains: blockedDomains,
+		locks:          make([]*semaphore.Weighted, cfg.MaxResolverRequests),
 	}
 	for i := 0; i < len(r.locks); i++ {
 		r.locks[i] = semaphore.NewWeighted(1)
@@ -74,6 +77,11 @@ func (r *Resolver) Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	if err != nil {
 		return nil, fmt.Errorf("Cannot resolve %s: %w", to, err)
 	}
+
+	if _, blocked := r.BlockedDomains[u.Host]; blocked {
+		return nil, ErrBlockedDomain
+	}
+
 	u.Fragment = ""
 
 	return r.resolve(ctx, log, db, from, u.String(), u, offline)

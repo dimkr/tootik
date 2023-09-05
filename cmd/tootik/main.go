@@ -19,8 +19,11 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/csv"
 	"flag"
+	"io"
 	"log/slog"
+	"os"
 
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
@@ -31,7 +34,6 @@ import (
 	"github.com/dimkr/tootik/migrations"
 	"github.com/dimkr/tootik/user"
 	_ "github.com/mattn/go-sqlite3"
-	"os"
 	"os/signal"
 	"sync"
 	"syscall"
@@ -48,6 +50,7 @@ var (
 	cert       = flag.String("cert", "cert.pem", "HTTPS TLS certificate")
 	key        = flag.String("key", "key.pem", "HTTPS TLS key")
 	addr       = flag.String("addr", ":8443", "HTTPS listening address")
+	blockList  = flag.String("blocklist", "", "Blocklist CSV")
 )
 
 func main() {
@@ -58,6 +61,35 @@ func main() {
 		opts.AddSource = true
 	}
 
+	blockedDomains := make(map[string]struct{})
+	if blockList != nil && *blockList != "" {
+		f, err := os.Open(*blockList)
+		if err != nil {
+			panic(err)
+		}
+
+		c := csv.NewReader(f)
+		first := true
+		for {
+			r, err := c.Read()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				panic(err)
+			}
+
+			if first {
+				first = false
+				continue
+			}
+
+			blockedDomains[r[0]] = struct{}{}
+		}
+
+		f.Close()
+	}
+
 	log := slog.New(slog.NewJSONHandler(os.Stderr, &opts))
 
 	db, err := sql.Open("sqlite3", *dbPath+"?_journal_mode=WAL")
@@ -66,7 +98,7 @@ func main() {
 	}
 	defer db.Close()
 
-	resolver := fed.NewResolver()
+	resolver := fed.NewResolver(blockedDomains)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
