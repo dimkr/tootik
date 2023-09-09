@@ -34,11 +34,11 @@ func CollectGarbage(ctx context.Context, db *sql.DB) error {
 
 	prefix := fmt.Sprintf("https://%s/%%", cfg.Domain)
 
-	if _, err := db.ExecContext(ctx, `delete from notes where id in (select notes.id from notes left join follows on follows.followed in (notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.followed)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.followed)) where notes.inserted < unixepoch()-60*60*24 and notes.author not like ? and follows.id is null)`, prefix); err != nil {
+	if _, err := db.ExecContext(ctx, `delete from notes where id in (select notes.id from notes left join follows on follows.followed in (notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.followed)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.followed)) where follows.accepted = 1 and notes.inserted < unixepoch()-60*60*24 and notes.author not like ? and follows.id is null)`, prefix); err != nil {
 		return fmt.Errorf("Failed to remove invisible posts: %w", err)
 	}
 
-	if _, err := db.ExecContext(ctx, `delete from notes where inserted < unixepoch()-60*60*24*7 and author not in (select followed from follows) and author not like ?`, prefix); err != nil {
+	if _, err := db.ExecContext(ctx, `delete from notes where inserted < unixepoch()-60*60*24*7 and author not in (select followed from follows where accepted = 1) and author not like ?`, prefix); err != nil {
 		return fmt.Errorf("Failed to remove posts by authors without followers: %w", err)
 	}
 
@@ -50,7 +50,7 @@ func CollectGarbage(ctx context.Context, db *sql.DB) error {
 		return fmt.Errorf("Failed to remove old hashtags: %w", err)
 	}
 
-	if _, err := db.ExecContext(ctx, `delete from deliveries where inserted < ?`, now.Add(-deliveryTTL).Unix()); err != nil {
+	if _, err := db.ExecContext(ctx, `delete from outbox where inserted < ?`, now.Add(-deliveryTTL).Unix()); err != nil {
 		return fmt.Errorf("Failed to remove old posts: %w", err)
 	}
 

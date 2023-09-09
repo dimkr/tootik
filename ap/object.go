@@ -22,7 +22,6 @@ type ObjectType string
 
 const (
 	NoteObject    ObjectType = "Note"
-	FollowObject  ObjectType = "Follow"
 	PageObject    ObjectType = "Page"
 	ArticleObject ObjectType = "Article"
 )

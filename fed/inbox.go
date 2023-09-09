@@ -95,7 +95,7 @@ func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	if _, err = h.DB.ExecContext(
 		r.Context(),
-		`INSERT INTO activities (sender, activity) VALUES(?,?)`,
+		`INSERT INTO inbox (sender, activity) VALUES(?,?)`,
 		sender.ID,
 		string(body),
 	); err != nil {

@@ -147,20 +147,19 @@ func outbox(w text.Writer, r *request) {
 	}
 
 	if r.User != nil && actorID != r.User.ID {
-		var followID string
-		err := r.QueryRow(`select id from follows where follower = ? and followed = ?`, r.User.ID, actorID).Scan(&followID)
-		if err != nil && errors.Is(err, sql.ErrNoRows) {
+		var followed int
+		if err := r.QueryRow(`select exists (select 1 from follows where follower = ? and followed = ?)`, r.User.ID, actorID).Scan(&followed); err != nil {
+			r.Log.Warn("Failed to check if user is followed", "folowed", actorID, "error", err)
+		} else if followed == 0 {
 			w.Separator()
 			w.Linkf(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(actorID))), "⚡ Follow %s", actor.PreferredUsername)
-		} else if err != nil {
-			r.Log.Warn("Failed to check if user is followed", "folowed", actorID, "error", err)
 		} else {
 			w.Separator()
 			w.Linkf(fmt.Sprintf("/users/unfollow/%x", sha256.Sum256([]byte(actorID))), "🔌 Unfollow %s", actor.PreferredUsername)
 		}
 
 		var following int
-		if err := r.QueryRow(`select exists (select 1 from follows where follower = ? and followed = ?)`, actorID, r.User.ID).Scan(&following); err != nil {
+		if err := r.QueryRow(`select exists (select 1 from follows where follower = ? and followed = ? and accepted = 1)`, actorID, r.User.ID).Scan(&following); err != nil {
 			r.Log.Warn("Failed to check if user is a follower", "follower", actorID, "error", err)
 		} else if following == 1 {
 			w.Linkf(fmt.Sprintf("/users/dm/%x", sha256.Sum256([]byte(actorID))), "📟 Message %s", actor.PreferredUsername)

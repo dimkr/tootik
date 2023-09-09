@@ -39,6 +39,8 @@ type anyActivity struct {
 	Type   ActivityType    `json:"type"`
 	Actor  string          `json:"actor"`
 	Object json.RawMessage `json:"object"`
+	To     Audience        `json:"to,omitempty"`
+	CC     Audience        `json:"cc,omitempty"`
 }
 
 type Activity struct {
@@ -46,6 +48,8 @@ type Activity struct {
 	Type   ActivityType `json:"type"`
 	Actor  string       `json:"actor"`
 	Object any          `json:"object"`
+	To     Audience     `json:"to,omitempty"`
+	CC     Audience     `json:"cc,omitempty"`
 }
 
 var ErrInvalidActivity = errors.New("Invalid activity")
@@ -59,6 +63,8 @@ func (a *Activity) UnmarshalJSON(b []byte) error {
 	a.ID = common.ID
 	a.Type = common.Type
 	a.Actor = common.Actor
+	a.To = common.To
+	a.CC = common.CC
 
 	var object Object
 	var activity Activity

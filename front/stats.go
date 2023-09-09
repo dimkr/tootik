@@ -66,7 +66,7 @@ func getWeeklyPostsGraph(r *request) string {
 func getWeeklyFailedDeliveriesGraph(r *request) string {
 	keys := make([]string, 7)
 	values := make([]int64, 7)
-	return getGraph(r, `select strftime('%Y-%m-%d %H:%M', datetime(day*60*60*24, 'unixepoch')), count(*) from (select inserted/(60*60*24) as day from deliveries where inserted>unixepoch()-60*60*24*7 and inserted<unixepoch()/(60*60*24)*60*60*24) group by day order by day`, keys, values)
+	return getGraph(r, `select strftime('%Y-%m-%d %H:%M', datetime(day*60*60*24, 'unixepoch')), count(*) from (select inserted/(60*60*24) as day from outbox where sent = 0 and inserted>unixepoch()-60*60*24*7 and inserted<unixepoch()/(60*60*24)*60*60*24) group by day order by day`, keys, values)
 }
 
 func getUsersGraph(r *request) string {
@@ -147,13 +147,13 @@ func stats(w text.Writer, r *request) {
 		return
 	}
 
-	if err := r.QueryRow(`select count(*) from activities`).Scan(&activitiesQueueSize); err != nil {
+	if err := r.QueryRow(`select count(*) from inbox`).Scan(&activitiesQueueSize); err != nil {
 		r.Log.Info("Failed to get activities queue size", "error", err)
 		w.Error()
 		return
 	}
 
-	if err := r.QueryRow(`select count(*) from deliveries`).Scan(&deliveriesQueueSize); err != nil {
+	if err := r.QueryRow(`select count(*) from outbox where sent = 0`).Scan(&deliveriesQueueSize); err != nil {
 		r.Log.Info("Failed to get delivery queue size", "error", err)
 		w.Error()
 		return

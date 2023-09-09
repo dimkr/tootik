@@ -63,7 +63,7 @@ func follow(w text.Writer, r *request) {
 		return
 	}
 
-	if err := fed.Follow(r.Context, r.Log, r.User, followed, r.DB, r.Resolver); err != nil {
+	if err := fed.Follow(r.Context, r.User, followed, r.DB); err != nil {
 		r.Log.Warn("Failed to follow user", "followed", followed, "error", err)
 		w.Error()
 		return

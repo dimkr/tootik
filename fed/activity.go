@@ -150,7 +150,7 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			"actor":    followed,
 			"to":       []string{req.Actor},
 			"object": map[string]any{
-				"type": ap.FollowObject,
+				"type": ap.FollowActivity,
 				"id":   req.ID,
 			},
 		})
@@ -172,10 +172,11 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 		} else {
 			if _, err := db.ExecContext(
 				ctx,
-				`INSERT INTO follows (id, follower, followed ) VALUES(?,?,?)`,
+				`INSERT INTO follows (id, follower, followed, accepted) VALUES(?,?,?,?)`,
 				req.ID,
 				req.Actor,
 				followed,
+				1,
 			); err != nil {
 				return fmt.Errorf("Failed to insert follow %s: %w", req.ID, err)
 			}
@@ -186,12 +187,18 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			return fmt.Errorf("Received an invalid follow request for %s by %s", req.Actor, sender.ID)
 		}
 
-		if follow, ok := req.Object.(string); ok && follow != "" {
-			log.Info("Follow is accepted", "follow", follow)
-		} else if followObject, ok := req.Object.(*ap.Object); ok && followObject.Type == ap.FollowObject && followObject.ID != "" {
-			log.Info("Follow is accepted", "follow", followObject.ID)
+		followID, ok := req.Object.(string)
+		if ok && followID != "" {
+			log.Info("Follow is accepted", "follow", followID)
+		} else if followActivity, ok := req.Object.(*ap.Activity); ok && followActivity.Type == ap.FollowActivity && followActivity.ID != "" {
+			log.Info("Follow is accepted", "follow", followActivity.ID)
+			followID = followActivity.ID
 		} else {
 			return errors.New("Received an invalid accept notification")
+		}
+
+		if _, err := db.ExecContext(ctx, `update follows set accepted = 1 where id = ? and followed = ?`, followID, sender.ID); err != nil {
+			return fmt.Errorf("Failed to accept follow %s: %w", followID, err)
 		}
 
 	case ap.UndoActivity:
@@ -199,23 +206,28 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			return fmt.Errorf("Received an invalid undo request for %s by %s", req.Actor, sender.ID)
 		}
 
-		follow, ok := req.Object.(*ap.Object)
+		followID, ok := req.Object.(string)
 		if !ok {
-			return errors.New("Received a request to undo a non-object object")
+			if a, ok := req.Object.(*ap.Activity); ok {
+				if a.Type != ap.FollowActivity {
+					return errors.New("Received a request to undo a non-Follow activity")
+				}
+
+				followID = a.ID
+			} else {
+				return errors.New("Received a request to undo a non-activity object")
+			}
 		}
-		if follow.Type != ap.FollowObject {
-			return errors.New("Received a request to undo a non-Follow object")
-		}
-		if follow.ID == "" {
+		if followID == "" {
 			return errors.New("Received an undo request with empty ID")
 		}
 
 		follower := req.Actor
-		if _, err := db.ExecContext(ctx, `delete from follows where id = ? and follower = ?`, follow.ID, follower); err != nil {
-			return fmt.Errorf("Failed to remove follow %s: %w", follow.ID, err)
+		if _, err := db.ExecContext(ctx, `delete from follows where id = ? and follower = ?`, followID, follower); err != nil {
+			return fmt.Errorf("Failed to remove follow %s: %w", followID, err)
 		}
 
-		log.Info("Removed a Follow", "follow", follow.ID, "follower", follower)
+		log.Info("Removed a Follow", "follow", followID, "follower", follower)
 
 	case ap.CreateActivity:
 		post, ok := req.Object.(*ap.Object)
@@ -321,7 +333,7 @@ func processActivityWithTimeout(parent context.Context, log *slog.Logger, sender
 func processActivitiesBatch(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver, from *ap.Actor) (int, error) {
 	log.Debug("Polling activities queue")
 
-	rows, err := db.QueryContext(ctx, `select activities.id, persons.actor, activities.activity from (select * from activities limit -1 offset case when (select count(*) from activities) >= $1 then $1/10 else 0 end) activities left join persons on persons.id = activities.sender order by activities.id limit $2`, maxActivitiesQueueSize, activitiesBatchSize)
+	rows, err := db.QueryContext(ctx, `select inbox.id, persons.actor, inbox.activity from (select * from inbox limit -1 offset case when (select count(*) from inbox) >= $1 then $1/10 else 0 end) inbox left join persons on persons.id = inbox.sender order by inbox.id limit $2`, maxActivitiesQueueSize, activitiesBatchSize)
 	if err != nil {
 		return 0, fmt.Errorf("Failed to fetch activities to process: %w", err)
 	}
@@ -374,7 +386,7 @@ func processActivitiesBatch(ctx context.Context, log *slog.Logger, db *sql.DB, r
 		return true
 	})
 
-	if _, err := db.ExecContext(ctx, `delete from activities where id <= ?`, maxID); err != nil {
+	if _, err := db.ExecContext(ctx, `delete from inbox where id <= ?`, maxID); err != nil {
 		return 0, fmt.Errorf("Failed to delete processed activities: %w", err)
 	}
 
