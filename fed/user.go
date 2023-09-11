@@ -19,15 +19,12 @@ package fed
 import (
 	"crypto/sha256"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
-	_ "github.com/mattn/go-sqlite3"
 	"log/slog"
 	"net/http"
 	"path/filepath"
-	"strings"
 )
 
 type userHandler struct {
@@ -45,8 +42,7 @@ func (h *userHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	actorID := fmt.Sprintf("https://%s/user/%s", cfg.Domain, name)
 
 	// redirect browsers to the outbox page over Gemini
-	accept := strings.ReplaceAll(r.Header.Get("Accept"), " ", "")
-	if strings.HasPrefix(accept, "text/html,") || strings.HasSuffix(accept, ",text/html") || strings.Contains(accept, ",text/html,") {
+	if shouldRedirect(r) {
 		outbox := fmt.Sprintf("gemini://%s/outbox/%x", cfg.Domain, sha256.Sum256([]byte(actorID)))
 		h.Log.Info("Redirecting to outbox over Gemini", "outbox", outbox)
 		w.Header().Set("Location", outbox)
@@ -66,20 +62,6 @@ func (h *userHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actor := map[string]any{}
-	if err := json.Unmarshal([]byte(actorString), &actor); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	delete(actor, "privateKey")
-	delete(actor, "clientCertificate")
-
-	resp, err := json.Marshal(actor)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
 	w.Header().Set("Content-Type", `application/activity+json; charset=utf-8`)
-	w.Write(resp)
+	w.Write([]byte(actorString))
 }

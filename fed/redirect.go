@@ -14,17 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package ap
+package fed
 
-type AttachmentType string
-
-const (
-	ImageAttachment AttachmentType = "Image"
+import (
+	"net/http"
+	"strings"
 )
 
-type Attachment struct {
-	Type      AttachmentType `json:"type,omitempty"`
-	MediaType string         `json:"mediaType,omitempty"`
-	URL       string         `json:"url,omitempty"`
-	Href      string         `json:"href,omitempty"`
+func shouldRedirect(r *http.Request) bool {
+	accept := strings.ReplaceAll(r.Header.Get("Accept"), " ", "")
+	return accept == "text/html" || strings.HasPrefix(accept, "text/html,") || strings.HasSuffix(accept, ",text/html") || strings.Contains(accept, ",text/html,")
 }

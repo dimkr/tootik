@@ -151,7 +151,7 @@ This is an expensive but common operation that involves outgoing HTTPS requests.
 
 Once saved to the database, new posts can be viewed by local users. However, delivery to federated followers can take time and generate many outgoing requests.
 
-Therefore, every time a new post is saved, it is accompanied by a "delivery". A delivery contains a delivery attempts counter, creation time and last attempt time. A single worker thread polls the deliveries table, prioritizes deliveries by the number of delivery attempts and the interval between attempts, then tries to deliver a post to federated followers of its author.
+Therefore, user actions are represented as an activity saved to the "outbox" table, accompanied by a delivery attempts counter, creation time and last attempt time. A single worker thread polls the table, prioritizes activities by the number of delivery attempts and the interval between attempts, then tries to deliver each activity to its federated recipients.
 
 ### Incoming Requests
 

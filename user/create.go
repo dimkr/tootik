@@ -74,48 +74,43 @@ func Create(ctx context.Context, db *sql.DB, id, name, certHash string) (*ap.Act
 		return nil, fmt.Errorf("Failed to generate key pair: %w", err)
 	}
 
-	body, err := json.Marshal(
-		map[string]any{
-			"@context": []string{
-				"https://www.w3.org/ns/activitystreams",
-				"https://w3id.org/security/v1",
-			},
-			"id":                id,
-			"type":              ap.Person,
-			"preferredUsername": name,
-			"icon": map[string]any{
-				"type":      ap.ImageAttachment,
-				"mediaType": icon.MediaType,
-				"url":       fmt.Sprintf("https://%s/icon/%s%s", cfg.Domain, name, icon.FileNameExtension),
-			},
-			"inbox":     fmt.Sprintf("https://%s/inbox/%s", cfg.Domain, name),
-			"outbox":    fmt.Sprintf("https://%s/outbox/%s", cfg.Domain, name),
-			"followers": fmt.Sprintf("https://%s/followers/%s", cfg.Domain, name),
-			"publicKey": map[string]any{
-				"id":           fmt.Sprintf("https://%s/user/%s#main-key", cfg.Domain, name),
-				"owner":        id,
-				"publicKeyPem": string(pub),
-			},
-			"manuallyApprovesFollowers": false,
+	actor := ap.Actor{
+		Context: []string{
+			"https://www.w3.org/ns/activitystreams",
+			"https://w3id.org/security/v1",
+		},
+		ID:                id,
+		Type:              ap.Person,
+		PreferredUsername: name,
+		Icon: ap.Attachment{
+			Type:      ap.ImageAttachment,
+			MediaType: icon.MediaType,
+			URL:       fmt.Sprintf("https://%s/icon/%s%s", cfg.Domain, name, icon.FileNameExtension),
+		},
+		Inbox:     fmt.Sprintf("https://%s/inbox/%s", cfg.Domain, name),
+		Outbox:    fmt.Sprintf("https://%s/outbox/%s", cfg.Domain, name),
+		Followers: fmt.Sprintf("https://%s/followers/%s", cfg.Domain, name),
+		PublicKey: ap.PublicKey{
+			ID:           fmt.Sprintf("https://%s/user/%s#main-key", cfg.Domain, name),
+			Owner:        id,
+			PublicKeyPem: string(pub),
+		},
+		ManuallyApprovesFollowers: false,
+	}
 
-			"privateKey":        string(priv),
-			"clientCertificate": certHash,
-		})
+	body, err := json.Marshal(actor)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to marshal %s: %w", id, err)
 	}
 
-	actor := ap.Actor{}
-	if err := json.Unmarshal(body, &actor); err != nil {
-		return nil, fmt.Errorf("Failed to unmarshal %s: %w", id, err)
-	}
-
 	if _, err = db.ExecContext(
 		ctx,
-		`INSERT INTO persons (id, hash, actor) VALUES(?,?,?)`,
+		`INSERT INTO persons (id, hash, actor, privkey, certhash) VALUES(?,?,?,?,?)`,
 		id,
 		fmt.Sprintf("%x", sha256.Sum256([]byte(id))),
 		string(body),
+		string(priv),
+		certHash,
 	); err != nil {
 		return nil, fmt.Errorf("Failed to insert %s: %w", id, err)
 	}

@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/icon"
-	_ "github.com/mattn/go-sqlite3"
 	"log/slog"
 	"net/http"
 	"path/filepath"

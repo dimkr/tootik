@@ -24,14 +24,16 @@ const (
 )
 
 type Actor struct {
-	ID                string    `json:"id"`
-	Type              ActorType `json:"type"`
-	Inbox             string    `json:"inbox"`
-	PreferredUsername string    `json:"preferredUsername"`
-	Name              string    `json:"name,omitempty"`
-	Summary           string    `json:"summary,omitempty"`
-	Followers         string    `json:"followers,omitempty"`
-	PublicKey         struct {
-		PublicKeyPem string `json:"publicKeyPem"`
-	} `json:"publicKey"`
+	Context                   any        `json:"@context"`
+	ID                        string     `json:"id"`
+	Type                      ActorType  `json:"type"`
+	Inbox                     string     `json:"inbox"`
+	Outbox                    string     `json:"outbox"`
+	PreferredUsername         string     `json:"preferredUsername"`
+	Name                      string     `json:"name,omitempty"`
+	Summary                   string     `json:"summary,omitempty"`
+	Followers                 string     `json:"followers,omitempty"`
+	PublicKey                 PublicKey  `json:"publicKey"`
+	Icon                      Attachment `json:"icon,omitempty"`
+	ManuallyApprovesFollowers bool       `json:"manuallyApprovesFollowers"`
 }

@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	_ "github.com/mattn/go-sqlite3"
 	"log/slog"
 	"net"
 	"net/http"
@@ -59,6 +58,14 @@ func ListenAndServe(ctx context.Context, db *sql.DB, resolver *Resolver, actor *
 	})
 	mux.HandleFunc("/inbox/", func(w http.ResponseWriter, r *http.Request) {
 		handler := inboxHandler{log.With(slog.String("path", r.URL.Path)), db, resolver, actor}
+		handler.Handle(w, r)
+	})
+	mux.HandleFunc("/outbox/", func(w http.ResponseWriter, r *http.Request) {
+		handler := outboxHandler{log.With(slog.String("path", r.URL.Path)), db}
+		handler.Handle(w, r)
+	})
+	mux.HandleFunc("/post/", func(w http.ResponseWriter, r *http.Request) {
+		handler := postHandler{log.With(slog.String("path", r.URL.Path)), db}
 		handler.Handle(w, r)
 	})
 	mux.HandleFunc("/", root)

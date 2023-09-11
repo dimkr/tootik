@@ -27,6 +27,7 @@ const (
 )
 
 type Object struct {
+	Context      any          `json:"@context,omitempty"`
 	ID           string       `json:"id"`
 	Type         ObjectType   `json:"type"`
 	AttributedTo string       `json:"attributedTo,omitempty"`

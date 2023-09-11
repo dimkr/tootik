@@ -125,7 +125,6 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 		Type:         ap.NoteObject,
 		ID:           postID,
 		AttributedTo: r.User.ID,
-		URL:          fmt.Sprintf("gemini://%s/view/%x", cfg.Domain, hash),
 		Content:      plain.ToHTML(content),
 		Published:    now,
 		To:           to,

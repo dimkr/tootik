@@ -52,7 +52,7 @@ func send(log *slog.Logger, db *sql.DB, from *ap.Actor, resolver *Resolver, r *h
 
 	if from != nil {
 		var publicKeyID, privateKeyPemString string
-		if err := db.QueryRowContext(r.Context(), `select actor->>'publicKey.id', actor->>'privateKey' from persons where id = ?`, from.ID).Scan(&publicKeyID, &privateKeyPemString); err != nil {
+		if err := db.QueryRowContext(r.Context(), `select actor->>'publicKey.id', privkey from persons where id = ?`, from.ID).Scan(&publicKeyID, &privateKeyPemString); err != nil {
 			return nil, fmt.Errorf("Failed to fetch key for %s: %w", from.ID, err)
 		}
 

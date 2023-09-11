@@ -250,7 +250,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 	}
 
 	if !titleIsLink {
-		w.Text(title)
+		w.Link(note.ID, title)
 	} else if r.User == nil {
 		w.Link(fmt.Sprintf("/view/%x", sha256.Sum256([]byte(note.ID))), title)
 	} else {

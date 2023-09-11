@@ -14,12 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package fed
+package ap
 
-type activityPubRequest struct {
-	Context string `json:"@context"`
-	ID      string `json:"id"`
-	Type    string `json:"type"`
-	Actor   string `json:"actor"`
-	Object  any    `json:"object"`
+type PublicKey struct {
+	ID           string `json:"id"`
+	Owner        string `json:"owner"`
+	PublicKeyPem string `json:"publicKeyPem"`
 }

@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	_ "github.com/mattn/go-sqlite3"
 	"io"
 	"io/ioutil"
 	"log/slog"

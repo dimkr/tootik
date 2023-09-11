@@ -27,7 +27,6 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/note"
-	_ "github.com/mattn/go-sqlite3"
 	"log/slog"
 	"strings"
 	"time"
@@ -143,15 +142,18 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 
 		log.Info("Approving follow request", "follower", req.Actor, "followed", followed)
 
-		j, err := json.Marshal(map[string]any{
-			"@context": "https://www.w3.org/ns/activitystreams",
-			"type":     ap.AcceptActivity,
-			"id":       fmt.Sprintf("https://%s/accept/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s", from.ID, followed)))),
-			"actor":    followed,
-			"to":       []string{req.Actor},
-			"object": map[string]any{
-				"type": ap.FollowActivity,
-				"id":   req.ID,
+		recipients := ap.Audience{}
+		recipients.Add(req.Actor)
+
+		j, err := json.Marshal(ap.Activity{
+			Context: "https://www.w3.org/ns/activitystreams",
+			Type:    ap.AcceptActivity,
+			ID:      fmt.Sprintf("https://%s/accept/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s", from.ID, followed)))),
+			Actor:   followed,
+			To:      recipients,
+			Object: &ap.Activity{
+				Type: ap.FollowActivity,
+				ID:   req.ID,
 			},
 		})
 		if err != nil {

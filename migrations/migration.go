@@ -26,10 +26,32 @@ import (
 
 type migration struct {
 	ID string
-	Up func(context.Context, *sql.DB) error
+	Up func(context.Context, *sql.Tx) error
 }
 
 //go:generate ./list.sh
+
+func applyMigration(ctx context.Context, db *sql.DB, m migration) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to apply %s: %w", m.ID, err)
+	}
+	defer tx.Rollback()
+
+	if err := m.Up(ctx, tx); err != nil {
+		return fmt.Errorf("Failed to apply %s: %w", m.ID, err)
+	}
+
+	if _, err := tx.ExecContext(ctx, `insert into migrations(id) values (?)`, m.ID); err != nil {
+		return fmt.Errorf("Failed to record %s: %w", m.ID, err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("Failed to commit %s: %w", m.ID, err)
+	}
+
+	return nil
+}
 
 func Run(ctx context.Context, log *slog.Logger, db *sql.DB) error {
 	if _, err := db.ExecContext(ctx, `create table if not exists migrations(id string not null primary key, applied integer default (unixepoch()))`); err != nil {
@@ -46,13 +68,8 @@ func Run(ctx context.Context, log *slog.Logger, db *sql.DB) error {
 		}
 
 		log.Info("Applying migration", "id", m.ID)
-
-		if err := m.Up(ctx, db); err != nil {
-			return fmt.Errorf("Failed to apply %s: %w", m.ID, err)
-		}
-
-		if _, err := db.ExecContext(ctx, `insert into migrations(id) values (?)`, m.ID); err != nil {
-			return fmt.Errorf("Failed to record %s: %w", m.ID, err)
+		if err := applyMigration(ctx, db, m); err != nil {
+			return err
 		}
 	}
 

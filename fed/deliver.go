@@ -117,15 +117,7 @@ func deliverWithTimeout(parent context.Context, log *slog.Logger, db *sql.DB, re
 }
 
 func deliver(ctx context.Context, log *slog.Logger, db *sql.DB, activity *ap.Activity, actor *ap.Actor, resolver *Resolver) error {
-	buf, err := json.Marshal(map[string]any{
-		"@context": "https://www.w3.org/ns/activitystreams",
-		"type":     activity.Type,
-		"id":       activity.ID,
-		"actor":    activity.Actor,
-		"object":   activity.Object,
-		"to":       activity.To,
-		"cc":       activity.CC,
-	})
+	buf, err := json.Marshal(activity)
 	if err != nil {
 		return fmt.Errorf("Failed to marshal activity: %w", err)
 	}
@@ -203,14 +195,14 @@ func Deliver(ctx context.Context, log *slog.Logger, db *sql.DB, post *ap.Object,
 		return fmt.Errorf("Failed to insert post: %w", err)
 	}
 
-	create, err := json.Marshal(map[string]any{
-		"@context": "https://www.w3.org/ns/activitystreams",
-		"type":     ap.CreateActivity,
-		"id":       fmt.Sprintf("https://%s/create/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", post.ID, time.Now().Unix())))),
-		"actor":    author.ID,
-		"object":   post,
-		"to":       post.To,
-		"cc":       post.CC,
+	create, err := json.Marshal(ap.Activity{
+		Context: "https://www.w3.org/ns/activitystreams",
+		Type:    ap.CreateActivity,
+		ID:      fmt.Sprintf("https://%s/create/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", post.ID, time.Now().Unix())))),
+		Actor:   author.ID,
+		Object:  post,
+		To:      post.To,
+		CC:      post.CC,
 	})
 	if err != nil {
 		return fmt.Errorf("Failed to marshal Create: %w", err)

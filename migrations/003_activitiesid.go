@@ -5,8 +5,8 @@ import (
 	"database/sql"
 )
 
-func activitiesid(ctx context.Context, db *sql.DB) error {
-	if _, err := db.ExecContext(ctx, `CREATE UNIQUE INDEX activitiesid ON activities(activity->>'id')`); err != nil {
+func activitiesid(ctx context.Context, tx *sql.Tx) error {
+	if _, err := tx.ExecContext(ctx, `CREATE UNIQUE INDEX activitiesid ON activities(activity->>'id')`); err != nil {
 		return err
 	}
 
