@@ -57,78 +57,80 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 	since := now.Add(-time.Hour * 24 * 2)
 
 	rows, err := r.Query(`
-		select notes.object, persons.actor, (case when follows.actor->>'type' = 'Group' then follows.actor else null end) from
-		notes
-		left join (
-			select follows.followed, persons.actor, stats.avg, stats.last from
-			(
-				select followed from follows where follower = $1 and accepted = 1
+		select anotes.object, anotes.actor, anotes.g from
+		(
+			select notes.id, notes.object, notes.author, notes.inserted, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2, follows.followed, follows.actor, (case when follows.actor->>'type' = 'Group' then follows.actor else null end) as g from
+			(select * from notes where inserted >= $4 and inserted < $4 + 60*60*24) notes
+			join (
+				select follows.followed, persons.actor from
+				(
+					select followed from follows where follower = $1 and accepted = 1
+				) follows
+				join
+				persons
+				on
+					follows.followed = persons.id
 			) follows
+			on
+				(
+					notes.author = follows.followed and
+					(
+						notes.public = 1 or
+						follows.actor->>'followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+						$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+						(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.actor->>'followers' or value = $1)) or
+						(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.actor->>'followers' or value = $1))
+					)
+				)
+				or
+				(
+					follows.actor->>'type' = 'Group' and
+					notes.groupid = follows.followed and
+					(
+						(notes.public = 1 and notes.object->>'inReplyTo' is null) or
+						$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+						(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $1)) or
+						(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $1))
+					)
+				)
+			union
+			select replies.id, replies.object, replies.author, replies.inserted, replies.cc0, replies.to0, replies.cc1, replies.to1, replies.cc2, replies.to2, null as followed, persons.actor, null as g from
+			(select * from notes where author != $1 and inserted >= $4 and inserted < $4 + 60*60*24) replies
+			join
+			(select * from notes where author = $1 and inserted >= $4 and inserted < $4 + 60*60*24) mynotes
+			on
+				mynotes.id = replies.object->>'inReplyTo'
 			join
 			persons
 			on
-				follows.followed = persons.id
-			left join
-			(
-				select author, max(inserted) / 86400 as last, count(*) / $2 as avg from notes where inserted >= $3 group by author
-			) stats
-			on
-				stats.author = persons.id
-		) follows
-		on
-			(
-				notes.author = follows.followed and
-				(
-					notes.public = 1 or
-					follows.actor->>'followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-					$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.actor->>'followers' or value = $1)) or
-					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.actor->>'followers' or value = $1))
-				)
-			)
-			or
-			(
-				follows.actor->>'type' = 'Group' and
-				notes.groupid = follows.followed and
-				(
-					(notes.public = 1 and notes.object->>'inReplyTo' is null) or
-					$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $1)) or
-					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $1))
-				)
-			)
+				persons.id = replies.author
+		) anotes
 		left join (
-			select id from notes where author = $1
-		) myposts
-		on
-			myposts.id = notes.object->>'inReplyTo'
-		left join (
-			select notes.object->>'inReplyTo' as inreplyto, notes.author, follows.id as follow from notes left join follows on follows.follower = $1 and follows.followed = notes.author and follows.accepted = 1 where notes.inserted >= $3
+			select notes.object->>'inReplyTo' as inreplyto, notes.author, follows.id as follow from notes left join follows on follows.followed = notes.author where follows.follower = $1 and follows.accepted = 1 and notes.inserted >= $3
 		) replies
 		on
-			replies.inreplyto = notes.id and replies.author != notes.author
-		left join persons
+			replies.inreplyto = anotes.id and replies.author != anotes.author
+		left join
+		(
+			select author, max(inserted) / 86400 as last, count(*) / $2 as avg from notes where inserted >= $3 group by author
+		) stats
 		on
-			persons.id = notes.author
-		where
-			notes.inserted >= $4 and
-			notes.inserted < $4 + 60*60*24 and
-			(follows.followed is not null or myposts.id is not null)
-		group by notes.id
+			stats.author = anotes.author
+		group by anotes.id
 		order by
-			notes.inserted / 86400 desc,
+			anotes.inserted / 86400 desc,
 			(case
-				when notes.to0 = $1 and notes.to1 is null and notes.cc0 is null then 0
-				when $1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $1)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $1)) then 1
+				when anotes.to0 = $1 and anotes.to1 is null and anotes.cc0 is null then 0
+				when $1 in (anotes.cc0, anotes.to0, anotes.cc1, anotes.to1, anotes.cc2, anotes.to2) or (anotes.to2 is not null and exists (select 1 from json_each(anotes.object->'to') where value = $1)) or (anotes.cc2 is not null and exists (select 1 from json_each(anotes.object->'cc') where value = $1)) then 1
 				else 2
 			end),
 			count(distinct replies.follow) desc,
 			count(distinct replies.author) desc,
-			follows.avg asc,
-			follows.last asc,
-			notes.inserted / 3600 desc,
-			persons.actor->>'type' = 'Person' desc,
-			notes.inserted desc
+			stats.avg asc,
+			stats.last asc,
+			anotes.inserted / 3600 desc,
+			anotes.actor->>'type' = 'Person' desc,
+			anotes.inserted desc
 		limit $5
 		offset $6`, r.User.ID, now.Sub(since)/time.Hour, since.Unix(), day.Unix(), postsPerPage, offset)
 	if err != nil {
