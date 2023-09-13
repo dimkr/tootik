@@ -26,7 +26,7 @@ Then:
 
 or, to build a static executable:
 
-	go build -tags netgo,sqlite_omit_load_extension -ldflags "-linkmode external -extldflags -static" ./cmd/tootik
+	CGO_ENABLED=0 go build ./cmd/tootik
 
 ## Directory Structure
 
