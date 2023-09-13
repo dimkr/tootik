@@ -33,7 +33,7 @@ import (
 	"github.com/dimkr/tootik/front/gopher"
 	"github.com/dimkr/tootik/migrations"
 	"github.com/dimkr/tootik/user"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 	"os/signal"
 	"sync"
 	"syscall"
@@ -92,7 +92,7 @@ func main() {
 
 	log := slog.New(slog.NewJSONHandler(os.Stderr, &opts))
 
-	db, err := sql.Open("sqlite3", *dbPath+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", *dbPath+"?_journal_mode=WAL")
 	if err != nil {
 		panic(err)
 	}
