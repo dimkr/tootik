@@ -57,9 +57,9 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 	since := now.Add(-time.Hour * 24 * 2)
 
 	rows, err := r.Query(`
-		select anotes.object, anotes.actor, anotes.g from
+		select anotes.object, persons.actor, anotes.g from
 		(
-			select notes.id, notes.object, notes.author, notes.inserted, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2, follows.followed, follows.actor, (case when follows.actor->>'type' = 'Group' then follows.actor else null end) as g from
+			select notes.id, notes.object, notes.author, notes.inserted, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2, follows.followed, (case when follows.actor->>'type' = 'Group' then follows.actor else null end) as g from
 			(select * from notes where inserted >= $4 and inserted < $4 + 60*60*24) notes
 			join (
 				select follows.followed, persons.actor from
@@ -94,17 +94,17 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 					)
 				)
 			union
-			select replies.id, replies.object, replies.author, replies.inserted, replies.cc0, replies.to0, replies.cc1, replies.to1, replies.cc2, replies.to2, null as followed, persons.actor, null as g from
+			select replies.id, replies.object, replies.author, replies.inserted, replies.cc0, replies.to0, replies.cc1, replies.to1, replies.cc2, replies.to2, null as followed, null as g from
 			(select * from notes where author != $1 and inserted >= $4 and inserted < $4 + 60*60*24) replies
 			join
 			(select * from notes where author = $1 and inserted >= $4 and inserted < $4 + 60*60*24) mynotes
 			on
 				mynotes.id = replies.object->>'inReplyTo'
-			join
-			persons
-			on
-				persons.id = replies.author
 		) anotes
+		join
+		persons
+		on
+			persons.id = anotes.author
 		left join (
 			select notes.object->>'inReplyTo' as inreplyto, notes.author, follows.id as follow from notes left join follows on follows.followed = notes.author where follows.follower = $1 and follows.accepted = 1 and notes.inserted >= $3
 		) replies
@@ -129,7 +129,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 			stats.avg asc,
 			stats.last asc,
 			anotes.inserted / 3600 desc,
-			anotes.actor->>'type' = 'Person' desc,
+			persons.actor->>'type' = 'Person' desc,
 			anotes.inserted desc
 		limit $5
 		offset $6`, r.User.ID, now.Sub(since)/time.Hour, since.Unix(), day.Unix(), postsPerPage, offset)
