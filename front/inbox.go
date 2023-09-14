@@ -106,7 +106,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 		on
 			persons.id = anotes.author
 		left join (
-			select notes.object->>'inReplyTo' as inreplyto, notes.author, follows.id as follow from notes left join follows on follows.followed = notes.author where follows.follower = $1 and follows.accepted = 1 and notes.inserted >= $3
+			select notes.object->>'inReplyTo' as inreplyto, notes.author, myfollows.followed from (select object, author from notes where inserted >= $3) notes left join (select followed from follows where follower = $1 and accepted = 1) myfollows on myfollows.followed = notes.author
 		) replies
 		on
 			replies.inreplyto = anotes.id and replies.author != anotes.author
@@ -124,7 +124,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 				when $1 in (anotes.cc0, anotes.to0, anotes.cc1, anotes.to1, anotes.cc2, anotes.to2) or (anotes.to2 is not null and exists (select 1 from json_each(anotes.object->'to') where value = $1)) or (anotes.cc2 is not null and exists (select 1 from json_each(anotes.object->'cc') where value = $1)) then 1
 				else 2
 			end),
-			count(distinct replies.follow) desc,
+			count(distinct replies.followed) desc,
 			count(distinct replies.author) desc,
 			stats.avg asc,
 			stats.last asc,
