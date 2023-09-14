@@ -280,7 +280,7 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			return fmt.Errorf("Failed to get last update time for %s: %w", post.ID, err)
 		}
 
-		if !lastUpdate.Valid || lastUpdate.Int64 >= post.Updated.UnixNano() {
+		if !lastUpdate.Valid || post.Updated == nil || lastUpdate.Int64 >= post.Updated.UnixNano() {
 			log.Debug("Received old update request for new post")
 			return nil
 		}
