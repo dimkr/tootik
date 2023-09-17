@@ -75,6 +75,7 @@ Users are authenticated using TLS client certificates; see [Gemini protocol spec
 * /users/whisper creates a post visible to followers.
 * /users/say creates a public post.
 * /users/reply replies to a post.
+* /users/edit edits a post.
 * /users/follow sends a follow request to a user.
 * /users/unfollow deletes a follow request.
 * /users/outbox is equivalent to /outbox but also includes a link to /users/follow or /users/unfollow.
@@ -132,6 +133,10 @@ User A is allowed to send a message to user B only if B follows A.
 | Message     | Post author | -                                              |
 | Post        | Post author | Mentions and followers of reply author         |
 | Public post | Post author | Mentions, followers of reply author and Public |
+
+### Post Editing
+
+/users/edit only changes the content and the last update timestamp of a post. It does **not** change the post audience and mentioned users.
 
 ## Implementation Details
 
