@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/graph"
+	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/text"
 	"regexp"
 	"time"
@@ -91,7 +92,7 @@ func stats(w text.Writer, r *request) {
 	prefix := fmt.Sprintf("https://%s/%%", cfg.Domain)
 
 	var usersCount, postsCount, postsToday, federatedPostsCount, federatedPostsToday, lastPost, lastFederatedPost, lastRegister, lastFederatedUser int64
-	var deliveriesQueueSize, activitiesQueueSize int
+	var outboxSize, inboxSize int
 
 	if err := r.QueryRow(`select count(*) from persons where id like ?`, prefix).Scan(&usersCount); err != nil {
 		r.Log.Info("Failed to get users count", "error", err)
@@ -147,13 +148,13 @@ func stats(w text.Writer, r *request) {
 		return
 	}
 
-	if err := r.QueryRow(`select count(*) from inbox`).Scan(&activitiesQueueSize); err != nil {
+	if err := r.QueryRow(`select count(*) from inbox`).Scan(&inboxSize); err != nil {
 		r.Log.Info("Failed to get activities queue size", "error", err)
 		w.Error()
 		return
 	}
 
-	if err := r.QueryRow(`select count(*) from outbox where sent = 0`).Scan(&deliveriesQueueSize); err != nil {
+	if err := r.QueryRow(`select count(*) from outbox where sent = 0 and attempts < ?`, fed.MaxDeliveryAttempts).Scan(&outboxSize); err != nil {
 		r.Log.Info("Failed to get delivery queue size", "error", err)
 		w.Error()
 		return
@@ -216,6 +217,6 @@ func stats(w text.Writer, r *request) {
 	w.Itemf("Federated posts: %d", federatedPostsCount)
 	w.Itemf("Newest user: %s", time.Unix(lastRegister, 0).Format(time.UnixDate))
 	w.Itemf("Latest federated user update: %s", time.Unix(lastFederatedUser, 0).Format(time.UnixDate))
-	w.Itemf("Incoming posts queue size: %d", activitiesQueueSize)
-	w.Itemf("Outgoing posts queue size: %d", deliveriesQueueSize)
+	w.Itemf("Incoming activities queue size: %d", inboxSize)
+	w.Itemf("Outgoing activities queue size: %d", outboxSize)
 }
