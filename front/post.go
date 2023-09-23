@@ -45,7 +45,7 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 	now := time.Now()
 
 	var today, last sql.NullInt64
-	if err := r.QueryRow(`select count(*), max(inserted) from notes where author = ? and inserted > ?`, r.User.ID, now.Add(-24*time.Hour).Unix()).Scan(&today, &last); err != nil {
+	if err := r.QueryRow(`select count(*), max(inserted) from outbox where activity->>'actor' = ? and activity->>'type' = 'Create' and inserted > ?`, r.User.ID, now.Add(-24*time.Hour).Unix()).Scan(&today, &last); err != nil {
 		r.Log.Warn("Failed to check if new post needs to be throttled", "error", err)
 		w.Error()
 		return

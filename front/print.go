@@ -317,7 +317,8 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 		})
 
 		if r.User != nil && note.AttributedTo == r.User.ID {
-			w.Link(fmt.Sprintf("/users/edit/%x", sha256.Sum256([]byte(note.ID))), "😱 Edit")
+			w.Link(fmt.Sprintf("/users/edit/%x", sha256.Sum256([]byte(note.ID))), "🩹 Edit")
+			w.Link(fmt.Sprintf("/users/delete/%x", sha256.Sum256([]byte(note.ID))), "💣 Delete")
 		}
 		if r.User != nil {
 			w.Link(fmt.Sprintf("/users/reply/%x", sha256.Sum256([]byte(note.ID))), "💬 Reply")
