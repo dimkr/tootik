@@ -174,10 +174,14 @@ func deliver(ctx context.Context, log *slog.Logger, db *sql.DB, activity *ap.Act
 
 		if to, err := resolver.Resolve(ctx, log, db, actor, actorID, false); err != nil {
 			log.Warn("Failed to resolve a recipient", "to", actorID, "activity", activity.ID, "error", err)
-			anyFailed = true
+			if !errors.Is(err, ErrActorGone) && !errors.Is(err, ErrBlockedDomain) {
+				anyFailed = true
+			}
 		} else if err := Send(ctx, log, db, actor, resolver, to, buf); err != nil {
 			log.Warn("Failed to send a post", "to", actorID, "activity", activity.ID, "error", err)
-			anyFailed = true
+			if !errors.Is(err, ErrBlockedDomain) {
+				anyFailed = true
+			}
 		}
 
 		return true
