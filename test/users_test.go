@@ -27,7 +27,7 @@ func TestUsers_NoFollows(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
-	resp := server.Handle("/users", server.DB, server.Bob)
+	resp := server.Handle("/users", server.Bob)
 	assert.Contains(t, resp, "Nothing to see! Are you following anyone?")
 }
 
@@ -35,28 +35,28 @@ func TestUsers_NewPublicPost(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.DB, server.Alice)
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
 	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
 
-	users := server.Handle("/users", server.DB, server.Alice)
+	users := server.Handle("/users", server.Alice)
 	assert.Contains(t, users, "Nothing to see! Are you following anyone?")
 	assert.NotContains(t, users, "1 post")
 
-	say := server.Handle("/users/say?Hello%20world", server.DB, server.Bob)
+	say := server.Handle("/users/say?Hello%20world", server.Bob)
 	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", say)
 
-	users = server.Handle("/users", server.DB, server.Alice)
+	users = server.Handle("/users", server.Alice)
 	assert.NotContains(t, users, "Nothing to see! Are you following anyone?")
 	assert.Contains(t, users, "1 post")
 
-	today := server.Handle("/users/inbox/today", server.DB, server.Alice)
+	today := server.Handle("/users/inbox/today", server.Alice)
 	assert.Contains(t, today, "Hello world")
 
-	users = server.Handle("/users", server.DB, server.Carol)
+	users = server.Handle("/users", server.Carol)
 	assert.Contains(t, users, "Nothing to see! Are you following anyone?")
 	assert.NotContains(t, users, "1 post")
 
-	local := server.Handle("/users/local", server.DB, server.Carol)
+	local := server.Handle("/users/local", server.Carol)
 	assert.Contains(t, local, "Hello world")
 }
 
@@ -64,28 +64,28 @@ func TestUsers_NewPostToFollowers(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
-	redirect := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.DB, server.Alice)
-	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), redirect)
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
+	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
 
-	users := server.Handle("/users", server.DB, server.Alice)
+	users := server.Handle("/users", server.Alice)
 	assert.Contains(t, users, "Nothing to see! Are you following anyone?")
 	assert.NotContains(t, users, "1 post")
 
-	whisper := server.Handle("/users/whisper?Hello%20world", server.DB, server.Bob)
+	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
 	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", whisper)
 
-	users = server.Handle("/users", server.DB, server.Alice)
+	users = server.Handle("/users", server.Alice)
 	assert.NotContains(t, users, "Nothing to see! Are you following anyone?")
 	assert.Contains(t, users, "1 post")
 
-	today := server.Handle("/users/inbox/today", server.DB, server.Alice)
+	today := server.Handle("/users/inbox/today", server.Alice)
 	assert.Contains(t, today, "Hello world")
 
-	users = server.Handle("/users", server.DB, server.Carol)
+	users = server.Handle("/users", server.Carol)
 	assert.Contains(t, users, "Nothing to see! Are you following anyone?")
 	assert.NotContains(t, users, "1 post")
 
-	local := server.Handle("/users/local", server.DB, server.Carol)
+	local := server.Handle("/users/local", server.Carol)
 	assert.Contains(t, local, "Hello world")
 }
 
@@ -93,32 +93,32 @@ func TestUsers_NewDM(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
-	redirect := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.DB, server.Alice)
-	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), redirect)
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
+	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
 
-	users := server.Handle("/users", server.DB, server.Alice)
+	users := server.Handle("/users", server.Alice)
 	assert.Contains(t, users, "Nothing to see! Are you following anyone?")
 	assert.NotContains(t, users, "1 post")
 
-	today := server.Handle("/users/inbox/today", server.DB, server.Alice)
+	today := server.Handle("/users/inbox/today", server.Alice)
 	assert.Contains(t, today, "No posts.")
 	assert.NotContains(t, today, "Hello Alice")
 
-	redirect = server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20Alice", sha256.Sum256([]byte(server.Alice.ID))), server.DB, server.Bob)
-	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", redirect)
+	dm := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20Alice", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
+	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", dm)
 
-	users = server.Handle("/users", server.DB, server.Alice)
+	users = server.Handle("/users", server.Alice)
 	assert.NotContains(t, users, "Nothing to see! Are you following anyone?")
 	assert.Contains(t, users, "1 post")
 
-	today = server.Handle("/users/inbox/today", server.DB, server.Alice)
+	today = server.Handle("/users/inbox/today", server.Alice)
 	assert.NotContains(t, today, "No posts.")
 	assert.Contains(t, today, "Hello Alice")
 
-	users = server.Handle("/users", server.DB, server.Carol)
+	users = server.Handle("/users", server.Carol)
 	assert.Contains(t, users, "Nothing to see! Are you following anyone?")
 	assert.NotContains(t, users, "1 post")
 
-	local := server.Handle("/users/local", server.DB, server.Carol)
+	local := server.Handle("/users/local", server.Carol)
 	assert.NotContains(t, local, "Hello Alice")
 }

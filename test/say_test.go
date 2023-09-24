@@ -17,6 +17,8 @@ limitations under the License.
 package test
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -25,23 +27,40 @@ func TestSay_HappyFlow(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
-	redirect := server.Handle("/users/say?Hello%20world", server.DB, server.Alice)
-	assert.Regexp(t, "^30 /users/view/[0-9a-f]{64}\r\n$", redirect)
+	say := server.Handle("/users/say?Hello%20world", server.Alice)
+	assert.Regexp(t, "^30 /users/view/[0-9a-f]{64}\r\n$", say)
 
-	view := server.Handle(redirect[3:len(redirect)-2], server.DB, server.Bob)
+	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(t, view, "Hello world")
+
+	outbox := server.Handle(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
+	assert.Contains(t, outbox, "Hello world")
+
+	local := server.Handle("/local", server.Carol)
+	assert.Contains(t, local, "Hello world")
 }
 
 func TestSay_Throttling(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
-	redirect := server.Handle("/users/say?Hello%20world", server.DB, server.Alice)
-	assert.Regexp(t, "^30 /users/view/[0-9a-f]{64}\r\n$", redirect)
+	say := server.Handle("/users/say?Hello%20world", server.Alice)
+	assert.Regexp(t, "^30 /users/view/[0-9a-f]{64}\r\n$", say)
 
-	view := server.Handle(redirect[3:len(redirect)-2], server.DB, server.Bob)
+	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(t, view, "Hello world")
 
-	redirect = server.Handle("/users/say?Hello%20once%20more,%20world", server.DB, server.Alice)
-	assert.Equal(t, "40 Please wait before posting again\r\n", redirect)
+	outbox := server.Handle(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Alice)
+	assert.Contains(t, outbox, "Hello world")
+
+	say = server.Handle("/users/say?Hello%20once%20more,%20world", server.Alice)
+	assert.Equal(t, "40 Please wait before posting again\r\n", say)
+
+	outbox = server.Handle(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
+	assert.Contains(t, outbox, "Hello world")
+	assert.NotContains(t, outbox, "Hello once more, world")
+
+	local := server.Handle("/local", server.Carol)
+	assert.Contains(t, local, "Hello world")
+	assert.NotContains(t, local, "Hello once more, world")
 }

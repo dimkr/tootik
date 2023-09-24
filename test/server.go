@@ -37,15 +37,16 @@ import (
 )
 
 type server struct {
-	DB     *sql.DB
+	db     *sql.DB
 	dbPath string
 	Alice  *ap.Actor
 	Bob    *ap.Actor
 	Carol  *ap.Actor
+	Nobody *ap.Actor
 }
 
 func (s *server) Shutdown() {
-	s.DB.Close()
+	s.db.Close()
 	os.Remove(s.dbPath)
 }
 
@@ -82,10 +83,15 @@ func newTestServer() *server {
 		panic(err)
 	}
 
-	return &server{dbPath: path, DB: db, Alice: alice, Bob: bob, Carol: carol}
+	nobody, err := user.CreateNobody(context.Background(), db)
+	if err != nil {
+		panic(err)
+	}
+
+	return &server{dbPath: path, db: db, Alice: alice, Bob: bob, Carol: carol, Nobody: nobody}
 }
 
-func (s *server) Handle(request string, db *sql.DB, user *ap.Actor) string {
+func (s *server) Handle(request string, user *ap.Actor) string {
 	u, err := url.Parse(request)
 	if err != nil {
 		panic(err)
@@ -93,7 +99,7 @@ func (s *server) Handle(request string, db *sql.DB, user *ap.Actor) string {
 
 	var buf bytes.Buffer
 	var wg sync.WaitGroup
-	front.Handle(context.Background(), slog.Default(), gmi.Wrap(&buf), u, user, db, fed.NewResolver(nil), &wg)
+	front.Handle(context.Background(), slog.Default(), gmi.Wrap(&buf), u, user, s.db, fed.NewResolver(nil), &wg)
 
 	return string(buf.Bytes())
 }

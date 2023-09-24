@@ -27,13 +27,13 @@ func TestDM_HappyFlow(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.DB, server.Alice)
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
 	assert.Regexp(t, "^30 /users/outbox/[0-9a-f]{64}\r\n$", follow)
 
-	dm := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20Alice", sha256.Sum256([]byte(server.Alice.ID))), server.DB, server.Bob)
+	dm := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20Alice", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
 	assert.Regexp(t, "^30 /users/view/[0-9a-f]{64}\r\n$", dm)
 
-	view := server.Handle(dm[3:len(dm)-2], server.DB, server.Alice)
+	view := server.Handle(dm[3:len(dm)-2], server.Alice)
 	assert.Contains(t, view, "Hello Alice")
 }
 
@@ -41,7 +41,7 @@ func TestDM_Loopback(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
-	resp := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20world", sha256.Sum256([]byte(server.Alice.ID))), server.DB, server.Alice)
+	resp := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20world", sha256.Sum256([]byte(server.Alice.ID))), server.Alice)
 	assert.Regexp(t, "40 [^\r\n]+\r\n", resp)
 }
 
@@ -49,6 +49,6 @@ func TestDM_NotFollowed(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
-	resp := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20world", sha256.Sum256([]byte(server.Alice.ID))), server.DB, server.Bob)
+	resp := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20world", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
 	assert.Regexp(t, "40 [^\r\n]+\r\n", resp)
 }
