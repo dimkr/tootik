@@ -31,3 +31,23 @@ func TestSay_HappyFlow(t *testing.T) {
 	view := server.Handle(redirect[3:len(redirect)-2], server.DB, server.Bob)
 	assert.Contains(t, view, "Hello world")
 }
+
+func TestSay_Throttling(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	redirect := server.Handle("/users/say?Hello%20world", server.DB, server.Alice)
+	assert.Regexp(t, "^30 /users/view/[0-9a-f]{64}\r\n$", redirect)
+
+	view := server.Handle(redirect[3:len(redirect)-2], server.DB, server.Bob)
+	assert.Contains(t, view, "Hello world")
+
+	redirect = server.Handle("/users/say?Hello%20again,%20world", server.DB, server.Alice)
+	assert.Regexp(t, "^30 /users/view/[0-9a-f]{64}\r\n$", redirect)
+
+	view = server.Handle(redirect[3:len(redirect)-2], server.DB, server.Bob)
+	assert.Contains(t, view, "Hello again, world")
+
+	redirect = server.Handle("/users/say?Hello%20once%20more,%20world", server.DB, server.Alice)
+	assert.Equal(t, "40 Please wait before posting again\r\n", redirect)
+}
