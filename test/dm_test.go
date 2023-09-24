@@ -28,7 +28,6 @@ func TestDM_HappyFlow(t *testing.T) {
 	defer server.Shutdown()
 
 	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.DB, server.Alice)
-	fmt.Println(follow)
 	assert.Regexp(t, "^30 /users/outbox/[0-9a-f]{64}\r\n$", follow)
 
 	dm := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20Alice", sha256.Sum256([]byte(server.Alice.ID))), server.DB, server.Bob)
