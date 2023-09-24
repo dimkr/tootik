@@ -32,12 +32,18 @@ func Wrap(w io.Writer) text.Writer {
 
 func (w *writer) Status(code int, meta string) {
 	fmt.Fprintf(w, "%d %s\r\n", code, meta)
+	if code == 30 {
+		w.Base = text.Base{Writer: io.Discard}
+	}
 }
 
 func (w *writer) Statusf(code int, format string, a ...any) {
 	fmt.Fprintf(w, "%d ", code)
 	fmt.Fprintf(w, format, a...)
 	w.Write([]byte("\r\n"))
+	if code == 30 {
+		w.Base = text.Base{Writer: io.Discard}
+	}
 }
 
 func (w *writer) OK() {

@@ -51,6 +51,8 @@ or, to build a static executable:
 * cfg/ contains global configuration parameters.
 * logger/ contains logging utilities.
 
+* test/ contains tests.
+
 ## Gemini Frontend
 
 * /local shows a compact list of local posts; each entry contains a link to /view.
