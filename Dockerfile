@@ -13,7 +13,7 @@
 # limitations under the License.
 
 FROM golang:1.21-alpine AS build
-RUN apk add --no-cache gcc musl-dev
+RUN apk add --no-cache gcc musl-dev openssl
 COPY go.mod /src/
 COPY go.sum /src/
 WORKDIR /src
