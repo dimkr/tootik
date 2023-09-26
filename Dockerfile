@@ -1,5 +1,3 @@
-#!/bin/sh -e
-
 # Copyright 2023 Dima Krasner
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,22 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-last=`ls migrations/[0-9][0-9][0-9]_*.go | sort -n | tail -n 1 | cut -f 2 -d / | cut -f 1 -d _`
-new=migrations/`printf "%03d" $(($last+1))`_$1.go
+FROM golang:1.21-alpine AS build
+RUN apk add --no-cache gcc musl-dev openssl
+COPY go.mod /src/
+COPY go.sum /src/
+WORKDIR /src
+RUN go mod download
+COPY migrations /src/migrations
+RUN go generate ./migrations
+COPY . /src
+RUN go vet ./...
+RUN go test ./... -failfast -vet off
+RUN go build ./cmd/tootik
 
-echo "Creating $new"
-
-cat << EOF > $new
-package migrations
-
-import (
-	"context"
-	"database/sql"
-)
-
-func $1(ctx context.Context, tx *sql.Tx) error {
-	// do stuff
-
-	return nil
-}
-EOF
+FROM alpine
+RUN apk add --no-cache ca-certificates openssl
+COPY --from=build /src/tootik /
+COPY --from=build /src/LICENSE /
+RUN adduser -D tootik
+USER tootik
+WORKDIR /tmp
+ENTRYPOINT ["/tootik"]

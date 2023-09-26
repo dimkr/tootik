@@ -19,12 +19,7 @@ package front
 import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/text"
-	"regexp"
 )
-
-func init() {
-	handlers[regexp.MustCompile(`^/users/whisper$`)] = whisper
-}
 
 func whisper(w text.Writer, r *request) {
 	to := ap.Audience{}

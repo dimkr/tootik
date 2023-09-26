@@ -18,14 +18,7 @@ package front
 
 import (
 	"github.com/dimkr/tootik/text"
-	"regexp"
-	"time"
 )
-
-func init() {
-	handlers[regexp.MustCompile(`^/hashtags$`)] = withCache(withUserMenu(hashtags), time.Minute*30)
-	handlers[regexp.MustCompile(`^/users/hashtags$`)] = withCache(withUserMenu(hashtags), time.Minute*30)
-}
 
 func hashtags(w text.Writer, r *request) {
 	rows, err := r.Query(`select hashtag from (select hashtag, max(inserted)/86400 as last, count(distinct author) as users, count(*) as posts from (select hashtags.hashtag, notes.author, notes.inserted from hashtags join notes on notes.id = hashtags.note where inserted > unixepoch()-60*60*24*7) group by hashtag) where users > 1 order by users desc, posts desc, last desc limit 100`)

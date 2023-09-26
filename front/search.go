@@ -19,13 +19,7 @@ package front
 import (
 	"github.com/dimkr/tootik/text"
 	"net/url"
-	"regexp"
 )
-
-func init() {
-	handlers[regexp.MustCompile(`^/search$`)] = withUserMenu(search)
-	handlers[regexp.MustCompile(`^/users/search$`)] = withUserMenu(search)
-}
 
 func search(w text.Writer, r *request) {
 	if r.URL.RawQuery == "" {

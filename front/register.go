@@ -29,10 +29,6 @@ import (
 
 var userNameRegex = regexp.MustCompile(`^[a-zA-Z0-9-_]{4,32}$`)
 
-func init() {
-	handlers[regexp.MustCompile(`^/users/register$`)] = register
-}
-
 func register(w text.Writer, r *request) {
 	if r.User != nil {
 		r.Log.Warn("Registered user cannot register again")

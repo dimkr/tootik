@@ -21,14 +21,7 @@ import (
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/text"
 	"path/filepath"
-	"regexp"
-	"time"
 )
-
-func init() {
-	handlers[regexp.MustCompile(`^/hashtag/[a-zA-Z0-9]+$`)] = withCache(withUserMenu(hashtag), time.Minute*5)
-	handlers[regexp.MustCompile(`^/users/hashtag/[a-zA-Z0-9]+$`)] = withCache(withUserMenu(hashtag), time.Minute*5)
-}
 
 func hashtag(w text.Writer, r *request) {
 	offset, err := getOffset(r.URL)

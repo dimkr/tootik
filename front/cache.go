@@ -31,9 +31,7 @@ type cacheEntry struct {
 	Created time.Time
 }
 
-var cache sync.Map
-
-func callAndCache(r *request, w text.Writer, f func(text.Writer, *request), key string, now time.Time) []byte {
+func callAndCache(r *request, w text.Writer, f func(text.Writer, *request), key string, now time.Time, cache *sync.Map) []byte {
 	var buf bytes.Buffer
 	w2 := w.Clone(&buf)
 
@@ -54,7 +52,7 @@ func callAndCache(r *request, w text.Writer, f func(text.Writer, *request), key 
 	return raw
 }
 
-func withCache(f func(text.Writer, *request), d time.Duration) func(text.Writer, *request) {
+func withCache(f func(text.Writer, *request), d time.Duration, cache *sync.Map) func(text.Writer, *request) {
 	return func(w text.Writer, r *request) {
 		key := r.URL.String()
 		now := time.Now()
@@ -62,7 +60,7 @@ func withCache(f func(text.Writer, *request), d time.Duration) func(text.Writer,
 		entry, cached := cache.Load(key)
 		if !cached {
 			r.Log.Info("Generating first response", "key", key)
-			w.Write(callAndCache(r, w, f, key, now))
+			w.Write(callAndCache(r, w, f, key, now, cache))
 			return
 		}
 
@@ -79,7 +77,7 @@ func withCache(f func(text.Writer, *request), d time.Duration) func(text.Writer,
 		r.WaitGroup.Add(1)
 		go func() {
 			r.Log.Info("Generating new response", "key", key)
-			update <- callAndCache(r, w, f, key, now)
+			update <- callAndCache(r, w, f, key, now, cache)
 			r.WaitGroup.Done()
 		}()
 

@@ -30,6 +30,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"path"
@@ -40,6 +41,7 @@ import (
 const (
 	resolverCacheTTL        = time.Hour * 24 * 3
 	resolverMaxIdleConns    = 128
+	maxInstanceRecoveryTime = time.Hour * 24 * 30
 	resolverIdleConnTimeout = time.Minute
 )
 
@@ -123,10 +125,12 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 
 	var actorString string
 	var updated int64
+	var sinceLastUpdate time.Duration
 	if err := db.QueryRowContext(ctx, `select actor, updated from persons where id = ?`, to).Scan(&actorString, &updated); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("Failed to fetch %s cache: %w", to, err)
 	} else if err == nil {
-		if !isLocal && !offline && time.Now().Sub(time.Unix(updated, 0)) > resolverCacheTTL {
+		sinceLastUpdate = time.Now().Sub(time.Unix(updated, 0))
+		if !isLocal && !offline && sinceLastUpdate > resolverCacheTTL {
 			log.Info("Updating old cache entry for actor", "to", to)
 			update = true
 		} else {
@@ -161,6 +165,17 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 			log.Warn("Actor is gone, deleting associated objects", "to", to)
 			deleteActor(ctx, log, db, to)
 			return nil, fmt.Errorf("Failed to fetch %s: %w", finger, ErrActorGone)
+		}
+
+		var (
+			urlError *url.Error
+			opError  *net.OpError
+			dnsError *net.DNSError
+		)
+		// if it's been a while since the last update and the server's domain is expired (NXDOMAIN), actor is gone
+		if sinceLastUpdate > maxInstanceRecoveryTime && errors.As(err, &urlError) && errors.As(urlError.Err, &opError) && errors.As(opError.Err, &dnsError) && dnsError.IsNotFound {
+			log.Warn("Server is probably gone, deleting associated objects", "to", to)
+			deleteActor(ctx, log, db, to)
 		}
 
 		return nil, fmt.Errorf("Failed to fetch %s: %w", finger, err)

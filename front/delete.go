@@ -19,13 +19,15 @@ package front
 import (
 	"crypto/sha256"
 	"database/sql"
+	"encoding/json"
 	"errors"
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/text"
 	"path/filepath"
 )
 
-func unfollow(w text.Writer, r *request) {
+func delete(w text.Writer, r *request) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -33,22 +35,29 @@ func unfollow(w text.Writer, r *request) {
 
 	hash := filepath.Base(r.URL.Path)
 
-	var followID, followed string
-	if err := r.QueryRow(`select follows.id, persons.id from persons join follows on persons.id = follows.followed where persons.hash = ? and follows.follower = ?`, hash, r.User.ID).Scan(&followID, &followed); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.Warn("Cannot undo a non-existing follow", "hash", hash, "error", err)
-		w.Status(40, "No such follow")
+	var noteString string
+	if err := r.QueryRow(`select object from notes where hash = ? and author = ?`, hash, r.User.ID).Scan(&noteString); err != nil && errors.Is(err, sql.ErrNoRows) {
+		r.Log.Warn("Attempted to delete a non-existing post", "hash", hash, "error", err)
+		w.Error()
 		return
 	} else if err != nil {
-		r.Log.Warn("Failed to find followed user", "hash", hash, "error", err)
+		r.Log.Warn("Failed to fetch post to delete", "hash", hash, "error", err)
 		w.Error()
 		return
 	}
 
-	if err := fed.Unfollow(r.Context, r.Log, r.DB, r.User, followed, followID); err != nil {
-		r.Log.Warn("Failed undo follow", "followed", followed, "error", err)
+	var note ap.Object
+	if err := json.Unmarshal([]byte(noteString), &note); err != nil {
+		r.Log.Warn("Failed to unmarshal post to delete", "hash", hash, "error", err)
 		w.Error()
 		return
 	}
 
-	w.Redirectf("/users/outbox/%x", sha256.Sum256([]byte(followed)))
+	if err := fed.Delete(r.Context, r.DB, &note); err != nil {
+		r.Log.Error("Failed to delete post", "note", note.ID, "error", err)
+		w.Error()
+		return
+	}
+
+	w.Redirectf("/users/outbox/%x", sha256.Sum256([]byte(r.User.ID)))
 }

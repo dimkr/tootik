@@ -31,7 +31,7 @@ import (
 
 const reqTimeout = time.Second * 30
 
-func handle(ctx context.Context, log *slog.Logger, conn net.Conn, db *sql.DB, resolver *fed.Resolver, wg *sync.WaitGroup) {
+func handle(ctx context.Context, log *slog.Logger, conn net.Conn, handler front.Handler, db *sql.DB, resolver *fed.Resolver, wg *sync.WaitGroup) {
 	if err := conn.SetDeadline(time.Now().Add(reqTimeout)); err != nil {
 		log.Warn("Failed to set deadline", "error", err)
 		return
@@ -74,10 +74,10 @@ func handle(ctx context.Context, log *slog.Logger, conn net.Conn, db *sql.DB, re
 
 	w := gmap.Wrap(conn)
 
-	front.Handle(ctx, log.With(slog.Group("request", "path", reqUrl.Path)), w, reqUrl, nil, db, resolver, wg)
+	handler.Handle(ctx, log.With(slog.Group("request", "path", reqUrl.Path)), w, reqUrl, nil, db, resolver, wg)
 }
 
-func ListenAndServe(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *fed.Resolver, addr string) error {
+func ListenAndServe(ctx context.Context, log *slog.Logger, handler front.Handler, db *sql.DB, resolver *fed.Resolver, addr string) error {
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
@@ -118,7 +118,7 @@ func ListenAndServe(ctx context.Context, log *slog.Logger, db *sql.DB, resolver 
 
 			wg.Add(1)
 			go func() {
-				handle(requestCtx, log, conn, db, resolver, &wg)
+				handle(requestCtx, log, conn, handler, db, resolver, &wg)
 				conn.Write([]byte(".\r\n"))
 				conn.Close()
 				timer.Stop()

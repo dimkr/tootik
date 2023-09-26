@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"strings"
 )
 
 func Follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB) error {
@@ -47,12 +48,15 @@ func Follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB
 		return fmt.Errorf("Failed to marshal follow: %w", err)
 	}
 
+	isLocal := strings.HasPrefix(followed, fmt.Sprintf("https://%s/", cfg.Domain))
+
 	if _, err := db.ExecContext(
 		ctx,
-		`INSERT INTO follows (id, follower, followed) VALUES(?,?,?)`,
+		`INSERT INTO follows (id, follower, followed, accepted) VALUES(?,?,?,?)`,
 		followID,
 		follower.ID,
 		followed,
+		isLocal, // local follows don't need to be accepted
 	); err != nil {
 		return fmt.Errorf("Failed to insert follow: %w", err)
 	}

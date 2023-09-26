@@ -21,21 +21,9 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/text"
-	"regexp"
-	"time"
 )
 
 const maxOffset = postsPerPage * 30
-
-func init() {
-	handlers[regexp.MustCompile(`^/local$`)] = withCache(withUserMenu(local), time.Minute*15)
-	handlers[regexp.MustCompile(`^/users/local$`)] = withCache(withUserMenu(local), time.Minute*15)
-
-	handlers[regexp.MustCompile(`^/federated$`)] = withCache(withUserMenu(federated), time.Minute*10)
-	handlers[regexp.MustCompile(`^/users/federated$`)] = withCache(withUserMenu(federated), time.Minute*10)
-
-	handlers[regexp.MustCompile(`^/$`)] = withUserMenu(home)
-}
 
 func local(w text.Writer, r *request) {
 	offset, err := getOffset(r.URL)

@@ -22,13 +22,8 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/text"
 	"net/url"
-	"regexp"
 	"strings"
 )
-
-func init() {
-	handlers[regexp.MustCompile(`^/users/resolve$`)] = withUserMenu(resolve)
-}
 
 func resolve(w text.Writer, r *request) {
 	if r.URL.RawQuery == "" {

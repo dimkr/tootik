@@ -35,7 +35,7 @@ import (
 const (
 	batchSize             = 16
 	deliveryRetryInterval = int64((time.Hour / 2) / time.Second)
-	maxDeliveryAttempts   = 5
+	MaxDeliveryAttempts   = 5
 	pollingInterval       = time.Second * 5
 	deliveryTimeout       = time.Minute * 5
 	maxDeliveryQueueSize  = 128
@@ -63,7 +63,7 @@ func DeliverPosts(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *R
 func deliverPosts(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver) error {
 	log.Debug("Polling delivery queue")
 
-	rows, err := db.QueryContext(ctx, `select outbox.attempts, outbox.activity, persons.actor from outbox join persons on persons.id = outbox.activity->>'actor' where outbox.sent = 0 and (outbox.attempts = 0 or (outbox.attempts < ? and outbox.last <= unixepoch() - ?)) order by outbox.attempts asc, outbox.last asc limit ?`, maxDeliveryAttempts, deliveryRetryInterval, batchSize)
+	rows, err := db.QueryContext(ctx, `select outbox.attempts, outbox.activity, persons.actor from outbox join persons on persons.id = outbox.activity->>'actor' where outbox.sent = 0 and (outbox.attempts = 0 or (outbox.attempts < ? and outbox.last <= unixepoch() - ?)) order by outbox.attempts asc, outbox.last asc limit ?`, MaxDeliveryAttempts, deliveryRetryInterval, batchSize)
 	if err != nil {
 		return fmt.Errorf("Failed to fetch posts to deliver: %w", err)
 	}
@@ -174,10 +174,14 @@ func deliver(ctx context.Context, log *slog.Logger, db *sql.DB, activity *ap.Act
 
 		if to, err := resolver.Resolve(ctx, log, db, actor, actorID, false); err != nil {
 			log.Warn("Failed to resolve a recipient", "to", actorID, "activity", activity.ID, "error", err)
-			anyFailed = true
+			if !errors.Is(err, ErrActorGone) && !errors.Is(err, ErrBlockedDomain) {
+				anyFailed = true
+			}
 		} else if err := Send(ctx, log, db, actor, resolver, to, buf); err != nil {
 			log.Warn("Failed to send a post", "to", actorID, "activity", activity.ID, "error", err)
-			anyFailed = true
+			if !errors.Is(err, ErrBlockedDomain) {
+				anyFailed = true
+			}
 		}
 
 		return true
@@ -209,7 +213,7 @@ func Deliver(ctx context.Context, log *slog.Logger, db *sql.DB, post *ap.Object,
 	}
 
 	var queueSize int
-	if err := db.QueryRowContext(ctx, `select count (*) from outbox where sent = 0 and attempts < ?`, maxDeliveryAttempts).Scan(&queueSize); err != nil {
+	if err := db.QueryRowContext(ctx, `select count (*) from outbox where sent = 0 and attempts < ?`, MaxDeliveryAttempts).Scan(&queueSize); err != nil {
 		return fmt.Errorf("Failed to query delivery queue size: %w", err)
 	}
 

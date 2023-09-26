@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/text"
-	"regexp"
 	"time"
 )
 
@@ -31,10 +30,6 @@ type followedUserActivity struct {
 	Actor ap.Actor
 	Last  sql.NullInt64
 	Count sql.NullInt64
-}
-
-func init() {
-	handlers[regexp.MustCompile(`^/users/follows$`)] = withUserMenu(follows)
 }
 
 func follows(w text.Writer, r *request) {

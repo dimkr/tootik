@@ -19,18 +19,11 @@ package front
 import (
 	"fmt"
 	"path/filepath"
-	"regexp"
 	"time"
 
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/text"
 )
-
-func init() {
-	handlers[regexp.MustCompile("^/users/inbox/[0-9]{4}-[0-9]{2}-[0-9]{2}$")] = withUserMenu(byDate)
-	handlers[regexp.MustCompile("^/users/inbox/today$")] = withUserMenu(today)
-	handlers[regexp.MustCompile("^/users/inbox/yesterday$")] = withUserMenu(yesterday)
-}
 
 func dailyPosts(w text.Writer, r *request, day time.Time) {
 	if r.User == nil {
