@@ -58,6 +58,17 @@ func follow(w text.Writer, r *request) {
 		return
 	}
 
+	var following int
+	if err := r.QueryRow(`select exists (select 1 from follows where follower = ? and followed =?)`, r.User.ID, followed).Scan(&following); err != nil {
+		r.Log.Warn("Failed to check if user is already followed", "followed", followed, "error", err)
+		w.Error()
+		return
+	}
+	if following == 1 {
+		w.Statusf(40, "Already following %s", followed)
+		return
+	}
+
 	if err := fed.Follow(r.Context, r.User, followed, r.DB); err != nil {
 		r.Log.Warn("Failed to follow user", "followed", followed, "error", err)
 		w.Error()

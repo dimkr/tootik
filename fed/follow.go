@@ -25,6 +25,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"strings"
+	"time"
 )
 
 func Follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB) error {
@@ -32,7 +33,7 @@ func Follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB
 		return fmt.Errorf("%s cannot follow %s", follower.ID, followed)
 	}
 
-	followID := fmt.Sprintf("https://%s/follow/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s", follower.ID, followed))))
+	followID := fmt.Sprintf("https://%s/follow/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", follower.ID, followed, time.Now().UnixNano()))))
 
 	to := ap.Audience{}
 	to.Add(followed)
