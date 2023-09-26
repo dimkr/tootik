@@ -23,12 +23,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/text"
 	"path/filepath"
-	"regexp"
 )
-
-func init() {
-	handlers[regexp.MustCompile(`^/users/dm/[0-9a-f]{64}`)] = dm
-}
 
 func dm(w text.Writer, r *request) {
 	hash := filepath.Base(r.URL.Path)

@@ -67,7 +67,7 @@ func getUser(ctx context.Context, db *sql.DB, conn net.Conn, tlsConn *tls.Conn, 
 	return &actor, nil
 }
 
-func handle(ctx context.Context, conn net.Conn, db *sql.DB, resolver *fed.Resolver, wg *sync.WaitGroup, log *slog.Logger) {
+func handle(ctx context.Context, handler front.Handler, conn net.Conn, db *sql.DB, resolver *fed.Resolver, wg *sync.WaitGroup, log *slog.Logger) {
 	if err := conn.SetDeadline(time.Now().Add(reqTimeout)); err != nil {
 		log.Warn("Failed to set deadline", "error", err)
 		return
@@ -133,10 +133,10 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, resolver *fed.Resolv
 		return
 	}
 
-	front.Handle(ctx, log, w, reqUrl, user, db, resolver, wg)
+	handler.Handle(ctx, log, w, reqUrl, user, db, resolver, wg)
 }
 
-func ListenAndServe(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *fed.Resolver, addr, certPath, keyPath string) error {
+func ListenAndServe(ctx context.Context, log *slog.Logger, db *sql.DB, handler front.Handler, resolver *fed.Resolver, addr, certPath, keyPath string) error {
 	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
 		return err
@@ -187,7 +187,7 @@ func ListenAndServe(ctx context.Context, log *slog.Logger, db *sql.DB, resolver 
 
 			wg.Add(1)
 			go func() {
-				handle(requestCtx, conn, db, resolver, &wg, log)
+				handle(requestCtx, handler, conn, db, resolver, &wg, log)
 				conn.Close()
 				timer.Stop()
 				cancelRequest()

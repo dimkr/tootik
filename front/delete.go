@@ -25,12 +25,7 @@ import (
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/text"
 	"path/filepath"
-	"regexp"
 )
-
-func init() {
-	handlers[regexp.MustCompile(`^/users/delete/[0-9a-f]{64}`)] = delete
-}
 
 func delete(w text.Writer, r *request) {
 	if r.User == nil {

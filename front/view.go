@@ -26,13 +26,7 @@ import (
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/text"
 	"path/filepath"
-	"regexp"
 )
-
-func init() {
-	handlers[regexp.MustCompile(`^/users/view/[0-9a-f]{64}$`)] = withUserMenu(view)
-	handlers[regexp.MustCompile(`^/view/[0-9a-f]{64}$`)] = withUserMenu(view)
-}
 
 func view(w text.Writer, r *request) {
 	hash := filepath.Base(r.URL.Path)

@@ -86,7 +86,7 @@ func TestUsers_NewPostToFollowers(t *testing.T) {
 	assert.NotContains(t, users, "1 post")
 
 	local := server.Handle("/users/local", server.Carol)
-	assert.Contains(t, local, "Hello world")
+	assert.NotContains(t, local, "Hello world")
 }
 
 func TestUsers_NewDM(t *testing.T) {

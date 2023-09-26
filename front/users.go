@@ -17,16 +17,11 @@ limitations under the License.
 package front
 
 import (
-	"regexp"
 	"time"
 
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/text"
 )
-
-func init() {
-	handlers[regexp.MustCompile("^/users$")] = withUserMenu(users)
-}
 
 func users(w text.Writer, r *request) {
 	if r.User == nil {

@@ -28,13 +28,8 @@ import (
 	"math"
 	"net/url"
 	"path/filepath"
-	"regexp"
 	"time"
 )
-
-func init() {
-	handlers[regexp.MustCompile(`^/users/edit/[0-9a-f]{64}`)] = edit
-}
 
 func edit(w text.Writer, r *request) {
 	if r.User == nil {

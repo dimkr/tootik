@@ -19,17 +19,11 @@ package front
 import (
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/graph"
 	"github.com/dimkr/tootik/fed"
+	"github.com/dimkr/tootik/graph"
 	"github.com/dimkr/tootik/text"
-	"regexp"
 	"time"
 )
-
-func init() {
-	handlers[regexp.MustCompile(`^/stats$`)] = withCache(withUserMenu(stats), time.Minute*5)
-	handlers[regexp.MustCompile(`^/users/stats$`)] = withCache(withUserMenu(stats), time.Minute*5)
-}
 
 func getGraph(r *request, query string, keys []string, values []int64) string {
 	rows, err := r.Query(query)

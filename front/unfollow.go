@@ -23,12 +23,7 @@ import (
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/text"
 	"path/filepath"
-	"regexp"
 )
-
-func init() {
-	handlers[regexp.MustCompile(`^/users/unfollow/[0-9a-f]{64}$`)] = withUserMenu(unfollow)
-}
 
 func unfollow(w text.Writer, r *request) {
 	if r.User == nil {

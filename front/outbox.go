@@ -26,13 +26,7 @@ import (
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/text"
 	"path/filepath"
-	"regexp"
 )
-
-func init() {
-	handlers[regexp.MustCompile(`^/users/outbox/[0-9a-f]{64}$`)] = withUserMenu(outbox)
-	handlers[regexp.MustCompile(`^/outbox/[0-9a-f]{64}$`)] = withUserMenu(outbox)
-}
 
 func outbox(w text.Writer, r *request) {
 	hash := filepath.Base(r.URL.Path)

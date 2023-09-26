@@ -23,14 +23,9 @@ import (
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/text"
 	"path/filepath"
-	"regexp"
 )
 
 const maxFollowsPerUser = 150
-
-func init() {
-	handlers[regexp.MustCompile(`^/users/follow/[0-9a-f]{64}$`)] = withUserMenu(follow)
-}
 
 func follow(w text.Writer, r *request) {
 	if r.User == nil {

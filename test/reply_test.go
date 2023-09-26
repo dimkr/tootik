@@ -105,12 +105,12 @@ func TestReply_PostToFollowers(t *testing.T) {
 	assert.Contains(t, view, "Hello world")
 	assert.Contains(t, view, "Welcome Bob")
 
-	users := server.Handle("/users/inbox/today", server.Bob)
-	assert.Contains(t, users, "Welcome Bob")
+	today := server.Handle("/users/inbox/today", server.Bob)
+	assert.Contains(t, today, "Welcome Bob")
 
 	local := server.Handle("/local", nil)
-	assert.Contains(t, local, "Hello world")
-	assert.Contains(t, local, "Welcome Bob")
+	assert.NotContains(t, local, "Hello world")
+	assert.NotContains(t, local, "Welcome Bob")
 }
 
 func TestReply_ReplyToPublicPostByFollowedUser(t *testing.T) {
@@ -141,8 +141,8 @@ func TestReply_ReplyToPublicPostByFollowedUser(t *testing.T) {
 	assert.NotContains(t, users, "Welcome Bob")
 
 	local := server.Handle("/local", nil)
-	assert.Contains(t, local, "Hello world")
-	assert.Contains(t, local, "Welcome Bob")
+	assert.NotContains(t, local, "Hello world")
+	assert.NotContains(t, local, "Welcome Bob")
 }
 
 func TestReply_ReplyToPublicPostByNotFollowedUser(t *testing.T) {
@@ -170,8 +170,8 @@ func TestReply_ReplyToPublicPostByNotFollowedUser(t *testing.T) {
 	assert.NotContains(t, users, "Welcome Bob")
 
 	local := server.Handle("/local", nil)
-	assert.Contains(t, local, "Hello world")
-	assert.Contains(t, local, "Welcome Bob")
+	assert.NotContains(t, local, "Hello world")
+	assert.NotContains(t, local, "Welcome Bob")
 }
 
 func TestReply_DM(t *testing.T) {

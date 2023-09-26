@@ -28,6 +28,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/fed"
+	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/front/finger"
 	"github.com/dimkr/tootik/front/gemini"
 	"github.com/dimkr/tootik/front/gopher"
@@ -141,9 +142,11 @@ func main() {
 		wg.Done()
 	}()
 
+	handler := front.NewHandler()
+
 	wg.Add(1)
 	go func() {
-		if err := gemini.ListenAndServe(ctx, log, db, resolver, *gemAddr, *gemCert, *gemKey); err != nil {
+		if err := gemini.ListenAndServe(ctx, log, db, handler, resolver, *gemAddr, *gemCert, *gemKey); err != nil {
 			log.Error("Gemini listener has failed", "error", err)
 		}
 		cancel()
@@ -152,7 +155,7 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		if err := gopher.ListenAndServe(ctx, log, db, resolver, *gopherAddr); err != nil {
+		if err := gopher.ListenAndServe(ctx, log, handler, db, resolver, *gopherAddr); err != nil {
 			log.Error("Gopher listener has failed", "error", err)
 		}
 		cancel()

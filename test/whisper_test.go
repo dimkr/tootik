@@ -37,7 +37,7 @@ func TestWhisper_HappyFlow(t *testing.T) {
 	assert.Contains(t, outbox, "Hello world")
 
 	local := server.Handle("/local", server.Carol)
-	assert.Contains(t, local, "Hello world")
+	assert.NotContains(t, local, "Hello world")
 }
 
 func TestWhisper_Throttling(t *testing.T) {
@@ -61,6 +61,6 @@ func TestWhisper_Throttling(t *testing.T) {
 	assert.NotContains(t, outbox, "Hello once more, world")
 
 	local := server.Handle("/local", server.Carol)
-	assert.Contains(t, local, "Hello world")
+	assert.NotContains(t, local, "Hello world")
 	assert.NotContains(t, local, "Hello once more, world")
 }
