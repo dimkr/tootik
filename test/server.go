@@ -48,8 +48,6 @@ type server struct {
 
 func (s *server) Shutdown() {
 	s.db.Close()
-	fmt.Println(s.dbPath)
-	return
 	os.Remove(s.dbPath)
 }
 
