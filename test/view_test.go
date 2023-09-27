@@ -184,6 +184,28 @@ func TestView_OneReplyPostNotDeleted(t *testing.T) {
 	assert.Contains(t, view, "Welcome Bob")
 }
 
+func TestView_OneReplyPostNotDeletedUnauthenticatedUser(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	say := server.Handle("/users/say?Hello%20world", server.Bob)
+	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", say)
+
+	hash := say[15 : len(say)-2]
+
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", hash), server.Alice)
+	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", reply)
+
+	replyHash := reply[15 : len(reply)-2]
+
+	view := server.Handle("/view/"+hash, nil)
+	assert.Contains(t, view, "Hello world")
+	assert.Contains(t, view, "Welcome Bob")
+
+	view = server.Handle("/view/"+replyHash, nil)
+	assert.Contains(t, view, "Welcome Bob")
+}
+
 func TestView_OneReplyPostDeletedUnauthenticatedUser(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()

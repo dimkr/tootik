@@ -76,3 +76,11 @@ func TestUnfollow_NotFollowing(t *testing.T) {
 	unfollow := server.Handle(fmt.Sprintf("/users/unfollow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
 	assert.Equal(t, "40 No such follow\r\n", unfollow)
 }
+
+func TestUnfollow_UnauthenticatedUser(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	unfollow := server.Handle(fmt.Sprintf("/users/unfollow/%x", sha256.Sum256([]byte(server.Bob.ID))), nil)
+	assert.Equal(t, "30 /users\r\n", unfollow)
+}

@@ -27,8 +27,8 @@ func TestUsers_NoFollows(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
-	resp := server.Handle("/users", server.Bob)
-	assert.Contains(t, resp, "Nothing to see! Are you following anyone?")
+	users := server.Handle("/users", server.Bob)
+	assert.Contains(t, users, "Nothing to see! Are you following anyone?")
 }
 
 func TestUsers_NewPublicPost(t *testing.T) {
@@ -121,4 +121,12 @@ func TestUsers_NewDM(t *testing.T) {
 
 	local := server.Handle("/users/local", server.Carol)
 	assert.NotContains(t, local, "Hello Alice")
+}
+
+func TestUsers_UnauthenticatedUser(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	users := server.Handle("/users", nil)
+	assert.Equal(t, "61 Peer certificate is required\r\n", users)
 }

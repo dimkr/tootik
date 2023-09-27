@@ -27,7 +27,7 @@ import (
 
 func dailyPosts(w text.Writer, r *request, day time.Time) {
 	if r.User == nil {
-		w.Status(61, "Peer certificate is required")
+		w.Redirect("/users")
 		return
 	}
 
@@ -106,7 +106,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 		where
 			notes.inserted >= $4 and
 			notes.inserted < $4 + 60*60*24 and
-			(follows.followed is not null or myposts.id is not null)
+			(follows.followed is not null or (myposts.id is not null and notes.author != $1))
 		group by notes.id
 		order by
 			notes.inserted / 86400 desc,

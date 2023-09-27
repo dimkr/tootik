@@ -132,7 +132,21 @@ func TestHashtag_BigOffset(t *testing.T) {
 	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(t, view, "Hello #world")
 
-	hashtag := server.Handle("/hashtag/world?123", server.Bob)
+	hashtag := server.Handle("/users/hashtag/world?123", server.Bob)
+	assert.NotContains(t, hashtag, "Hello #world")
+}
+
+func TestHashtag_BigOffsetUnauthenticatedUser(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	say := server.Handle("/users/say?Hello%20%23world", server.Alice)
+	assert.Regexp(t, "^30 /users/view/[0-9a-f]{64}\r\n$", say)
+
+	view := server.Handle(say[3:len(say)-2], server.Bob)
+	assert.Contains(t, view, "Hello #world")
+
+	hashtag := server.Handle("/hashtag/world?123", nil)
 	assert.NotContains(t, hashtag, "Hello #world")
 }
 

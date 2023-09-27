@@ -113,6 +113,39 @@ func TestReply_PostToFollowers(t *testing.T) {
 	assert.NotContains(t, local, "Welcome Bob")
 }
 
+func TestReply_SelfReply(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
+	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+
+	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
+	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", whisper)
+
+	hash := whisper[15 : len(whisper)-2]
+
+	view := server.Handle("/users/view/"+hash, server.Bob)
+	assert.Contains(t, view, "Hello world")
+	assert.NotContains(t, view, "Welcome Bob")
+
+	server.db.Exec("update outbox set inserted = inserted - 3600 where activity->>'type' = 'Create'")
+
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20me", hash), server.Bob)
+	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", reply)
+
+	view = server.Handle("/users/view/"+hash, server.Alice)
+	assert.Contains(t, view, "Hello world")
+	assert.Contains(t, view, "Welcome me")
+
+	today := server.Handle("/users/inbox/today", server.Bob)
+	assert.NotContains(t, today, "Welcome me")
+
+	local := server.Handle("/local", nil)
+	assert.NotContains(t, local, "Hello world")
+	assert.NotContains(t, local, "Welcome me")
+}
+
 func TestReply_ReplyToPublicPostByFollowedUser(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()

@@ -42,6 +42,17 @@ func edit(w text.Writer, r *request) {
 		return
 	}
 
+	content, err := url.QueryUnescape(r.URL.RawQuery)
+	if err != nil {
+		w.Status(40, "Bad input")
+		return
+	}
+
+	if len(content) > cfg.MaxPostsLength {
+		w.Status(40, "Post is too long")
+		return
+	}
+
 	hash := filepath.Base(r.URL.Path)
 
 	var noteString string
@@ -78,17 +89,6 @@ func edit(w text.Writer, r *request) {
 	if time.Now().Before(canEdit) {
 		r.Log.Warn("Throttled request to edit post", "note", note.ID, "can", canEdit)
 		w.Status(40, "Please try again later")
-		return
-	}
-
-	content, err := url.QueryUnescape(r.URL.RawQuery)
-	if err != nil {
-		w.Error()
-		return
-	}
-
-	if len(content) > cfg.MaxPostsLength {
-		w.Status(40, "Post is too long")
 		return
 	}
 

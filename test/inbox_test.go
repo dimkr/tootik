@@ -1,0 +1,121 @@
+/*
+Copyright 2023 Dima Krasner
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package test
+
+import (
+	"crypto/sha256"
+	"fmt"
+	"github.com/stretchr/testify/assert"
+	"testing"
+	"time"
+)
+
+func TestInbox_NoPosts(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	today := server.Handle("/users/inbox/today", server.Alice)
+	assert.Contains(t, today, "No posts.")
+}
+
+func TestInbox_UnauthenticatedUser(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	today := server.Handle("/users/inbox/today", nil)
+	assert.Equal(t, "30 /users\r\n", today)
+}
+
+func TestInbox_InvalidOffset(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	today := server.Handle("/users/inbox/today?zz", server.Alice)
+	assert.Equal(t, "40 Invalid query\r\n", today)
+}
+
+func TestInbox_FutureDate(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	today := server.Handle("/users/inbox/"+time.Now().Add(time.Hour*24).Format(time.DateOnly), server.Alice)
+	assert.Equal(t, "30 /users/oops\r\n", today)
+}
+
+func TestInbox_InvalidDate(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	today := server.Handle("/users/inbox/9999-99-99", server.Alice)
+	assert.Equal(t, "40 Invalid date\r\n", today)
+}
+
+func TestInbox_PostToFollowersToday(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
+	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+
+	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
+	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", whisper)
+
+	today := server.Handle("/users/inbox/today", server.Alice)
+	assert.Contains(t, today, "Hello world")
+}
+
+func TestInbox_PostToFollowersTodayBigOffset(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
+	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+
+	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
+	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", whisper)
+
+	today := server.Handle("/users/inbox/today?123", server.Alice)
+	assert.NotContains(t, today, "Hello world")
+}
+
+func TestInbox_PostToFollowersTodayByDate(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
+	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+
+	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
+	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", whisper)
+
+	today := server.Handle("/users/inbox/"+time.Now().Format(time.DateOnly), server.Alice)
+	assert.Contains(t, today, "Hello world")
+}
+
+func TestInbox_PostToFollowersYesterday(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
+	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+
+	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
+	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", whisper)
+
+	yesterday := server.Handle("/users/inbox/yesterday", server.Alice)
+	assert.Contains(t, yesterday, "No posts.")
+}
