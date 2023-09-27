@@ -20,6 +20,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"strings"
 	"testing"
 	"time"
 )
@@ -118,4 +119,148 @@ func TestInbox_PostToFollowersYesterday(t *testing.T) {
 
 	yesterday := server.Handle("/users/inbox/yesterday", server.Alice)
 	assert.Contains(t, yesterday, "No posts.")
+}
+
+func TestInbox_MentionAndNoMention(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
+	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+
+	follow = server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Carol.ID))), server.Alice)
+	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Carol.ID))), follow)
+
+	whisper := server.Handle("/users/whisper?Hello%20%40alice%21", server.Bob)
+	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", whisper)
+
+	whisper = server.Handle("/users/whisper?Hello%20alice%21", server.Carol)
+	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", whisper)
+
+	today := server.Handle("/users/inbox/today", server.Alice)
+	postWithMention := strings.Index(today, "Hello @alice!")
+	postWithoutMention := strings.Index(today, "Hello alice!")
+	assert.NotEqual(t, postWithMention, -1)
+	assert.NotEqual(t, postWithoutMention, -1)
+	assert.True(t, postWithMention < postWithoutMention)
+}
+
+func TestInbox_LeadingMentionAndNoMention(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
+	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+
+	follow = server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Carol.ID))), server.Alice)
+	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Carol.ID))), follow)
+
+	whisper := server.Handle("/users/whisper?%40alice%20Hello", server.Bob)
+	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", whisper)
+
+	whisper = server.Handle("/users/whisper?Hello%20alice%21", server.Carol)
+	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", whisper)
+
+	today := server.Handle("/users/inbox/today", server.Alice)
+	postWithMention := strings.Index(today, "@alice Hello")
+	postWithoutMention := strings.Index(today, "Hello alice!")
+	assert.NotEqual(t, postWithMention, -1)
+	assert.NotEqual(t, postWithoutMention, -1)
+	assert.True(t, postWithMention < postWithoutMention)
+}
+
+func TestInbox_LeadingMentionAndCommaAndNoMention(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
+	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+
+	follow = server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Carol.ID))), server.Alice)
+	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Carol.ID))), follow)
+
+	whisper := server.Handle("/users/whisper?%40alice%2c%20Hello", server.Bob)
+	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", whisper)
+
+	whisper = server.Handle("/users/whisper?Hello%20alice%21", server.Carol)
+	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", whisper)
+
+	today := server.Handle("/users/inbox/today", server.Alice)
+	postWithMention := strings.Index(today, "@alice, Hello")
+	postWithoutMention := strings.Index(today, "Hello alice!")
+	assert.NotEqual(t, postWithMention, -1)
+	assert.NotEqual(t, postWithoutMention, -1)
+	assert.True(t, postWithMention < postWithoutMention)
+}
+
+func TestInbox_NoMentionAndMention(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
+	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+
+	follow = server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Carol.ID))), server.Alice)
+	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Carol.ID))), follow)
+
+	whisper := server.Handle("/users/whisper?Hello%20alice%21", server.Bob)
+	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", whisper)
+
+	whisper = server.Handle("/users/whisper?Hello%20%40alice%21", server.Carol)
+	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", whisper)
+
+	today := server.Handle("/users/inbox/today", server.Alice)
+	postWithMention := strings.Index(today, "Hello @alice!")
+	postWithoutMention := strings.Index(today, "Hello alice!")
+	assert.NotEqual(t, postWithMention, -1)
+	assert.NotEqual(t, postWithoutMention, -1)
+	assert.True(t, postWithMention < postWithoutMention)
+}
+
+func TestInbox_DMWithoutMentionAndMention(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
+	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+
+	follow = server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Carol.ID))), server.Alice)
+	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Carol.ID))), follow)
+
+	dm := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20Alice", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
+	assert.Regexp(t, "^30 /users/view/[0-9a-f]{64}\r\n$", dm)
+
+	whisper := server.Handle("/users/whisper?Hello%20%40alice%21", server.Carol)
+	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", whisper)
+
+	today := server.Handle("/users/inbox/today", server.Alice)
+	dmWithoutMention := strings.Index(today, "Hello Alice")
+	postWithMention := strings.Index(today, "Hello @alice!")
+	assert.NotEqual(t, dmWithoutMention, -1)
+	assert.NotEqual(t, postWithMention, -1)
+	assert.True(t, dmWithoutMention < postWithMention)
+}
+
+func TestInbox_MentionAndDMWithoutMention(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
+	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+
+	follow = server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Carol.ID))), server.Alice)
+	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Carol.ID))), follow)
+
+	whisper := server.Handle("/users/whisper?Hello%20%40alice%21", server.Bob)
+	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", whisper)
+
+	dm := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20Alice", sha256.Sum256([]byte(server.Alice.ID))), server.Carol)
+	assert.Regexp(t, "^30 /users/view/[0-9a-f]{64}\r\n$", dm)
+
+	today := server.Handle("/users/inbox/today", server.Alice)
+	dmWithoutMention := strings.Index(today, "Hello Alice")
+	postWithMention := strings.Index(today, "Hello @alice!")
+	assert.NotEqual(t, dmWithoutMention, -1)
+	assert.NotEqual(t, postWithMention, -1)
+	assert.True(t, dmWithoutMention < postWithMention)
 }
