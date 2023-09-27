@@ -25,46 +25,58 @@ func TestFederated_AuthenticatedUser(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	federated := server.Handle("/users/federated", server.Alice)
-	assert.Regexp(t, "^20 text/gemini\r\n", federated)
+	assert.Regexp("^20 text/gemini\r\n", federated)
 }
 
 func TestFederated_UnauthenticatedUser(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	federated := server.Handle("/federated", nil)
-	assert.Regexp(t, "^20 text/gemini\r\n", federated)
+	assert.Regexp("^20 text/gemini\r\n", federated)
 }
 
 func TestFederated_InvalidOffset(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	federated := server.Handle("/users/federated?a", server.Alice)
-	assert.Equal(t, "40 Invalid query\r\n", federated)
+	assert.Equal("40 Invalid query\r\n", federated)
 }
 
 func TestFederated_BigOffset(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	federated := server.Handle("/users/federated?901", server.Alice)
-	assert.Equal(t, "40 Offset must be <= 900\r\n", federated)
+	assert.Equal("40 Offset must be <= 900\r\n", federated)
 }
 
 func TestFederated_SecondPage(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	federated := server.Handle("/users/federated?30", server.Alice)
-	assert.Regexp(t, "^20 text/gemini\r\n", federated)
+	assert.Regexp("^20 text/gemini\r\n", federated)
 }
 
 func TestFederated_SecondPageUnauthenticatedUser(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	federated := server.Handle("/federated?30", nil)
-	assert.Regexp(t, "^20 text/gemini\r\n", federated)
+	assert.Regexp("^20 text/gemini\r\n", federated)
 }

@@ -27,62 +27,78 @@ func TestResolve_LocalUser(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	resolve := server.Handle("/users/resolve?alice%40localhost", server.Bob)
-	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), resolve)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), resolve)
 }
 
 func TestResolve_LocalUserByNameOnly(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	resolve := server.Handle("/users/resolve?alice", server.Bob)
-	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), resolve)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), resolve)
 }
 
 func TestResolve_NoSuchLocalUser(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	resolve := server.Handle("/users/resolve?troll%40localhost", server.Bob)
-	assert.Equal(t, "40 Failed to resolve troll@localhost\r\n", resolve)
+	assert.Equal("40 Failed to resolve troll@localhost\r\n", resolve)
 }
 
 func TestResolve_NoSuchLocalUserByNameOnly(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	resolve := server.Handle("/users/resolve?troll", server.Bob)
-	assert.Equal(t, "40 Failed to resolve troll@localhost\r\n", resolve)
+	assert.Equal("40 Failed to resolve troll@localhost\r\n", resolve)
 }
 
 func TestResolve_NoSuchFederatedUser(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	resolve := server.Handle("/users/resolve?troll%400.0.0.0", server.Bob)
-	assert.Equal(t, "40 Failed to resolve troll@0.0.0.0\r\n", resolve)
+	assert.Equal("40 Failed to resolve troll@0.0.0.0\r\n", resolve)
 }
 
 func TestResolve_NoInput(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	resolve := server.Handle("/users/resolve?", server.Bob)
-	assert.Equal(t, "10 User name (name or name@domain)\r\n", resolve)
+	assert.Equal("10 User name (name or name@domain)\r\n", resolve)
 }
 
 func TestResolve_InvalidEscapeSequence(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	resolve := server.Handle("/users/resolve?troll%zzlocalhost ", server.Bob)
-	assert.Equal(t, "40 Bad input\r\n", resolve)
+	assert.Equal("40 Bad input\r\n", resolve)
 }
 
 func TestResolve_InvalidInputFormat(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	resolve := server.Handle("/users/resolve?troll%40localhost%400.0.0.0", server.Bob)
-	assert.Equal(t, "40 Bad input\r\n", resolve)
+	assert.Equal("40 Bad input\r\n", resolve)
 }

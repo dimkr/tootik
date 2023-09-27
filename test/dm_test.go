@@ -27,36 +27,44 @@ func TestDM_HappyFlow(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Regexp(t, "^30 /users/outbox/[0-9a-f]{64}\r\n$", follow)
+	assert.Regexp("^30 /users/outbox/[0-9a-f]{64}\r\n$", follow)
 
 	dm := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20Alice", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
-	assert.Regexp(t, "^30 /users/view/[0-9a-f]{64}\r\n$", dm)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", dm)
 
 	view := server.Handle(dm[3:len(dm)-2], server.Alice)
-	assert.Contains(t, view, "Hello Alice")
+	assert.Contains(view, "Hello Alice")
 }
 
 func TestDM_Loopback(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	dm := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20world", sha256.Sum256([]byte(server.Alice.ID))), server.Alice)
-	assert.Equal(t, "40 Error\r\n", dm)
+	assert.Equal("40 Error\r\n", dm)
 }
 
 func TestDM_NotFollowed(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	dm := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20world", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
-	assert.Equal(t, "40 Error\r\n", dm)
+	assert.Equal("40 Error\r\n", dm)
 }
 
 func TestDM_NoSuchUser(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	dm := server.Handle("/users/dm/87428fc522803d31065e7bce3cf03fe475096631e5e07bbd7a0fde60c4cf25c7?Hello%20world", server.Bob)
-	assert.Equal(t, "40 User does not exist\r\n", dm)
+	assert.Equal("40 User does not exist\r\n", dm)
 }

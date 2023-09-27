@@ -28,203 +28,217 @@ func TestEdit_Throttling(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
 
 	users := server.Handle("/users", server.Alice)
-	assert.Contains(t, users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(t, users, "1 post")
+	assert.Contains(users, "Nothing to see! Are you following anyone?")
+	assert.NotContains(users, "1 post")
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
 	hash := whisper[15 : len(whisper)-2]
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?Hello%%20followers", hash), server.Bob)
-	assert.Equal(t, "40 Please try again later\r\n", edit)
+	assert.Equal("40 Please try again later\r\n", edit)
 
 	users = server.Handle("/users", server.Alice)
-	assert.NotContains(t, users, "Nothing to see! Are you following anyone?")
-	assert.Contains(t, users, "1 post")
+	assert.NotContains(users, "Nothing to see! Are you following anyone?")
+	assert.Contains(users, "1 post")
 
 	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(t, today, "Hello world")
+	assert.Contains(today, "Hello world")
 }
 
 func TestEdit_HappyFlow(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
 
 	users := server.Handle("/users", server.Alice)
-	assert.Contains(t, users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(t, users, "1 post")
+	assert.Contains(users, "Nothing to see! Are you following anyone?")
+	assert.NotContains(users, "1 post")
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
 	hash := whisper[15 : len(whisper)-2]
 
 	server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?Hello%%20followers", hash), server.Bob)
-	assert.Equal(t, fmt.Sprintf("30 /users/view/%s\r\n", hash), edit)
+	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", hash), edit)
 
 	users = server.Handle("/users", server.Alice)
-	assert.NotContains(t, users, "Nothing to see! Are you following anyone?")
-	assert.Contains(t, users, "1 post")
+	assert.NotContains(users, "Nothing to see! Are you following anyone?")
+	assert.Contains(users, "1 post")
 
 	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(t, today, "Hello followers")
+	assert.Contains(today, "Hello followers")
 
 	edit = server.Handle(fmt.Sprintf("/users/edit/%s?Hello,%%20followers", hash), server.Bob)
-	assert.Equal(t, "40 Please try again later\r\n", edit)
+	assert.Equal("40 Please try again later\r\n", edit)
 
 	users = server.Handle("/users", server.Alice)
-	assert.NotContains(t, users, "Nothing to see! Are you following anyone?")
-	assert.Contains(t, users, "1 post")
+	assert.NotContains(users, "Nothing to see! Are you following anyone?")
+	assert.Contains(users, "1 post")
 
 	today = server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(t, today, "Hello followers")
+	assert.Contains(today, "Hello followers")
 }
 
 func TestEdit_EmptyContent(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
 
 	users := server.Handle("/users", server.Alice)
-	assert.Contains(t, users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(t, users, "1 post")
+	assert.Contains(users, "Nothing to see! Are you following anyone?")
+	assert.NotContains(users, "1 post")
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
 	hash := whisper[15 : len(whisper)-2]
 
 	server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?", hash), server.Bob)
-	assert.Equal(t, "10 Post content\r\n", edit)
+	assert.Equal("10 Post content\r\n", edit)
 
 	users = server.Handle("/users", server.Alice)
-	assert.NotContains(t, users, "Nothing to see! Are you following anyone?")
-	assert.Contains(t, users, "1 post")
+	assert.NotContains(users, "Nothing to see! Are you following anyone?")
+	assert.Contains(users, "1 post")
 
 	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(t, today, "Hello world")
+	assert.Contains(today, "Hello world")
 }
 
 func TestEdit_LongContent(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
 
 	users := server.Handle("/users", server.Alice)
-	assert.Contains(t, users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(t, users, "1 post")
+	assert.Contains(users, "Nothing to see! Are you following anyone?")
+	assert.NotContains(users, "1 post")
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
 	hash := whisper[15 : len(whisper)-2]
 
 	server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", hash), server.Bob)
-	assert.Equal(t, "40 Post is too long\r\n", edit)
+	assert.Equal("40 Post is too long\r\n", edit)
 
 	users = server.Handle("/users", server.Alice)
-	assert.NotContains(t, users, "Nothing to see! Are you following anyone?")
-	assert.Contains(t, users, "1 post")
+	assert.NotContains(users, "Nothing to see! Are you following anyone?")
+	assert.Contains(users, "1 post")
 
 	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(t, today, "Hello world")
+	assert.Contains(today, "Hello world")
 }
 
 func TestEdit_InvalidEscapeSequence(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
 
 	users := server.Handle("/users", server.Alice)
-	assert.Contains(t, users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(t, users, "1 post")
+	assert.Contains(users, "Nothing to see! Are you following anyone?")
+	assert.NotContains(users, "1 post")
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
 	hash := whisper[15 : len(whisper)-2]
 
 	server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?Hello%%zzworld", hash), server.Bob)
-	assert.Equal(t, "40 Bad input\r\n", edit)
+	assert.Equal("40 Bad input\r\n", edit)
 
 	users = server.Handle("/users", server.Alice)
-	assert.NotContains(t, users, "Nothing to see! Are you following anyone?")
-	assert.Contains(t, users, "1 post")
+	assert.NotContains(users, "Nothing to see! Are you following anyone?")
+	assert.Contains(users, "1 post")
 
 	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(t, today, "Hello world")
+	assert.Contains(today, "Hello world")
 }
 
 func TestEdit_NoSuchPost(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
 
 	users := server.Handle("/users", server.Alice)
-	assert.Contains(t, users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(t, users, "1 post")
+	assert.Contains(users, "Nothing to see! Are you following anyone?")
+	assert.NotContains(users, "1 post")
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
 	edit := server.Handle("/users/edit/87428fc522803d31065e7bce3cf03fe475096631e5e07bbd7a0fde60c4cf25c7?Hello%20followers", server.Bob)
-	assert.Equal(t, "40 Error\r\n", edit)
+	assert.Equal("40 Error\r\n", edit)
 
 	users = server.Handle("/users", server.Alice)
-	assert.NotContains(t, users, "Nothing to see! Are you following anyone?")
-	assert.Contains(t, users, "1 post")
+	assert.NotContains(users, "Nothing to see! Are you following anyone?")
+	assert.Contains(users, "1 post")
 
 	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(t, today, "Hello world")
+	assert.Contains(today, "Hello world")
 }
 
 func TestEdit_UnauthenticatedUser(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
 
 	users := server.Handle("/users", server.Alice)
-	assert.Contains(t, users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(t, users, "1 post")
+	assert.Contains(users, "Nothing to see! Are you following anyone?")
+	assert.NotContains(users, "1 post")
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
 	hash := whisper[15 : len(whisper)-2]
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?Hello%%20followers", hash), nil)
-	assert.Equal(t, "30 /users\r\n", edit)
+	assert.Equal("30 /users\r\n", edit)
 
 	users = server.Handle("/users", server.Alice)
-	assert.NotContains(t, users, "Nothing to see! Are you following anyone?")
-	assert.Contains(t, users, "1 post")
+	assert.NotContains(users, "Nothing to see! Are you following anyone?")
+	assert.Contains(users, "1 post")
 
 	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(t, today, "Hello world")
+	assert.Contains(today, "Hello world")
 }

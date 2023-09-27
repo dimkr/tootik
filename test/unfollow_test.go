@@ -27,60 +27,68 @@ func TestUnfollow_HappyFlow(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
 
 	say := server.Handle("/users/whisper?Hello%20followers", server.Bob)
-	assert.Regexp(t, "^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
 
 	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(t, today, "Hello followers")
+	assert.Contains(today, "Hello followers")
 
 	unfollow := server.Handle(fmt.Sprintf("/users/unfollow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), unfollow)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), unfollow)
 
 	today = server.Handle("/users/inbox/today", server.Alice)
-	assert.NotContains(t, today, "Hello followers")
+	assert.NotContains(today, "Hello followers")
 }
 
 func TestUnfollow_FollowAgain(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
 
 	say := server.Handle("/users/whisper?Hello%20followers", server.Bob)
-	assert.Regexp(t, "^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
 
 	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(t, today, "Hello followers")
+	assert.Contains(today, "Hello followers")
 
 	unfollow := server.Handle(fmt.Sprintf("/users/unfollow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), unfollow)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), unfollow)
 
 	today = server.Handle("/users/inbox/today", server.Alice)
-	assert.NotContains(t, today, "Hello followers")
+	assert.NotContains(today, "Hello followers")
 
 	follow = server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
 
 	today = server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(t, today, "Hello followers")
+	assert.Contains(today, "Hello followers")
 }
 
 func TestUnfollow_NotFollowing(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	unfollow := server.Handle(fmt.Sprintf("/users/unfollow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(t, "40 No such follow\r\n", unfollow)
+	assert.Equal("40 No such follow\r\n", unfollow)
 }
 
 func TestUnfollow_UnauthenticatedUser(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	unfollow := server.Handle(fmt.Sprintf("/users/unfollow/%x", sha256.Sum256([]byte(server.Bob.ID))), nil)
-	assert.Equal(t, "30 /users\r\n", unfollow)
+	assert.Equal("30 /users\r\n", unfollow)
 }

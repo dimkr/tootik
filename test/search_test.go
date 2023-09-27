@@ -25,54 +25,68 @@ func TestSearch_Happyflow(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	search := server.Handle("/users/search?world", server.Bob)
-	assert.Equal(t, "30 /users/hashtag/world\r\n", search)
+	assert.Equal("30 /users/hashtag/world\r\n", search)
 }
 
 func TestSearch_LeadingHash(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	search := server.Handle("/users/search?%23world", server.Bob)
-	assert.Equal(t, "30 /users/hashtag/world\r\n", search)
+	assert.Equal("30 /users/hashtag/world\r\n", search)
 }
 
 func TestSearch_LeadingHashUnauthenticatedUser(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	search := server.Handle("/search?%23world", nil)
-	assert.Equal(t, "30 /hashtag/world\r\n", search)
+	assert.Equal("30 /hashtag/world\r\n", search)
 }
 
 func TestSearch_NoInput(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	search := server.Handle("/users/search?", server.Bob)
-	assert.Equal(t, "10 Hashtag\r\n", search)
+	assert.Equal("10 Hashtag\r\n", search)
 }
 
 func TestSearch_EmptyInput(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	search := server.Handle("/users/search?", server.Bob)
-	assert.Equal(t, "10 Hashtag\r\n", search)
+	assert.Equal("10 Hashtag\r\n", search)
 }
 
 func TestSearch_InvalidEscapeSequence(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	search := server.Handle("/users/search?%zzworld", server.Bob)
-	assert.Equal(t, "40 Bad input\r\n", search)
+	assert.Equal("40 Bad input\r\n", search)
 }
 
 func TestSearch_UnathenticatedUser(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	search := server.Handle("/search?world", nil)
-	assert.Equal(t, "30 /hashtag/world\r\n", search)
+	assert.Equal("30 /hashtag/world\r\n", search)
 }

@@ -25,14 +25,18 @@ func TestHome_AuthenticatedUser(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	home := server.Handle("/", server.Alice)
-	assert.Equal(t, "30 /users\r\n", home)
+	assert.Equal("30 /users\r\n", home)
 }
 
 func TestHome_UnauthenticatedUser(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	home := server.Handle("/", nil)
-	assert.Regexp(t, "^20 text/gemini\r\n", home)
+	assert.Regexp("^20 text/gemini\r\n", home)
 }

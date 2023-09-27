@@ -25,107 +25,119 @@ func TestHashtags_NoHashtags(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(t, "^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
 
 	view := server.Handle(say[3:len(say)-2], server.Bob)
-	assert.Contains(t, view, "Hello world")
+	assert.Contains(view, "Hello world")
 
 	hashtag := server.Handle("/users/hashtags", server.Bob)
-	assert.NotContains(t, hashtag, "#world")
+	assert.NotContains(hashtag, "#world")
 }
 
 func TestHashtags_OneHashtagOneAuthor(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	say := server.Handle("/users/say?Hello%20%23world", server.Alice)
-	assert.Regexp(t, "^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
 
 	view := server.Handle(say[3:len(say)-2], server.Bob)
-	assert.Contains(t, view, "Hello #world")
+	assert.Contains(view, "Hello #world")
 
 	hashtag := server.Handle("/users/hashtags", server.Bob)
-	assert.NotContains(t, hashtag, "#world")
+	assert.NotContains(hashtag, "#world")
 }
 
 func TestHashtags_OneHashtagTwoAuthors(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	say := server.Handle("/users/say?Hello%20%23world", server.Alice)
-	assert.Regexp(t, "^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
 
 	view := server.Handle(say[3:len(say)-2], server.Bob)
-	assert.Contains(t, view, "Hello #world")
+	assert.Contains(view, "Hello #world")
 
 	say = server.Handle("/users/say?Hello%20again,%20%23world", server.Bob)
-	assert.Regexp(t, "^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
 
 	view = server.Handle(say[3:len(say)-2], server.Alice)
-	assert.Contains(t, view, "Hello again, #world")
+	assert.Contains(view, "Hello again, #world")
 
 	hashtag := server.Handle("/users/hashtags", server.Carol)
-	assert.Contains(t, hashtag, "#world")
+	assert.Contains(hashtag, "#world")
 }
 
 func TestHashtags_OneHashtagTwoAuthorsCaseSensitivity(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	say := server.Handle("/users/say?Hello%20%23worLD", server.Alice)
-	assert.Regexp(t, "^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
 
 	view := server.Handle(say[3:len(say)-2], server.Bob)
-	assert.Contains(t, view, "Hello #worLD")
+	assert.Contains(view, "Hello #worLD")
 
 	say = server.Handle("/users/say?Hello%20again,%20%23WORld", server.Bob)
-	assert.Regexp(t, "^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
 
 	view = server.Handle(say[3:len(say)-2], server.Alice)
-	assert.Contains(t, view, "Hello again, #WORld")
+	assert.Contains(view, "Hello again, #WORld")
 
 	hashtag := server.Handle("/users/hashtags", server.Carol)
-	assert.Contains(t, hashtag, "#worLD")
+	assert.Contains(hashtag, "#worLD")
 }
 
 func TestHashtags_TwoHashtagsOneAuthor(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	say := server.Handle("/users/say?Hello%20%23world", server.Alice)
-	assert.Regexp(t, "^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
 
 	view := server.Handle(say[3:len(say)-2], server.Bob)
-	assert.Contains(t, view, "Hello #world")
+	assert.Contains(view, "Hello #world")
 
 	say = server.Handle("/users/say?Hello%20%23again,%20world", server.Bob)
-	assert.Regexp(t, "^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
 
 	view = server.Handle(say[3:len(say)-2], server.Alice)
-	assert.Contains(t, view, "Hello #again, world")
+	assert.Contains(view, "Hello #again, world")
 
 	hashtag := server.Handle("/users/hashtags", server.Carol)
-	assert.NotContains(t, hashtag, "#world")
-	assert.NotContains(t, hashtag, "#again")
+	assert.NotContains(hashtag, "#world")
+	assert.NotContains(hashtag, "#again")
 }
 
 func TestHashtags_OneHashtagTwoAuthorsUnauthenticatedUser(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	say := server.Handle("/users/say?Hello%20%23world", server.Alice)
-	assert.Regexp(t, "^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
 
 	view := server.Handle(say[3:len(say)-2], server.Bob)
-	assert.Contains(t, view, "Hello #world")
+	assert.Contains(view, "Hello #world")
 
 	say = server.Handle("/users/say?Hello%20again,%20%23world", server.Bob)
-	assert.Regexp(t, "^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
 
 	view = server.Handle(say[3:len(say)-2], server.Alice)
-	assert.Contains(t, view, "Hello again, #world")
+	assert.Contains(view, "Hello again, #world")
 
 	hashtag := server.Handle("/hashtags", nil)
-	assert.Contains(t, hashtag, "#world")
+	assert.Contains(hashtag, "#world")
 }
