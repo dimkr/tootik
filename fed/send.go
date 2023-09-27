@@ -84,9 +84,13 @@ func send(log *slog.Logger, db *sql.DB, from *ap.Actor, resolver *Resolver, r *h
 
 		privateKeyPem, _ := pem.Decode([]byte(privateKeyPemString))
 
-		privateKey, err := x509.ParsePKCS1PrivateKey(privateKeyPem.Bytes)
+		privateKey, err := x509.ParsePKCS8PrivateKey(privateKeyPem.Bytes)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to sign body for %s: %w", urlString, err)
+			// fallback for openssl<3.0.0
+			privateKey, err = x509.ParsePKCS1PrivateKey(privateKeyPem.Bytes)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to sign body for %s: %w", urlString, err)
+			}
 		}
 
 		r.Header.Add("Digest", "SHA-256="+base64.StdEncoding.EncodeToString(hash[:]))
