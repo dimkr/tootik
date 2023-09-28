@@ -24,9 +24,11 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/fsnotify/fsnotify"
 	"log/slog"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -74,26 +76,80 @@ func ListenAndServe(ctx context.Context, db *sql.DB, resolver *Resolver, actor *
 		return err
 	}
 
-	server := http.Server{
-		Addr:     addr,
-		Handler:  mux,
-		ErrorLog: slog.NewLogLogger(log.Handler(), slog.Level(cfg.LogLevel)),
-		BaseContext: func(net.Listener) context.Context {
-			return ctx
-		},
-		ReadTimeout: time.Second * 30,
-		TLSConfig: &tls.Config{
-			MinVersion: tls.VersionTLS12,
-		},
+	w, err := fsnotify.NewWatcher()
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+
+	if err := w.Add(cert); err != nil {
+		return err
+	}
+	if err := w.Add(key); err != nil {
+		return err
 	}
 
-	go func() {
-		<-ctx.Done()
-		server.Shutdown(context.Background())
-	}()
+	for ctx.Err() == nil {
+		var wg sync.WaitGroup
+		serverCtx, stopServer := context.WithCancel(ctx)
 
-	if err := server.ListenAndServeTLS(cert, key); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		return err
+		server := http.Server{
+			Addr:     addr,
+			Handler:  mux,
+			ErrorLog: slog.NewLogLogger(log.Handler(), slog.Level(cfg.LogLevel)),
+			BaseContext: func(net.Listener) context.Context {
+				return serverCtx
+			},
+			ReadTimeout: time.Second * 30,
+			TLSConfig: &tls.Config{
+				MinVersion: tls.VersionTLS12,
+			},
+		}
+
+		wg.Add(1)
+		go func() {
+			<-serverCtx.Done()
+			server.Shutdown(context.Background())
+			wg.Done()
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			for {
+				select {
+				case <-serverCtx.Done():
+					server.Shutdown(context.Background())
+					return
+
+				case event, ok := <-w.Events:
+					if !ok {
+						continue
+					}
+
+					if !event.Has(fsnotify.Write) && !event.Has(fsnotify.Create) && !event.Has(fsnotify.Rename) {
+						continue
+					}
+
+					log.Info("Stopping HTTPS server: file has changed", "name", event.Name)
+					server.Shutdown(context.Background())
+					return
+
+				case <-w.Errors:
+				}
+			}
+		}()
+
+		log.Info("Starting HTTPS server")
+		err := server.ListenAndServeTLS(cert, key)
+
+		stopServer()
+		wg.Wait()
+
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return err
+		}
 	}
 
 	return nil
