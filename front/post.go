@@ -32,8 +32,8 @@ import (
 )
 
 var (
-	mentionRegex = regexp.MustCompile(`\B@([^\s@]+)(?:@([\S]+){0,1})\b`)
-	hashtagRegex = regexp.MustCompile(`\B#[^\s]{1,32}\b`)
+	mentionRegex = regexp.MustCompile(`\B@(\w+)(?:@(\w+)){0,1}\b`)
+	hashtagRegex = regexp.MustCompile(`\B#\w{1,32}\b`)
 )
 
 func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap.Audience, prompt string) {
