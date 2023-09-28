@@ -32,7 +32,7 @@ import (
 )
 
 var (
-	mentionRegex = regexp.MustCompile(`\B@([\S]+)(@[\S]+){0,1}\b`)
+	mentionRegex = regexp.MustCompile(`\B@([^\s@]+)(?:@([\S]+){0,1})\b`)
 	hashtagRegex = regexp.MustCompile(`\B#[^\s]{1,32}\b`)
 )
 
@@ -102,7 +102,7 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 		} else if mention[2] == "" && inReplyTo == nil {
 			err = r.QueryRow(`select id from (select id, case when id = $1 then 2 when id in (select followed from follows where follower = $2 and accepted = 1) then 1 else 0 end as score from persons where actor->>'preferredUsername' = $3) where score > 0 order by score desc limit 1`, fmt.Sprintf("https://%s/user/%s", cfg.Domain, mention[1]), r.User.ID, mention[1]).Scan(&actorID)
 		} else {
-			err = r.QueryRow(`select id from persons where actor->>'preferredUsername' = $1 and id like $2`, mention[1], fmt.Sprintf("https://%s/%%", mention[2][1:])).Scan(&actorID)
+			err = r.QueryRow(`select id from persons where actor->>'preferredUsername' = $1 and id like $2`, mention[1], fmt.Sprintf("https://%s/%%", mention[2])).Scan(&actorID)
 		}
 
 		if err != nil {

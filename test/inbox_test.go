@@ -243,6 +243,32 @@ func TestInbox_NoMentionAndMention(t *testing.T) {
 	assert.True(postWithMention < postWithoutMention)
 }
 
+func TestInbox_NoMentionAndMentionWithHost(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+
+	follow = server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Carol.ID))), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Carol.ID))), follow)
+
+	whisper := server.Handle("/users/whisper?Hello%20alice%21", server.Bob)
+	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+
+	whisper = server.Handle("/users/whisper?Hello%20%40alice%40localhost%21", server.Carol)
+	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+
+	today := server.Handle("/users/inbox/today", server.Alice)
+	postWithMention := strings.Index(today, "Hello @alice@localhost!")
+	postWithoutMention := strings.Index(today, "Hello alice!")
+	assert.NotEqual(postWithMention, -1)
+	assert.NotEqual(postWithoutMention, -1)
+	assert.True(postWithMention < postWithoutMention)
+}
+
 func TestInbox_DMWithoutMentionAndMention(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
