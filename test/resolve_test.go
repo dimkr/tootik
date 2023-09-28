@@ -102,3 +102,13 @@ func TestResolve_InvalidInputFormat(t *testing.T) {
 	resolve := server.Handle("/users/resolve?troll%40localhost%400.0.0.0", server.Bob)
 	assert.Equal("40 Bad input\r\n", resolve)
 }
+
+func TestResolve_UnauthenticatedUser(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	resolve := server.Handle("/users/resolve?alice", nil)
+	assert.Equal("30 /users\r\n", resolve)
+}

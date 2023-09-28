@@ -26,6 +26,11 @@ import (
 )
 
 func resolve(w text.Writer, r *request) {
+	if r.User == nil {
+		w.Redirect("/users")
+		return
+	}
+
 	if r.URL.RawQuery == "" {
 		w.Status(10, "User name (name or name@domain)")
 		return
