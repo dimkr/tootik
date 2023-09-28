@@ -49,9 +49,7 @@ or, to build a static executable:
 * ap/ implements ActivityPub vocabulary.
 * migrations/ contains the database schema.
 * data/ contains useful data structures.
-
 * cfg/ contains global configuration parameters.
-* logger/ contains logging utilities.
 
 * test/ contains tests.
 
