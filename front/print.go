@@ -25,9 +25,9 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
-	log "github.com/dimkr/tootik/slogru"
 	"github.com/dimkr/tootik/text"
 	"github.com/dimkr/tootik/text/plain"
+	"log/slog"
 	"net/url"
 	"regexp"
 	"strings"
@@ -73,7 +73,7 @@ func getTextAndLinks(s string, maxRunes, maxLines int) ([]string, []string) {
 	return lines, links
 }
 
-func getDisplayName(id, preferredUsername, name string, t ap.ActorType) string {
+func getDisplayName(id, preferredUsername, name string, t ap.ActorType, log *slog.Logger) string {
 	prefix := fmt.Sprintf("https://%s/user/", cfg.Domain)
 
 	isLocal := strings.HasPrefix(id, prefix)
@@ -104,22 +104,22 @@ func getDisplayName(id, preferredUsername, name string, t ap.ActorType) string {
 
 	u, err := url.Parse(id)
 	if err != nil {
-		log.WithField("id", id).WithError(err).Warn("Failed to parse user ID")
+		log.Warn("Failed to parse user ID", "id", id, "error", err)
 		return fmt.Sprintf("%s %s", emoji, displayName)
 	}
 
 	return fmt.Sprintf("%s %s (%s@%s)", emoji, displayName, preferredUsername, u.Host)
 }
 
-func getActorDisplayName(actor *ap.Actor) string {
+func getActorDisplayName(actor *ap.Actor, log *slog.Logger) string {
 	userName, _ := plain.FromHTML(actor.PreferredUsername)
 	name, _ := plain.FromHTML(actor.Name)
-	return getDisplayName(actor.ID, userName, name, actor.Type)
+	return getDisplayName(actor.ID, userName, name, actor.Type, log)
 }
 
 func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, group *ap.Actor, compact, printAuthor, printParentAuthor, titleIsLink bool) {
 	if note.AttributedTo == "" {
-		r.Log.WithField("id", note.ID).Warn("Note has no author")
+		r.Log.Warn("Note has no author", "id", note.ID)
 		return
 	}
 
@@ -156,7 +156,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 			mentionedUsers.Store(tag.Href, struct{}{})
 
 		default:
-			r.Log.WithField("type", tag.Type).Warn("Skipping unsupported mention type")
+			r.Log.Warn("Skipping unsupported mention type", "post", note.ID, "type", tag.Type)
 		}
 	}
 
@@ -180,7 +180,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 
 	var replies int
 	if err := r.QueryRow(`select count(*) from notes where object->>'inReplyTo' = ?`, note.ID).Scan(&replies); err != nil {
-		r.Log.WithField("id", note.ID).WithError(err).Warn("Failed to count replies")
+		r.Log.Warn("Failed to count replies", "id", note.ID, "error", err)
 	}
 
 	authorDisplayName := author.PreferredUsername
@@ -196,15 +196,19 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 		title = note.Published.Format(time.DateOnly)
 	}
 
+	if note.Updated != nil && *note.Updated != (time.Time{}) {
+		title += " ┃ edited"
+	}
+
 	var parentAuthor ap.Actor
 	if note.InReplyTo != "" {
 		var parentAuthorString string
 		if err := r.QueryRow(`select persons.actor from notes join persons on persons.id = notes.author where notes.id = ?`, note.InReplyTo).Scan(&parentAuthorString); err != nil && errors.Is(err, sql.ErrNoRows) {
-			r.Log.WithField("id", note.InReplyTo).Info("Parent post or author is missing")
+			r.Log.Info("Parent post or author is missing", "id", note.InReplyTo)
 		} else if err != nil {
-			r.Log.WithField("id", note.InReplyTo).WithError(err).Warn("Failed to query parent post author")
+			r.Log.Warn("Failed to query parent post author", "id", note.InReplyTo, "error", err)
 		} else if err := json.Unmarshal([]byte(parentAuthorString), &parentAuthor); err != nil {
-			r.Log.WithField("id", note.InReplyTo).WithError(err).Warn("Failed to unmarshal parent post author")
+			r.Log.Warn("Failed to unmarshal parent post author", "id", note.InReplyTo, "error", err)
 		}
 	}
 
@@ -250,7 +254,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 	}
 
 	if !titleIsLink {
-		w.Text(title)
+		w.Link(note.ID, title)
 	} else if r.User == nil {
 		w.Link(fmt.Sprintf("/view/%x", sha256.Sum256([]byte(note.ID))), title)
 	} else {
@@ -276,10 +280,10 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 		for _, mentionID := range mentionedUsers.Keys() {
 			var mentionUserName string
 			if err := r.QueryRow(`select actor->>'preferredUsername' from persons where id = ?`, mentionID).Scan(&mentionUserName); err != nil && errors.Is(err, sql.ErrNoRows) {
-				r.Log.WithField("mention", mentionID).Warn("Mentioned user is unknown")
+				r.Log.Warn("Mentioned user is unknown", "mention", mentionID)
 				continue
 			} else if err != nil {
-				r.Log.WithField("mention", mentionID).WithError(err).Warn("Failed to get mentioned user name")
+				r.Log.Warn("Failed to get mentioned user name", "mention", mentionID, "error", err)
 				continue
 			}
 
@@ -299,7 +303,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 		hashtags.Range(func(_ string, tag string) bool {
 			var exists int
 			if err := r.QueryRow(`select exists (select 1 from hashtags where hashtag = ? and note != ?)`, tag, note.ID).Scan(&exists); err != nil {
-				r.Log.WithFields(log.Fields{"note": note.ID, "hashtag": tag}).Warn("Failed to check if hashtag is used by other posts")
+				r.Log.Warn("Failed to check if hashtag is used by other posts", "note", note.ID, "hashtag", tag)
 				return true
 			}
 
@@ -312,6 +316,10 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 			return true
 		})
 
+		if r.User != nil && note.AttributedTo == r.User.ID {
+			w.Link(fmt.Sprintf("/users/edit/%x", sha256.Sum256([]byte(note.ID))), "🩹 Edit")
+			w.Link(fmt.Sprintf("/users/delete/%x", sha256.Sum256([]byte(note.ID))), "💣 Delete")
+		}
 		if r.User != nil {
 			w.Link(fmt.Sprintf("/users/reply/%x", sha256.Sum256([]byte(note.ID))), "💬 Reply")
 		}
@@ -323,30 +331,30 @@ func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, noteMet
 	rows.Range(func(noteString string, meta noteMetadata) bool {
 		note := ap.Object{}
 		if err := json.Unmarshal([]byte(noteString), &note); err != nil {
-			r.Log.WithError(err).Warn("Failed to unmarshal post")
+			r.Log.Warn("Failed to unmarshal post", "error", err)
 			return true
 		}
 
 		if note.Type != ap.NoteObject && note.Type != ap.PageObject && note.Type != ap.ArticleObject {
-			r.Log.WithField("type", note.Type).Warn("Post type is unsupported")
+			r.Log.Warn("Post type is unsupported", "type", note.Type)
 			return true
 		}
 
 		if !meta.Author.Valid {
-			r.Log.WithFields(log.Fields{"note": note.ID, "author": note.AttributedTo}).Warn("Post author is unknown")
+			r.Log.Warn("Post author is unknown", "note", note.ID, "author", note.AttributedTo)
 			return true
 		}
 
 		author := ap.Actor{}
 		if err := json.Unmarshal([]byte(meta.Author.String), &author); err != nil {
-			r.Log.WithError(err).Warn("Failed to unmarshal post author")
+			r.Log.Warn("Failed to unmarshal post author", "error", err)
 			return true
 		}
 
 		group := ap.Actor{}
 		if meta.Group.Valid {
 			if err := json.Unmarshal([]byte(meta.Group.String), &group); err != nil {
-				r.Log.WithError(err).Warn("Failed to unmarshal post group")
+				r.Log.Warn("Failed to unmarshal post group", "error", err)
 				return true
 			}
 		}

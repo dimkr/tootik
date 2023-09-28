@@ -19,13 +19,7 @@ package front
 import (
 	"github.com/dimkr/tootik/text"
 	"net/url"
-	"regexp"
 )
-
-func init() {
-	handlers[regexp.MustCompile(`^/search$`)] = withUserMenu(search)
-	handlers[regexp.MustCompile(`^/users/search$`)] = withUserMenu(search)
-}
 
 func search(w text.Writer, r *request) {
 	if r.URL.RawQuery == "" {
@@ -35,7 +29,7 @@ func search(w text.Writer, r *request) {
 
 	hashtag, err := url.QueryUnescape(r.URL.RawQuery)
 	if err != nil {
-		r.Log.WithField("url", r.URL).WithError(err).Info("Failed to decode user name")
+		r.Log.Info("Failed to decode query", "url", r.URL, "error", err)
 		w.Status(40, "Bad input")
 		return
 	}

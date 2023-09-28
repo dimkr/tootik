@@ -19,40 +19,33 @@ package front
 import (
 	"fmt"
 	"path/filepath"
-	"regexp"
 	"time"
 
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/text"
 )
 
-func init() {
-	handlers[regexp.MustCompile("^/users/inbox/[0-9]{4}-[0-9]{2}-[0-9]{2}$")] = withUserMenu(byDate)
-	handlers[regexp.MustCompile("^/users/inbox/today$")] = withUserMenu(today)
-	handlers[regexp.MustCompile("^/users/inbox/yesterday$")] = withUserMenu(yesterday)
-}
-
 func dailyPosts(w text.Writer, r *request, day time.Time) {
 	if r.User == nil {
-		w.Status(61, "Peer certificate is required")
+		w.Redirect("/users")
 		return
 	}
 
 	now := time.Now()
 	if day.After(now) {
-		r.Log.WithField("day", day).Info("Date is in the future")
+		r.Log.Info("Date is in the future", "day", day)
 		w.Redirect("/users/oops")
 		return
 	}
 
 	offset, err := getOffset(r.URL)
 	if err != nil {
-		r.Log.WithField("url", r.URL).WithError(err).Info("Failed to parse query")
+		r.Log.Info("Failed to parse query", "url", r.URL, "error", err)
 		w.Status(40, "Invalid query")
 		return
 	}
 
-	r.Log.WithField("offset", offset).Info("Viewing inbox")
+	r.Log.Info("Viewing inbox", "offset", offset)
 
 	since := now.Add(-time.Hour * 24 * 2)
 
@@ -62,7 +55,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 		left join (
 			select follows.followed, persons.actor, stats.avg, stats.last from
 			(
-				select followed from follows where follower = $1
+				select followed from follows where follower = $1 and accepted = 1
 			) follows
 			join
 			persons
@@ -103,7 +96,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 		on
 			myposts.id = notes.object->>'inReplyTo'
 		left join (
-			select notes.object->>'inReplyTo' as inreplyto, notes.author, follows.id as follow from notes left join follows on follows.follower = $1 and follows.followed = notes.author where notes.inserted >= $3
+			select notes.object->>'inReplyTo' as inreplyto, notes.author, follows.id as follow from notes left join follows on follows.follower = $1 and follows.followed = notes.author and follows.accepted = 1 where notes.inserted >= $3
 		) replies
 		on
 			replies.inreplyto = notes.id and replies.author != notes.author
@@ -113,7 +106,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 		where
 			notes.inserted >= $4 and
 			notes.inserted < $4 + 60*60*24 and
-			(follows.followed is not null or myposts.id is not null)
+			(follows.followed is not null or (myposts.id is not null and notes.author != $1))
 		group by notes.id
 		order by
 			notes.inserted / 86400 desc,
@@ -132,7 +125,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 		limit $5
 		offset $6`, r.User.ID, now.Sub(since)/time.Hour, since.Unix(), day.Unix(), postsPerPage, offset)
 	if err != nil {
-		r.Log.WithError(err).Warn("Failed to fetch posts")
+		r.Log.Warn("Failed to fetch posts", "error", err)
 		w.Error()
 		return
 	}
@@ -144,7 +137,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 		noteString := ""
 		var meta noteMetadata
 		if err := rows.Scan(&noteString, &meta.Author, &meta.Group); err != nil {
-			r.Log.WithError(err).Warn("Failed to scan post")
+			r.Log.Warn("Failed to scan post", "error", err)
 			continue
 		}
 
@@ -183,7 +176,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 func byDate(w text.Writer, r *request) {
 	day, err := time.Parse(time.DateOnly, filepath.Base(r.URL.Path))
 	if err != nil {
-		r.Log.WithError(err).Info("Failed to parse date")
+		r.Log.Info("Failed to parse date", "error", err)
 		w.Status(40, "Invalid date")
 		return
 	}

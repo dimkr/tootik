@@ -23,12 +23,7 @@ import (
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/text"
 	"path/filepath"
-	"regexp"
 )
-
-func init() {
-	handlers[regexp.MustCompile(`^/users/unfollow/[0-9a-f]{64}$`)] = withUserMenu(unfollow)
-}
 
 func unfollow(w text.Writer, r *request) {
 	if r.User == nil {
@@ -40,17 +35,17 @@ func unfollow(w text.Writer, r *request) {
 
 	var followID, followed string
 	if err := r.QueryRow(`select follows.id, persons.id from persons join follows on persons.id = follows.followed where persons.hash = ? and follows.follower = ?`, hash, r.User.ID).Scan(&followID, &followed); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.WithField("hash", hash).WithError(err).Warn("Cannot undo a non-existing follow")
+		r.Log.Warn("Cannot undo a non-existing follow", "hash", hash, "error", err)
 		w.Status(40, "No such follow")
 		return
 	} else if err != nil {
-		r.Log.WithField("hash", hash).WithError(err).Warn("Failed to find followed user")
+		r.Log.Warn("Failed to find followed user", "hash", hash, "error", err)
 		w.Error()
 		return
 	}
 
-	if err := fed.Unfollow(r.Context, r.User, followed, followID, r.DB); err != nil {
-		r.Log.WithField("followed", followed).WithError(err).Warn("Failed undo follow")
+	if err := fed.Unfollow(r.Context, r.Log, r.DB, r.User, followed, followID); err != nil {
+		r.Log.Warn("Failed undo follow", "followed", followed, "error", err)
 		w.Error()
 		return
 	}

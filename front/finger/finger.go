@@ -30,16 +30,15 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
-	log "github.com/dimkr/tootik/slogru"
 	"github.com/dimkr/tootik/text/plain"
 	"log/slog"
 )
 
 const reqTimeout = time.Second * 30
 
-func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup) {
+func handle(ctx context.Context, conn net.Conn, db *sql.DB, log *slog.Logger, wg *sync.WaitGroup) {
 	if err := conn.SetDeadline(time.Now().Add(reqTimeout)); err != nil {
-		log.WithError(err).Warn("Failed to set deadline")
+		log.Warn("Failed to set deadline", "error", err)
 		return
 	}
 
@@ -48,7 +47,7 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup) 
 	for {
 		n, err := conn.Read(req[total:])
 		if err != nil {
-			log.WithError(err).Warn("Failed to receive request")
+			log.Warn("Failed to receive request", "error", err)
 			return
 		}
 		if n <= 0 {
@@ -68,7 +67,7 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup) 
 	}
 
 	user := string(req[:total-2])
-	log := log.With(slog.String("user", user))
+	log = log.With(slog.String("user", user))
 
 	if user == "" {
 		log.Warn("Invalid username specified")
@@ -91,13 +90,13 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup) 
 		fmt.Fprintf(conn, "Login: %s\r\nPlan:\r\nNo Plan.\r\n", user)
 		return
 	} else if err != nil {
-		log.WithError(err).Warn("Failed to check if user exists")
+		log.Warn("Failed to check if user exists", "error", err)
 		return
 	}
 
 	var actor ap.Actor
 	if err := json.Unmarshal([]byte(actorString), &actor); err != nil {
-		log.WithError(err).Warn("Failed to unmarshal actor")
+		log.Warn("Failed to unmarshal actor", "error", err)
 		return
 	}
 	summary, links := plain.FromHTML(actor.Summary)
@@ -106,14 +105,14 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup) 
 
 	rows, err := db.QueryContext(ctx, `select object->>'content', inserted from notes where public = 1 and author = ? order by inserted desc limit 5`, id)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		log.WithError(err).Warn("Failed to query posts")
+		log.Warn("Failed to query posts", "error", err)
 		return
 	} else if err == nil {
 		for rows.Next() {
 			var content string
 			var inserted int64
 			if err := rows.Scan(&content, &inserted); err != nil {
-				log.WithError(err).Warn("Failed to parse post")
+				log.Warn("Failed to parse post", "error", err)
 				continue
 			}
 			posts.Store(content, inserted)
@@ -172,7 +171,7 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, wg *sync.WaitGroup) 
 	}
 }
 
-func ListenAndServe(ctx context.Context, db *sql.DB, addr string) error {
+func ListenAndServe(ctx context.Context, log *slog.Logger, db *sql.DB, addr string) error {
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
@@ -194,7 +193,7 @@ func ListenAndServe(ctx context.Context, db *sql.DB, addr string) error {
 		for ctx.Err() == nil {
 			conn, err := l.Accept()
 			if err != nil {
-				log.WithError(err).Warn("Failed to accept a connection")
+				log.Warn("Failed to accept a connection", "error", err)
 				continue
 			}
 
@@ -213,7 +212,7 @@ func ListenAndServe(ctx context.Context, db *sql.DB, addr string) error {
 
 			wg.Add(1)
 			go func() {
-				handle(requestCtx, conn, db, &wg)
+				handle(requestCtx, conn, db, log, &wg)
 				conn.Close()
 				timer.Stop()
 				cancelRequest()

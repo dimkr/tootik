@@ -18,7 +18,7 @@ package ap
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 )
 
 type ActivityType string
@@ -31,21 +31,30 @@ const (
 	DeleteActivity   ActivityType = "Delete"
 	AnnounceActivity ActivityType = "Announce"
 	UpdateActivity   ActivityType = "Update"
+	LikeActivity     ActivityType = "Like"
 )
 
 type anyActivity struct {
-	ID     string          `json:"id"`
-	Type   ActivityType    `json:"type"`
-	Actor  string          `json:"actor"`
-	Object json.RawMessage `json:"object"`
+	Context any             `json:"@context"`
+	ID      string          `json:"id"`
+	Type    ActivityType    `json:"type"`
+	Actor   string          `json:"actor"`
+	Object  json.RawMessage `json:"object"`
+	To      Audience        `json:"to"`
+	CC      Audience        `json:"cc"`
 }
 
 type Activity struct {
-	ID     string       `json:"id"`
-	Type   ActivityType `json:"type"`
-	Actor  string       `json:"actor"`
-	Object any          `json:"object"`
+	Context any          `json:"@context,omitempty"`
+	ID      string       `json:"id"`
+	Type    ActivityType `json:"type"`
+	Actor   string       `json:"actor"`
+	Object  any          `json:"object"`
+	To      Audience     `json:"to,omitempty"`
+	CC      Audience     `json:"cc,omitempty"`
 }
+
+var ErrInvalidActivity = errors.New("Invalid activity")
 
 func (a *Activity) UnmarshalJSON(b []byte) error {
 	var common anyActivity
@@ -53,9 +62,12 @@ func (a *Activity) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
+	a.Context = common.Context
 	a.ID = common.ID
 	a.Type = common.Type
 	a.Actor = common.Actor
+	a.To = common.To
+	a.CC = common.CC
 
 	var object Object
 	var activity Activity
@@ -67,7 +79,7 @@ func (a *Activity) UnmarshalJSON(b []byte) error {
 	} else if err := json.Unmarshal(common.Object, &link); err == nil {
 		a.Object = link
 	} else {
-		return fmt.Errorf("Invalid activity: %s", string(b))
+		return ErrInvalidActivity
 	}
 
 	return nil

@@ -24,7 +24,6 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/fed"
-	log "github.com/dimkr/tootik/slogru"
 	"github.com/dimkr/tootik/text"
 	"github.com/dimkr/tootik/text/plain"
 	"net/url"
@@ -33,8 +32,8 @@ import (
 )
 
 var (
-	mentionRegex = regexp.MustCompile(`\B@([a-zA-Z0-9]+)(@[a-z0-9.]+){0,1}`)
-	hashtagRegex = regexp.MustCompile(`(\B#[^\s]{1,32})`)
+	mentionRegex = regexp.MustCompile(`\B@(\w+)(?:@(\w+)){0,1}\b`)
+	hashtagRegex = regexp.MustCompile(`\B#\w{1,32}\b`)
 )
 
 func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap.Audience, prompt string) {
@@ -46,23 +45,23 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 	now := time.Now()
 
 	var today, last sql.NullInt64
-	if err := r.QueryRow(`select count(*), max(inserted) from notes where author = ? and inserted > ?`, r.User.ID, now.Add(-24*time.Hour).Unix()).Scan(&today, &last); err != nil {
-		r.Log.WithError(err).Warn("Failed to check if new post needs to be throttled")
+	if err := r.QueryRow(`select count(*), max(inserted) from outbox where activity->>'actor' = ? and activity->>'type' = 'Create' and inserted > ?`, r.User.ID, now.Add(-24*time.Hour).Unix()).Scan(&today, &last); err != nil {
+		r.Log.Warn("Failed to check if new post needs to be throttled", "error", err)
 		w.Error()
 		return
 	}
 
 	if today.Valid && today.Int64 >= 30 {
-		r.Log.WithField("posts", today.Int64).Warn("User has exceeded the daily posts quota")
+		r.Log.Warn("User has exceeded the daily posts quota", "posts", today.Int64)
 		w.Status(40, "Please wait before posting again")
 		return
 	}
 
 	if today.Valid && last.Valid {
 		t := time.Unix(last.Int64, 0)
-		interval := time.Duration(today.Int64/2) * time.Minute
+		interval := max(1, time.Duration(today.Int64/2)) * time.Minute
 		if now.Sub(t) < interval {
-			r.Log.WithFields(log.Fields{"last": t, "can": t.Add(interval)}).Warn("User is posting too frequently")
+			r.Log.Warn("User is posting too frequently", "last", t, "can", t.Add(interval))
 			w.Status(40, "Please wait before posting again")
 			return
 		}
@@ -99,23 +98,23 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 		var actorID string
 		var err error
 		if mention[2] == "" && inReplyTo != nil {
-			err = r.QueryRow(`select id from persons where id = ? or (id in (select followed from follows where follower = ?) and actor->>'preferredUsername' = ?) or id = ?`, inReplyTo.AttributedTo, r.User.ID, mention[1], fmt.Sprintf("https://%s/user/%s", cfg.Domain, mention[1])).Scan(&actorID)
+			err = r.QueryRow(`select id from (select id, case when id = $1 then 3 when id in (select followed from follows where follower = $2 and accepted = 1) then 2 when id = $3 then 1 else 0 end as score from persons where actor->>'preferredUsername' = $4) where score > 0 order by score desc limit 1`, inReplyTo.AttributedTo, r.User.ID, fmt.Sprintf("https://%s/user/%s", cfg.Domain, mention[1]), mention[1]).Scan(&actorID)
 		} else if mention[2] == "" && inReplyTo == nil {
-			err = r.QueryRow(`select id from persons where (id in (select followed from follows where follower = ?) and actor->>'preferredUsername' = ?) or id = ?`, r.User.ID, mention[1], fmt.Sprintf("https://%s/user/%s", cfg.Domain, mention[1])).Scan(&actorID)
+			err = r.QueryRow(`select id from (select id, case when id = $1 then 2 when id in (select followed from follows where follower = $2 and accepted = 1) then 1 else 0 end as score from persons where actor->>'preferredUsername' = $3) where score > 0 order by score desc limit 1`, fmt.Sprintf("https://%s/user/%s", cfg.Domain, mention[1]), r.User.ID, mention[1]).Scan(&actorID)
 		} else {
-			err = r.QueryRow(`select id from persons where id like ? and actor->>'preferredUsername' = ?`, fmt.Sprintf("https://%s/%%", mention[2][1:]), mention[1]).Scan(&actorID)
+			err = r.QueryRow(`select id from persons where actor->>'preferredUsername' = $1 and id like $2`, mention[1], fmt.Sprintf("https://%s/%%", mention[2])).Scan(&actorID)
 		}
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				r.Log.WithField("mention", mention[0]).Warn("Failed to guess mentioned actor ID")
+				r.Log.Warn("Failed to guess mentioned actor ID", "mention", mention[0])
 			} else {
-				r.Log.WithField("mention", mention[0]).WithError(err).Warn("Failed to guess mentioned actor ID")
+				r.Log.Warn("Failed to guess mentioned actor ID", "mention", mention[0], "error", err)
 			}
 			continue
 		}
 
-		r.Log.WithFields(log.Fields{"name": mention[0], "actor": actorID}).Info("Adding mention")
+		r.Log.Info("Adding mention", "name", mention[0], "actor", actorID)
 		tags = append(tags, ap.Mention{Type: ap.MentionMention, Name: mention[0], Href: actorID})
 		cc.Add(actorID)
 	}
@@ -126,7 +125,6 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 		Type:         ap.NoteObject,
 		ID:           postID,
 		AttributedTo: r.User.ID,
-		URL:          fmt.Sprintf("gemini://%s/view/%x", cfg.Domain, hash),
 		Content:      plain.ToHTML(content),
 		Published:    now,
 		To:           to,
@@ -138,9 +136,9 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 		note.InReplyTo = inReplyTo.ID
 	}
 
-	if err := fed.Deliver(r.Context, r.DB, r.Log, &note, r.User); err != nil {
-		r.Log.WithField("author", r.User.ID).Error("Failed to insert post")
-		if errors.Is(err, fed.DeliveryQueueFull) {
+	if err := fed.Deliver(r.Context, r.Log, r.DB, &note, r.User); err != nil {
+		r.Log.Error("Failed to insert post", "error", err)
+		if errors.Is(err, fed.ErrDeliveryQueueFull) {
 			w.Status(40, "Please try again later")
 		} else {
 			w.Error()

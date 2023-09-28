@@ -51,6 +51,8 @@ or, to build a static executable:
 * cfg/ contains global configuration parameters.
 * logger/ contains logging utilities.
 
+* test/ contains tests.
+
 ## Gemini Frontend
 
 * /local shows a compact list of local posts; each entry contains a link to /view.
@@ -75,6 +77,8 @@ Users are authenticated using TLS client certificates; see [Gemini protocol spec
 * /users/whisper creates a post visible to followers.
 * /users/say creates a public post.
 * /users/reply replies to a post.
+* /users/edit edits a post.
+* /users/delete deletes a post.
 * /users/follow sends a follow request to a user.
 * /users/unfollow deletes a follow request.
 * /users/outbox is equivalent to /outbox but also includes a link to /users/follow or /users/unfollow.
@@ -133,6 +137,10 @@ User A is allowed to send a message to user B only if B follows A.
 | Post        | Post author | Mentions and followers of reply author         |
 | Public post | Post author | Mentions, followers of reply author and Public |
 
+### Post Editing
+
+/users/edit only changes the content and the last update timestamp of a post. It does **not** change the post audience and mentioned users.
+
 ## Implementation Details
 
 ### The "Nobody" User
@@ -145,13 +153,13 @@ To protect user's privacy, requests not initiated by a particular user or reques
 
 A resolver is responsible for resolving a user ID (local or federated) into an Actor object that contains the user's information, like the user's display name. Actor objects for federated users are cached in the database and updated once in a while.
 
-This is an expensive but common operation that involves outgoing HTTPS requests. Therefore, to protect underpowered servers against heavy load and a big number of concurrent outgoing requests, the maximum number of resolvers is capped and resolvers are returned to a shared pool after use.
+This is an expensive but common operation that involves outgoing HTTPS requests. Therefore, to protect underpowered servers against heavy load and a big number of concurrent outgoing requests, the maximum number of outgoing requests is capped, concurrent attempts to resolve the same user are blocked and the resolver is a long-lived object that reuses connections.
 
 ### Delivery Queue
 
 Once saved to the database, new posts can be viewed by local users. However, delivery to federated followers can take time and generate many outgoing requests.
 
-Therefore, every time a new post is saved, it is accompanied by a "delivery". A delivery contains a delivery attempts counter, creation time and last attempt time. A single worker thread polls the deliveries table, prioritizes deliveries by the number of delivery attempts and the interval between attempts, then tries to deliver a post to federated followers of its author.
+Therefore, user actions are represented as an activity saved to the "outbox" table, accompanied by a delivery attempts counter, creation time and last attempt time. A single worker thread polls the table, prioritizes activities by the number of delivery attempts and the interval between attempts, then tries to deliver each activity to its federated recipients.
 
 ### Incoming Requests
 

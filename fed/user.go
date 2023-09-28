@@ -19,19 +19,16 @@ package fed
 import (
 	"crypto/sha256"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
-	log "github.com/dimkr/tootik/slogru"
-	_ "github.com/mattn/go-sqlite3"
+	"log/slog"
 	"net/http"
 	"path/filepath"
-	"strings"
 )
 
 type userHandler struct {
-	Log *log.Logger
+	Log *slog.Logger
 	DB  *sql.DB
 }
 
@@ -45,20 +42,19 @@ func (h *userHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	actorID := fmt.Sprintf("https://%s/user/%s", cfg.Domain, name)
 
 	// redirect browsers to the outbox page over Gemini
-	accept := strings.ReplaceAll(r.Header.Get("Accept"), " ", "")
-	if strings.HasPrefix(accept, "text/html,") || strings.HasSuffix(accept, ",text/html") || strings.Contains(accept, ",text/html,") {
+	if shouldRedirect(r) {
 		outbox := fmt.Sprintf("gemini://%s/outbox/%x", cfg.Domain, sha256.Sum256([]byte(actorID)))
-		h.Log.WithField("outbox", outbox).Info("Redirecting to outbox over Gemini")
+		h.Log.Info("Redirecting to outbox over Gemini", "outbox", outbox)
 		w.Header().Set("Location", outbox)
 		w.WriteHeader(http.StatusMovedPermanently)
 		return
 	}
 
-	h.Log.WithField("id", actorID).Info("Looking up user")
+	h.Log.Info("Looking up user", "id", actorID)
 
 	actorString := ""
 	if err := h.DB.QueryRowContext(r.Context(), `select actor from persons where id = ?`, actorID).Scan(&actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
-		h.Log.WithField("id", actorID).Info("Notifying about deleted user")
+		h.Log.Info("Notifying about deleted user", "id", actorID)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
@@ -66,20 +62,6 @@ func (h *userHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actor := map[string]any{}
-	if err := json.Unmarshal([]byte(actorString), &actor); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	delete(actor, "privateKey")
-	delete(actor, "clientCertificate")
-
-	resp, err := json.Marshal(actor)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
 	w.Header().Set("Content-Type", `application/activity+json; charset=utf-8`)
-	w.Write(resp)
+	w.Write([]byte(actorString))
 }

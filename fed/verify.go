@@ -26,19 +26,14 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/go-fed/httpsig"
+	"log/slog"
 	"net/http"
 	"regexp"
 )
 
 var keyIdRegex = regexp.MustCompile(`(?:^|\s)keyId="(https:\/\/[^"]+)"`)
 
-func verify(ctx context.Context, r *http.Request, db *sql.DB) (*ap.Actor, error) {
-	resolver, err := Resolvers.Borrow(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get resolver to verify message: %s", err)
-	}
-	defer Resolvers.Return(resolver)
-
+func verify(ctx context.Context, log *slog.Logger, r *http.Request, db *sql.DB, resolver *Resolver, from *ap.Actor, offline bool) (*ap.Actor, error) {
 	sig := r.Header.Get("Signature")
 	if sig == "" {
 		return nil, errors.New("Failed to verify message: no signature")
@@ -51,7 +46,7 @@ func verify(ctx context.Context, r *http.Request, db *sql.DB) (*ap.Actor, error)
 
 	keyID := match[1]
 
-	actor, err := resolver.Resolve(r.Context(), db, nil, keyID)
+	actor, err := resolver.Resolve(r.Context(), log, db, from, keyID, offline)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get key %s to verify message: %w", keyID, err)
 	}

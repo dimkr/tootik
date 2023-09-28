@@ -19,13 +19,14 @@ package fed
 import (
 	"bytes"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	log "github.com/dimkr/tootik/slogru"
-	_ "github.com/mattn/go-sqlite3"
 	"io"
 	"io/ioutil"
+	"log/slog"
 	"net/http"
 	"path/filepath"
 )
@@ -33,8 +34,10 @@ import (
 const maxBodySize = 1024 * 1024
 
 type inboxHandler struct {
-	Log *log.Logger
-	DB  *sql.DB
+	Log      *slog.Logger
+	DB       *sql.DB
+	Resolver *Resolver
+	Actor    *ap.Actor
 }
 
 func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
@@ -46,11 +49,11 @@ func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	receiver := fmt.Sprintf("https://%s/user/%s", cfg.Domain, filepath.Base(r.URL.Path))
 	var registered int
 	if err := h.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where id = ?)`, receiver).Scan(&registered); err != nil {
-		h.Log.WithField("receiver", receiver).WithError(err).Warn("Failed to check if receiving user exists")
+		h.Log.Warn("Failed to check if receiving user exists", "receiver", receiver, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	} else if registered == 0 {
-		h.Log.WithField("receiver", receiver).Warn("Receiving user does not exist")
+		h.Log.Warn("Receiving user does not exist", "receiver", receiver)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -60,26 +63,42 @@ func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var activity ap.Activity
+	if err := json.Unmarshal(body, &activity); err != nil {
+		h.Log.Warn("Failed to unmarshal activity", "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	r.Body = ioutil.NopCloser(bytes.NewReader(body))
 
-	sender, err := verify(r.Context(), r, h.DB)
+	// if actor is deleted, ignore this activity if we don't know this actor
+	offline := false
+	if activity.Type == ap.DeleteActivity {
+		offline = true
+	}
+
+	sender, err := verify(r.Context(), h.Log, r, h.DB, h.Resolver, h.Actor, offline)
 	if err != nil {
-		if errors.Is(err, goneError) {
+		if errors.Is(err, ErrActorGone) {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		h.Log.WithError(err).Warn("Failed to verify message")
-		w.WriteHeader(http.StatusUnauthorized)
+		if errors.Is(err, ErrActorNotCached) {
+			h.Log.Debug("Ignoring Delete activity for unknown actor", "error", err)
+		} else {
+			w.WriteHeader(http.StatusUnauthorized)
+		}
 		return
 	}
 
 	if _, err = h.DB.ExecContext(
 		r.Context(),
-		`INSERT INTO activities (sender, activity) VALUES(?,?)`,
+		`INSERT INTO inbox (sender, activity) VALUES(?,?)`,
 		sender.ID,
 		string(body),
 	); err != nil {
-		h.Log.WithField("sender", sender.ID).WithError(err).Error("Failed to insert activity")
+		h.Log.Error("Failed to insert activity", "sender", sender.ID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

@@ -25,49 +25,42 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"log/slog"
 )
 
-func Unfollow(ctx context.Context, follower *ap.Actor, followed, followID string, db *sql.DB) error {
+func Unfollow(ctx context.Context, log *slog.Logger, db *sql.DB, follower *ap.Actor, followed, followID string) error {
 	if followed == follower.ID {
 		return fmt.Errorf("%s cannot unfollow %s", follower.ID, followed)
 	}
 
 	undoID := fmt.Sprintf("https://%s/undo/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s", follower.ID, followed))))
 
-	body, err := json.Marshal(map[string]any{
-		"@context": "https://www.w3.org/ns/activitystreams",
-		"id":       undoID,
-		"type":     ap.UndoActivity,
-		"actor":    follower.ID,
-		"object": map[string]any{
-			"id":     followID,
-			"type":   ap.FollowObject,
-			"actor":  follower.ID,
-			"object": followed,
+	to := ap.Audience{}
+	to.Add(followed)
+
+	body, err := json.Marshal(ap.Activity{
+		ID:    undoID,
+		Type:  ap.UndoActivity,
+		Actor: follower.ID,
+		Object: &ap.Activity{
+			ID:     followID,
+			Type:   ap.FollowActivity,
+			Actor:  follower.ID,
+			Object: followed,
 		},
+		To: to,
 	})
 	if err != nil {
 		return fmt.Errorf("%s cannot unfollow %s: %w", follower.ID, followed, err)
 	}
 
-	resolver, err := Resolvers.Borrow(ctx)
-	if err != nil {
-		return fmt.Errorf("%s cannot unfollow %s: %w", follower.ID, followed, err)
+	if _, err := db.ExecContext(
+		ctx,
+		`INSERT INTO outbox (activity) VALUES(?)`,
+		string(body),
+	); err != nil {
+		return fmt.Errorf("Failed to insert undo for %s: %w", followID, err)
 	}
-
-	to, err := resolver.Resolve(ctx, db, follower, followed)
-	if err != nil {
-		Resolvers.Return(resolver)
-		return fmt.Errorf("%s cannot unfollow %s: %w", follower.ID, followed, err)
-	}
-	followed = to.ID
-
-	if err := Send(ctx, db, follower, resolver, to, body); err != nil {
-		Resolvers.Return(resolver)
-		return fmt.Errorf("Failed to send unfollow %s: %w", followID, err)
-	}
-
-	Resolvers.Return(resolver)
 
 	if _, err := db.ExecContext(ctx, `delete from follows where id = ?`, followID); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("Failed to unfollow %s: %w", followID, err)

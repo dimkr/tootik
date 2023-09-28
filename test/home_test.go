@@ -14,38 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package slogru
+package test
 
-var def = new()
+import (
+	"github.com/stretchr/testify/assert"
+	"testing"
+)
 
-func Default() *Logger {
-	return def
+func TestHome_AuthenticatedUser(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	home := server.Handle("/", server.Alice)
+	assert.Equal("30 /users\r\n", home)
 }
 
-func WithField(k string, v any) Entry {
-	return def.WithField(k, v)
-}
+func TestHome_UnauthenticatedUser(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
 
-func WithFields(fields Fields) Entry {
-	return def.WithFields(fields)
-}
+	assert := assert.New(t)
 
-func WithError(err error) Entry {
-	return def.WithError(err)
-}
-
-func With(args ...any) *Logger {
-	return &Logger{def.With(args...)}
-}
-
-func Fatal(err error) {
-	def.Fatal(err)
-}
-
-func Warn(msg string) {
-	def.Warn(msg)
-}
-
-func Info(msg string) {
-	def.Info(msg)
+	home := server.Handle("/", nil)
+	assert.Regexp("^20 text/gemini\r\n", home)
 }

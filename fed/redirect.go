@@ -16,10 +16,12 @@ limitations under the License.
 
 package fed
 
-type activityPubRequest struct {
-	Context string `json:"@context"`
-	ID      string `json:"id"`
-	Type    string `json:"type"`
-	Actor   string `json:"actor"`
-	Object  any    `json:"object"`
+import (
+	"net/http"
+	"strings"
+)
+
+func shouldRedirect(r *http.Request) bool {
+	accept := strings.ReplaceAll(r.Header.Get("Accept"), " ", "")
+	return accept == "text/html" || strings.HasPrefix(accept, "text/html,") || strings.HasSuffix(accept, ",text/html") || strings.Contains(accept, ",text/html,")
 }

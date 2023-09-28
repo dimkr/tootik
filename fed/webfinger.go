@@ -21,14 +21,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
-	log "github.com/dimkr/tootik/slogru"
-	_ "github.com/mattn/go-sqlite3"
+	"log/slog"
 	"net/http"
 	"strings"
 )
 
 type webFingerHandler struct {
-	Log *log.Logger
+	Log *slog.Logger
 	DB  *sql.DB
 }
 
@@ -47,7 +46,7 @@ func (h *webFingerHandler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	resource := query.Get("resource")
 
-	h.Log.WithField("resource", resource).Info("Looking up resource")
+	h.Log.Info("Looking up resource", "resource", resource)
 
 	if !strings.HasPrefix(resource, "acct:") {
 		w.WriteHeader(http.StatusBadRequest)

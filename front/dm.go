@@ -23,46 +23,41 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/text"
 	"path/filepath"
-	"regexp"
 )
-
-func init() {
-	handlers[regexp.MustCompile(`^/users/dm/[0-9a-f]{64}`)] = dm
-}
 
 func dm(w text.Writer, r *request) {
 	hash := filepath.Base(r.URL.Path)
 
 	var actorString string
 	if err := r.QueryRow(`select actor from persons where hash = ?`, hash).Scan(&actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.WithField("hash", hash).Warn("User does not exist")
+		r.Log.Warn("User does not exist", "hash", hash)
 		w.Status(40, "User does not exist")
 		return
 	} else if err != nil {
-		r.Log.WithField("hash", hash).WithError(err).Warn("Failed to find user by hash")
+		r.Log.Warn("Failed to find user by hash", "hash", hash, "error", err)
 		w.Error()
 		return
 	}
 
 	actor := ap.Object{}
 	if err := json.Unmarshal([]byte(actorString), &actor); err != nil {
-		r.Log.WithField("hash", hash).WithError(err).Warn("Failed to unmarshal actor")
+		r.Log.Warn("Failed to unmarshal actor", "hash", hash, "error", err)
 		w.Error()
 		return
 	}
 
 	var following int
 	if err := r.QueryRow(`select exists (select 1 from follows where follower = ? and followed = ?)`, actor.ID, r.User.ID).Scan(&following); err != nil {
-		r.Log.WithField("follower", actor.ID).WithError(err).Warn("Failed to check if user is a follower")
+		r.Log.Warn("Failed to check if user is a follower", "follower", actor.ID, "error", err)
 		w.Error()
 		return
 	} else if following == 0 {
-		r.Log.WithField("follower", actor.ID).Warn("Cannot DM a user not following")
+		r.Log.Warn("Cannot DM a user not following", "follower", actor.ID)
 		w.Error()
 		return
 	}
 
-	r.Log.WithField("to", actor.ID).Info("Sending DM to user")
+	r.Log.Info("Sending DM to user", "to", actor.ID)
 
 	to := ap.Audience{}
 	to.Add(actor.ID)

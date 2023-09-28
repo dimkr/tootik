@@ -25,7 +25,7 @@ import (
 	"strings"
 
 	"github.com/dimkr/tootik/ap"
-	log "github.com/dimkr/tootik/slogru"
+	"log/slog"
 )
 
 func expand(aud ap.Audience, arr *[3]sql.NullString) {
@@ -47,7 +47,7 @@ func expand(aud ap.Audience, arr *[3]sql.NullString) {
 	}
 }
 
-func Insert(ctx context.Context, db *sql.DB, note *ap.Object, logger *log.Logger) error {
+func Insert(ctx context.Context, log *slog.Logger, db *sql.DB, note *ap.Object) error {
 	body, err := json.Marshal(note)
 	if err != nil {
 		return fmt.Errorf("Failed to marshal note %s: %w", note.ID, err)
@@ -100,12 +100,12 @@ func Insert(ctx context.Context, db *sql.DB, note *ap.Object, logger *log.Logger
 	}
 
 	if _, err = db.ExecContext(ctx, `update notes SET groupid = (select id from persons where actor->>'type' = 'Group' and (id in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = persons.id)) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = persons.id)) limit 1) where id = ?`, note.ID); err != nil {
-		log.WithField("note", note.ID).WithError(err).Warn("Failed to set post group")
+		log.Warn("Failed to set post group", "error", err)
 	}
 
 	for _, hashtag := range hashtags {
 		if _, err = db.ExecContext(ctx, `insert into hashtags (note, hashtag) values(?,?)`, note.ID, hashtag); err != nil {
-			log.WithFields(log.Fields{"note": note.ID, "hashtag": hashtag}).WithError(err).Warn("Failed to tag post")
+			log.Warn("Failed to tag post", "hashtag", hashtag, "error", err)
 		}
 	}
 

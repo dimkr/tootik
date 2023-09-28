@@ -18,12 +18,7 @@ package front
 
 import (
 	"github.com/dimkr/tootik/text"
-	"regexp"
 )
-
-func init() {
-	handlers[regexp.MustCompile(`^/robots.txt$`)] = robots
-}
 
 func robots(w text.Writer, r *request) {
 	w.Status(20, "text/plain")

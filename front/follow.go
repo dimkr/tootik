@@ -23,14 +23,9 @@ import (
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/text"
 	"path/filepath"
-	"regexp"
 )
 
 const maxFollowsPerUser = 150
-
-func init() {
-	handlers[regexp.MustCompile(`^/users/follow/[0-9a-f]{64}$`)] = withUserMenu(follow)
-}
 
 func follow(w text.Writer, r *request) {
 	if r.User == nil {
@@ -42,18 +37,18 @@ func follow(w text.Writer, r *request) {
 
 	followed := ""
 	if err := r.QueryRow(`select id from persons where hash = ?`, hash).Scan(&followed); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.WithField("hash", hash).WithError(err).Warn("Cannot follow a non-existing user")
+		r.Log.Warn("Cannot follow a non-existing user", "hash", hash)
 		w.Status(40, "No such user")
 		return
 	} else if err != nil {
-		r.Log.WithField("hash", hash).WithError(err).Warn("Failed to find followed user")
+		r.Log.Warn("Failed to find followed user", "hash", hash, "error", err)
 		w.Error()
 		return
 	}
 
 	var follows int
 	if err := r.QueryRow(`select count(*) from follows where follower = ?`, r.User.ID).Scan(&follows); err != nil {
-		r.Log.WithError(err).Warn("Failed to count follows")
+		r.Log.Warn("Failed to count follows", "error", err)
 		w.Error()
 		return
 	}
@@ -63,8 +58,19 @@ func follow(w text.Writer, r *request) {
 		return
 	}
 
+	var following int
+	if err := r.QueryRow(`select exists (select 1 from follows where follower = ? and followed =?)`, r.User.ID, followed).Scan(&following); err != nil {
+		r.Log.Warn("Failed to check if user is already followed", "followed", followed, "error", err)
+		w.Error()
+		return
+	}
+	if following == 1 {
+		w.Statusf(40, "Already following %s", followed)
+		return
+	}
+
 	if err := fed.Follow(r.Context, r.User, followed, r.DB); err != nil {
-		r.Log.WithField("followed", followed).WithError(err).Warn("Failed to follow user")
+		r.Log.Warn("Failed to follow user", "followed", followed, "error", err)
 		w.Error()
 		return
 	}

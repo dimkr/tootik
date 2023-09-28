@@ -23,35 +23,30 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/text"
 	"path/filepath"
-	"regexp"
 )
-
-func init() {
-	handlers[regexp.MustCompile(`^/users/reply/[0-9a-f]{64}`)] = reply
-}
 
 func reply(w text.Writer, r *request) {
 	hash := filepath.Base(r.URL.Path)
 
 	var noteString string
 	if err := r.QueryRow(`select object from notes where hash = ?`, hash).Scan(&noteString); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.WithField("hash", hash).Warn("Post does not exist")
+		r.Log.Warn("Post does not exist", "hash", hash)
 		w.Status(40, "Post does not exist")
 		return
 	} else if err != nil {
-		r.Log.WithField("hash", hash).WithError(err).Warn("Failed to find post by hash")
+		r.Log.Warn("Failed to find post by hash", "hash", hash, "error", err)
 		w.Error()
 		return
 	}
 
 	note := ap.Object{}
 	if err := json.Unmarshal([]byte(noteString), &note); err != nil {
-		r.Log.WithField("post", note.ID).WithError(err).Warn("Failed to unmarshal post")
+		r.Log.Warn("Failed to unmarshal post", "post", note.ID, "error", err)
 		w.Error()
 		return
 	}
 
-	r.Log.WithField("post", note.ID).Info("Replying to post")
+	r.Log.Info("Replying to post", "post", note.ID)
 
 	to := ap.Audience{}
 	cc := ap.Audience{}
@@ -69,7 +64,7 @@ func reply(w text.Writer, r *request) {
 		to.Add(note.AttributedTo)
 		cc.Add(r.User.Followers)
 	} else {
-		r.Log.WithField("post", note.ID).Error("Post audience is invalid")
+		r.Log.Error("Post audience is invalid", "post", note.ID)
 		w.Error()
 		return
 	}

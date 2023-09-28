@@ -19,18 +19,22 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/csv"
 	"flag"
+	"io"
+	"log/slog"
+	"os"
 
+	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/fed"
+	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/front/finger"
 	"github.com/dimkr/tootik/front/gemini"
 	"github.com/dimkr/tootik/front/gopher"
 	"github.com/dimkr/tootik/migrations"
-	log "github.com/dimkr/tootik/slogru"
 	"github.com/dimkr/tootik/user"
 	_ "github.com/mattn/go-sqlite3"
-	"os"
 	"os/signal"
 	"sync"
 	"syscall"
@@ -47,16 +51,55 @@ var (
 	cert       = flag.String("cert", "cert.pem", "HTTPS TLS certificate")
 	key        = flag.String("key", "key.pem", "HTTPS TLS key")
 	addr       = flag.String("addr", ":8443", "HTTPS listening address")
+	blockList  = flag.String("blocklist", "", "Blocklist CSV")
 )
 
 func main() {
 	flag.Parse()
 
+	opts := slog.HandlerOptions{Level: slog.Level(cfg.LogLevel)}
+	if opts.Level == slog.LevelDebug {
+		opts.AddSource = true
+	}
+
+	blockedDomains := make(map[string]struct{})
+	if blockList != nil && *blockList != "" {
+		f, err := os.Open(*blockList)
+		if err != nil {
+			panic(err)
+		}
+
+		c := csv.NewReader(f)
+		first := true
+		for {
+			r, err := c.Read()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				panic(err)
+			}
+
+			if first {
+				first = false
+				continue
+			}
+
+			blockedDomains[r[0]] = struct{}{}
+		}
+
+		f.Close()
+	}
+
+	log := slog.New(slog.NewJSONHandler(os.Stderr, &opts))
+
 	db, err := sql.Open("sqlite3", *dbPath+"?_journal_mode=WAL")
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	defer db.Close()
+
+	resolver := fed.NewResolver(blockedDomains)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -77,22 +120,34 @@ func main() {
 		}
 	}()
 
-	if err := migrations.Run(ctx, db, log.Default()); err != nil {
-		log.Fatal(err)
+	if err := migrations.Run(ctx, log, db); err != nil {
+		panic(err)
 	}
 
 	if err := data.CollectGarbage(ctx, db); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
-	if err := user.CreateNobody(ctx, db); err != nil {
-		log.Fatal(err)
+	nobody, err := user.CreateNobody(ctx, db)
+	if err != nil {
+		panic(err)
 	}
 
 	wg.Add(1)
 	go func() {
-		if err := fed.ListenAndServe(ctx, db, *addr, *cert, *key); err != nil {
-			log.WithError(err).Error("HTTPS listener has failed")
+		if err := fed.ListenAndServe(ctx, db, resolver, nobody, log, *addr, *cert, *key); err != nil {
+			log.Error("HTTPS listener has failed", "error", err)
+		}
+		cancel()
+		wg.Done()
+	}()
+
+	handler := front.NewHandler()
+
+	wg.Add(1)
+	go func() {
+		if err := gemini.ListenAndServe(ctx, log, db, handler, resolver, *gemAddr, *gemCert, *gemKey); err != nil {
+			log.Error("Gemini listener has failed", "error", err)
 		}
 		cancel()
 		wg.Done()
@@ -100,8 +155,8 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		if err := gemini.ListenAndServe(ctx, db, *gemAddr, *gemCert, *gemKey); err != nil {
-			log.WithError(err).Error("Gemini listener has failed")
+		if err := gopher.ListenAndServe(ctx, log, handler, db, resolver, *gopherAddr); err != nil {
+			log.Error("Gopher listener has failed", "error", err)
 		}
 		cancel()
 		wg.Done()
@@ -109,8 +164,8 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		if err := gopher.ListenAndServe(ctx, db, *gopherAddr); err != nil {
-			log.WithError(err).Error("Gopher listener has failed")
+		if err := finger.ListenAndServe(ctx, log, db, *fingerAddr); err != nil {
+			log.Error("Finger listener has failed", "error", err)
 		}
 		cancel()
 		wg.Done()
@@ -118,23 +173,14 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		if err := finger.ListenAndServe(ctx, db, *fingerAddr); err != nil {
-			log.WithError(err).Error("Finger listener has failed")
-		}
-		cancel()
+		fed.DeliverPosts(ctx, log, db, resolver)
 		wg.Done()
 	}()
 
 	wg.Add(1)
 	go func() {
-		fed.DeliverPosts(ctx, db, log.Default())
-		wg.Done()
-	}()
-
-	wg.Add(1)
-	go func() {
-		if err := fed.ProcessActivities(ctx, db, log.Default()); err != nil {
-			log.WithError(err).Error("Failed to process activities")
+		if err := fed.ProcessActivities(ctx, log, db, resolver, nobody); err != nil {
+			log.Error("Failed to process activities", "error", err)
 		}
 		cancel()
 		wg.Done()
@@ -153,7 +199,7 @@ func main() {
 			case <-ticker.C:
 				log.Info("Collecting garbage")
 				if err := data.CollectGarbage(ctx, db); err != nil {
-					log.WithError(err).Error("Failed to collect garbage")
+					log.Error("Failed to collect garbage", "error", err)
 				}
 			}
 		}

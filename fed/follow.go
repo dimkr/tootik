@@ -21,10 +21,11 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"strings"
+	"time"
 )
 
 func Follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB) error {
@@ -32,50 +33,41 @@ func Follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB
 		return fmt.Errorf("%s cannot follow %s", follower.ID, followed)
 	}
 
-	followID := fmt.Sprintf("https://%s/follow/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s", follower.ID, followed))))
+	followID := fmt.Sprintf("https://%s/follow/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", follower.ID, followed, time.Now().UnixNano()))))
 
-	body, err := json.Marshal(map[string]any{
-		"@context": "https://www.w3.org/ns/activitystreams",
-		"id":       followID,
-		"type":     ap.FollowActivity,
-		"actor":    follower.ID,
-		"object":   followed,
+	to := ap.Audience{}
+	to.Add(followed)
+
+	body, err := json.Marshal(ap.Activity{
+		ID:     followID,
+		Type:   ap.FollowActivity,
+		Actor:  follower.ID,
+		Object: followed,
+		To:     to,
 	})
 	if err != nil {
-		return fmt.Errorf("%s cannot follow %s: %w", follower.ID, followed, err)
+		return fmt.Errorf("Failed to marshal follow: %w", err)
 	}
 
-	resolver, err := Resolvers.Borrow(ctx)
-	if err != nil {
-		return fmt.Errorf("%s cannot follow %s: %w", follower.ID, followed, err)
-	}
+	isLocal := strings.HasPrefix(followed, fmt.Sprintf("https://%s/", cfg.Domain))
 
-	to, err := resolver.Resolve(ctx, db, follower, followed)
-	if err != nil {
-		Resolvers.Return(resolver)
-		return fmt.Errorf("%s cannot follow %s: %w", follower.ID, followed, err)
-	}
-	followed = to.ID
-
-	if err := Send(ctx, db, follower, resolver, to, body); err != nil {
-		Resolvers.Return(resolver)
-		return fmt.Errorf("Failed to send follow %s: %w", followID, err)
-	}
-
-	Resolvers.Return(resolver)
-
-	if _, err := db.ExecContext(ctx, `delete from follows where id = ?`, followID); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return fmt.Errorf("Failed to delete duplicate of follow %s: %w", followID, err)
+	if _, err := db.ExecContext(
+		ctx,
+		`INSERT INTO follows (id, follower, followed, accepted) VALUES(?,?,?,?)`,
+		followID,
+		follower.ID,
+		followed,
+		isLocal, // local follows don't need to be accepted
+	); err != nil {
+		return fmt.Errorf("Failed to insert follow: %w", err)
 	}
 
 	if _, err := db.ExecContext(
 		ctx,
-		`INSERT INTO follows (id, follower, followed) VALUES(?,?,?)`,
-		followID,
-		follower.ID,
-		followed,
+		`INSERT INTO outbox (activity) VALUES(?)`,
+		string(body),
 	); err != nil {
-		return fmt.Errorf("Failed to insert follow %s: %w", followID, err)
+		return fmt.Errorf("Failed to insert follow activity: %w", err)
 	}
 
 	return nil

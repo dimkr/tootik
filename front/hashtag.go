@@ -21,14 +21,7 @@ import (
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/text"
 	"path/filepath"
-	"regexp"
-	"time"
 )
-
-func init() {
-	handlers[regexp.MustCompile(`^/hashtag/[a-zA-Z0-9]+$`)] = withCache(withUserMenu(hashtag), time.Minute*5)
-	handlers[regexp.MustCompile(`^/users/hashtag/[a-zA-Z0-9]+$`)] = withCache(withUserMenu(hashtag), time.Minute*5)
-}
 
 func hashtag(w text.Writer, r *request) {
 	offset, err := getOffset(r.URL)
@@ -41,7 +34,7 @@ func hashtag(w text.Writer, r *request) {
 
 	rows, err := r.Query(`select notes.object, persons.actor from notes join hashtags on notes.id = hashtags.note left join (select object->>'inReplyTo' as id, count(*) as count from notes where inserted >= unixepoch() - 7*24*60*60 group by object->>'inReplyTo') replies on notes.id = replies.id left join persons on notes.author = persons.id where notes.public = 1 and hashtags.hashtag = $1 order by replies.count desc, notes.inserted desc limit $2 offset $3`, tag, postsPerPage, offset)
 	if err != nil {
-		r.Log.WithField("hashtag", tag).WithError(err).Error("Failed to fetch notes by hashtag")
+		r.Log.Error("Failed to fetch notes by hashtag", "hashtag", tag, "error", err)
 		w.Error()
 		return
 	}
@@ -53,7 +46,7 @@ func hashtag(w text.Writer, r *request) {
 		noteString := ""
 		var meta noteMetadata
 		if err := rows.Scan(&noteString, &meta.Author); err != nil {
-			r.Log.WithField("hashtag", tag).WithError(err).Warn("Failed to scan post")
+			r.Log.Warn("Failed to scan post", "hashtag", tag, "error", err)
 			continue
 		}
 

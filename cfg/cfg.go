@@ -21,7 +21,10 @@ import (
 	"log/slog"
 )
 
-const MaxPostsLength = 200
+const (
+	MaxPostsLength      = 200
+	MaxResolverRequests = 16
+)
 
 var (
 	Domain   string

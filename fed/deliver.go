@@ -18,6 +18,7 @@ package fed
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -26,7 +27,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/note"
-	log "github.com/dimkr/tootik/slogru"
+	"log/slog"
 	"strings"
 	"time"
 )
@@ -34,15 +35,15 @@ import (
 const (
 	batchSize             = 16
 	deliveryRetryInterval = int64((time.Hour / 2) / time.Second)
-	maxDeliveryAttempts   = 5
+	MaxDeliveryAttempts   = 5
 	pollingInterval       = time.Second * 5
 	deliveryTimeout       = time.Minute * 5
 	maxDeliveryQueueSize  = 128
 )
 
-var DeliveryQueueFull = errors.New("Delivery queue is full")
+var ErrDeliveryQueueFull = errors.New("Delivery queue is full")
 
-func DeliverPosts(ctx context.Context, db *sql.DB, logger *log.Logger) {
+func DeliverPosts(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver) {
 	t := time.NewTicker(pollingInterval)
 	defer t.Stop()
 
@@ -52,90 +53,84 @@ func DeliverPosts(ctx context.Context, db *sql.DB, logger *log.Logger) {
 			return
 
 		case <-t.C:
-			if err := deliverPosts(ctx, db, logger); err != nil {
-				logger.WithError(err).Error("Failed to deliver posts")
+			if err := deliverPosts(ctx, log, db, resolver); err != nil {
+				log.Error("Failed to deliver posts", "error", err)
 			}
 		}
 	}
 }
 
-func deliverPosts(ctx context.Context, db *sql.DB, logger *log.Logger) error {
-	logger.Debug("Polling delivery queue")
+func deliverPosts(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver) error {
+	log.Debug("Polling delivery queue")
 
-	rows, err := db.QueryContext(ctx, `select deliveries.id, deliveries.attempts, notes.object, persons.actor from deliveries join notes on notes.id = deliveries.id join persons on persons.id = notes.author where deliveries.attempts = 0 or (deliveries.attempts < ? and deliveries.last <= unixepoch() - ?) order by deliveries.attempts asc, deliveries.last asc limit ?`, maxDeliveryAttempts, deliveryRetryInterval, batchSize)
+	rows, err := db.QueryContext(ctx, `select outbox.attempts, outbox.activity, persons.actor from outbox join persons on persons.id = outbox.activity->>'actor' where outbox.sent = 0 and (outbox.attempts = 0 or (outbox.attempts < ? and outbox.last <= unixepoch() - ?)) order by outbox.attempts asc, outbox.last asc limit ?`, MaxDeliveryAttempts, deliveryRetryInterval, batchSize)
 	if err != nil {
 		return fmt.Errorf("Failed to fetch posts to deliver: %w", err)
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		var deliveryID, noteString, authorString string
+		var activityString, actorString string
 		var deliveryAttempts int
-		if err := rows.Scan(&deliveryID, &deliveryAttempts, &noteString, &authorString); err != nil {
-			logger.WithError(err).Error("Failed to fetch post to deliver")
+		if err := rows.Scan(&deliveryAttempts, &activityString, &actorString); err != nil {
+			log.Error("Failed to fetch post to deliver", "error", err)
 			continue
 		}
 
-		if _, err := db.ExecContext(ctx, `update deliveries set last = unixepoch(), attempts = ? where id = ?`, deliveryAttempts+1, deliveryID); err != nil {
-			logger.WithFields(log.Fields{"id": deliveryID, "attempts": deliveryAttempts}).WithError(err).Error("Failed to save last delivery attempt time")
+		var activity ap.Activity
+		if err := json.Unmarshal([]byte(activityString), &activity); err != nil {
+			log.Error("Failed to unmarshal undelivered activity", "attempts", deliveryAttempts, "error", err)
 			continue
 		}
 
-		var note ap.Object
-		if err := json.Unmarshal([]byte(noteString), &note); err != nil {
-			logger.WithFields(log.Fields{"id": deliveryID, "attempts": deliveryAttempts}).WithError(err).Error("Failed to unmarshal undelivered post")
+		if _, err := db.ExecContext(ctx, `update outbox set last = unixepoch(), attempts = ? where activity->>'id' = ?`, deliveryAttempts+1, activity.ID); err != nil {
+			log.Error("Failed to save last delivery attempt time", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
 
-		var author ap.Actor
-		if err := json.Unmarshal([]byte(authorString), &author); err != nil {
-			logger.WithFields(log.Fields{"id": deliveryID, "attempts": deliveryAttempts}).WithError(err).Error("Failed to unmarshal undelivered post author")
+		var actor ap.Actor
+		if err := json.Unmarshal([]byte(actorString), &actor); err != nil {
+			log.Error("Failed to unmarshal undelivered activity actor", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
 
-		if err := deliverWithTimeout(ctx, db, logger, &note, &author); err != nil {
-			logger.WithFields(log.Fields{"id": deliveryID, "attempts": deliveryAttempts}).WithError(err).Warn("Failed to deliver post")
+		if err := deliverWithTimeout(ctx, log, db, resolver, &activity, &actor); err != nil {
+			log.Warn("Failed to deliver activity", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
 
-		if _, err := db.ExecContext(ctx, `delete from deliveries where id = ?`, deliveryID); err != nil {
-			logger.WithFields(log.Fields{"id": deliveryID, "attempts": deliveryAttempts}).WithError(err).Error("Failed to delete delivery")
+		if _, err := db.ExecContext(ctx, `update outbox set sent = 1 where activity->>'id' = ?`, activity.ID); err != nil {
+			log.Error("Failed to mark delivery as completed", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
 
-		logger.WithFields(log.Fields{"id": deliveryID, "attempts": deliveryAttempts}).Info("Successfully delivered a post")
+		log.Info("Successfully delivered an activity", "id", activity.ID, "attempts", deliveryAttempts)
 	}
 
 	return nil
 }
 
-func deliverWithTimeout(parent context.Context, db *sql.DB, logger *log.Logger, post *ap.Object, author *ap.Actor) error {
+func deliverWithTimeout(parent context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver, activity *ap.Activity, actor *ap.Actor) error {
 	ctx, cancel := context.WithTimeout(parent, deliveryTimeout)
 	defer cancel()
-	return deliver(ctx, db, logger, post, author)
+	return deliver(ctx, log, db, activity, actor, resolver)
 }
 
-func deliver(ctx context.Context, db *sql.DB, logger *log.Logger, post *ap.Object, author *ap.Actor) error {
-	create, err := json.Marshal(map[string]any{
-		"@context": "https://www.w3.org/ns/activitystreams",
-		"type":     ap.CreateActivity,
-		"id":       post.ID,
-		"actor":    author.ID,
-		"object":   post,
-	})
+func deliver(ctx context.Context, log *slog.Logger, db *sql.DB, activity *ap.Activity, actor *ap.Actor, resolver *Resolver) error {
+	buf, err := json.Marshal(activity)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal Create activity: %w", err)
+		return fmt.Errorf("Failed to marshal activity: %w", err)
 	}
 
 	// deduplicate recipients
 	recipients := data.OrderedMap[string, struct{}]{}
 
-	post.To.Range(func(id string, _ struct{}) bool {
+	activity.To.Range(func(id string, _ struct{}) bool {
 		recipients.Store(id, struct{}{})
 		return true
 	})
 
-	post.CC.Range(func(id string, _ struct{}) bool {
+	activity.CC.Range(func(id string, _ struct{}) bool {
 		recipients.Store(id, struct{}{})
 		return true
 	})
@@ -143,15 +138,15 @@ func deliver(ctx context.Context, db *sql.DB, logger *log.Logger, post *ap.Objec
 	actorIDs := data.OrderedMap[string, struct{}]{}
 
 	// list the author's federated followers
-	if post.IsPublic() || recipients.Contains(author.Followers) {
-		followers, err := db.QueryContext(ctx, `select distinct follower from follows where followed = ? and follower not like ?`, author.ID, fmt.Sprintf("https://%s/%%", cfg.Domain))
+	if obj, ok := activity.Object.(*ap.Object); ok && obj.Type == ap.NoteObject && (obj.IsPublic() || recipients.Contains(actor.Followers)) {
+		followers, err := db.QueryContext(ctx, `select distinct follower from follows where followed = ? and follower not like ? and accepted = 1`, actor.ID, fmt.Sprintf("https://%s/%%", cfg.Domain))
 		if err != nil {
-			logger.WithField("post", post.ID).WithError(err).Warn("Failed to list followers")
+			log.Warn("Failed to list followers", "post", obj.ID, "error", err)
 		} else {
 			for followers.Next() {
 				var follower string
 				if err := followers.Scan(&follower); err != nil {
-					logger.WithField("post", post.ID).WithError(err).Warn("Skipped a follower")
+					log.Warn("Skipped a follower", "post", obj.ID, "error", err)
 					continue
 				}
 
@@ -175,50 +170,59 @@ func deliver(ctx context.Context, db *sql.DB, logger *log.Logger, post *ap.Objec
 	anyFailed := false
 
 	actorIDs.Range(func(actorID string, _ struct{}) bool {
-		logger.WithFields(log.Fields{"to": actorID, "post": post.ID}).Info("Delivering post to recipient")
+		log.Info("Delivering activity to recipient", "to", actorID, "activity", activity.ID)
 
-		r, err := Resolvers.Borrow(ctx)
-		if err != nil {
-			logger.WithFields(log.Fields{"to": actorID, "post": post.ID}).WithError(err).Warn("Cannot resolve a recipient")
-			anyFailed = true
-			return true
+		if to, err := resolver.Resolve(ctx, log, db, actor, actorID, false); err != nil {
+			log.Warn("Failed to resolve a recipient", "to", actorID, "activity", activity.ID, "error", err)
+			if !errors.Is(err, ErrActorGone) && !errors.Is(err, ErrBlockedDomain) {
+				anyFailed = true
+			}
+		} else if err := Send(ctx, log, db, actor, resolver, to, buf); err != nil {
+			log.Warn("Failed to send a post", "to", actorID, "activity", activity.ID, "error", err)
+			if !errors.Is(err, ErrBlockedDomain) {
+				anyFailed = true
+			}
 		}
 
-		if to, err := r.Resolve(ctx, db, author, actorID); err != nil {
-			logger.WithFields(log.Fields{"to": actorID, "post": post.ID}).WithError(err).Warn("Failed to resolve a recipient")
-			anyFailed = true
-		} else if err := Send(ctx, db, author, r, to, create); err != nil {
-			logger.WithFields(log.Fields{"to": to.ID, "post": post.ID}).WithError(err).Warn("Failed to send a post")
-			anyFailed = true
-		}
-
-		Resolvers.Return(r)
 		return true
 	})
 
 	if anyFailed {
-		return fmt.Errorf("Failed to deliver post %s to at least one recipient", post.ID)
+		return fmt.Errorf("Failed to deliver activity %s to at least one recipient", activity.ID)
 	}
 
 	return nil
 }
 
-func Deliver(ctx context.Context, db *sql.DB, logger *log.Logger, post *ap.Object, author *ap.Actor) error {
-	if err := note.Insert(ctx, db, post, logger); err != nil {
+func Deliver(ctx context.Context, log *slog.Logger, db *sql.DB, post *ap.Object, author *ap.Actor) error {
+	if err := note.Insert(ctx, log, db, post); err != nil {
 		return fmt.Errorf("Failed to insert post: %w", err)
 	}
 
+	create, err := json.Marshal(ap.Activity{
+		Context: "https://www.w3.org/ns/activitystreams",
+		Type:    ap.CreateActivity,
+		ID:      fmt.Sprintf("https://%s/create/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", post.ID, time.Now().Unix())))),
+		Actor:   author.ID,
+		Object:  post,
+		To:      post.To,
+		CC:      post.CC,
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to marshal Create: %w", err)
+	}
+
 	var queueSize int
-	if err := db.QueryRowContext(ctx, `select count (*) from deliveries where attempts < ?`, maxDeliveryAttempts).Scan(&queueSize); err != nil {
+	if err := db.QueryRowContext(ctx, `select count (*) from outbox where sent = 0 and attempts < ?`, MaxDeliveryAttempts).Scan(&queueSize); err != nil {
 		return fmt.Errorf("Failed to query delivery queue size: %w", err)
 	}
 
 	if queueSize >= maxDeliveryQueueSize {
-		return DeliveryQueueFull
+		return ErrDeliveryQueueFull
 	}
 
-	if _, err := db.ExecContext(ctx, `insert into deliveries(id) values(?)`, post.ID); err != nil {
-		return fmt.Errorf("Failed to register post for delivery: %w", err)
+	if _, err = db.ExecContext(ctx, `insert into outbox (activity) values(?)`, string(create)); err != nil {
+		return fmt.Errorf("Failed to insert Create: %w", err)
 	}
 
 	return nil

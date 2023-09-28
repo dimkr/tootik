@@ -22,15 +22,14 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/icon"
-	log "github.com/dimkr/tootik/slogru"
-	_ "github.com/mattn/go-sqlite3"
+	"log/slog"
 	"net/http"
 	"path/filepath"
 	"strings"
 )
 
 type iconHandler struct {
-	Log *log.Logger
+	Log *slog.Logger
 	DB  *sql.DB
 }
 
@@ -49,15 +48,15 @@ func (h *iconHandler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	actorID := fmt.Sprintf("https://%s/user/%s", cfg.Domain, name)
 
-	h.Log.WithField("id", actorID).Info("Looking up cached icon")
+	h.Log.Info("Looking up cached icon", "id", actorID)
 
 	var cache []byte
 	if err := h.DB.QueryRowContext(r.Context(), `select buf from icons where id = ?`, actorID).Scan(&cache); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		h.Log.WithField("id", actorID).WithError(err).Warn("Failed to get cached icon")
+		h.Log.Warn("Failed to get cached icon", actorID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	} else if len(cache) > 0 {
-		h.Log.WithField("id", actorID).Debug("Sending cached icon")
+		h.Log.Debug("Sending cached icon", "id", actorID)
 		w.Header().Set("Content-Type", icon.MediaType)
 		w.Write(cache)
 		return
@@ -65,27 +64,27 @@ func (h *iconHandler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	var exists int
 	if err := h.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where id = ?)`, actorID).Scan(&exists); err != nil {
-		h.Log.WithField("id", actorID).WithError(err).Warn("Failed to check if user exists")
+		h.Log.Warn("Failed to check if user exists", actorID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	if exists == 0 {
-		h.Log.WithField("id", actorID).Warn("No icon for non-existing user")
+		h.Log.Warn("No icon for non-existing user", "id", actorID)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	h.Log.WithField("id", actorID).Info("Generating an icon")
+	h.Log.Info("Generating an icon", "id", actorID)
 
 	buf, err := icon.Generate(actorID)
 	if err != nil {
-		h.Log.WithField("id", actorID).WithError(err).Warn("Failed to generate icon")
+		h.Log.Warn("Failed to generate icon", actorID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	if _, err := h.DB.ExecContext(r.Context(), `insert into icons(id, buf) values(?,?)`, actorID, buf); err != nil {
-		h.Log.WithField("id", actorID).WithError(err).Warn("Failed to cache icon")
+		h.Log.Warn("Failed to cache icon", "id", actorID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
