@@ -35,7 +35,7 @@ or, to build a static executable:
 * outbox/ translates user actions into a queue of activities that need to be sent to other servers.
 * inbox/ processes a queue of activities received from other servers.
   * inbox/note/ handles insertion of posts: both posts received from other servers and posts created by local users.
-* fed/ implements federation: it handles all communication with other servers, sends what's in the "outbox" queue to other servers and adds activities to the "inbox" queue to the "notes" table.
+* fed/ implements federation: it handles all communication with other servers, sends what's in the "outbox" queue to other servers and adds incoming activities to the "inbox" queue.
   * fed/icon/ generates pseudo-random icons used as avatars.
 
 * front/ implements the frontend.
