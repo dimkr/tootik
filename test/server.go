@@ -28,7 +28,7 @@ import (
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/migrations"
-	"github.com/dimkr/tootik/text/gmi"
+	"github.com/dimkr/tootik/front/text/gmi"
 	"github.com/dimkr/tootik/user"
 	_ "github.com/mattn/go-sqlite3"
 	"log/slog"
