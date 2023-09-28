@@ -47,7 +47,7 @@ const (
 
 type Resolver struct {
 	Client         http.Client
-	BlockedDomains map[string]struct{}
+	BlockedDomains *BlockList
 	locks          []*semaphore.Weighted
 }
 
@@ -57,7 +57,7 @@ var (
 	ErrBlockedDomain  = errors.New("Domain is blocked")
 )
 
-func NewResolver(blockedDomains map[string]struct{}) *Resolver {
+func NewResolver(blockedDomains *BlockList) *Resolver {
 	transport := http.Transport{
 		MaxIdleConns:    resolverMaxIdleConns,
 		IdleConnTimeout: resolverIdleConnTimeout,
@@ -80,7 +80,7 @@ func (r *Resolver) Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 		return nil, fmt.Errorf("Cannot resolve %s: %w", to, err)
 	}
 
-	if _, blocked := r.BlockedDomains[u.Host]; blocked {
+	if blocked := r.BlockedDomains.Contains(u.Host); blocked {
 		return nil, ErrBlockedDomain
 	}
 

@@ -19,9 +19,7 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/csv"
 	"flag"
-	"io"
 	"log/slog"
 	"os"
 
@@ -43,16 +41,16 @@ import (
 )
 
 var (
-	dbPath     = flag.String("db", "db.sqlite3", "database path")
-	gemCert    = flag.String("gemcert", "gemini-cert.pem", "Gemini TLS certificate")
-	gemKey     = flag.String("gemkey", "gemini-key.pem", "Gemini TLS key")
-	gemAddr    = flag.String("gemaddr", ":8965", "Gemini listening address")
-	gopherAddr = flag.String("gopheraddr", ":8070", "Gopher listening address")
-	fingerAddr = flag.String("fingeraddr", ":8079", "Finger listening address")
-	cert       = flag.String("cert", "cert.pem", "HTTPS TLS certificate")
-	key        = flag.String("key", "key.pem", "HTTPS TLS key")
-	addr       = flag.String("addr", ":8443", "HTTPS listening address")
-	blockList  = flag.String("blocklist", "", "Blocklist CSV")
+	dbPath        = flag.String("db", "db.sqlite3", "database path")
+	gemCert       = flag.String("gemcert", "gemini-cert.pem", "Gemini TLS certificate")
+	gemKey        = flag.String("gemkey", "gemini-key.pem", "Gemini TLS key")
+	gemAddr       = flag.String("gemaddr", ":8965", "Gemini listening address")
+	gopherAddr    = flag.String("gopheraddr", ":8070", "Gopher listening address")
+	fingerAddr    = flag.String("fingeraddr", ":8079", "Finger listening address")
+	cert          = flag.String("cert", "cert.pem", "HTTPS TLS certificate")
+	key           = flag.String("key", "key.pem", "HTTPS TLS key")
+	addr          = flag.String("addr", ":8443", "HTTPS listening address")
+	blockListPath = flag.String("blocklist", "", "Blocklist CSV")
 )
 
 func main() {
@@ -63,36 +61,18 @@ func main() {
 		opts.AddSource = true
 	}
 
-	blockedDomains := make(map[string]struct{})
-	if blockList != nil && *blockList != "" {
-		f, err := os.Open(*blockList)
+	log := slog.New(slog.NewJSONHandler(os.Stderr, &opts))
+
+	var blockList *fed.BlockList
+	if blockListPath != nil && *blockListPath != "" {
+		var err error
+		blockList, err = fed.NewBlockList(log, *blockListPath)
 		if err != nil {
 			panic(err)
 		}
 
-		c := csv.NewReader(f)
-		first := true
-		for {
-			r, err := c.Read()
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				panic(err)
-			}
-
-			if first {
-				first = false
-				continue
-			}
-
-			blockedDomains[r[0]] = struct{}{}
-		}
-
-		f.Close()
+		defer blockList.Close()
 	}
-
-	log := slog.New(slog.NewJSONHandler(os.Stderr, &opts))
 
 	db, err := sql.Open("sqlite3", *dbPath+"?_journal_mode=WAL")
 	if err != nil {
@@ -100,7 +80,7 @@ func main() {
 	}
 	defer db.Close()
 
-	resolver := fed.NewResolver(blockedDomains)
+	resolver := fed.NewResolver(blockList)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
