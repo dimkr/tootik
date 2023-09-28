@@ -80,8 +80,10 @@ func (r *Resolver) Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 		return nil, fmt.Errorf("Cannot resolve %s: %w", to, err)
 	}
 
-	if blocked := r.BlockedDomains.Contains(u.Host); blocked {
-		return nil, ErrBlockedDomain
+	if r.BlockedDomains != nil {
+		if blocked := r.BlockedDomains.Contains(u.Host); blocked {
+			return nil, ErrBlockedDomain
+		}
 	}
 
 	u.Fragment = ""
