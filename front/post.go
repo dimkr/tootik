@@ -23,9 +23,9 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/fed"
-	"github.com/dimkr/tootik/text"
-	"github.com/dimkr/tootik/text/plain"
+	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/front/text/plain"
+	"github.com/dimkr/tootik/outbox"
 	"net/url"
 	"regexp"
 	"time"
@@ -136,9 +136,9 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 		note.InReplyTo = inReplyTo.ID
 	}
 
-	if err := fed.Deliver(r.Context, r.Log, r.DB, &note, r.User); err != nil {
+	if err := outbox.Create(r.Context, r.Log, r.DB, &note, r.User); err != nil {
 		r.Log.Error("Failed to insert post", "error", err)
-		if errors.Is(err, fed.ErrDeliveryQueueFull) {
+		if errors.Is(err, outbox.ErrDeliveryQueueFull) {
 			w.Status(40, "Please try again later")
 		} else {
 			w.Error()

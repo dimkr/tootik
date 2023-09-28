@@ -18,7 +18,6 @@ package fed
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -26,7 +25,6 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
-	"github.com/dimkr/tootik/note"
 	"log/slog"
 	"strings"
 	"time"
@@ -38,12 +36,9 @@ const (
 	MaxDeliveryAttempts   = 5
 	pollingInterval       = time.Second * 5
 	deliveryTimeout       = time.Minute * 5
-	maxDeliveryQueueSize  = 128
 )
 
-var ErrDeliveryQueueFull = errors.New("Delivery queue is full")
-
-func DeliverPosts(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver) {
+func ProcessQueue(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver) {
 	t := time.NewTicker(pollingInterval)
 	defer t.Stop()
 
@@ -53,14 +48,14 @@ func DeliverPosts(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *R
 			return
 
 		case <-t.C:
-			if err := deliverPosts(ctx, log, db, resolver); err != nil {
+			if err := processQueue(ctx, log, db, resolver); err != nil {
 				log.Error("Failed to deliver posts", "error", err)
 			}
 		}
 	}
 }
 
-func deliverPosts(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver) error {
+func processQueue(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver) error {
 	log.Debug("Polling delivery queue")
 
 	rows, err := db.QueryContext(ctx, `select outbox.attempts, outbox.activity, persons.actor from outbox join persons on persons.id = outbox.activity->>'actor' where outbox.sent = 0 and (outbox.attempts = 0 or (outbox.attempts < ? and outbox.last <= unixepoch() - ?)) order by outbox.attempts asc, outbox.last asc limit ?`, MaxDeliveryAttempts, deliveryRetryInterval, batchSize)
@@ -189,40 +184,6 @@ func deliver(ctx context.Context, log *slog.Logger, db *sql.DB, activity *ap.Act
 
 	if anyFailed {
 		return fmt.Errorf("Failed to deliver activity %s to at least one recipient", activity.ID)
-	}
-
-	return nil
-}
-
-func Deliver(ctx context.Context, log *slog.Logger, db *sql.DB, post *ap.Object, author *ap.Actor) error {
-	if err := note.Insert(ctx, log, db, post); err != nil {
-		return fmt.Errorf("Failed to insert post: %w", err)
-	}
-
-	create, err := json.Marshal(ap.Activity{
-		Context: "https://www.w3.org/ns/activitystreams",
-		Type:    ap.CreateActivity,
-		ID:      fmt.Sprintf("https://%s/create/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", post.ID, time.Now().Unix())))),
-		Actor:   author.ID,
-		Object:  post,
-		To:      post.To,
-		CC:      post.CC,
-	})
-	if err != nil {
-		return fmt.Errorf("Failed to marshal Create: %w", err)
-	}
-
-	var queueSize int
-	if err := db.QueryRowContext(ctx, `select count (*) from outbox where sent = 0 and attempts < ?`, MaxDeliveryAttempts).Scan(&queueSize); err != nil {
-		return fmt.Errorf("Failed to query delivery queue size: %w", err)
-	}
-
-	if queueSize >= maxDeliveryQueueSize {
-		return ErrDeliveryQueueFull
-	}
-
-	if _, err = db.ExecContext(ctx, `insert into outbox (activity) values(?)`, string(create)); err != nil {
-		return fmt.Errorf("Failed to insert Create: %w", err)
 	}
 
 	return nil

@@ -32,6 +32,7 @@ import (
 	"github.com/dimkr/tootik/front/finger"
 	"github.com/dimkr/tootik/front/gemini"
 	"github.com/dimkr/tootik/front/gopher"
+	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/migrations"
 	"github.com/dimkr/tootik/user"
 	_ "github.com/mattn/go-sqlite3"
@@ -173,13 +174,13 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		fed.DeliverPosts(ctx, log, db, resolver)
+		fed.ProcessQueue(ctx, log, db, resolver)
 		wg.Done()
 	}()
 
 	wg.Add(1)
 	go func() {
-		if err := fed.ProcessActivities(ctx, log, db, resolver, nobody); err != nil {
+		if err := inbox.ProcessQueue(ctx, log, db, resolver, nobody); err != nil {
 			log.Error("Failed to process activities", "error", err)
 		}
 		cancel()

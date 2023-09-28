@@ -20,8 +20,8 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"errors"
-	"github.com/dimkr/tootik/fed"
-	"github.com/dimkr/tootik/text"
+	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/outbox"
 	"path/filepath"
 )
 
@@ -69,7 +69,7 @@ func follow(w text.Writer, r *request) {
 		return
 	}
 
-	if err := fed.Follow(r.Context, r.User, followed, r.DB); err != nil {
+	if err := outbox.Follow(r.Context, r.User, followed, r.DB); err != nil {
 		r.Log.Warn("Failed to follow user", "followed", followed, "error", err)
 		w.Error()
 		return

@@ -19,7 +19,7 @@ package gmap
 import (
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/text"
+	"github.com/dimkr/tootik/front/text"
 	"io"
 	"net/url"
 	"strings"

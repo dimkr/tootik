@@ -21,7 +21,7 @@ import (
 	"database/sql"
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/front"
-	"github.com/dimkr/tootik/text/gmap"
+	"github.com/dimkr/tootik/front/text/gmap"
 	"log/slog"
 	"net"
 	"net/url"

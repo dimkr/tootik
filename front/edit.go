@@ -22,9 +22,9 @@ import (
 	"errors"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/fed"
-	"github.com/dimkr/tootik/text"
-	"github.com/dimkr/tootik/text/plain"
+	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/front/text/plain"
+	"github.com/dimkr/tootik/outbox"
 	"math"
 	"net/url"
 	"path/filepath"
@@ -92,7 +92,7 @@ func edit(w text.Writer, r *request) {
 		return
 	}
 
-	if err := fed.Edit(r.Context, r.DB, &note, plain.ToHTML(content)); err != nil {
+	if err := outbox.Edit(r.Context, r.DB, &note, plain.ToHTML(content)); err != nil {
 		r.Log.Error("Failed to update post", "note", note.ID, "error", err)
 		w.Error()
 		return

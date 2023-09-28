@@ -20,7 +20,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/text"
+	"github.com/dimkr/tootik/front/text"
 	"net/url"
 	"strings"
 )

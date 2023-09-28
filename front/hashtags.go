@@ -17,7 +17,7 @@ limitations under the License.
 package front
 
 import (
-	"github.com/dimkr/tootik/text"
+	"github.com/dimkr/tootik/front/text"
 )
 
 func hashtags(w text.Writer, r *request) {

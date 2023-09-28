@@ -20,8 +20,8 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"errors"
-	"github.com/dimkr/tootik/fed"
-	"github.com/dimkr/tootik/text"
+	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/outbox"
 	"path/filepath"
 )
 
@@ -44,7 +44,7 @@ func unfollow(w text.Writer, r *request) {
 		return
 	}
 
-	if err := fed.Unfollow(r.Context, r.Log, r.DB, r.User, followed, followID); err != nil {
+	if err := outbox.Unfollow(r.Context, r.Log, r.DB, r.User, followed, followID); err != nil {
 		r.Log.Warn("Failed undo follow", "followed", followed, "error", err)
 		w.Error()
 		return

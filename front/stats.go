@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/fed"
-	"github.com/dimkr/tootik/graph"
-	"github.com/dimkr/tootik/text"
+	"github.com/dimkr/tootik/front/graph"
+	"github.com/dimkr/tootik/front/text"
 	"time"
 )
 

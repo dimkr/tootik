@@ -19,7 +19,7 @@ package front
 import (
 	"fmt"
 	"github.com/dimkr/tootik/data"
-	"github.com/dimkr/tootik/text"
+	"github.com/dimkr/tootik/front/text"
 	"path/filepath"
 )
 

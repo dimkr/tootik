@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/text"
+	"github.com/dimkr/tootik/front/text"
 )
 
 func writeUserMenu(w text.Writer, user *ap.Actor) {

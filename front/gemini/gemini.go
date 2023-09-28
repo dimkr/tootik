@@ -28,7 +28,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/front"
-	"github.com/dimkr/tootik/text/gmi"
+	"github.com/dimkr/tootik/front/text/gmi"
 	"log/slog"
 	"net"
 	"net/url"

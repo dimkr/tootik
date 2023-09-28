@@ -32,21 +32,23 @@ or, to build a static executable:
 
 * cmd/ implements main().
 
-* fed/ implements federation (server to server communication): outgoing requests and handling of incoming posts.
-* front/ containts the frontend (client to server communication).
-* front/gemini/ exposes the frontend over Gemini.
-* front/gopher/ exposes the frontend over Gopher.
-* front/finger/ exposes some content over Finger.
+* outbox/ translates user actions into a queue of activities that need to be sent to other servers.
+* inbox/ processes a queue of activities received from other servers.
+  * inbox/note/ handles insertion of posts: both posts received from other servers and posts created by local users.
+* fed/ implements federation: it handles all communication with other servers, sends what's in the "outbox" queue to other servers and adds activities to the "inbox" queue to the "notes" table.
+  * fed/icon/ generates pseudo-random icons used as avatars.
+
+* front/ implements the frontend.
+  * text/text/plain/ converts HTML to plain text.
+  * text/text/gmi/ contains a gemtext writer.
+  * text/text/gmap/ contains a gophermap writer with line wrapping.
+  * front/gemini/ exposes the frontend over Gemini.
+  * front/gopher/ exposes the frontend over Gopher.
+  * front/finger/ exposes some content over Finger.
 
 * ap/ implements ActivityPub vocabulary.
 * migrations/ contains the database schema.
 * data/ contains useful data structures.
-* note/ handles insertion of posts.
-
-* text/plain/ converts HTML to plain text.
-* text/gmi/ contains a gemtext writer.
-* text/gmap/ contains a gophermap writer with line wrapping.
-* icon/ generates pseudo-random icons used as avatars.
 
 * cfg/ contains global configuration parameters.
 * logger/ contains logging utilities.
@@ -149,21 +151,27 @@ Outgoing requests, like the [WebFinger](https://www.rfc-editor.org/rfc/rfc7033) 
 
 To protect user's privacy, requests not initiated by a particular user or requests not triggered during handling of user requests (like requests made during validation of incoming public posts) are associated with a special user named "nobody".
 
-### Resolvers
+### The Resolver
 
-A resolver is responsible for resolving a user ID (local or federated) into an Actor object that contains the user's information, like the user's display name. Actor objects for federated users are cached in the database and updated once in a while.
+The resolver is responsible for resolving a user ID (local or federated) into an Actor object that contains the user's information, like the user's display name. Actor objects for federated users are cached in the database and updated once in a while.
 
 This is an expensive but common operation that involves outgoing HTTPS requests. Therefore, to protect underpowered servers against heavy load and a big number of concurrent outgoing requests, the maximum number of outgoing requests is capped, concurrent attempts to resolve the same user are blocked and the resolver is a long-lived object that reuses connections.
 
-### Delivery Queue
+## Notes
 
-Once saved to the database, new posts can be viewed by local users. However, delivery to federated followers can take time and generate many outgoing requests.
+The "notes" table holds posts and allows fast search of posts by author, replies to a post and so on.
 
-Therefore, user actions are represented as an activity saved to the "outbox" table, accompanied by a delivery attempts counter, creation time and last attempt time. A single worker thread polls the table, prioritizes activities by the number of delivery attempts and the interval between attempts, then tries to deliver each activity to its federated recipients.
+### Outbox
 
-### Incoming Requests
+Once saved to the "notes" table, new posts can be viewed by local users. However, delivery to federated followers can take time and generate many outgoing requests.
+
+Therefore, user actions are represented as an activity saved to the "outbox" table, accompanied by a delivery attempts counter, creation time and last attempt time. For example, a local post saved to the "notes" table is also accompanied with a Create activity in the "outbox" table. A single worker thread polls the table, prioritizes activities by the number of delivery attempts and the interval between attempts, then tries to deliver each activity to its federated recipients.
+
+### Inbox
 
 The server verifies HTTP signatures of requests to /inbox/%s, using the sender's key. They key is cached to reduce the amount of outgoing requests.
+
+The server must resolve unknown users to display their preferred username, summary text and so on, and a user may send an activity that cannot be displayed unless other users associated with it are resolved, too. Therefore, processing of incoming requests can generate outgoing requests. For example, the server must resolve C when A, who follows B and receives replies to B's posts, receives a reply by C, or a post by B which mentions C. B is guaranteed to be cached because A follow B, but C isn't. Therefore, incoming activities are saved to the "inbox" table and a worker thread processes these queued activities.
 
 ## Migrations
 

@@ -18,7 +18,7 @@ package front
 
 import (
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/text"
+	"github.com/dimkr/tootik/front/text"
 )
 
 func say(w text.Writer, r *request) {

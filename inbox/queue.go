@@ -14,11 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package fed
+package inbox
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -26,7 +25,9 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
-	"github.com/dimkr/tootik/note"
+	"github.com/dimkr/tootik/fed"
+	"github.com/dimkr/tootik/inbox/note"
+	"github.com/dimkr/tootik/outbox"
 	"log/slog"
 	"strings"
 	"time"
@@ -40,7 +41,7 @@ const (
 	activityProcessingTimeout = time.Second * 15
 )
 
-func processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, req *ap.Activity, post *ap.Object, db *sql.DB, resolver *Resolver, from *ap.Actor) error {
+func processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, req *ap.Activity, post *ap.Object, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) error {
 	prefix := fmt.Sprintf("https://%s/", cfg.Domain)
 	if strings.HasPrefix(sender.ID, prefix) || strings.HasPrefix(post.ID, prefix) || strings.HasPrefix(post.AttributedTo, prefix) || strings.HasPrefix(req.Actor, prefix) {
 		return fmt.Errorf("Received invalid Create for %s by %s from %s", post.ID, post.AttributedTo, req.Actor)
@@ -58,9 +59,19 @@ func processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Act
 		return fmt.Errorf("Failed to resolve %s: %w", post.AttributedTo, err)
 	}
 
-	if err := note.Insert(ctx, log, db, post); err != nil {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
 		return fmt.Errorf("Cannot insert %s: %w", post.ID, err)
 	}
+	defer tx.Rollback()
+
+	if err := note.Insert(ctx, log, tx, post); err != nil {
+		return fmt.Errorf("Cannot insert %s: %w", post.ID, err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("Cannot insert %s: %w", post.ID, err)
+	}
+
 	log.Info("Received a new post")
 
 	mentionedUsers := data.OrderedMap[string, struct{}]{}
@@ -82,7 +93,7 @@ func processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Act
 	return nil
 }
 
-func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, req *ap.Activity, db *sql.DB, resolver *Resolver, from *ap.Actor) error {
+func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, req *ap.Activity, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) error {
 	log.Debug("Processing activity")
 
 	switch req.Type {
@@ -135,53 +146,10 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			return fmt.Errorf("Failed to unmarshal %s: %w", followed, err)
 		}
 
-		var duplicate int
-		if err := db.QueryRowContext(ctx, `select exists (select 1 from follows where follower = ? and followed = ?)`, req.Actor, followed).Scan(&duplicate); err != nil {
-			return fmt.Errorf("Failed to check if %s already follows %s: %w", req.Actor, followed, err)
-		}
-
 		log.Info("Approving follow request", "follower", req.Actor, "followed", followed)
 
-		recipients := ap.Audience{}
-		recipients.Add(req.Actor)
-
-		j, err := json.Marshal(ap.Activity{
-			Context: "https://www.w3.org/ns/activitystreams",
-			Type:    ap.AcceptActivity,
-			ID:      fmt.Sprintf("https://%s/accept/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s", from.ID, followed)))),
-			Actor:   followed,
-			To:      recipients,
-			Object: &ap.Activity{
-				Type: ap.FollowActivity,
-				ID:   req.ID,
-			},
-		})
-		if err != nil {
+		if err := outbox.Accept(ctx, followed, req.Actor, req.ID, db); err != nil {
 			return fmt.Errorf("Failed to marshal accept response: %w", err)
-		}
-
-		to, err := resolver.Resolve(ctx, log, db, &from, req.Actor, false)
-		if err != nil {
-			return fmt.Errorf("Failed to resolve %s: %w", req.Actor, err)
-		}
-
-		if err := Send(ctx, log, db, &from, resolver, to, j); err != nil {
-			return fmt.Errorf("Failed to send Accept response to %s: %w", req.Actor, err)
-		}
-
-		if duplicate == 1 {
-			log.Info("User is already followed", "follower", req.Actor, "followed", followed)
-		} else {
-			if _, err := db.ExecContext(
-				ctx,
-				`INSERT INTO follows (id, follower, followed, accepted) VALUES(?,?,?,?)`,
-				req.ID,
-				req.Actor,
-				followed,
-				1,
-			); err != nil {
-				return fmt.Errorf("Failed to insert follow %s: %w", req.ID, err)
-			}
 		}
 
 	case ap.AcceptActivity:
@@ -315,7 +283,7 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 	return nil
 }
 
-func processActivityWithTimeout(parent context.Context, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, db *sql.DB, resolver *Resolver, from *ap.Actor) {
+func processActivityWithTimeout(parent context.Context, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) {
 	ctx, cancel := context.WithTimeout(parent, activityProcessingTimeout)
 	defer cancel()
 
@@ -332,7 +300,7 @@ func processActivityWithTimeout(parent context.Context, log *slog.Logger, sender
 	}
 }
 
-func processActivitiesBatch(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver, from *ap.Actor) (int, error) {
+func processBatch(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) (int, error) {
 	log.Debug("Polling activities queue")
 
 	rows, err := db.QueryContext(ctx, `select inbox.id, persons.actor, inbox.activity from (select * from inbox limit -1 offset case when (select count(*) from inbox) >= $1 then $1/10 else 0 end) inbox left join persons on persons.id = inbox.sender order by inbox.id limit $2`, maxActivitiesQueueSize, activitiesBatchSize)
@@ -395,12 +363,12 @@ func processActivitiesBatch(ctx context.Context, log *slog.Logger, db *sql.DB, r
 	return rowsCount, nil
 }
 
-func processActivities(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver, from *ap.Actor) error {
+func processQueue(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) error {
 	t := time.NewTicker(activitiesBatchDelay)
 	defer t.Stop()
 
 	for {
-		n, err := processActivitiesBatch(ctx, log, db, resolver, from)
+		n, err := processBatch(ctx, log, db, resolver, from)
 		if err != nil {
 			return err
 		}
@@ -418,7 +386,7 @@ func processActivities(ctx context.Context, log *slog.Logger, db *sql.DB, resolv
 	}
 }
 
-func ProcessActivities(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver, from *ap.Actor) error {
+func ProcessQueue(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) error {
 	t := time.NewTicker(activitiesPollingInterval)
 	defer t.Stop()
 
@@ -428,7 +396,7 @@ func ProcessActivities(ctx context.Context, log *slog.Logger, db *sql.DB, resolv
 			return nil
 
 		case <-t.C:
-			if err := processActivities(ctx, log, db, resolver, from); err != nil {
+			if err := processQueue(ctx, log, db, resolver, from); err != nil {
 				return err
 			}
 		}

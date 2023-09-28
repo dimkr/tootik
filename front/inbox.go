@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/data"
-	"github.com/dimkr/tootik/text"
+	"github.com/dimkr/tootik/front/text"
 )
 
 func dailyPosts(w text.Writer, r *request, day time.Time) {

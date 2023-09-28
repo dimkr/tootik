@@ -24,11 +24,11 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
-	"github.com/dimkr/tootik/text"
+	"github.com/dimkr/tootik/front/text"
 	"path/filepath"
 )
 
-func outbox(w text.Writer, r *request) {
+func userOutbox(w text.Writer, r *request) {
 	hash := filepath.Base(r.URL.Path)
 
 	var actorID, actorString string

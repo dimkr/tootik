@@ -21,7 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/icon"
+	"github.com/dimkr/tootik/fed/icon"
 	"log/slog"
 	"net/http"
 	"path/filepath"
