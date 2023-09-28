@@ -186,7 +186,7 @@ func TestFollow_AlreadyFollowing(t *testing.T) {
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
 
 	follow = server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal("40 Already following https://localhost/user/bob\r\n", follow)
+	assert.Equal("40 Already following https://localhost.localdomain/user/bob\r\n", follow)
 }
 
 func TestFollow_NoSuchUser(t *testing.T) {
