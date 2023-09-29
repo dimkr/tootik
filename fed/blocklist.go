@@ -21,8 +21,11 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"io"
 	"log/slog"
+	"math"
 	"os"
+	"path/filepath"
 	"sync"
+	"time"
 )
 
 type BlockList struct {
@@ -31,6 +34,8 @@ type BlockList struct {
 	w       *fsnotify.Watcher
 	domains map[string]struct{}
 }
+
+const blockListReloadDelay = time.Second * 5
 
 func loadBlocklist(path string) (map[string]struct{}, error) {
 	blockedDomains := make(map[string]struct{})
@@ -74,43 +79,52 @@ func NewBlockList(log *slog.Logger, path string) (*BlockList, error) {
 		return nil, err
 	}
 
-	if err := w.Add(path); err != nil {
+	dir := filepath.Dir(path)
+	if err := w.Add(dir); err != nil {
 		w.Close()
 		return nil, err
 	}
+	absPath := filepath.Join(dir, filepath.Base(path))
 
 	b := &BlockList{w: w, domains: domains}
+
+	timer := time.NewTimer(math.MaxInt64)
+	timer.Stop()
 
 	b.wg.Add(1)
 	go func() {
 		defer b.wg.Done()
 
 		for {
-			event, ok := <-w.Events
-			if !ok {
-				break
-			}
+			select {
+			case event, ok := <-w.Events:
+				if !ok {
+					timer.Stop()
+					return
+				}
 
-			if !event.Has(fsnotify.Write) && !event.Has(fsnotify.Create) && !event.Has(fsnotify.Rename) {
-				continue
-			}
+				if (event.Has(fsnotify.Write) || event.Has(fsnotify.Create)) && event.Name == absPath {
+					timer.Reset(blockListReloadDelay)
+				}
 
-			newDomains, err := loadBlocklist(path)
-			if err != nil {
-				log.Warn("Failed to reload blocklist", "path", path, "error", err)
-				continue
-			}
+			case <-timer.C:
+				newDomains, err := loadBlocklist(path)
+				if err != nil {
+					log.Warn("Failed to reload blocklist", "path", path, "error", err)
+					continue
+				}
 
-			// continue if the old list wasn't empty and the new one is empty; maybe the file was opened with O_TRUNC
-			if len(b.domains) == 0 || len(newDomains) > 0 {
-				log.Warn("New blocklist is empty")
-				continue
-			}
+				// continue if the old list wasn't empty and the new one is empty; maybe the file was opened with O_TRUNC
+				if len(b.domains) > 0 && len(newDomains) == 0 {
+					log.Warn("New blocklist is empty")
+					continue
+				}
 
-			b.lock.Lock()
-			b.domains = newDomains
-			b.lock.Unlock()
-			log.Info("Reloaded blocklist", "path", path, "length", len(newDomains))
+				b.lock.Lock()
+				b.domains = newDomains
+				b.lock.Unlock()
+				log.Info("Reloaded blocklist", "path", path, "length", len(newDomains))
+			}
 		}
 	}()
 

@@ -26,11 +26,15 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/fsnotify/fsnotify"
 	"log/slog"
+	"math"
 	"net"
 	"net/http"
+	"path/filepath"
 	"sync"
 	"time"
 )
+
+const certReloadDelay = time.Second * 5
 
 func robots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
@@ -82,12 +86,19 @@ func ListenAndServe(ctx context.Context, db *sql.DB, resolver *Resolver, actor *
 	}
 	defer w.Close()
 
-	if err := w.Add(cert); err != nil {
+	certDir := filepath.Dir(cert)
+	if err := w.Add(certDir); err != nil {
 		return err
 	}
-	if err := w.Add(key); err != nil {
-		return err
+	certAbsPath := filepath.Join(certDir, filepath.Base(cert))
+
+	keyDir := filepath.Dir(key)
+	if keyDir != certDir {
+		if err := w.Add(keyDir); err != nil {
+			return err
+		}
 	}
+	keyAbsPath := filepath.Join(keyDir, filepath.Base(key))
 
 	for ctx.Err() == nil {
 		var wg sync.WaitGroup
@@ -113,6 +124,9 @@ func ListenAndServe(ctx context.Context, db *sql.DB, resolver *Resolver, actor *
 			wg.Done()
 		}()
 
+		timer := time.NewTimer(math.MaxInt64)
+		timer.Stop()
+
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -128,11 +142,12 @@ func ListenAndServe(ctx context.Context, db *sql.DB, resolver *Resolver, actor *
 						continue
 					}
 
-					if !event.Has(fsnotify.Write) && !event.Has(fsnotify.Create) && !event.Has(fsnotify.Rename) {
-						continue
+					if (event.Has(fsnotify.Write) || event.Has(fsnotify.Create)) && (event.Name == certAbsPath || event.Name == keyAbsPath) {
+						log.Info("Stopping HTTPS server: file has changed", "name", event.Name)
+						timer.Reset(certReloadDelay)
 					}
 
-					log.Info("Stopping HTTPS server: file has changed", "name", event.Name)
+				case <-timer.C:
 					server.Shutdown(context.Background())
 					return
 
