@@ -20,9 +20,11 @@ import (
 	"context"
 	"database/sql"
 	"flag"
+	"fmt"
 	"log/slog"
 	"os"
 
+	"github.com/dimkr/tootik/buildinfo"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/fed"
@@ -51,10 +53,16 @@ var (
 	key           = flag.String("key", "key.pem", "HTTPS TLS key")
 	addr          = flag.String("addr", ":8443", "HTTPS listening address")
 	blockListPath = flag.String("blocklist", "", "Blocklist CSV")
+	version       = flag.Bool("version", false, "Print version and exit")
 )
 
 func main() {
 	flag.Parse()
+
+	if version != nil && *version {
+		fmt.Println(buildinfo.Version)
+		return
+	}
 
 	opts := slog.HandlerOptions{Level: slog.Level(cfg.LogLevel)}
 	if opts.Level == slog.LevelDebug {

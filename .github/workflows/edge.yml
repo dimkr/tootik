@@ -1,15 +1,15 @@
-name: image
+name: edge
 
 on:
   workflow_run:
-    workflows: [build]
+    workflows: [ci]
     types: [completed]
   workflow_dispatch:
 
 jobs:
-  image:
+  edge:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.ref_name == 'main' }}
     steps:
       - uses: docker/login-action@v3
         with:
@@ -20,4 +20,5 @@ jobs:
         with:
           pull: true
           push: true
-          tags: ghcr.io/${{ github.repository }}:latest
+          build-args: TOOTIK_VERSION=99.99.${{ github.run_number }}
+          tags: ghcr.io/${{ github.repository }}:edge

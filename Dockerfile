@@ -23,7 +23,8 @@ RUN go generate ./migrations
 COPY . /src
 RUN go vet ./...
 RUN go test ./... -failfast -vet off
-RUN go build ./cmd/tootik
+ARG TOOTIK_VERSION=?
+RUN go build -ldflags "-X github.com/dimkr/tootik/buildinfo.Version=$TOOTIK_VERSION"  ./cmd/tootik
 
 FROM alpine
 RUN apk add --no-cache ca-certificates openssl
