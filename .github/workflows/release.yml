@@ -6,7 +6,23 @@ on:
       - '*.*'
 
 jobs:
-  release:
+  static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: '>=1.21.0'
+      - run: |
+          go generate ./migrations
+          go vet ./...
+          go test ./... -failfast -vet off
+      - run: go build -tags netgo,sqlite_omit_load_extension -ldflags "-linkmode external -extldflags -static -X github.com/dimkr/tootik/buildinfo.Version=${{ github.ref_name }}" ./cmd/tootik
+      - uses: softprops/action-gh-release@v1
+        with:
+          files: tootik
+          fail_on_unmatched_files: true
+  image:
     runs-on: ubuntu-latest
     steps:
       - uses: docker/login-action@v3
