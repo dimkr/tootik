@@ -10,11 +10,13 @@
 
 tootik is a federated nanoblogging service for the small internet.
 
-tootik allows people to participate in the fediverse using their Gemini, Gopher or Finger client of choice and makes the fediverse lighter, more private and more accessible. tootik's interface strips content to bare essentials (like text and links), puts the users in control of the content they see and tries to "slow down" the fediverse to make it more compatible with the slower pace of the small internet.
-
-It's a single executable that handles both the federation (using ActivityPub) and the frontend (using Gemini) aspects, while [sqlite](https://sqlite.org/) takes care of persistency. It should be lightweight and efficient enough to host a small community even on a cheap server, and hopefully, be easy to hack on.
-
-tootik implements only a small subset of ActivityPub, and probably doesn't really conform to the spec.
+tootik's goal is to make the fediverse lighter, more private and more accessible:
+* It converts rich content into plain text and links, reducing bandwidth requirements and making content more suitable for screen readers.
+* Its frontend supports Gemini, Gopher and Finger, so an old device incapable of running a modern web browser is still good enough.
+* It puts the users in control of the content they see and tries to "slow down" the fediverse to make it more compatible with the slower pace of the small internet.
+* It's a single, easy-to-deploy executable that handles both the federation (using ActivityPub) and the frontend (using Gemini) aspects, while [sqlite](https://sqlite.org/) takes care of persistency.
+* It should be lightweight and efficient enough to host a small community on one, cheap server, without horizontal scaling and the ongoing maintenance of a separate database.
+* It implements only a small subset of ActivityPub, enough for its feature set but not more, and everything is implemented in one language ([Go](https://go.dev/)) without abstraction layers (like web or ORM frameworks), making it easy to understand and hack on.
 
 ## Building
 
