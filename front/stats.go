@@ -17,6 +17,7 @@ limitations under the License.
 package front
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/fed"
@@ -85,7 +86,8 @@ func getActiveUsersGraph(r *request) string {
 func stats(w text.Writer, r *request) {
 	prefix := fmt.Sprintf("https://%s/%%", cfg.Domain)
 
-	var usersCount, postsCount, postsToday, federatedPostsCount, federatedPostsToday, lastPost, lastFederatedPost, lastRegister, lastFederatedUser int64
+	var usersCount, postsCount, postsToday, federatedPostsCount, federatedPostsToday int64
+	var lastPost, lastFederatedPost, lastRegister, lastFederatedUser sql.NullInt64
 	var outboxSize, inboxSize int
 
 	if err := r.QueryRow(`select count(*) from persons where id like ?`, prefix).Scan(&usersCount); err != nil {
@@ -202,15 +204,23 @@ func stats(w text.Writer, r *request) {
 	}
 
 	w.Subtitle("Other Statistics")
-	w.Itemf("Latest local post: %s", time.Unix(lastPost, 0).Format(time.UnixDate))
-	w.Itemf("Latest federated post: %s", time.Unix(lastFederatedPost, 0).Format(time.UnixDate))
+	if lastPost.Valid {
+		w.Itemf("Latest local post: %s", time.Unix(lastPost.Int64, 0).Format(time.UnixDate))
+	}
+	if lastFederatedPost.Valid {
+		w.Itemf("Latest federated post: %s", time.Unix(lastFederatedPost.Int64, 0).Format(time.UnixDate))
+	}
 	w.Itemf("Local posts today: %d", postsToday)
 	w.Itemf("Federated posts today: %d", federatedPostsToday)
 	w.Itemf("Local users: %d", usersCount)
 	w.Itemf("Local posts: %d", postsCount)
 	w.Itemf("Federated posts: %d", federatedPostsCount)
-	w.Itemf("Newest user: %s", time.Unix(lastRegister, 0).Format(time.UnixDate))
-	w.Itemf("Latest federated user update: %s", time.Unix(lastFederatedUser, 0).Format(time.UnixDate))
+	if lastRegister.Valid {
+		w.Itemf("Newest user: %s", time.Unix(lastRegister.Int64, 0).Format(time.UnixDate))
+	}
+	if lastFederatedUser.Valid {
+		w.Itemf("Latest federated user update: %s", time.Unix(lastFederatedUser.Int64, 0).Format(time.UnixDate))
+	}
 	w.Itemf("Incoming activities queue size: %d", inboxSize)
 	w.Itemf("Outgoing activities queue size: %d", outboxSize)
 }
