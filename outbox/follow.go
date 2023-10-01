@@ -51,7 +51,13 @@ func Follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB
 
 	isLocal := strings.HasPrefix(followed, fmt.Sprintf("https://%s/", cfg.Domain))
 
-	if _, err := db.ExecContext(
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO follows (id, follower, followed, accepted) VALUES(?,?,?,?)`,
 		followID,
@@ -62,12 +68,16 @@ func Follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB
 		return fmt.Errorf("Failed to insert follow: %w", err)
 	}
 
-	if _, err := db.ExecContext(
+	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity) VALUES(?)`,
 		string(body),
 	); err != nil {
 		return fmt.Errorf("Failed to insert follow activity: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("%s failed to follow %s: %w", follower.ID, followed, err)
 	}
 
 	return nil
