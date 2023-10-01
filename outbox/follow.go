@@ -70,8 +70,9 @@ func Follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity) VALUES(?)`,
+		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
 		string(body),
+		follower.ID,
 	); err != nil {
 		return fmt.Errorf("Failed to insert follow activity: %w", err)
 	}

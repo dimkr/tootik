@@ -68,7 +68,7 @@ func Create(ctx context.Context, log *slog.Logger, db *sql.DB, post *ap.Object, 
 		return fmt.Errorf("Failed to insert note: %w", err)
 	}
 
-	if _, err = tx.ExecContext(ctx, `insert into outbox (activity) values(?)`, string(create)); err != nil {
+	if _, err = tx.ExecContext(ctx, `insert into outbox (activity, sender) values(?,?)`, string(create), author.ID); err != nil {
 		return fmt.Errorf("Failed to insert Create: %w", err)
 	}
 

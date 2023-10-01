@@ -70,8 +70,9 @@ func Edit(ctx context.Context, db *sql.DB, note *ap.Object, newContent string) e
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity) VALUES(?)`,
+		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
 		string(update),
+		note.AttributedTo,
 	); err != nil {
 		return fmt.Errorf("Failed to insert update activity: %w", err)
 	}

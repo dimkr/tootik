@@ -39,9 +39,58 @@ const (
 	activitiesPollingInterval = time.Second * 5
 	activitiesBatchDelay      = time.Millisecond * 100
 	activityProcessingTimeout = time.Second * 15
+	maxForwardingDepth        = 5
 )
 
-func processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, req *ap.Activity, post *ap.Object, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) error {
+// a reply by B in a thread started by A is forwarded to all followers of A
+func forwardActivity(ctx context.Context, log *slog.Logger, tx *sql.Tx, activity *ap.Activity, rawActivity []byte) error {
+	obj, ok := activity.Object.(*ap.Object)
+	if !ok {
+		return nil
+	}
+
+	var firstPostID, threadStarterID string
+	var depth int
+	if err := tx.QueryRowContext(ctx, `with recursive thread(id, author, parent, depth) as (select notes.id, notes.author, notes.object->>'inReplyTo' as parent, 1 as depth from notes where id = ? union select notes.id, notes.author, notes.object->>'inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent) select id, author, depth from thread order by depth desc limit 1`, obj.ID).Scan(&firstPostID, &threadStarterID, &depth); err != nil && errors.Is(err, sql.ErrNoRows) {
+		log.Debug("Failed to find thread for post", "post", obj.ID)
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("failed to fetch first post in thread: %w", err)
+	}
+	if depth > maxForwardingDepth {
+		log.Debug("Thread exceeds depth limit for forwarding")
+		return nil
+	}
+
+	prefix := fmt.Sprintf("https://%s/", cfg.Domain)
+	if !strings.HasPrefix(threadStarterID, prefix) {
+		log.Debug("Thread starter is federated")
+		return nil
+	}
+
+	var shouldForward int
+	if err := tx.QueryRowContext(ctx, `select exists (select 1 from notes join persons on persons.id = notes.author and (notes.public = 1 or exists (select 1 from json_each(notes.object->'to') where value = persons.actor->>'followers') or exists (select 1 from json_each(notes.object->'cc') where value = persons.actor->>'followers')) where notes.id = ?)`, firstPostID).Scan(&shouldForward); err != nil {
+		return err
+	}
+	if shouldForward == 0 {
+		log.Debug("Activity does not need to be forwarded")
+		return nil
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
+		string(rawActivity),
+		threadStarterID,
+	); err != nil {
+		return err
+	}
+
+	log.Info("Forwarding activity to followers of thread starter", "thread", firstPostID, "starter", threadStarterID)
+	return nil
+}
+
+func processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, req *ap.Activity, rawActivity []byte, post *ap.Object, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) error {
 	prefix := fmt.Sprintf("https://%s/", cfg.Domain)
 	if strings.HasPrefix(sender.ID, prefix) || strings.HasPrefix(post.ID, prefix) || strings.HasPrefix(post.AttributedTo, prefix) || strings.HasPrefix(req.Actor, prefix) {
 		return fmt.Errorf("Received invalid Create for %s by %s from %s", post.ID, post.AttributedTo, req.Actor)
@@ -68,6 +117,11 @@ func processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Act
 	if err := note.Insert(ctx, log, tx, post); err != nil {
 		return fmt.Errorf("Cannot insert %s: %w", post.ID, err)
 	}
+
+	if err := forwardActivity(ctx, log, tx, req, rawActivity); err != nil {
+		return fmt.Errorf("Cannot forward %s: %w", post.ID, err)
+	}
+
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("Cannot insert %s: %w", post.ID, err)
 	}
@@ -93,7 +147,7 @@ func processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Act
 	return nil
 }
 
-func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, req *ap.Activity, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) error {
+func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, req *ap.Activity, rawActivity []byte, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) error {
 	log.Debug("Processing activity")
 
 	switch req.Type {
@@ -205,7 +259,7 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			return errors.New("Received invalid Create")
 		}
 
-		return processCreateActivity(ctx, log, sender, req, post, db, resolver, from)
+		return processCreateActivity(ctx, log, sender, req, rawActivity, post, db, resolver, from)
 
 	case ap.AnnounceActivity:
 		create, ok := req.Object.(*ap.Activity)
@@ -228,7 +282,7 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			return errors.New("Sender is not post author or recipient")
 		}
 
-		return processCreateActivity(ctx, log, sender, create, post, db, resolver, from)
+		return processCreateActivity(ctx, log, sender, create, rawActivity, post, db, resolver, from)
 
 	case ap.UpdateActivity:
 		post, ok := req.Object.(*ap.Object)
@@ -236,14 +290,15 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			return errors.New("Received invalid Update")
 		}
 
-		if sender.ID != post.AttributedTo {
+		prefix := fmt.Sprintf("https://%s/", cfg.Domain)
+		if strings.HasPrefix(post.ID, prefix) {
 			return fmt.Errorf("%s cannot update posts by %s", sender.ID, post.AttributedTo)
 		}
 
 		var lastUpdate sql.NullInt64
 		if err := db.QueryRowContext(ctx, `select max(inserted, updated) from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastUpdate); err != nil && errors.Is(err, sql.ErrNoRows) {
 			log.Debug("Received Update for non-existing post")
-			return processCreateActivity(ctx, log, sender, req, post, db, resolver, from)
+			return processCreateActivity(ctx, log, sender, req, rawActivity, post, db, resolver, from)
 		} else if err != nil {
 			return fmt.Errorf("Failed to get last update time for %s: %w", post.ID, err)
 		}
@@ -258,12 +313,26 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			return fmt.Errorf("Failed to update post %s: %w", post.ID, err)
 		}
 
-		if _, err := db.ExecContext(
+		tx, err := db.BeginTx(ctx, nil)
+		if err != nil {
+			return fmt.Errorf("Cannot insert %s: %w", post.ID, err)
+		}
+		defer tx.Rollback()
+
+		if _, err := tx.ExecContext(
 			ctx,
 			`update notes set object = ?, updated = unixepoch() where id = ?`,
 			string(body),
 			post.ID,
 		); err != nil {
+			return fmt.Errorf("Failed to update post %s: %w", post.ID, err)
+		}
+
+		if err := forwardActivity(ctx, log, tx, req, rawActivity); err != nil {
+			return fmt.Errorf("Failed to forward update pos %s: %w", post.ID, err)
+		}
+
+		if err := tx.Commit(); err != nil {
 			return fmt.Errorf("Failed to update post %s: %w", post.ID, err)
 		}
 
@@ -283,24 +352,24 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 	return nil
 }
 
-func processActivityWithTimeout(parent context.Context, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) {
+func processActivityWithTimeout(parent context.Context, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity []byte, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) {
 	ctx, cancel := context.WithTimeout(parent, activityProcessingTimeout)
 	defer cancel()
 
 	if o, ok := activity.Object.(*ap.Object); ok {
-		log = log.With(slog.Group("activity", "sender", sender.ID, "type", activity.Type, "actor", activity.Actor, slog.Group("object", "kind", "object", "id", o.ID, "type", o.Type, "attributed_to", o.AttributedTo)))
+		log = log.With(slog.Group("activity", "id", activity.ID, "sender", sender.ID, "type", activity.Type, "actor", activity.Actor, slog.Group("object", "kind", "object", "id", o.ID, "type", o.Type, "attributed_to", o.AttributedTo)))
 	} else if a, ok := activity.Object.(*ap.Activity); ok {
-		log = log.With(slog.Group("activity", "sender", sender.ID, "type", activity.Type, "actor", activity.Actor, slog.Group("object", "kind", "activity", "id", a.ID, "type", a.Type, "actor", a.Actor)))
+		log = log.With(slog.Group("activity", "id", activity.ID, "sender", sender.ID, "type", activity.Type, "actor", activity.Actor, slog.Group("object", "kind", "activity", "id", a.ID, "type", a.Type, "actor", a.Actor)))
 	} else if s, ok := activity.Object.(string); ok {
-		log = log.With(slog.Group("activity", "sender", sender.ID, "type", activity.Type, "actor", activity.Actor, slog.Group("object", "kind", "string", "id", s)))
+		log = log.With(slog.Group("activity", "id", activity.ID, "sender", sender.ID, "type", activity.Type, "actor", activity.Actor, slog.Group("object", "kind", "string", "id", s)))
 	}
 
-	if err := processActivity(ctx, log, sender, activity, db, resolver, from); err != nil {
+	if err := processActivity(ctx, log, sender, activity, rawActivity, db, resolver, from); err != nil {
 		log.Warn("Failed to process activity", "error", err)
 	}
 }
 
-func processBatch(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) (int, error) {
+func ProcessBatch(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) (int, error) {
 	log.Debug("Polling activities queue")
 
 	rows, err := db.QueryContext(ctx, `select inbox.id, persons.actor, inbox.activity from (select * from inbox limit -1 offset case when (select count(*) from inbox) >= $1 then $1/10 else 0 end) inbox left join persons on persons.id = inbox.sender order by inbox.id limit $2`, maxActivitiesQueueSize, activitiesBatchSize)
@@ -352,7 +421,7 @@ func processBatch(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *f
 			return true
 		}
 
-		processActivityWithTimeout(ctx, log, &sender, &activity, db, resolver, from)
+		processActivityWithTimeout(ctx, log, &sender, &activity, []byte(activityString), db, resolver, from)
 		return true
 	})
 
@@ -368,7 +437,7 @@ func processQueue(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *f
 	defer t.Stop()
 
 	for {
-		n, err := processBatch(ctx, log, db, resolver, from)
+		n, err := ProcessBatch(ctx, log, db, resolver, from)
 		if err != nil {
 			return err
 		}
