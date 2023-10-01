@@ -61,6 +61,15 @@ func Unfollow(ctx context.Context, log *slog.Logger, db *sql.DB, follower *ap.Ac
 	}
 	defer tx.Rollback()
 
+        // mark the matching Follow as received
+        if _, err := tx.ExecContext(
+                ctx,
+                `UPDATE outbox SET sent = 1 WHERE activity->>'object.id' = ? and activity->>'type' = 'Follow'`,
+                followID,
+        ); err != nil {
+                return fmt.Errorf("Failed to mark follow activity as received: %w", err)
+        }
+
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity) VALUES(?)`,
