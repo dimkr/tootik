@@ -19,6 +19,7 @@ package fed
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
 	"log/slog"
@@ -71,7 +72,10 @@ func (h *webFingerHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	id := fmt.Sprintf("https://%s/user/%s", cfg.Domain, fields[0])
 
 	actorString := ""
-	if err := h.DB.QueryRowContext(r.Context(), `select actor from persons where id = ?`, id).Scan(&actorString); err != nil {
+	if err := h.DB.QueryRowContext(r.Context(), `select actor from persons where id = ?`, id).Scan(&actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	} else if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
