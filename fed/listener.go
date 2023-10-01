@@ -42,11 +42,6 @@ func robots(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Disallow: /\n"))
 }
 
-func root(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Location", fmt.Sprintf("gemini://%s", cfg.Domain))
-	w.WriteHeader(http.StatusMovedPermanently)
-}
-
 func ListenAndServe(ctx context.Context, db *sql.DB, resolver *Resolver, actor *ap.Actor, log *slog.Logger, addr, cert, key string) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/robots.txt", robots)
@@ -74,7 +69,15 @@ func ListenAndServe(ctx context.Context, db *sql.DB, resolver *Resolver, actor *
 		handler := postHandler{log.With(slog.String("path", r.URL.Path)), db}
 		handler.Handle(w, r)
 	})
-	mux.HandleFunc("/", root)
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			w.Header().Set("Location", fmt.Sprintf("gemini://%s", cfg.Domain))
+			w.WriteHeader(http.StatusMovedPermanently)
+		} else {
+			log.Debug("Received request to non-existing path", "path", r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	})
 
 	if err := addNodeInfo(mux); err != nil {
 		return err
