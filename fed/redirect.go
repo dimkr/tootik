@@ -23,5 +23,5 @@ import (
 
 func shouldRedirect(r *http.Request) bool {
 	accept := strings.ReplaceAll(r.Header.Get("Accept"), " ", "")
-	return accept == "text/html" || strings.HasPrefix(accept, "text/html,") || strings.HasSuffix(accept, ",text/html") || strings.Contains(accept, ",text/html,")
+	return (accept == "text/html" || strings.HasPrefix(accept, "text/html,") || strings.HasSuffix(accept, ",text/html") || strings.Contains(accept, ",text/html,")) && !strings.Contains(accept, "application/activity+json")
 }
