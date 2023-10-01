@@ -83,6 +83,8 @@ func ListenAndServe(ctx context.Context, db *sql.DB, resolver *Resolver, actor *
 		return err
 	}
 
+	addHostMeta(mux)
+
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err
