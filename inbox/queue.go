@@ -267,7 +267,8 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			return errors.New("Received invalid Announce")
 		}
 		if create.Type != ap.CreateActivity {
-			return fmt.Errorf("Received unsupported Announce type: %s", create.Type)
+			log.Debug("Ignoring unsupported Announce type", "type", create.Type)
+			return nil
 		}
 
 		post, ok := create.Object.(*ap.Object)
