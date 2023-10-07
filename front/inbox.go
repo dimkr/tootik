@@ -55,7 +55,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 		left join (
 			select follows.followed, persons.actor, stats.avg, stats.last from
 			(
-				select followed from follows where follower = $1 and accepted = 1
+				select followed from follows where follower = $1
 			) follows
 			join
 			persons
@@ -96,7 +96,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 		on
 			myposts.id = notes.object->>'inReplyTo'
 		left join (
-			select notes.object->>'inReplyTo' as inreplyto, notes.author, follows.id as follow from notes left join follows on follows.follower = $1 and follows.followed = notes.author and follows.accepted = 1 where notes.inserted >= $3
+			select notes.object->>'inReplyTo' as inreplyto, notes.author, follows.id as follow from notes left join follows on follows.follower = $1 and follows.followed = notes.author where notes.inserted >= $3
 		) replies
 		on
 			replies.inreplyto = notes.id and replies.author != notes.author
