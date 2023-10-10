@@ -18,6 +18,7 @@ package test
 
 import (
 	"github.com/stretchr/testify/assert"
+	"strings"
 	"testing"
 )
 
@@ -34,7 +35,7 @@ func TestHashtags_NoHashtags(t *testing.T) {
 	assert.Contains(view, "Hello world")
 
 	hashtag := server.Handle("/users/hashtags", server.Bob)
-	assert.NotContains(hashtag, "#world")
+	assert.NotContains(strings.Split(hashtag, "\n"), "=> /users/hashtag/world #world")
 }
 
 func TestHashtags_OneHashtagOneAuthor(t *testing.T) {
@@ -50,7 +51,7 @@ func TestHashtags_OneHashtagOneAuthor(t *testing.T) {
 	assert.Contains(view, "Hello #world")
 
 	hashtag := server.Handle("/users/hashtags", server.Bob)
-	assert.NotContains(hashtag, "#world")
+	assert.NotContains(strings.Split(hashtag, "\n"), "=> /users/hashtag/world #world")
 }
 
 func TestHashtags_OneHashtagTwoAuthors(t *testing.T) {
@@ -72,7 +73,7 @@ func TestHashtags_OneHashtagTwoAuthors(t *testing.T) {
 	assert.Contains(view, "Hello again, #world")
 
 	hashtag := server.Handle("/users/hashtags", server.Carol)
-	assert.Contains(hashtag, "#world")
+	assert.Contains(strings.Split(hashtag, "\n"), "=> /users/hashtag/world #world")
 }
 
 func TestHashtags_OneHashtagTwoAuthorsCaseSensitivity(t *testing.T) {
@@ -94,7 +95,7 @@ func TestHashtags_OneHashtagTwoAuthorsCaseSensitivity(t *testing.T) {
 	assert.Contains(view, "Hello again, #WORld")
 
 	hashtag := server.Handle("/users/hashtags", server.Carol)
-	assert.Contains(hashtag, "#worLD")
+	assert.Contains(strings.Split(hashtag, "\n"), "=> /users/hashtag/worLD #worLD")
 }
 
 func TestHashtags_TwoHashtagsOneAuthor(t *testing.T) {
@@ -116,8 +117,8 @@ func TestHashtags_TwoHashtagsOneAuthor(t *testing.T) {
 	assert.Contains(view, "Hello #again, world")
 
 	hashtag := server.Handle("/users/hashtags", server.Carol)
-	assert.NotContains(hashtag, "#world")
-	assert.NotContains(hashtag, "#again")
+	assert.NotContains(strings.Split(hashtag, "\n"), "=> /users/hashtag/world #world")
+	assert.NotContains(strings.Split(hashtag, "\n"), "=> #again")
 }
 
 func TestHashtags_OneHashtagTwoAuthorsUnauthenticatedUser(t *testing.T) {
@@ -139,5 +140,5 @@ func TestHashtags_OneHashtagTwoAuthorsUnauthenticatedUser(t *testing.T) {
 	assert.Contains(view, "Hello again, #world")
 
 	hashtag := server.Handle("/hashtags", nil)
-	assert.Contains(hashtag, "#world")
+	assert.Contains(strings.Split(hashtag, "\n"), "=> /hashtag/world #world")
 }

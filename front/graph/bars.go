@@ -22,6 +22,14 @@ import (
 )
 
 func Bars(keys []string, values []int64) string {
+	var keyWidth int
+	for _, key := range keys {
+		l := len(key)
+		if l > keyWidth {
+			keyWidth = l
+		}
+	}
+
 	var max int64
 	for _, v := range values {
 		if v > max {
@@ -29,10 +37,7 @@ func Bars(keys []string, values []int64) string {
 		}
 	}
 
-	unit := float64(8)
-	if max >= 16 {
-		unit = float64(max) / 8
-	}
+	unit := float64(max) / 8
 
 	var w bytes.Buffer
 
@@ -65,7 +70,7 @@ func Bars(keys []string, values []int64) string {
 				bar[j] = ' '
 			}
 		}
-		fmt.Fprintf(&w, "%s %s %10d\n", keys[i], string(bar[:]), values[i])
+		fmt.Fprintf(&w, "%-*s %s %10d\n", keyWidth, keys[i], string(bar[:]), values[i])
 	}
 
 	return w.String()

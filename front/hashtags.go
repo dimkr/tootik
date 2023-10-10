@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/front/graph"
 	"github.com/dimkr/tootik/front/text"
 )
 
@@ -73,6 +74,28 @@ func hashtags(w text.Writer, r *request) {
 	all := scanHashtags(r, rows)
 	rows.Close()
 
+	rows, err = r.Query(`select strftime('%Y-%m-%d', datetime(day*86400, 'unixepoch')) || ' #' || hashtag, authors from (select notes.inserted/86400 as day, hashtags.hashtag, count(distinct notes.author) authors from hashtags join notes on notes.id = hashtags.note where inserted > (unixepoch()/86400-6)*86400 group by day, hashtag order by day, authors desc) group by day order by day desc`)
+	if err != nil {
+		r.Log.Warn("Failed to list hashtags", "error", err)
+		w.Error()
+		return
+	}
+
+	labels := make([]string, 0, 7)
+	values := make([]int64, 0, 7)
+	for rows.Next() {
+		var label string
+		var value int64
+		if err := rows.Scan(&label, &value); err != nil {
+			r.Log.Warn("Failed to scan hashtag", "error", err)
+			continue
+		}
+
+		labels = append(labels, label)
+		values = append(values, value)
+	}
+	rows.Close()
+
 	w.OK()
 	w.Title("🔥 Hashtags")
 
@@ -80,14 +103,24 @@ func hashtags(w text.Writer, r *request) {
 		printHashtags(w, r, "Most popular hashtags used by users with local followers in the last week:", followed)
 	}
 
-	if len(all) > 0 {
+	if len(labels) > 0 {
 		if len(followed) > 0 {
+			w.Empty()
+		}
+
+		w.Text("Most popular hashtag used by any user, by day:")
+		w.Empty()
+		w.Raw("Top daily hashtag graph", graph.Bars(labels, values))
+	}
+
+	if len(all) > 0 {
+		if len(followed) > 0 || len(labels) > 0 {
 			w.Empty()
 		}
 		printHashtags(w, r, "Most popular hashtags used by any user in the last week:", all)
 	}
 
-	if len(followed) > 0 || len(all) > 0 {
+	if len(followed) > 0 || len(labels) > 0 || len(all) > 0 {
 		w.Separator()
 	}
 
