@@ -70,7 +70,7 @@ func Bars(keys []string, values []int64) string {
 				bar[j] = ' '
 			}
 		}
-		fmt.Fprintf(&w, "%-*s %s %10d\n", keyWidth, keys[i], string(bar[:]), values[i])
+		fmt.Fprintf(&w, "%-*s %8s %d\n", keyWidth, keys[i], string(bar[:]), values[i])
 	}
 
 	return w.String()
