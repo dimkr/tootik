@@ -65,7 +65,7 @@ func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	var activity ap.Activity
 	if err := json.Unmarshal(body, &activity); err != nil {
-		h.Log.Warn("Failed to unmarshal activity", "error", err)
+		h.Log.Warn("Failed to unmarshal activity", "body", string(body), "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
