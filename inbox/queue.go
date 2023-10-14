@@ -264,7 +264,8 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 	case ap.AnnounceActivity:
 		create, ok := req.Object.(*ap.Activity)
 		if !ok {
-			return errors.New("Received invalid Announce")
+			log.Debug("Ignoring unsupported Announce object")
+			return nil
 		}
 		if create.Type != ap.CreateActivity {
 			log.Debug("Ignoring unsupported Announce type", "type", create.Type)
@@ -287,7 +288,12 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 
 	case ap.UpdateActivity:
 		post, ok := req.Object.(*ap.Object)
-		if !ok || post.ID == "" || post.AttributedTo == "" {
+		if !ok || post.ID == sender.ID {
+			log.Debug("Ignoring unsupported Update object")
+			return nil
+		}
+
+		if post.ID == "" || post.AttributedTo == "" {
 			return errors.New("Received invalid Update")
 		}
 
