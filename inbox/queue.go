@@ -234,7 +234,8 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 		if !ok {
 			if a, ok := req.Object.(*ap.Activity); ok {
 				if a.Type != ap.FollowActivity {
-					return errors.New("Received a request to undo a non-Follow activity")
+					log.Debug("Ignoring request to undo a non-Follow activity")
+					return nil
 				}
 
 				followID = a.ID
