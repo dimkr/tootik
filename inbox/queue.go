@@ -303,22 +303,42 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			return fmt.Errorf("%s cannot update posts by %s", sender.ID, post.AttributedTo)
 		}
 
-		var lastUpdate sql.NullInt64
-		if err := db.QueryRowContext(ctx, `select max(inserted, updated) from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastUpdate); err != nil && errors.Is(err, sql.ErrNoRows) {
+		var oldPostString string
+		var lastUpdate int64
+		if err := db.QueryRowContext(ctx, `select max(inserted, updated), object from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastUpdate, &oldPostString); err != nil && errors.Is(err, sql.ErrNoRows) {
 			log.Debug("Received Update for non-existing post")
 			return processCreateActivity(ctx, log, sender, req, rawActivity, post, db, resolver, from)
 		} else if err != nil {
 			return fmt.Errorf("Failed to get last update time for %s: %w", post.ID, err)
 		}
 
-		if !lastUpdate.Valid || post.Updated == nil || lastUpdate.Int64 >= post.Updated.UnixNano() {
-			log.Debug("Received old update request for new post")
-			return nil
+		var oldPost ap.Object
+		if err := json.Unmarshal([]byte(oldPostString), &oldPost); err != nil {
+			return fmt.Errorf("Failed to unmarshal old note: %w", err)
 		}
 
-		body, err := json.Marshal(post)
+		var body []byte
+		var err error
+		if (post.Type == ap.QuestionObject && post.Updated != nil && lastUpdate >= post.Updated.Unix()) || (post.Type != ap.QuestionObject && (post.Updated == nil || lastUpdate >= post.Updated.Unix())) {
+			log.Debug("Received old update request for new post")
+			return nil
+		} else if post.Type == ap.QuestionObject && oldPost.Closed != nil {
+			log.Debug("Received update request for closed poll")
+			return nil
+		} else if post.Type == ap.QuestionObject && post.Updated == nil {
+			oldPost.VotersCount = post.VotersCount
+			oldPost.OneOf = post.OneOf
+			oldPost.AnyOf = post.AnyOf
+			oldPost.EndTime = post.EndTime
+			oldPost.Closed = post.Closed
+
+			body, err = json.Marshal(oldPost)
+		} else {
+			body, err = json.Marshal(post)
+		}
+
 		if err != nil {
-			return fmt.Errorf("Failed to update post %s: %w", post.ID, err)
+			return fmt.Errorf("Failed to marshal updated post %s: %w", post.ID, err)
 		}
 
 		tx, err := db.BeginTx(ctx, nil)

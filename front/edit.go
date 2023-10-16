@@ -73,6 +73,12 @@ func edit(w text.Writer, r *request) {
 		return
 	}
 
+	if note.Name != "" {
+		r.Log.Warn("Cannot edit votes", "vote", note.ID)
+		w.Status(40, "Cannot edit votes")
+		return
+	}
+
 	var edits int
 	if err := r.QueryRow(`select count(*) from outbox where activity->>'object.id' = ? and (activity->>'type' = 'Update' or activity->>'type' = 'Create')`, note.ID).Scan(&edits); err != nil {
 		r.Log.Warn("Failed to count post edits", "hash", hash, "error", err)

@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/front/graph"
 	"github.com/dimkr/tootik/front/text"
 	"path/filepath"
 )
@@ -120,6 +121,33 @@ func view(w text.Writer, r *request) {
 			r.PrintNote(w, &note, &author, &group, false, false, true, false)
 		} else {
 			r.PrintNote(w, &note, &author, nil, false, false, true, false)
+		}
+
+		if note.Type == ap.QuestionObject && note.VotersCount > 0 && offset == 0 {
+			options := note.OneOf
+			if len(options) == 0 {
+				options = note.AnyOf
+			}
+
+			if len(options) > 0 {
+				w.Empty()
+
+				if note.VotersCount == 1 {
+					w.Subtitle("📊 Results (one voter)")
+				} else {
+					w.Subtitlef("📊 Results (%d voters)", note.VotersCount)
+				}
+
+				labels := make([]string, 0, len(options))
+				votes := make([]int64, 0, len(options))
+
+				for _, option := range options {
+					labels = append(labels, option.Name)
+					votes = append(votes, option.Replies.TotalItems)
+				}
+
+				w.Raw("Results graph", graph.Bars(labels, votes))
+			}
 		}
 
 		if count > 0 && offset >= repliesPerPage {

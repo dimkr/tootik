@@ -21,9 +21,10 @@ import "time"
 type ObjectType string
 
 const (
-	NoteObject    ObjectType = "Note"
-	PageObject    ObjectType = "Page"
-	ArticleObject ObjectType = "Article"
+	NoteObject     ObjectType = "Note"
+	PageObject     ObjectType = "Page"
+	ArticleObject  ObjectType = "Article"
+	QuestionObject ObjectType = "Question"
 )
 
 type Object struct {
@@ -41,6 +42,13 @@ type Object struct {
 	Tag          []Mention    `json:"tag,omitempty"`
 	Attachment   []Attachment `json:"attachment,omitempty"`
 	URL          string       `json:"url,omitempty"`
+
+	// polls
+	VotersCount int64        `json:"votersCount,omitempty"`
+	OneOf       []PollOption `json:"oneOf,omitempty"`
+	AnyOf       []PollOption `json:"anyOf,omitempty"`
+	EndTime     *time.Time   `json:"endTime,omitempty"`
+	Closed      *time.Time   `json:"closed,omitempty"`
 }
 
 func (o *Object) IsPublic() bool {

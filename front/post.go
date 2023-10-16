@@ -134,6 +134,25 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 
 	if inReplyTo != nil {
 		note.InReplyTo = inReplyTo.ID
+
+		if inReplyTo.Type == ap.QuestionObject {
+			options := inReplyTo.OneOf
+			if len(options) == 0 {
+				options = inReplyTo.AnyOf
+			}
+
+			for _, option := range options {
+				if option.Name == note.Content {
+					if inReplyTo.Closed != nil || inReplyTo.EndTime != nil && time.Now().After(*inReplyTo.EndTime) {
+						w.Status(40, "Cannot vote in a closed poll")
+						return
+					}
+
+					note.Content = ""
+					note.Name = option.Name
+				}
+			}
+		}
 	}
 
 	if err := outbox.Create(r.Context, r.Log, r.DB, &note, r.User); err != nil {

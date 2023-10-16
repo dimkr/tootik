@@ -17,9 +17,13 @@ limitations under the License.
 package test
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
+	"github.com/dimkr/tootik/fed"
+	"github.com/dimkr/tootik/inbox"
 	"github.com/stretchr/testify/assert"
+	"log/slog"
 	"testing"
 )
 
@@ -296,4 +300,106 @@ func TestView_InvalidOffset(t *testing.T) {
 
 	view := server.Handle("/users/view/87428fc522803d31065e7bce3cf03fe475096631e5e07bbd7a0fde60c4cf25c7?z", server.Bob)
 	assert.Equal("40 Invalid query\r\n", view)
+}
+
+func TestView_Update(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	_, err := server.db.Exec(
+		`insert into persons (id, hash, actor) values(?,?,?)`,
+		"https://127.0.0.1/user/dan",
+		"eab50d465047c1ccfc581759f33612c583486044f5de62b2a5e77e220c2f1ae3",
+		`{"type":"Person","preferredUsername":"dan"}`,
+	)
+	assert.NoError(err)
+
+	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
+
+	_, err = server.db.Exec(
+		`insert into inbox (sender, activity) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		create,
+	)
+	assert.NoError(err)
+
+	n, err := inbox.ProcessBatch(context.Background(), slog.Default(), server.db, fed.NewResolver(nil), server.Nobody)
+	assert.NoError(err)
+	assert.Equal(1, n)
+
+	view := server.Handle("/users/view/ff2b86e2dbb0cc086c97f1cf9b4398c26959821cddafdcd387c4471e6ec8cd65", server.Alice)
+	assert.Contains(view, "hello")
+	assert.NotContains(view, "bye")
+	assert.NotContains(view, "edited")
+
+	update := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/update/1","type":"Update","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"bye","updated":"2099-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
+
+	_, err = server.db.Exec(
+		`insert into inbox (sender, activity) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		update,
+	)
+	assert.NoError(err)
+
+	n, err = inbox.ProcessBatch(context.Background(), slog.Default(), server.db, fed.NewResolver(nil), server.Nobody)
+	assert.NoError(err)
+	assert.Equal(1, n)
+
+	view = server.Handle("/users/view/ff2b86e2dbb0cc086c97f1cf9b4398c26959821cddafdcd387c4471e6ec8cd65", server.Alice)
+	assert.NotContains(view, "hello")
+	assert.Contains(view, "bye")
+	assert.Contains(view, "edited")
+}
+
+func TestView_OldUpdate(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	_, err := server.db.Exec(
+		`insert into persons (id, hash, actor) values(?,?,?)`,
+		"https://127.0.0.1/user/dan",
+		"eab50d465047c1ccfc581759f33612c583486044f5de62b2a5e77e220c2f1ae3",
+		`{"type":"Person","preferredUsername":"dan"}`,
+	)
+	assert.NoError(err)
+
+	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
+
+	_, err = server.db.Exec(
+		`insert into inbox (sender, activity) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		create,
+	)
+	assert.NoError(err)
+
+	n, err := inbox.ProcessBatch(context.Background(), slog.Default(), server.db, fed.NewResolver(nil), server.Nobody)
+	assert.NoError(err)
+	assert.Equal(1, n)
+
+	view := server.Handle("/users/view/ff2b86e2dbb0cc086c97f1cf9b4398c26959821cddafdcd387c4471e6ec8cd65", server.Alice)
+	assert.Contains(view, "hello")
+	assert.NotContains(view, "bye")
+	assert.NotContains(view, "edited")
+
+	update := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/update/1","type":"Update","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"bye","updated":"2020-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
+
+	_, err = server.db.Exec(
+		`insert into inbox (sender, activity) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		update,
+	)
+	assert.NoError(err)
+
+	n, err = inbox.ProcessBatch(context.Background(), slog.Default(), server.db, fed.NewResolver(nil), server.Nobody)
+	assert.NoError(err)
+	assert.Equal(1, n)
+
+	view = server.Handle("/users/view/ff2b86e2dbb0cc086c97f1cf9b4398c26959821cddafdcd387c4471e6ec8cd65", server.Alice)
+	assert.Contains(view, "hello")
+	assert.NotContains(view, "bye")
+	assert.NotContains(view, "edited")
 }
