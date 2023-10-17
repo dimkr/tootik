@@ -65,7 +65,8 @@ or, to build a static executable:
 * /hashtags shows a list of popular hashtags.
 * /stats shows statistics and server health metrics.
 
-* /view shows a complete post with extra details like links in the post, a list mentioned users, a list of hashtags, a link to the author's outbox, a list of replies and a link to the parent post (if any).
+* /view shows a complete post with extra details like links in the post, a list mentioned users, a list of hashtags, a link to the author's outbox, a list of replies and a link to the parent post (if found).
+* /thread displays a tree of replies in a thread.
 * /outbox shows list of posts by a user.
 
 Users are authenticated using TLS client certificates; see [Gemini protocol specification](https://gemini.circumlunar.space/docs/specification.html) for more details. The following pages require authentication:
@@ -93,6 +94,7 @@ Some clients generate a certificate for / (all pages of this capsule) when /foo 
 * /users/hashtags
 * /users/stats
 * /users/view
+* /users/thread
 
 This way, users who prefer not to provide a client certificate when browsing to /x can reply to public posts by using /users/x instead.
 

@@ -162,20 +162,42 @@ func view(w text.Writer, r *request) {
 	r.PrintNotes(w, replies, true, false)
 
 	var originalPostExists int
+	var threadHead sql.NullString
 	if note.InReplyTo != "" {
 		if err := r.QueryRow(`select exists (select 1 from notes where id = ?)`, note.InReplyTo).Scan(&originalPostExists); err != nil {
-			r.Log.Warn("Failed to check if original post exists", "error", err)
+			r.Log.Warn("Failed to check if parent post exists", "error", err)
+		}
+
+		if err := r.QueryRow(`with recursive thread(id, parent, depth) as (select notes.id, notes.object->>'inReplyTo' as parent, 1 as depth from notes where id = ? union select notes.id, notes.object->>'inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent) select id from thread order by depth desc limit 1`, note.InReplyTo).Scan(&threadHead); err != nil {
+			r.Log.Warn("Failed to fetch first post in thread", "error", err)
 		}
 	}
 
-	if originalPostExists == 1 || offset >= repliesPerPage || count == repliesPerPage {
+	var threadDepth int
+	if err := r.QueryRow(`with recursive thread(id, depth) as (select notes.id, 0 as depth from notes where id = ? union select notes.id, t.depth + 1 from thread t join notes on notes.object->>'inReplyTo' = t.id where t.depth <= 2) select max(thread.depth) from thread`, note.ID).Scan(&threadDepth); err != nil {
+		r.Log.Warn("Failed to query thread depth", "error", err)
+	}
+
+	if originalPostExists == 1 || threadHead.Valid || threadDepth > 1 || offset >= repliesPerPage || count == repliesPerPage {
 		w.Separator()
 	}
 
 	if originalPostExists == 1 && r.User == nil {
-		w.Link(fmt.Sprintf("/view/%x", sha256.Sum256([]byte(note.InReplyTo))), "View original post")
+		w.Link(fmt.Sprintf("/view/%x", sha256.Sum256([]byte(note.InReplyTo))), "View parent post")
 	} else if originalPostExists == 1 {
-		w.Link(fmt.Sprintf("/users/view/%x", sha256.Sum256([]byte(note.InReplyTo))), "View original post")
+		w.Link(fmt.Sprintf("/users/view/%x", sha256.Sum256([]byte(note.InReplyTo))), "View parent post")
+	}
+
+	if threadHead.Valid && threadHead.String != note.ID && r.User == nil {
+		w.Link(fmt.Sprintf("/view/%x", sha256.Sum256([]byte(threadHead.String))), "View first post in thread")
+	} else if threadHead.Valid && threadHead.String != note.ID {
+		w.Link(fmt.Sprintf("/users/view/%x", sha256.Sum256([]byte(threadHead.String))), "View first post in thread")
+	}
+
+	if threadDepth > 1 && r.User == nil {
+		w.Link("/thread/"+hash, "View thread")
+	} else if threadDepth > 1 {
+		w.Link("/users/thread/"+hash, "View thread")
 	}
 
 	if offset > repliesPerPage && r.User == nil {

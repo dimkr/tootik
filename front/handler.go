@@ -59,6 +59,9 @@ func NewHandler() Handler {
 	h[regexp.MustCompile(`^/view/[0-9a-f]{64}$`)] = withUserMenu(view)
 	h[regexp.MustCompile(`^/users/view/[0-9a-f]{64}$`)] = withUserMenu(view)
 
+	h[regexp.MustCompile(`^/thread/[0-9a-f]{64}$`)] = withUserMenu(thread)
+	h[regexp.MustCompile(`^/users/thread/[0-9a-f]{64}$`)] = withUserMenu(thread)
+
 	h[regexp.MustCompile(`^/users/whisper$`)] = whisper
 	h[regexp.MustCompile(`^/users/say$`)] = say
 	h[regexp.MustCompile(`^/users/dm/[0-9a-f]{64}`)] = dm
