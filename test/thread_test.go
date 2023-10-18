@@ -42,7 +42,8 @@ func TestThread_TwoReplies(t *testing.T) {
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
 
 	view := server.Handle("/users/view/"+reply[15:len(reply)-2], server.Alice)
-	assert.Contains(strings.Split(view, "\n"), fmt.Sprintf("=> /users/view/%s View first post in thread", hash))
+	assert.Contains(strings.Split(view, "\n"), fmt.Sprintf("=> /users/view/%s View parent post", hash))
+	assert.NotContains(view, "View first post in thread")
 	assert.NotContains(view, "View thread")
 
 	thread := server.Handle("/users/thread/"+hash, server.Alice)
@@ -95,6 +96,7 @@ func TestThread_NestedReply(t *testing.T) {
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
 
 	view := server.Handle("/users/view/"+hash, server.Alice)
+	assert.NotContains(view, "View parent post")
 	assert.NotContains(view, "View first post in thread")
 	assert.NotContains(view, "View thread")
 
@@ -117,6 +119,7 @@ func TestThread_NoReplies(t *testing.T) {
 	hash := say[15 : len(say)-2]
 
 	view := server.Handle("/users/view/"+hash, server.Alice)
+	assert.NotContains(view, "View parent post")
 	assert.NotContains(view, "View first post in thread")
 	assert.NotContains(view, "View thread")
 
@@ -141,10 +144,13 @@ func TestThread_NestedRepliesFromBottom(t *testing.T) {
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", hash), server.Alice)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
 
-	reply = server.Handle(fmt.Sprintf("/users/reply/%s?Hi%%20Bob", reply[15:len(reply)-2]), server.Carol)
+	parentReplyHash := reply[15 : len(reply)-2]
+
+	reply = server.Handle(fmt.Sprintf("/users/reply/%s?Hi%%20Bob", parentReplyHash), server.Carol)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
 
 	view := server.Handle("/users/view/"+reply[15:len(reply)-2], server.Alice)
+	assert.Contains(strings.Split(view, "\n"), fmt.Sprintf("=> /users/view/%s View parent post", parentReplyHash))
 	assert.Contains(strings.Split(view, "\n"), fmt.Sprintf("=> /users/view/%s View first post in thread", hash))
 	assert.NotContains(view, "View thread")
 
@@ -178,6 +184,7 @@ func TestThread_NestedRepliesFromBottomMissingNode(t *testing.T) {
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), delete)
 
 	view := server.Handle("/users/view/"+reply[15:len(reply)-2], server.Alice)
+	assert.NotContains(view, "View parent post")
 	assert.NotContains(view, "View first post in thread")
 	assert.NotContains(view, "View thread")
 
@@ -211,7 +218,8 @@ func TestThread_NestedRepliesFromBottomMissingFirstNode(t *testing.T) {
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), delete)
 
 	view := server.Handle("/users/view/"+reply[15:len(reply)-2], server.Alice)
-	assert.Contains(strings.Split(view, "\n"), fmt.Sprintf("=> /users/view/%s View first post in thread", parentReplyHash))
+	assert.Contains(strings.Split(view, "\n"), fmt.Sprintf("=> /users/view/%s View parent post", parentReplyHash))
+	assert.NotContains(view, "View first post in thread")
 	assert.NotContains(view, "View thread")
 
 	thread := server.Handle("/users/thread/"+reply[15:len(reply)-2], server.Alice)
