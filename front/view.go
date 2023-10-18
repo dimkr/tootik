@@ -174,11 +174,11 @@ func view(w text.Writer, r *request) {
 	}
 
 	var threadDepth int
-	if err := r.QueryRow(`with recursive thread(id, depth) as (select notes.id, 0 as depth from notes where id = ? union select notes.id, t.depth + 1 from thread t join notes on notes.object->>'inReplyTo' = t.id where t.depth <= 2) select max(thread.depth) from thread`, note.ID).Scan(&threadDepth); err != nil {
+	if err := r.QueryRow(`with recursive thread(id, depth) as (select notes.id, 0 as depth from notes where id = ? union select notes.id, t.depth + 1 from thread t join notes on notes.object->>'inReplyTo' = t.id where t.depth <= 4) select max(thread.depth) from thread`, note.ID).Scan(&threadDepth); err != nil {
 		r.Log.Warn("Failed to query thread depth", "error", err)
 	}
 
-	if originalPostExists == 1 || threadHead.Valid || threadDepth > 1 || offset >= repliesPerPage || count == repliesPerPage {
+	if originalPostExists == 1 || threadHead.Valid || threadDepth > 3 || offset >= repliesPerPage || count == repliesPerPage {
 		w.Separator()
 	}
 

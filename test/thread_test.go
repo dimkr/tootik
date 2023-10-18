@@ -17,9 +17,13 @@ limitations under the License.
 package test
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
+	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/inbox/note"
 	"github.com/stretchr/testify/assert"
+	"log/slog"
 	"strings"
 	"testing"
 )
@@ -71,6 +75,7 @@ func TestThread_NestedReplies(t *testing.T) {
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
 
 	view := server.Handle("/users/view/"+hash, server.Alice)
+	assert.NotContains(view, "View parent post")
 	assert.NotContains(view, "View first post in thread")
 	assert.Contains(strings.Split(view, "\n"), fmt.Sprintf("=> /users/thread/%s View thread", hash))
 
@@ -227,4 +232,242 @@ func TestThread_NestedRepliesFromBottomMissingFirstNode(t *testing.T) {
 	assert.NotContains(thread, "bob")
 	assert.NotContains(thread, "alice")
 	assert.Contains(thread, "carol")
+}
+
+func TestThread_Tree(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	tx, err := server.db.BeginTx(context.Background(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
+	to := ap.Audience{}
+	to.Add(ap.Public)
+
+	assert.NoError(
+		note.Insert(
+			context.Background(),
+			slog.Default(),
+			tx,
+			&ap.Object{
+				ID:           "https://localhost.localdomain/note/6",
+				Type:         ap.NoteObject,
+				AttributedTo: server.Carol.ID,
+				Content:      "hello",
+				To:           to,
+				InReplyTo:    "https://localhost.localdomain/note/4",
+			},
+		),
+	)
+
+	assert.NoError(
+		note.Insert(
+			context.Background(),
+			slog.Default(),
+			tx,
+			&ap.Object{
+				ID:           "https://localhost.localdomain/note/1",
+				Type:         ap.NoteObject,
+				AttributedTo: server.Alice.ID,
+				Content:      "hello",
+				To:           to,
+			},
+		),
+	)
+
+	assert.NoError(
+		note.Insert(
+			context.Background(),
+			slog.Default(),
+			tx,
+			&ap.Object{
+				ID:           "https://localhost.localdomain/note/4",
+				Type:         ap.NoteObject,
+				AttributedTo: server.Alice.ID,
+				Content:      "hello",
+				To:           to,
+				InReplyTo:    "https://localhost.localdomain/note/2",
+			},
+		),
+	)
+
+	assert.NoError(
+		note.Insert(
+			context.Background(),
+			slog.Default(),
+			tx,
+			&ap.Object{
+				ID:           "https://localhost.localdomain/note/2",
+				Type:         ap.NoteObject,
+				AttributedTo: server.Bob.ID,
+				Content:      "hello",
+				To:           to,
+				InReplyTo:    "https://localhost.localdomain/note/1",
+			},
+		),
+	)
+
+	assert.NoError(
+		note.Insert(
+			context.Background(),
+			slog.Default(),
+			tx,
+			&ap.Object{
+				ID:           "https://localhost.localdomain/note/3",
+				Type:         ap.NoteObject,
+				AttributedTo: server.Carol.ID,
+				Content:      "hello",
+				To:           to,
+				InReplyTo:    "https://localhost.localdomain/note/1",
+			},
+		),
+	)
+
+	assert.NoError(
+		note.Insert(
+			context.Background(),
+			slog.Default(),
+			tx,
+			&ap.Object{
+				ID:           "https://localhost.localdomain/note/5",
+				Type:         ap.NoteObject,
+				AttributedTo: server.Bob.ID,
+				Content:      "hello",
+				To:           to,
+				InReplyTo:    "https://localhost.localdomain/note/3",
+			},
+		),
+	)
+
+	assert.NoError(tx.Commit())
+
+	thread := server.Handle("/thread/23bc3d394d5d2eeacaf53de4d6432e42f92be32b875d3604e65579d530d78308", nil)
+	assert.Contains(thread, "Replies to 😈 alice")
+	assert.Contains(thread, " · bob")
+	assert.Contains(thread, " ·· alice")
+	assert.Contains(thread, " ··· carol")
+	assert.Contains(thread, " · carol")
+	assert.Contains(thread, " ·· bob")
+	assert.NotContains(strings.Split(thread, "\n"), "=> /view/23bc3d394d5d2eeacaf53de4d6432e42f92be32b875d3604e65579d530d78308 View first post in thread")
+}
+
+func TestThread_SubTree(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	tx, err := server.db.BeginTx(context.Background(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
+	to := ap.Audience{}
+	to.Add(ap.Public)
+
+	assert.NoError(
+		note.Insert(
+			context.Background(),
+			slog.Default(),
+			tx,
+			&ap.Object{
+				ID:           "https://localhost.localdomain/note/6",
+				Type:         ap.NoteObject,
+				AttributedTo: server.Carol.ID,
+				Content:      "hello",
+				To:           to,
+				InReplyTo:    "https://localhost.localdomain/note/4",
+			},
+		),
+	)
+
+	assert.NoError(
+		note.Insert(
+			context.Background(),
+			slog.Default(),
+			tx,
+			&ap.Object{
+				ID:           "https://localhost.localdomain/note/1",
+				Type:         ap.NoteObject,
+				AttributedTo: server.Alice.ID,
+				Content:      "hello",
+				To:           to,
+			},
+		),
+	)
+
+	assert.NoError(
+		note.Insert(
+			context.Background(),
+			slog.Default(),
+			tx,
+			&ap.Object{
+				ID:           "https://localhost.localdomain/note/4",
+				Type:         ap.NoteObject,
+				AttributedTo: server.Alice.ID,
+				Content:      "hello",
+				To:           to,
+				InReplyTo:    "https://localhost.localdomain/note/2",
+			},
+		),
+	)
+
+	assert.NoError(
+		note.Insert(
+			context.Background(),
+			slog.Default(),
+			tx,
+			&ap.Object{
+				ID:           "https://localhost.localdomain/note/2",
+				Type:         ap.NoteObject,
+				AttributedTo: server.Bob.ID,
+				Content:      "hello",
+				To:           to,
+				InReplyTo:    "https://localhost.localdomain/note/1",
+			},
+		),
+	)
+
+	assert.NoError(
+		note.Insert(
+			context.Background(),
+			slog.Default(),
+			tx,
+			&ap.Object{
+				ID:           "https://localhost.localdomain/note/3",
+				Type:         ap.NoteObject,
+				AttributedTo: server.Carol.ID,
+				Content:      "hello",
+				To:           to,
+				InReplyTo:    "https://localhost.localdomain/note/1",
+			},
+		),
+	)
+
+	assert.NoError(
+		note.Insert(
+			context.Background(),
+			slog.Default(),
+			tx,
+			&ap.Object{
+				ID:           "https://localhost.localdomain/note/5",
+				Type:         ap.NoteObject,
+				AttributedTo: server.Bob.ID,
+				Content:      "hello",
+				To:           to,
+				InReplyTo:    "https://localhost.localdomain/note/3",
+			},
+		),
+	)
+
+	assert.NoError(tx.Commit())
+
+	thread := server.Handle("/thread/5910fcdcc5d9c65657d7037cadfe12892c60f1708e4e59b4ddbca8d7f8a5195a", nil)
+	assert.Contains(thread, "Replies to 😈 bob")
+	assert.Contains(thread, " bob")
+	assert.Contains(thread, " · alice")
+	assert.Contains(thread, " ·· carol")
+	assert.Contains(strings.Split(thread, "\n"), "=> /view/23bc3d394d5d2eeacaf53de4d6432e42f92be32b875d3604e65579d530d78308 View first post in thread")
 }

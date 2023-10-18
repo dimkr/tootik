@@ -59,7 +59,7 @@ func thread(w text.Writer, r *request) {
 		return
 	}
 
-	rows, err := r.Query(`select thread.depth, thread.id, strftime('%Y-%m-%d', datetime(thread.inserted, 'unixepoch')), persons.actor->>'preferredUsername' from (with recursive thread(id, author, inserted, parent, depth, path) as (select notes.id, notes.author, notes.inserted, object->>'inReplyTo' as parent, 0 as depth, notes.id as path from notes where hash = $1 union select notes.id, notes.author, notes.inserted, notes.object->>'inReplyTo', t.depth + 1, t.path || ';' || notes.id from thread t join notes on notes.object->>'inReplyTo' = t.id where t.depth <= 5) select thread.depth, thread.id, thread.author, thread.inserted, thread.path from thread order by thread.path limit $2 offset $3) thread join persons on persons.id = thread.author order by thread.path`, hash, postsPerPage, offset)
+	rows, err := r.Query(`select thread.depth, thread.id, strftime('%Y-%m-%d', datetime(thread.inserted, 'unixepoch')), persons.actor->>'preferredUsername' from (with recursive thread(id, author, inserted, parent, depth, path) as (select notes.id, notes.author, notes.inserted, object->>'inReplyTo' as parent, 0 as depth, notes.inserted || notes.id as path from notes where hash = $1 union select notes.id, notes.author, notes.inserted, notes.object->>'inReplyTo', t.depth + 1, t.path || notes.inserted || notes.id from thread t join notes on notes.object->>'inReplyTo' = t.id) select thread.depth, thread.id, thread.author, thread.inserted, thread.path from thread order by thread.path limit $2 offset $3) thread join persons on persons.id = thread.author order by thread.path`, hash, postsPerPage, offset)
 	if err != nil {
 		r.Log.Info("Failed to fetch thread", "hash", hash, "error", err)
 		w.Status(40, "Post not found")
