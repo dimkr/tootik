@@ -174,11 +174,11 @@ func view(w text.Writer, r *request) {
 	}
 
 	var threadDepth int
-	if err := r.QueryRow(`with recursive thread(id, depth) as (select notes.id, 0 as depth from notes where id = ? union select notes.id, t.depth + 1 from thread t join notes on notes.object->>'inReplyTo' = t.id where t.depth <= 4) select max(thread.depth) from thread`, note.ID).Scan(&threadDepth); err != nil {
+	if err := r.QueryRow(`with recursive thread(id, depth) as (select notes.id, 0 as depth from notes where id = ? union select notes.id, t.depth + 1 from thread t join notes on notes.object->>'inReplyTo' = t.id where t.depth <= 3) select max(thread.depth) from thread`, note.ID).Scan(&threadDepth); err != nil {
 		r.Log.Warn("Failed to query thread depth", "error", err)
 	}
 
-	if originalPostExists == 1 || threadHead.Valid || threadDepth > 3 || offset >= repliesPerPage || count == repliesPerPage {
+	if originalPostExists == 1 || (threadHead.Valid && threadHead.String != note.ID && threadHead.String != note.InReplyTo) || threadDepth > 2 || offset > repliesPerPage || offset >= repliesPerPage || count == repliesPerPage {
 		w.Separator()
 	}
 
@@ -194,9 +194,9 @@ func view(w text.Writer, r *request) {
 		w.Link(fmt.Sprintf("/users/view/%x", sha256.Sum256([]byte(threadHead.String))), "View first post in thread")
 	}
 
-	if threadDepth > 1 && r.User == nil {
+	if threadDepth > 2 && r.User == nil {
 		w.Link("/thread/"+hash, "View thread")
-	} else if threadDepth > 1 {
+	} else if threadDepth > 2 {
 		w.Link("/users/thread/"+hash, "View thread")
 	}
 

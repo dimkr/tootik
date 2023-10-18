@@ -77,7 +77,7 @@ func TestThread_NestedReplies(t *testing.T) {
 	view := server.Handle("/users/view/"+hash, server.Alice)
 	assert.NotContains(view, "View parent post")
 	assert.NotContains(view, "View first post in thread")
-	assert.Contains(strings.Split(view, "\n"), fmt.Sprintf("=> /users/thread/%s View thread", hash))
+	assert.NotContains(view, "View thread")
 
 	thread := server.Handle("/users/thread/"+hash, server.Alice)
 	assert.Contains(thread, "Replies to 😈 bob")
