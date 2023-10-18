@@ -188,9 +188,9 @@ func view(w text.Writer, r *request) {
 		w.Link(fmt.Sprintf("/users/view/%x", sha256.Sum256([]byte(note.InReplyTo))), "View parent post")
 	}
 
-	if threadHead.Valid && threadHead.String != note.ID && r.User == nil {
+	if threadHead.Valid && threadHead.String != note.ID && threadHead.String != note.InReplyTo && r.User == nil {
 		w.Link(fmt.Sprintf("/view/%x", sha256.Sum256([]byte(threadHead.String))), "View first post in thread")
-	} else if threadHead.Valid && threadHead.String != note.ID {
+	} else if threadHead.Valid && threadHead.String != note.ID && threadHead.String != note.InReplyTo {
 		w.Link(fmt.Sprintf("/users/view/%x", sha256.Sum256([]byte(threadHead.String))), "View first post in thread")
 	}
 
