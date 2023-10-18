@@ -99,7 +99,12 @@ func thread(w text.Writer, r *request) {
 	} else {
 		displayName = getDisplayName(rootAuthorID, rootAuthorUsername, "", ap.ActorType(rootAuthorType), r.Log)
 	}
-	w.Titlef("🧵 Replies to %s", displayName)
+
+	if offset > 0 && offset >= repliesPerPage {
+		w.Titlef("🧵 Replies to %s (%d-%d)", displayName, offset, offset+repliesPerPage)
+	} else {
+		w.Titlef("🧵 Replies to %s", displayName)
+	}
 
 	for _, node := range nodes[:count] {
 		var b strings.Builder
