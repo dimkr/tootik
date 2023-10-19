@@ -18,9 +18,11 @@ package test
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/inbox"
+	"github.com/dimkr/tootik/outbox"
 	"github.com/stretchr/testify/assert"
 	"log/slog"
 	"strings"
@@ -598,4 +600,139 @@ func TestPoll_UpdateClosed(t *testing.T) {
 	assert.Contains(strings.Split(view, "\n"), "```Results graph")
 	assert.Contains(strings.Split(view, "\n"), "4 █████▎   vanilla")
 	assert.Contains(strings.Split(view, "\n"), "6 ████████ chocolate")
+}
+
+func TestPoll_Local3Options(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	say := server.Handle("/users/say?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20Hell%20yeah%21%20%7c%20I%20couldn%27t%20care%20less", server.Alice)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
+
+	view := server.Handle(say[3:len(say)-2], server.Bob)
+	assert.Contains(view, "So, polls on Station are pretty cool, right?")
+	assert.Contains(view, "Vote Nope")
+	assert.Contains(view, "Vote Hell yeah!")
+	assert.Contains(view, "Vote I couldn't care less")
+}
+
+func TestPoll_Local5Options(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	say := server.Handle("/users/say?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20Hell%20yeah%21%20%7c%20I%20couldn%27t%20care%20less%20%7c%20wut%3f%20%7c%20Maybe", server.Alice)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
+
+	view := server.Handle(say[3:len(say)-2], server.Bob)
+	assert.Contains(view, "So, polls on Station are pretty cool, right?")
+	assert.Contains(view, "Vote Nope")
+	assert.Contains(view, "Vote Hell yeah!")
+	assert.Contains(view, "Vote I couldn't care less")
+	assert.Contains(view, "Vote wut?")
+	assert.Contains(view, "Vote Maybe")
+}
+
+func TestPoll_Local1Option(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	say := server.Handle("/users/say?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope", server.Alice)
+	assert.Equal("40 Polls must have 2 to 5 options\r\n", say)
+}
+
+func TestPoll_Local6Options(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	say := server.Handle("/users/say?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20Hell%20yeah%21%20%7c%20I%20couldn%27t%20care%20less%20%7c%20wut%3f%20%7c%20Maybe%20%7c%20kinda", server.Alice)
+	assert.Equal("40 Polls must have 2 to 5 options\r\n", say)
+}
+
+func TestPoll_LocalEmptyOption(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	say := server.Handle("/users/say?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20Hell%20yeah%21%20%7c%20%20%7c%20I%20couldn%27t%20care%20less", server.Alice)
+	assert.Equal("40 Poll option cannot be empty\r\n", say)
+}
+
+func TestPoll_Local3OptionsAnd2Votes(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	say := server.Handle("/users/say?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20Hell%20yeah%21%20%7c%20I%20couldn%27t%20care%20less", server.Alice)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
+
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hell%%20yeah%%21", say[15:len(say)-2]), server.Bob)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", reply)
+
+	reply = server.Handle(fmt.Sprintf("/users/reply/%s?I%%20couldn%%27t%%20care%%20less", say[15:len(say)-2]), server.Carol)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", reply)
+
+	view := server.Handle(say[3:len(say)-2], server.Bob)
+	assert.Contains(view, "So, polls on Station are pretty cool, right?")
+	assert.Contains(view, "Vote Nope")
+	assert.Contains(view, "Vote Hell yeah!")
+	assert.Contains(view, "Vote I couldn't care less")
+	assert.NotContains(strings.Split(view, "\n"), "1 ████████ Hell yeah!")
+	assert.NotContains(strings.Split(view, "\n"), "1 ████████ I couldn't care less")
+
+	assert.NoError(outbox.UpdatePollResults(context.Background(), slog.Default(), server.db))
+
+	view = server.Handle(say[3:len(say)-2], server.Bob)
+	assert.Contains(view, "So, polls on Station are pretty cool, right?")
+	assert.Contains(view, "Vote Nope")
+	assert.Contains(view, "Vote Hell yeah!")
+	assert.Contains(view, "Vote I couldn't care less")
+	assert.Contains(strings.Split(view, "\n"), "1 ████████ Hell yeah!")
+	assert.Contains(strings.Split(view, "\n"), "1 ████████ I couldn't care less")
+}
+
+func TestPoll_Local3OptionsAnd2VotesAndDeletedVote(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	say := server.Handle("/users/say?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20Hell%20yeah%21%20%7c%20I%20couldn%27t%20care%20less", server.Alice)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
+
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hell%%20yeah%%21", say[15:len(say)-2]), server.Bob)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", reply)
+
+	reply = server.Handle(fmt.Sprintf("/users/reply/%s?I%%20couldn%%27t%%20care%%20less", say[15:len(say)-2]), server.Carol)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", reply)
+
+	view := server.Handle(say[3:len(say)-2], server.Bob)
+	assert.Contains(view, "So, polls on Station are pretty cool, right?")
+	assert.Contains(view, "Vote Nope")
+	assert.Contains(view, "Vote Hell yeah!")
+	assert.Contains(view, "Vote I couldn't care less")
+	assert.NotContains(strings.Split(view, "\n"), "1 ████████ Hell yeah!")
+	assert.NotContains(strings.Split(view, "\n"), "0          I couldn't care less")
+
+	delete := server.Handle("/users/delete/"+reply[15:len(reply)-2], server.Carol)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Carol.ID))), delete)
+
+	assert.NoError(outbox.UpdatePollResults(context.Background(), slog.Default(), server.db))
+
+	view = server.Handle(say[3:len(say)-2], server.Bob)
+	assert.Contains(view, "So, polls on Station are pretty cool, right?")
+	assert.Contains(view, "Vote Nope")
+	assert.Contains(view, "Vote Hell yeah!")
+	assert.Contains(view, "Vote I couldn't care less")
+	assert.Contains(strings.Split(view, "\n"), "1 ████████ Hell yeah!")
+	assert.Contains(strings.Split(view, "\n"), "0          I couldn't care less")
 }

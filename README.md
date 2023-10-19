@@ -145,6 +145,20 @@ User A is allowed to send a message to user B only if B follows A.
 
 /users/edit only changes the content and the last update timestamp of a post. It does **not** change the post audience and mentioned users.
 
+### Polls
+
+tootik supports [Station](gemini://station.martinrue.com)-style polls. To publish a poll, publish a post in the form:
+
+	[POLL post content] option 1 | option 2 | ...
+
+For example:
+
+	[POLL Does #tootik support polls now?] Yes | No | I don't know
+
+Polls are multi-choice, allowed to have 2 to 5 options and end after a month.
+
+Poll results are updated every 30m and distributed to other servers if needed.
+
 ## Implementation Details
 
 ### The "Nobody" User

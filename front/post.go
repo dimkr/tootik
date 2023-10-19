@@ -28,12 +28,21 @@ import (
 	"github.com/dimkr/tootik/outbox"
 	"net/url"
 	"regexp"
+	"strings"
 	"time"
+)
+
+const (
+	pollOptionsDelimeter = "|"
+	pollMinOptions       = 2
+	pollMaxOptions       = 5
+	pollDuration         = time.Hour * 24 * 30
 )
 
 var (
 	mentionRegex = regexp.MustCompile(`\B@(\w+)(?:@(\w+\.\w+)){0,1}\b`)
 	hashtagRegex = regexp.MustCompile(`\B#\w{1,32}\b`)
+	pollRegex    = regexp.MustCompile(`^\[(?:(?i)POLL)\s+(.+)\s*\]\s*(.+)`)
 )
 
 func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap.Audience, prompt string) {
@@ -150,9 +159,36 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 
 					note.Content = ""
 					note.Name = option.Name
+					note.To = ap.Audience{}
+					note.To.Add(inReplyTo.AttributedTo)
+					note.CC = ap.Audience{}
 				}
 			}
 		}
+	}
+
+	if m := pollRegex.FindStringSubmatchIndex(note.Content); m != nil {
+		optionNames := strings.SplitN(note.Content[m[4]:], pollOptionsDelimeter, pollMaxOptions+1)
+		if len(optionNames) < pollMinOptions || len(optionNames) > pollMaxOptions {
+			r.Log.Info("Received invalid poll", "content", note.Content)
+			w.Statusf(40, "Polls must have %d to %d options", pollMinOptions, pollMaxOptions)
+			return
+		}
+
+		note.AnyOf = make([]ap.PollOption, len(optionNames))
+
+		for i, optionName := range optionNames {
+			note.AnyOf[i].Name = strings.TrimSpace(optionName)
+			if note.AnyOf[i].Name == "" {
+				w.Status(40, "Poll option cannot be empty")
+				return
+			}
+		}
+
+		note.Type = ap.QuestionObject
+		note.Content = note.Content[m[2]:m[3]]
+		endTime := time.Now().Add(pollDuration)
+		note.EndTime = &endTime
 	}
 
 	if err := outbox.Create(r.Context, r.Log, r.DB, &note, r.User); err != nil {

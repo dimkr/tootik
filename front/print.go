@@ -318,7 +318,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 			return true
 		})
 
-		if r.User != nil && note.AttributedTo == r.User.ID && note.Name == "" { // poll votes cannot be edited
+		if r.User != nil && note.AttributedTo == r.User.ID && note.Type != ap.QuestionObject && note.Name == "" { // polls and votes cannot be edited
 			w.Link(fmt.Sprintf("/users/edit/%x", sha256.Sum256([]byte(note.ID))), "🩹 Edit")
 		}
 		if r.User != nil && note.AttributedTo == r.User.ID {

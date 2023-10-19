@@ -35,6 +35,7 @@ import (
 	"github.com/dimkr/tootik/front/user"
 	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/migrations"
+	"github.com/dimkr/tootik/outbox"
 	_ "github.com/mattn/go-sqlite3"
 	"os/signal"
 	"sync"
@@ -170,6 +171,15 @@ func main() {
 	go func() {
 		if err := inbox.ProcessQueue(ctx, log, db, resolver, nobody); err != nil {
 			log.Error("Failed to process activities", "error", err)
+		}
+		cancel()
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		if err := outbox.UpdatePollResults(ctx, log, db); err != nil {
+			log.Error("Failed to update poll results", "error", err)
 		}
 		cancel()
 		wg.Done()
