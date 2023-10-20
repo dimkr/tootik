@@ -43,6 +43,11 @@ import (
 	"time"
 )
 
+const (
+	pollResultsUpdateInterval = time.Hour / 2
+	garbageCollectionInterval = time.Hour * 12
+)
+
 var (
 	dbPath        = flag.String("db", "db.sqlite3", "database path")
 	gemCert       = flag.String("gemcert", "gemini-cert.pem", "Gemini TLS certificate")
@@ -178,34 +183,54 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		if err := outbox.UpdatePollResults(ctx, log, db); err != nil {
-			log.Error("Failed to update poll results", "error", err)
-		}
-		cancel()
-		wg.Done()
-	}()
+		defer wg.Done()
+		defer cancel()
 
-	ticker := time.NewTicker(time.Hour * 12)
+		t := time.NewTicker(pollResultsUpdateInterval)
+		defer t.Stop()
+
+		for {
+			log.Info("Updating poll results")
+			if err := outbox.UpdatePollResults(ctx, log, db); err != nil {
+				log.Error("Failed to update poll results", "error", err)
+				break
+			}
+
+			select {
+			case <-ctx.Done():
+				return
+
+			case <-t.C:
+			}
+
+		}
+	}()
 
 	wg.Add(1)
 	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		t := time.NewTicker(garbageCollectionInterval)
+		defer t.Stop()
+
 		for {
+			log.Info("Collecting garbage")
+			if err := data.CollectGarbage(ctx, db); err != nil {
+				log.Error("Failed to collect garbage", "error", err)
+				break
+			}
+
 			select {
 			case <-ctx.Done():
-				wg.Done()
 				return
 
-			case <-ticker.C:
-				log.Info("Collecting garbage")
-				if err := data.CollectGarbage(ctx, db); err != nil {
-					log.Error("Failed to collect garbage", "error", err)
-				}
+			case <-t.C:
 			}
 		}
 	}()
 
 	<-ctx.Done()
 	log.Info("Shutting down")
-	ticker.Stop()
 	wg.Wait()
 }

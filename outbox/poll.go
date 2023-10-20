@@ -31,9 +31,7 @@ type pollResult struct {
 	PollID, Option string
 }
 
-const pollResultsUpdateInterval = time.Hour / 2
-
-func doUpdatePollResults(ctx context.Context, log *slog.Logger, db *sql.DB) error {
+func UpdatePollResults(ctx context.Context, log *slog.Logger, db *sql.DB) error {
 	rows, err := db.QueryContext(ctx, `select poll, option, count(*) from (select polls.id as poll, votes.object->>'name' as option, votes.author as voter from notes polls join notes votes on votes.object->>'inReplyTo' = polls.id where polls.object->>'type' = 'Question' and polls.id like $1 and polls.object->>'closed' is null and votes.object->>'name' is not null group by poll, option, voter) group by poll, option`, fmt.Sprintf("https://%s/%%", cfg.Domain))
 	if err != nil {
 		return err
@@ -110,23 +108,4 @@ func doUpdatePollResults(ctx context.Context, log *slog.Logger, db *sql.DB) erro
 	}
 
 	return nil
-}
-
-func UpdatePollResults(ctx context.Context, log *slog.Logger, db *sql.DB) error {
-	t := time.NewTicker(pollResultsUpdateInterval)
-	defer t.Stop()
-
-	for {
-		log.Info("Updating poll results")
-		if err := doUpdatePollResults(ctx, log, db); err != nil {
-			return err
-		}
-
-		select {
-		case <-ctx.Done():
-			return nil
-
-		case <-t.C:
-		}
-	}
 }
