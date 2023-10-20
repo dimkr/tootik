@@ -53,7 +53,7 @@ func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	} else if registered == 0 {
-		h.Log.Info("Receiving user does not exist", "receiver", receiver)
+		h.Log.Debug("Receiving user does not exist", "receiver", receiver)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
