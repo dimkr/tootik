@@ -107,7 +107,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 		on
 			stats.author = u.author
 		left join (
-			select notes.object, notes.author, follows.id as follow from notes left join follows on follows.followed = notes.author where notes.inserted >= unixepoch()-2*24*60*60 and follows.follower = $1
+			select notes.object, notes.author, follows.id as follow from notes left join follows on follows.followed = notes.author and follows.follower = $1 where notes.inserted >= unixepoch()-2*24*60*60
 		) replies
 		on
 			replies.object->>'inReplyTo' = u.id and replies.author != u.author
