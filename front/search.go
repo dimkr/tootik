@@ -17,7 +17,7 @@ limitations under the License.
 package front
 
 import (
-	"github.com/dimkr/tootik/text"
+	"github.com/dimkr/tootik/front/text"
 	"net/url"
 )
 
@@ -29,7 +29,7 @@ func search(w text.Writer, r *request) {
 
 	hashtag, err := url.QueryUnescape(r.URL.RawQuery)
 	if err != nil {
-		r.Log.Info("Failed to decode user name", "url", r.URL, "error", err)
+		r.Log.Info("Failed to decode query", "url", r.URL, "error", err)
 		w.Status(40, "Bad input")
 		return
 	}

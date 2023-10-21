@@ -21,8 +21,8 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/text"
-	"github.com/dimkr/tootik/user"
+	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/front/user"
 	"net/url"
 	"regexp"
 )

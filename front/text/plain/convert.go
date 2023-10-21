@@ -24,16 +24,16 @@ import (
 )
 
 var (
-	spanTags    = regexp.MustCompile(`(?:<span(?:\s+[^>]*)*>)+`)
-	aTags       = regexp.MustCompile(`<a\s+(?:(?:[^>\s]+="[^"]*"\s+)*)href="([^"]*)"(?:\s*(?:\s+[^>\s]+="[^"]*")*\s*>)`)
-	mentionTags = regexp.MustCompile(`<a\s+(?:[^\s<]+\s+)*class="(?:[^\s"]+\s+)*mention(?:\s+[^\s"]+)*"[^>]*>`)
-	hashtagTags = regexp.MustCompile(`<a\s+(?:[^\s<]+\s+)*class="(?:[^\s"]+\s+)*hashtag(?:\s+[^\s"]+)*"[^>]*>`)
+	spanTags          = regexp.MustCompile(`(?:<span(?:\s+[^>]*)*>)+`)
+	aTags             = regexp.MustCompile(`<a\s+(?:(?:[^>\s]+="[^"]*"\s+)*)href="([^"]*)"(?:\s*(?:\s+[^>\s]+="[^"]*")*\s*>)`)
+	mentionTags       = regexp.MustCompile(`<a\s+(?:[^\s<]+\s+)*class="(?:[^\s"]+\s+)*mention(?:\s+[^\s"]+)*"[^>]*>`)
+	hashtagTags       = regexp.MustCompile(`<a\s+(?:[^\s<]+\s+)*class="(?:[^\s"]+\s+)*hashtag(?:\s+[^\s"]+)*"[^>]*>`)
 	invisibleSpanTags = regexp.MustCompile(`<span class="invisible">[^<]*</span>`)
-	ellipsisSpanTags = regexp.MustCompile(`<span class="ellipsis">[^<]*</span>`)
-	brTags      = regexp.MustCompile(`<(?:br\s*\/*|\/p)>`)
-	openTags    = regexp.MustCompile(`(?:<[a-zA-Z0-9]+\s*[^>]*>)+`)
-	closeTags   = regexp.MustCompile(`(?:<\/[a-zA-Z0-9]+\s*[^>]*>)+`)
-	urlRegex    = regexp.MustCompile(`\b(https|http|gemini|gopher|gophers):\/\/\S+\b`)
+	ellipsisSpanTags  = regexp.MustCompile(`<span class="ellipsis">[^<]*</span>`)
+	brTags            = regexp.MustCompile(`<(?:br\s*\/*|\/p)>`)
+	openTags          = regexp.MustCompile(`(?:<[a-zA-Z0-9]+\s*[^>]*>)+`)
+	closeTags         = regexp.MustCompile(`(?:<\/[a-zA-Z0-9]+\s*[^>]*>)+`)
+	urlRegex          = regexp.MustCompile(`\b(https|http|gemini|gopher|gophers):\/\/\S+\b`)
 )
 
 func FromHTML(text string) (string, []string) {
@@ -54,7 +54,7 @@ func FromHTML(text string) (string, []string) {
 	}
 
 	for _, m := range ellipsisSpanTags.FindAllStringSubmatch(res, -1) {
-		res = strings.Replace(res, m[0], m[0] + "…", 1)
+		res = strings.Replace(res, m[0], m[0]+"…", 1)
 	}
 
 	for _, m := range spanTags.FindAllString(res, -1) {

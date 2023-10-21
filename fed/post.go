@@ -43,9 +43,9 @@ func (h *postHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	postID := fmt.Sprintf("https://%s/post/%s", cfg.Domain, filepath.Base(r.URL.Path))
 
 	if shouldRedirect(r) {
-		outbox := fmt.Sprintf("gemini://%s/view/%x", cfg.Domain, sha256.Sum256([]byte(postID)))
-		h.Log.Info("Redirecting to outbox over Gemini", "outbox", outbox)
-		w.Header().Set("Location", outbox)
+		url := fmt.Sprintf("gemini://%s/view/%x", cfg.Domain, sha256.Sum256([]byte(postID)))
+		h.Log.Info("Redirecting to post over Gemini", "url", url)
+		w.Header().Set("Location", url)
 		w.WriteHeader(http.StatusMovedPermanently)
 		return
 	}

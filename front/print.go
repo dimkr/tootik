@@ -25,8 +25,8 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
-	"github.com/dimkr/tootik/text"
-	"github.com/dimkr/tootik/text/plain"
+	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/front/text/plain"
 	"log/slog"
 	"net/url"
 	"regexp"
@@ -131,8 +131,10 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 	}
 
 	noteBody := note.Content
-	if note.Name != "" { // Page has a title
+	if note.Name != "" && note.Content != "" { // Page has a title
 		noteBody = fmt.Sprintf("%s<br>%s", note.Name, note.Content)
+	} else if note.Name != "" && note.Content == "" { // this Note is a poll vote
+		noteBody = note.Name
 	}
 
 	contentLines, inlineLinks := getTextAndLinks(noteBody, maxRunes, maxLines)
@@ -316,9 +318,20 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 			return true
 		})
 
-		if r.User != nil && note.AttributedTo == r.User.ID {
+		if r.User != nil && note.AttributedTo == r.User.ID && note.Type != ap.QuestionObject && note.Name == "" { // polls and votes cannot be edited
 			w.Link(fmt.Sprintf("/users/edit/%x", sha256.Sum256([]byte(note.ID))), "🩹 Edit")
+		}
+		if r.User != nil && note.AttributedTo == r.User.ID {
 			w.Link(fmt.Sprintf("/users/delete/%x", sha256.Sum256([]byte(note.ID))), "💣 Delete")
+		}
+		if r.User != nil && note.Type == ap.QuestionObject && note.Closed == nil && (note.EndTime == nil || time.Now().Before(*note.EndTime)) {
+			options := note.OneOf
+			if len(options) == 0 {
+				options = note.AnyOf
+			}
+			for _, option := range options {
+				w.Linkf(fmt.Sprintf("/users/reply/%x?%s", sha256.Sum256([]byte(note.ID)), url.PathEscape(option.Name)), "📮 Vote %s", option.Name)
+			}
 		}
 		if r.User != nil {
 			w.Link(fmt.Sprintf("/users/reply/%x", sha256.Sum256([]byte(note.ID))), "💬 Reply")
@@ -335,7 +348,7 @@ func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, noteMet
 			return true
 		}
 
-		if note.Type != ap.NoteObject && note.Type != ap.PageObject && note.Type != ap.ArticleObject {
+		if note.Type != ap.NoteObject && note.Type != ap.PageObject && note.Type != ap.ArticleObject && note.Type != ap.QuestionObject {
 			r.Log.Warn("Post type is unsupported", "type", note.Type)
 			return true
 		}

@@ -27,40 +27,44 @@ func TestSay_HappyFlow(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(t, "^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
 
 	view := server.Handle(say[3:len(say)-2], server.Bob)
-	assert.Contains(t, view, "Hello world")
+	assert.Contains(view, "Hello world")
 
 	outbox := server.Handle(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
-	assert.Contains(t, outbox, "Hello world")
+	assert.Contains(outbox, "Hello world")
 
 	local := server.Handle("/local", server.Carol)
-	assert.Contains(t, local, "Hello world")
+	assert.Contains(local, "Hello world")
 }
 
 func TestSay_Throttling(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(t, "^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
 
 	view := server.Handle(say[3:len(say)-2], server.Bob)
-	assert.Contains(t, view, "Hello world")
+	assert.Contains(view, "Hello world")
 
 	outbox := server.Handle(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Alice)
-	assert.Contains(t, outbox, "Hello world")
+	assert.Contains(outbox, "Hello world")
 
 	say = server.Handle("/users/say?Hello%20once%20more,%20world", server.Alice)
-	assert.Equal(t, "40 Please wait before posting again\r\n", say)
+	assert.Equal("40 Please wait before posting again\r\n", say)
 
 	outbox = server.Handle(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
-	assert.Contains(t, outbox, "Hello world")
-	assert.NotContains(t, outbox, "Hello once more, world")
+	assert.Contains(outbox, "Hello world")
+	assert.NotContains(outbox, "Hello once more, world")
 
 	local := server.Handle("/local", server.Carol)
-	assert.Contains(t, local, "Hello world")
-	assert.NotContains(t, local, "Hello once more, world")
+	assert.Contains(local, "Hello world")
+	assert.NotContains(local, "Hello once more, world")
 }

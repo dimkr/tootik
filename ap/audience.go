@@ -37,7 +37,16 @@ func (a *Audience) Add(s string) {
 func (a *Audience) UnmarshalJSON(b []byte) error {
 	var l []string
 	if err := json.Unmarshal(b, &l); err != nil {
-		return err
+		// Mastodon represents poll votes as a Create with a string in "to"
+		var s string
+		if err := json.Unmarshal(b, &s); err != nil {
+			return err
+		}
+
+		a.OrderedMap = data.OrderedMap[string, struct{}]{}
+		a.Add(s)
+
+		return nil
 	}
 
 	a.OrderedMap = data.OrderedMap[string, struct{}]{}

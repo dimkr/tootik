@@ -45,9 +45,18 @@ const (
 	resolverIdleConnTimeout = time.Minute
 )
 
+type webFingerResponse struct {
+	Subject string `json:"subject"`
+	Links   []struct {
+		Rel  string `json:"rel"`
+		Type string `json:"type"`
+		Href string `json:"href"`
+	} `json:"links"`
+}
+
 type Resolver struct {
 	Client         http.Client
-	BlockedDomains map[string]struct{}
+	BlockedDomains *BlockList
 	locks          []*semaphore.Weighted
 }
 
@@ -57,7 +66,7 @@ var (
 	ErrBlockedDomain  = errors.New("Domain is blocked")
 )
 
-func NewResolver(blockedDomains map[string]struct{}) *Resolver {
+func NewResolver(blockedDomains *BlockList) *Resolver {
 	transport := http.Transport{
 		MaxIdleConns:    resolverMaxIdleConns,
 		IdleConnTimeout: resolverIdleConnTimeout,
@@ -80,8 +89,10 @@ func (r *Resolver) Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 		return nil, fmt.Errorf("Cannot resolve %s: %w", to, err)
 	}
 
-	if _, blocked := r.BlockedDomains[u.Host]; blocked {
-		return nil, ErrBlockedDomain
+	if r.BlockedDomains != nil {
+		if blocked := r.BlockedDomains.Contains(u.Host); blocked {
+			return nil, ErrBlockedDomain
+		}
 	}
 
 	u.Fragment = ""
@@ -182,39 +193,26 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	}
 	defer resp.Body.Close()
 
-	var j map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&j); err != nil {
+	var webFingerResponse webFingerResponse
+	if err := json.NewDecoder(resp.Body).Decode(&webFingerResponse); err != nil {
 		return nil, fmt.Errorf("Failed to decode %s response: %w", finger, err)
-	}
-
-	arr, ok := j["links"].([]any)
-	if !ok {
-		return nil, fmt.Errorf("No links in %s response", finger)
 	}
 
 	profile := ""
 
-	for _, elem := range arr {
-		link, ok := elem.(map[string]any)
-		if !ok {
+	for _, link := range webFingerResponse.Links {
+		if link.Rel != "self" {
 			continue
 		}
 
-		if rel, ok := link["rel"].(string); !ok || rel != "self" {
+		if link.Type != "application/activity+json" && link.Type != `application/ld+json; profile="https://www.w3.org/ns/activitystreams"` {
 			continue
 		}
 
-		if t, ok := link["type"].(string); !ok || (t != "application/activity+json" && t != `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`) {
-			continue
+		if link.Href != "" {
+			profile = link.Href
+			break
 		}
-
-		href, ok := link["href"].(string)
-		if !ok || href == "" {
-			continue
-		}
-
-		profile = href
-		break
 	}
 
 	if profile == "" {

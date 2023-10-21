@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package fed
+package outbox
 
 import (
 	"context"
@@ -26,6 +26,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"log/slog"
+	"time"
 )
 
 func Unfollow(ctx context.Context, log *slog.Logger, db *sql.DB, follower *ap.Actor, followed, followID string) error {
@@ -33,7 +34,7 @@ func Unfollow(ctx context.Context, log *slog.Logger, db *sql.DB, follower *ap.Ac
 		return fmt.Errorf("%s cannot unfollow %s", follower.ID, followed)
 	}
 
-	undoID := fmt.Sprintf("https://%s/undo/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s", follower.ID, followed))))
+	undoID := fmt.Sprintf("https://%s/undo/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", follower.ID, followed, time.Now().UnixNano()))))
 
 	to := ap.Audience{}
 	to.Add(followed)
@@ -54,16 +55,36 @@ func Unfollow(ctx context.Context, log *slog.Logger, db *sql.DB, follower *ap.Ac
 		return fmt.Errorf("%s cannot unfollow %s: %w", follower.ID, followed, err)
 	}
 
-	if _, err := db.ExecContext(
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// mark the matching Follow as received
+	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity) VALUES(?)`,
+		`UPDATE outbox SET sent = 1 WHERE activity->>'object.id' = ? and activity->>'type' = 'Follow'`,
+		followID,
+	); err != nil {
+		return fmt.Errorf("Failed to mark follow activity as received: %w", err)
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
 		string(body),
+		follower.ID,
 	); err != nil {
 		return fmt.Errorf("Failed to insert undo for %s: %w", followID, err)
 	}
 
-	if _, err := db.ExecContext(ctx, `delete from follows where id = ?`, followID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if _, err := tx.ExecContext(ctx, `delete from follows where id = ?`, followID); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("Failed to unfollow %s: %w", followID, err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("%s failed to unfollow %s: %w", follower.ID, followed, err)
 	}
 
 	return nil

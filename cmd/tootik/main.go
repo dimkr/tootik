@@ -19,12 +19,12 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/csv"
 	"flag"
-	"io"
+	"fmt"
 	"log/slog"
 	"os"
 
+	"github.com/dimkr/tootik/buildinfo"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/fed"
@@ -32,8 +32,10 @@ import (
 	"github.com/dimkr/tootik/front/finger"
 	"github.com/dimkr/tootik/front/gemini"
 	"github.com/dimkr/tootik/front/gopher"
+	"github.com/dimkr/tootik/front/user"
+	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/migrations"
-	"github.com/dimkr/tootik/user"
+	"github.com/dimkr/tootik/outbox"
 	_ "github.com/mattn/go-sqlite3"
 	"os/signal"
 	"sync"
@@ -41,57 +43,50 @@ import (
 	"time"
 )
 
+const (
+	pollResultsUpdateInterval = time.Hour / 2
+	garbageCollectionInterval = time.Hour * 12
+)
+
 var (
-	dbPath     = flag.String("db", "db.sqlite3", "database path")
-	gemCert    = flag.String("gemcert", "gemini-cert.pem", "Gemini TLS certificate")
-	gemKey     = flag.String("gemkey", "gemini-key.pem", "Gemini TLS key")
-	gemAddr    = flag.String("gemaddr", ":8965", "Gemini listening address")
-	gopherAddr = flag.String("gopheraddr", ":8070", "Gopher listening address")
-	fingerAddr = flag.String("fingeraddr", ":8079", "Finger listening address")
-	cert       = flag.String("cert", "cert.pem", "HTTPS TLS certificate")
-	key        = flag.String("key", "key.pem", "HTTPS TLS key")
-	addr       = flag.String("addr", ":8443", "HTTPS listening address")
-	blockList  = flag.String("blocklist", "", "Blocklist CSV")
+	dbPath        = flag.String("db", "db.sqlite3", "database path")
+	gemCert       = flag.String("gemcert", "gemini-cert.pem", "Gemini TLS certificate")
+	gemKey        = flag.String("gemkey", "gemini-key.pem", "Gemini TLS key")
+	gemAddr       = flag.String("gemaddr", ":8965", "Gemini listening address")
+	gopherAddr    = flag.String("gopheraddr", ":8070", "Gopher listening address")
+	fingerAddr    = flag.String("fingeraddr", ":8079", "Finger listening address")
+	cert          = flag.String("cert", "cert.pem", "HTTPS TLS certificate")
+	key           = flag.String("key", "key.pem", "HTTPS TLS key")
+	addr          = flag.String("addr", ":8443", "HTTPS listening address")
+	blockListPath = flag.String("blocklist", "", "Blocklist CSV")
+	version       = flag.Bool("version", false, "Print version and exit")
 )
 
 func main() {
 	flag.Parse()
+
+	if version != nil && *version {
+		fmt.Println(buildinfo.Version)
+		return
+	}
 
 	opts := slog.HandlerOptions{Level: slog.Level(cfg.LogLevel)}
 	if opts.Level == slog.LevelDebug {
 		opts.AddSource = true
 	}
 
-	blockedDomains := make(map[string]struct{})
-	if blockList != nil && *blockList != "" {
-		f, err := os.Open(*blockList)
+	log := slog.New(slog.NewJSONHandler(os.Stderr, &opts))
+
+	var blockList *fed.BlockList
+	if blockListPath != nil && *blockListPath != "" {
+		var err error
+		blockList, err = fed.NewBlockList(log, *blockListPath)
 		if err != nil {
 			panic(err)
 		}
 
-		c := csv.NewReader(f)
-		first := true
-		for {
-			r, err := c.Read()
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				panic(err)
-			}
-
-			if first {
-				first = false
-				continue
-			}
-
-			blockedDomains[r[0]] = struct{}{}
-		}
-
-		f.Close()
+		defer blockList.Close()
 	}
-
-	log := slog.New(slog.NewJSONHandler(os.Stderr, &opts))
 
 	db, err := sql.Open("sqlite3", *dbPath+"?_journal_mode=WAL")
 	if err != nil {
@@ -99,7 +94,7 @@ func main() {
 	}
 	defer db.Close()
 
-	resolver := fed.NewResolver(blockedDomains)
+	resolver := fed.NewResolver(blockList)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -173,40 +168,69 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		fed.DeliverPosts(ctx, log, db, resolver)
+		fed.ProcessQueue(ctx, log, db, resolver)
 		wg.Done()
 	}()
 
 	wg.Add(1)
 	go func() {
-		if err := fed.ProcessActivities(ctx, log, db, resolver, nobody); err != nil {
+		if err := inbox.ProcessQueue(ctx, log, db, resolver, nobody); err != nil {
 			log.Error("Failed to process activities", "error", err)
 		}
 		cancel()
 		wg.Done()
 	}()
 
-	ticker := time.NewTicker(time.Hour * 12)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		t := time.NewTicker(pollResultsUpdateInterval)
+		defer t.Stop()
+
+		for {
+			log.Info("Updating poll results")
+			if err := outbox.UpdatePollResults(ctx, log, db); err != nil {
+				log.Error("Failed to update poll results", "error", err)
+				break
+			}
+
+			select {
+			case <-ctx.Done():
+				return
+
+			case <-t.C:
+			}
+
+		}
+	}()
 
 	wg.Add(1)
 	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		t := time.NewTicker(garbageCollectionInterval)
+		defer t.Stop()
+
 		for {
+			log.Info("Collecting garbage")
+			if err := data.CollectGarbage(ctx, db); err != nil {
+				log.Error("Failed to collect garbage", "error", err)
+				break
+			}
+
 			select {
 			case <-ctx.Done():
-				wg.Done()
 				return
 
-			case <-ticker.C:
-				log.Info("Collecting garbage")
-				if err := data.CollectGarbage(ctx, db); err != nil {
-					log.Error("Failed to collect garbage", "error", err)
-				}
+			case <-t.C:
 			}
 		}
 	}()
 
 	<-ctx.Done()
 	log.Info("Shutting down")
-	ticker.Stop()
 	wg.Wait()
 }

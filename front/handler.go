@@ -22,7 +22,7 @@ import (
 	"errors"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/fed"
-	"github.com/dimkr/tootik/text"
+	"github.com/dimkr/tootik/front/text"
 	"log/slog"
 	"net/url"
 	"regexp"
@@ -53,11 +53,14 @@ func NewHandler() Handler {
 	h[regexp.MustCompile(`^/federated$`)] = withCache(withUserMenu(federated), time.Minute*10, &cache)
 	h[regexp.MustCompile(`^/users/federated$`)] = withCache(withUserMenu(federated), time.Minute*10, &cache)
 
-	h[regexp.MustCompile(`^/outbox/[0-9a-f]{64}$`)] = withUserMenu(outbox)
-	h[regexp.MustCompile(`^/users/outbox/[0-9a-f]{64}$`)] = withUserMenu(outbox)
+	h[regexp.MustCompile(`^/outbox/[0-9a-f]{64}$`)] = withUserMenu(userOutbox)
+	h[regexp.MustCompile(`^/users/outbox/[0-9a-f]{64}$`)] = withUserMenu(userOutbox)
 
 	h[regexp.MustCompile(`^/view/[0-9a-f]{64}$`)] = withUserMenu(view)
 	h[regexp.MustCompile(`^/users/view/[0-9a-f]{64}$`)] = withUserMenu(view)
+
+	h[regexp.MustCompile(`^/thread/[0-9a-f]{64}$`)] = withUserMenu(thread)
+	h[regexp.MustCompile(`^/users/thread/[0-9a-f]{64}$`)] = withUserMenu(thread)
 
 	h[regexp.MustCompile(`^/users/whisper$`)] = whisper
 	h[regexp.MustCompile(`^/users/say$`)] = say

@@ -22,8 +22,8 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/fed"
-	"github.com/dimkr/tootik/text"
+	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/outbox"
 	"path/filepath"
 )
 
@@ -53,7 +53,7 @@ func delete(w text.Writer, r *request) {
 		return
 	}
 
-	if err := fed.Delete(r.Context, r.DB, &note); err != nil {
+	if err := outbox.Delete(r.Context, r.DB, &note); err != nil {
 		r.Log.Error("Failed to delete post", "note", note.ID, "error", err)
 		w.Error()
 		return

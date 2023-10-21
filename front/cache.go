@@ -19,7 +19,7 @@ package front
 import (
 	"bytes"
 	"context"
-	"github.com/dimkr/tootik/text"
+	"github.com/dimkr/tootik/front/text"
 	"sync"
 	"time"
 )

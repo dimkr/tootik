@@ -30,7 +30,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
-	"github.com/dimkr/tootik/text/plain"
+	"github.com/dimkr/tootik/front/text/plain"
 	"log/slog"
 )
 

@@ -23,17 +23,26 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/fed"
-	"github.com/dimkr/tootik/text"
-	"github.com/dimkr/tootik/text/plain"
+	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/front/text/plain"
+	"github.com/dimkr/tootik/outbox"
 	"net/url"
 	"regexp"
+	"strings"
 	"time"
 )
 
+const (
+	pollOptionsDelimeter = "|"
+	pollMinOptions       = 2
+	pollMaxOptions       = 5
+	pollDuration         = time.Hour * 24 * 30
+)
+
 var (
-	mentionRegex = regexp.MustCompile(`\B@([a-zA-Z0-9]+)(@[a-z0-9.]+){0,1}`)
-	hashtagRegex = regexp.MustCompile(`(\B#[^\s]{1,32})`)
+	mentionRegex = regexp.MustCompile(`\B@(\w+)(?:@(\w+\.\w+)){0,1}\b`)
+	hashtagRegex = regexp.MustCompile(`\B#\w{1,32}\b`)
+	pollRegex    = regexp.MustCompile(`^\[(?:(?i)POLL)\s+(.+)\s*\]\s*(.+)`)
 )
 
 func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap.Audience, prompt string) {
@@ -102,7 +111,7 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 		} else if mention[2] == "" && inReplyTo == nil {
 			err = r.QueryRow(`select id from (select id, case when id = $1 then 2 when id in (select followed from follows where follower = $2 and accepted = 1) then 1 else 0 end as score from persons where actor->>'preferredUsername' = $3) where score > 0 order by score desc limit 1`, fmt.Sprintf("https://%s/user/%s", cfg.Domain, mention[1]), r.User.ID, mention[1]).Scan(&actorID)
 		} else {
-			err = r.QueryRow(`select id from persons where actor->>'preferredUsername' = $1 and id like $2`, mention[1], fmt.Sprintf("https://%s/%%", mention[2][1:])).Scan(&actorID)
+			err = r.QueryRow(`select id from persons where actor->>'preferredUsername' = $1 and id like $2`, mention[1], fmt.Sprintf("https://%s/%%", mention[2])).Scan(&actorID)
 		}
 
 		if err != nil {
@@ -134,11 +143,57 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 
 	if inReplyTo != nil {
 		note.InReplyTo = inReplyTo.ID
+
+		if inReplyTo.Type == ap.QuestionObject {
+			options := inReplyTo.OneOf
+			if len(options) == 0 {
+				options = inReplyTo.AnyOf
+			}
+
+			for _, option := range options {
+				if option.Name == note.Content {
+					if inReplyTo.Closed != nil || inReplyTo.EndTime != nil && time.Now().After(*inReplyTo.EndTime) {
+						w.Status(40, "Cannot vote in a closed poll")
+						return
+					}
+
+					note.Content = ""
+					note.Name = option.Name
+					note.To = ap.Audience{}
+					note.To.Add(inReplyTo.AttributedTo)
+					note.CC = ap.Audience{}
+				}
+			}
+		}
 	}
 
-	if err := fed.Deliver(r.Context, r.Log, r.DB, &note, r.User); err != nil {
+	if m := pollRegex.FindStringSubmatchIndex(note.Content); m != nil {
+		optionNames := strings.SplitN(note.Content[m[4]:], pollOptionsDelimeter, pollMaxOptions+1)
+		if len(optionNames) < pollMinOptions || len(optionNames) > pollMaxOptions {
+			r.Log.Info("Received invalid poll", "content", note.Content)
+			w.Statusf(40, "Polls must have %d to %d options", pollMinOptions, pollMaxOptions)
+			return
+		}
+
+		note.AnyOf = make([]ap.PollOption, len(optionNames))
+
+		for i, optionName := range optionNames {
+			note.AnyOf[i].Name = strings.TrimSpace(optionName)
+			if note.AnyOf[i].Name == "" {
+				w.Status(40, "Poll option cannot be empty")
+				return
+			}
+		}
+
+		note.Type = ap.QuestionObject
+		note.Content = note.Content[m[2]:m[3]]
+		endTime := time.Now().Add(pollDuration)
+		note.EndTime = &endTime
+	}
+
+	if err := outbox.Create(r.Context, r.Log, r.DB, &note, r.User); err != nil {
 		r.Log.Error("Failed to insert post", "error", err)
-		if errors.Is(err, fed.ErrDeliveryQueueFull) {
+		if errors.Is(err, outbox.ErrDeliveryQueueFull) {
 			w.Status(40, "Please try again later")
 		} else {
 			w.Error()

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package fed
+package outbox
 
 import (
 	"context"
@@ -27,18 +27,13 @@ import (
 	"time"
 )
 
-func Edit(ctx context.Context, db *sql.DB, note *ap.Object, newContent string) error {
-	now := time.Now()
-
-	note.Content = newContent
-	note.Updated = &now
-
+func Update(ctx context.Context, db *sql.DB, note *ap.Object) error {
 	body, err := json.Marshal(note)
 	if err != nil {
 		return fmt.Errorf("Failed to marshal note: %w", err)
 	}
 
-	updateID := fmt.Sprintf("https://%s/update/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", note.ID, now.Unix()))))
+	updateID := fmt.Sprintf("https://%s/update/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", note.ID, time.Now().Unix()))))
 
 	update, err := json.Marshal(ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
@@ -70,8 +65,9 @@ func Edit(ctx context.Context, db *sql.DB, note *ap.Object, newContent string) e
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity) VALUES(?)`,
+		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
 		string(update),
+		note.AttributedTo,
 	); err != nil {
 		return fmt.Errorf("Failed to insert update activity: %w", err)
 	}

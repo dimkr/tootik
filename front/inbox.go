@@ -22,12 +22,12 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/data"
-	"github.com/dimkr/tootik/text"
+	"github.com/dimkr/tootik/front/text"
 )
 
 func dailyPosts(w text.Writer, r *request, day time.Time) {
 	if r.User == nil {
-		w.Status(61, "Peer certificate is required")
+		w.Redirect("/users")
 		return
 	}
 
@@ -50,19 +50,12 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 	since := now.Add(-time.Hour * 24 * 2)
 
 	rows, err := r.Query(`
-		select anotes.object, persons.actor, anotes.g from
-		(
-			select notes.id, notes.object, notes.author, notes.inserted, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2, follows.followed, (case when follows.actor->>'type' = 'Group' then follows.actor else null end) as g from
-			(select * from notes where inserted >= $4 and inserted < $4 + 60*60*24) notes
-			join (
-				select follows.followed, persons.actor from
-				(
-					select followed from follows where follower = $1 and accepted = 1
-				) follows
-				join
-				persons
-				on
-					follows.followed = persons.id
+		select notes.object, persons.actor, (case when follows.actor->>'type' = 'Group' then follows.actor else null end) from
+		notes
+		left join (
+			select follows.followed, persons.actor, stats.avg, stats.last from
+			(
+				select followed from follows where follower = $1
 			) follows
 			on
 				(

@@ -24,21 +24,22 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/fsnotify/fsnotify"
 	"log/slog"
+	"math"
 	"net"
 	"net/http"
+	"path/filepath"
+	"sync"
 	"time"
 )
+
+const certReloadDelay = time.Second * 5
 
 func robots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte("User-agent: *\n"))
 	w.Write([]byte("Disallow: /\n"))
-}
-
-func root(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Location", fmt.Sprintf("gemini://%s", cfg.Domain))
-	w.WriteHeader(http.StatusMovedPermanently)
 }
 
 func ListenAndServe(ctx context.Context, db *sql.DB, resolver *Resolver, actor *ap.Actor, log *slog.Logger, addr, cert, key string) error {
@@ -68,32 +69,107 @@ func ListenAndServe(ctx context.Context, db *sql.DB, resolver *Resolver, actor *
 		handler := postHandler{log.With(slog.String("path", r.URL.Path)), db}
 		handler.Handle(w, r)
 	})
-	mux.HandleFunc("/", root)
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			w.Header().Set("Location", fmt.Sprintf("gemini://%s", cfg.Domain))
+			w.WriteHeader(http.StatusMovedPermanently)
+		} else {
+			log.Debug("Received request to non-existing path", "path", r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	})
 
 	if err := addNodeInfo(mux); err != nil {
 		return err
 	}
 
-	server := http.Server{
-		Addr:     addr,
-		Handler:  mux,
-		ErrorLog: slog.NewLogLogger(log.Handler(), slog.Level(cfg.LogLevel)),
-		BaseContext: func(net.Listener) context.Context {
-			return ctx
-		},
-		ReadTimeout: time.Second * 30,
-		TLSConfig: &tls.Config{
-			MinVersion: tls.VersionTLS12,
-		},
-	}
+	addHostMeta(mux)
 
-	go func() {
-		<-ctx.Done()
-		server.Shutdown(context.Background())
-	}()
-
-	if err := server.ListenAndServeTLS(cert, key); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	w, err := fsnotify.NewWatcher()
+	if err != nil {
 		return err
+	}
+	defer w.Close()
+
+	certDir := filepath.Dir(cert)
+	if err := w.Add(certDir); err != nil {
+		return err
+	}
+	certAbsPath := filepath.Join(certDir, filepath.Base(cert))
+
+	keyDir := filepath.Dir(key)
+	if keyDir != certDir {
+		if err := w.Add(keyDir); err != nil {
+			return err
+		}
+	}
+	keyAbsPath := filepath.Join(keyDir, filepath.Base(key))
+
+	for ctx.Err() == nil {
+		var wg sync.WaitGroup
+		serverCtx, stopServer := context.WithCancel(ctx)
+
+		server := http.Server{
+			Addr:     addr,
+			Handler:  mux,
+			ErrorLog: slog.NewLogLogger(log.Handler(), slog.Level(cfg.LogLevel)),
+			BaseContext: func(net.Listener) context.Context {
+				return serverCtx
+			},
+			ReadTimeout: time.Second * 30,
+			TLSConfig: &tls.Config{
+				MinVersion: tls.VersionTLS12,
+			},
+		}
+
+		wg.Add(1)
+		go func() {
+			<-serverCtx.Done()
+			server.Shutdown(context.Background())
+			wg.Done()
+		}()
+
+		timer := time.NewTimer(math.MaxInt64)
+		timer.Stop()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			for {
+				select {
+				case <-serverCtx.Done():
+					server.Shutdown(context.Background())
+					return
+
+				case event, ok := <-w.Events:
+					if !ok {
+						continue
+					}
+
+					if (event.Has(fsnotify.Write) || event.Has(fsnotify.Create)) && (event.Name == certAbsPath || event.Name == keyAbsPath) {
+						log.Info("Stopping HTTPS server: file has changed", "name", event.Name)
+						timer.Reset(certReloadDelay)
+					}
+
+				case <-timer.C:
+					server.Shutdown(context.Background())
+					return
+
+				case <-w.Errors:
+				}
+			}
+		}()
+
+		log.Info("Starting HTTPS server")
+		err := server.ListenAndServeTLS(cert, key)
+
+		stopServer()
+		wg.Wait()
+
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return err
+		}
 	}
 
 	return nil

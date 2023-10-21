@@ -3,10 +3,11 @@ module github.com/dimkr/tootik
 go 1.21
 
 require (
+	github.com/fsnotify/fsnotify v1.6.0
 	github.com/go-fed/httpsig v1.1.0
 	github.com/mattn/go-sqlite3 v1.14.17
 	github.com/stretchr/testify v1.8.4
-	golang.org/x/sync v0.3.0
+	golang.org/x/sync v0.4.0
 )
 
 require (

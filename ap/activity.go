@@ -56,6 +56,10 @@ type Activity struct {
 
 var ErrInvalidActivity = errors.New("Invalid activity")
 
+func (a *Activity) IsPublic() bool {
+	return a.To.Contains(Public) || a.CC.Contains(Public)
+}
+
 func (a *Activity) UnmarshalJSON(b []byte) error {
 	var common anyActivity
 	if err := json.Unmarshal(b, &common); err != nil {

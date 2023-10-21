@@ -22,9 +22,9 @@ import (
 	"errors"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/fed"
-	"github.com/dimkr/tootik/text"
-	"github.com/dimkr/tootik/text/plain"
+	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/front/text/plain"
+	"github.com/dimkr/tootik/outbox"
 	"math"
 	"net/url"
 	"path/filepath"
@@ -39,6 +39,17 @@ func edit(w text.Writer, r *request) {
 
 	if r.URL.RawQuery == "" {
 		w.Status(10, "Post content")
+		return
+	}
+
+	content, err := url.QueryUnescape(r.URL.RawQuery)
+	if err != nil {
+		w.Status(40, "Bad input")
+		return
+	}
+
+	if len(content) > cfg.MaxPostsLength {
+		w.Status(40, "Post is too long")
 		return
 	}
 
@@ -62,6 +73,18 @@ func edit(w text.Writer, r *request) {
 		return
 	}
 
+	if note.Name != "" {
+		r.Log.Warn("Cannot edit votes", "vote", note.ID)
+		w.Status(40, "Cannot edit votes")
+		return
+	}
+
+	if note.Type == ap.QuestionObject {
+		r.Log.Warn("Cannot edit polls", "poll", note.ID)
+		w.Status(40, "Cannot edit polls")
+		return
+	}
+
 	var edits int
 	if err := r.QueryRow(`select count(*) from outbox where activity->>'object.id' = ? and (activity->>'type' = 'Update' or activity->>'type' = 'Create')`, note.ID).Scan(&edits); err != nil {
 		r.Log.Warn("Failed to count post edits", "hash", hash, "error", err)
@@ -81,18 +104,7 @@ func edit(w text.Writer, r *request) {
 		return
 	}
 
-	content, err := url.QueryUnescape(r.URL.RawQuery)
-	if err != nil {
-		w.Error()
-		return
-	}
-
-	if len(content) > cfg.MaxPostsLength {
-		w.Status(40, "Post is too long")
-		return
-	}
-
-	if err := fed.Edit(r.Context, r.DB, &note, plain.ToHTML(content)); err != nil {
+	if err := outbox.Edit(r.Context, r.DB, &note, plain.ToHTML(content)); err != nil {
 		r.Log.Error("Failed to update post", "note", note.ID, "error", err)
 		w.Error()
 		return

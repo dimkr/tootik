@@ -25,7 +25,7 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/icon"
+	"github.com/dimkr/tootik/fed/icon"
 	"golang.org/x/sync/semaphore"
 	"io/ioutil"
 	"os/exec"

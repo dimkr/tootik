@@ -42,7 +42,7 @@ func CollectGarbage(ctx context.Context, db *sql.DB) error {
 		return fmt.Errorf("Failed to remove posts by authors without followers: %w", err)
 	}
 
-	if _, err := db.ExecContext(ctx, `delete from notes where inserted < ?`, now.Add(-notesTTL).Unix()); err != nil {
+	if _, err := db.ExecContext(ctx, `delete from notes where inserted < ? and author not like ?`, now.Add(-notesTTL).Unix(), prefix); err != nil {
 		return fmt.Errorf("Failed to remove old posts: %w", err)
 	}
 
@@ -52,6 +52,10 @@ func CollectGarbage(ctx context.Context, db *sql.DB) error {
 
 	if _, err := db.ExecContext(ctx, `delete from outbox where inserted < ?`, now.Add(-deliveryTTL).Unix()); err != nil {
 		return fmt.Errorf("Failed to remove old posts: %w", err)
+	}
+
+	if _, err := db.ExecContext(ctx, `delete from follows where accepted = 0 and inserted < unixepoch()-60*60*24*2`); err != nil {
+		return fmt.Errorf("Failed to remove failed follow requests: %w", err)
 	}
 
 	return nil

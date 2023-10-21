@@ -27,98 +27,116 @@ func TestUsers_NoFollows(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
-	resp := server.Handle("/users", server.Bob)
-	assert.Contains(t, resp, "Nothing to see! Are you following anyone?")
+	assert := assert.New(t)
+
+	users := server.Handle("/users", server.Bob)
+	assert.Contains(users, "Nothing to see! Are you following anyone?")
 }
 
 func TestUsers_NewPublicPost(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
 
 	users := server.Handle("/users", server.Alice)
-	assert.Contains(t, users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(t, users, "1 post")
+	assert.Contains(users, "Nothing to see! Are you following anyone?")
+	assert.NotContains(users, "1 post")
 
 	say := server.Handle("/users/say?Hello%20world", server.Bob)
-	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", say)
+	assert.Regexp("30 /users/view/[0-9a-f]{64}", say)
 
 	users = server.Handle("/users", server.Alice)
-	assert.NotContains(t, users, "Nothing to see! Are you following anyone?")
-	assert.Contains(t, users, "1 post")
+	assert.NotContains(users, "Nothing to see! Are you following anyone?")
+	assert.Contains(users, "1 post")
 
 	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(t, today, "Hello world")
+	assert.Contains(today, "Hello world")
 
 	users = server.Handle("/users", server.Carol)
-	assert.Contains(t, users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(t, users, "1 post")
+	assert.Contains(users, "Nothing to see! Are you following anyone?")
+	assert.NotContains(users, "1 post")
 
 	local := server.Handle("/users/local", server.Carol)
-	assert.Contains(t, local, "Hello world")
+	assert.Contains(local, "Hello world")
 }
 
 func TestUsers_NewPostToFollowers(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
 
 	users := server.Handle("/users", server.Alice)
-	assert.Contains(t, users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(t, users, "1 post")
+	assert.Contains(users, "Nothing to see! Are you following anyone?")
+	assert.NotContains(users, "1 post")
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
 	users = server.Handle("/users", server.Alice)
-	assert.NotContains(t, users, "Nothing to see! Are you following anyone?")
-	assert.Contains(t, users, "1 post")
+	assert.NotContains(users, "Nothing to see! Are you following anyone?")
+	assert.Contains(users, "1 post")
 
 	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(t, today, "Hello world")
+	assert.Contains(today, "Hello world")
 
 	users = server.Handle("/users", server.Carol)
-	assert.Contains(t, users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(t, users, "1 post")
+	assert.Contains(users, "Nothing to see! Are you following anyone?")
+	assert.NotContains(users, "1 post")
 
 	local := server.Handle("/users/local", server.Carol)
-	assert.NotContains(t, local, "Hello world")
+	assert.NotContains(local, "Hello world")
 }
 
 func TestUsers_NewDM(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	assert := assert.New(t)
+
 	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(t, fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
 
 	users := server.Handle("/users", server.Alice)
-	assert.Contains(t, users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(t, users, "1 post")
+	assert.Contains(users, "Nothing to see! Are you following anyone?")
+	assert.NotContains(users, "1 post")
 
 	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(t, today, "No posts.")
-	assert.NotContains(t, today, "Hello Alice")
+	assert.Contains(today, "No posts.")
+	assert.NotContains(today, "Hello Alice")
 
 	dm := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20Alice", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
-	assert.Regexp(t, "30 /users/view/[0-9a-f]{64}", dm)
+	assert.Regexp("30 /users/view/[0-9a-f]{64}", dm)
 
 	users = server.Handle("/users", server.Alice)
-	assert.NotContains(t, users, "Nothing to see! Are you following anyone?")
-	assert.Contains(t, users, "1 post")
+	assert.NotContains(users, "Nothing to see! Are you following anyone?")
+	assert.Contains(users, "1 post")
 
 	today = server.Handle("/users/inbox/today", server.Alice)
-	assert.NotContains(t, today, "No posts.")
-	assert.Contains(t, today, "Hello Alice")
+	assert.NotContains(today, "No posts.")
+	assert.Contains(today, "Hello Alice")
 
 	users = server.Handle("/users", server.Carol)
-	assert.Contains(t, users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(t, users, "1 post")
+	assert.Contains(users, "Nothing to see! Are you following anyone?")
+	assert.NotContains(users, "1 post")
 
 	local := server.Handle("/users/local", server.Carol)
-	assert.NotContains(t, local, "Hello Alice")
+	assert.NotContains(local, "Hello Alice")
+}
+
+func TestUsers_UnauthenticatedUser(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	users := server.Handle("/users", nil)
+	assert.Equal("61 Peer certificate is required\r\n", users)
 }

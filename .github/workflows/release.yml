@@ -1,0 +1,23 @@
+name: release
+
+on:
+  push:
+    tags:
+      - '*.*'
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    with:
+      version: ${{ github.ref_name }}
+  upload:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: tootik-${{ github.ref_name }}
+      - uses: softprops/action-gh-release@v1
+        with:
+          files: tootik
+          fail_on_unmatched_files: true

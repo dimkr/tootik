@@ -20,12 +20,17 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/text"
+	"github.com/dimkr/tootik/front/text"
 	"net/url"
 	"strings"
 )
 
 func resolve(w text.Writer, r *request) {
+	if r.User == nil {
+		w.Redirect("/users")
+		return
+	}
+
 	if r.URL.RawQuery == "" {
 		w.Status(10, "User name (name or name@domain)")
 		return

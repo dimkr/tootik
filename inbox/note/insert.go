@@ -47,7 +47,7 @@ func expand(aud ap.Audience, arr *[3]sql.NullString) {
 	}
 }
 
-func Insert(ctx context.Context, log *slog.Logger, db *sql.DB, note *ap.Object) error {
+func Insert(ctx context.Context, log *slog.Logger, tx *sql.Tx, note *ap.Object) error {
 	body, err := json.Marshal(note)
 	if err != nil {
 		return fmt.Errorf("Failed to marshal note %s: %w", note.ID, err)
@@ -81,7 +81,7 @@ func Insert(ctx context.Context, log *slog.Logger, db *sql.DB, note *ap.Object) 
 		public = 1
 	}
 
-	if _, err = db.ExecContext(
+	if _, err = tx.ExecContext(
 		ctx,
 		`INSERT INTO notes (id, hash, author, object, public, to0, to1, to2, cc0, cc1, cc2) VALUES(?,?,?,?,?,?,?,?,?,?,?)`,
 		note.ID,
@@ -99,12 +99,12 @@ func Insert(ctx context.Context, log *slog.Logger, db *sql.DB, note *ap.Object) 
 		return fmt.Errorf("Failed to insert note %s: %w", note.ID, err)
 	}
 
-	if _, err = db.ExecContext(ctx, `update notes SET groupid = (select id from persons where actor->>'type' = 'Group' and (id in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = persons.id)) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = persons.id)) limit 1) where id = ?`, note.ID); err != nil {
+	if _, err = tx.ExecContext(ctx, `update notes SET groupid = (select id from persons where actor->>'type' = 'Group' and (id in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = persons.id)) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = persons.id)) limit 1) where id = ?`, note.ID); err != nil {
 		log.Warn("Failed to set post group", "error", err)
 	}
 
 	for _, hashtag := range hashtags {
-		if _, err = db.ExecContext(ctx, `insert into hashtags (note, hashtag) values(?,?)`, note.ID, hashtag); err != nil {
+		if _, err = tx.ExecContext(ctx, `insert into hashtags (note, hashtag) values(?,?)`, note.ID, hashtag); err != nil {
 			log.Warn("Failed to tag post", "hashtag", hashtag, "error", err)
 		}
 	}

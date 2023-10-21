@@ -19,6 +19,7 @@ package fed
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/dimkr/tootik/buildinfo"
 	"github.com/dimkr/tootik/cfg"
 	"net/http"
 )
@@ -42,7 +43,7 @@ func addNodeInfo(mux *http.ServeMux) error {
 		"version": "2.0",
 		"software": map[string]any{
 			"name":    "tootik",
-			"version": "",
+			"version": buildinfo.Version,
 		},
 		"protocols": []string{
 			"activitypub",
@@ -76,7 +77,7 @@ func addNodeInfo(mux *http.ServeMux) error {
 		"short_description": "Federated nanoblogging service for the small internet",
 		"description":       "",
 		"email":             "",
-		"version":           "",
+		"version":           buildinfo.Version,
 		"stats": map[string]any{
 			"user_count":   0,
 			"status_count": 0,
