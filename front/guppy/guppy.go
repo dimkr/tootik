@@ -98,9 +98,8 @@ func handle(ctx context.Context, log *slog.Logger, db *sql.DB, handler front.Han
 		return
 	}
 
-	chunks := make([]responseChunk, 1, buf.Len()/responseChunkSize+2)
-	chunks[0].Seq = seq
-	chunks[0].Data = chunk[:n]
+	chunks := make([]*responseChunk, 1, buf.Len()/responseChunkSize+2)
+	chunks[0] = &responseChunk{Seq: seq, Data: chunk[:n]}
 
 	// fix the sequence number if the response is cached
 	// TODO: something less ugly
@@ -115,13 +114,13 @@ func handle(ctx context.Context, log *slog.Logger, db *sql.DB, handler front.Han
 		n, err := buf.Read(chunk)
 		if err != nil && errors.Is(err, io.EOF) {
 			// this is the EOF packet
-			chunks = append(chunks, responseChunk{Data: []byte(statusLine), Seq: seq})
+			chunks = append(chunks, &responseChunk{Data: []byte(statusLine), Seq: seq})
 			break
 		} else if err != nil {
 			log.Error("Failed to read respone chunk", "error", err)
 			return
 		}
-		chunks = append(chunks, responseChunk{Data: append([]byte(statusLine), chunk[:n]...), Seq: seq})
+		chunks = append(chunks, &responseChunk{Data: append([]byte(statusLine), chunk[:n]...), Seq: seq})
 	}
 
 	retry := time.NewTicker(resendInterval)
