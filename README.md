@@ -10,11 +10,13 @@
 
 tootik is a federated nanoblogging service for the small internet.
 
-tootik allows people to participate in the fediverse using their Gemini, Gopher, Guppy or Finger client of choice and makes the fediverse lighter, more private and more accessible. tootik's interface strips content to bare essentials (like text and links), puts the users in control of the content they see and tries to "slow down" the fediverse to make it more compatible with the slower pace of the small internet.
-
-It's a single executable that handles both the federation (using ActivityPub) and the frontend (using Gemini) aspects, while [sqlite](https://sqlite.org/) takes care of persistency. It should be lightweight and efficient enough to host a small community even on a cheap server, and hopefully, be easy to hack on.
-
-tootik implements only a small subset of ActivityPub, and probably doesn't really conform to the spec.
+tootik's goal is to make the fediverse lighter, more private and more accessible:
+* It converts rich content into plain text and links, reducing bandwidth requirements and making content more suitable for screen readers.
+* Its frontend supports Gemini, Gopher, Finger and Guppy, so an old device incapable of running a modern web browser is still good enough.
+* It puts the users in control of the content they see and tries to "slow down" the fediverse to make it more compatible with the slower pace of the small internet.
+* It's a single, easy-to-deploy executable that handles both the federation (using ActivityPub) and the frontend (using Gemini) aspects, while [sqlite](https://sqlite.org/) takes care of persistency.
+* It should be lightweight and efficient enough to host a small community on one, cheap server, without horizontal scaling and the ongoing maintenance of a separate database.
+* It implements only a small subset of ActivityPub, enough for its feature set but not more, and everything is implemented in one language ([Go](https://go.dev/)) without abstraction layers (like web or ORM frameworks), making it easy to understand and hack on.
 
 ## Building
 
@@ -32,27 +34,28 @@ or, to build a static executable:
 
 * cmd/ implements main().
 
-* fed/ implements federation (server to server communication): outgoing requests and handling of incoming posts.
-* front/ containts the frontend (client to server communication).
-* front/gemini/ exposes the frontend over Gemini.
-* front/gopher/ exposes the frontend over Gopher.
-* front/finger/ exposes some content over Finger.
-* front/guppy/ exposes some content over Guppy.
+* outbox/ translates user actions into a queue of activities that need to be sent to other servers.
+* inbox/ processes a queue of activities received from other servers.
+  * inbox/note/ handles insertion of posts: both posts received from other servers and posts created by local users.
+* fed/ implements federation: it handles all communication with other servers, sends what's in the "outbox" queue to other servers and adds incoming activities to the "inbox" queue.
+  * fed/icon/ generates pseudo-random icons used as avatars.
+
+* front/ implements the frontend.
+  * text/text/plain/ converts HTML to plain text.
+  * text/text/gmi/ contains a gemtext writer.
+  * text/text/gmap/ contains a gophermap writer with line wrapping.
+  * text/text/guppy/ contains a Guppy response writer.
+  * front/gemini/ exposes the frontend over Gemini.
+  * front/gopher/ exposes the frontend over Gopher.
+  * front/finger/ exposes some content over Finger.
+  * front/guppy/ exposes the frontend over Guppy.
 
 * ap/ implements ActivityPub vocabulary.
 * migrations/ contains the database schema.
 * data/ contains useful data structures.
-* note/ handles insertion of posts.
-
-* text/plain/ converts HTML to plain text.
-* text/gemtext/ contains a gemtext writer.
-* text/gemini/ contains a Gemini response writer.
-* text/gmap/ contains a gophermap writer with line wrapping.
-* text/guppy/ contains a Guppy response writer.
-* icon/ generates pseudo-random icons used as avatars.
-
 * cfg/ contains global configuration parameters.
-* logger/ contains logging utilities.
+
+* test/ contains tests.
 
 ## Gemini Frontend
 
@@ -64,7 +67,8 @@ or, to build a static executable:
 * /hashtags shows a list of popular hashtags.
 * /stats shows statistics and server health metrics.
 
-* /view shows a complete post with extra details like links in the post, a list mentioned users, a list of hashtags, a link to the author's outbox, a list of replies and a link to the parent post (if any).
+* /view shows a complete post with extra details like links in the post, a list mentioned users, a list of hashtags, a link to the author's outbox, a list of replies and a link to the parent post (if found).
+* /thread displays a tree of replies in a thread.
 * /outbox shows list of posts by a user.
 
 Users are authenticated using TLS client certificates; see [Gemini protocol specification](https://gemini.circumlunar.space/docs/specification.html) for more details. The following pages require authentication:
@@ -78,6 +82,8 @@ Users are authenticated using TLS client certificates; see [Gemini protocol spec
 * /users/whisper creates a post visible to followers.
 * /users/say creates a public post.
 * /users/reply replies to a post.
+* /users/edit edits a post.
+* /users/delete deletes a post.
 * /users/follow sends a follow request to a user.
 * /users/unfollow deletes a follow request.
 * /users/outbox is equivalent to /outbox but also includes a link to /users/follow or /users/unfollow.
@@ -90,6 +96,7 @@ Some clients generate a certificate for / (all pages of this capsule) when /foo 
 * /users/hashtags
 * /users/stats
 * /users/view
+* /users/thread
 
 This way, users who prefer not to provide a client certificate when browsing to /x can reply to public posts by using /users/x instead.
 
@@ -136,6 +143,24 @@ User A is allowed to send a message to user B only if B follows A.
 | Post        | Post author | Mentions and followers of reply author         |
 | Public post | Post author | Mentions, followers of reply author and Public |
 
+### Post Editing
+
+/users/edit only changes the content and the last update timestamp of a post. It does **not** change the post audience and mentioned users.
+
+### Polls
+
+tootik supports [Station](gemini://station.martinrue.com)-style polls. To publish a poll, publish a post in the form:
+
+	[POLL post content] option 1 | option 2 | ...
+
+For example:
+
+	[POLL Does #tootik support polls now?] Yes | No | I don't know
+
+Polls are multi-choice, allowed to have 2 to 5 options and end after a month.
+
+Poll results are updated every 30m and distributed to other servers if needed.
+
 ## Implementation Details
 
 ### The "Nobody" User
@@ -144,21 +169,27 @@ Outgoing requests, like the [WebFinger](https://www.rfc-editor.org/rfc/rfc7033) 
 
 To protect user's privacy, requests not initiated by a particular user or requests not triggered during handling of user requests (like requests made during validation of incoming public posts) are associated with a special user named "nobody".
 
-### Resolvers
+### The Resolver
 
-A resolver is responsible for resolving a user ID (local or federated) into an Actor object that contains the user's information, like the user's display name. Actor objects for federated users are cached in the database and updated once in a while.
+The resolver is responsible for resolving a user ID (local or federated) into an Actor object that contains the user's information, like the user's display name. Actor objects for federated users are cached in the database and updated once in a while.
 
-This is an expensive but common operation that involves outgoing HTTPS requests. Therefore, to protect underpowered servers against heavy load and a big number of concurrent outgoing requests, the maximum number of resolvers is capped and resolvers are returned to a shared pool after use.
+This is an expensive but common operation that involves outgoing HTTPS requests. Therefore, to protect underpowered servers against heavy load and a big number of concurrent outgoing requests, the maximum number of outgoing requests is capped, concurrent attempts to resolve the same user are blocked and the resolver is a long-lived object that reuses connections.
 
-### Delivery Queue
+## Notes
 
-Once saved to the database, new posts can be viewed by local users. However, delivery to federated followers can take time and generate many outgoing requests.
+The "notes" table holds posts and allows fast search of posts by author, replies to a post and so on.
 
-Therefore, every time a new post is saved, it is accompanied by a "delivery". A delivery contains a delivery attempts counter, creation time and last attempt time. A single worker thread polls the deliveries table, prioritizes deliveries by the number of delivery attempts and the interval between attempts, then tries to deliver a post to federated followers of its author.
+### Outbox
 
-### Incoming Requests
+Once saved to the "notes" table, new posts can be viewed by local users. However, delivery to federated followers can take time and generate many outgoing requests.
+
+Therefore, user actions are represented as an activity saved to the "outbox" table, accompanied by a delivery attempts counter, creation time and last attempt time. For example, a local post saved to the "notes" table is also accompanied with a Create activity in the "outbox" table. A single worker thread polls the table, prioritizes activities by the number of delivery attempts and the interval between attempts, then tries to deliver each activity to its federated recipients.
+
+### Inbox
 
 The server verifies HTTP signatures of requests to /inbox/%s, using the sender's key. They key is cached to reduce the amount of outgoing requests.
+
+The server must resolve unknown users to display their preferred username, summary text and so on, and a user may send an activity that cannot be displayed unless other users associated with it are resolved, too. Therefore, processing of incoming requests can generate outgoing requests. For example, the server must resolve C when A, who follows B and receives replies to B's posts, receives a reply by C, or a post by B which mentions C. B is guaranteed to be cached because A follow B, but C isn't. Therefore, incoming activities are saved to the "inbox" table and a worker thread processes these queued activities.
 
 ## Migrations
 

@@ -20,17 +20,17 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/text"
+	"github.com/dimkr/tootik/front/text"
 	"net/url"
-	"regexp"
 	"strings"
 )
 
-func init() {
-	handlers[regexp.MustCompile(`^/users/resolve$`)] = withUserMenu(resolve)
-}
-
 func resolve(w text.Writer, r *request) {
+	if r.User == nil {
+		w.Redirect("/users")
+		return
+	}
+
 	if r.URL.RawQuery == "" {
 		w.Status(10, "User name (name or name@domain)")
 		return
@@ -38,7 +38,7 @@ func resolve(w text.Writer, r *request) {
 
 	query, err := url.QueryUnescape(r.URL.RawQuery)
 	if err != nil {
-		r.Log.WithField("url", r.URL).WithError(err).Info("Failed to decode user name")
+		r.Log.Info("Failed to decode user name", "url", r.URL, "error", err)
 		w.Status(40, "Bad input")
 		return
 	}
@@ -60,11 +60,11 @@ func resolve(w text.Writer, r *request) {
 
 	actorID := fmt.Sprintf("https://%s/user/%s", host, name)
 
-	r.Log.WithField("id", actorID).Info("Resolving user ID")
+	r.Log.Info("Resolving user ID", "id", actorID)
 
-	person, err := r.Resolve(actorID)
+	person, err := r.Resolve(actorID, false)
 	if err != nil {
-		r.Log.WithField("id", actorID).WithError(err).Warn("Failed to resolve user ID")
+		r.Log.Warn("Failed to resolve user ID", "id", actorID, "error", err)
 		w.Statusf(40, "Failed to resolve %s@%s", name, host)
 		return
 	}

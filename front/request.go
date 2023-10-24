@@ -19,10 +19,9 @@ package front
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/fed"
-	log "github.com/dimkr/tootik/slogru"
+	"log/slog"
 	"net/url"
 	"sync"
 )
@@ -32,20 +31,13 @@ type request struct {
 	URL       *url.URL
 	User      *ap.Actor
 	DB        *sql.DB
+	Resolver  *fed.Resolver
 	WaitGroup *sync.WaitGroup
-	Log       *log.Logger
+	Log       *slog.Logger
 }
 
-func (r *request) Resolve(actorID string) (*ap.Actor, error) {
-	resolver, err := fed.Resolvers.Borrow(r.Context)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to resolve %s: %w", actorID, err)
-	}
-
-	actor, err := resolver.Resolve(r.Context, r.DB, r.User, actorID)
-
-	fed.Resolvers.Return(resolver)
-	return actor, err
+func (r *request) Resolve(actorID string, offline bool) (*ap.Actor, error) {
+	return r.Resolver.Resolve(r.Context, r.Log, r.DB, r.User, actorID, offline)
 }
 
 func (r *request) Exec(query string, args ...any) (sql.Result, error) {
@@ -58,4 +50,8 @@ func (r *request) Query(query string, args ...any) (*sql.Rows, error) {
 
 func (r *request) QueryRow(query string, args ...any) *sql.Row {
 	return r.DB.QueryRowContext(r.Context, query, args...)
+}
+
+func (r *request) AddLogContext(attrs ...any) {
+	r.Log = r.Log.With(attrs...)
 }

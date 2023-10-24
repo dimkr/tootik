@@ -21,17 +21,13 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/text"
-	"github.com/dimkr/tootik/user"
+	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/front/user"
 	"net/url"
 	"regexp"
 )
 
 var userNameRegex = regexp.MustCompile(`^[a-zA-Z0-9-_]{4,32}$`)
-
-func init() {
-	handlers[regexp.MustCompile(`^/users/register$`)] = register
-}
 
 func register(w text.Writer, r *request) {
 	if r.User != nil {
@@ -59,14 +55,14 @@ func register(w text.Writer, r *request) {
 	certHash := fmt.Sprintf("%x", sha256.Sum256(clientCert.Raw))
 
 	var taken int
-	if err := r.QueryRow(`select exists (select 1 from persons where id like ? and actor->>'clientCertificate' = ?)`, fmt.Sprintf("https://%s/%%", cfg.Domain), certHash).Scan(&taken); err != nil {
-		r.Log.WithField("hash", certHash).WithError(err).Warn("Failed to check if cerificate hash is already in use")
+	if err := r.QueryRow(`select exists (select 1 from persons where id like ? and certhash = ?)`, fmt.Sprintf("https://%s/%%", cfg.Domain), certHash).Scan(&taken); err != nil {
+		r.Log.Warn("Failed to check if cerificate hash is already in use", "hash", certHash, "error", err)
 		w.Error()
 		return
 	}
 
 	if taken == 1 {
-		r.Log.WithField("hash", certHash).Warn("Cerificate hash is already in use")
+		r.Log.Warn("Cerificate hash is already in use", "hash", certHash)
 		w.Status(40, "Client certificate is already in use")
 		return
 	}
@@ -76,7 +72,7 @@ func register(w text.Writer, r *request) {
 	if r.URL.RawQuery != "" {
 		altName, err := url.QueryUnescape(r.URL.RawQuery)
 		if err != nil {
-			r.Log.WithField("query", r.URL.RawQuery).WithError(err).Info("Failed to decode user name")
+			r.Log.Info("Failed to decode user name", "query", r.URL.RawQuery, "error", err)
 			w.Status(40, "Bad input")
 			return
 		}
@@ -96,21 +92,21 @@ func register(w text.Writer, r *request) {
 	}
 
 	if err := r.QueryRow(`select exists (select 1 from persons where id = ?)`, fmt.Sprintf("https://%s/user/%s", cfg.Domain, userName)).Scan(&taken); err != nil {
-		r.Log.WithField("name", userName).WithError(err).Warn("Failed to check if username is taken")
+		r.Log.Warn("Failed to check if username is taken", "name", userName, "error", err)
 		w.Error()
 		return
 	}
 
 	if taken == 1 {
-		r.Log.WithField("name", userName).Warn("Username is already taken")
+		r.Log.Warn("Username is already taken", "name", userName)
 		w.Statusf(10, "%s is already taken, enter user name", userName)
 		return
 	}
 
-	r.Log.WithField("name", userName).Info("Creating new user")
+	r.Log.Info("Creating new user", "name", userName)
 
 	if _, err := user.Create(r.Context, r.DB, fmt.Sprintf("https://%s/user/%s", cfg.Domain, userName), userName, certHash); err != nil {
-		r.Log.WithField("name", userName).WithError(err).Warn("Failed to create new user")
+		r.Log.Warn("Failed to create new user", "name", userName, "error", err)
 		w.Status(40, "Failed to create new user")
 		return
 	}

@@ -24,50 +24,47 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
-	"github.com/dimkr/tootik/text"
+	"github.com/dimkr/tootik/front/graph"
+	"github.com/dimkr/tootik/front/text"
 	"path/filepath"
-	"regexp"
 )
-
-func init() {
-	handlers[regexp.MustCompile(`^/users/view/[0-9a-f]{64}$`)] = withUserMenu(view)
-	handlers[regexp.MustCompile(`^/view/[0-9a-f]{64}$`)] = withUserMenu(view)
-}
 
 func view(w text.Writer, r *request) {
 	hash := filepath.Base(r.URL.Path)
 
 	offset, err := getOffset(r.URL)
 	if err != nil {
-		r.Log.WithError(err).Info("Failed to parse query")
+		r.Log.Info("Failed to parse query", "error", err)
 		w.Status(40, "Invalid query")
 		return
 	}
 
-	r.Log.WithField("hash", hash).Info("Viewing post")
+	r.Log.Info("Viewing post", "hash", hash)
 
 	var noteString, authorString string
 	var groupString sql.NullString
 	if err := r.QueryRow(`select notes.object, persons.actor, groups.actor from notes join persons on persons.id = notes.author left join (select id, actor from persons where actor->>'type' = 'Group') groups on groups.id = notes.groupid where notes.hash = ?`, hash).Scan(&noteString, &authorString, &groupString); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.WithField("hash", hash).Info("Post was not found")
+		r.Log.Info("Post was not found", "hash", hash)
 		w.Status(40, "Post not found")
 		return
 	} else if err != nil {
-		r.Log.WithField("hash", hash).WithError(err).Info("Failed to find post")
+		r.Log.Info("Failed to find post", "hash", hash, "error", err)
 		w.Error()
 		return
 	}
 
 	note := ap.Object{}
 	if err := json.Unmarshal([]byte(noteString), &note); err != nil {
-		r.Log.WithField("hash", hash).WithError(err).Info("Failed to unmarshal post")
+		r.Log.Info("Failed to unmarshal post", "hash", hash, "error", err)
 		w.Error()
 		return
 	}
 
+	r.AddLogContext("post", note.ID)
+
 	author := ap.Actor{}
 	if err := json.Unmarshal([]byte(authorString), &author); err != nil {
-		r.Log.WithField("post", note.ID).WithError(err).Info("Failed to unmarshal post author")
+		r.Log.Info("Failed to unmarshal post author", "error", err)
 		w.Error()
 		return
 	}
@@ -75,7 +72,7 @@ func view(w text.Writer, r *request) {
 	group := ap.Actor{}
 	if groupString.Valid {
 		if err := json.Unmarshal([]byte(groupString.String), &group); err != nil {
-			r.Log.WithField("post", note.ID).WithError(err).Info("Failed to unmarshal post group")
+			r.Log.Info("Failed to unmarshal post group", "error", err)
 			w.Error()
 			return
 		}
@@ -83,7 +80,7 @@ func view(w text.Writer, r *request) {
 
 	rows, err := r.Query(`select replies.object, persons.actor from notes join notes replies on replies.object->>'inReplyTo' = notes.id left join persons on persons.id = replies.author where notes.hash = ? order by replies.inserted desc limit ? offset ?;`, hash, repliesPerPage, offset)
 	if err != nil {
-		r.Log.WithField("post", note.ID).WithError(err).Info("Failed to fetch replies")
+		r.Log.Info("Failed to fetch replies", "error", err)
 		w.Error()
 		return
 	}
@@ -95,7 +92,7 @@ func view(w text.Writer, r *request) {
 		var replyString string
 		var meta noteMetadata
 		if err := rows.Scan(&replyString, &meta.Author); err != nil {
-			r.Log.WithError(err).Warn("Failed to scan reply")
+			r.Log.Warn("Failed to scan reply", "error", err)
 			continue
 		}
 
@@ -126,6 +123,33 @@ func view(w text.Writer, r *request) {
 			r.PrintNote(w, &note, &author, nil, false, false, true, false)
 		}
 
+		if note.Type == ap.QuestionObject && note.VotersCount > 0 && offset == 0 {
+			options := note.OneOf
+			if len(options) == 0 {
+				options = note.AnyOf
+			}
+
+			if len(options) > 0 {
+				w.Empty()
+
+				if note.VotersCount == 1 {
+					w.Subtitle("📊 Results (one voter)")
+				} else {
+					w.Subtitlef("📊 Results (%d voters)", note.VotersCount)
+				}
+
+				labels := make([]string, 0, len(options))
+				votes := make([]int64, 0, len(options))
+
+				for _, option := range options {
+					labels = append(labels, option.Name)
+					votes = append(votes, option.Replies.TotalItems)
+				}
+
+				w.Raw("Results graph", graph.Bars(labels, votes))
+			}
+		}
+
 		if count > 0 && offset >= repliesPerPage {
 			w.Empty()
 			w.Subtitlef("💬 Replies to %s (%d-%d)", author.PreferredUsername, offset, offset+repliesPerPage)
@@ -138,20 +162,42 @@ func view(w text.Writer, r *request) {
 	r.PrintNotes(w, replies, true, false)
 
 	var originalPostExists int
+	var threadHead sql.NullString
 	if note.InReplyTo != "" {
 		if err := r.QueryRow(`select exists (select 1 from notes where id = ?)`, note.InReplyTo).Scan(&originalPostExists); err != nil {
-			r.Log.WithField("post", note.ID).WithError(err).Warn("Failed to check if original post exists")
+			r.Log.Warn("Failed to check if parent post exists", "error", err)
+		}
+
+		if err := r.QueryRow(`with recursive thread(id, parent, depth) as (select notes.id, notes.object->>'inReplyTo' as parent, 1 as depth from notes where id = ? union select notes.id, notes.object->>'inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent) select id from thread order by depth desc limit 1`, note.InReplyTo).Scan(&threadHead); err != nil {
+			r.Log.Warn("Failed to fetch first post in thread", "error", err)
 		}
 	}
 
-	if originalPostExists == 1 || offset >= repliesPerPage || count == repliesPerPage {
+	var threadDepth int
+	if err := r.QueryRow(`with recursive thread(id, depth) as (select notes.id, 0 as depth from notes where id = ? union select notes.id, t.depth + 1 from thread t join notes on notes.object->>'inReplyTo' = t.id where t.depth <= 3) select max(thread.depth) from thread`, note.ID).Scan(&threadDepth); err != nil {
+		r.Log.Warn("Failed to query thread depth", "error", err)
+	}
+
+	if originalPostExists == 1 || (threadHead.Valid && threadHead.String != note.ID && threadHead.String != note.InReplyTo) || threadDepth > 2 || offset > repliesPerPage || offset >= repliesPerPage || count == repliesPerPage {
 		w.Separator()
 	}
 
 	if originalPostExists == 1 && r.User == nil {
-		w.Link(fmt.Sprintf("/view/%x", sha256.Sum256([]byte(note.InReplyTo))), "View original post")
+		w.Link(fmt.Sprintf("/view/%x", sha256.Sum256([]byte(note.InReplyTo))), "View parent post")
 	} else if originalPostExists == 1 {
-		w.Link(fmt.Sprintf("/users/view/%x", sha256.Sum256([]byte(note.InReplyTo))), "View original post")
+		w.Link(fmt.Sprintf("/users/view/%x", sha256.Sum256([]byte(note.InReplyTo))), "View parent post")
+	}
+
+	if threadHead.Valid && threadHead.String != note.ID && threadHead.String != note.InReplyTo && r.User == nil {
+		w.Link(fmt.Sprintf("/view/%x", sha256.Sum256([]byte(threadHead.String))), "View first post in thread")
+	} else if threadHead.Valid && threadHead.String != note.ID && threadHead.String != note.InReplyTo {
+		w.Link(fmt.Sprintf("/users/view/%x", sha256.Sum256([]byte(threadHead.String))), "View first post in thread")
+	}
+
+	if threadDepth > 2 && r.User == nil {
+		w.Link("/thread/"+hash, "View thread")
+	} else if threadDepth > 2 {
+		w.Link("/users/thread/"+hash, "View thread")
 	}
 
 	if offset > repliesPerPage && r.User == nil {

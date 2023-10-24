@@ -21,17 +21,39 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	log "github.com/dimkr/tootik/slogru"
+	"log/slog"
 )
 
 type migration struct {
 	ID string
-	Up func(context.Context, *sql.DB) error
+	Up func(context.Context, *sql.Tx) error
 }
 
 //go:generate ./list.sh
 
-func Run(ctx context.Context, db *sql.DB, logger *log.Logger) error {
+func applyMigration(ctx context.Context, db *sql.DB, m migration) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to apply %s: %w", m.ID, err)
+	}
+	defer tx.Rollback()
+
+	if err := m.Up(ctx, tx); err != nil {
+		return fmt.Errorf("Failed to apply %s: %w", m.ID, err)
+	}
+
+	if _, err := tx.ExecContext(ctx, `insert into migrations(id) values (?)`, m.ID); err != nil {
+		return fmt.Errorf("Failed to record %s: %w", m.ID, err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("Failed to commit %s: %w", m.ID, err)
+	}
+
+	return nil
+}
+
+func Run(ctx context.Context, log *slog.Logger, db *sql.DB) error {
 	if _, err := db.ExecContext(ctx, `create table if not exists migrations(id string not null primary key, applied integer default (unixepoch()))`); err != nil {
 		return err
 	}
@@ -41,18 +63,13 @@ func Run(ctx context.Context, db *sql.DB, logger *log.Logger) error {
 		if err := db.QueryRowContext(ctx, `select datetime(applied, 'unixepoch') from migrations where id = ?`, m.ID).Scan(&applied); err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("Failed to check if %s is applied: %w", m.ID, err)
 		} else if err == nil {
-			logger.WithFields(log.Fields{"id": m.ID, "applied": applied}).Debug("Skipping migration")
+			log.Debug("Skipping migration", "id", m.ID, "applied", applied)
 			continue
 		}
 
-		logger.WithField("id", m.ID).Info("Applying migration")
-
-		if err := m.Up(ctx, db); err != nil {
-			return fmt.Errorf("Failed to apply %s: %w", m.ID, err)
-		}
-
-		if _, err := db.ExecContext(ctx, `insert into migrations(id) values (?)`, m.ID); err != nil {
-			return fmt.Errorf("Failed to record %s: %w", m.ID, err)
+		log.Info("Applying migration", "id", m.ID)
+		if err := applyMigration(ctx, db, m); err != nil {
+			return err
 		}
 	}
 

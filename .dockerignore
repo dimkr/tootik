@@ -1,0 +1,6 @@
+**/.git*
+/README.md
+/Dockerfile
+/.dockerignore
+/migrations/add.sh
+/migrations/migrations.go

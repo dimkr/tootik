@@ -18,13 +18,8 @@ package front
 
 import (
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/text"
-	"regexp"
+	"github.com/dimkr/tootik/front/text"
 )
-
-func init() {
-	handlers[regexp.MustCompile(`^/users/say$`)] = say
-}
 
 func say(w text.Writer, r *request) {
 	to := ap.Audience{}

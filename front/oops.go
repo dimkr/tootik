@@ -17,14 +17,8 @@ limitations under the License.
 package front
 
 import (
-	"github.com/dimkr/tootik/text"
-	"regexp"
+	"github.com/dimkr/tootik/front/text"
 )
-
-func init() {
-	handlers[regexp.MustCompile(`^/users/oops`)] = withUserMenu(oops)
-	handlers[regexp.MustCompile(`^/oops`)] = withUserMenu(oops)
-}
 
 func oops(w text.Writer, r *request) {
 	w.OK()

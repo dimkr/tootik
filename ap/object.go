@@ -21,26 +21,34 @@ import "time"
 type ObjectType string
 
 const (
-	NoteObject    ObjectType = "Note"
-	FollowObject  ObjectType = "Follow"
-	PageObject    ObjectType = "Page"
-	ArticleObject ObjectType = "Article"
+	NoteObject     ObjectType = "Note"
+	PageObject     ObjectType = "Page"
+	ArticleObject  ObjectType = "Article"
+	QuestionObject ObjectType = "Question"
 )
 
 type Object struct {
+	Context      any          `json:"@context,omitempty"`
 	ID           string       `json:"id"`
 	Type         ObjectType   `json:"type"`
 	AttributedTo string       `json:"attributedTo,omitempty"`
 	InReplyTo    string       `json:"inReplyTo,omitempty"`
 	Content      string       `json:"content,omitempty"`
 	Name         string       `json:"name,omitempty"`
-	Published    time.Time    `json:"published,omitempty"`
-	Updated      time.Time    `json:"updated,omitempty"`
+	Published    time.Time    `json:"published"`
+	Updated      *time.Time   `json:"updated,omitempty"`
 	To           Audience     `json:"to,omitempty"`
 	CC           Audience     `json:"cc,omitempty"`
 	Tag          []Mention    `json:"tag,omitempty"`
 	Attachment   []Attachment `json:"attachment,omitempty"`
 	URL          string       `json:"url,omitempty"`
+
+	// polls
+	VotersCount int64        `json:"votersCount,omitempty"`
+	OneOf       []PollOption `json:"oneOf,omitempty"`
+	AnyOf       []PollOption `json:"anyOf,omitempty"`
+	EndTime     *time.Time   `json:"endTime,omitempty"`
+	Closed      *time.Time   `json:"closed,omitempty"`
 }
 
 func (o *Object) IsPublic() bool {

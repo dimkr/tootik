@@ -21,7 +21,10 @@ import (
 	"log/slog"
 )
 
-const MaxPostsLength = 200
+const (
+	MaxPostsLength      = 200
+	MaxResolverRequests = 16
+)
 
 var (
 	Domain   string
@@ -29,6 +32,6 @@ var (
 )
 
 func init() {
-	flag.StringVar(&Domain, "domain", "localhost", "Domain name")
+	flag.StringVar(&Domain, "domain", "localhost.localdomain", "Domain name")
 	flag.IntVar(&LogLevel, "loglevel", int(slog.LevelInfo), "Logging verbosity")
 }

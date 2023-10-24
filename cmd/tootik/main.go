@@ -20,45 +20,83 @@ import (
 	"context"
 	"database/sql"
 	"flag"
+	"fmt"
+	"log/slog"
+	"os"
 
+	"github.com/dimkr/tootik/buildinfo"
+	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/fed"
+	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/front/finger"
 	"github.com/dimkr/tootik/front/gemini"
 	"github.com/dimkr/tootik/front/gopher"
 	"github.com/dimkr/tootik/front/guppy"
+	"github.com/dimkr/tootik/front/user"
+	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/migrations"
-	log "github.com/dimkr/tootik/slogru"
-	"github.com/dimkr/tootik/user"
+	"github.com/dimkr/tootik/outbox"
 	_ "github.com/mattn/go-sqlite3"
-	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 	"time"
 )
 
+const (
+	pollResultsUpdateInterval = time.Hour / 2
+	garbageCollectionInterval = time.Hour * 12
+)
+
 var (
-	dbPath     = flag.String("db", "db.sqlite3", "database path")
-	gemCert    = flag.String("gemcert", "gemini-cert.pem", "Gemini TLS certificate")
-	gemKey     = flag.String("gemkey", "gemini-key.pem", "Gemini TLS key")
-	gemAddr    = flag.String("gemaddr", ":8965", "Gemini listening address")
-	gopherAddr = flag.String("gopheraddr", ":8070", "Gopher listening address")
-	fingerAddr = flag.String("fingeraddr", ":8079", "Finger listening address")
-	guppyAddr  = flag.String("guppyaddr", ":6775", "Guppy listening address")
-	cert       = flag.String("cert", "cert.pem", "HTTPS TLS certificate")
-	key        = flag.String("key", "key.pem", "HTTPS TLS key")
-	addr       = flag.String("addr", ":8443", "HTTPS listening address")
+	dbPath        = flag.String("db", "db.sqlite3", "database path")
+	gemCert       = flag.String("gemcert", "gemini-cert.pem", "Gemini TLS certificate")
+	gemKey        = flag.String("gemkey", "gemini-key.pem", "Gemini TLS key")
+	gemAddr       = flag.String("gemaddr", ":8965", "Gemini listening address")
+	gopherAddr    = flag.String("gopheraddr", ":8070", "Gopher listening address")
+	fingerAddr    = flag.String("fingeraddr", ":8079", "Finger listening address")
+	guppyAddr     = flag.String("guppyaddr", ":6775", "Guppy listening address")
+	cert          = flag.String("cert", "cert.pem", "HTTPS TLS certificate")
+	key           = flag.String("key", "key.pem", "HTTPS TLS key")
+	addr          = flag.String("addr", ":8443", "HTTPS listening address")
+	blockListPath = flag.String("blocklist", "", "Blocklist CSV")
+	version       = flag.Bool("version", false, "Print version and exit")
 )
 
 func main() {
 	flag.Parse()
 
+	if version != nil && *version {
+		fmt.Println(buildinfo.Version)
+		return
+	}
+
+	opts := slog.HandlerOptions{Level: slog.Level(cfg.LogLevel)}
+	if opts.Level == slog.LevelDebug {
+		opts.AddSource = true
+	}
+
+	log := slog.New(slog.NewJSONHandler(os.Stderr, &opts))
+
+	var blockList *fed.BlockList
+	if blockListPath != nil && *blockListPath != "" {
+		var err error
+		blockList, err = fed.NewBlockList(log, *blockListPath)
+		if err != nil {
+			panic(err)
+		}
+
+		defer blockList.Close()
+	}
+
 	db, err := sql.Open("sqlite3", *dbPath+"?_journal_mode=WAL")
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	defer db.Close()
+
+	resolver := fed.NewResolver(blockList)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -79,22 +117,34 @@ func main() {
 		}
 	}()
 
-	if err := migrations.Run(ctx, db, log.Default()); err != nil {
-		log.Fatal(err)
+	if err := migrations.Run(ctx, log, db); err != nil {
+		panic(err)
 	}
 
 	if err := data.CollectGarbage(ctx, db); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
-	if err := user.CreateNobody(ctx, db); err != nil {
-		log.Fatal(err)
+	nobody, err := user.CreateNobody(ctx, db)
+	if err != nil {
+		panic(err)
 	}
 
 	wg.Add(1)
 	go func() {
-		if err := fed.ListenAndServe(ctx, db, *addr, *cert, *key); err != nil {
-			log.WithError(err).Error("HTTPS listener has failed")
+		if err := fed.ListenAndServe(ctx, db, resolver, nobody, log, *addr, *cert, *key); err != nil {
+			log.Error("HTTPS listener has failed", "error", err)
+		}
+		cancel()
+		wg.Done()
+	}()
+
+	handler := front.NewHandler()
+
+	wg.Add(1)
+	go func() {
+		if err := gemini.ListenAndServe(ctx, log, db, handler, resolver, *gemAddr, *gemCert, *gemKey); err != nil {
+			log.Error("Gemini listener has failed", "error", err)
 		}
 		cancel()
 		wg.Done()
@@ -102,8 +152,8 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		if err := gemini.ListenAndServe(ctx, db, *gemAddr, *gemCert, *gemKey); err != nil {
-			log.WithError(err).Error("Gemini listener has failed")
+		if err := gopher.ListenAndServe(ctx, log, handler, db, resolver, *gopherAddr); err != nil {
+			log.Error("Gopher listener has failed", "error", err)
 		}
 		cancel()
 		wg.Done()
@@ -111,8 +161,8 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		if err := gopher.ListenAndServe(ctx, db, *gopherAddr); err != nil {
-			log.WithError(err).Error("Gopher listener has failed")
+		if err := finger.ListenAndServe(ctx, log, db, *fingerAddr); err != nil {
+			log.Error("Finger listener has failed", "error", err)
 		}
 		cancel()
 		wg.Done()
@@ -120,8 +170,8 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		if err := finger.ListenAndServe(ctx, db, *fingerAddr); err != nil {
-			log.WithError(err).Error("Finger listener has failed")
+		if err := guppy.ListenAndServe(ctx, log, db, handler, resolver, *guppyAddr); err != nil {
+			log.Error("Guppy listener has failed", "error", err)
 		}
 		cancel()
 		wg.Done()
@@ -129,8 +179,14 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		if err := guppy.ListenAndServe(ctx, db, *guppyAddr); err != nil {
-			log.WithError(err).Error("Guppy listener has failed")
+		fed.ProcessQueue(ctx, log, db, resolver)
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		if err := inbox.ProcessQueue(ctx, log, db, resolver, nobody); err != nil {
+			log.Error("Failed to process activities", "error", err)
 		}
 		cancel()
 		wg.Done()
@@ -138,40 +194,54 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		fed.DeliverPosts(ctx, db, log.Default())
-		wg.Done()
-	}()
+		defer wg.Done()
+		defer cancel()
 
-	wg.Add(1)
-	go func() {
-		if err := fed.ProcessActivities(ctx, db, log.Default()); err != nil {
-			log.WithError(err).Error("Failed to process activities")
-		}
-		cancel()
-		wg.Done()
-	}()
+		t := time.NewTicker(pollResultsUpdateInterval)
+		defer t.Stop()
 
-	ticker := time.NewTicker(time.Hour * 12)
-
-	wg.Add(1)
-	go func() {
 		for {
+			log.Info("Updating poll results")
+			if err := outbox.UpdatePollResults(ctx, log, db); err != nil {
+				log.Error("Failed to update poll results", "error", err)
+				break
+			}
+
 			select {
 			case <-ctx.Done():
-				wg.Done()
 				return
 
-			case <-ticker.C:
-				log.Info("Collecting garbage")
-				if err := data.CollectGarbage(ctx, db); err != nil {
-					log.WithError(err).Error("Failed to collect garbage")
-				}
+			case <-t.C:
+			}
+
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		t := time.NewTicker(garbageCollectionInterval)
+		defer t.Stop()
+
+		for {
+			log.Info("Collecting garbage")
+			if err := data.CollectGarbage(ctx, db); err != nil {
+				log.Error("Failed to collect garbage", "error", err)
+				break
+			}
+
+			select {
+			case <-ctx.Done():
+				return
+
+			case <-t.C:
 			}
 		}
 	}()
 
 	<-ctx.Done()
 	log.Info("Shutting down")
-	ticker.Stop()
 	wg.Wait()
 }

@@ -19,7 +19,7 @@ package front
 import (
 	"bytes"
 	"context"
-	"github.com/dimkr/tootik/text"
+	"github.com/dimkr/tootik/front/text"
 	"sync"
 	"time"
 )
@@ -31,9 +31,7 @@ type cacheEntry struct {
 	Created time.Time
 }
 
-var cache sync.Map
-
-func callAndCache(r *request, w text.Writer, f func(text.Writer, *request), key string, now time.Time) []byte {
+func callAndCache(r *request, w text.Writer, f func(text.Writer, *request), key string, now time.Time, cache *sync.Map) []byte {
 	var buf bytes.Buffer
 	w2 := w.Clone(&buf)
 
@@ -54,20 +52,20 @@ func callAndCache(r *request, w text.Writer, f func(text.Writer, *request), key 
 	return raw
 }
 
-func withCache(f func(text.Writer, *request), d time.Duration) func(text.Writer, *request) {
+func withCache(f func(text.Writer, *request), d time.Duration, cache *sync.Map) func(text.Writer, *request) {
 	return func(w text.Writer, r *request) {
 		key := r.URL.String()
 		now := time.Now()
 
 		entry, cached := cache.Load(key)
 		if !cached {
-			r.Log.WithField("key", key).Info("Generating first response")
-			w.Write(callAndCache(r, w, f, key, now))
+			r.Log.Info("Generating first response", "key", key)
+			w.Write(callAndCache(r, w, f, key, now, cache))
 			return
 		}
 
 		if entry.(cacheEntry).Created.After(now.Add(-d)) {
-			r.Log.WithField("key", key).Info("Sending cached response")
+			r.Log.Info("Sending cached response", "key", key)
 			w.Write(entry.(cacheEntry).Value)
 			return
 		}
@@ -78,8 +76,8 @@ func withCache(f func(text.Writer, *request), d time.Duration) func(text.Writer,
 
 		r.WaitGroup.Add(1)
 		go func() {
-			r.Log.WithField("key", key).Info("Generating new response")
-			update <- callAndCache(r, w, f, key, now)
+			r.Log.Info("Generating new response", "key", key)
+			update <- callAndCache(r, w, f, key, now, cache)
 			r.WaitGroup.Done()
 		}()
 
@@ -88,7 +86,7 @@ func withCache(f func(text.Writer, *request), d time.Duration) func(text.Writer,
 			w.Write(resp)
 
 		case <-timer.C:
-			r.Log.WithField("key", key).Warn("Timeout, sending old cached response")
+			r.Log.Warn("Timeout, sending old cached response", "key", key)
 			w.Write(entry.(cacheEntry).Value)
 		}
 	}

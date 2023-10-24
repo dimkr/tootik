@@ -23,10 +23,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/front"
-	log "github.com/dimkr/tootik/slogru"
-	"github.com/dimkr/tootik/text/guppy"
+	"github.com/dimkr/tootik/front/text/guppy"
 	"io"
+	"log/slog"
 	"math"
 	"math/rand"
 	"net"
@@ -48,7 +49,7 @@ type packet struct {
 	From    net.Addr
 }
 
-func handle(ctx context.Context, db *sql.DB, wg *sync.WaitGroup, from net.Addr, req []byte, acks <-chan []byte, done chan<- string, s net.PacketConn) {
+func handle(ctx context.Context, log *slog.Logger, db *sql.DB, handler front.Handler, resolver *fed.Resolver, wg *sync.WaitGroup, from net.Addr, req []byte, acks <-chan []byte, done chan<- string, s net.PacketConn) {
 	defer func() {
 		done <- from.String()
 	}()
@@ -60,7 +61,7 @@ func handle(ctx context.Context, db *sql.DB, wg *sync.WaitGroup, from net.Addr, 
 
 	reqUrl, err := url.Parse(string(req[:len(req)-2]))
 	if err != nil {
-		log.WithField("request", string(req[:len(req)-2])).WithError(err).Warn("Invalid request")
+		log.Warn("Invalid request", "request", string(req[:len(req)-2]), "error", err)
 		return
 	}
 
@@ -72,12 +73,12 @@ func handle(ctx context.Context, db *sql.DB, wg *sync.WaitGroup, from net.Addr, 
 	if reqUrl.Host != cfg.Domain {
 		w.Status(1, "Wrong host")
 	} else {
-		log.WithFields(log.Fields{"path": reqUrl.Path, "from": from}).Info("Handling request")
-		front.Handle(ctx, w, reqUrl, nil, db, wg)
+		log.Info("Handling request", "path", reqUrl.Path, "from", from)
+		handler.Handle(ctx, log, w, reqUrl, nil, db, resolver, wg)
 	}
 
 	if ctx.Err() != nil {
-		log.WithFields(log.Fields{"path": reqUrl.Path, "from": from}).Warn("Failed to handle request in time")
+		log.Warn("Failed to handle request in time", "path", reqUrl.Path, "from", from)
 		return
 	}
 
@@ -85,7 +86,7 @@ func handle(ctx context.Context, db *sql.DB, wg *sync.WaitGroup, from net.Addr, 
 
 	n, err := buf.Read(chunk)
 	if err != nil {
-		log.WithError(err).Error("Failed to read first respone chunk")
+		log.Error("Failed to read first respone chunk", "error", err)
 		return
 	}
 
@@ -109,17 +110,17 @@ func handle(ctx context.Context, db *sql.DB, wg *sync.WaitGroup, from net.Addr, 
 	for {
 		select {
 		case <-ctx.Done():
-			log.WithFields(log.Fields{"path": reqUrl.Path, "from": from}).Warn("Session timed out")
+			log.Warn("Session timed out", "path", reqUrl.Path, "from", from)
 			return
 
 		case ack, ok := <-acks:
 			if !ok {
-				log.WithFields(log.Fields{"path": reqUrl.Path, "from": from}).Warn("Session timed out")
+				log.Warn("Session timed out", "path", reqUrl.Path, "from", from)
 				return
 			}
 
 			if string(ack) != expectedAck {
-				log.WithFields(log.Fields{"path": reqUrl.Path, "from": from, "expected": expectedAck, "got": string(ack)}).Debug("Received invalid ack")
+				log.Debug("Received invalid ack", "path", reqUrl.Path, "from", from, "expected", expectedAck, "got", string(ack))
 				continue
 			}
 
@@ -133,7 +134,7 @@ func handle(ctx context.Context, db *sql.DB, wg *sync.WaitGroup, from net.Addr, 
 			if err != nil && errors.Is(err, io.EOF) {
 				prevPacket = []byte(statusLine)
 			} else if err != nil {
-				log.WithError(err).Error("Failed to read respone chunk")
+				log.Error("Failed to read respone chunk", "error", err)
 				return
 			} else {
 				prevPacket = append([]byte(statusLine), chunk[:n]...)
@@ -147,13 +148,13 @@ func handle(ctx context.Context, db *sql.DB, wg *sync.WaitGroup, from net.Addr, 
 			retry.Reset(retryInterval)
 
 		case <-retry.C:
-			log.WithFields(log.Fields{"path": reqUrl.Path, "from": from}).Debug("Resending previous packet")
+			log.Debug("Resending previous packet", "path", reqUrl.Path, "from", from)
 			s.WriteTo(prevPacket, from)
 		}
 	}
 }
 
-func ListenAndServe(ctx context.Context, db *sql.DB, addr string) error {
+func ListenAndServe(ctx context.Context, log *slog.Logger, db *sql.DB, handler front.Handler, resolver *fed.Resolver, addr string) error {
 	l, err := net.ListenPacket("udp", addr)
 	if err != nil {
 		return err
@@ -169,7 +170,7 @@ func ListenAndServe(ctx context.Context, db *sql.DB, addr string) error {
 		for {
 			n, from, err := l.ReadFrom(buf)
 			if err != nil {
-				log.WithError(err).Warn("Failed to receive a packet")
+				log.Warn("Failed to receive a packet", "error", err)
 				continue
 			}
 			packets <- packet{buf[:n], from}
@@ -210,7 +211,7 @@ loop:
 
 			wg.Add(1)
 			go func() {
-				handle(requestCtx, db, &wg, pkt.From, pkt.Payload, acks, done, l)
+				handle(requestCtx, log, db, handler, resolver, &wg, pkt.From, pkt.Payload, acks, done, l)
 				cancelRequest()
 				wg.Done()
 			}()

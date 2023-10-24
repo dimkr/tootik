@@ -17,16 +17,11 @@ limitations under the License.
 package front
 
 import (
-	"regexp"
 	"time"
 
 	"github.com/dimkr/tootik/data"
-	"github.com/dimkr/tootik/text"
+	"github.com/dimkr/tootik/front/text"
 )
-
-func init() {
-	handlers[regexp.MustCompile("^/users$")] = withUserMenu(users)
-}
 
 func users(w text.Writer, r *request) {
 	if r.User == nil {
@@ -34,9 +29,9 @@ func users(w text.Writer, r *request) {
 		return
 	}
 
-	rows, err := r.Query(`select day*86400, count(*) from (select inserted/86400 as day, notes.object from notes left join (select follows.followed, persons.actor->>'followers' as followers from (select followed from follows where follower = $1) follows join persons on follows.followed = persons.id) follows on notes.author = follows.followed and (notes.public = 1 or follows.followers in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or $1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.followers or value = $1)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.followers or value = $1))) left join (select id from notes where author = $1) myposts on myposts.id = notes.object->>'inReplyTo' where inserted > unixepoch() - 60*60*24*7 and (follows.followed  is not null or myposts.id is not null)) group by day order by day desc`, r.User.ID)
+	rows, err := r.Query(`select day*86400, count(*) from (select * from (select notes.id, notes.inserted/86400 as day, notes.object from notes join (select follows.followed, persons.actor->>'followers' as followers from (select followed from follows where follower = $1) follows join persons on follows.followed = persons.id) follows on notes.author = follows.followed and (notes.public = 1 or follows.followers in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or $1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.followers or value = $1)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.followers or value = $1))) where notes.inserted > unixepoch() - 60*60*24*7 union select notes.id, notes.inserted/86400 as day, notes.object from notes join (select id from notes where author = $1) myposts on myposts.id = notes.object->>'inReplyTo' where notes.author != $1 and notes.inserted > unixepoch() - 60*60*24*7) group by day, id) group by day order by day desc`, r.User.ID)
 	if err != nil {
-		r.Log.WithError(err).Warn("Failed to count posts")
+		r.Log.Warn("Failed to count posts", "error", err)
 		w.Error()
 		return
 	}
@@ -47,7 +42,7 @@ func users(w text.Writer, r *request) {
 	for rows.Next() {
 		var t, posts int64
 		if err := rows.Scan(&t, &posts); err != nil {
-			r.Log.WithError(err).Warn("Failed to scan row")
+			r.Log.Warn("Failed to scan row", "error", err)
 			continue
 		}
 

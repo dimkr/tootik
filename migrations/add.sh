@@ -27,7 +27,7 @@ import (
 	"database/sql"
 )
 
-func $1(ctx context.Context, db *sql.DB) error {
+func $1(ctx context.Context, tx *sql.Tx) error {
 	// do stuff
 
 	return nil
