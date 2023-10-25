@@ -78,7 +78,33 @@ func view(w text.Writer, r *request) {
 		}
 	}
 
-	rows, err := r.Query(`select replies.object, persons.actor from notes join notes replies on replies.object->>'inReplyTo' = notes.id left join persons on persons.id = replies.author where notes.hash = ? order by replies.inserted desc limit ? offset ?;`, hash, repliesPerPage, offset)
+	var rows *sql.Rows
+	if r.User == nil {
+		rows, err = r.Query(
+			`select replies.object, persons.actor from notes join notes replies on replies.object->>'inReplyTo' = notes.id
+			left join persons on persons.id = replies.author
+			where notes.hash = $1 and replies.public = 1
+			order by replies.inserted desc limit $2 offset $3`,
+			hash,
+			repliesPerPage,
+			offset,
+		)
+	} else {
+		rows, err = r.Query(
+			`select replies.object, persons.actor from
+			(
+				select replies.object, replies.author, replies.inserted from notes join notes replies on replies.object->>'inReplyTo' = notes.id where notes.hash = $1 and (replies.public = 1 or replies.author = $2 or ($2 in (replies.cc0, replies.to0, replies.cc1, replies.to1, replies.cc2, replies.to2) or (replies.to2 is not null and exists (select 1 from json_each(replies.object->'to') where value = $2)) or (replies.cc2 is not null and exists (select 1 from json_each(replies.object->'cc') where value = $2))))
+				union
+				select replies.object, replies.author, replies.inserted from notes join notes replies on replies.object->>'inReplyTo' = notes.id join (select persons.actor->>'followers' as followers from persons join follows on follows.followed = persons.id where follows.accepted = 1 and follows.followed = $2) follows on follows.followers in (replies.cc0, replies.to0, replies.cc1, replies.to1, replies.cc2, replies.to2) or (notes.to2 is not null and exists (select 1 from json_each(replies.object->'to') where value = follows.followers)) or (notes.cc2 is not null and exists (select 1 from json_each(replies.object->'cc') where value = follows.followers)) where notes.hash = $1
+			) replies
+			left join persons on persons.id = replies.author
+			order by replies.inserted desc limit $3 offset $4`,
+			hash,
+			r.User.ID,
+			repliesPerPage,
+			offset,
+		)
+	}
 	if err != nil {
 		r.Log.Info("Failed to fetch replies", "error", err)
 		w.Error()
