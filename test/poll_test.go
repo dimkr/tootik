@@ -743,6 +743,12 @@ func TestPoll_LocalVoteVisibilityFollowers(t *testing.T) {
 
 	assert := assert.New(t)
 
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), follow)
+
+	follow = server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Carol)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), follow)
+
 	whisper := server.Handle("/users/whisper?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20Hell%20yeah%21%20%7c%20I%20couldn%27t%20care%20less", server.Alice)
 	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", whisper)
 
@@ -785,12 +791,7 @@ func TestPoll_LocalVoteVisibilityFollowers(t *testing.T) {
 	assert.Contains(view, "carol")
 
 	view = server.Handle("/view/"+whisper[15:len(whisper)-2], nil)
-	assert.Contains(view, "So, polls on Station are pretty cool, right?")
-	assert.NotContains(view, "Vote")
-	assert.Contains(strings.Split(view, "\n"), "1 ████████ Hell yeah!")
-	assert.Contains(strings.Split(view, "\n"), "1 ████████ I couldn't care less")
-	assert.NotContains(view, "bob")
-	assert.NotContains(view, "carol")
+	assert.Equal("40 Post not found\r\n", view)
 }
 
 func TestPoll_LocalVoteVisibilityPublic(t *testing.T) {

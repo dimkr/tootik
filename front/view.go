@@ -43,7 +43,13 @@ func view(w text.Writer, r *request) {
 
 	var noteString, authorString string
 	var groupString sql.NullString
-	if err := r.QueryRow(`select notes.object, persons.actor, groups.actor from notes join persons on persons.id = notes.author left join (select id, actor from persons where actor->>'type' = 'Group') groups on groups.id = notes.groupid where notes.hash = ?`, hash).Scan(&noteString, &authorString, &groupString); err != nil && errors.Is(err, sql.ErrNoRows) {
+
+	if r.User == nil {
+		err = r.QueryRow(`select notes.object, persons.actor, groups.actor from notes join persons on persons.id = notes.author left join (select id, actor from persons where actor->>'type' = 'Group') groups on groups.id = notes.groupid where notes.hash = ? and notes.public = 1`, hash).Scan(&noteString, &authorString, &groupString)
+	} else {
+		err = r.QueryRow(`select notes.object, persons.actor, groups.actor from notes join persons on persons.id = notes.author left join (select id, actor from persons where actor->>'type' = 'Group') groups on groups.id = notes.groupid where notes.hash = $1 and (notes.public = 1 or notes.author = $2 or $2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $2)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $2)) or exists (select 1 from (select persons.actor->>'followers' as followers from persons join follows on follows.followed = persons.id where follows.accepted = 1 and follows.follower = $2) follows where follows.followers in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.followers)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.followers))))`, hash, r.User.ID).Scan(&noteString, &authorString, &groupString)
+	}
+	if err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Info("Post was not found", "hash", hash)
 		w.Status(40, "Post not found")
 		return
@@ -92,12 +98,9 @@ func view(w text.Writer, r *request) {
 	} else {
 		rows, err = r.Query(
 			`select replies.object, persons.actor from
-			(
-				select replies.object, replies.author, replies.inserted from notes join notes replies on replies.object->>'inReplyTo' = notes.id where notes.hash = $1 and (replies.public = 1 or replies.author = $2 or ($2 in (replies.cc0, replies.to0, replies.cc1, replies.to1, replies.cc2, replies.to2) or (replies.to2 is not null and exists (select 1 from json_each(replies.object->'to') where value = $2)) or (replies.cc2 is not null and exists (select 1 from json_each(replies.object->'cc') where value = $2))))
-				union
-				select replies.object, replies.author, replies.inserted from notes join notes replies on replies.object->>'inReplyTo' = notes.id join (select persons.actor->>'followers' as followers from persons join follows on follows.followed = persons.id where follows.accepted = 1 and follows.followed = $2) follows on follows.followers in (replies.cc0, replies.to0, replies.cc1, replies.to1, replies.cc2, replies.to2) or (notes.to2 is not null and exists (select 1 from json_each(replies.object->'to') where value = follows.followers)) or (notes.cc2 is not null and exists (select 1 from json_each(replies.object->'cc') where value = follows.followers)) where notes.hash = $1
-			) replies
+			notes join notes replies on replies.object->>'inReplyTo' = notes.id
 			left join persons on persons.id = replies.author
+			where notes.hash = $1 and (replies.public = 1 or replies.author = $2 or $2 in (replies.cc0, replies.to0, replies.cc1, replies.to1, replies.cc2, replies.to2) or (replies.to2 is not null and exists (select 1 from json_each(replies.object->'to') where value = $2)) or (replies.cc2 is not null and exists (select 1 from json_each(replies.object->'cc') where value = $2)) or exists (select 1 from persons join follows on follows.followed = persons.id where follows.accepted = 1 and follows.follower = $2 and persons.actor->>'followers' in (replies.cc0, replies.to0, replies.cc1, replies.to1, replies.cc2, replies.to2) or (notes.to2 is not null and exists (select 1 from json_each(replies.object->'to') where value = persons.actor->>'followers')) or (notes.cc2 is not null and exists (select 1 from json_each(replies.object->'cc') where value = persons.actor->>'followers'))))
 			order by replies.inserted desc limit $3 offset $4`,
 			hash,
 			r.User.ID,

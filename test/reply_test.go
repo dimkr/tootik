@@ -207,8 +207,7 @@ func TestReply_ReplyToPublicPostByNotFollowedUser(t *testing.T) {
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
 
 	view = server.Handle("/users/view/"+hash, server.Alice)
-	assert.Contains(view, "Hello world")
-	assert.Contains(view, "Welcome Bob")
+	assert.Equal("40 Post not found\r\n", view)
 
 	users := server.Handle("/users/inbox/today", server.Alice)
 	assert.NotContains(users, "Hello world")

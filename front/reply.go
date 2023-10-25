@@ -63,6 +63,14 @@ func reply(w text.Writer, r *request) {
 	} else if !note.IsPublic() {
 		to.Add(note.AttributedTo)
 		cc.Add(r.User.Followers)
+		note.To.Range(func(id string, _ struct{}) bool {
+			cc.Add(id)
+			return true
+		})
+		note.CC.Range(func(id string, _ struct{}) bool {
+			cc.Add(id)
+			return true
+		})
 	} else {
 		r.Log.Error("Post audience is invalid", "post", note.ID)
 		w.Error()
