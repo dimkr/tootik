@@ -125,8 +125,6 @@ tootik has three kinds of posts:
 
 User A is allowed to send a message to user B only if B follows A.
 
-**However, tootik does not implement access control.** Messages and posts are "unlisted" (in [Mastodon](https://github.com/mastodon/mastodon) jargon) and users who haven't received them can "discover" them. Every post is associated with an ID and /view will display a post given a hash of this ID: anyone who knows the hash associated with a message can see the message, even if the message was sent to another user and even if unauthenticated.
-
 ### Post Visibility
 
 | Post type   | To                 | CC                              |
@@ -137,11 +135,11 @@ User A is allowed to send a message to user B only if B follows A.
 
 ### Reply Visibility
 
-| Post type   | To          | CC                                             |
-|-------------|-------------|------------------------------------------------|
-| Message     | Post author | -                                              |
-| Post        | Post author | Mentions and followers of reply author         |
-| Public post | Post author | Mentions, followers of reply author and Public |
+| Post type   | To          | CC                                                              |
+|-------------|-------------|-----------------------------------------------------------------|
+| Message     | Post author | -                                                               |
+| Post        | Post author | Post recipients, mentions and followers of reply author         |
+| Public post | Post author | Post recipients, mentions, followers of reply author and Public |
 
 ### Post Editing
 

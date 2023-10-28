@@ -17,6 +17,8 @@ limitations under the License.
 package test
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -125,6 +127,9 @@ func TestHashtag_PostToFollowers(t *testing.T) {
 	defer server.Shutdown()
 
 	assert := assert.New(t)
+
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), follow)
 
 	whisper := server.Handle("/users/whisper?Hello%20%23world", server.Alice)
 	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", whisper)

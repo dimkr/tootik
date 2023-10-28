@@ -135,7 +135,11 @@ func (w *writer) Quote(quote string) {
 }
 
 func (w *writer) Raw(alt, raw string) {
-	for _, line := range strings.Split(raw, "\n") {
+	end := len(raw)
+	if raw[end-1] == '\n' {
+		end -= 1
+	}
+	for _, line := range strings.Split(raw[:end], "\n") {
 		w.Write([]byte{'i'})
 		w.Write([]byte(line))
 		w.Write([]byte("\t/\t0\t0\r\n"))

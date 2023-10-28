@@ -61,11 +61,105 @@ func userOutbox(w text.Writer, r *request) {
 	r.Log.Info("Viewing outbox", "offset", offset)
 
 	var rows *sql.Rows
-	if actor.Type == ap.Group {
-		// if this is a group, show posts sent to this group instead of showing posts by the group
-		rows, err = r.Query(`select object, actor, null from (select notes.object, persons.actor from (select object, author, inserted from notes where public = 1 and $1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) and object->'inReplyTo' is null) notes join persons on persons.id = notes.author order by notes.inserted desc limit $2 offset $3)`, actorID, postsPerPage, offset)
+	if actor.Type == ap.Group && r.User == nil {
+		// unauthenticated users can only see public posts in a group
+		rows, err = r.Query(
+			`select notes.object, persons.actor, null from (
+				select object, author from notes where groupid = $1 and public = 1 and object->'inReplyTo' is null
+				order by notes.inserted desc limit $2 offset $3
+			) notes
+			join persons on persons.id = notes.author`,
+			actorID,
+			postsPerPage,
+			offset,
+		)
+	} else if actor.Type == ap.Group && r.User != nil {
+		// users can see public posts in a group and non-public posts if they follow the group
+		rows, err = r.Query(`
+			select notes.object, persons.actor, null from (
+				select notes.object, notes.author from notes
+				where
+					groupid = $1 and
+					(
+						public = 1 or
+						exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
+					) and
+					object->'inReplyTo' is null
+					order by inserted desc limit $3 offset $4
+			) notes
+			join persons on persons.id = notes.author`,
+			actorID,
+			r.User.ID,
+			postsPerPage,
+			offset,
+		)
+	} else if r.User == nil {
+		// unauthenticated users can only see public posts
+		rows, err = r.Query(
+			`select notes.object, $1, groups.actor from (
+				select object, inserted, groupid from notes
+				where author = $2 and public = 1
+				order by notes.inserted desc limit $3 offset $4
+			) notes
+			left join (
+				select id, actor from persons where actor->>'type' = 'Group'
+			) groups on groups.id = notes.groupid`,
+			actorString,
+			actorID,
+			postsPerPage, offset,
+		)
+	} else if r.User.ID == actorID {
+		// users can see all their posts
+		rows, err = r.Query(
+			`select notes.object, $1, groups.actor from (
+				select object, inserted, groupid from notes
+				where author = $2
+				order by notes.inserted desc limit $3 offset $4
+			) notes
+			left join (
+				select id, actor from persons where actor->>'type' = 'Group'
+			) groups on groups.id = notes.groupid`,
+			actorString,
+			actorID,
+			postsPerPage,
+			offset,
+		)
 	} else {
-		rows, err = r.Query(`select object, $1, g from (select notes.object, notes.inserted, groups.actor as g from (select id, object, inserted, groupid from notes where public = 1 and author = $2 union select notes.id, notes.object, notes.inserted, notes.groupid from notes join persons on persons.actor->>'followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = persons.actor->>'followers')) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = persons.actor->>'followers')) where notes.public = 0 and notes.author = $2 and persons.id = $2) notes left join (select id, actor from persons where actor->>'type' = 'Group') groups on groups.id = notes.groupid group by notes.id) order by inserted desc limit $3 offset $4`, actorString, actorID, postsPerPage, offset)
+		// users can see only public posts by others, posts to followers if following, and DMs
+		rows, err = r.Query(
+			`select u.object, $1, groups.actor from (
+				select object, inserted, groupid from notes
+				where public = 1 and author = $2
+				union
+				select object, inserted, groupid from notes
+				where (
+					author = $2 and (
+						$3 in (cc0, to0, cc1, to1, cc2, to2) or
+						(to2 is not null and exists (select 1 from json_each(object->'to') where value = $3)) or
+						(cc2 is not null and exists (select 1 from json_each(object->'cc') where value = $3))
+					)
+				)
+				union
+				select object, notes.inserted, groupid from notes
+				join persons on
+					persons.actor->>'followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = persons.actor->>'followers')) or
+					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = persons.actor->>'followers'))
+				where notes.public = 0 and
+					notes.author = $2 and
+					persons.id = $2 and
+					exists (select 1 from follows where follower = $3 and followed = $2 and accepted = 1)
+				order by inserted desc limit $4 offset $5
+			) u
+			left join (
+				select id, actor from persons where actor->>'type' = 'Group'
+			) groups on groups.id = u.groupid`,
+			actorString,
+			actorID,
+			r.User.ID,
+			postsPerPage,
+			offset,
+		)
 	}
 	if err != nil {
 		r.Log.Warn("Failed to fetch posts", "error", err)
