@@ -54,7 +54,8 @@ const (
 	maxUnackedChunks  = 8
 	reqTimeout        = time.Second * 30
 	maxSessions       = 32
-	resendInterval    = time.Second * 2
+	chunkTimeout      = time.Second * 2
+	retryInterval     = time.Millisecond * 100
 )
 
 func handle(ctx context.Context, log *slog.Logger, db *sql.DB, handler front.Handler, resolver *fed.Resolver, wg *sync.WaitGroup, from net.Addr, req []byte, acks <-chan []byte, done chan<- string, s net.PacketConn) {
@@ -124,70 +125,64 @@ func handle(ctx context.Context, log *slog.Logger, db *sql.DB, handler front.Han
 		chunks = append(chunks, responseChunk{Data: append([]byte(statusLine), chunk[:n]...), Seq: seq})
 	}
 
-	retry := time.NewTicker(resendInterval)
+	retry := time.NewTicker(retryInterval)
 	defer retry.Stop()
 
 	log.Debug("Sending response", "path", reqUrl.Path, "from", from, "first", chunks[0].Seq, "last", chunks[len(chunks)-1].Seq, "chunks", len(chunks))
 
-	send := true
+	firstTime := true
 
 	for {
-		select {
-		case <-ctx.Done():
-			log.Warn("Session timed out", "path", reqUrl.Path, "from", from)
-			return
-
-		case ack, ok := <-acks:
-			if !ok {
+		if !firstTime {
+			select {
+			case <-ctx.Done():
 				log.Warn("Session timed out", "path", reqUrl.Path, "from", from)
 				return
+
+			case ack, ok := <-acks:
+				if !ok {
+					log.Warn("Session timed out", "path", reqUrl.Path, "from", from)
+					return
+				}
+
+				var ackedSeq int
+				n, err := fmt.Sscanf(string(ack), "%d\r\n", &ackedSeq)
+				if err != nil {
+					log.Debug("Received invalid ack", "path", reqUrl.Path, "from", from, "ack", string(ack), "error", err)
+					continue
+				}
+				if n < 1 {
+					log.Debug("Received invalid ack", "path", reqUrl.Path, "from", from, "ack", string(ack))
+					continue
+				}
+
+				i := ackedSeq - chunks[0].Seq
+				if i < 0 || i >= len(chunks) {
+					log.Debug("Received invalid ack", "path", reqUrl.Path, "from", from, "ack", string(ack))
+					continue
+				}
+
+				if chunks[i].Acked {
+					log.Debug("Received duplicate ack", "path", reqUrl.Path, "from", from, "acked", ackedSeq)
+					continue
+				}
+
+				log.Debug("Marking packet as received", "path", reqUrl.Path, "from", from, "acked", ackedSeq)
+				chunks[i].Acked = true
+
+				// stop if the acked packet is the EOF packet
+				if i == len(chunks)-1 {
+					return
+				}
+
+			case <-retry.C:
 			}
-
-			var ackedSeq int
-			n, err := fmt.Sscanf(string(ack), "%d\r\n", &ackedSeq)
-			if err != nil {
-				log.Debug("Received invalid ack", "path", reqUrl.Path, "from", from, "ack", string(ack), "error", err)
-				continue
-			}
-			if n < 1 {
-				log.Debug("Received invalid ack", "path", reqUrl.Path, "from", from, "ack", string(ack))
-				continue
-			}
-
-			i := ackedSeq - chunks[0].Seq
-			if i < 0 || i >= len(chunks) {
-				log.Debug("Received invalid ack", "path", reqUrl.Path, "from", from, "ack", string(ack))
-				continue
-			}
-
-			if chunks[i].Acked {
-				log.Debug("Received duplicate ack", "path", reqUrl.Path, "from", from, "acked", ackedSeq)
-				continue
-			}
-
-			log.Debug("Marking packet as received", "path", reqUrl.Path, "from", from, "acked", ackedSeq)
-			chunks[i].Acked = true
-
-			// stop if the acked packet is the EOF packet
-			if i == len(chunks)-1 {
-				return
-			}
-
-			send = true
-			retry.Reset(resendInterval)
-
-		case <-retry.C:
-			send = true
-		}
-
-		if !send {
-			continue
 		}
 
 		now := time.Now()
 		sent := 0
 		for i := range chunks {
-			if chunks[i].Acked || now.Sub(chunks[i].Sent) <= resendInterval {
+			if chunks[i].Acked || now.Sub(chunks[i].Sent) <= chunkTimeout {
 				continue
 			}
 			if sent == maxUnackedChunks {
@@ -203,7 +198,7 @@ func handle(ctx context.Context, log *slog.Logger, db *sql.DB, handler front.Han
 			sent++
 		}
 
-		send = false
+		firstTime = false
 	}
 }
 
