@@ -35,14 +35,14 @@ func Wrap(w io.Writer, seq int) *Writer {
 func (w *Writer) Status(code int, meta string) {
 	if code == w.seq {
 		fmt.Fprintf(w, "%d %s\r\n", code, meta)
-	} else if code == 0 || code == 1 {
+	} else if code == 3 || code == 4 {
 		fmt.Fprintf(w, "%d %s\r\n", code, meta)
 		w.Writer = gmi.Wrap(io.Discard)
 	} else if code == 10 {
 		fmt.Fprintf(w, "1 Input required: %s\r\n", meta)
 		w.Writer = gmi.Wrap(io.Discard)
 	} else {
-		fmt.Fprintf(w, "1 %s\r\n", meta)
+		fmt.Fprintf(w, "4 %s\r\n", meta)
 		w.Writer = gmi.Wrap(io.Discard)
 	}
 }
@@ -56,15 +56,15 @@ func (w *Writer) OK() {
 }
 
 func (w *Writer) Error() {
-	w.Status(1, "Error")
+	w.Status(4, "Error")
 }
 
 func (w *Writer) Redirect(link string) {
-	w.Status(0, link)
+	w.Status(3, link)
 }
 
 func (w *Writer) Redirectf(format string, a ...any) {
-	w.Statusf(0, format, a...)
+	w.Statusf(3, format, a...)
 }
 
 func (w *Writer) Clone(w2 io.Writer) text.Writer {

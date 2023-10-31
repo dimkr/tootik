@@ -74,15 +74,15 @@ func handle(ctx context.Context, log *slog.Logger, db *sql.DB, handler front.Han
 		return
 	}
 
-	seq := 2 + rand.Intn(math.MaxInt16/2)
+	seq := 6 + rand.Intn(math.MaxInt16/2)
 
 	var buf bytes.Buffer
 	w := guppy.Wrap(&buf, seq)
 
 	if reqUrl.Host != cfg.Domain {
-		w.Status(1, "Wrong host")
+		w.Status(4, "Wrong host")
 	} else {
-		log.Info("Handling request", "path", reqUrl.Path, "from", from)
+		log.Info("Handling request", "path", reqUrl.Path, "url", reqUrl.String(), "from", from)
 		handler.Handle(ctx, log, w, reqUrl, nil, db, resolver, wg)
 	}
 
@@ -106,7 +106,7 @@ func handle(ctx context.Context, log *slog.Logger, db *sql.DB, handler front.Han
 	// fix the sequence number if the response is cached
 	// TODO: something less ugly
 	space := bytes.IndexByte(chunk[:n], ' ')
-	if string(chunk[:space]) != "0" && string(chunk[:space]) != "1" {
+	if string(chunk[:space]) != "1" && string(chunk[:space]) != "3" && string(chunk[:space]) != "4" {
 		chunks[0].Data = append([]byte(fmt.Sprintf("%d", seq)), chunk[space:n]...)
 	}
 
