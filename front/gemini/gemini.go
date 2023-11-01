@@ -67,7 +67,7 @@ func getUser(ctx context.Context, db *sql.DB, conn net.Conn, tlsConn *tls.Conn, 
 	return &actor, nil
 }
 
-func handle(ctx context.Context, handler front.Handler, conn net.Conn, db *sql.DB, resolver *fed.Resolver, wg *sync.WaitGroup, log *slog.Logger) {
+func Handle(ctx context.Context, handler front.Handler, conn net.Conn, db *sql.DB, resolver *fed.Resolver, wg *sync.WaitGroup, log *slog.Logger) {
 	if err := conn.SetDeadline(time.Now().Add(reqTimeout)); err != nil {
 		log.Warn("Failed to set deadline", "error", err)
 		return
@@ -187,7 +187,7 @@ func ListenAndServe(ctx context.Context, log *slog.Logger, db *sql.DB, handler f
 
 			wg.Add(1)
 			go func() {
-				handle(requestCtx, handler, conn, db, resolver, &wg, log)
+				Handle(requestCtx, handler, conn, db, resolver, &wg, log)
 				conn.Close()
 				timer.Stop()
 				cancelRequest()
