@@ -444,11 +444,11 @@ func TestRegister_Throttling(t *testing.T) {
 	defer tlsListener.Close()
 
 	for _, data := range []struct {
-		clientCfg tls.Config
+		clientCfg *tls.Config
 		pattern   string
 	}{
-		{erinCfg, "^30 /users\r\n$"},
-		{davidCfg, "^40 Registration is closed for .+\r\n$"},
+		{&erinCfg, "^30 /users\r\n$"},
+		{&davidCfg, "^40 Registration is closed for .+\r\n$"},
 	} {
 		unixReader, err := net.Dial("unix", socketPath)
 		assert.NoError(err)
@@ -457,7 +457,7 @@ func TestRegister_Throttling(t *testing.T) {
 		tlsWriter, err := tlsListener.Accept()
 		assert.NoError(err)
 
-		tlsReader := tls.Client(unixReader, &data.clientCfg)
+		tlsReader := tls.Client(unixReader, data.clientCfg)
 		defer tlsReader.Close()
 
 		var wg sync.WaitGroup
@@ -531,11 +531,11 @@ func TestRegister_Throttling30Minutes(t *testing.T) {
 	defer tlsListener.Close()
 
 	for _, data := range []struct {
-		clientCfg tls.Config
+		clientCfg *tls.Config
 		pattern   string
 	}{
-		{erinCfg, "^30 /users\r\n$"},
-		{davidCfg, "^40 Registration is closed for .+\r\n$"},
+		{&erinCfg, "^30 /users\r\n$"},
+		{&davidCfg, "^40 Registration is closed for .+\r\n$"},
 	} {
 		unixReader, err := net.Dial("unix", socketPath)
 		assert.NoError(err)
@@ -544,7 +544,7 @@ func TestRegister_Throttling30Minutes(t *testing.T) {
 		tlsWriter, err := tlsListener.Accept()
 		assert.NoError(err)
 
-		tlsReader := tls.Client(unixReader, &data.clientCfg)
+		tlsReader := tls.Client(unixReader, data.clientCfg)
 		defer tlsReader.Close()
 
 		var wg sync.WaitGroup
@@ -621,11 +621,11 @@ func TestRegister_Throttling1Hour(t *testing.T) {
 	defer tlsListener.Close()
 
 	for _, data := range []struct {
-		clientCfg tls.Config
+		clientCfg *tls.Config
 		pattern   string
 	}{
-		{erinCfg, "^30 /users\r\n$"},
-		{davidCfg, "^30 /users\r\n$"},
+		{&erinCfg, "^30 /users\r\n$"},
+		{&davidCfg, "^30 /users\r\n$"},
 	} {
 		unixReader, err := net.Dial("unix", socketPath)
 		assert.NoError(err)
@@ -634,7 +634,7 @@ func TestRegister_Throttling1Hour(t *testing.T) {
 		tlsWriter, err := tlsListener.Accept()
 		assert.NoError(err)
 
-		tlsReader := tls.Client(unixReader, &data.clientCfg)
+		tlsReader := tls.Client(unixReader, data.clientCfg)
 		defer tlsReader.Close()
 
 		var wg sync.WaitGroup
