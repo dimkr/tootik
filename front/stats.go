@@ -74,7 +74,7 @@ func getUsersGraph(r *request) string {
 func getInstancesGraph(r *request) string {
 	keys := make([]string, 7)
 	values := make([]int64, 7)
-	return getGraph(r, `select strftime('%Y-%m-%d', datetime(days.day, 'unixepoch')), count(*) from (select substr(substr(persons.id, 9), 1, instr(substr(persons.id, 9), '/')-1) as host, min(inserted/(60*60*24)*60*60*24) as day from persons group by host) hosts join (select distinct inserted/(60*60*24)*60*60*24 as day from persons where inserted>unixepoch()-60*60*24*7 and inserted<unixepoch()/(60*60*24)*60*60*24) days on hosts.day < days.day group by days.day`, keys, values)
+	return getGraph(r, `select strftime('%Y-%m-%d', datetime(days.day, 'unixepoch')), count(*) from (select host, min(inserted/(60*60*24)*60*60*24) as day from persons group by host) hosts join (select distinct inserted/(60*60*24)*60*60*24 as day from persons where inserted>unixepoch()-60*60*24*7 and inserted<unixepoch()/(60*60*24)*60*60*24) days on hosts.day < days.day group by days.day`, keys, values)
 }
 
 func getActiveUsersGraph(r *request) string {

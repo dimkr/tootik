@@ -19,13 +19,17 @@ package front
 import (
 	"crypto/sha256"
 	"crypto/tls"
+	"database/sql"
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/user"
 	"net/url"
 	"regexp"
+	"time"
 )
+
+const registrationInterval = time.Hour
 
 var userNameRegex = regexp.MustCompile(`^[a-zA-Z0-9-_]{4,32}$`)
 
@@ -101,6 +105,21 @@ func register(w text.Writer, r *request) {
 		r.Log.Warn("Username is already taken", "name", userName)
 		w.Statusf(10, "%s is already taken, enter user name", userName)
 		return
+	}
+
+	var lastRegister sql.NullInt64
+	if err := r.QueryRow(`select max(inserted) from persons where host = ?`, cfg.Domain).Scan(&lastRegister); err != nil {
+		r.Log.Warn("Failed to check last registration time", "name", userName, "error", err)
+		w.Error()
+		return
+	}
+
+	if lastRegister.Valid {
+		elapsed := time.Now().Sub(time.Unix(lastRegister.Int64, 0))
+		if elapsed < registrationInterval {
+			w.Statusf(40, "Registration is closed for %s", (registrationInterval - elapsed).Truncate(time.Second).String())
+			return
+		}
 	}
 
 	r.Log.Info("Creating new user", "name", userName)
