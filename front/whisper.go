@@ -27,5 +27,16 @@ func whisper(w text.Writer, r *request) {
 
 	to.Add(r.User.Followers)
 
+	var followed int
+	if err := r.QueryRow(`select exists (select 1 from follows where followed = ? and accepted = 1)`, r.User.ID).Scan(&followed); err != nil {
+		r.Log.Error("Failed to check if user is followed", "error", err)
+		w.Error()
+		return
+	}
+	if followed == 0 {
+		w.Statusf(40, "Users without followers can publish only public posts")
+		return
+	}
+
 	post(w, r, nil, to, cc, "Post content")
 }

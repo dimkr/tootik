@@ -45,11 +45,24 @@ func TestWhisper_HappyFlow(t *testing.T) {
 	assert.NotContains(local, "Hello world")
 }
 
+func TestWhisper_NoFollowers(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
+	assert.Equal("40 Users without followers can publish only public posts\r\n", whisper)
+}
+
 func TestWhisper_FollowAfterPost(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
 	assert := assert.New(t)
+
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Carol)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), follow)
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
 	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", whisper)
@@ -57,7 +70,7 @@ func TestWhisper_FollowAfterPost(t *testing.T) {
 	view := server.Handle(whisper[3:len(whisper)-2], server.Bob)
 	assert.Equal("40 Post not found\r\n", view)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
+	follow = server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), follow)
 
 	view = server.Handle(whisper[3:len(whisper)-2], server.Bob)

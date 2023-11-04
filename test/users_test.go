@@ -109,7 +109,10 @@ func TestUsers_NewPostInFollowedGroup(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Carol)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+
+	follow = server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
 	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
 
 	users := server.Handle("/users", server.Alice)
@@ -126,11 +129,17 @@ func TestUsers_NewPostInFollowedGroup(t *testing.T) {
 	today := server.Handle("/users/inbox/today", server.Alice)
 	assert.Contains(today, "Hello people in @people@other.localdomain")
 
-	users = server.Handle("/users", server.Carol)
-	assert.Contains(users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(users, "1 post")
+	local := server.Handle("/users/local", server.Alice)
+	assert.NotContains(local, "Hello people in @people@other.localdomain")
 
-	local := server.Handle("/users/local", server.Carol)
+	users = server.Handle("/users", server.Carol)
+	assert.NotContains(users, "Nothing to see! Are you following anyone?")
+	assert.Contains(users, "1 post")
+
+	today = server.Handle("/users/inbox/today", server.Carol)
+	assert.Contains(today, "Hello people in @people@other.localdomain")
+
+	local = server.Handle("/users/local", server.Carol)
 	assert.NotContains(local, "Hello people in @people@other.localdomain")
 }
 

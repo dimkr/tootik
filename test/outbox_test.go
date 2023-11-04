@@ -108,6 +108,9 @@ func TestOutbox_PostToFollowersNotFollowing(t *testing.T) {
 
 	assert := assert.New(t)
 
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Carol)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), follow)
+
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
 	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", whisper)
 
@@ -122,6 +125,9 @@ func TestOutbox_PostToFollowersUnauthentictedUser(t *testing.T) {
 
 	assert := assert.New(t)
 
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), follow)
+
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
 	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", whisper)
 
@@ -135,6 +141,9 @@ func TestOutbox_PostToFollowersSelf(t *testing.T) {
 	defer server.Shutdown()
 
 	assert := assert.New(t)
+
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), follow)
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
 	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", whisper)
@@ -265,7 +274,10 @@ func TestOutbox_PostToFollowersInGroup(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Carol)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), follow)
+
+	follow = server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
 	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
 
 	follow = server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Bob)
@@ -295,7 +307,10 @@ func TestOutbox_PostToFollowersInGroupNotFollowingGroup(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Carol)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), follow)
+
+	follow = server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
 	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)
@@ -323,7 +338,10 @@ func TestOutbox_PostToFollowersInGroupNotAccepted(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Carol)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), follow)
+
+	follow = server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
 	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)
@@ -354,7 +372,10 @@ func TestOutbox_PostToFollowersInGroupFollowingAuthor(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Carol)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), follow)
+
+	follow = server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
 	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)
@@ -384,6 +405,9 @@ func TestOutbox_PostToFollowersInGroupUnauthenticatedUser(t *testing.T) {
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
+
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Carol)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), follow)
 
 	whisper := server.Handle("/users/whisper?Hello%20people%20in%20%40people%40other.localdomain", server.Alice)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)

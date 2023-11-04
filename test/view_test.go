@@ -413,28 +413,10 @@ func TestView_PostToFollowers(t *testing.T) {
 	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), follow)
 
-	say := server.Handle("/users/whisper?Hello%20world", server.Alice)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", say)
+	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
+	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
-	hash := say[15 : len(say)-2]
-
-	view := server.Handle("/users/view/"+hash, server.Bob)
-	assert.Contains(view, "Hello world")
-}
-
-func TestView_PostToFollowersPostBeforeFollow(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
-
-	assert := assert.New(t)
-
-	say := server.Handle("/users/whisper?Hello%20world", server.Alice)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", say)
-
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), follow)
-
-	hash := say[15 : len(say)-2]
+	hash := whisper[15 : len(whisper)-2]
 
 	view := server.Handle("/users/view/"+hash, server.Bob)
 	assert.Contains(view, "Hello world")
@@ -449,10 +431,10 @@ func TestView_PostToFollowersUnfollow(t *testing.T) {
 	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), follow)
 
-	say := server.Handle("/users/whisper?Hello%20world", server.Alice)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", say)
+	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
+	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
-	hash := say[15 : len(say)-2]
+	hash := whisper[15 : len(whisper)-2]
 
 	view := server.Handle("/users/view/"+hash, server.Bob)
 	assert.Contains(view, "Hello world")
@@ -470,10 +452,13 @@ func TestView_PostToFollowersNotFollowing(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/whisper?Hello%20world", server.Alice)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", say)
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Carol)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), follow)
 
-	hash := say[15 : len(say)-2]
+	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
+	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+
+	hash := whisper[15 : len(whisper)-2]
 
 	view := server.Handle("/users/view/"+hash, server.Bob)
 	assert.Equal("40 Post not found\r\n", view)
@@ -491,10 +476,10 @@ func TestView_PostToFollowersWithReply(t *testing.T) {
 	follow = server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Carol)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), follow)
 
-	say := server.Handle("/users/whisper?Hello%20world", server.Alice)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", say)
+	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
+	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
-	hash := say[15 : len(say)-2]
+	hash := whisper[15 : len(whisper)-2]
 
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Alice", hash), server.Bob)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)

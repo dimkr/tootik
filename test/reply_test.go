@@ -125,6 +125,9 @@ func TestReply_PostToFollowersNotFollowing(t *testing.T) {
 
 	assert := assert.New(t)
 
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Carol)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
@@ -233,7 +236,10 @@ func TestReply_PostToFollowersInFollowedGroup(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Carol)
+	assert.Regexp("^30 /users/outbox/[0-9a-f]{64}\r\n$", follow)
+
+	follow = server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
 	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)

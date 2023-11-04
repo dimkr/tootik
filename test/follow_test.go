@@ -57,10 +57,13 @@ func TestFollow_PostToFollowersBeforeFollow(t *testing.T) {
 	assert.Contains(users, "Nothing to see! Are you following anyone?")
 	assert.NotContains(users, "1 post")
 
+	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Carol)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
+	follow = server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
 
 	users = server.Handle("/users", server.Alice)
