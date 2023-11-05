@@ -265,7 +265,7 @@ loop:
 			}
 			if len(sessions) > maxSessions {
 				log.Warn("Too many sessions")
-				l.WriteTo([]byte("1 Too many sessions\r\n"), pkt.From)
+				l.WriteTo([]byte("4 Too many sessions\r\n"), pkt.From)
 				continue
 			}
 
