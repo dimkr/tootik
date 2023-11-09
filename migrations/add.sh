@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-last=`ls migrations/[0-9][0-9][0-9]_*.go | sort -n | tail -n 1 | cut -f 2 -d / | cut -f 1 -d _`
+last=`ls migrations/[0-9][0-9][0-9]_*.go | sort -n | tail -n 1 | cut -f 2 -d / | cut -f 1 -d _ | sed 's/^0*//g'`
 new=migrations/`printf "%03d" $(($last+1))`_$1.go
 
 echo "Creating $new"
