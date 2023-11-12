@@ -87,8 +87,12 @@ func Create(ctx context.Context, db *sql.DB, id, name, certHash string) (*ap.Act
 			MediaType: icon.MediaType,
 			URL:       fmt.Sprintf("https://%s/icon/%s%s", cfg.Domain, name, icon.FileNameExtension),
 		},
-		Inbox:     fmt.Sprintf("https://%s/inbox/%s", cfg.Domain, name),
-		Outbox:    fmt.Sprintf("https://%s/outbox/%s", cfg.Domain, name),
+		Inbox:  fmt.Sprintf("https://%s/inbox/%s", cfg.Domain, name),
+		Outbox: fmt.Sprintf("https://%s/outbox/%s", cfg.Domain, name),
+		// use nobody's inbox as a shared inbox
+		Endpoints: map[string]string{
+			"sharedInbox": fmt.Sprintf("https://%s/inbox/nobody", cfg.Domain),
+		},
 		Followers: fmt.Sprintf("https://%s/followers/%s", cfg.Domain, name),
 		PublicKey: ap.PublicKey{
 			ID:           fmt.Sprintf("https://%s/user/%s#main-key", cfg.Domain, name),

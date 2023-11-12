@@ -129,10 +129,12 @@ func deliver(ctx context.Context, log *slog.Logger, db *sql.DB, activity *ap.Act
 		})
 	}
 
+	isPublic := activity.IsPublic()
+
 	actorIDs := data.OrderedMap[string, struct{}]{}
 
 	// list the actor's federated followers if we're forwarding an activity by another actor, or if addressed by actor
-	if isForwarded || (activity.Actor == actor.ID && (activity.IsPublic() || recipients.Contains(actor.Followers))) {
+	if isForwarded || (activity.Actor == actor.ID && (isPublic || recipients.Contains(actor.Followers))) {
 		followers, err := db.QueryContext(ctx, `select distinct follower from follows where followed = ? and follower not like ? and accepted = 1`, actor.ID, fmt.Sprintf("https://%s/%%", cfg.Domain))
 		if err != nil {
 			log.Warn("Failed to list followers", "activity", activity.ID, "error", err)
@@ -166,24 +168,47 @@ func deliver(ctx context.Context, log *slog.Logger, db *sql.DB, activity *ap.Act
 
 	prefix := fmt.Sprintf("https://%s/", cfg.Domain)
 
+	sent := map[string]struct{}{}
+
 	actorIDs.Range(func(actorID string, _ struct{}) bool {
 		if actorID == author || actorID == ap.Public || strings.HasPrefix(actorID, prefix) {
 			log.Debug("Skipping recipient", "to", actorID, "activity", activity.ID)
 			return true
 		}
 
-		log.Info("Delivering activity to recipient", "to", actorID, "activity", activity.ID)
-
-		if to, err := resolver.Resolve(ctx, log, db, actor, actorID, false); err != nil {
+		to, err := resolver.Resolve(ctx, log, db, actor, actorID, false)
+		if err != nil {
 			log.Warn("Failed to resolve a recipient", "to", actorID, "activity", activity.ID, "error", err)
 			if !errors.Is(err, ErrActorGone) && !errors.Is(err, ErrBlockedDomain) {
 				anyFailed = true
 			}
-		} else if err := Send(ctx, log, db, actor, resolver, to, rawActivity); err != nil {
+			return true
+		}
+
+		// if this is a public post, use the recipients's shared inbox and skip other recipients with the same shared inbox
+		inbox := to.Inbox
+		if isPublic {
+			if sharedInbox, ok := to.Endpoints["sharedInbox"]; ok && sharedInbox != "" {
+				log.Debug("Using shared inbox inbox", "to", actorID, "activity", activity.ID, "shared_inbox", inbox)
+				inbox = sharedInbox
+			}
+		}
+
+		if _, ok := sent[inbox]; ok {
+			log.Info("Skipping recipient with shared inbox", "to", actorID, "activity", activity.ID, "inbox", inbox)
+			return true
+		}
+
+		sent[inbox] = struct{}{}
+
+		log.Info("Delivering activity to recipient", "to", actorID, "inbox", inbox, "activity", activity.ID)
+
+		if err := Send(ctx, log, db, actor, resolver, inbox, rawActivity); err != nil {
 			log.Warn("Failed to send an activity", "to", actorID, "activity", activity.ID, "error", err)
 			if !errors.Is(err, ErrBlockedDomain) {
 				anyFailed = true
 			}
+			return true
 		}
 
 		return true
