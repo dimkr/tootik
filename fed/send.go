@@ -119,18 +119,18 @@ func send(log *slog.Logger, db *sql.DB, from *ap.Actor, resolver *Resolver, r *h
 	return resp, nil
 }
 
-func Send(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, resolver *Resolver, to *ap.Actor, body []byte) error {
-	if to.Inbox == "" {
-		return fmt.Errorf("Cannot send request to %s: no inbox link", to.ID)
+func Send(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, resolver *Resolver, inbox string, body []byte) error {
+	if inbox == "" {
+		return fmt.Errorf("Cannot send request to %s: empty URL", inbox)
 	}
 
-	r, err := http.NewRequestWithContext(ctx, http.MethodPost, to.Inbox, bytes.NewReader(body))
+	r, err := http.NewRequestWithContext(ctx, http.MethodPost, inbox, bytes.NewReader(body))
 	if err != nil {
-		return fmt.Errorf("Failed to send request to %s: %w", to.ID, err)
+		return fmt.Errorf("Failed to send request to %s: %w", inbox, err)
 	}
 
 	if r.URL.Host == cfg.Domain {
-		log.Info("Skipping request", "to", to.ID, "from", from.ID)
+		log.Info("Skipping request", "inbox", inbox, "from", from.ID)
 		return nil
 	}
 
@@ -138,15 +138,15 @@ func Send(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, res
 
 	resp, err := send(log, db, from, resolver, r)
 	if err != nil {
-		return fmt.Errorf("Failed to send request to %s: %w", to.ID, err)
+		return fmt.Errorf("Failed to send request to %s: %w", inbox, err)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("Failed to send request to %s: %w", to.ID, err)
+		return fmt.Errorf("Failed to send request to %s: %w", inbox, err)
 	}
 
-	log.Info("Successfully sent message", "to", to.ID, "body", string(respBody))
+	log.Info("Successfully sent message", "inbox", inbox, "body", string(respBody))
 	return nil
 }
