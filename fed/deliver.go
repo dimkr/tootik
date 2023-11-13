@@ -112,12 +112,10 @@ func deliverWithTimeout(parent context.Context, log *slog.Logger, db *sql.DB, re
 }
 
 func deliver(ctx context.Context, log *slog.Logger, db *sql.DB, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, resolver *Resolver) error {
-	isForwarded := activity.Actor != actor.ID
-
-	// deduplicate recipients
 	recipients := data.OrderedMap[string, struct{}]{}
 
-	if !isForwarded {
+	// deduplicate recipients or skip if we're forwarding an activity
+	if activity.Actor == actor.ID {
 		activity.To.Range(func(id string, _ struct{}) bool {
 			recipients.Store(id, struct{}{})
 			return true
@@ -129,12 +127,11 @@ func deliver(ctx context.Context, log *slog.Logger, db *sql.DB, activity *ap.Act
 		})
 	}
 
-	isPublic := activity.IsPublic()
-
 	actorIDs := data.OrderedMap[string, struct{}]{}
+	wideDelivery := activity.Actor != actor.ID || activity.IsPublic() || recipients.Contains(actor.Followers)
 
 	// list the actor's federated followers if we're forwarding an activity by another actor, or if addressed by actor
-	if isForwarded || (activity.Actor == actor.ID && (isPublic || recipients.Contains(actor.Followers))) {
+	if wideDelivery {
 		followers, err := db.QueryContext(ctx, `select distinct follower from follows where followed = ? and follower not like ? and accepted = 1`, actor.ID, fmt.Sprintf("https://%s/%%", cfg.Domain))
 		if err != nil {
 			log.Warn("Failed to list followers", "activity", activity.ID, "error", err)
@@ -185,9 +182,9 @@ func deliver(ctx context.Context, log *slog.Logger, db *sql.DB, activity *ap.Act
 			return true
 		}
 
-		// if this is a public post, use the recipients's shared inbox and skip other recipients with the same shared inbox
+		// if possible, use the recipients's shared inbox and skip other recipients with the same shared inbox
 		inbox := to.Inbox
-		if isPublic {
+		if wideDelivery {
 			if sharedInbox, ok := to.Endpoints["sharedInbox"]; ok && sharedInbox != "" {
 				log.Debug("Using shared inbox inbox", "to", actorID, "activity", activity.ID, "shared_inbox", inbox)
 				inbox = sharedInbox
