@@ -666,6 +666,22 @@ func TestPoll_LocalEmptyOption(t *testing.T) {
 	assert.Equal("40 Poll option cannot be empty\r\n", say)
 }
 
+func TestPoll_LocalOptionWithLink(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	say := server.Handle("/users/say?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20I%20prefer%20https%3a%2f%2flocalhost%20%7c%20I%20couldn%27t%20care%20less", server.Alice)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
+
+	view := server.Handle(say[3:len(say)-2], server.Bob)
+	assert.Contains(view, "So, polls on Station are pretty cool, right?")
+	assert.Contains(view, "Vote Nope")
+	assert.Contains(view, "Vote I prefer https://localhost")
+	assert.Contains(view, "Vote I couldn't care less")
+}
+
 func TestPoll_Local3OptionsAnd2Votes(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()

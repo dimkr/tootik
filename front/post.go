@@ -178,7 +178,9 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 		note.AnyOf = make([]ap.PollOption, len(optionNames))
 
 		for i, optionName := range optionNames {
-			note.AnyOf[i].Name = strings.TrimSpace(optionName)
+			plainName, _ := plain.FromHTML(optionName)
+			note.AnyOf[i].Name = strings.TrimSpace(plainName)
+
 			if note.AnyOf[i].Name == "" {
 				w.Status(40, "Poll option cannot be empty")
 				return
