@@ -163,6 +163,15 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 
 	name := path.Base(u.Path)
 
+	// strip the leading @ if URL follows the form https://a.b/@c
+	if name[0] == '@' {
+		name = name[1:]
+	}
+
+	if name == "" {
+		return nil, fmt.Errorf("Cannot resolve %s: empty name", to)
+	}
+
 	finger := fmt.Sprintf("%s://%s/.well-known/webfinger?resource=acct:%s@%s", u.Scheme, u.Host, name, u.Host)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, finger, nil)
