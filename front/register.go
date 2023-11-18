@@ -59,7 +59,7 @@ func register(w text.Writer, r *request) {
 	certHash := fmt.Sprintf("%x", sha256.Sum256(clientCert.Raw))
 
 	var taken int
-	if err := r.QueryRow(`select exists (select 1 from persons where id like ? and certhash = ?)`, fmt.Sprintf("https://%s/%%", cfg.Domain), certHash).Scan(&taken); err != nil {
+	if err := r.QueryRow(`select exists (select 1 from persons where host = ? and certhash = ?)`, cfg.Domain, certHash).Scan(&taken); err != nil {
 		r.Log.Warn("Failed to check if cerificate hash is already in use", "hash", certHash, "error", err)
 		w.Error()
 		return
