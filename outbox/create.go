@@ -33,12 +33,12 @@ import (
 
 const maxDeliveryQueueSize = 128
 
-var ErrDeliveryQueueFull = errors.New("Delivery queue is full")
+var ErrDeliveryQueueFull = errors.New("delivery queue is full")
 
 func Create(ctx context.Context, log *slog.Logger, db *sql.DB, post *ap.Object, author *ap.Actor) error {
 	var queueSize int
 	if err := db.QueryRowContext(ctx, `select count(*) from outbox where sent = 0 and attempts < ?`, fed.MaxDeliveryAttempts).Scan(&queueSize); err != nil {
-		return fmt.Errorf("Failed to query delivery queue size: %w", err)
+		return fmt.Errorf("failed to query delivery queue size: %w", err)
 	}
 
 	if queueSize >= maxDeliveryQueueSize {
@@ -55,25 +55,25 @@ func Create(ctx context.Context, log *slog.Logger, db *sql.DB, post *ap.Object, 
 		CC:      post.CC,
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to marshal Create: %w", err)
+		return fmt.Errorf("failed to marshal Create: %w", err)
 	}
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to begin transaction: %w", err)
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
 	if err := note.Insert(ctx, log, tx, post); err != nil {
-		return fmt.Errorf("Failed to insert note: %w", err)
+		return fmt.Errorf("failed to insert note: %w", err)
 	}
 
 	if _, err = tx.ExecContext(ctx, `insert into outbox (activity, sender) values(?,?)`, string(create), author.ID); err != nil {
-		return fmt.Errorf("Failed to insert Create: %w", err)
+		return fmt.Errorf("failed to insert Create: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("Failed to create note: %w", err)
+		return fmt.Errorf("failed to create note: %w", err)
 	}
 
 	return nil

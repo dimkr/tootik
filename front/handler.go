@@ -34,7 +34,7 @@ import (
 
 type Handler map[*regexp.Regexp]func(text.Writer, *request)
 
-var ErrNotRegistered = errors.New("User is not registered")
+var ErrNotRegistered = errors.New("user is not registered")
 
 func serveStaticFile(w text.Writer, r *request) {
 	w.OK()
@@ -105,7 +105,7 @@ func NewHandler() Handler {
 
 	h[regexp.MustCompile(`^/robots.txt$`)] = robots
 
-	for path, _ := range static.Files {
+	for path := range static.Files {
 		h[regexp.MustCompile(fmt.Sprintf(`^%s$`, path))] = withUserMenu(serveStaticFile)
 	}
 

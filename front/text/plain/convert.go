@@ -27,7 +27,6 @@ var (
 	spanTags          = regexp.MustCompile(`(?:<span(?:\s+[^>]*)*>)+`)
 	aTags             = regexp.MustCompile(`<a\s+(?:(?:[^>\s]+="[^"]*"\s+)*)href="([^"]*)"(?:\s*(?:\s+[^>\s]+="[^"]*")*\s*>)`)
 	mentionTags       = regexp.MustCompile(`<a\s+(?:[^\s<]+\s+)*class="(?:[^\s"]+\s+)*mention(?:\s+[^\s"]+)*"[^>]*>`)
-	hashtagTags       = regexp.MustCompile(`<a\s+(?:[^\s<]+\s+)*class="(?:[^\s"]+\s+)*hashtag(?:\s+[^\s"]+)*"[^>]*>`)
 	invisibleSpanTags = regexp.MustCompile(`<span class="invisible">[^<]*</span>`)
 	ellipsisSpanTags  = regexp.MustCompile(`<span class="ellipsis">[^<]*</span>`)
 	brTags            = regexp.MustCompile(`<(?:br\s*\/*|\/p)>`)
@@ -90,7 +89,7 @@ func getPlainLinks(text string) map[string]struct{} {
 }
 
 func ToHTML(text string) string {
-	for link, _ := range getPlainLinks(text) {
+	for link := range getPlainLinks(text) {
 		text = strings.ReplaceAll(text, link, fmt.Sprintf(`<a href="%s" target="_blank">%s</a>`, link, link))
 	}
 

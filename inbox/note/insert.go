@@ -50,7 +50,7 @@ func expand(aud ap.Audience, arr *[3]sql.NullString) {
 func Insert(ctx context.Context, log *slog.Logger, tx *sql.Tx, note *ap.Object) error {
 	body, err := json.Marshal(note)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal note %s: %w", note.ID, err)
+		return fmt.Errorf("failed to marshal note %s: %w", note.ID, err)
 	}
 
 	var to, cc [3]sql.NullString
@@ -96,7 +96,7 @@ func Insert(ctx context.Context, log *slog.Logger, tx *sql.Tx, note *ap.Object) 
 		cc[1],
 		cc[2],
 	); err != nil {
-		return fmt.Errorf("Failed to insert note %s: %w", note.ID, err)
+		return fmt.Errorf("failed to insert note %s: %w", note.ID, err)
 	}
 
 	if _, err = tx.ExecContext(ctx, `update notes SET groupid = (select id from persons where actor->>'type' = 'Group' and (id in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = persons.id)) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = persons.id)) limit 1) where id = ?`, note.ID); err != nil {
