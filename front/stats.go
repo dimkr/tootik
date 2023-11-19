@@ -70,10 +70,16 @@ func getUsersGraph(r *request) string {
 	return getGraph(r, `select strftime('%Y-%m-%d %H:%M', datetime(inserted*60*60, 'unixepoch')), count(*) from (select inserted/(60*60) as inserted from persons where inserted>unixepoch()-60*60*24 and inserted<unixepoch()/(60*60)*60*60) group by inserted order by inserted`, keys, values)
 }
 
-func getInstancesGraph(r *request) string {
+func getKnownInstancesGraph(r *request) string {
 	keys := make([]string, 7)
 	values := make([]int64, 7)
 	return getGraph(r, `select strftime('%Y-%m-%d', datetime(days.day, 'unixepoch')), count(*) from (select host, min(inserted/(60*60*24)*60*60*24) as day from persons group by host) hosts join (select distinct inserted/(60*60*24)*60*60*24 as day from persons where inserted>unixepoch()-60*60*24*7 and inserted<unixepoch()/(60*60*24)*60*60*24) days on hosts.day < days.day group by days.day`, keys, values)
+}
+
+func getActiveInstancesGraph(r *request) string {
+	keys := make([]string, 10)
+	values := make([]int64, 10)
+	return getGraph(r, `select host, (cast(round(avg(posts)) as int)) as daily from (select host, day, count(*) as posts from (select host, inserted/(60*60*24) as day from notes where inserted > unixepoch()-60*60*24*7) group by host, day) group by host order by daily desc limit 10`, keys, values)
 }
 
 func getActiveUsersGraph(r *request) string {
@@ -158,7 +164,8 @@ func stats(w text.Writer, r *request) {
 	weeklyFailedDeliveriesGraph := getWeeklyFailedDeliveriesGraph(r)
 	usersGraph := getUsersGraph(r)
 	activeUsersGraph := getActiveUsersGraph(r)
-	instancesGraph := getInstancesGraph(r)
+	knownInstancesGraph := getKnownInstancesGraph(r)
+	activeInstancesGraph := getActiveInstancesGraph(r)
 
 	w.OK()
 
@@ -194,9 +201,15 @@ func stats(w text.Writer, r *request) {
 		w.Empty()
 	}
 
-	if instancesGraph != "" {
+	if knownInstancesGraph != "" {
 		w.Subtitle("Connected Instances Per Day")
-		w.Raw("Weekly connected instances graph", instancesGraph)
+		w.Raw("Weekly connected instances graph", knownInstancesGraph)
+		w.Empty()
+	}
+
+	if activeInstancesGraph != "" {
+		w.Subtitle("Average Daily Posts By Instance")
+		w.Raw("Average daily posts graph", activeInstancesGraph)
 		w.Empty()
 	}
 
