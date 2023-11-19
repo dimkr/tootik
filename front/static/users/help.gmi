@@ -26,11 +26,11 @@ This page shows a list of users you follow, sorted by last activity.
 
 > 📡 This planet
 
-This page shows public posts published on this server, from latest to oldest.
+This page shows public posts published on this server.
 
 > ✨ FOMO from outer space
 
-This page shows public posts from the fediverse, from latest to oldest.
+This page shows public posts from the fediverse.
 
 > 🔭 Find user
 

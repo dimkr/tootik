@@ -9,11 +9,11 @@ This is an instance of tootik, a "slow", "boring" and non-addictive social netwo
 
 > 📡 This planet
 
-This page shows public posts published on this server, from latest to oldest.
+This page shows public posts published on this server.
 
 > ✨ FOMO from outer space
 
-This page shows public posts from the fediverse, from latest to oldest.
+This page shows public posts from the fediverse.
 
 > 🔥 Hashtags
 
