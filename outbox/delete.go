@@ -38,12 +38,12 @@ func Delete(ctx context.Context, db *sql.DB, note *ap.Object) error {
 		CC: note.CC,
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to marshal delete: %w", err)
+		return fmt.Errorf("failed to marshal delete: %w", err)
 	}
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to begin transaction: %w", err)
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
@@ -53,7 +53,7 @@ func Delete(ctx context.Context, db *sql.DB, note *ap.Object) error {
 		`UPDATE outbox SET sent = 1 WHERE activity->>'object.id' = ? and activity->>'type' = 'Create'`,
 		note.ID,
 	); err != nil {
-		return fmt.Errorf("Failed to insert delete activity: %w", err)
+		return fmt.Errorf("failed to insert delete activity: %w", err)
 	}
 
 	if _, err := tx.ExecContext(
@@ -61,7 +61,7 @@ func Delete(ctx context.Context, db *sql.DB, note *ap.Object) error {
 		`DELETE FROM notes WHERE id = ?`,
 		note.ID,
 	); err != nil {
-		return fmt.Errorf("Failed to delete note: %w", err)
+		return fmt.Errorf("failed to delete note: %w", err)
 	}
 
 	if _, err := tx.ExecContext(
@@ -69,7 +69,7 @@ func Delete(ctx context.Context, db *sql.DB, note *ap.Object) error {
 		`DELETE FROM outbox WHERE activity->>'object.id' = ?`,
 		note.ID,
 	); err != nil {
-		return fmt.Errorf("Failed to delete activities: %w", err)
+		return fmt.Errorf("failed to delete activities: %w", err)
 	}
 
 	if _, err := tx.ExecContext(
@@ -78,11 +78,11 @@ func Delete(ctx context.Context, db *sql.DB, note *ap.Object) error {
 		string(delete),
 		note.AttributedTo,
 	); err != nil {
-		return fmt.Errorf("Failed to insert delete activity: %w", err)
+		return fmt.Errorf("failed to insert delete activity: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("Failed to delete note: %w", err)
+		return fmt.Errorf("failed to delete note: %w", err)
 	}
 
 	return nil

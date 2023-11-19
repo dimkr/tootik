@@ -54,14 +54,14 @@ func getUser(ctx context.Context, db *sql.DB, conn net.Conn, tlsConn *tls.Conn, 
 	if err := db.QueryRowContext(ctx, `select id, actor from persons where id like ? and certhash = ?`, fmt.Sprintf("https://%s/user/%%", cfg.Domain), certHash).Scan(&id, &actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
 		return nil, front.ErrNotRegistered
 	} else if err != nil {
-		return nil, fmt.Errorf("Failed to fetch user for %s: %w", certHash, err)
+		return nil, fmt.Errorf("failed to fetch user for %s: %w", certHash, err)
 	}
 
 	log.Debug("Found existing user", "hash", certHash, "user", id)
 
 	actor := ap.Actor{}
 	if err := json.Unmarshal([]byte(actorString), &actor); err != nil {
-		return nil, fmt.Errorf("Failed to unmarshal %s: %w", id, err)
+		return nil, fmt.Errorf("failed to unmarshal %s: %w", id, err)
 	}
 
 	return &actor, nil

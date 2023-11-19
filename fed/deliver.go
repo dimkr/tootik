@@ -60,7 +60,7 @@ func processQueue(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *R
 
 	rows, err := db.QueryContext(ctx, `select outbox.attempts, outbox.activity, persons.actor from outbox join persons on persons.id = outbox.sender where outbox.sent = 0 and (outbox.attempts = 0 or (outbox.attempts < ? and outbox.last <= unixepoch() - ?)) order by outbox.attempts asc, outbox.last asc limit ?`, MaxDeliveryAttempts, deliveryRetryInterval, batchSize)
 	if err != nil {
-		return fmt.Errorf("Failed to fetch posts to deliver: %w", err)
+		return fmt.Errorf("failed to fetch posts to deliver: %w", err)
 	}
 	defer rows.Close()
 
@@ -212,7 +212,7 @@ func deliver(ctx context.Context, log *slog.Logger, db *sql.DB, activity *ap.Act
 	})
 
 	if anyFailed {
-		return fmt.Errorf("Failed to deliver activity %s to at least one recipient", activity.ID)
+		return fmt.Errorf("failed to deliver activity %s to at least one recipient", activity.ID)
 	}
 
 	return nil

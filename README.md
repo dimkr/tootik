@@ -41,6 +41,7 @@ or, to build a static executable:
   * fed/icon/ generates pseudo-random icons used as avatars.
 
 * front/ implements the frontend.
+  * front/static/ contains static content like the help page.
   * text/text/plain/ converts HTML to plain text.
   * text/text/gmi/ contains a gemtext writer.
   * text/text/gmap/ contains a gophermap writer with line wrapping.

@@ -29,7 +29,6 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/go-fed/httpsig"
 	"io"
-	"io/ioutil"
 	"log/slog"
 	"net/http"
 	"time"
@@ -39,21 +38,22 @@ func send(log *slog.Logger, db *sql.DB, from *ap.Actor, resolver *Resolver, r *h
 	urlString := r.URL.String()
 
 	if r.URL.Scheme != "https" {
-		return nil, fmt.Errorf("Invalid scheme in %s: %s", urlString, r.URL.Scheme)
+		return nil, fmt.Errorf("invalid scheme in %s: %s", urlString, r.URL.Scheme)
 	}
 
 	if r.URL.Host == "localhost" || r.URL.Host == "localhost.localdomain" || r.URL.Host == "127.0.0.1" || r.URL.Host == "::1" {
-		return nil, fmt.Errorf("Invalid host in %s: %s", urlString, r.URL.Host)
+		return nil, fmt.Errorf("invalid host in %s: %s", urlString, r.URL.Host)
 	}
-
-	log.Debug("Sending request", "url", urlString, "from", from.ID)
 
 	r.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
-	if from != nil {
+	if from == nil {
+		log.Debug("Sending request", "url", urlString)
+	} else {
+		log.Debug("Sending request", "url", urlString, "from", from.ID)
 		var publicKeyID, privateKeyPemString string
 		if err := db.QueryRowContext(r.Context(), `select actor->>'publicKey.id', privkey from persons where id = ?`, from.ID).Scan(&publicKeyID, &privateKeyPemString); err != nil {
-			return nil, fmt.Errorf("Failed to fetch key for %s: %w", from.ID, err)
+			return nil, fmt.Errorf("failed to fetch key for %s: %w", from.ID, err)
 		}
 
 		signer, _, err := httpsig.NewSigner(
@@ -64,7 +64,7 @@ func send(log *slog.Logger, db *sql.DB, from *ap.Actor, resolver *Resolver, r *h
 			int64(time.Hour*12/time.Second),
 		)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to sign body for %s: %w", urlString, err)
+			return nil, fmt.Errorf("failed to sign body for %s: %w", urlString, err)
 		}
 
 		var body []byte
@@ -75,7 +75,7 @@ func send(log *slog.Logger, db *sql.DB, from *ap.Actor, resolver *Resolver, r *h
 		} else {
 			body, err = io.ReadAll(r.Body)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to read body for %s: %w", urlString, err)
+				return nil, fmt.Errorf("failed to read body for %s: %w", urlString, err)
 			}
 
 			r.Body = io.NopCloser(bytes.NewReader(body))
@@ -89,7 +89,7 @@ func send(log *slog.Logger, db *sql.DB, from *ap.Actor, resolver *Resolver, r *h
 			// fallback for openssl<3.0.0
 			privateKey, err = x509.ParsePKCS1PrivateKey(privateKeyPem.Bytes)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to sign body for %s: %w", urlString, err)
+				return nil, fmt.Errorf("failed to sign body for %s: %w", urlString, err)
 			}
 		}
 
@@ -98,22 +98,22 @@ func send(log *slog.Logger, db *sql.DB, from *ap.Actor, resolver *Resolver, r *h
 		r.Header.Add("Host", r.URL.Host)
 
 		if err := signer.SignRequest(privateKey, publicKeyID, r, nil); err != nil {
-			return nil, fmt.Errorf("Failed to sign request for %s: %w", urlString, err)
+			return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
 		}
 	}
 
 	resp, err := resolver.Client.Do(r)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to send request to %s: %w", urlString, err)
+		return nil, fmt.Errorf("failed to send request to %s: %w", urlString, err)
 	}
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		body, err := ioutil.ReadAll(io.LimitReader(resp.Body, maxBodySize))
+		body, err := io.ReadAll(io.LimitReader(resp.Body, maxBodySize))
 		resp.Body.Close()
 		if err != nil {
-			return resp, fmt.Errorf("Failed to send request to %s: %d, %w", urlString, resp.StatusCode, err)
+			return resp, fmt.Errorf("failed to send request to %s: %d, %w", urlString, resp.StatusCode, err)
 		}
-		return resp, fmt.Errorf("Failed to send request to %s: %d, %s", urlString, resp.StatusCode, string(body))
+		return resp, fmt.Errorf("failed to send request to %s: %d, %s", urlString, resp.StatusCode, string(body))
 	}
 
 	return resp, nil
@@ -121,12 +121,12 @@ func send(log *slog.Logger, db *sql.DB, from *ap.Actor, resolver *Resolver, r *h
 
 func Send(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, resolver *Resolver, inbox string, body []byte) error {
 	if inbox == "" {
-		return fmt.Errorf("Cannot send request to %s: empty URL", inbox)
+		return fmt.Errorf("cannot send request to %s: empty URL", inbox)
 	}
 
 	r, err := http.NewRequestWithContext(ctx, http.MethodPost, inbox, bytes.NewReader(body))
 	if err != nil {
-		return fmt.Errorf("Failed to send request to %s: %w", inbox, err)
+		return fmt.Errorf("failed to send request to %s: %w", inbox, err)
 	}
 
 	if r.URL.Host == cfg.Domain {
@@ -138,13 +138,13 @@ func Send(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, res
 
 	resp, err := send(log, db, from, resolver, r)
 	if err != nil {
-		return fmt.Errorf("Failed to send request to %s: %w", inbox, err)
+		return fmt.Errorf("failed to send request to %s: %w", inbox, err)
 	}
 	defer resp.Body.Close()
 
-	respBody, err := ioutil.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("Failed to send request to %s: %w", inbox, err)
+		return fmt.Errorf("failed to send request to %s: %w", inbox, err)
 	}
 
 	log.Info("Successfully sent message", "inbox", inbox, "body", string(respBody))

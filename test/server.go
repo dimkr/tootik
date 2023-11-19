@@ -110,5 +110,5 @@ func (s *server) Handle(request string, user *ap.Actor) string {
 	var wg sync.WaitGroup
 	s.handler.Handle(context.Background(), slog.Default(), gmi.Wrap(&buf), u, user, s.db, fed.NewResolver(nil), &wg)
 
-	return string(buf.Bytes())
+	return buf.String()
 }

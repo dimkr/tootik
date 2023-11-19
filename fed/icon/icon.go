@@ -44,7 +44,7 @@ func Generate(s string) ([]byte, error) {
 	bg := color.RGBA{255 - fg.R, 255 - fg.G, 255 - fg.B, 255}
 
 	m := image.NewPaletted(image.Rect(0, 0, 8, 8), color.Palette{bg, fg, alt})
-	draw.Draw(m, m.Bounds(), &image.Uniform{bg}, image.ZP, draw.Src)
+	draw.Draw(m, m.Bounds(), &image.Uniform{bg}, image.Point{}, draw.Src)
 
 	for i, b := range hash[:16] {
 		c := fg

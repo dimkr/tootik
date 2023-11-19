@@ -54,7 +54,7 @@ type Activity struct {
 	CC      Audience     `json:"cc,omitempty"`
 }
 
-var ErrInvalidActivity = errors.New("Invalid activity")
+var ErrInvalidActivity = errors.New("invalid activity")
 
 func (a *Activity) IsPublic() bool {
 	return a.To.Contains(Public) || a.CC.Contains(Public)

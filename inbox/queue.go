@@ -93,37 +93,37 @@ func forwardActivity(ctx context.Context, log *slog.Logger, tx *sql.Tx, activity
 func processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, req *ap.Activity, rawActivity []byte, post *ap.Object, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) error {
 	prefix := fmt.Sprintf("https://%s/", cfg.Domain)
 	if strings.HasPrefix(sender.ID, prefix) || strings.HasPrefix(post.ID, prefix) || strings.HasPrefix(post.AttributedTo, prefix) || strings.HasPrefix(req.Actor, prefix) {
-		return fmt.Errorf("Received invalid Create for %s by %s from %s", post.ID, post.AttributedTo, req.Actor)
+		return fmt.Errorf("received invalid Create for %s by %s from %s", post.ID, post.AttributedTo, req.Actor)
 	}
 
 	var duplicate int
 	if err := db.QueryRowContext(ctx, `select exists (select 1 from notes where id = ?)`, post.ID).Scan(&duplicate); err != nil {
-		return fmt.Errorf("Failed to check of %s is a duplicate: %w", post.ID, err)
+		return fmt.Errorf("failed to check of %s is a duplicate: %w", post.ID, err)
 	} else if duplicate == 1 {
 		log.Debug("Post is a duplicate")
 		return nil
 	}
 
 	if _, err := resolver.Resolve(ctx, log, db, from, post.AttributedTo, false); err != nil {
-		return fmt.Errorf("Failed to resolve %s: %w", post.AttributedTo, err)
+		return fmt.Errorf("failed to resolve %s: %w", post.AttributedTo, err)
 	}
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("Cannot insert %s: %w", post.ID, err)
+		return fmt.Errorf("cannot insert %s: %w", post.ID, err)
 	}
 	defer tx.Rollback()
 
 	if err := note.Insert(ctx, log, tx, post); err != nil {
-		return fmt.Errorf("Cannot insert %s: %w", post.ID, err)
+		return fmt.Errorf("cannot insert %s: %w", post.ID, err)
 	}
 
 	if err := forwardActivity(ctx, log, tx, req, rawActivity); err != nil {
-		return fmt.Errorf("Cannot forward %s: %w", post.ID, err)
+		return fmt.Errorf("cannot forward %s: %w", post.ID, err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("Cannot insert %s: %w", post.ID, err)
+		return fmt.Errorf("cannot insert %s: %w", post.ID, err)
 	}
 
 	log.Info("Received a new post")
@@ -159,56 +159,56 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			deleted = s
 		}
 		if deleted == "" {
-			return errors.New("Received an invalid delete request")
+			return errors.New("received an invalid delete request")
 		}
 
 		log.Info("Received delete request", "deleted", deleted)
 
 		if deleted == sender.ID {
 			if _, err := db.ExecContext(ctx, `delete from persons where id = ?`, deleted); err != nil {
-				return fmt.Errorf("Failed to delete person %s: %w", req.ID, err)
+				return fmt.Errorf("failed to delete person %s: %w", req.ID, err)
 			}
 		} else if _, err := db.ExecContext(ctx, `delete from notes where id = ? and author = ?`, deleted, sender.ID); err != nil {
-			return fmt.Errorf("Failed to delete posts by %s", req.ID)
+			return fmt.Errorf("failed to delete posts by %s", req.ID)
 		}
 
 	case ap.FollowActivity:
 		if sender.ID != req.Actor {
-			return errors.New("Received unauthorized follow request")
+			return errors.New("received unauthorized follow request")
 		}
 
 		followed, ok := req.Object.(string)
 		if !ok {
-			return errors.New("Received a request to follow a non-link object")
+			return errors.New("received a request to follow a non-link object")
 		}
 		if followed == "" {
-			return errors.New("Received an invalid follow request")
+			return errors.New("received an invalid follow request")
 		}
 
 		prefix := fmt.Sprintf("https://%s/", cfg.Domain)
 		if strings.HasPrefix(req.Actor, prefix) || !strings.HasPrefix(followed, prefix) {
-			return fmt.Errorf("Received an invalid follow request for %s by %s", followed, req.Actor)
+			return fmt.Errorf("received an invalid follow request for %s by %s", followed, req.Actor)
 		}
 
 		followedString := ""
 		if err := db.QueryRowContext(ctx, `select actor from persons where id = ?`, followed).Scan(&followedString); err != nil {
-			return fmt.Errorf("Failed to fetch %s: %w", followed, err)
+			return fmt.Errorf("failed to fetch %s: %w", followed, err)
 		}
 
 		from := ap.Actor{}
 		if err := json.Unmarshal([]byte(followedString), &from); err != nil {
-			return fmt.Errorf("Failed to unmarshal %s: %w", followed, err)
+			return fmt.Errorf("failed to unmarshal %s: %w", followed, err)
 		}
 
 		log.Info("Approving follow request", "follower", req.Actor, "followed", followed)
 
 		if err := outbox.Accept(ctx, followed, req.Actor, req.ID, db); err != nil {
-			return fmt.Errorf("Failed to marshal accept response: %w", err)
+			return fmt.Errorf("failed to marshal accept response: %w", err)
 		}
 
 	case ap.AcceptActivity:
 		if sender.ID != req.Actor {
-			return fmt.Errorf("Received an invalid follow request for %s by %s", req.Actor, sender.ID)
+			return fmt.Errorf("received an invalid follow request for %s by %s", req.Actor, sender.ID)
 		}
 
 		followID, ok := req.Object.(string)
@@ -218,16 +218,16 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			log.Info("Follow is accepted", "follow", followActivity.ID)
 			followID = followActivity.ID
 		} else {
-			return errors.New("Received an invalid accept notification")
+			return errors.New("received an invalid accept notification")
 		}
 
 		if _, err := db.ExecContext(ctx, `update follows set accepted = 1 where id = ? and followed = ?`, followID, sender.ID); err != nil {
-			return fmt.Errorf("Failed to accept follow %s: %w", followID, err)
+			return fmt.Errorf("failed to accept follow %s: %w", followID, err)
 		}
 
 	case ap.UndoActivity:
 		if sender.ID != req.Actor {
-			return fmt.Errorf("Received an invalid undo request for %s by %s", req.Actor, sender.ID)
+			return fmt.Errorf("received an invalid undo request for %s by %s", req.Actor, sender.ID)
 		}
 
 		followID, ok := req.Object.(string)
@@ -240,16 +240,16 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 
 				followID = a.ID
 			} else {
-				return errors.New("Received a request to undo a non-activity object")
+				return errors.New("received a request to undo a non-activity object")
 			}
 		}
 		if followID == "" {
-			return errors.New("Received an undo request with empty ID")
+			return errors.New("received an undo request with empty ID")
 		}
 
 		follower := req.Actor
 		if _, err := db.ExecContext(ctx, `delete from follows where id = ? and follower = ?`, followID, follower); err != nil {
-			return fmt.Errorf("Failed to remove follow %s: %w", followID, err)
+			return fmt.Errorf("failed to remove follow %s: %w", followID, err)
 		}
 
 		log.Info("Removed a Follow", "follow", followID, "follower", follower)
@@ -257,7 +257,7 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 	case ap.CreateActivity:
 		post, ok := req.Object.(*ap.Object)
 		if !ok {
-			return errors.New("Received invalid Create")
+			return errors.New("received invalid Create")
 		}
 
 		return processCreateActivity(ctx, log, sender, req, rawActivity, post, db, resolver, from)
@@ -275,14 +275,14 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 
 		post, ok := create.Object.(*ap.Object)
 		if !ok {
-			return errors.New("Received invalid Create")
+			return errors.New("received invalid Create")
 		}
 		if !post.IsPublic() {
-			return errors.New("Received Announce for private post")
+			return errors.New("received Announce for private post")
 		}
 
 		if post.AttributedTo != sender.ID && !post.To.Contains(sender.ID) && !post.CC.Contains(sender.ID) {
-			return errors.New("Sender is not post author or recipient")
+			return errors.New("sender is not post author or recipient")
 		}
 
 		return processCreateActivity(ctx, log, sender, create, rawActivity, post, db, resolver, from)
@@ -295,7 +295,7 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 		}
 
 		if post.ID == "" || post.AttributedTo == "" {
-			return errors.New("Received invalid Update")
+			return errors.New("received invalid Update")
 		}
 
 		prefix := fmt.Sprintf("https://%s/", cfg.Domain)
@@ -309,12 +309,12 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			log.Debug("Received Update for non-existing post")
 			return processCreateActivity(ctx, log, sender, req, rawActivity, post, db, resolver, from)
 		} else if err != nil {
-			return fmt.Errorf("Failed to get last update time for %s: %w", post.ID, err)
+			return fmt.Errorf("failed to get last update time for %s: %w", post.ID, err)
 		}
 
 		var oldPost ap.Object
 		if err := json.Unmarshal([]byte(oldPostString), &oldPost); err != nil {
-			return fmt.Errorf("Failed to unmarshal old note: %w", err)
+			return fmt.Errorf("failed to unmarshal old note: %w", err)
 		}
 
 		var body []byte
@@ -338,12 +338,12 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 		}
 
 		if err != nil {
-			return fmt.Errorf("Failed to marshal updated post %s: %w", post.ID, err)
+			return fmt.Errorf("failed to marshal updated post %s: %w", post.ID, err)
 		}
 
 		tx, err := db.BeginTx(ctx, nil)
 		if err != nil {
-			return fmt.Errorf("Cannot insert %s: %w", post.ID, err)
+			return fmt.Errorf("cannot insert %s: %w", post.ID, err)
 		}
 		defer tx.Rollback()
 
@@ -353,15 +353,15 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			string(body),
 			post.ID,
 		); err != nil {
-			return fmt.Errorf("Failed to update post %s: %w", post.ID, err)
+			return fmt.Errorf("failed to update post %s: %w", post.ID, err)
 		}
 
 		if err := forwardActivity(ctx, log, tx, req, rawActivity); err != nil {
-			return fmt.Errorf("Failed to forward update pos %s: %w", post.ID, err)
+			return fmt.Errorf("failed to forward update pos %s: %w", post.ID, err)
 		}
 
 		if err := tx.Commit(); err != nil {
-			return fmt.Errorf("Failed to update post %s: %w", post.ID, err)
+			return fmt.Errorf("failed to update post %s: %w", post.ID, err)
 		}
 
 		log.Info("Updated post")
@@ -402,7 +402,7 @@ func ProcessBatch(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *f
 
 	rows, err := db.QueryContext(ctx, `select inbox.id, persons.actor, inbox.activity from (select * from inbox limit -1 offset case when (select count(*) from inbox) >= $1 then $1/10 else 0 end) inbox left join persons on persons.id = inbox.sender order by inbox.id limit $2`, maxActivitiesQueueSize, activitiesBatchSize)
 	if err != nil {
-		return 0, fmt.Errorf("Failed to fetch activities to process: %w", err)
+		return 0, fmt.Errorf("failed to fetch activities to process: %w", err)
 	}
 	defer rows.Close()
 
@@ -454,7 +454,7 @@ func ProcessBatch(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *f
 	})
 
 	if _, err := db.ExecContext(ctx, `delete from inbox where id <= ?`, maxID); err != nil {
-		return 0, fmt.Errorf("Failed to delete processed activities: %w", err)
+		return 0, fmt.Errorf("failed to delete processed activities: %w", err)
 	}
 
 	return rowsCount, nil

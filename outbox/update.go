@@ -30,7 +30,7 @@ import (
 func Update(ctx context.Context, db *sql.DB, note *ap.Object) error {
 	body, err := json.Marshal(note)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal note: %w", err)
+		return fmt.Errorf("failed to marshal note: %w", err)
 	}
 
 	updateID := fmt.Sprintf("https://%s/update/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", note.ID, time.Now().Unix()))))
@@ -45,12 +45,12 @@ func Update(ctx context.Context, db *sql.DB, note *ap.Object) error {
 		CC:      note.CC,
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to marshal update: %w", err)
+		return fmt.Errorf("failed to marshal update: %w", err)
 	}
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to begin transaction: %w", err)
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
@@ -60,7 +60,7 @@ func Update(ctx context.Context, db *sql.DB, note *ap.Object) error {
 		string(body),
 		note.ID,
 	); err != nil {
-		return fmt.Errorf("Failed to update note: %w", err)
+		return fmt.Errorf("failed to update note: %w", err)
 	}
 
 	if _, err := tx.ExecContext(
@@ -69,11 +69,11 @@ func Update(ctx context.Context, db *sql.DB, note *ap.Object) error {
 		string(update),
 		note.AttributedTo,
 	); err != nil {
-		return fmt.Errorf("Failed to insert update activity: %w", err)
+		return fmt.Errorf("failed to insert update activity: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("Failed to update note: %w", err)
+		return fmt.Errorf("failed to update note: %w", err)
 	}
 
 	return nil

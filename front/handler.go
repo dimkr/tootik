@@ -20,8 +20,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/fed"
+	"github.com/dimkr/tootik/front/static"
 	"github.com/dimkr/tootik/front/text"
 	"log/slog"
 	"net/url"
@@ -32,7 +34,15 @@ import (
 
 type Handler map[*regexp.Regexp]func(text.Writer, *request)
 
-var ErrNotRegistered = errors.New("User is not registered")
+var ErrNotRegistered = errors.New("user is not registered")
+
+func serveStaticFile(w text.Writer, r *request) {
+	w.OK()
+
+	for _, line := range static.Files[r.URL.Path] {
+		w.Text(line)
+	}
+}
 
 func NewHandler() Handler {
 	h := Handler{}
@@ -94,6 +104,10 @@ func NewHandler() Handler {
 	h[regexp.MustCompile(`^/users/oops`)] = withUserMenu(oops)
 
 	h[regexp.MustCompile(`^/robots.txt$`)] = robots
+
+	for path := range static.Files {
+		h[regexp.MustCompile(fmt.Sprintf(`^%s$`, path))] = withUserMenu(serveStaticFile)
+	}
 
 	return h
 }

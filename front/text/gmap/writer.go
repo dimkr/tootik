@@ -152,6 +152,6 @@ func (w *writer) Separator() {
 	w.Empty()
 }
 
-func (_ *writer) Clone(w io.Writer) text.Writer {
+func (*writer) Clone(w io.Writer) text.Writer {
 	return &writer{Base: text.Base{Writer: w}}
 }

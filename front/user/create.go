@@ -27,7 +27,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/fed/icon"
 	"golang.org/x/sync/semaphore"
-	"io/ioutil"
+	"io"
 	"os/exec"
 )
 
@@ -36,7 +36,7 @@ var sem = semaphore.NewWeighted(2)
 
 func gen(ctx context.Context) ([]byte, []byte, error) {
 	if err := sem.Acquire(ctx, 1); err != nil {
-		return nil, nil, fmt.Errorf("Failed to acquire semaphore: %w", err)
+		return nil, nil, fmt.Errorf("failed to acquire semaphore: %w", err)
 	}
 	defer sem.Release(1)
 
@@ -44,12 +44,12 @@ func gen(ctx context.Context) ([]byte, []byte, error) {
 	stdout := bytes.Buffer{}
 	cmd.Stdout = &stdout
 	if err := cmd.Run(); err != nil {
-		return nil, nil, fmt.Errorf("Failed to generate private key: %w", err)
+		return nil, nil, fmt.Errorf("failed to generate private key: %w", err)
 	}
 
-	priv, err := ioutil.ReadAll(&stdout)
+	priv, err := io.ReadAll(&stdout)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to read private key: %w", err)
+		return nil, nil, fmt.Errorf("failed to read private key: %w", err)
 	}
 
 	cmd = exec.CommandContext(ctx, "openssl", "rsa", "-pubout")
@@ -57,12 +57,12 @@ func gen(ctx context.Context) ([]byte, []byte, error) {
 	stdout = bytes.Buffer{}
 	cmd.Stdout = &stdout
 	if err := cmd.Run(); err != nil {
-		return nil, nil, fmt.Errorf("Failed to generate public key: %w", err)
+		return nil, nil, fmt.Errorf("failed to generate public key: %w", err)
 	}
 
-	pub, err := ioutil.ReadAll(&stdout)
+	pub, err := io.ReadAll(&stdout)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to read public key: %w", err)
+		return nil, nil, fmt.Errorf("failed to read public key: %w", err)
 	}
 
 	return priv, pub, nil
@@ -71,7 +71,7 @@ func gen(ctx context.Context) ([]byte, []byte, error) {
 func Create(ctx context.Context, db *sql.DB, id, name, certHash string) (*ap.Actor, error) {
 	priv, pub, err := gen(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to generate key pair: %w", err)
+		return nil, fmt.Errorf("failed to generate key pair: %w", err)
 	}
 
 	actor := ap.Actor{
@@ -104,7 +104,7 @@ func Create(ctx context.Context, db *sql.DB, id, name, certHash string) (*ap.Act
 
 	body, err := json.Marshal(actor)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to marshal %s: %w", id, err)
+		return nil, fmt.Errorf("failed to marshal %s: %w", id, err)
 	}
 
 	if _, err = db.ExecContext(
@@ -116,7 +116,7 @@ func Create(ctx context.Context, db *sql.DB, id, name, certHash string) (*ap.Act
 		string(priv),
 		certHash,
 	); err != nil {
-		return nil, fmt.Errorf("Failed to insert %s: %w", id, err)
+		return nil, fmt.Errorf("failed to insert %s: %w", id, err)
 	}
 
 	return &actor, nil

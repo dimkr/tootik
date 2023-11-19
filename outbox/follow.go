@@ -46,14 +46,14 @@ func Follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB
 		To:     to,
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to marshal follow: %w", err)
+		return fmt.Errorf("failed to marshal follow: %w", err)
 	}
 
 	isLocal := strings.HasPrefix(followed, fmt.Sprintf("https://%s/", cfg.Domain))
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to begin transaction: %w", err)
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
@@ -65,7 +65,7 @@ func Follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB
 		followed,
 		isLocal, // local follows don't need to be accepted
 	); err != nil {
-		return fmt.Errorf("Failed to insert follow: %w", err)
+		return fmt.Errorf("failed to insert follow: %w", err)
 	}
 
 	if _, err := tx.ExecContext(
@@ -74,7 +74,7 @@ func Follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB
 		string(body),
 		follower.ID,
 	); err != nil {
-		return fmt.Errorf("Failed to insert follow activity: %w", err)
+		return fmt.Errorf("failed to insert follow activity: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {

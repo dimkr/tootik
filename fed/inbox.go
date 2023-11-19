@@ -25,7 +25,6 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"io"
-	"io/ioutil"
 	"log/slog"
 	"net/http"
 	"path/filepath"
@@ -58,7 +57,7 @@ func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, err := ioutil.ReadAll(io.LimitReader(r.Body, maxBodySize))
+	body, err := io.ReadAll(io.LimitReader(r.Body, maxBodySize))
 	if err != nil {
 		return
 	}
@@ -70,7 +69,7 @@ func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	r.Body = ioutil.NopCloser(bytes.NewReader(body))
+	r.Body = io.NopCloser(bytes.NewReader(body))
 
 	// if actor is deleted, ignore this activity if we don't know this actor
 	offline := false

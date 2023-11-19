@@ -33,27 +33,27 @@ func CollectGarbage(ctx context.Context, db *sql.DB) error {
 	now := time.Now()
 
 	if _, err := db.ExecContext(ctx, `delete from notes where id in (select notes.id from notes left join follows on follows.followed in (notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.followed)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.followed)) where follows.accepted = 1 and notes.inserted < unixepoch()-60*60*24 and notes.host != ? and follows.id is null)`, cfg.Domain); err != nil {
-		return fmt.Errorf("Failed to remove invisible posts: %w", err)
+		return fmt.Errorf("failed to remove invisible posts: %w", err)
 	}
 
 	if _, err := db.ExecContext(ctx, `delete from notes where inserted < unixepoch()-60*60*24*7 and author not in (select followed from follows where accepted = 1) and host != ?`, cfg.Domain); err != nil {
-		return fmt.Errorf("Failed to remove posts by authors without followers: %w", err)
+		return fmt.Errorf("failed to remove posts by authors without followers: %w", err)
 	}
 
 	if _, err := db.ExecContext(ctx, `delete from notes where inserted < ? and host != ?`, now.Add(-notesTTL).Unix(), cfg.Domain); err != nil {
-		return fmt.Errorf("Failed to remove old posts: %w", err)
+		return fmt.Errorf("failed to remove old posts: %w", err)
 	}
 
 	if _, err := db.ExecContext(ctx, `delete from hashtags where note in (select distinct hashtags.note from hashtags left join notes on notes.id = hashtags.note where notes.id is null)`); err != nil {
-		return fmt.Errorf("Failed to remove old hashtags: %w", err)
+		return fmt.Errorf("failed to remove old hashtags: %w", err)
 	}
 
 	if _, err := db.ExecContext(ctx, `delete from outbox where inserted < ?`, now.Add(-deliveryTTL).Unix()); err != nil {
-		return fmt.Errorf("Failed to remove old posts: %w", err)
+		return fmt.Errorf("failed to remove old posts: %w", err)
 	}
 
 	if _, err := db.ExecContext(ctx, `delete from follows where accepted = 0 and inserted < unixepoch()-60*60*24*2`); err != nil {
-		return fmt.Errorf("Failed to remove failed follow requests: %w", err)
+		return fmt.Errorf("failed to remove failed follow requests: %w", err)
 	}
 
 	return nil

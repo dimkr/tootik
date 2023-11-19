@@ -36,31 +36,31 @@ var keyIdRegex = regexp.MustCompile(`(?:^|\s)keyId="(https:\/\/[^"]+)"`)
 func verify(ctx context.Context, log *slog.Logger, r *http.Request, db *sql.DB, resolver *Resolver, from *ap.Actor, offline bool) (*ap.Actor, error) {
 	sig := r.Header.Get("Signature")
 	if sig == "" {
-		return nil, errors.New("Failed to verify message: no signature")
+		return nil, errors.New("failed to verify message: no signature")
 	}
 
 	match := keyIdRegex.FindStringSubmatch(sig)
 	if len(match) < 2 {
-		return nil, errors.New("Failed to verify message: unspecified key")
+		return nil, errors.New("failed to verify message: unspecified key")
 	}
 
 	keyID := match[1]
 
 	actor, err := resolver.Resolve(r.Context(), log, db, from, keyID, offline)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get key %s to verify message: %w", keyID, err)
+		return nil, fmt.Errorf("failed to get key %s to verify message: %w", keyID, err)
 	}
 
 	verifier, err := httpsig.NewVerifier(r)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to verify message using %s: %w", keyID, err)
+		return nil, fmt.Errorf("failed to verify message using %s: %w", keyID, err)
 	}
 
 	publicKeyPem, _ := pem.Decode([]byte(actor.PublicKey.PublicKeyPem))
 
 	publicKey, err := x509.ParsePKIXPublicKey(publicKeyPem.Bytes)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to verify message using %s: %w", keyID, err)
+		return nil, fmt.Errorf("failed to verify message using %s: %w", keyID, err)
 	}
 
 	if r.Header.Get("Host") == "" {
@@ -68,7 +68,7 @@ func verify(ctx context.Context, log *slog.Logger, r *http.Request, db *sql.DB, 
 	}
 
 	if err := verifier.Verify(publicKey, httpsig.RSA_SHA256); err != nil {
-		return nil, fmt.Errorf("Failed to verify message using %s: %w", keyID, err)
+		return nil, fmt.Errorf("failed to verify message using %s: %w", keyID, err)
 	}
 
 	return actor, nil

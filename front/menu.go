@@ -55,6 +55,8 @@ func writeUserMenu(w text.Writer, user *ap.Actor) {
 		w.Link("/users/whisper", "🔔 New post")
 		w.Link("/users/say", "📣 New public post")
 	}
+
+	w.Link(prefix+"/help", "🛟 Help")
 }
 
 func withUserMenu(f func(text.Writer, *request)) func(text.Writer, *request) {

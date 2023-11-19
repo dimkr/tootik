@@ -57,7 +57,7 @@ func Unfollow(ctx context.Context, log *slog.Logger, db *sql.DB, follower *ap.Ac
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to begin transaction: %w", err)
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
@@ -67,7 +67,7 @@ func Unfollow(ctx context.Context, log *slog.Logger, db *sql.DB, follower *ap.Ac
 		`UPDATE outbox SET sent = 1 WHERE activity->>'object.id' = ? and activity->>'type' = 'Follow'`,
 		followID,
 	); err != nil {
-		return fmt.Errorf("Failed to mark follow activity as received: %w", err)
+		return fmt.Errorf("failed to mark follow activity as received: %w", err)
 	}
 
 	if _, err := tx.ExecContext(
@@ -76,11 +76,11 @@ func Unfollow(ctx context.Context, log *slog.Logger, db *sql.DB, follower *ap.Ac
 		string(body),
 		follower.ID,
 	); err != nil {
-		return fmt.Errorf("Failed to insert undo for %s: %w", followID, err)
+		return fmt.Errorf("failed to insert undo for %s: %w", followID, err)
 	}
 
 	if _, err := tx.ExecContext(ctx, `delete from follows where id = ?`, followID); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return fmt.Errorf("Failed to unfollow %s: %w", followID, err)
+		return fmt.Errorf("failed to unfollow %s: %w", followID, err)
 	}
 
 	if err := tx.Commit(); err != nil {

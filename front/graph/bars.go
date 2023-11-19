@@ -83,8 +83,6 @@ func Bars(keys []string, values []int64) string {
 				bar[j] = '▌'
 			} else if v >= unit*3/8 {
 				bar[j] = '▍'
-			} else if v >= unit*3/8 {
-				bar[j] = '▎'
 			} else if v >= unit*2/8 {
 				bar[j] = '▎'
 			} else if v >= unit*1/8 {
