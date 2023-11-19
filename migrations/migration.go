@@ -34,20 +34,20 @@ type migration struct {
 func applyMigration(ctx context.Context, db *sql.DB, m migration) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to apply %s: %w", m.ID, err)
+		return fmt.Errorf("failed to apply %s: %w", m.ID, err)
 	}
 	defer tx.Rollback()
 
 	if err := m.Up(ctx, tx); err != nil {
-		return fmt.Errorf("Failed to apply %s: %w", m.ID, err)
+		return fmt.Errorf("failed to apply %s: %w", m.ID, err)
 	}
 
 	if _, err := tx.ExecContext(ctx, `insert into migrations(id) values (?)`, m.ID); err != nil {
-		return fmt.Errorf("Failed to record %s: %w", m.ID, err)
+		return fmt.Errorf("failed to record %s: %w", m.ID, err)
 	}
 
 	if err = tx.Commit(); err != nil {
-		return fmt.Errorf("Failed to commit %s: %w", m.ID, err)
+		return fmt.Errorf("failed to commit %s: %w", m.ID, err)
 	}
 
 	return nil
@@ -61,7 +61,7 @@ func Run(ctx context.Context, log *slog.Logger, db *sql.DB) error {
 	for _, m := range migrations {
 		var applied string
 		if err := db.QueryRowContext(ctx, `select datetime(applied, 'unixepoch') from migrations where id = ?`, m.ID).Scan(&applied); err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return fmt.Errorf("Failed to check if %s is applied: %w", m.ID, err)
+			return fmt.Errorf("failed to check if %s is applied: %w", m.ID, err)
 		} else if err == nil {
 			log.Debug("Skipping migration", "id", m.ID, "applied", applied)
 			continue

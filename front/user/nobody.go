@@ -31,7 +31,7 @@ func CreateNobody(ctx context.Context, db *sql.DB) (*ap.Actor, error) {
 
 	var actorString string
 	if err := db.QueryRowContext(ctx, `select actor from persons where id = ?`, id).Scan(&actorString); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("Failed to create nobody user: %w", err)
+		return nil, fmt.Errorf("failed to create nobody user: %w", err)
 	} else if err == nil {
 		var actor ap.Actor
 		if err := json.Unmarshal([]byte(actorString), &actor); err != nil {

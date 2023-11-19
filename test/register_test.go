@@ -101,11 +101,6 @@ f7Kgs5SdkJkcanCS3Ibes8Tsm+ChRANCAASHeVcvjBZvyo7QoERqFtJWHE+KtxAJ
 -----END PRIVATE KEY-----`
 )
 
-type dialResult struct {
-	Conn net.Conn
-	Err  error
-}
-
 func TestRegister_Redirect(t *testing.T) {
 	assert := assert.New(t)
 

@@ -33,7 +33,7 @@ func Accept(ctx context.Context, followed, follower, followID string, db *sql.DB
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to begin transaction: %w", err)
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
@@ -49,7 +49,7 @@ func Accept(ctx context.Context, followed, follower, followID string, db *sql.DB
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to marshal Accept: %w", err)
+		return fmt.Errorf("failed to marshal Accept: %w", err)
 	}
 
 	if _, err := tx.ExecContext(
@@ -58,7 +58,7 @@ func Accept(ctx context.Context, followed, follower, followID string, db *sql.DB
 		string(accept),
 		followed,
 	); err != nil {
-		return fmt.Errorf("Failed to insert Accept: %w", err)
+		return fmt.Errorf("failed to insert Accept: %w", err)
 	}
 
 	if _, err := tx.ExecContext(
@@ -69,11 +69,11 @@ func Accept(ctx context.Context, followed, follower, followID string, db *sql.DB
 		followed,
 		1,
 	); err != nil {
-		return fmt.Errorf("Failed to insert follow %s: %w", followID, err)
+		return fmt.Errorf("failed to insert follow %s: %w", followID, err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("Failed to accept follow: %w", err)
+		return fmt.Errorf("failed to accept follow: %w", err)
 	}
 
 	return nil

@@ -53,9 +53,7 @@ func (h *webFingerHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if strings.HasPrefix(resource, "acct:") {
-		resource = resource[5:]
-	}
+	resource = strings.TrimPrefix(resource, "acct:")
 
 	var username string
 

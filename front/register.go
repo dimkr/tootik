@@ -115,7 +115,7 @@ func register(w text.Writer, r *request) {
 	}
 
 	if lastRegister.Valid {
-		elapsed := time.Now().Sub(time.Unix(lastRegister.Int64, 0))
+		elapsed := time.Since(time.Unix(lastRegister.Int64, 0))
 		if elapsed < registrationInterval {
 			w.Statusf(40, "Registration is closed for %s", (registrationInterval - elapsed).Truncate(time.Second).String())
 			return

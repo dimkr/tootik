@@ -32,7 +32,7 @@ import (
 
 type Handler map[*regexp.Regexp]func(text.Writer, *request)
 
-var ErrNotRegistered = errors.New("User is not registered")
+var ErrNotRegistered = errors.New("user is not registered")
 
 func NewHandler() Handler {
 	h := Handler{}
