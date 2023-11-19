@@ -1,0 +1,36 @@
+# 🛟 Help
+
+## About this server
+
+This is an instance of tootik, a "slow", "boring" and non-addictive social network in the small internet that is also connected to the fediverse.
+=> https://github.com/dimkr/tootik The tootik project
+
+## Menu
+
+> 📡 This planet
+
+This page shows public posts published on this server, from latest to oldest.
+
+> ✨ FOMO from outer space
+
+This page shows public posts from the fediverse, from latest to oldest.
+
+> 🔥 Hashtags
+
+This page shows popular hashtags, allowing you to discover trends and shared interests.
+
+> 📊 Statistics
+
+This page shows various statistics about this server and the parts of the fediverse it's connected to.
+
+> 🔑 Sign in
+
+Follow this link to sign in or create an account on this server.
+
+Registered users can:
+* Publish posts
+* Reply to posts
+* Vote on polls
+* Follow users
+* View private posts
+* View a prioritized feed of posts by followed users

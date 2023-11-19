@@ -1,0 +1,83 @@
+# 🛟 Help
+
+## About this server
+
+This is an instance of tootik, a "slow", "boring" and non-addictive social network in the small internet that is also connected to the fediverse.
+=> https://github.com/dimkr/tootik The tootik project
+
+## Menu
+
+> 📻 My radio
+
+This page shows posts by followed users and posts sent to you, grouped by day.
+
+Posts are sorted by:
+* Audience: direct messages to you, then posts that mention you, then everything else
+* Relevance and popularity: the number of followed reply authors, or the total number of reply authors
+* Noise: the number of posts by this author and time since the author's previous post
+* Recency: the time the post was published
+* Artificiality: posts by users or groups, then posts by bots
+
+The first two links (posts from today or yesterday) are stable and don't change every day, so you can bookmark them or add them to your feed reader.
+
+> ⚡️ Followed users
+
+This page shows a list of users you follow, sorted by last activity.
+
+> 📡 This planet
+
+This page shows public posts published on this server, from latest to oldest.
+
+> ✨ FOMO from outer space
+
+This page shows public posts from the fediverse, from latest to oldest.
+
+> 🔭 Find user
+
+Use this tool to locate a user in the fediverse and see the posts published by this user that were received by this server. The list of posts can be incomplete or even empty if nobody on this server follows this user. You can follow, unfollow or message a following user through the user's page.
+
+> 🔥 Hashtags
+
+This page shows popular hashtags, allowing you to discover trends and shared interests.
+
+> 📊 Statistics
+
+This page shows various statistics about this server and the parts of the fediverse it's connected to.
+
+> 🔔 New post
+
+Follow this link to publish a private post and send it to your followers.
+
+> 📣 New public post
+
+Follow this link to publish a public post visible to anyone.
+
+## Posts
+
+Posts should be up to 200 characters long.
+
+### Links, Mentions and Hashtags
+
+Links are detected automatically and don't need to be wrapped with HTML <a> tags or preceded by a => marker.
+
+Mentioned users should be preceded by @, i.e. @user or @user@host. If the host part is unspecified, tootik tries to guess it using:
+* The parent post author author (if this is a reply)
+* Followed users
+
+Tags should be preceded by #, i.e. #topic.
+
+### Polls
+
+Polls are posts that follow the form:
+
+```
+	[POLL Poll question] option A | option B | option C
+```
+
+For example:
+
+```
+	[POLL Does #tootik support polls now?] Yes | No | I don't know
+```
+
+Polls must have between 2 and 5 multi-choice options, and end after a month.
