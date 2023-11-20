@@ -61,7 +61,7 @@ Posts should be up to 200 characters long.
 Links are detected automatically and don't need to be wrapped with HTML <a> tags or preceded by a => marker.
 
 Mentioned users should be preceded by @, i.e. @user or @user@host. If the host part is unspecified, tootik tries to guess it using:
-* The parent post author author (if this is a reply)
+* The parent post author (if this is a reply)
 * Followed users
 
 Tags should be preceded by #, i.e. #topic.
