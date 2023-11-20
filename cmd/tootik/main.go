@@ -32,6 +32,7 @@ import (
 	"github.com/dimkr/tootik/front/finger"
 	"github.com/dimkr/tootik/front/gemini"
 	"github.com/dimkr/tootik/front/gopher"
+	"github.com/dimkr/tootik/front/guppy"
 	"github.com/dimkr/tootik/front/user"
 	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/migrations"
@@ -55,6 +56,7 @@ var (
 	gemAddr       = flag.String("gemaddr", ":8965", "Gemini listening address")
 	gopherAddr    = flag.String("gopheraddr", ":8070", "Gopher listening address")
 	fingerAddr    = flag.String("fingeraddr", ":8079", "Finger listening address")
+	guppyAddr     = flag.String("guppyaddr", ":6775", "Guppy listening address")
 	cert          = flag.String("cert", "cert.pem", "HTTPS TLS certificate")
 	key           = flag.String("key", "key.pem", "HTTPS TLS key")
 	addr          = flag.String("addr", ":8443", "HTTPS listening address")
@@ -161,6 +163,15 @@ func main() {
 	go func() {
 		if err := finger.ListenAndServe(ctx, log, db, *fingerAddr); err != nil {
 			log.Error("Finger listener has failed", "error", err)
+		}
+		cancel()
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		if err := guppy.ListenAndServe(ctx, log, db, handler, resolver, *guppyAddr); err != nil {
+			log.Error("Guppy listener has failed", "error", err)
 		}
 		cancel()
 		wg.Done()

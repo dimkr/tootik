@@ -12,7 +12,7 @@ tootik is a federated nanoblogging service for the small internet.
 
 tootik's goal is to make the fediverse lighter, more private and more accessible:
 * It converts rich content into plain text and links, reducing bandwidth requirements and making content more suitable for screen readers.
-* Its frontend supports Gemini, Gopher and Finger, so an old device incapable of running a modern web browser is still good enough.
+* Its frontend supports Gemini, Gopher, Finger and [Guppy](https://github.com/dimkr/guppy-protocol), so an old device incapable of running a modern web browser is still good enough.
 * It puts the users in control of the content they see and tries to "slow down" the fediverse to make it more compatible with the slower pace of the small internet.
 * It's a single, easy-to-deploy executable that handles both the federation (using ActivityPub) and the frontend (using Gemini) aspects, while [sqlite](https://sqlite.org/) takes care of persistency.
 * It should be lightweight and efficient enough to host a small community on one, cheap server, without horizontal scaling and the ongoing maintenance of a separate database.
@@ -45,9 +45,11 @@ or, to build a static executable:
   * text/text/plain/ converts HTML to plain text.
   * text/text/gmi/ contains a gemtext writer.
   * text/text/gmap/ contains a gophermap writer with line wrapping.
+  * text/text/guppy/ contains a Guppy response writer.
   * front/gemini/ exposes the frontend over Gemini.
   * front/gopher/ exposes the frontend over Gopher.
   * front/finger/ exposes some content over Finger.
+  * front/guppy/ exposes the frontend over Guppy.
 
 * ap/ implements ActivityPub vocabulary.
 * migrations/ contains the database schema.
