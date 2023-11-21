@@ -29,7 +29,7 @@ var (
 	mentionTags       = regexp.MustCompile(`<a\s+(?:[^\s<]+\s+)*class="(?:[^\s"]+\s+)*mention(?:\s+[^\s"]+)*"[^>]*>`)
 	invisibleSpanTags = regexp.MustCompile(`<span class="invisible">[^<]*</span>`)
 	ellipsisSpanTags  = regexp.MustCompile(`<span class="ellipsis">[^<]*</span>`)
-	brTags            = regexp.MustCompile(`<(?:br\s*\/*|\/p)>`)
+	brTags            = regexp.MustCompile(`<(?:br\s*\/*|\/p|\/h\d+)>`)
 	openTags          = regexp.MustCompile(`(?:<[a-zA-Z0-9]+\s*[^>]*>)+`)
 	closeTags         = regexp.MustCompile(`(?:<\/[a-zA-Z0-9]+\s*[^>]*>)+`)
 	urlRegex          = regexp.MustCompile(`\b(https|http|gemini|gopher|gophers):\/\/\S+\b`)

@@ -42,8 +42,38 @@ func TestFromHTML_Plain(t *testing.T) {
 }
 
 func TestFromHTML_Paragraphs(t *testing.T) {
-	post := `<p>this is a paragraph</p><p>this another paragraph</p>`
-	expected := "this is a paragraph\n\nthis another paragraph"
+	post := `<p>this is a paragraph</p><p>this is another paragraph</p>`
+	expected := "this is a paragraph\n\nthis is another paragraph"
+	expectedLinks := []string{}
+
+	raw, links := FromHTML(post)
+	assert.Equal(t, expected, raw)
+	assert.Equal(t, expectedLinks, links)
+}
+
+func TestFromHTML_TitleAndParagraphs(t *testing.T) {
+	post := `<h1>this is the title</h1><p>this is a paragraph</p><p>this is another paragraph</p>`
+	expected := "this is the title\n\nthis is a paragraph\n\nthis is another paragraph"
+	expectedLinks := []string{}
+
+	raw, links := FromHTML(post)
+	assert.Equal(t, expected, raw)
+	assert.Equal(t, expectedLinks, links)
+}
+
+func TestFromHTML_TitleSubtitleAndParagraphs(t *testing.T) {
+	post := `<h1>this is the title</h1><h2>this is the subtitle</h2><p>this is a paragraph</p><p>this is another paragraph</p>`
+	expected := "this is the title\n\nthis is the subtitle\n\nthis is a paragraph\n\nthis is another paragraph"
+	expectedLinks := []string{}
+
+	raw, links := FromHTML(post)
+	assert.Equal(t, expected, raw)
+	assert.Equal(t, expectedLinks, links)
+}
+
+func TestFromHTML_TitleParagraphSubtitleAndParagraph(t *testing.T) {
+	post := `<h1>this is the title</h1><p>this is a paragraph</p><h2>this is the subtitle</h2><p>this is another paragraph</p>`
+	expected := "this is the title\n\nthis is a paragraph\n\nthis is the subtitle\n\nthis is another paragraph"
 	expectedLinks := []string{}
 
 	raw, links := FromHTML(post)
@@ -52,8 +82,8 @@ func TestFromHTML_Paragraphs(t *testing.T) {
 }
 
 func TestFromHTML_LineBreak(t *testing.T) {
-	post := `<p>this is a line<br/>this another line</p>`
-	expected := "this is a line\n\nthis another line"
+	post := `<p>this is a line<br/>this is another line</p>`
+	expected := "this is a line\n\nthis is another line"
 	expectedLinks := []string{}
 
 	raw, links := FromHTML(post)
