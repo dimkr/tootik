@@ -28,10 +28,7 @@ import (
 	"github.com/go-fed/httpsig"
 	"log/slog"
 	"net/http"
-	"regexp"
 )
-
-var keyIdRegex = regexp.MustCompile(`(?:^|\s)keyId="(https:\/\/[^"]+)"`)
 
 func verify(ctx context.Context, log *slog.Logger, r *http.Request, db *sql.DB, resolver *Resolver, from *ap.Actor, offline bool) (*ap.Actor, error) {
 	sig := r.Header.Get("Signature")
@@ -39,21 +36,16 @@ func verify(ctx context.Context, log *slog.Logger, r *http.Request, db *sql.DB, 
 		return nil, errors.New("failed to verify message: no signature")
 	}
 
-	match := keyIdRegex.FindStringSubmatch(sig)
-	if len(match) < 2 {
-		return nil, errors.New("failed to verify message: unspecified key")
+	verifier, err := httpsig.NewVerifier(r)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify message: %w", err)
 	}
 
-	keyID := match[1]
+	keyID := verifier.KeyId()
 
 	actor, err := resolver.Resolve(r.Context(), log, db, from, keyID, offline)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get key %s to verify message: %w", keyID, err)
-	}
-
-	verifier, err := httpsig.NewVerifier(r)
-	if err != nil {
-		return nil, fmt.Errorf("failed to verify message using %s: %w", keyID, err)
 	}
 
 	publicKeyPem, _ := pem.Decode([]byte(actor.PublicKey.PublicKeyPem))

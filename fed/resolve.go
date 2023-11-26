@@ -63,6 +63,7 @@ var (
 	ErrActorGone      = errors.New("actor is gone")
 	ErrActorNotCached = errors.New("actor is not cached")
 	ErrBlockedDomain  = errors.New("domain is blocked")
+	ErrInvalidScheme  = errors.New("invalid scheme")
 )
 
 func NewResolver(blockedDomains *BlockList) *Resolver {
@@ -86,6 +87,10 @@ func (r *Resolver) Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	u, err := url.Parse(to)
 	if err != nil {
 		return nil, fmt.Errorf("cannot resolve %s: %w", to, err)
+	}
+
+	if u.Scheme != "https" {
+		return nil, ErrInvalidScheme
 	}
 
 	if r.BlockedDomains != nil {
