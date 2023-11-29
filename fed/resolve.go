@@ -64,6 +64,7 @@ var (
 	ErrActorNotCached = errors.New("actor is not cached")
 	ErrBlockedDomain  = errors.New("domain is blocked")
 	ErrInvalidScheme  = errors.New("invalid scheme")
+	ErrRedirect       = errors.New("redirects are forbidden")
 )
 
 func NewResolver(blockedDomains *BlockList) *Resolver {
@@ -72,7 +73,12 @@ func NewResolver(blockedDomains *BlockList) *Resolver {
 		IdleConnTimeout: resolverIdleConnTimeout,
 	}
 	r := Resolver{
-		Client:         http.Client{Transport: &transport},
+		Client: http.Client{
+			Transport: &transport,
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return ErrRedirect
+			},
+		},
 		BlockedDomains: blockedDomains,
 		locks:          make([]*semaphore.Weighted, cfg.MaxResolverRequests),
 	}
