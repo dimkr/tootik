@@ -198,7 +198,9 @@ func view(w text.Writer, r *request) {
 			r.Log.Warn("Failed to check if parent post exists", "error", err)
 		}
 
-		if err := r.QueryRow(`with recursive thread(id, parent, depth) as (select notes.id, notes.object->>'inReplyTo' as parent, 1 as depth from notes where id = ? union select notes.id, notes.object->>'inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent) select id from thread order by depth desc limit 1`, note.InReplyTo).Scan(&threadHead); err != nil {
+		if err := r.QueryRow(`with recursive thread(id, parent, depth) as (select notes.id, notes.object->>'inReplyTo' as parent, 1 as depth from notes where id = ? union select notes.id, notes.object->>'inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent) select id from thread order by depth desc limit 1`, note.InReplyTo).Scan(&threadHead); err != nil && errors.Is(err, sql.ErrNoRows) {
+			r.Log.Debug("First post in thread is missing")
+		} else if err != nil {
 			r.Log.Warn("Failed to fetch first post in thread", "error", err)
 		}
 	}
