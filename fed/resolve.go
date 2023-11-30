@@ -64,7 +64,6 @@ var (
 	ErrActorNotCached = errors.New("actor is not cached")
 	ErrBlockedDomain  = errors.New("domain is blocked")
 	ErrInvalidScheme  = errors.New("invalid scheme")
-	ErrRedirect       = errors.New("redirects are forbidden")
 )
 
 func NewResolver(blockedDomains *BlockList) *Resolver {
@@ -76,7 +75,7 @@ func NewResolver(blockedDomains *BlockList) *Resolver {
 		Client: http.Client{
 			Transport: &transport,
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				return ErrRedirect
+				return http.ErrUseLastResponse
 			},
 		},
 		BlockedDomains: blockedDomains,
@@ -107,7 +106,14 @@ func (r *Resolver) Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 
 	u.Fragment = ""
 
-	return r.resolve(ctx, log, db, from, u.String(), u, offline)
+	actor, cachedActor, err := r.resolve(ctx, log, db, from, u.String(), u, offline)
+	if err != nil && cachedActor != nil {
+		log.Warn("Using old cache entry for actor", "to", to, "error", err)
+		return cachedActor, nil
+	} else if actor == nil {
+		return cachedActor, err
+	}
+	return actor, err
 }
 
 func deleteActor(ctx context.Context, log *slog.Logger, db *sql.DB, id string) {
@@ -124,7 +130,7 @@ func deleteActor(ctx context.Context, log *slog.Logger, db *sql.DB, id string) {
 	}
 }
 
-func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, to string, u *url.URL, offline bool) (*ap.Actor, error) {
+func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, to string, u *url.URL, offline bool) (*ap.Actor, *ap.Actor, error) {
 	if from == nil {
 		log.Debug("Resolving actor", "to", to)
 	} else {
@@ -136,39 +142,42 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	if !isLocal && !offline {
 		lock := r.locks[crc32.ChecksumIEEE([]byte(to))%uint32(len(r.locks))]
 		if err := lock.Acquire(ctx, 1); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		defer lock.Release(1)
 	}
 
-	actor := ap.Actor{}
+	var tmp ap.Actor
+	var cachedActor *ap.Actor
 	update := false
 
 	var actorString string
 	var updated int64
 	var sinceLastUpdate time.Duration
 	if err := db.QueryRowContext(ctx, `select actor, updated from persons where id = ?`, to).Scan(&actorString, &updated); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("failed to fetch %s cache: %w", to, err)
+		return nil, nil, fmt.Errorf("failed to fetch %s cache: %w", to, err)
 	} else if err == nil {
+		if err := json.Unmarshal([]byte(actorString), &tmp); err != nil {
+			return nil, nil, fmt.Errorf("failed to unmarshal %s cache: %w", to, err)
+		}
+		cachedActor = &tmp
+
 		sinceLastUpdate = time.Since(time.Unix(updated, 0))
 		if !isLocal && !offline && sinceLastUpdate > resolverCacheTTL {
 			log.Info("Updating old cache entry for actor", "to", to)
 			update = true
 		} else {
-			if err := json.Unmarshal([]byte(actorString), &actor); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal %s cache: %w", to, err)
-			}
 			log.Debug("Resolved actor using cache", "to", to)
-			return &actor, nil
+			return nil, cachedActor, nil
 		}
 	}
 
 	if isLocal {
-		return nil, fmt.Errorf("cannot resolve %s: no such local user", to)
+		return nil, nil, fmt.Errorf("cannot resolve %s: no such local user", to)
 	}
 
 	if offline {
-		return nil, fmt.Errorf("cannot resolve %s: %w", to, ErrActorNotCached)
+		return nil, nil, fmt.Errorf("cannot resolve %s: %w", to, ErrActorNotCached)
 	}
 
 	name := path.Base(u.Path)
@@ -179,14 +188,14 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	}
 
 	if name == "" {
-		return nil, fmt.Errorf("cannot resolve %s: empty name", to)
+		return nil, cachedActor, fmt.Errorf("cannot resolve %s: empty name", to)
 	}
 
 	finger := fmt.Sprintf("%s://%s/.well-known/webfinger?resource=acct:%s@%s", u.Scheme, u.Host, name, u.Host)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, finger, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch %s: %w", finger, err)
+		return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", finger, err)
 	}
 
 	resp, err := send(log, db, from, r, req)
@@ -194,7 +203,7 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 		if resp != nil && (resp.StatusCode == http.StatusGone || resp.StatusCode == http.StatusNotFound) {
 			log.Warn("Actor is gone, deleting associated objects", "to", to)
 			deleteActor(ctx, log, db, to)
-			return nil, fmt.Errorf("failed to fetch %s: %w", finger, ErrActorGone)
+			return nil, nil, fmt.Errorf("failed to fetch %s: %w", finger, ErrActorGone)
 		}
 
 		var (
@@ -206,15 +215,16 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 		if sinceLastUpdate > maxInstanceRecoveryTime && errors.As(err, &urlError) && errors.As(urlError.Err, &opError) && errors.As(opError.Err, &dnsError) && dnsError.IsNotFound {
 			log.Warn("Server is probably gone, deleting associated objects", "to", to)
 			deleteActor(ctx, log, db, to)
+			return nil, nil, fmt.Errorf("failed to fetch %s: %w", finger, err)
 		}
 
-		return nil, fmt.Errorf("failed to fetch %s: %w", finger, err)
+		return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", finger, err)
 	}
 	defer resp.Body.Close()
 
 	var webFingerResponse webFingerResponse
 	if err := json.NewDecoder(resp.Body).Decode(&webFingerResponse); err != nil {
-		return nil, fmt.Errorf("failed to decode %s response: %w", finger, err)
+		return nil, cachedActor, fmt.Errorf("failed to decode %s response: %w", finger, err)
 	}
 
 	profile := ""
@@ -235,53 +245,57 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	}
 
 	if profile == "" {
-		return nil, fmt.Errorf("no profile link in %s response", finger)
+		return nil, cachedActor, fmt.Errorf("no profile link in %s response", finger)
 	}
 
 	if profile != to {
 		log.Info("Replacing actor ID", "before", to, "after", profile)
 		to = profile
+		cachedActor = nil
 
 		if err := db.QueryRowContext(ctx, `select actor, updated from persons where id = ?`, to).Scan(&actorString, &updated); err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("failed to fetch %s cache: %w", to, err)
+			return nil, nil, fmt.Errorf("failed to fetch %s cache: %w", to, err)
 		} else if err == nil {
+			if err := json.Unmarshal([]byte(actorString), &tmp); err != nil {
+				return nil, nil, fmt.Errorf("failed to unmarshal %s cache: %w", to, err)
+			}
+			cachedActor = &tmp
+
 			if !isLocal && time.Since(time.Unix(updated, 0)) > resolverCacheTTL {
 				log.Info("Updating old cache entry for actor", "to", to)
 				update = true
 			} else {
-				if err := json.Unmarshal([]byte(actorString), &actor); err != nil {
-					return nil, fmt.Errorf("failed to unmarshal %s cache: %w", to, err)
-				}
 				log.Debug("Resolved actor using cache", "to", to)
-				return &actor, nil
+				return nil, cachedActor, nil
 			}
 		}
 	}
 
 	req, err = http.NewRequestWithContext(ctx, http.MethodGet, profile, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send request to %s: %w", profile, err)
+		return nil, cachedActor, fmt.Errorf("failed to send request to %s: %w", profile, err)
 	}
 	req.Header.Add("Accept", "application/activity+json")
 
 	resp, err = send(log, db, from, r, req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch %s: %w", profile, err)
+		return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", profile, err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxBodySize))
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch %s: %w", profile, err)
+		return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", profile, err)
 	}
 
+	var actor ap.Actor
 	if err := json.Unmarshal(body, &actor); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal %s: %w", profile, err)
+		return nil, cachedActor, fmt.Errorf("failed to unmarshal %s: %w", profile, err)
 	}
 
 	resolvedID := actor.ID
 	if resolvedID == "" {
-		return nil, fmt.Errorf("failed to unmarshal %s: empty ID", profile)
+		return nil, cachedActor, fmt.Errorf("failed to unmarshal %s: empty ID", profile)
 	}
 	if resolvedID != to {
 		log.Info("Replacing actor ID", "before", to, "after", resolvedID)
@@ -294,7 +308,7 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 			string(body),
 			resolvedID,
 		); err != nil {
-			return nil, fmt.Errorf("failed to cache %s: %w", resolvedID, err)
+			return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", resolvedID, err)
 		}
 	} else if _, err := db.ExecContext(
 		ctx,
@@ -303,8 +317,8 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 		fmt.Sprintf("%x", sha256.Sum256([]byte(resolvedID))),
 		string(body),
 	); err != nil {
-		return nil, fmt.Errorf("failed to cache %s: %w", resolvedID, err)
+		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", resolvedID, err)
 	}
 
-	return &actor, nil
+	return &actor, cachedActor, nil
 }
