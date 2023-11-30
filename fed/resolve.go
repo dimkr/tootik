@@ -39,6 +39,7 @@ import (
 
 const (
 	resolverCacheTTL        = time.Hour * 24 * 3
+	resolverRetryInterval   = time.Hour * 6
 	resolverMaxIdleConns    = 128
 	maxInstanceRecoveryTime = time.Hour * 24 * 30
 	resolverIdleConnTimeout = time.Minute
@@ -153,8 +154,9 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 
 	var actorString string
 	var updated int64
+	var fetched sql.NullInt64
 	var sinceLastUpdate time.Duration
-	if err := db.QueryRowContext(ctx, `select actor, updated from persons where id = ?`, to).Scan(&actorString, &updated); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := db.QueryRowContext(ctx, `select actor, updated, fetched from persons where id = ?`, to).Scan(&actorString, &updated, &fetched); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, fmt.Errorf("failed to fetch %s cache: %w", to, err)
 	} else if err == nil {
 		if err := json.Unmarshal([]byte(actorString), &tmp); err != nil {
@@ -163,7 +165,7 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 		cachedActor = &tmp
 
 		sinceLastUpdate = time.Since(time.Unix(updated, 0))
-		if !isLocal && !offline && sinceLastUpdate > resolverCacheTTL {
+		if !isLocal && !offline && sinceLastUpdate > resolverCacheTTL && (!fetched.Valid || time.Since(time.Unix(fetched.Int64, 0)) >= resolverRetryInterval) {
 			log.Info("Updating old cache entry for actor", "to", to)
 			update = true
 		} else {
@@ -189,6 +191,16 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 
 	if name == "" {
 		return nil, cachedActor, fmt.Errorf("cannot resolve %s: empty name", to)
+	}
+
+	if cachedActor != nil {
+		if _, err := db.ExecContext(
+			ctx,
+			`UPDATE persons SET fetched = UNIXEPOCH() WHERE id = ?`,
+			cachedActor.ID,
+		); err != nil {
+			return nil, cachedActor, fmt.Errorf("failed to update last fetch time for %s: %w", cachedActor.ID, err)
+		}
 	}
 
 	finger := fmt.Sprintf("%s://%s/.well-known/webfinger?resource=acct:%s@%s", u.Scheme, u.Host, name, u.Host)
@@ -253,7 +265,7 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 		to = profile
 		cachedActor = nil
 
-		if err := db.QueryRowContext(ctx, `select actor, updated from persons where id = ?`, to).Scan(&actorString, &updated); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		if err := db.QueryRowContext(ctx, `select actor, updated, fetched from persons where id = ?`, to).Scan(&actorString, &updated, &fetched); err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return nil, nil, fmt.Errorf("failed to fetch %s cache: %w", to, err)
 		} else if err == nil {
 			if err := json.Unmarshal([]byte(actorString), &tmp); err != nil {
@@ -261,9 +273,17 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 			}
 			cachedActor = &tmp
 
-			if !isLocal && time.Since(time.Unix(updated, 0)) > resolverCacheTTL {
+			if !isLocal && time.Since(time.Unix(updated, 0)) > resolverCacheTTL && (!fetched.Valid || time.Since(time.Unix(fetched.Int64, 0)) >= resolverRetryInterval) {
 				log.Info("Updating old cache entry for actor", "to", to)
 				update = true
+
+				if _, err := db.ExecContext(
+					ctx,
+					`UPDATE persons SET fetched = UNIXEPOCH() WHERE id = ?`,
+					cachedActor.ID,
+				); err != nil {
+					return nil, cachedActor, fmt.Errorf("failed to update last fetch time for %s: %w", cachedActor.ID, err)
+				}
 			} else {
 				log.Debug("Resolved actor using cache", "to", to)
 				return nil, cachedActor, nil
@@ -312,7 +332,7 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 		}
 	} else if _, err := db.ExecContext(
 		ctx,
-		`INSERT INTO persons(id, hash, actor) VALUES(?,?,?)`,
+		`INSERT INTO persons(id, hash, actor, fetched) VALUES(?,?,?,UNIXEPOCH())`,
 		resolvedID,
 		fmt.Sprintf("%x", sha256.Sum256([]byte(resolvedID))),
 		string(body),
