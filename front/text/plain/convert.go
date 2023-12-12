@@ -18,6 +18,7 @@ package plain
 
 import (
 	"fmt"
+	"github.com/dimkr/tootik/data"
 	"html"
 	"regexp"
 	"strings"
@@ -26,6 +27,8 @@ import (
 var (
 	spanTags          = regexp.MustCompile(`(?:<span(?:\s+[^>]*)*>)+`)
 	aTags             = regexp.MustCompile(`<a\s+(?:(?:[^>\s]+="[^"]*"\s+)*)href="([^"]*)"(?:\s*(?:\s+[^>\s]+="[^"]*")*\s*>)`)
+	imgTags           = regexp.MustCompile(`<img(?:\s+([a-z]+="[^"]*"))+\s*\/*>`)
+	attrs             = regexp.MustCompile(`\s+([a-z]+)="([^"]*)"`)
 	mentionTags       = regexp.MustCompile(`<a\s+(?:[^\s<]+\s+)*class="(?:[^\s"]+\s+)*mention(?:\s+[^\s"]+)*"[^>]*>`)
 	invisibleSpanTags = regexp.MustCompile(`<span class="invisible">[^<]*</span>`)
 	ellipsisSpanTags  = regexp.MustCompile(`<span class="ellipsis">[^<]*</span>`)
@@ -35,10 +38,9 @@ var (
 	urlRegex          = regexp.MustCompile(`\b(https|http|gemini|gopher|gophers):\/\/\S+\b`)
 )
 
-func FromHTML(text string) (string, []string) {
+func FromHTML(text string) (string, data.OrderedMap[string, string]) {
 	res := html.UnescapeString(text)
-	links := map[string]struct{}{}
-	orderedLinks := []string{}
+	links := data.OrderedMap[string, string]{}
 
 	for _, m := range mentionTags.FindAllString(res, -1) {
 		res = strings.Replace(res, m, "", 1)
@@ -62,11 +64,38 @@ func FromHTML(text string) (string, []string) {
 
 	for _, m := range aTags.FindAllStringSubmatch(res, -1) {
 		link := m[1]
-		if _, dup := links[link]; dup {
-			continue
+		if !links.Contains(link) {
+			links.Store(link, "")
 		}
-		orderedLinks = append(orderedLinks, link)
-		links[link] = struct{}{}
+	}
+
+	for _, img := range imgTags.FindAllStringSubmatch(res, -1) {
+		var alt, src string
+		for _, attr := range attrs.FindAllStringSubmatch(img[0], -1) {
+			if attr[1] == "alt" {
+				alt = attr[2]
+				if src != "" {
+					break
+				}
+			} else if attr[1] == "src" {
+				src = attr[2]
+				if alt != "" {
+					break
+				}
+			}
+		}
+
+		if alt != "" {
+			res = strings.Replace(res, img[0], "["+alt+"]", 1)
+		} else if src != "" {
+			res = strings.Replace(res, img[0], "["+src+"]", 1)
+		}
+
+		if src != "" {
+			if !links.Contains(src) {
+				links.Store(src, alt)
+			}
+		}
 	}
 
 	for _, m := range openTags.FindAllString(res, -1) {
@@ -77,7 +106,7 @@ func FromHTML(text string) (string, []string) {
 		res = strings.Replace(res, m, "", 1)
 	}
 
-	return strings.TrimRight(res, " \n\r\t"), orderedLinks
+	return strings.TrimRight(res, " \n\r\t"), links
 }
 
 func getPlainLinks(text string) map[string]struct{} {

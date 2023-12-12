@@ -128,12 +128,18 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, log *slog.Logger, wg
 		conn.Write([]byte{'\r', '\n'})
 	}
 
-	for _, link := range links {
+	links.Range(func(link, alt string) bool {
 		if !strings.Contains(summary, link) {
-			conn.Write([]byte(link))
+			if alt == "" {
+				conn.Write([]byte(link))
+			} else {
+				fmt.Fprintf(conn, "%s [%s]", link, alt)
+			}
 			conn.Write([]byte{'\r', '\n'})
 		}
-	}
+
+		return true
+	})
 
 	if summary != "" || len(links) > 0 {
 		conn.Write([]byte{'\r', '\n'})
@@ -151,12 +157,18 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, log *slog.Logger, wg
 			conn.Write([]byte{'\r', '\n'})
 		}
 
-		for _, link := range links {
+		links.Range(func(link, alt string) bool {
 			if !strings.Contains(text, link) {
-				conn.Write([]byte(link))
+				if alt == "" {
+					conn.Write([]byte(link))
+				} else {
+					fmt.Fprintf(conn, "%s [%s]", link, alt)
+				}
 				conn.Write([]byte{'\r', '\n'})
 			}
-		}
+
+			return true
+		})
 
 		if i < last {
 			conn.Write([]byte{'\r', '\n'})

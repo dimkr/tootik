@@ -189,7 +189,7 @@ func userOutbox(w text.Writer, r *request) {
 	displayName := getActorDisplayName(&actor, r.Log)
 
 	var summary []string
-	var links []string
+	var links data.OrderedMap[string, string]
 	if offset == 0 && actor.Summary != "" {
 		summary, links = getTextAndLinks(actor.Summary, -1, -1)
 	}
@@ -204,9 +204,14 @@ func userOutbox(w text.Writer, r *request) {
 		for _, line := range summary {
 			w.Quote(line)
 		}
-		for _, link := range links {
-			w.Link(link, link)
-		}
+		links.Range(func(link, alt string) bool {
+			if alt == "" {
+				w.Link(link, link)
+			} else {
+				w.Linkf(link, "%s [%s]", link, alt)
+			}
+			return true
+		})
 		w.Separator()
 	}
 

@@ -46,7 +46,7 @@ type noteMetadata struct {
 
 var verifiedRegex = regexp.MustCompile(`(\s*:[a-zA-Z0-9_]+:\s*)+`)
 
-func getTextAndLinks(s string, maxRunes, maxLines int) ([]string, []string) {
+func getTextAndLinks(s string, maxRunes, maxLines int) ([]string, data.OrderedMap[string, string]) {
 	raw, links := plain.FromHTML(s)
 
 	if raw == "" {
@@ -162,21 +162,22 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 		}
 	}
 
-	links := data.OrderedMap[string, struct{}]{}
+	links := data.OrderedMap[string, string]{}
 
 	if note.URL != "" {
-		links.Store(note.URL, struct{}{})
+		links.Store(note.URL, "")
 	}
 
-	for _, link := range inlineLinks {
-		links.Store(link, struct{}{})
-	}
+	inlineLinks.Range(func(link, alt string) bool {
+		links.Store(link, alt)
+		return true
+	})
 
 	for _, attachment := range note.Attachment {
 		if attachment.URL != "" {
-			links.Store(attachment.URL, struct{}{})
+			links.Store(attachment.URL, "")
 		} else if attachment.Href != "" {
-			links.Store(attachment.Href, struct{}{})
+			links.Store(attachment.Href, "")
 		}
 	}
 
@@ -268,8 +269,12 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 	}
 
 	if !compact {
-		links.Range(func(link string, _ struct{}) bool {
-			w.Link(link, link)
+		links.Range(func(link string, alt string) bool {
+			if alt == "" {
+				w.Link(link, link)
+			} else {
+				w.Link(link, alt)
+			}
 			return true
 		})
 
