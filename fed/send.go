@@ -26,6 +26,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/buildinfo"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/go-fed/httpsig"
 	"io"
@@ -33,6 +34,8 @@ import (
 	"net/http"
 	"time"
 )
+
+var userAgent = "tootik/" + buildinfo.Version
 
 func send(log *slog.Logger, db *sql.DB, from *ap.Actor, resolver *Resolver, r *http.Request) (*http.Response, error) {
 	urlString := r.URL.String()
@@ -134,6 +137,7 @@ func Send(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, res
 		return nil
 	}
 
+	r.Header.Set("User-Agent", userAgent)
 	r.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	resp, err := send(log, db, from, resolver, r)

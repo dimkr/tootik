@@ -209,6 +209,7 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	if err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", finger, err)
 	}
+	req.Header.Set("User-Agent", userAgent)
 
 	resp, err := send(log, db, from, r, req)
 	if err != nil {
@@ -295,6 +296,7 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	if err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to send request to %s: %w", profile, err)
 	}
+	req.Header.Set("User-Agent", userAgent)
 	req.Header.Add("Accept", "application/activity+json")
 
 	resp, err = send(log, db, from, r, req)
