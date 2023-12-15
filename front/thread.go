@@ -100,8 +100,8 @@ func thread(w text.Writer, r *request) {
 		displayName = getDisplayName(rootAuthorID, rootAuthorUsername, "", ap.ActorType(rootAuthorType), r.Log)
 	}
 
-	if offset > 0 && offset >= repliesPerPage {
-		w.Titlef("🧵 Replies to %s (%d-%d)", displayName, offset, offset+repliesPerPage)
+	if offset > 0 && offset >= postsPerPage {
+		w.Titlef("🧵 Replies to %s (%d-%d)", displayName, offset, offset+postsPerPage)
 	} else {
 		w.Titlef("🧵 Replies to %s", displayName)
 	}
