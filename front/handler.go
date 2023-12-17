@@ -44,14 +44,20 @@ func serveStaticFile(w text.Writer, r *request) {
 	}
 }
 
-func NewHandler() Handler {
+func NewHandler(closed bool) Handler {
 	h := Handler{}
 	var cache sync.Map
 
 	h[regexp.MustCompile(`^/$`)] = withUserMenu(home)
 
 	h[regexp.MustCompile(`^/users$`)] = withUserMenu(users)
-	h[regexp.MustCompile(`^/users/register$`)] = register
+	if closed {
+		h[regexp.MustCompile(`^/users/register$`)] = func(w text.Writer, r *request) {
+			w.Status(40, "Registration is closed")
+		}
+	} else {
+		h[regexp.MustCompile(`^/users/register$`)] = register
+	}
 
 	h[regexp.MustCompile(`^/users/inbox/[0-9]{4}-[0-9]{2}-[0-9]{2}$`)] = withUserMenu(byDate)
 	h[regexp.MustCompile(`^/users/inbox/today$`)] = withUserMenu(today)

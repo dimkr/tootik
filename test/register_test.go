@@ -162,7 +162,7 @@ func TestRegister_Redirect(t *testing.T) {
 	_, err = tlsReader.Write([]byte("https://localhost.localdomain/users\r\n"))
 	assert.NoError(err)
 
-	gemini.Handle(context.Background(), front.NewHandler(), tlsWriter, db, fed.NewResolver(nil), &wg, slog.Default())
+	gemini.Handle(context.Background(), front.NewHandler(false), tlsWriter, db, fed.NewResolver(nil), &wg, slog.Default())
 
 	tlsWriter.Close()
 
@@ -233,7 +233,7 @@ func TestRegister_HappyFlow(t *testing.T) {
 	_, err = tlsReader.Write([]byte("https://localhost.localdomain/users/register\r\n"))
 	assert.NoError(err)
 
-	gemini.Handle(context.Background(), front.NewHandler(), tlsWriter, db, fed.NewResolver(nil), &wg, slog.Default())
+	gemini.Handle(context.Background(), front.NewHandler(false), tlsWriter, db, fed.NewResolver(nil), &wg, slog.Default())
 
 	tlsWriter.Close()
 
@@ -241,6 +241,77 @@ func TestRegister_HappyFlow(t *testing.T) {
 	assert.NoError(err)
 
 	assert.Equal("30 /users\r\n", string(resp))
+}
+
+func TestRegister_HappyFlowRegistrationClosed(t *testing.T) {
+	assert := assert.New(t)
+
+	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_journal_mode=WAL", t.Name())
+	db, err := sql.Open("sqlite3", dbPath)
+	assert.NoError(err)
+	defer os.Remove(dbPath)
+
+	assert.NoError(migrations.Run(context.Background(), slog.Default(), db))
+
+	serverKeyPair, err := tls.X509KeyPair([]byte(serverCert), []byte(serverKey))
+	assert.NoError(err)
+
+	serverCfg := tls.Config{
+		Certificates: []tls.Certificate{serverKeyPair},
+		MinVersion:   tls.VersionTLS12,
+		ClientAuth:   tls.RequestClientCert,
+	}
+
+	erinKeyPair, err := tls.X509KeyPair([]byte(erinCert), []byte(erinKey))
+	assert.NoError(err)
+
+	clientCfg := tls.Config{
+		Certificates:       []tls.Certificate{erinKeyPair},
+		InsecureSkipVerify: true,
+	}
+
+	socketPath := fmt.Sprintf("/tmp/%s.socket", t.Name())
+
+	localListener, err := net.Listen("unix", socketPath)
+	assert.NoError(err)
+	defer os.Remove(socketPath)
+
+	tlsListener := tls.NewListener(localListener, &serverCfg)
+	defer tlsListener.Close()
+
+	unixReader, err := net.Dial("unix", socketPath)
+	assert.NoError(err)
+	defer unixReader.Close()
+
+	tlsWriter, err := tlsListener.Accept()
+	assert.NoError(err)
+
+	tlsReader := tls.Client(unixReader, &clientCfg)
+	defer tlsReader.Close()
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		assert.NoError(tlsReader.Handshake())
+		wg.Done()
+	}()
+	go func() {
+		assert.NoError(tlsWriter.(*tls.Conn).Handshake())
+		wg.Done()
+	}()
+	wg.Wait()
+
+	_, err = tlsReader.Write([]byte("https://localhost.localdomain/users/register\r\n"))
+	assert.NoError(err)
+
+	gemini.Handle(context.Background(), front.NewHandler(true), tlsWriter, db, fed.NewResolver(nil), &wg, slog.Default())
+
+	tlsWriter.Close()
+
+	resp, err := io.ReadAll(tlsReader)
+	assert.NoError(err)
+
+	assert.Equal("40 Registration is closed\r\n", string(resp))
 }
 
 func TestRegister_AlreadyRegistered(t *testing.T) {
@@ -307,7 +378,7 @@ func TestRegister_AlreadyRegistered(t *testing.T) {
 	_, err = user.Create(context.Background(), db, "https://localhost.localdomain/user/erin", "erin", "e")
 	assert.NoError(err)
 
-	gemini.Handle(context.Background(), front.NewHandler(), tlsWriter, db, fed.NewResolver(nil), &wg, slog.Default())
+	gemini.Handle(context.Background(), front.NewHandler(false), tlsWriter, db, fed.NewResolver(nil), &wg, slog.Default())
 
 	tlsWriter.Close()
 
@@ -383,7 +454,7 @@ func TestRegister_Twice(t *testing.T) {
 		_, err = tlsReader.Write([]byte("https://localhost.localdomain/users/register\r\n"))
 		assert.NoError(err)
 
-		gemini.Handle(context.Background(), front.NewHandler(), tlsWriter, db, fed.NewResolver(nil), &wg, slog.Default())
+		gemini.Handle(context.Background(), front.NewHandler(false), tlsWriter, db, fed.NewResolver(nil), &wg, slog.Default())
 
 		tlsWriter.Close()
 
@@ -470,7 +541,7 @@ func TestRegister_Throttling(t *testing.T) {
 		_, err = tlsReader.Write([]byte("https://localhost.localdomain/users/register\r\n"))
 		assert.NoError(err)
 
-		gemini.Handle(context.Background(), front.NewHandler(), tlsWriter, db, fed.NewResolver(nil), &wg, slog.Default())
+		gemini.Handle(context.Background(), front.NewHandler(false), tlsWriter, db, fed.NewResolver(nil), &wg, slog.Default())
 
 		tlsWriter.Close()
 
@@ -557,7 +628,7 @@ func TestRegister_Throttling30Minutes(t *testing.T) {
 		_, err = tlsReader.Write([]byte("https://localhost.localdomain/users/register\r\n"))
 		assert.NoError(err)
 
-		gemini.Handle(context.Background(), front.NewHandler(), tlsWriter, db, fed.NewResolver(nil), &wg, slog.Default())
+		gemini.Handle(context.Background(), front.NewHandler(false), tlsWriter, db, fed.NewResolver(nil), &wg, slog.Default())
 
 		tlsWriter.Close()
 
@@ -647,7 +718,7 @@ func TestRegister_Throttling1Hour(t *testing.T) {
 		_, err = tlsReader.Write([]byte("https://localhost.localdomain/users/register\r\n"))
 		assert.NoError(err)
 
-		gemini.Handle(context.Background(), front.NewHandler(), tlsWriter, db, fed.NewResolver(nil), &wg, slog.Default())
+		gemini.Handle(context.Background(), front.NewHandler(false), tlsWriter, db, fed.NewResolver(nil), &wg, slog.Default())
 
 		tlsWriter.Close()
 
@@ -731,7 +802,7 @@ func TestRegister_RedirectTwice(t *testing.T) {
 		_, err = tlsReader.Write([]byte(data.url))
 		assert.NoError(err)
 
-		gemini.Handle(context.Background(), front.NewHandler(), tlsWriter, db, fed.NewResolver(nil), &wg, slog.Default())
+		gemini.Handle(context.Background(), front.NewHandler(false), tlsWriter, db, fed.NewResolver(nil), &wg, slog.Default())
 
 		tlsWriter.Close()
 

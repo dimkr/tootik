@@ -92,7 +92,7 @@ func newTestServer() *server {
 	return &server{
 		dbPath:  path,
 		db:      db,
-		handler: front.NewHandler(),
+		handler: front.NewHandler(false),
 		Alice:   alice,
 		Bob:     bob,
 		Carol:   carol,

@@ -61,6 +61,7 @@ var (
 	key           = flag.String("key", "key.pem", "HTTPS TLS key")
 	addr          = flag.String("addr", ":8443", "HTTPS listening address")
 	blockListPath = flag.String("blocklist", "", "Blocklist CSV")
+	closed        = flag.Bool("closed", false, "Disable new user registration")
 	version       = flag.Bool("version", false, "Print version and exit")
 )
 
@@ -139,7 +140,7 @@ func main() {
 		wg.Done()
 	}()
 
-	handler := front.NewHandler()
+	handler := front.NewHandler(*closed)
 
 	wg.Add(1)
 	go func() {
