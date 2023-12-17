@@ -18,6 +18,10 @@ tootik's goal is to make the fediverse lighter, more private and more accessible
 * It should be lightweight and efficient enough to host a small community on one, cheap server, without horizontal scaling and the ongoing maintenance of a separate database.
 * It implements only a small subset of ActivityPub, enough for its feature set but not more, and everything is implemented in one language ([Go](https://go.dev/)) without abstraction layers (like web or ORM frameworks), making it easy to understand and hack on.
 
+## Using tootik
+
+You can join an [existing instance](gemini://hd.206267.xyz) or [set up your own](https://github.com/dimkr/tootik/wiki/Quick-setup-guide).
+
 ## Building
 
 	go generate ./migrations
