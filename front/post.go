@@ -101,8 +101,6 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 	}
 
 	for _, mention := range mentionRegex.FindAllStringSubmatch(content, -1) {
-		fmt.Println(content)
-		fmt.Println(mention)
 		if len(mention) < 3 {
 			continue
 		}
