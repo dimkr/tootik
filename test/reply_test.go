@@ -228,13 +228,13 @@ func TestReply_PostToFollowersInFollowedGroup(t *testing.T) {
 	_, err := server.db.Exec(
 		`insert into persons (id, hash, actor) values(?,?,?)`,
 		"https://other.localdomain/group/people",
-		"ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26",
+		"4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Alice)
-	assert.Equal("30 /users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26\r\n", follow)
+	follow := server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
+	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
