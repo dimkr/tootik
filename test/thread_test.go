@@ -253,12 +253,12 @@ func TestThread_Tree(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/6",
+				ID:           "https://localhost.localdomain:8443/note/6",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Carol.ID,
 				Content:      "hello",
 				To:           to,
-				InReplyTo:    "https://localhost.localdomain/note/4",
+				InReplyTo:    "https://localhost.localdomain:8443/note/4",
 			},
 		),
 	)
@@ -269,7 +269,7 @@ func TestThread_Tree(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/1",
+				ID:           "https://localhost.localdomain:8443/note/1",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Alice.ID,
 				Content:      "hello",
@@ -284,12 +284,12 @@ func TestThread_Tree(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/4",
+				ID:           "https://localhost.localdomain:8443/note/4",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Alice.ID,
 				Content:      "hello",
 				To:           to,
-				InReplyTo:    "https://localhost.localdomain/note/2",
+				InReplyTo:    "https://localhost.localdomain:8443/note/2",
 			},
 		),
 	)
@@ -300,12 +300,12 @@ func TestThread_Tree(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/2",
+				ID:           "https://localhost.localdomain:8443/note/2",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Bob.ID,
 				Content:      "hello",
 				To:           to,
-				InReplyTo:    "https://localhost.localdomain/note/1",
+				InReplyTo:    "https://localhost.localdomain:8443/note/1",
 			},
 		),
 	)
@@ -316,12 +316,12 @@ func TestThread_Tree(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/3",
+				ID:           "https://localhost.localdomain:8443/note/3",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Carol.ID,
 				Content:      "hello",
 				To:           to,
-				InReplyTo:    "https://localhost.localdomain/note/1",
+				InReplyTo:    "https://localhost.localdomain:8443/note/1",
 			},
 		),
 	)
@@ -332,26 +332,26 @@ func TestThread_Tree(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/5",
+				ID:           "https://localhost.localdomain:8443/note/5",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Bob.ID,
 				Content:      "hello",
 				To:           to,
-				InReplyTo:    "https://localhost.localdomain/note/3",
+				InReplyTo:    "https://localhost.localdomain:8443/note/3",
 			},
 		),
 	)
 
 	assert.NoError(tx.Commit())
 
-	thread := server.Handle("/thread/23bc3d394d5d2eeacaf53de4d6432e42f92be32b875d3604e65579d530d78308", nil)
+	thread := server.Handle("/thread/f42d4ca96d006a7b924cde2b3694d2dacb0fe92e140232e336a0ad3cbc049984", nil)
 	assert.Contains(thread, "Replies to 😈 alice")
 	assert.Contains(thread, " · bob")
 	assert.Contains(thread, " ·· alice")
 	assert.Contains(thread, " ··· carol")
 	assert.Contains(thread, " · carol")
 	assert.Contains(thread, " ·· bob")
-	assert.NotContains(strings.Split(thread, "\n"), "=> /view/23bc3d394d5d2eeacaf53de4d6432e42f92be32b875d3604e65579d530d78308 View first post in thread")
+	assert.NotContains(strings.Split(thread, "\n"), "=> /view/f42d4ca96d006a7b924cde2b3694d2dacb0fe92e140232e336a0ad3cbc049984 View first post in thread")
 }
 
 func TestThread_SubTree(t *testing.T) {
@@ -373,12 +373,12 @@ func TestThread_SubTree(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/6",
+				ID:           "https://localhost.localdomain:8443/note/6",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Carol.ID,
 				Content:      "hello",
 				To:           to,
-				InReplyTo:    "https://localhost.localdomain/note/4",
+				InReplyTo:    "https://localhost.localdomain:8443/note/4",
 			},
 		),
 	)
@@ -389,7 +389,7 @@ func TestThread_SubTree(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/1",
+				ID:           "https://localhost.localdomain:8443/note/1",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Alice.ID,
 				Content:      "hello",
@@ -404,12 +404,12 @@ func TestThread_SubTree(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/4",
+				ID:           "https://localhost.localdomain:8443/note/4",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Alice.ID,
 				Content:      "hello",
 				To:           to,
-				InReplyTo:    "https://localhost.localdomain/note/2",
+				InReplyTo:    "https://localhost.localdomain:8443/note/2",
 			},
 		),
 	)
@@ -420,12 +420,12 @@ func TestThread_SubTree(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/2",
+				ID:           "https://localhost.localdomain:8443/note/2",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Bob.ID,
 				Content:      "hello",
 				To:           to,
-				InReplyTo:    "https://localhost.localdomain/note/1",
+				InReplyTo:    "https://localhost.localdomain:8443/note/1",
 			},
 		),
 	)
@@ -436,12 +436,12 @@ func TestThread_SubTree(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/3",
+				ID:           "https://localhost.localdomain:8443/note/3",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Carol.ID,
 				Content:      "hello",
 				To:           to,
-				InReplyTo:    "https://localhost.localdomain/note/1",
+				InReplyTo:    "https://localhost.localdomain:8443/note/1",
 			},
 		),
 	)
@@ -452,22 +452,22 @@ func TestThread_SubTree(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/5",
+				ID:           "https://localhost.localdomain:8443/note/5",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Bob.ID,
 				Content:      "hello",
 				To:           to,
-				InReplyTo:    "https://localhost.localdomain/note/3",
+				InReplyTo:    "https://localhost.localdomain:8443/note/3",
 			},
 		),
 	)
 
 	assert.NoError(tx.Commit())
 
-	thread := server.Handle("/thread/5910fcdcc5d9c65657d7037cadfe12892c60f1708e4e59b4ddbca8d7f8a5195a", nil)
+	thread := server.Handle("/thread/6f5c6eb90e28bac6a71c73c93d8957e7d6627926838539561a918eaf21a4a800", nil)
 	assert.Contains(thread, "Replies to 😈 bob")
 	assert.Contains(thread, " bob")
 	assert.Contains(thread, " · alice")
 	assert.Contains(thread, " ·· carol")
-	assert.Contains(strings.Split(thread, "\n"), "=> /view/23bc3d394d5d2eeacaf53de4d6432e42f92be32b875d3604e65579d530d78308 View first post in thread")
+	assert.Contains(strings.Split(thread, "\n"), "=> /view/f42d4ca96d006a7b924cde2b3694d2dacb0fe92e140232e336a0ad3cbc049984 View first post in thread")
 }

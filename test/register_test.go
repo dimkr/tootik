@@ -159,7 +159,7 @@ func TestRegister_Redirect(t *testing.T) {
 	}()
 	wg.Wait()
 
-	_, err = tlsReader.Write([]byte("https://localhost.localdomain/users\r\n"))
+	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users\r\n"))
 	assert.NoError(err)
 
 	gemini.Handle(context.Background(), front.NewHandler(false), tlsWriter, db, fed.NewResolver(nil), &wg, slog.Default())
@@ -230,7 +230,7 @@ func TestRegister_HappyFlow(t *testing.T) {
 	}()
 	wg.Wait()
 
-	_, err = tlsReader.Write([]byte("https://localhost.localdomain/users/register\r\n"))
+	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
 	assert.NoError(err)
 
 	gemini.Handle(context.Background(), front.NewHandler(false), tlsWriter, db, fed.NewResolver(nil), &wg, slog.Default())
@@ -301,7 +301,7 @@ func TestRegister_HappyFlowRegistrationClosed(t *testing.T) {
 	}()
 	wg.Wait()
 
-	_, err = tlsReader.Write([]byte("https://localhost.localdomain/users/register\r\n"))
+	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
 	assert.NoError(err)
 
 	gemini.Handle(context.Background(), front.NewHandler(true), tlsWriter, db, fed.NewResolver(nil), &wg, slog.Default())
@@ -372,10 +372,10 @@ func TestRegister_AlreadyRegistered(t *testing.T) {
 	}()
 	wg.Wait()
 
-	_, err = tlsReader.Write([]byte("https://localhost.localdomain/users/register\r\n"))
+	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
 	assert.NoError(err)
 
-	_, err = user.Create(context.Background(), db, "https://localhost.localdomain/user/erin", "erin", "e")
+	_, err = user.Create(context.Background(), db, "https://localhost.localdomain:8443/user/erin", "erin", "e")
 	assert.NoError(err)
 
 	gemini.Handle(context.Background(), front.NewHandler(false), tlsWriter, db, fed.NewResolver(nil), &wg, slog.Default())
@@ -451,7 +451,7 @@ func TestRegister_Twice(t *testing.T) {
 		}()
 		wg.Wait()
 
-		_, err = tlsReader.Write([]byte("https://localhost.localdomain/users/register\r\n"))
+		_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
 		assert.NoError(err)
 
 		gemini.Handle(context.Background(), front.NewHandler(false), tlsWriter, db, fed.NewResolver(nil), &wg, slog.Default())
@@ -538,7 +538,7 @@ func TestRegister_Throttling(t *testing.T) {
 		}()
 		wg.Wait()
 
-		_, err = tlsReader.Write([]byte("https://localhost.localdomain/users/register\r\n"))
+		_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
 		assert.NoError(err)
 
 		gemini.Handle(context.Background(), front.NewHandler(false), tlsWriter, db, fed.NewResolver(nil), &wg, slog.Default())
@@ -625,7 +625,7 @@ func TestRegister_Throttling30Minutes(t *testing.T) {
 		}()
 		wg.Wait()
 
-		_, err = tlsReader.Write([]byte("https://localhost.localdomain/users/register\r\n"))
+		_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
 		assert.NoError(err)
 
 		gemini.Handle(context.Background(), front.NewHandler(false), tlsWriter, db, fed.NewResolver(nil), &wg, slog.Default())
@@ -715,7 +715,7 @@ func TestRegister_Throttling1Hour(t *testing.T) {
 		}()
 		wg.Wait()
 
-		_, err = tlsReader.Write([]byte("https://localhost.localdomain/users/register\r\n"))
+		_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
 		assert.NoError(err)
 
 		gemini.Handle(context.Background(), front.NewHandler(false), tlsWriter, db, fed.NewResolver(nil), &wg, slog.Default())
@@ -772,10 +772,10 @@ func TestRegister_RedirectTwice(t *testing.T) {
 		url      string
 		expected string
 	}{
-		{"https://localhost.localdomain/users\r\n", "^30 /users/register\r\n$"},
-		{"https://localhost.localdomain/users/register\r\n", "^30 /users\r\n$"},
-		{"https://localhost.localdomain/users\r\n", "^20 text/gemini\r\n.+"},
-		{"https://localhost.localdomain/users/register\r\n", "^40 Already registered as erin\r\n$"},
+		{"gemini://localhost.localdomain/users\r\n", "^30 /users/register\r\n$"},
+		{"gemini://localhost.localdomain/users/register\r\n", "^30 /users\r\n$"},
+		{"gemini://localhost.localdomain/users\r\n", "^20 text/gemini\r\n.+"},
+		{"gemini://localhost.localdomain/users/register\r\n", "^40 Already registered as erin\r\n$"},
 	} {
 		unixReader, err := net.Dial("unix", socketPath)
 		assert.NoError(err)

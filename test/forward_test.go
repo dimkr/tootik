@@ -39,7 +39,7 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 			context.Background(),
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain/follow/1",
+			"https://localhost.localdomain:8443/follow/1",
 			server.db,
 		),
 	)
@@ -57,7 +57,7 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/1",
+				ID:           "https://localhost.localdomain:8443/note/1",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Alice.ID,
 				Content:      "hello",
@@ -76,7 +76,7 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain/note/1","content":"bye","to":["https://localhost.localdomain/user/alice"],"cc":["https://localhost.localdomain/followers/alice"]},"to":["https://localhost.localdomain/user/alice"],"cc":["https://localhost.localdomain/followers/alice"]}`
+	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/1","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
@@ -105,7 +105,7 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 			context.Background(),
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain/follow/1",
+			"https://localhost.localdomain:8443/follow/1",
 			server.db,
 		),
 	)
@@ -126,7 +126,7 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/1",
+				ID:           "https://localhost.localdomain:8443/note/1",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Alice.ID,
 				Content:      "hello",
@@ -146,7 +146,7 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain/note/1","content":"bye","to":["https://localhost.localdomain/user/alice"],"cc":["https://localhost.localdomain/followers/alice"]},"to":["https://localhost.localdomain/user/alice"],"cc":["https://localhost.localdomain/followers/alice"]}`
+	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/1","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
@@ -175,7 +175,7 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 			context.Background(),
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain/follow/1",
+			"https://localhost.localdomain:8443/follow/1",
 			server.db,
 		),
 	)
@@ -193,7 +193,7 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/1",
+				ID:           "https://localhost.localdomain:8443/note/1",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Alice.ID,
 				Content:      "hello",
@@ -208,10 +208,10 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/2",
+				ID:           "https://localhost.localdomain:8443/note/2",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Bob.ID,
-				InReplyTo:    "https://localhost.localdomain/note/1",
+				InReplyTo:    "https://localhost.localdomain:8443/note/1",
 				Content:      "hola",
 				To:           to,
 			},
@@ -228,7 +228,7 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain/note/2","content":"bye","to":["https://localhost.localdomain/user/alice"],"cc":["https://localhost.localdomain/followers/bob"]},"to":["https://localhost.localdomain/user/alice"],"cc":["https://localhost.localdomain/followers/bob"]}`
+	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/2","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/bob"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/bob"]}`
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
@@ -257,7 +257,7 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 			context.Background(),
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain/follow/1",
+			"https://localhost.localdomain:8443/follow/1",
 			server.db,
 		),
 	)
@@ -275,7 +275,7 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/1",
+				ID:           "https://localhost.localdomain:8443/note/1",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Alice.ID,
 				Content:      "hello",
@@ -294,7 +294,7 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain/note/3","content":"bye","to":["https://localhost.localdomain/user/alice"],"cc":["https://localhost.localdomain/followers/alice"]},"to":["https://localhost.localdomain/user/alice"],"cc":["https://localhost.localdomain/followers/alice"]}`
+	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/3","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
@@ -323,7 +323,7 @@ func TestForward_ReplyToDM(t *testing.T) {
 			context.Background(),
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain/follow/1",
+			"https://localhost.localdomain:8443/follow/1",
 			server.db,
 		),
 	)
@@ -341,7 +341,7 @@ func TestForward_ReplyToDM(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/1",
+				ID:           "https://localhost.localdomain:8443/note/1",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Alice.ID,
 				Content:      "hello",
@@ -360,7 +360,7 @@ func TestForward_ReplyToDM(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain/note/1","content":"bye","to":["https://localhost.localdomain/user/alice"],"cc":["https://localhost.localdomain/followers/alice"]},"to":["https://localhost.localdomain/user/alice"],"cc":["https://localhost.localdomain/followers/alice"]}`
+	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/1","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
@@ -397,7 +397,7 @@ func TestForward_NotFollowingAuthor(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/1",
+				ID:           "https://localhost.localdomain:8443/note/1",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Alice.ID,
 				Content:      "hello",
@@ -416,7 +416,7 @@ func TestForward_NotFollowingAuthor(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain/note/1","content":"bye","to":["https://localhost.localdomain/user/alice"],"cc":["https://localhost.localdomain/followers/alice"]},"to":["https://localhost.localdomain/user/alice"],"cc":["https://localhost.localdomain/followers/alice"]}`
+	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/1","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
@@ -445,7 +445,7 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 			context.Background(),
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain/follow/1",
+			"https://localhost.localdomain:8443/follow/1",
 			server.db,
 		),
 	)
@@ -463,7 +463,7 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/1",
+				ID:           "https://localhost.localdomain:8443/note/1",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Alice.ID,
 				Content:      "hello",
@@ -482,7 +482,7 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://127.0.0.1/note/2","content":"bye","to":["https://localhost.localdomain/user/alice"],"cc":["https://localhost.localdomain/followers/alice"]},"to":["https://localhost.localdomain/user/alice"],"cc":["https://localhost.localdomain/followers/alice"]}`
+	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://127.0.0.1/note/2","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
@@ -567,7 +567,7 @@ func TestForward_MaxDepth(t *testing.T) {
 			context.Background(),
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain/follow/1",
+			"https://localhost.localdomain:8443/follow/1",
 			server.db,
 		),
 	)
@@ -585,7 +585,7 @@ func TestForward_MaxDepth(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/1",
+				ID:           "https://localhost.localdomain:8443/note/1",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Alice.ID,
 				Content:      "hello",
@@ -600,10 +600,10 @@ func TestForward_MaxDepth(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/2",
+				ID:           "https://localhost.localdomain:8443/note/2",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Bob.ID,
-				InReplyTo:    "https://localhost.localdomain/note/1",
+				InReplyTo:    "https://localhost.localdomain:8443/note/1",
 				Content:      "hola",
 				To:           to,
 			},
@@ -616,10 +616,10 @@ func TestForward_MaxDepth(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/3",
+				ID:           "https://localhost.localdomain:8443/note/3",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Alice.ID,
-				InReplyTo:    "https://localhost.localdomain/note/2",
+				InReplyTo:    "https://localhost.localdomain:8443/note/2",
 				Content:      "hi",
 				To:           to,
 			},
@@ -632,10 +632,10 @@ func TestForward_MaxDepth(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/4",
+				ID:           "https://localhost.localdomain:8443/note/4",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Bob.ID,
-				InReplyTo:    "https://localhost.localdomain/note/3",
+				InReplyTo:    "https://localhost.localdomain:8443/note/3",
 				Content:      "hiii",
 				To:           to,
 			},
@@ -652,7 +652,7 @@ func TestForward_MaxDepth(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain/note/4","content":"bye","to":["https://localhost.localdomain/user/alice"],"cc":["https://localhost.localdomain/followers/bob"]},"to":["https://localhost.localdomain/user/alice"],"cc":["https://localhost.localdomain/followers/bob"]}`
+	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/4","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/bob"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/bob"]}`
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
@@ -681,7 +681,7 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 			context.Background(),
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain/follow/1",
+			"https://localhost.localdomain:8443/follow/1",
 			server.db,
 		),
 	)
@@ -699,7 +699,7 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/1",
+				ID:           "https://localhost.localdomain:8443/note/1",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Alice.ID,
 				Content:      "hello",
@@ -714,10 +714,10 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/2",
+				ID:           "https://localhost.localdomain:8443/note/2",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Bob.ID,
-				InReplyTo:    "https://localhost.localdomain/note/1",
+				InReplyTo:    "https://localhost.localdomain:8443/note/1",
 				Content:      "hola",
 				To:           to,
 			},
@@ -730,10 +730,10 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/3",
+				ID:           "https://localhost.localdomain:8443/note/3",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Alice.ID,
-				InReplyTo:    "https://localhost.localdomain/note/2",
+				InReplyTo:    "https://localhost.localdomain:8443/note/2",
 				Content:      "hi",
 				To:           to,
 			},
@@ -746,10 +746,10 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/4",
+				ID:           "https://localhost.localdomain:8443/note/4",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Bob.ID,
-				InReplyTo:    "https://localhost.localdomain/note/3",
+				InReplyTo:    "https://localhost.localdomain:8443/note/3",
 				Content:      "hiii",
 				To:           to,
 			},
@@ -762,10 +762,10 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 			slog.Default(),
 			tx,
 			&ap.Object{
-				ID:           "https://localhost.localdomain/note/5",
+				ID:           "https://localhost.localdomain:8443/note/5",
 				Type:         ap.NoteObject,
 				AttributedTo: server.Alice.ID,
-				InReplyTo:    "https://localhost.localdomain/note/4",
+				InReplyTo:    "https://localhost.localdomain:8443/note/4",
 				Content:      "byeee",
 				To:           to,
 			},
@@ -782,7 +782,7 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain/note/5","content":"bye","to":["https://localhost.localdomain/user/alice"],"cc":["https://localhost.localdomain/followers/bob"]},"to":["https://localhost.localdomain/user/alice"],"cc":["https://localhost.localdomain/followers/bob"]}`
+	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/5","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/bob"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/bob"]}`
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,

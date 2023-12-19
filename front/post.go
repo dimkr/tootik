@@ -40,7 +40,7 @@ const (
 )
 
 var (
-	mentionRegex = regexp.MustCompile(`\B@(\w+)(?:@(\w+\.\w+)){0,1}\b`)
+	mentionRegex = regexp.MustCompile(`\B@(\w+)(?:@(\w+\.\w+(?::\d+){0,1})){0,1}\b`)
 	hashtagRegex = regexp.MustCompile(`\B#\w{1,32}\b`)
 	pollRegex    = regexp.MustCompile(`^\[(?:(?i)POLL)\s+(.+)\s*\]\s*(.+)`)
 )
@@ -101,6 +101,8 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 	}
 
 	for _, mention := range mentionRegex.FindAllStringSubmatch(content, -1) {
+		fmt.Println(content)
+		fmt.Println(mention)
 		if len(mention) < 3 {
 			continue
 		}

@@ -116,12 +116,6 @@ func Handle(ctx context.Context, handler front.Handler, conn net.Conn, db *sql.D
 
 	w := gmi.Wrap(conn)
 
-	if reqUrl.Host != cfg.Domain {
-		log.Info("Wrong host", "host", reqUrl.Host)
-		w.Status(53, "Wrong host")
-		return
-	}
-
 	user, err := getUser(ctx, db, conn, tlsConn, log)
 	if err != nil && errors.Is(err, front.ErrNotRegistered) && reqUrl.Path == "/users" {
 		log.Info("Redirecting new user")
