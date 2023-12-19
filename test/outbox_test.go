@@ -217,8 +217,8 @@ func TestOutbox_PublicPostInGroup(t *testing.T) {
 
 	_, err := server.db.Exec(
 		`insert into persons (id, hash, actor) values(?,?,?)`,
-		"https://other.localdomain/group/people",
-		"4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f",
+		"https://other.localdomain:8443/group/people",
+		"ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
@@ -226,7 +226,7 @@ func TestOutbox_PublicPostInGroup(t *testing.T) {
 	say := server.Handle("/users/say?Hello%20people%20in%20%40people%40other.localdomain", server.Alice)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", say)
 
-	outbox := server.Handle("/users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Bob)
+	outbox := server.Handle("/users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Bob)
 	assert.Contains(outbox, "Hello people in @people@other.localdomain")
 }
 
@@ -238,8 +238,8 @@ func TestOutbox_PublicPostInGroupUnauthenticatedUser(t *testing.T) {
 
 	_, err := server.db.Exec(
 		`insert into persons (id, hash, actor) values(?,?,?)`,
-		"https://other.localdomain/group/people",
-		"4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f",
+		"https://other.localdomain:8443/group/people",
+		"ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
@@ -247,7 +247,7 @@ func TestOutbox_PublicPostInGroupUnauthenticatedUser(t *testing.T) {
 	say := server.Handle("/users/say?Hello%20people%20in%20%40people%40other.localdomain", server.Alice)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", say)
 
-	outbox := server.Handle("/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", nil)
+	outbox := server.Handle("/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", nil)
 	assert.Contains(outbox, "Hello people in @people@other.localdomain")
 }
 
@@ -259,17 +259,17 @@ func TestOutbox_PostToFollowersInGroup(t *testing.T) {
 
 	_, err := server.db.Exec(
 		`insert into persons (id, hash, actor) values(?,?,?)`,
-		"https://other.localdomain/group/people",
-		"4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f",
+		"https://other.localdomain:8443/group/people",
+		"ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
-	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
+	follow := server.Handle("/users/follow/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Alice)
+	assert.Equal("30 /users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26\r\n", follow)
 
-	follow = server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Bob)
-	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
+	follow = server.Handle("/users/follow/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Bob)
+	assert.Equal("30 /users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26\r\n", follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
@@ -277,7 +277,7 @@ func TestOutbox_PostToFollowersInGroup(t *testing.T) {
 	whisper := server.Handle("/users/whisper?Hello%20people%20in%20%40people%40other.localdomain", server.Alice)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
-	outbox := server.Handle("/users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Bob)
+	outbox := server.Handle("/users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Bob)
 	assert.Contains(outbox, "Hello people in @people@other.localdomain")
 }
 
@@ -289,14 +289,14 @@ func TestOutbox_PostToFollowersInGroupNotFollowingGroup(t *testing.T) {
 
 	_, err := server.db.Exec(
 		`insert into persons (id, hash, actor) values(?,?,?)`,
-		"https://other.localdomain/group/people",
-		"4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f",
+		"https://other.localdomain:8443/group/people",
+		"ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
-	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
+	follow := server.Handle("/users/follow/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Alice)
+	assert.Equal("30 /users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26\r\n", follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
@@ -304,7 +304,7 @@ func TestOutbox_PostToFollowersInGroupNotFollowingGroup(t *testing.T) {
 	whisper := server.Handle("/users/whisper?Hello%20people%20in%20%40people%40other.localdomain", server.Alice)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
-	outbox := server.Handle("/users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Bob)
+	outbox := server.Handle("/users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Bob)
 	assert.NotContains(outbox, "Hello people in @people@other.localdomain")
 	assert.Contains(strings.Split(outbox, "\n"), "No posts.")
 }
@@ -317,25 +317,25 @@ func TestOutbox_PostToFollowersInGroupNotAccepted(t *testing.T) {
 
 	_, err := server.db.Exec(
 		`insert into persons (id, hash, actor) values(?,?,?)`,
-		"https://other.localdomain/group/people",
-		"4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f",
+		"https://other.localdomain:8443/group/people",
+		"ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
-	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
+	follow := server.Handle("/users/follow/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Alice)
+	assert.Equal("30 /users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26\r\n", follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
 
-	follow = server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Bob)
-	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
+	follow = server.Handle("/users/follow/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Bob)
+	assert.Equal("30 /users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26\r\n", follow)
 
 	whisper := server.Handle("/users/whisper?Hello%20people%20in%20%40people%40other.localdomain", server.Alice)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
-	outbox := server.Handle("/users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Bob)
+	outbox := server.Handle("/users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Bob)
 	assert.NotContains(outbox, "Hello people in @people@other.localdomain")
 	assert.Contains(strings.Split(outbox, "\n"), "No posts.")
 }
@@ -348,14 +348,14 @@ func TestOutbox_PostToFollowersInGroupFollowingAuthor(t *testing.T) {
 
 	_, err := server.db.Exec(
 		`insert into persons (id, hash, actor) values(?,?,?)`,
-		"https://other.localdomain/group/people",
-		"4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f",
+		"https://other.localdomain:8443/group/people",
+		"ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
-	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
+	follow := server.Handle("/users/follow/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Alice)
+	assert.Equal("30 /users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26\r\n", follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
@@ -366,7 +366,7 @@ func TestOutbox_PostToFollowersInGroupFollowingAuthor(t *testing.T) {
 	whisper := server.Handle("/users/whisper?Hello%20people%20in%20%40people%40other.localdomain", server.Alice)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
-	outbox := server.Handle("/users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Bob)
+	outbox := server.Handle("/users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Bob)
 	assert.NotContains(outbox, "Hello people in @people@other.localdomain")
 	assert.Contains(strings.Split(outbox, "\n"), "No posts.")
 }
@@ -379,8 +379,8 @@ func TestOutbox_PostToFollowersInGroupUnauthenticatedUser(t *testing.T) {
 
 	_, err := server.db.Exec(
 		`insert into persons (id, hash, actor) values(?,?,?)`,
-		"https://other.localdomain/group/people",
-		"4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f",
+		"https://other.localdomain:8443/group/people",
+		"ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
@@ -388,7 +388,7 @@ func TestOutbox_PostToFollowersInGroupUnauthenticatedUser(t *testing.T) {
 	whisper := server.Handle("/users/whisper?Hello%20people%20in%20%40people%40other.localdomain", server.Alice)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
-	outbox := server.Handle("/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", nil)
+	outbox := server.Handle("/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", nil)
 	assert.NotContains(outbox, "Hello people in @people@other.localdomain")
 	assert.Contains(strings.Split(outbox, "\n"), "No posts.")
 }
@@ -401,17 +401,17 @@ func TestOutbox_DMInGroup(t *testing.T) {
 
 	_, err := server.db.Exec(
 		`insert into persons (id, hash, actor) values(?,?,?)`,
-		"https://other.localdomain/group/people",
-		"4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f",
+		"https://other.localdomain:8443/group/people",
+		"ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
-	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
+	follow := server.Handle("/users/follow/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Alice)
+	assert.Equal("30 /users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26\r\n", follow)
 
-	follow = server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Bob)
-	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
+	follow = server.Handle("/users/follow/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Bob)
+	assert.Equal("30 /users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26\r\n", follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
@@ -422,7 +422,7 @@ func TestOutbox_DMInGroup(t *testing.T) {
 	whisper := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20bob%%20from%%20%%40people%%40other.localdomain", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
-	outbox := server.Handle("/users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Bob)
+	outbox := server.Handle("/users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Bob)
 	assert.Contains(outbox, "Hello bob from @people@other.localdomain")
 }
 
@@ -434,14 +434,14 @@ func TestOutbox_DMInGroupNotFollowingGroup(t *testing.T) {
 
 	_, err := server.db.Exec(
 		`insert into persons (id, hash, actor) values(?,?,?)`,
-		"https://other.localdomain/group/people",
-		"4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f",
+		"https://other.localdomain:8443/group/people",
+		"ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
-	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
+	follow := server.Handle("/users/follow/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Alice)
+	assert.Equal("30 /users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26\r\n", follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
@@ -452,7 +452,7 @@ func TestOutbox_DMInGroupNotFollowingGroup(t *testing.T) {
 	whisper := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20bob%%20from%%20%%40people%%40other.localdomain", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
-	outbox := server.Handle("/users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Bob)
+	outbox := server.Handle("/users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Bob)
 	assert.NotContains(outbox, "Hello bob from @people@other.localdomain")
 	assert.Contains(strings.Split(outbox, "\n"), "No posts.")
 }
@@ -465,20 +465,20 @@ func TestOutbox_DMInGroupAnotherUser(t *testing.T) {
 
 	_, err := server.db.Exec(
 		`insert into persons (id, hash, actor) values(?,?,?)`,
-		"https://other.localdomain/group/people",
-		"4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f",
+		"https://other.localdomain:8443/group/people",
+		"ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
-	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
+	follow := server.Handle("/users/follow/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Alice)
+	assert.Equal("30 /users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26\r\n", follow)
 
-	follow = server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Bob)
-	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
+	follow = server.Handle("/users/follow/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Bob)
+	assert.Equal("30 /users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26\r\n", follow)
 
-	follow = server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Carol)
-	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
+	follow = server.Handle("/users/follow/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Carol)
+	assert.Equal("30 /users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26\r\n", follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
@@ -489,7 +489,7 @@ func TestOutbox_DMInGroupAnotherUser(t *testing.T) {
 	whisper := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20bob%%20from%%20%%40people%%40other.localdomain", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
-	outbox := server.Handle("/users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Carol)
+	outbox := server.Handle("/users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Carol)
 	assert.Contains(outbox, "Hello bob from @people@other.localdomain")
 }
 
@@ -501,17 +501,17 @@ func TestOutbox_DMInGroupSelf(t *testing.T) {
 
 	_, err := server.db.Exec(
 		`insert into persons (id, hash, actor) values(?,?,?)`,
-		"https://other.localdomain/group/people",
-		"4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f",
+		"https://other.localdomain:8443/group/people",
+		"ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
-	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
+	follow := server.Handle("/users/follow/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Alice)
+	assert.Equal("30 /users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26\r\n", follow)
 
-	follow = server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Bob)
-	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
+	follow = server.Handle("/users/follow/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Bob)
+	assert.Equal("30 /users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26\r\n", follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
@@ -522,7 +522,7 @@ func TestOutbox_DMInGroupSelf(t *testing.T) {
 	whisper := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20bob%%20from%%20%%40people%%40other.localdomain", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
-	outbox := server.Handle("/users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
+	outbox := server.Handle("/users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Alice)
 	assert.Contains(outbox, "Hello bob from @people@other.localdomain")
 }
 
@@ -534,17 +534,17 @@ func TestOutbox_DMInGroupSelfGroupUnfollowed(t *testing.T) {
 
 	_, err := server.db.Exec(
 		`insert into persons (id, hash, actor) values(?,?,?)`,
-		"https://other.localdomain/group/people",
-		"4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f",
+		"https://other.localdomain:8443/group/people",
+		"ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
-	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
+	follow := server.Handle("/users/follow/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Alice)
+	assert.Equal("30 /users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26\r\n", follow)
 
-	follow = server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Bob)
-	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
+	follow = server.Handle("/users/follow/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Bob)
+	assert.Equal("30 /users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26\r\n", follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
@@ -555,10 +555,10 @@ func TestOutbox_DMInGroupSelfGroupUnfollowed(t *testing.T) {
 	whisper := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20bob%%20from%%20%%40people%%40other.localdomain", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
-	unfollow := server.Handle("/users/unfollow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
-	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", unfollow)
+	unfollow := server.Handle("/users/unfollow/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Alice)
+	assert.Equal("30 /users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26\r\n", unfollow)
 
-	outbox := server.Handle("/users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
+	outbox := server.Handle("/users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Alice)
 	assert.NotContains(outbox, "Hello people in @people@other.localdomain")
 	assert.Contains(strings.Split(outbox, "\n"), "No posts.")
 }
@@ -571,17 +571,17 @@ func TestOutbox_DMInGroupSelfRecipientUnfollowed(t *testing.T) {
 
 	_, err := server.db.Exec(
 		`insert into persons (id, hash, actor) values(?,?,?)`,
-		"https://other.localdomain/group/people",
-		"4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f",
+		"https://other.localdomain:8443/group/people",
+		"ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
-	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
+	follow := server.Handle("/users/follow/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Alice)
+	assert.Equal("30 /users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26\r\n", follow)
 
-	follow = server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Bob)
-	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
+	follow = server.Handle("/users/follow/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Bob)
+	assert.Equal("30 /users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26\r\n", follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
@@ -595,7 +595,7 @@ func TestOutbox_DMInGroupSelfRecipientUnfollowed(t *testing.T) {
 	unfollow := server.Handle(fmt.Sprintf("/users/unfollow/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), unfollow)
 
-	outbox := server.Handle("/users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
+	outbox := server.Handle("/users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Alice)
 	assert.Contains(outbox, "Hello bob from @people@other.localdomain")
 }
 
@@ -607,17 +607,17 @@ func TestOutbox_DMInGroupAnauthenticatedUser(t *testing.T) {
 
 	_, err := server.db.Exec(
 		`insert into persons (id, hash, actor) values(?,?,?)`,
-		"https://other.localdomain/group/people",
-		"4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f",
+		"https://other.localdomain:8443/group/people",
+		"ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
-	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
+	follow := server.Handle("/users/follow/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Alice)
+	assert.Equal("30 /users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26\r\n", follow)
 
-	follow = server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Bob)
-	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
+	follow = server.Handle("/users/follow/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Bob)
+	assert.Equal("30 /users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26\r\n", follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
@@ -628,7 +628,7 @@ func TestOutbox_DMInGroupAnauthenticatedUser(t *testing.T) {
 	whisper := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20bob%%20from%%20%%40people%%40other.localdomain", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
-	outbox := server.Handle("/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", nil)
+	outbox := server.Handle("/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", nil)
 	assert.NotContains(outbox, "Hello people in @people@other.localdomain")
 	assert.Contains(strings.Split(outbox, "\n"), "No posts.")
 }
