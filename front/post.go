@@ -40,7 +40,7 @@ const (
 )
 
 var (
-	mentionRegex = regexp.MustCompile(`\B@(\w+)(?:@(\w+\.\w+)){0,1}\b`)
+	mentionRegex = regexp.MustCompile(`\B@(\w+)(?:@(\w+\.\w+(?::\d{1,5}){0,1})){0,1}\b`)
 	hashtagRegex = regexp.MustCompile(`\B#\w{1,32}\b`)
 	pollRegex    = regexp.MustCompile(`^\[(?:(?i)POLL)\s+(.+)\s*\]\s*(.+)`)
 )

@@ -32,6 +32,6 @@ var (
 )
 
 func init() {
-	flag.StringVar(&Domain, "domain", "localhost.localdomain", "Domain name")
+	flag.StringVar(&Domain, "domain", "localhost.localdomain:8443", "Domain name")
 	flag.IntVar(&LogLevel, "loglevel", int(slog.LevelInfo), "Logging verbosity")
 }

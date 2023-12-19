@@ -258,11 +258,11 @@ func TestInbox_NoMentionAndMentionWithHost(t *testing.T) {
 	whisper := server.Handle("/users/whisper?Hello%20alice%21", server.Bob)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
-	whisper = server.Handle("/users/whisper?Hello%20%40alice%40localhost.localdomain%21", server.Carol)
+	whisper = server.Handle("/users/whisper?Hello%20%40alice%40localhost.localdomain%3a8443%21", server.Carol)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
 	today := server.Handle("/users/inbox/today", server.Alice)
-	postWithMention := strings.Index(today, "Hello @alice@localhost.localdomain!")
+	postWithMention := strings.Index(today, "Hello @alice@localhost.localdomain:8443!")
 	postWithoutMention := strings.Index(today, "Hello alice!")
 	assert.NotEqual(postWithMention, -1)
 	assert.NotEqual(postWithoutMention, -1)

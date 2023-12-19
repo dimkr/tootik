@@ -29,7 +29,7 @@ func TestResolve_LocalUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	resolve := server.Handle("/users/resolve?alice%40localhost.localdomain", server.Bob)
+	resolve := server.Handle("/users/resolve?alice%40localhost.localdomain:8443", server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), resolve)
 }
 
@@ -49,8 +49,8 @@ func TestResolve_NoSuchLocalUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	resolve := server.Handle("/users/resolve?troll%40localhost.localdomain", server.Bob)
-	assert.Equal("40 Failed to resolve troll@localhost.localdomain\r\n", resolve)
+	resolve := server.Handle("/users/resolve?troll%40localhost.localdomain%3a8443", server.Bob)
+	assert.Equal("40 Failed to resolve troll@localhost.localdomain:8443\r\n", resolve)
 }
 
 func TestResolve_NoSuchLocalUserByNameOnly(t *testing.T) {
@@ -60,7 +60,7 @@ func TestResolve_NoSuchLocalUserByNameOnly(t *testing.T) {
 	assert := assert.New(t)
 
 	resolve := server.Handle("/users/resolve?troll", server.Bob)
-	assert.Equal("40 Failed to resolve troll@localhost.localdomain\r\n", resolve)
+	assert.Equal("40 Failed to resolve troll@localhost.localdomain:8443\r\n", resolve)
 }
 
 func TestResolve_NoSuchFederatedUser(t *testing.T) {
@@ -89,7 +89,7 @@ func TestResolve_InvalidEscapeSequence(t *testing.T) {
 
 	assert := assert.New(t)
 
-	resolve := server.Handle("/users/resolve?troll%zzlocalhost.localdomain ", server.Bob)
+	resolve := server.Handle("/users/resolve?troll%zzlocalhost.localdomain%3a8443 ", server.Bob)
 	assert.Equal("40 Bad input\r\n", resolve)
 }
 
@@ -99,7 +99,7 @@ func TestResolve_InvalidInputFormat(t *testing.T) {
 
 	assert := assert.New(t)
 
-	resolve := server.Handle("/users/resolve?troll%40localhost.localdomain%400.0.0.0", server.Bob)
+	resolve := server.Handle("/users/resolve?troll%40localhost.localdomain%3a8443%400.0.0.0", server.Bob)
 	assert.Equal("40 Bad input\r\n", resolve)
 }
 
