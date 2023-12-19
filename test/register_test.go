@@ -772,10 +772,10 @@ func TestRegister_RedirectTwice(t *testing.T) {
 		url      string
 		expected string
 	}{
-		{"gemini://localhost.localdomain:8443/users\r\n", "^30 /users/register\r\n$"},
-		{"gemini://localhost.localdomain:8443/users/register\r\n", "^30 /users\r\n$"},
-		{"gemini://localhost.localdomain:8443/users\r\n", "^20 text/gemini\r\n.+"},
-		{"gemini://localhost.localdomain:8443/users/register\r\n", "^40 Already registered as erin\r\n$"},
+		{"gemini://localhost.localdomain:8965/users\r\n", "^30 /users/register\r\n$"},
+		{"gemini://localhost.localdomain:8965/users/register\r\n", "^30 /users\r\n$"},
+		{"gemini://localhost.localdomain:8965/users\r\n", "^20 text/gemini\r\n.+"},
+		{"gemini://localhost.localdomain:8965/users/register\r\n", "^40 Already registered as erin\r\n$"},
 	} {
 		unixReader, err := net.Dial("unix", socketPath)
 		assert.NoError(err)
