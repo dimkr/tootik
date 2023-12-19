@@ -38,7 +38,7 @@ import (
 var (
 	/*
 	   openssl ecparam -name prime256v1 -genkey -out /tmp/ec.pem
-	   openssl req -new -x509 -key /tmp/ec.pem -sha256 -nodes -subj "/CN=localhost.localdomain" -out cert.pem -keyout key.pem -days 3650
+	   openssl req -new -x509 -key /tmp/ec.pem -sha256 -nodes -subj "/CN=localhost.localdomain:8965" -out cert.pem -keyout key.pem -days 3650
 	*/
 	serverCert = `-----BEGIN CERTIFICATE-----
 MIIBlTCCATugAwIBAgIUOGTIsA9mqhGNYtYpbQOGyQT0nFMwCgYIKoZIzj0EAwIw
