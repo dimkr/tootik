@@ -116,7 +116,7 @@ func TestUsers_NewPostInFollowedGroup(t *testing.T) {
 	assert.Contains(users, "Nothing to see! Are you following anyone?")
 	assert.NotContains(users, "1 post")
 
-	whisper := server.Handle("/users/whisper?Hello%20people%20in%20%40people%40other.localdomain", server.Bob)
+	whisper := server.Handle("/users/whisper?Hello%20people%20in%20%40people%40other.localdomain%3a8443", server.Bob)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
 	users = server.Handle("/users", server.Alice)

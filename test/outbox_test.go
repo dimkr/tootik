@@ -223,7 +223,7 @@ func TestOutbox_PublicPostInGroup(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	say := server.Handle("/users/say?Hello%20people%20in%20%40people%40other.localdomain", server.Alice)
+	say := server.Handle("/users/say?Hello%20people%20in%20%40people%40other.localdomain%3a8443", server.Alice)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", say)
 
 	outbox := server.Handle("/users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Bob)
@@ -244,7 +244,7 @@ func TestOutbox_PublicPostInGroupUnauthenticatedUser(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	say := server.Handle("/users/say?Hello%20people%20in%20%40people%40other.localdomain", server.Alice)
+	say := server.Handle("/users/say?Hello%20people%20in%20%40people%40other.localdomain%3a8443", server.Alice)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", say)
 
 	outbox := server.Handle("/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", nil)
@@ -274,7 +274,7 @@ func TestOutbox_PostToFollowersInGroup(t *testing.T) {
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
 
-	whisper := server.Handle("/users/whisper?Hello%20people%20in%20%40people%40other.localdomain", server.Alice)
+	whisper := server.Handle("/users/whisper?Hello%20people%20in%20%40people%40other.localdomain%3a8443", server.Alice)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
 	outbox := server.Handle("/users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Bob)
@@ -301,7 +301,7 @@ func TestOutbox_PostToFollowersInGroupNotFollowingGroup(t *testing.T) {
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
 
-	whisper := server.Handle("/users/whisper?Hello%20people%20in%20%40people%40other.localdomain", server.Alice)
+	whisper := server.Handle("/users/whisper?Hello%20people%20in%20%40people%40other.localdomain%3a8443", server.Alice)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
 	outbox := server.Handle("/users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Bob)
@@ -332,7 +332,7 @@ func TestOutbox_PostToFollowersInGroupNotAccepted(t *testing.T) {
 	follow = server.Handle("/users/follow/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Bob)
 	assert.Equal("30 /users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26\r\n", follow)
 
-	whisper := server.Handle("/users/whisper?Hello%20people%20in%20%40people%40other.localdomain", server.Alice)
+	whisper := server.Handle("/users/whisper?Hello%20people%20in%20%40people%40other.localdomain%3a8443", server.Alice)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
 	outbox := server.Handle("/users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Bob)
@@ -363,7 +363,7 @@ func TestOutbox_PostToFollowersInGroupFollowingAuthor(t *testing.T) {
 	follow = server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), follow)
 
-	whisper := server.Handle("/users/whisper?Hello%20people%20in%20%40people%40other.localdomain", server.Alice)
+	whisper := server.Handle("/users/whisper?Hello%20people%20in%20%40people%40other.localdomain%3a8443", server.Alice)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
 	outbox := server.Handle("/users/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", server.Bob)
@@ -385,7 +385,7 @@ func TestOutbox_PostToFollowersInGroupUnauthenticatedUser(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	whisper := server.Handle("/users/whisper?Hello%20people%20in%20%40people%40other.localdomain", server.Alice)
+	whisper := server.Handle("/users/whisper?Hello%20people%20in%20%40people%40other.localdomain%3a8443", server.Alice)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
 
 	outbox := server.Handle("/outbox/ceccc92a1b91b925111b9a8a2bb27b6e0a4c0e4e56d1061c6bfde5deb9151a26", nil)
