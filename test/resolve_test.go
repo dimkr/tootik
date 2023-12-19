@@ -89,7 +89,7 @@ func TestResolve_InvalidEscapeSequence(t *testing.T) {
 
 	assert := assert.New(t)
 
-	resolve := server.Handle("/users/resolve?troll%zzlocalhost.localdomain ", server.Bob)
+	resolve := server.Handle("/users/resolve?troll%zzlocalhost.localdomain%3a8443 ", server.Bob)
 	assert.Equal("40 Bad input\r\n", resolve)
 }
 
@@ -99,7 +99,7 @@ func TestResolve_InvalidInputFormat(t *testing.T) {
 
 	assert := assert.New(t)
 
-	resolve := server.Handle("/users/resolve?troll%40localhost.localdomain%400.0.0.0", server.Bob)
+	resolve := server.Handle("/users/resolve?troll%40localhost.localdomain%3a8443%400.0.0.0", server.Bob)
 	assert.Equal("40 Bad input\r\n", resolve)
 }
 
