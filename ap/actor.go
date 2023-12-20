@@ -37,4 +37,5 @@ type Actor struct {
 	PublicKey                 PublicKey         `json:"publicKey"`
 	Icon                      Attachment        `json:"icon,omitempty"`
 	ManuallyApprovesFollowers bool              `json:"manuallyApprovesFollowers"`
+	AlsoKnownAs               Audience          `json:"alsoKnownAs,omitempty"`
 }

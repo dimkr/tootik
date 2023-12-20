@@ -47,6 +47,7 @@ import (
 const (
 	pollResultsUpdateInterval = time.Hour / 2
 	garbageCollectionInterval = time.Hour * 12
+	followMoveInterval        = time.Hour * 6
 )
 
 var (
@@ -215,6 +216,29 @@ func main() {
 			case <-t.C:
 			}
 
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		t := time.NewTicker(followMoveInterval)
+		defer t.Stop()
+
+		for {
+			if err := outbox.Move(ctx, log, db, resolver, nobody); err != nil {
+				log.Error("Failed to move follows", "error", err)
+				break
+			}
+
+			select {
+			case <-ctx.Done():
+				return
+
+			case <-t.C:
+			}
 		}
 	}()
 

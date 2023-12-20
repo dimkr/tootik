@@ -178,6 +178,10 @@ The resolver is responsible for resolving a user ID (local or federated) into an
 
 This is an expensive but common operation that involves outgoing HTTPS requests. Therefore, to protect underpowered servers against heavy load and a big number of concurrent outgoing requests, the maximum number of outgoing requests is capped, concurrent attempts to resolve the same user are blocked and the resolver is a long-lived object that reuses connections.
 
+## Moved Accounts
+
+If a user follows a federated user with the `movedTo` attribute set and the new account's `alsoKnownAs` attribute points back to the old account, follow requests are sent to the new user and old requests are cancelled.
+
 ## Notes
 
 The "notes" table holds posts and allows fast search of posts by author, replies to a post and so on.

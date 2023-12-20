@@ -68,13 +68,15 @@ func Follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB
 		return fmt.Errorf("failed to insert follow: %w", err)
 	}
 
-	if _, err := tx.ExecContext(
-		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
-		string(body),
-		follower.ID,
-	); err != nil {
-		return fmt.Errorf("failed to insert follow activity: %w", err)
+	if !isLocal {
+		if _, err := tx.ExecContext(
+			ctx,
+			`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
+			string(body),
+			follower.ID,
+		); err != nil {
+			return fmt.Errorf("failed to insert follow activity: %w", err)
+		}
 	}
 
 	if err := tx.Commit(); err != nil {

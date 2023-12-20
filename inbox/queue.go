@@ -366,6 +366,9 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 
 		log.Info("Updated post")
 
+	case ap.MoveActivity:
+		log.Debug("Ignoring Move activity")
+
 	case ap.LikeActivity:
 		log.Debug("Ignoring Like activity")
 
