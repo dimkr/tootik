@@ -19,53 +19,48 @@ package user
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
 	"database/sql"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/fed/icon"
-	"golang.org/x/sync/semaphore"
-	"io"
-	"os/exec"
 )
 
-// limit the number of child openssl processes
-var sem = semaphore.NewWeighted(2)
-
 func gen(ctx context.Context) ([]byte, []byte, error) {
-	if err := sem.Acquire(ctx, 1); err != nil {
-		return nil, nil, fmt.Errorf("failed to acquire semaphore: %w", err)
-	}
-	defer sem.Release(1)
-
-	cmd := exec.CommandContext(ctx, "openssl", "genrsa", "2048")
-	stdout := bytes.Buffer{}
-	cmd.Stdout = &stdout
-	if err := cmd.Run(); err != nil {
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate private key: %w", err)
 	}
 
-	priv, err := io.ReadAll(&stdout)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read private key: %w", err)
+	var privPem bytes.Buffer
+	if err := pem.Encode(
+		&privPem,
+		&pem.Block{
+			Type:  "RSA PRIVATE KEY",
+			Bytes: x509.MarshalPKCS1PrivateKey(priv),
+		},
+	); err != nil {
+		return nil, nil, fmt.Errorf("failed to generate private key: %w", err)
 	}
 
-	cmd = exec.CommandContext(ctx, "openssl", "rsa", "-pubout")
-	cmd.Stdin = bytes.NewBuffer(priv)
-	stdout = bytes.Buffer{}
-	cmd.Stdout = &stdout
-	if err := cmd.Run(); err != nil {
+	var pubPem bytes.Buffer
+	if err := pem.Encode(
+		&pubPem,
+		&pem.Block{
+			Type:  "PUBLIC KEY",
+			Bytes: x509.MarshalPKCS1PublicKey(&priv.PublicKey),
+		},
+	); err != nil {
 		return nil, nil, fmt.Errorf("failed to generate public key: %w", err)
 	}
 
-	pub, err := io.ReadAll(&stdout)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read public key: %w", err)
-	}
-
-	return priv, pub, nil
+	return privPem.Bytes(), pubPem.Bytes(), nil
 }
 
 func Create(ctx context.Context, db *sql.DB, id, name, certHash string) (*ap.Actor, error) {
