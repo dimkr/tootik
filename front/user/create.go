@@ -53,7 +53,7 @@ func gen(ctx context.Context) ([]byte, []byte, error) {
 	if err := pem.Encode(
 		&pubPem,
 		&pem.Block{
-			Type:  "PUBLIC KEY",
+			Type:  "RSA PUBLIC KEY",
 			Bytes: x509.MarshalPKCS1PublicKey(&priv.PublicKey),
 		},
 	); err != nil {
