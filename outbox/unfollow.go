@@ -40,9 +40,10 @@ func Unfollow(ctx context.Context, log *slog.Logger, db *sql.DB, follower *ap.Ac
 	to.Add(followed)
 
 	body, err := json.Marshal(ap.Activity{
-		ID:    undoID,
-		Type:  ap.UndoActivity,
-		Actor: follower.ID,
+		Context: "https://www.w3.org/ns/activitystreams",
+		ID:      undoID,
+		Type:    ap.UndoActivity,
+		Actor:   follower.ID,
 		Object: &ap.Activity{
 			ID:     followID,
 			Type:   ap.FollowActivity,

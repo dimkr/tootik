@@ -39,11 +39,12 @@ func Follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB
 	to.Add(followed)
 
 	body, err := json.Marshal(ap.Activity{
-		ID:     followID,
-		Type:   ap.FollowActivity,
-		Actor:  follower.ID,
-		Object: followed,
-		To:     to,
+		Context: "https://www.w3.org/ns/activitystreams",
+		ID:      followID,
+		Type:    ap.FollowActivity,
+		Actor:   follower.ID,
+		Object:  followed,
+		To:      to,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to marshal follow: %w", err)
