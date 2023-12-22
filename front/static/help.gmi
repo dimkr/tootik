@@ -11,9 +11,22 @@ This is an instance of tootik, a "slow", "boring" and non-addictive social netwo
 
 This page shows public posts published on this server.
 
+Posts are sorted by:
+* Day of posting
+* Number of replies
+* Author's number of posts
+* Time since the author's previous post
+* Exact time of posting
+
 > ✨ FOMO from outer space
 
 This page shows public posts from the fediverse.
+
+Posts are sorted by:
+* Hour of posting
+* Author's number of posts
+* Time since the author's previous post
+* Exact time of posting
 
 > 🔥 Hashtags
 
