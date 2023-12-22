@@ -30,6 +30,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 const (
@@ -87,7 +88,7 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 		return
 	}
 
-	if len(content) > cfg.MaxPostsLength {
+	if utf8.RuneCountInString(content) > cfg.MaxPostsLength {
 		w.Status(40, "Post is too long")
 		return
 	}

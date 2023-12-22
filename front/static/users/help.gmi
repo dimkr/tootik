@@ -54,7 +54,7 @@ Follow this link to publish a public post visible to anyone.
 
 ## Posts
 
-Posts should be up to 200 characters long.
+Posts should be up to 500 characters long.
 
 ### Links, Mentions and Hashtags
 

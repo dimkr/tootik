@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	MaxPostsLength      = 200
+	MaxPostsLength      = 500
 	MaxResolverRequests = 16
 )
 

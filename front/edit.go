@@ -29,6 +29,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"time"
+	"unicode/utf8"
 )
 
 func edit(w text.Writer, r *request) {
@@ -48,7 +49,7 @@ func edit(w text.Writer, r *request) {
 		return
 	}
 
-	if len(content) > cfg.MaxPostsLength {
+	if utf8.RuneCountInString(content) > cfg.MaxPostsLength {
 		w.Status(40, "Post is too long")
 		return
 	}
