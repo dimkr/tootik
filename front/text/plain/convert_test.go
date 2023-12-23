@@ -143,9 +143,25 @@ func TestToHTML_Plain(t *testing.T) {
 	assert.Equal(t, expected, html)
 }
 
+func TestToHTML_LineBreak(t *testing.T) {
+	post := "this is a line\nthis is another line"
+	expected := `<p>this is a line</p><p>this is another line</p>`
+
+	html := ToHTML(post)
+	assert.Equal(t, expected, html)
+}
+
 func TestToHTML_Link(t *testing.T) {
 	post := `this is a plain post with a link: gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh`
 	expected := `this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>`
+
+	html := ToHTML(post)
+	assert.Equal(t, expected, html)
+}
+
+func TestToHTML_LinkAndLineBreak(t *testing.T) {
+	post := "this is a plain post with a link: gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh\n... and a line break"
+	expected := `<p>this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a></p><p>... and a line break</p>`
 
 	html := ToHTML(post)
 	assert.Equal(t, expected, html)

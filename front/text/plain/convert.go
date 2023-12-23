@@ -122,5 +122,16 @@ func ToHTML(text string) string {
 		text = strings.ReplaceAll(text, link, fmt.Sprintf(`<a href="%s" target="_blank">%s</a>`, link, link))
 	}
 
-	return text
+	lines := strings.Split(text, "\n")
+	if len(lines) == 1 {
+		return text
+	}
+
+	var b strings.Builder
+	for _, line := range lines {
+		b.WriteString("<p>")
+		b.WriteString(line)
+		b.WriteString("</p>")
+	}
+	return b.String()
 }
