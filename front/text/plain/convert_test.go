@@ -84,7 +84,7 @@ func TestFromHTML_TitleParagraphSubtitleAndParagraph(t *testing.T) {
 
 func TestFromHTML_LineBreak(t *testing.T) {
 	post := `<p>this is a line<br/>this is another line</p>`
-	expected := "this is a line\n\nthis is another line"
+	expected := "this is a line\nthis is another line"
 	expectedLinks := data.OrderedMap[string, string]{}
 
 	raw, links := FromHTML(post)

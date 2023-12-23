@@ -32,7 +32,8 @@ var (
 	mentionTags       = regexp.MustCompile(`<a\s+(?:[^\s<]+\s+)*class="(?:[^\s"]+\s+)*mention(?:\s+[^\s"]+)*"[^>]*>`)
 	invisibleSpanTags = regexp.MustCompile(`<span class="invisible">[^<]*</span>`)
 	ellipsisSpanTags  = regexp.MustCompile(`<span class="ellipsis">[^<]*</span>`)
-	brTags            = regexp.MustCompile(`<(?:br\s*\/*|\/p|\/h\d+)>`)
+	pTags             = regexp.MustCompile(`<(?:/p|\/h\d+)>`)
+	brTags            = regexp.MustCompile(`<br\s*\/*>`)
 	openTags          = regexp.MustCompile(`(?:<[a-zA-Z0-9]+\s*[^>]*>)+`)
 	closeTags         = regexp.MustCompile(`(?:<\/[a-zA-Z0-9]+\s*[^>]*>)+`)
 	urlRegex          = regexp.MustCompile(`\b(https|http|gemini|gopher|gophers):\/\/\S+\b`)
@@ -46,8 +47,12 @@ func FromHTML(text string) (string, data.OrderedMap[string, string]) {
 		res = strings.Replace(res, m, "", 1)
 	}
 
-	for _, m := range brTags.FindAllString(res, -1) {
+	for _, m := range pTags.FindAllString(res, -1) {
 		res = strings.Replace(res, m, "\n\n", 1)
+	}
+
+	for _, m := range brTags.FindAllString(res, -1) {
+		res = strings.Replace(res, m, "\n", 1)
 	}
 
 	for _, m := range invisibleSpanTags.FindAllString(res, -1) {
