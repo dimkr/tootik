@@ -132,11 +132,12 @@ func ToHTML(text string) string {
 		return text
 	}
 
+	text = strings.ReplaceAll(text, "\n\n", "</p><p>")
+	text = strings.ReplaceAll(text, "\n", "<br/>")
+
 	var b strings.Builder
-	for _, line := range lines {
-		b.WriteString("<p>")
-		b.WriteString(line)
-		b.WriteString("</p>")
-	}
+	b.WriteString("<p>")
+	b.WriteString(text)
+	b.WriteString("</p>")
 	return b.String()
 }
