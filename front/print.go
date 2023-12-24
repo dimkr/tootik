@@ -155,6 +155,17 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 
 	contentLines, inlineLinks := getTextAndLinks(noteBody, maxRunes, maxLines)
 
+	links := data.OrderedMap[string, string]{}
+
+	if note.URL != "" {
+		links.Store(note.URL, "")
+	}
+
+	inlineLinks.Range(func(link, alt string) bool {
+		links.Store(link, alt)
+		return true
+	})
+
 	hashtags := data.OrderedMap[string, string]{}
 	mentionedUsers := data.OrderedMap[string, struct{}]{}
 
@@ -173,21 +184,15 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 		case ap.MentionMention:
 			mentionedUsers.Store(tag.Href, struct{}{})
 
+		case ap.EmojiMention:
+			if tag.Icon != nil && tag.Name != "" && tag.Icon.URL != "" {
+				links.Store(tag.Icon.URL, tag.Name)
+			}
+
 		default:
 			r.Log.Warn("Skipping unsupported mention type", "post", note.ID, "type", tag.Type)
 		}
 	}
-
-	links := data.OrderedMap[string, string]{}
-
-	if note.URL != "" {
-		links.Store(note.URL, "")
-	}
-
-	inlineLinks.Range(func(link, alt string) bool {
-		links.Store(link, alt)
-		return true
-	})
 
 	for _, attachment := range note.Attachment {
 		if attachment.URL != "" {

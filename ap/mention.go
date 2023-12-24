@@ -21,12 +21,14 @@ type MentionType string
 const (
 	MentionMention MentionType = "Mention"
 	HashtagMention MentionType = "Hashtag"
+	EmojiMention   MentionType = "Emoji"
 )
 
 type Mention struct {
 	Type MentionType `json:"type,omitempty"`
 	Name string      `json:"name,omitempty"`
 	Href string      `json:"href,omitempty"`
+	Icon *Attachment `json:"icon,omitempty"`
 }
 
 type Mentions []Mention
