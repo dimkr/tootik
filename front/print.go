@@ -61,42 +61,43 @@ func getTextAndLinks(s string, maxRunes, maxLines int) ([]string, data.OrderedMa
 
 	lines := strings.Split(raw, "\n")
 
-	if maxLines > 0 && len(lines) > maxLines {
-		summary := make([]string, 0, maxLines)
-		for _, line := range lines {
-			line = strings.TrimSpace(line)
-			if line != "" {
-				if len(summary) == maxLines-1 {
-					// replace terminating blank line with […]
-					if summary[len(summary)-1] == "" {
-						summary[len(summary)-1] = "[…]"
-					} else if summary[len(summary)-1] != "[…]" {
-						summary = append(summary, "[…]")
-					}
-					break
-				}
-
-				summary = append(summary, line)
-				continue
-			}
-
-			// replace multiple empty lines with one […] line
-			if len(summary) > 0 && (len(summary) > 0 && summary[len(summary)-1] == "") {
-				summary[len(summary)-1] = "[…]"
-			} else if len(summary) == maxLines-1 && summary[len(summary)-1] != "[…]" {
-				summary = append(summary, "[…]")
-			} else if len(summary) == 0 || summary[len(summary)-1] != "[…]" {
-				summary = append(summary, line)
-			}
-
-			if len(summary) == maxLines {
-				break
-			}
-		}
-		return summary, links
+	if maxLines <= 0 || len(lines) <= maxLines {
+		return lines, links
 	}
 
-	return lines, links
+	summary := make([]string, 0, maxLines)
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			if len(summary) == maxLines-1 {
+				// replace terminating blank line with […]
+				if summary[len(summary)-1] == "" {
+					summary[len(summary)-1] = "[…]"
+				} else if summary[len(summary)-1] != "[…]" {
+					summary = append(summary, "[…]")
+				}
+				break
+			}
+
+			summary = append(summary, line)
+			continue
+		}
+
+		// replace multiple empty lines with one […] line
+		if len(summary) > 0 && (len(summary) > 0 && summary[len(summary)-1] == "") {
+			summary[len(summary)-1] = "[…]"
+		} else if len(summary) == maxLines-1 && summary[len(summary)-1] != "[…]" {
+			summary = append(summary, "[…]")
+		} else if len(summary) == 0 || summary[len(summary)-1] != "[…]" {
+			summary = append(summary, line)
+		}
+
+		if len(summary) == maxLines {
+			break
+		}
+	}
+
+	return summary, links
 }
 
 func getDisplayName(id, preferredUsername, name string, t ap.ActorType, log *slog.Logger) string {
