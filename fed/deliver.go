@@ -26,6 +26,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"log/slog"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -128,6 +129,11 @@ func deliverWithTimeout(parent context.Context, log *slog.Logger, db *sql.DB, re
 }
 
 func deliver(ctx context.Context, log *slog.Logger, db *sql.DB, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, resolver *Resolver, inserted time.Time, received ap.Audience) error {
+	activityID, err := url.Parse(activity.ID)
+	if err != nil {
+		return err
+	}
+
 	recipients := data.OrderedMap[string, struct{}]{}
 
 	// deduplicate recipients or skip if we're forwarding an activity
@@ -179,7 +185,7 @@ func deliver(ctx context.Context, log *slog.Logger, db *sql.DB, activity *ap.Act
 		author = obj.AttributedTo
 	}
 
-	prefix := fmt.Sprintf("https://%s/", cfg.Domain)
+	prefix := fmt.Sprintf("https://%s/", activityID.Host)
 
 	sent := map[string]struct{}{}
 
