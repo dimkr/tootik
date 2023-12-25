@@ -63,25 +63,35 @@ func getTextAndLinks(s string, maxRunes, maxLines int) ([]string, data.OrderedMa
 
 	if maxLines > 0 && len(lines) > maxLines {
 		summary := make([]string, 0, maxLines)
-		lastNonEmptyLine := 0
 		for _, line := range lines {
-			if len(summary) == maxLines {
-				break
-			}
 			line = strings.TrimSpace(line)
 			if line != "" {
+				if len(summary) == maxLines-1 {
+					// replace terminating blank line with […]
+					if summary[len(summary)-1] == "" {
+						summary[len(summary)-1] = "[…]"
+					} else if summary[len(summary)-1] != "[…]" {
+						summary = append(summary, "[…]")
+					}
+					break
+				}
+
 				summary = append(summary, line)
-				lastNonEmptyLine = len(summary) - 1
-				// replace multiple empty lines with one […] line
-			} else if len(summary) > 0 && (len(summary) > 0 && summary[len(summary)-1] == "") {
+				continue
+			}
+
+			// replace multiple empty lines with one […] line
+			if len(summary) > 0 && (len(summary) > 0 && summary[len(summary)-1] == "") {
 				summary[len(summary)-1] = "[…]"
+			} else if len(summary) == maxLines-1 && summary[len(summary)-1] != "[…]" {
+				summary = append(summary, "[…]")
 			} else if len(summary) == 0 || summary[len(summary)-1] != "[…]" {
 				summary = append(summary, line)
 			}
-		}
-		// terminate with a single […] line if the post is truncated
-		if len(summary) == maxLines || lastNonEmptyLine == maxLines-1 || summary[len(summary)-1] == "" {
-			summary[len(summary)-1] = "[…]"
+
+			if len(summary) == maxLines {
+				break
+			}
 		}
 		return summary, links
 	}
