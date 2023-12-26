@@ -27,7 +27,6 @@ import (
 	"github.com/dimkr/tootik/data"
 	"log/slog"
 	"net/url"
-	"strings"
 	"time"
 )
 
@@ -154,7 +153,7 @@ func deliver(ctx context.Context, log *slog.Logger, db *sql.DB, activity *ap.Act
 
 	// list the actor's federated followers if we're forwarding an activity by another actor, or if addressed by actor
 	if wideDelivery {
-		followers, err := db.QueryContext(ctx, `select distinct follower from follows where followed = ? and follower not like ? and accepted = 1 and inserted < ?`, actor.ID, fmt.Sprintf("https://%s/%%", cfg.Domain), inserted.Unix())
+		followers, err := db.QueryContext(ctx, `select distinct follower from follows where followed = ? and follower not like ? and follower not like ? and accepted = 1 and inserted < ?`, actor.ID, fmt.Sprintf("https://%s/%%", cfg.Domain), fmt.Sprintf("https://%s/%%", activityID.Host), inserted.Unix())
 		if err != nil {
 			log.Warn("Failed to list followers", "activity", activity.ID, "error", err)
 		} else {
@@ -185,12 +184,10 @@ func deliver(ctx context.Context, log *slog.Logger, db *sql.DB, activity *ap.Act
 		author = obj.AttributedTo
 	}
 
-	prefix := fmt.Sprintf("https://%s/", activityID.Host)
-
 	sent := map[string]struct{}{}
 
 	actorIDs.Range(func(actorID string, _ struct{}) bool {
-		if actorID == author || actorID == ap.Public || strings.HasPrefix(actorID, prefix) {
+		if actorID == author || actorID == ap.Public {
 			log.Debug("Skipping recipient", "to", actorID, "activity", activity.ID)
 			return true
 		}
