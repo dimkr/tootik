@@ -138,6 +138,17 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 		log.Debug("Resolving actor", "from", from.ID, "to", to)
 	}
 
+	name := path.Base(u.Path)
+
+	// strip the leading @ if URL follows the form https://a.b/@c
+	if name[0] == '@' {
+		name = name[1:]
+	}
+
+	if name == "" {
+		return nil, nil, fmt.Errorf("cannot resolve %s: empty name", to)
+	}
+
 	isLocal := strings.HasPrefix(to, fmt.Sprintf("https://%s/", cfg.Domain))
 
 	if !isLocal && !offline {
@@ -156,7 +167,7 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	var updated int64
 	var fetched sql.NullInt64
 	var sinceLastUpdate time.Duration
-	if err := db.QueryRowContext(ctx, `select actor, updated, fetched from persons where id = ?`, to).Scan(&actorString, &updated, &fetched); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := db.QueryRowContext(ctx, `select actor, updated, fetched from (select actor, updated, fetched, 0 as score from persons where id = $1 union select actor, updated, fetched, 1 as score from persons where actor->>'preferredUsername' = $2 and host = $3 order by score limit 1)`, to, name, u.Host).Scan(&actorString, &updated, &fetched); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, fmt.Errorf("failed to fetch %s cache: %w", to, err)
 	} else if err == nil {
 		if err := json.Unmarshal([]byte(actorString), &tmp); err != nil {
@@ -180,17 +191,6 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 
 	if offline {
 		return nil, nil, fmt.Errorf("cannot resolve %s: %w", to, ErrActorNotCached)
-	}
-
-	name := path.Base(u.Path)
-
-	// strip the leading @ if URL follows the form https://a.b/@c
-	if name[0] == '@' {
-		name = name[1:]
-	}
-
-	if name == "" {
-		return nil, cachedActor, fmt.Errorf("cannot resolve %s: empty name", to)
 	}
 
 	if cachedActor != nil {
