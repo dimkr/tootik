@@ -52,7 +52,7 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 		return
 	}
 
-	now := time.Now()
+	now := ap.Time{Time: time.Now()}
 
 	var today, last sql.NullInt64
 	if err := r.QueryRow(`select count(*), max(inserted) from outbox where activity->>'actor' = ? and activity->>'type' = 'Create' and inserted > ?`, r.User.ID, now.Add(-24*time.Hour).Unix()).Scan(&today, &last); err != nil {
@@ -153,7 +153,7 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 
 			for _, option := range options {
 				if option.Name == note.Content {
-					if inReplyTo.Closed != nil || inReplyTo.EndTime != nil && time.Now().After(*inReplyTo.EndTime) {
+					if inReplyTo.Closed != nil || inReplyTo.EndTime != nil && time.Now().After(inReplyTo.EndTime.Time) {
 						w.Status(40, "Cannot vote in a closed poll")
 						return
 					}
@@ -190,7 +190,7 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 
 		note.Type = ap.QuestionObject
 		note.Content = note.Content[m[2]:m[3]]
-		endTime := time.Now().Add(pollDuration)
+		endTime := ap.Time{Time: time.Now().Add(pollDuration)}
 		note.EndTime = &endTime
 	}
 

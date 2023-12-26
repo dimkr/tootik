@@ -16,8 +16,6 @@ limitations under the License.
 
 package ap
 
-import "time"
-
 type ObjectType string
 
 const (
@@ -35,8 +33,8 @@ type Object struct {
 	InReplyTo    string       `json:"inReplyTo,omitempty"`
 	Content      string       `json:"content,omitempty"`
 	Name         string       `json:"name,omitempty"`
-	Published    time.Time    `json:"published"`
-	Updated      *time.Time   `json:"updated,omitempty"`
+	Published    Time         `json:"published"`
+	Updated      *Time        `json:"updated,omitempty"`
 	To           Audience     `json:"to,omitempty"`
 	CC           Audience     `json:"cc,omitempty"`
 	Tag          []Mention    `json:"tag,omitempty"`
@@ -47,8 +45,8 @@ type Object struct {
 	VotersCount int64        `json:"votersCount,omitempty"`
 	OneOf       []PollOption `json:"oneOf,omitempty"`
 	AnyOf       []PollOption `json:"anyOf,omitempty"`
-	EndTime     *time.Time   `json:"endTime,omitempty"`
-	Closed      *time.Time   `json:"closed,omitempty"`
+	EndTime     *Time        `json:"endTime,omitempty"`
+	Closed      *Time        `json:"closed,omitempty"`
 }
 
 func (o *Object) IsPublic() bool {

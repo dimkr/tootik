@@ -231,7 +231,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 		title = note.Published.Format(time.DateOnly)
 	}
 
-	if note.Updated != nil && *note.Updated != (time.Time{}) {
+	if note.Updated != nil && *note.Updated != (ap.Time{}) {
 		title += " ┃ edited"
 	}
 
@@ -361,7 +361,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 		if r.User != nil && note.AttributedTo == r.User.ID {
 			w.Link(fmt.Sprintf("/users/delete/%x", sha256.Sum256([]byte(note.ID))), "💣 Delete")
 		}
-		if r.User != nil && note.Type == ap.QuestionObject && note.Closed == nil && (note.EndTime == nil || time.Now().Before(*note.EndTime)) {
+		if r.User != nil && note.Type == ap.QuestionObject && note.Closed == nil && (note.EndTime == nil || time.Now().Before(note.EndTime.Time)) {
 			options := note.OneOf
 			if len(options) == 0 {
 				options = note.AnyOf

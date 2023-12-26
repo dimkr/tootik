@@ -71,7 +71,7 @@ func UpdatePollResults(ctx context.Context, log *slog.Logger, db *sql.DB) error 
 	}
 	rows.Close()
 
-	now := time.Now()
+	now := ap.Time{Time: time.Now()}
 
 	for _, poll := range polls {
 		changed := false
@@ -91,7 +91,7 @@ func UpdatePollResults(ctx context.Context, log *slog.Logger, db *sql.DB) error 
 			poll.VotersCount += count
 		}
 
-		if poll.EndTime == nil || now.After(*poll.EndTime) {
+		if poll.EndTime == nil || now.After(poll.EndTime.Time) {
 			poll.Closed = &now
 			changed = true
 		}

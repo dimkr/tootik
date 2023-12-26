@@ -14,20 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package outbox
+package ap
 
-import (
-	"context"
-	"database/sql"
-	"github.com/dimkr/tootik/ap"
-	"time"
-)
+import "time"
 
-func Edit(ctx context.Context, db *sql.DB, note *ap.Object, newContent string) error {
-	now := ap.Time{Time: time.Now()}
+type Time struct {
+	time.Time
+}
 
-	note.Content = newContent
-	note.Updated = &now
-
-	return Update(ctx, db, note)
+func (t *Time) UnmarshalJSON(b []byte) error {
+	err := t.Time.UnmarshalJSON(b)
+	// ugly hack for Threads
+	if err != nil && len(b) > 2 && b[0] == '"' && b[len(b)-1] == '"' {
+		t.Time, err = time.Parse("2006-01-02T15:04:05-0700", string(b[1:len(b)-1]))
+	}
+	return err
 }

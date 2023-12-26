@@ -94,7 +94,7 @@ func edit(w text.Writer, r *request) {
 	}
 
 	lastEditTime := note.Published
-	if note.Updated != nil && *note.Updated != (time.Time{}) {
+	if note.Updated != nil && *note.Updated != (ap.Time{}) {
 		lastEditTime = *note.Updated
 	}
 
