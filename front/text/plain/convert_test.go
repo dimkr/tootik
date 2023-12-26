@@ -137,7 +137,7 @@ func TestFromHTML_Mention(t *testing.T) {
 
 func TestToHTML_Plain(t *testing.T) {
 	post := `this is a plain post`
-	expected := post
+	expected := `<p>this is a plain post</p>`
 
 	html := ToHTML(post)
 	assert.Equal(t, expected, html)
@@ -153,7 +153,7 @@ func TestToHTML_LineBreak(t *testing.T) {
 
 func TestToHTML_Link(t *testing.T) {
 	post := `this is a plain post with a link: gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh`
-	expected := `this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>`
+	expected := `<p>this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a></p>`
 
 	html := ToHTML(post)
 	assert.Equal(t, expected, html)
@@ -169,7 +169,7 @@ func TestToHTML_LinkAndLineBreak(t *testing.T) {
 
 func TestToHTML_LinkStart(t *testing.T) {
 	post := `gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh is a link`
-	expected := `<a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a> is a link`
+	expected := `<p><a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a> is a link</p>`
 
 	html := ToHTML(post)
 	assert.Equal(t, expected, html)
@@ -177,7 +177,7 @@ func TestToHTML_LinkStart(t *testing.T) {
 
 func TestToHTML_LinkDot(t *testing.T) {
 	post := `this is a plain post with a link: gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh.`
-	expected := `this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>.`
+	expected := `<p>this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>.</p>`
 
 	html := ToHTML(post)
 	assert.Equal(t, expected, html)
@@ -185,7 +185,7 @@ func TestToHTML_LinkDot(t *testing.T) {
 
 func TestToHTML_Question(t *testing.T) {
 	post := `have you seen gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh?`
-	expected := `have you seen <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>?`
+	expected := `<p>have you seen <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>?</p>`
 
 	html := ToHTML(post)
 	assert.Equal(t, expected, html)
@@ -193,7 +193,7 @@ func TestToHTML_Question(t *testing.T) {
 
 func TestToHTML_LinkExclamationMark(t *testing.T) {
 	post := `this is a plain post with a link: gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh!`
-	expected := `this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>!`
+	expected := `<p>this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>!</p>`
 
 	html := ToHTML(post)
 	assert.Equal(t, expected, html)
@@ -201,7 +201,7 @@ func TestToHTML_LinkExclamationMark(t *testing.T) {
 
 func TestToHTML_LinkParentheses(t *testing.T) {
 	post := `this is a plain post with a link: (gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh)`
-	expected := `this is a plain post with a link: (<a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>)`
+	expected := `<p>this is a plain post with a link: (<a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>)</p>`
 
 	html := ToHTML(post)
 	assert.Equal(t, expected, html)
