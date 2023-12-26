@@ -127,7 +127,7 @@ func ToHTML(text string) string {
 		text = strings.ReplaceAll(text, link, fmt.Sprintf(`<a href="%s" target="_blank">%s</a>`, link, link))
 	}
 
-	text = regexp.MustCompile(`([^\n])\n\n(\n*[^\n])`).ReplaceAllString(text, "$1</p><p>$2")
+	text = regexp.MustCompile(`([^\n]\n*)\n\n([^\n])`).ReplaceAllString(text, "$1</p><p>$2")
 	text = strings.ReplaceAll(text, "\n", "<br/>")
 	return "<p>" + text + "</p>"
 }
