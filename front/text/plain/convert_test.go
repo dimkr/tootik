@@ -30,6 +30,7 @@ func TestFromHTML_Empty(t *testing.T) {
 	raw, links := FromHTML(post)
 	assert.Equal(t, expected, raw)
 	assert.Equal(t, expectedLinks, links)
+	assert.Equal(t, post, ToHTML(expected))
 }
 
 func TestFromHTML_Plain(t *testing.T) {
@@ -90,6 +91,7 @@ func TestFromHTML_LineBreak(t *testing.T) {
 	raw, links := FromHTML(post)
 	assert.Equal(t, expected, raw)
 	assert.Equal(t, expectedLinks, links)
+	assert.Equal(t, post, ToHTML(expected))
 }
 
 func TestFromHTML_MentionAndLink(t *testing.T) {
@@ -133,78 +135,6 @@ func TestFromHTML_Mention(t *testing.T) {
 	raw, links := FromHTML(post)
 	assert.Equal(t, expected, raw)
 	assert.Empty(t, links)
-}
-
-func TestToHTML_Plain(t *testing.T) {
-	post := `this is a plain post`
-	expected := post
-
-	html := ToHTML(post)
-	assert.Equal(t, expected, html)
-}
-
-func TestToHTML_LineBreak(t *testing.T) {
-	post := "this is a line\nthis is another line"
-	expected := `<p>this is a line</p><p>this is another line</p>`
-
-	html := ToHTML(post)
-	assert.Equal(t, expected, html)
-}
-
-func TestToHTML_Link(t *testing.T) {
-	post := `this is a plain post with a link: gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh`
-	expected := `this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>`
-
-	html := ToHTML(post)
-	assert.Equal(t, expected, html)
-}
-
-func TestToHTML_LinkAndLineBreak(t *testing.T) {
-	post := "this is a plain post with a link: gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh\n... and a line break"
-	expected := `<p>this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a></p><p>... and a line break</p>`
-
-	html := ToHTML(post)
-	assert.Equal(t, expected, html)
-}
-
-func TestToHTML_LinkStart(t *testing.T) {
-	post := `gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh is a link`
-	expected := `<a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a> is a link`
-
-	html := ToHTML(post)
-	assert.Equal(t, expected, html)
-}
-
-func TestToHTML_LinkDot(t *testing.T) {
-	post := `this is a plain post with a link: gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh.`
-	expected := `this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>.`
-
-	html := ToHTML(post)
-	assert.Equal(t, expected, html)
-}
-
-func TestToHTML_Question(t *testing.T) {
-	post := `have you seen gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh?`
-	expected := `have you seen <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>?`
-
-	html := ToHTML(post)
-	assert.Equal(t, expected, html)
-}
-
-func TestToHTML_LinkExclamationMark(t *testing.T) {
-	post := `this is a plain post with a link: gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh!`
-	expected := `this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>!`
-
-	html := ToHTML(post)
-	assert.Equal(t, expected, html)
-}
-
-func TestToHTML_LinkParentheses(t *testing.T) {
-	post := `this is a plain post with a link: (gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh)`
-	expected := `this is a plain post with a link: (<a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>)`
-
-	html := ToHTML(post)
-	assert.Equal(t, expected, html)
 }
 
 func TestFromHTML_Image(t *testing.T) {
@@ -260,4 +190,164 @@ func TestFromHTML_ImageAndSameLink(t *testing.T) {
 	raw, links := FromHTML(post)
 	assert.Equal(t, expected, raw)
 	assert.Equal(t, expectedLinks, links)
+}
+
+func TestToHTML_Empty(t *testing.T) {
+	post := ``
+	expected := post
+
+	html := ToHTML(post)
+	assert.Equal(t, expected, html)
+}
+
+func TestToHTML_Plain(t *testing.T) {
+	post := `this is a plain post`
+	expected := `<p>this is a plain post</p>`
+
+	html := ToHTML(post)
+	assert.Equal(t, expected, html)
+}
+
+func TestToHTML_LineBreak(t *testing.T) {
+	post := "this is a line\nthis is another line"
+	expected := `<p>this is a line<br/>this is another line</p>`
+
+	html := ToHTML(post)
+	assert.Equal(t, expected, html)
+}
+
+func TestToHTML_TwoLineBreaks(t *testing.T) {
+	post := "this is a line\n\nthis is another line"
+	expected := `<p>this is a line</p><p>this is another line</p>`
+
+	html := ToHTML(post)
+	assert.Equal(t, expected, html)
+}
+
+func TestToHTML_ManyLineBreaks(t *testing.T) {
+	post := "this is a line\n\n\n\n\n\n\nthis is another line"
+	expected := `<p>this is a line</p><p>this is another line</p>`
+
+	html := ToHTML(post)
+	assert.Equal(t, expected, html)
+}
+
+func TestToHTML_ManyLinesManyLineBreaks(t *testing.T) {
+	post := "this is a line\n\n\n\n\n\n\nthis is another line\n\n\n\n\n\n\nthis is yet another line"
+	expected := `<p>this is a line</p><p>this is another line</p><p>this is yet another line</p>`
+
+	html := ToHTML(post)
+	assert.Equal(t, expected, html)
+}
+
+func TestToHTML_LeadingLineBreak(t *testing.T) {
+	post := "\nthis is a line\nthis is another line"
+	expected := `<p><br/>this is a line<br/>this is another line</p>`
+
+	html := ToHTML(post)
+	assert.Equal(t, expected, html)
+}
+
+func TestToHTML_LeadingLineBreaks(t *testing.T) {
+	post := "\n\n\nthis is a line\nthis is another line"
+	expected := `<p><br/><br/><br/>this is a line<br/>this is another line</p>`
+
+	html := ToHTML(post)
+	assert.Equal(t, expected, html)
+}
+
+func TestToHTML_TrailingLineBreak(t *testing.T) {
+	post := "this is a line\nthis is another line\n"
+	expected := `<p>this is a line<br/>this is another line<br/></p>`
+
+	html := ToHTML(post)
+	assert.Equal(t, expected, html)
+}
+
+func TestToHTML_TrailingLineBreaks(t *testing.T) {
+	post := "this is a line\nthis is another line\n\n\n"
+	expected := `<p>this is a line<br/>this is another line<br/><br/><br/></p>`
+
+	html := ToHTML(post)
+	assert.Equal(t, expected, html)
+}
+
+func TestToHTML_OnlyLineBreaks(t *testing.T) {
+	post := "\n\n\n"
+	expected := `<p><br/><br/><br/></p>`
+
+	html := ToHTML(post)
+	assert.Equal(t, expected, html)
+}
+
+func TestToHTML_Link(t *testing.T) {
+	post := `this is a plain post with a link: gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh`
+	expected := `<p>this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a></p>`
+
+	html := ToHTML(post)
+	assert.Equal(t, expected, html)
+}
+
+func TestToHTML_LinkAndLineBreak(t *testing.T) {
+	post := "this is a plain post with a link: gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh\n... and a line break"
+	expected := `<p>this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a><br/>... and a line break</p>`
+
+	html := ToHTML(post)
+	assert.Equal(t, expected, html)
+}
+
+func TestToHTML_LinkStart(t *testing.T) {
+	post := `gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh is a link`
+	expected := `<p><a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a> is a link</p>`
+
+	html := ToHTML(post)
+	assert.Equal(t, expected, html)
+}
+
+func TestToHTML_LinkDot(t *testing.T) {
+	post := `this is a plain post with a link: gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh.`
+	expected := `<p>this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>.</p>`
+
+	html := ToHTML(post)
+	assert.Equal(t, expected, html)
+}
+
+func TestToHTML_Question(t *testing.T) {
+	post := `have you seen gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh?`
+	expected := `<p>have you seen <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>?</p>`
+
+	html := ToHTML(post)
+	assert.Equal(t, expected, html)
+}
+
+func TestToHTML_LinkExclamationMark(t *testing.T) {
+	post := `this is a plain post with a link: gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh!`
+	expected := `<p>this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>!</p>`
+
+	html := ToHTML(post)
+	assert.Equal(t, expected, html)
+}
+
+func TestToHTML_LinkParentheses(t *testing.T) {
+	post := `this is a plain post with a link: (gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh)`
+	expected := `<p>this is a plain post with a link: (<a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>)</p>`
+
+	html := ToHTML(post)
+	assert.Equal(t, expected, html)
+}
+
+func TestToHTML_TitleAndParagraphs(t *testing.T) {
+	post := "this is the title\n\nthis is a paragraph\n\nthis is another paragraph"
+	expected := `<p>this is the title</p><p>this is a paragraph</p><p>this is another paragraph</p>`
+
+	html := ToHTML(post)
+	assert.Equal(t, expected, html)
+}
+
+func TestToHTML_TitleSubtitleAndParagraphs(t *testing.T) {
+	post := "this is the title\n\nthis is the subtitle\n\nthis is a paragraph\n\nthis is another paragraph"
+	expected := `<p>this is the title</p><p>this is the subtitle</p><p>this is a paragraph</p><p>this is another paragraph</p>`
+
+	html := ToHTML(post)
+	assert.Equal(t, expected, html)
 }

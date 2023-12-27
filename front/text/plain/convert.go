@@ -37,6 +37,7 @@ var (
 	openTags          = regexp.MustCompile(`(?:<[a-zA-Z0-9]+\s*[^>]*>)+`)
 	closeTags         = regexp.MustCompile(`(?:<\/[a-zA-Z0-9]+\s*[^>]*>)+`)
 	urlRegex          = regexp.MustCompile(`\b(https|http|gemini|gopher|gophers):\/\/\S+\b`)
+	pDelim            = regexp.MustCompile(`([^\n])\n\n+([^\n])`)
 )
 
 func FromHTML(text string) (string, data.OrderedMap[string, string]) {
@@ -123,20 +124,15 @@ func getPlainLinks(text string) map[string]struct{} {
 }
 
 func ToHTML(text string) string {
+	if text == "" {
+		return ""
+	}
+
 	for link := range getPlainLinks(text) {
 		text = strings.ReplaceAll(text, link, fmt.Sprintf(`<a href="%s" target="_blank">%s</a>`, link, link))
 	}
 
-	lines := strings.Split(text, "\n")
-	if len(lines) == 1 {
-		return text
-	}
-
-	var b strings.Builder
-	for _, line := range lines {
-		b.WriteString("<p>")
-		b.WriteString(line)
-		b.WriteString("</p>")
-	}
-	return b.String()
+	text = pDelim.ReplaceAllString(text, "$1</p><p>$2")
+	text = strings.ReplaceAll(text, "\n", "<br/>")
+	return fmt.Sprintf("<p>%s</p>", text)
 }
