@@ -131,11 +131,15 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 
 	hash := sha256.Sum256([]byte(postID))
 
+	if inReplyTo != nil && inReplyTo.Type != ap.QuestionObject {
+		content = plain.ToHTML(content)
+	}
+
 	note := ap.Object{
 		Type:         ap.NoteObject,
 		ID:           postID,
 		AttributedTo: r.User.ID,
-		Content:      plain.ToHTML(content),
+		Content:      content,
 		Published:    now,
 		To:           to,
 		CC:           cc,
