@@ -48,7 +48,7 @@ func CollectGarbage(ctx context.Context, db *sql.DB) error {
 		return fmt.Errorf("failed to remove old hashtags: %w", err)
 	}
 
-	if _, err := db.ExecContext(ctx, `delete from outbox where inserted < ?`, now.Add(-deliveryTTL).Unix()); err != nil {
+	if _, err := db.ExecContext(ctx, `delete from outbox where inserted < ? and host != ?`, now.Add(-deliveryTTL).Unix(), cfg.Domain); err != nil {
 		return fmt.Errorf("failed to remove old posts: %w", err)
 	}
 
