@@ -131,10 +131,6 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 
 	hash := sha256.Sum256([]byte(postID))
 
-	if inReplyTo == nil || inReplyTo.Type != ap.QuestionObject {
-		content = plain.ToHTML(content)
-	}
-
 	note := ap.Object{
 		Type:         ap.NoteObject,
 		ID:           postID,
@@ -196,6 +192,10 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 		note.Content = note.Content[m[2]:m[3]]
 		endTime := ap.Time{Time: time.Now().Add(pollDuration)}
 		note.EndTime = &endTime
+	}
+
+	if inReplyTo == nil || inReplyTo.Type != ap.QuestionObject {
+		note.Content = plain.ToHTML(note.Content)
 	}
 
 	if err := outbox.Create(r.Context, r.Log, r.DB, &note, r.User); err != nil {
