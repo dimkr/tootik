@@ -131,7 +131,7 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 
 	hash := sha256.Sum256([]byte(postID))
 
-	if inReplyTo != nil && inReplyTo.Type != ap.QuestionObject {
+	if inReplyTo == nil || inReplyTo.Type != ap.QuestionObject {
 		content = plain.ToHTML(content)
 	}
 
