@@ -42,7 +42,7 @@ func robots(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Disallow: /\n"))
 }
 
-func ListenAndServe(ctx context.Context, db *sql.DB, resolver *Resolver, actor *ap.Actor, log *slog.Logger, addr, cert, key string) error {
+func ListenAndServe(ctx context.Context, db *sql.DB, resolver *Resolver, actor *ap.Actor, log *slog.Logger, addr, cert, key string, plain bool) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/robots.txt", robots)
 	mux.HandleFunc("/.well-known/webfinger", func(w http.ResponseWriter, r *http.Request) {
@@ -92,18 +92,22 @@ func ListenAndServe(ctx context.Context, db *sql.DB, resolver *Resolver, actor *
 	defer w.Close()
 
 	certDir := filepath.Dir(cert)
-	if err := w.Add(certDir); err != nil {
-		return err
-	}
 	certAbsPath := filepath.Join(certDir, filepath.Base(cert))
 
 	keyDir := filepath.Dir(key)
-	if keyDir != certDir {
-		if err := w.Add(keyDir); err != nil {
+	keyAbsPath := filepath.Join(keyDir, filepath.Base(key))
+
+	if !plain {
+		if err := w.Add(certDir); err != nil {
 			return err
 		}
+
+		if keyDir != certDir {
+			if err := w.Add(keyDir); err != nil {
+				return err
+			}
+		}
 	}
-	keyAbsPath := filepath.Join(keyDir, filepath.Base(key))
 
 	for ctx.Err() == nil {
 		var wg sync.WaitGroup
@@ -148,7 +152,7 @@ func ListenAndServe(ctx context.Context, db *sql.DB, resolver *Resolver, actor *
 					}
 
 					if (event.Has(fsnotify.Write) || event.Has(fsnotify.Create)) && (event.Name == certAbsPath || event.Name == keyAbsPath) {
-						log.Info("Stopping HTTPS server: file has changed", "name", event.Name)
+						log.Info("Stopping server: file has changed", "name", event.Name)
 						timer.Reset(certReloadDelay)
 					}
 
@@ -161,8 +165,13 @@ func ListenAndServe(ctx context.Context, db *sql.DB, resolver *Resolver, actor *
 			}
 		}()
 
-		log.Info("Starting HTTPS server")
-		err := server.ListenAndServeTLS(cert, key)
+		log.Info("Starting server")
+		var err error
+		if plain {
+			err = server.ListenAndServe()
+		} else {
+			err = server.ListenAndServeTLS(cert, key)
+		}
 
 		stopServer()
 		wg.Wait()

@@ -63,6 +63,7 @@ var (
 	addr          = flag.String("addr", ":8443", "HTTPS listening address")
 	blockListPath = flag.String("blocklist", "", "Blocklist CSV")
 	closed        = flag.Bool("closed", false, "Disable new user registration")
+	plain         = flag.Bool("plain", false, "Use HTTP instead of HTTPS")
 	version       = flag.Bool("version", false, "Print version and exit")
 )
 
@@ -134,7 +135,7 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		if err := fed.ListenAndServe(ctx, db, resolver, nobody, log, *addr, *cert, *key); err != nil {
+		if err := fed.ListenAndServe(ctx, db, resolver, nobody, log, *addr, *cert, *key, *plain); err != nil {
 			log.Error("HTTPS listener has failed", "error", err)
 		}
 		cancel()
