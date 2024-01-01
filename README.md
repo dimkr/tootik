@@ -1,22 +1,80 @@
 ```
-   __              __  _ __  
-  / /_____  ____  / /_(_) /__
- / __/ __ \/ __ \/ __/ / //_/
-/ /_/ /_/ / /_/ / /_/ / ,<   
-\__/\____/\____/\__/_/_/|_|  
+          ..    .        ..                                        ..
+ ...            .       ....                     ...
+ ...   .     .   .   .   ... ..      .  .     .  . ...                 ...
+ ..    .  .    ..   .         .    .. .       .. ..     .                   .
+ .,     .               . . . ..             .  ..                  .        .
+ .                .     . .. .. .... .       .  .  .               ..  ..
+            .              ..   ...  .       .    .   .   .        ..  .   .
+ .   .        .   ..        .    ..             ...' .. .          .   .    . .
+ . .              . .    .  __     .     .__  _ __ ,; .'. .  .     ....
+    . .          .         / /____  ___  /./_(_) /__  .'  ..         . .  . .
+  ..      ... .    .  .   /.__/ _ \/ _ \/ __/./  '_/.   .       .. .   .    .
+  .'   ...  .             \__/\___/\___/\__/_/_/\_\              .  .  . .
+      .         .    .    . .    .    ...     ... .           .      ..
+ ..  .. .   . .... ..  .  .         ..   .  .     .          .  .  ... ....' .
+   ...  .      .   .  .. .  ... ...      . ..   ..         .,..    .....
+ .   ..   ......             . .''.  .  ..          .         . .  ...
+ ' .      .. ..  ..     . . ... ......::.   ..       .,.       .  .. ....    ..
+ . ....  . .....     .  .. .  . ... . .,'.   .        ..          ,..  ..
+ . .    .  .  . ..   .  .   .. .  .     ..     ..  .  . .       . . .        .'
+   .  ....   '...                ...    . .  ..  .     ...     . '.   '     ...
+
+# localhost.localdomain:8443
+
+Welcome, fedinaut! localhost.localdomain:8443 is an instance of tootik, a federated nanoblogging service.
+
+────
+
+📡 This planet
+✨ FOMO from outer space
+🔥 Hashtags
+📊 Statistics
+🔑 Sign in
+🛟 Help
 ```
 
 ## Overview
 
-tootik is a federated nanoblogging service for the small internet.
+tootik is a federated nanoblogging service for the small internet. With tootik, you can interact with your friends, including those on [Mastodon](https://joinmastodon.org/), [Lemmy](https://join-lemmy.org/) and other [ActivityPub](https://www.w3.org/TR/activitypub/)-compatible servers, from the comfort of a minimalistic, text-based interface in the small internet:
+
+```
+                         Gemini           ActivityPub (HTTPS)
+ ┌───────────────────────┐ → ┌─────────────────┐ ⇄ ┌─────────────────────────┐
+ │  Bob's Gemini client  ├─┬─┤ tootik instance ├─┬─┤ Another tootik instance │
+ ├───────────────────────┤ │ ├─────────────────┤ │ └─────────────────────────┘
+ │2024-01-01 alice       │ │ │$ ./tootik ...   │ │ ┌────────────────┐
+ │> Hi @bob and @carol!  │ │ └─────────────────┘ ├─┤ Something else │
+ │...                    │ │                     │ └────────────────┘
+ └───────────────────────┘ │                     │ ┌───────────────────┐
+               ┌───────────┴───────────┐         └─┤ Mastodon instance ├─┐
+               │ Alice's Gemini client │           └───────────────────┘ │
+               ├───────────────────────┤              ┌──────────────────┴────┐
+               │2024-01-01 bob         │              │  Carol's web browser  │
+               │> Hi @alice!           │              ├───────────────────────┤
+               │...                    │              │╔═╗ alice              │
+               └───────────────────────┘              │╚═╝             17h ago│
+                                                      │Hi @bob and @carol!    │
+                                                      │                       │
+                                                      │  ╔═╗ bob              │
+                                                      │  ╚═╝           16h ago│
+                                                      │  Hi @alice!           │
+                                                      ├───────────────────────┤
+                                                      │┌────────────┐┏━━━━━━━┓│
+                                                      ││ Hola       │┃Publish┃│
+                                                      │└────────────┘┗━━━━━━━┛│
+                                                      └───────────────────────┘
+```
 
 tootik's goal is to make the fediverse lighter, more private and more accessible:
+* Its frontend supports [Gemini](https://geminiprotocol.net/), Gopher, Finger and [Guppy](https://github.com/dimkr/guppy-protocol): there's a wide variety of clients to choose from and an old device incapable of running a modern web browser is good enough.
 * It converts rich content into plain text and links, reducing bandwidth requirements and making content more suitable for screen readers.
-* Its frontend supports Gemini, Gopher, Finger and [Guppy](https://github.com/dimkr/guppy-protocol), so an old device incapable of running a modern web browser is still good enough.
-* It puts the users in control of the content they see and tries to "slow down" the fediverse to make it more compatible with the slower pace of the small internet.
-* It's a single, easy-to-deploy executable that handles both the federation (using ActivityPub) and the frontend (using Gemini) aspects, while [sqlite](https://sqlite.org/) takes care of persistency.
-* It should be lightweight and efficient enough to host a small community on one, cheap server, without horizontal scaling and the ongoing maintenance of a separate database.
-* It implements only a small subset of ActivityPub, enough for its feature set but not more, and everything is implemented in one language ([Go](https://go.dev/)) without abstraction layers (like web or ORM frameworks), making it easy to understand and hack on.
+* It puts the users in control of the content they see, there's no tracking or analytics and the post sorting algorithm imposes the slower pace of the small internet.
+* It's a single, easy-to-deploy executable that handles both the federation and frontend aspects, making it easy to [set up your own instance](https://github.com/dimkr/tootik/wiki/Quick-setup-guide) instead of joining an existing one.
+* It stores data like registered users and posts in a single file, a [sqlite](https://sqlite.org/) database that is easy to backup and restore.
+* It should be lightweight and efficient enough to host a single-user instance and even a small community on one, cheap server.
+* It implements only a subset of ActivityPub, enough for its feature set but not more, to stay small, reliable and maintainable.
+* It's permissively-licensed and everything is implemented in one language ([Go](https://go.dev/)), without abstraction layers (like web or ORM frameworks), making the codebase suitable for educational purposes and easy to understand and hack on.
 
 ## Using tootik
 
@@ -119,7 +177,7 @@ If a certificate is provided but does not belong to any user, the client is redi
 
 By default, the username associated with a client certificate is the common name specified in the certificate. If invalid or already in use by another user, /users/register asks the user to provide a different username. Once the user is registered, the client is redirected back to /users.
 
-Once the client certificate is associated with a user, all pages under /users look up the authenticated user's data using the certificate hash. 
+Once the client certificate is associated with a user, all pages under /users look up the authenticated user's data using the certificate hash.
 
 ## Posts
 
