@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package plain
 
 import (
 	"fmt"
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
 	"html"
 	"regexp"
@@ -38,6 +39,7 @@ var (
 	closeTags         = regexp.MustCompile(`(?:<\/[a-zA-Z0-9]+\s*[^>]*>)+`)
 	urlRegex          = regexp.MustCompile(`\b(https|http|gemini|gopher|gophers):\/\/\S+\b`)
 	pDelim            = regexp.MustCompile(`([^\n])\n\n+([^\n])`)
+	mentionRegex      = regexp.MustCompile(`\B@(\w+)(?:@(?:(?:\w+\.)+\w+(?::\d{1,5}){0,1})){0,1}\b`)
 )
 
 func FromHTML(text string) (string, data.OrderedMap[string, string]) {
@@ -123,13 +125,41 @@ func getPlainLinks(text string) map[string]struct{} {
 	return links
 }
 
-func ToHTML(text string) string {
+func ToHTML(text string, mentions []ap.Mention) string {
 	if text == "" {
 		return ""
 	}
 
 	for link := range getPlainLinks(text) {
 		text = strings.ReplaceAll(text, link, fmt.Sprintf(`<a href="%s" target="_blank">%s</a>`, link, link))
+	}
+
+	if len(mentions) > 0 {
+		var b strings.Builder
+	mentions:
+		for _, mention := range mentions {
+			if mention.Type != ap.MentionMention {
+				continue
+			}
+			for {
+				loc := mentionRegex.FindStringSubmatchIndex(text)
+				if loc == nil {
+					break mentions
+				}
+				b.WriteString(text[:loc[0]])
+				if text[loc[0]:loc[1]] == mention.Name {
+					b.WriteString(fmt.Sprintf(`<a href="%s" rel="nofollow noopener noreferrer">%s</a>`, mention.Href, text[loc[0]:loc[1]]))
+					text = text[loc[1]:]
+					break
+				}
+
+				b.WriteString(text[loc[0]:loc[1]])
+				text = text[loc[1]:]
+			}
+		}
+		b.WriteString(text)
+
+		text = b.String()
 	}
 
 	text = pDelim.ReplaceAllString(text, "$1</p><p>$2")

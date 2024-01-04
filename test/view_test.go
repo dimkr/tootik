@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -526,7 +526,7 @@ func TestView_PostInGroupPublicAndGroupFollowed(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people","https://www.w3.org/ns/activitystreams#Public"]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people","https://www.w3.org/ns/activitystreams#Public"]}`
+	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people","https://www.w3.org/ns/activitystreams#Public"],"tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people","https://www.w3.org/ns/activitystreams#Public"]}`
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
@@ -546,7 +546,7 @@ func TestView_PostInGroupPublicAndGroupFollowed(t *testing.T) {
 	assert.NoError(err)
 
 	view := server.Handle("/users/view/ff2b86e2dbb0cc086c97f1cf9b4398c26959821cddafdcd387c4471e6ec8cd65", server.Alice)
-	assert.Contains(view, "hello people")
+	assert.Contains(view, "hello @people")
 }
 
 func TestView_PostInGroupNotPublicAndGroupFollowed(t *testing.T) {
@@ -571,7 +571,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowed(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]}`
+	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]}`
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
@@ -591,7 +591,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowed(t *testing.T) {
 	assert.NoError(err)
 
 	view := server.Handle("/users/view/ff2b86e2dbb0cc086c97f1cf9b4398c26959821cddafdcd387c4471e6ec8cd65", server.Alice)
-	assert.Contains(view, "hello people")
+	assert.Contains(view, "hello @people")
 }
 
 func TestView_PostInGroupNotPublicAndGroupFollowedButNotAccepted(t *testing.T) {
@@ -616,7 +616,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedButNotAccepted(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]}`
+	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]}`
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
@@ -658,7 +658,7 @@ func TestView_PostInGroupNotPublicAndAuthorFollowed(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]}`
+	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]}`
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
@@ -678,7 +678,7 @@ func TestView_PostInGroupNotPublicAndAuthorFollowed(t *testing.T) {
 	assert.NoError(err)
 
 	view := server.Handle("/users/view/ff2b86e2dbb0cc086c97f1cf9b4398c26959821cddafdcd387c4471e6ec8cd65", server.Alice)
-	assert.Contains(view, "hello people")
+	assert.Contains(view, "hello @people")
 }
 
 func TestView_PostInGroupNotPublicAndAuthorFollowedButNotAccepted(t *testing.T) {
@@ -703,7 +703,7 @@ func TestView_PostInGroupNotPublicAndAuthorFollowedButNotAccepted(t *testing.T) 
 	)
 	assert.NoError(err)
 
-	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]}`
+	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]}`
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
@@ -753,7 +753,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithReply(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]}`
+	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]}`
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
@@ -782,7 +782,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithReply(t *testing.T) {
 	assert.NoError(err)
 
 	view := server.Handle("/users/view/ff2b86e2dbb0cc086c97f1cf9b4398c26959821cddafdcd387c4471e6ec8cd65", server.Alice)
-	assert.Contains(view, "hello people")
+	assert.Contains(view, "hello @people")
 	assert.Contains(view, "hello dan")
 }
 
@@ -816,7 +816,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithPrivateReply(t *testing.T)
 	)
 	assert.NoError(err)
 
-	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]}`
+	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]}`
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
@@ -845,6 +845,6 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithPrivateReply(t *testing.T)
 	assert.NoError(err)
 
 	view := server.Handle("/users/view/ff2b86e2dbb0cc086c97f1cf9b4398c26959821cddafdcd387c4471e6ec8cd65", server.Alice)
-	assert.Contains(view, "hello people")
+	assert.Contains(view, "hello @people")
 	assert.NotContains(view, "hello dan")
 }

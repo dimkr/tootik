@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -41,12 +41,12 @@ const (
 )
 
 var (
-	mentionRegex = regexp.MustCompile(`\B@(\w+)(?:@(\w+\.\w+(?::\d{1,5}){0,1})){0,1}\b`)
+	mentionRegex = regexp.MustCompile(`\B@(\w+)(?:@((?:\w+\.)+\w+(?::\d{1,5}){0,1})){0,1}\b`)
 	hashtagRegex = regexp.MustCompile(`\B#\w{1,32}\b`)
 	pollRegex    = regexp.MustCompile(`^\[(?:(?i)POLL)\s+(.+)\s*\]\s*(.+)`)
 )
 
-func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap.Audience, prompt string) {
+func post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo *ap.Object, to ap.Audience, cc ap.Audience, prompt string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -54,26 +54,28 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 
 	now := ap.Time{Time: time.Now()}
 
-	var today, last sql.NullInt64
-	if err := r.QueryRow(`select count(*), max(inserted) from outbox where activity->>'actor' = ? and activity->>'type' = 'Create' and inserted > ?`, r.User.ID, now.Add(-24*time.Hour).Unix()).Scan(&today, &last); err != nil {
-		r.Log.Warn("Failed to check if new post needs to be throttled", "error", err)
-		w.Error()
-		return
-	}
+	if oldNote == nil {
+		var today, last sql.NullInt64
+		if err := r.QueryRow(`select count(*), max(inserted) from outbox where activity->>'actor' = ? and activity->>'type' = 'Create' and inserted > ?`, r.User.ID, now.Add(-24*time.Hour).Unix()).Scan(&today, &last); err != nil {
+			r.Log.Warn("Failed to check if new post needs to be throttled", "error", err)
+			w.Error()
+			return
+		}
 
-	if today.Valid && today.Int64 >= 30 {
-		r.Log.Warn("User has exceeded the daily posts quota", "posts", today.Int64)
-		w.Status(40, "Please wait before posting again")
-		return
-	}
-
-	if today.Valid && last.Valid {
-		t := time.Unix(last.Int64, 0)
-		interval := max(1, time.Duration(today.Int64/2)) * time.Minute
-		if now.Sub(t) < interval {
-			r.Log.Warn("User is posting too frequently", "last", t, "can", t.Add(interval))
+		if today.Valid && today.Int64 >= 30 {
+			r.Log.Warn("User has exceeded the daily posts quota", "posts", today.Int64)
 			w.Status(40, "Please wait before posting again")
 			return
+		}
+
+		if today.Valid && last.Valid {
+			t := time.Unix(last.Int64, 0)
+			interval := max(1, time.Duration(today.Int64/2)) * time.Minute
+			if now.Sub(t) < interval {
+				r.Log.Warn("User is posting too frequently", "last", t, "can", t.Add(interval))
+				w.Status(40, "Please wait before posting again")
+				return
+			}
 		}
 	}
 
@@ -93,9 +95,14 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 		return
 	}
 
-	postID := fmt.Sprintf("https://%s/post/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", r.User.ID, content, now.Unix()))))
+	var postID string
+	if oldNote == nil {
+		postID = fmt.Sprintf("https://%s/post/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", r.User.ID, content, now.Unix()))))
+	} else {
+		postID = oldNote.ID
+	}
 
-	tags := ap.Mentions{}
+	var tags []ap.Mention
 
 	for _, hashtag := range hashtagRegex.FindAllString(content, -1) {
 		tags = append(tags, ap.Mention{Type: ap.HashtagMention, Name: hashtag, Href: fmt.Sprintf("gemini://%s/hashtag/%s", cfg.Domain, hashtag[1:])})
@@ -195,10 +202,17 @@ func post(w text.Writer, r *request, inReplyTo *ap.Object, to ap.Audience, cc ap
 	}
 
 	if inReplyTo == nil || inReplyTo.Type != ap.QuestionObject {
-		note.Content = plain.ToHTML(note.Content)
+		note.Content = plain.ToHTML(note.Content, note.Tag)
 	}
 
-	if err := outbox.Create(r.Context, r.Log, r.DB, &note, r.User); err != nil {
+	if oldNote != nil {
+		note.Published = oldNote.Published
+		note.Updated = &now
+		err = outbox.Update(r.Context, r.DB, &note)
+	} else {
+		err = outbox.Create(r.Context, r.Log, r.DB, &note, r.User)
+	}
+	if err != nil {
 		r.Log.Error("Failed to insert post", "error", err)
 		if errors.Is(err, outbox.ErrDeliveryQueueFull) {
 			w.Status(40, "Please try again later")

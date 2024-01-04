@@ -210,7 +210,7 @@ User A is allowed to send a message to user B only if B follows A.
 
 ### Post Editing
 
-/users/edit only changes the content and the last update timestamp of a post. It does **not** change the post audience and mentioned users.
+/users/edit cannot remove recipients from the post audience, only add more. If a post that mentions only `@a` is edited to mention only `@b`, both `a` and `b` will receive the updated post.
 
 ### Polls
 

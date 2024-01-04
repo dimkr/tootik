@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,5 +27,5 @@ func whisper(w text.Writer, r *request) {
 
 	to.Add(r.User.Followers)
 
-	post(w, r, nil, to, cc, "Post content")
+	post(w, r, nil, nil, to, cc, "Post content")
 }

@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -64,5 +64,5 @@ func dm(w text.Writer, r *request) {
 
 	cc := ap.Audience{}
 
-	post(w, r, nil, to, cc, "Message")
+	post(w, r, nil, nil, to, cc, "Message")
 }

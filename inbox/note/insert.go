@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -99,7 +99,42 @@ func Insert(ctx context.Context, log *slog.Logger, tx *sql.Tx, note *ap.Object) 
 		return fmt.Errorf("failed to insert note %s: %w", note.ID, err)
 	}
 
-	if _, err = tx.ExecContext(ctx, `update notes SET groupid = (select id from persons where actor->>'type' = 'Group' and (id in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = persons.id)) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = persons.id)) limit 1) where id = ?`, note.ID); err != nil {
+	if _, err = tx.ExecContext(
+		ctx,
+		`update notes
+		set groupid = coalesce(
+			case
+				when notes.object->'inReplyTo' is null then
+					(
+						select value->>'href' from json_each(notes.object->'tag')
+						where value->>'type' = 'Mention' and exists (select 1 from persons where persons.id = value->>'href' and persons.actor->>'type' = 'Group')
+						limit 1
+					)
+				else
+					null
+			end,
+			case
+				when notes.object->'inReplyTo' is null then
+					null
+				else
+					(
+						select value from json_each(notes.object->'cc')
+						where exists (select 1 from persons where persons.id = value and persons.actor->>'type' = 'Group')
+						limit 1
+					)
+			end,
+			case
+				when notes.object->'inReplyTo' is null then
+					null
+				else
+					(
+						select value from json_each(notes.object->'to')
+						where exists (select 1 from persons where persons.id = value and persons.actor->>'type' = 'Group')
+						limit 1
+					)
+			end
+		)
+		where id = ?`, note.ID); err != nil {
 		log.Warn("Failed to set post group", "error", err)
 	}
 

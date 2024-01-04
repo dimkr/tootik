@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ func Update(ctx context.Context, db *sql.DB, note *ap.Object) error {
 		return fmt.Errorf("failed to marshal note: %w", err)
 	}
 
-	updateID := fmt.Sprintf("https://%s/update/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", note.ID, time.Now().Unix()))))
+	updateID := fmt.Sprintf("https://%s/update/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", note.ID, time.Now().UnixNano()))))
 
 	update, err := json.Marshal(ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
@@ -70,6 +70,106 @@ func Update(ctx context.Context, db *sql.DB, note *ap.Object) error {
 		note.AttributedTo,
 	); err != nil {
 		return fmt.Errorf("failed to insert update activity: %w", err)
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`update notes set to0 = object->>'to[0]' where id = ?`,
+		note.ID,
+	); err != nil {
+		return fmt.Errorf("failed to update to0: %w", err)
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`update notes set to1 = object->>'to[1]' where id = ?`,
+		note.ID,
+	); err != nil {
+		return fmt.Errorf("failed to update to1: %w", err)
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`update notes set to2 = object->>'to[2]' where id = ?`,
+		note.ID,
+	); err != nil {
+		return fmt.Errorf("failed to update to2: %w", err)
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`update notes set cc0 = object->>'cc[0]' where id = ?`,
+		note.ID,
+	); err != nil {
+		return fmt.Errorf("failed to update cc0: %w", err)
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`update notes set cc1 = object->>'cc[1]' where id = ?`,
+		note.ID,
+	); err != nil {
+		return fmt.Errorf("failed to update cc1: %w", err)
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`update notes set cc2 = object->>'cc[2]' where id = ?`,
+		note.ID,
+	); err != nil {
+		return fmt.Errorf("failed to update cc2: %w", err)
+	}
+
+	if _, err = tx.ExecContext(
+		ctx,
+		`update notes
+		set groupid = coalesce(
+			case
+				when notes.object->'inReplyTo' is null then
+					(
+						select value->>'href' from json_each(notes.object->'tag')
+						where value->>'type' = 'Mention' and exists (select 1 from persons where persons.id = value->>'href' and persons.actor->>'type' = 'Group')
+						limit 1
+					)
+				else
+					null
+			end,
+			case
+				when notes.object->'inReplyTo' is null then
+					null
+				else
+					(
+						select value from json_each(notes.object->'cc')
+						where exists (select 1 from persons where persons.id = value and persons.actor->>'type' = 'Group')
+						limit 1
+					)
+			end,
+			case
+				when notes.object->'inReplyTo' is null then
+					null
+				else
+					(
+						select value from json_each(notes.object->'to')
+						where exists (select 1 from persons where persons.id = value and persons.actor->>'type' = 'Group')
+						limit 1
+					)
+			end
+		)
+		where id = ?`, note.ID); err != nil {
+		return fmt.Errorf("failed to update post group: %w", err)
+	}
+
+	if _, err = tx.ExecContext(ctx, `delete from hashtags where note = ?`, note.ID); err != nil {
+		return fmt.Errorf("failed to delete old hashtags: %w", err)
+	}
+
+	for _, hashtag := range note.Tag {
+		if hashtag.Type != ap.HashtagMention || len(hashtag.Name) <= 1 || hashtag.Name[0] != '#' {
+			continue
+		}
+		if _, err = tx.ExecContext(ctx, `insert into hashtags (note, hashtag) values(?,?)`, note.ID, hashtag.Name[1:]); err != nil {
+			return fmt.Errorf("failed to insert hashtag: %w", err)
+		}
 	}
 
 	if err := tx.Commit(); err != nil {

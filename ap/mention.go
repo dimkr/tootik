@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,16 +29,4 @@ type Mention struct {
 	Name string      `json:"name,omitempty"`
 	Href string      `json:"href,omitempty"`
 	Icon *Attachment `json:"icon,omitempty"`
-}
-
-type Mentions []Mention
-
-func (l Mentions) Contains(m Mention) bool {
-	for _, m2 := range l {
-		if m2.Name == m.Name && m2.Href == m.Href && m2.Type == m.Type {
-			return true
-		}
-	}
-
-	return false
 }

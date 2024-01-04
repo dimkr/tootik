@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,8 +23,6 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front/text"
-	"github.com/dimkr/tootik/front/text/plain"
-	"github.com/dimkr/tootik/outbox"
 	"math"
 	"net/url"
 	"path/filepath"
@@ -80,12 +78,6 @@ func edit(w text.Writer, r *request) {
 		return
 	}
 
-	if note.Type == ap.QuestionObject {
-		r.Log.Warn("Cannot edit polls", "poll", note.ID)
-		w.Status(40, "Cannot edit polls")
-		return
-	}
-
 	var edits int
 	if err := r.QueryRow(`select count(*) from outbox where activity->>'object.id' = ? and (activity->>'type' = 'Update' or activity->>'type' = 'Create')`, note.ID).Scan(&edits); err != nil {
 		r.Log.Warn("Failed to count post edits", "hash", hash, "error", err)
@@ -105,11 +97,26 @@ func edit(w text.Writer, r *request) {
 		return
 	}
 
-	if err := outbox.Edit(r.Context, r.DB, &note, plain.ToHTML(content)); err != nil {
-		r.Log.Error("Failed to update post", "note", note.ID, "error", err)
+	if note.InReplyTo == "" {
+		post(w, r, &note, nil, note.To, note.CC, "Post content")
+		return
+	}
+
+	if err := r.QueryRow(`select object from notes where id = ?`, note.InReplyTo).Scan(&noteString); err != nil && errors.Is(err, sql.ErrNoRows) {
+		r.Log.Warn("Parent post does not exist", "parent", note.InReplyTo)
+	} else if err != nil {
+		r.Log.Warn("Failed to fetch parent post", "parent", note.InReplyTo, "error", err)
 		w.Error()
 		return
 	}
 
-	w.Redirectf("/users/view/%s", hash)
+	var parent ap.Object
+	if err := json.Unmarshal([]byte(noteString), &parent); err != nil {
+		r.Log.Warn("Failed to unmarshal parent post", "parent", note.InReplyTo, "error", err)
+		w.Error()
+		return
+	}
+
+	// the starting point is the original value of to and cc: recipients can be added but not removed when editing
+	post(w, r, &note, &parent, note.To, note.CC, "Post content")
 }
