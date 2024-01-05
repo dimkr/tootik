@@ -172,11 +172,6 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 		links.Store(note.URL, "")
 	}
 
-	inlineLinks.Range(func(link, alt string) bool {
-		links.Store(link, alt)
-		return true
-	})
-
 	hashtags := data.OrderedMap[string, string]{}
 	mentionedUsers := data.OrderedMap[string, struct{}]{}
 
@@ -204,6 +199,13 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 			r.Log.Warn("Skipping unsupported mention type", "post", note.ID, "type", tag.Type)
 		}
 	}
+
+	inlineLinks.Range(func(link, alt string) bool {
+		if !mentionedUsers.Contains(link) {
+			links.Store(link, alt)
+		}
+		return true
+	})
 
 	for _, attachment := range note.Attachment {
 		if attachment.URL != "" {
