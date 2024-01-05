@@ -117,25 +117,31 @@ func FromHTML(text string) (string, data.OrderedMap[string, string]) {
 	return strings.TrimRight(res, " \n\r\t"), links
 }
 
-func getPlainLinks(text string) map[string]struct{} {
-	links := map[string]struct{}{}
-	for _, link := range urlRegex.FindAllString(text, -1) {
-		links[link] = struct{}{}
-	}
-	return links
-}
-
 func ToHTML(text string, mentions []ap.Mention) string {
 	if text == "" {
 		return ""
 	}
 
-	for link := range getPlainLinks(text) {
-		text = strings.ReplaceAll(text, link, fmt.Sprintf(`<a href="%s" target="_blank">%s</a>`, link, link))
+	var b strings.Builder
+
+	foundLink := false
+	for {
+		loc := urlRegex.FindStringIndex(text)
+		if loc == nil {
+			break
+		}
+		b.WriteString(text[:loc[0]])
+		b.WriteString(fmt.Sprintf(`<a href="%s" target="_blank">%s</a>`, text[loc[0]:loc[1]], text[loc[0]:loc[1]]))
+		text = text[loc[1]:]
+		foundLink = true
+	}
+	if foundLink {
+		b.WriteString(text)
+		text = b.String()
 	}
 
 	if len(mentions) > 0 {
-		var b strings.Builder
+		b.Reset()
 	mentions:
 		for _, mention := range mentions {
 			if mention.Type != ap.MentionMention {
