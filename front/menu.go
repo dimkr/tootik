@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -52,6 +52,7 @@ func writeUserMenu(w text.Writer, user *ap.Actor) {
 	if user == nil {
 		w.Link(fmt.Sprintf("gemini://%s/users", cfg.Domain), "🔑 Sign in")
 	} else {
+		w.Link("/users/bio", "📜 Set bio")
 		w.Link("/users/whisper", "🔔 New post")
 		w.Link("/users/say", "📣 New public post")
 	}

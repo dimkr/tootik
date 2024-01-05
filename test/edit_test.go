@@ -75,7 +75,8 @@ func TestEdit_HappyFlow(t *testing.T) {
 
 	hash := whisper[15 : len(whisper)-2]
 
-	server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?Hello%%20followers", hash), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", hash), edit)
@@ -116,7 +117,8 @@ func TestEdit_EmptyContent(t *testing.T) {
 
 	hash := whisper[15 : len(whisper)-2]
 
-	server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?", hash), server.Bob)
 	assert.Equal("10 Post content\r\n", edit)
@@ -147,7 +149,8 @@ func TestEdit_LongContent(t *testing.T) {
 
 	hash := whisper[15 : len(whisper)-2]
 
-	server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", hash), server.Bob)
 	assert.Equal("40 Post is too long\r\n", edit)
@@ -178,7 +181,8 @@ func TestEdit_InvalidEscapeSequence(t *testing.T) {
 
 	hash := whisper[15 : len(whisper)-2]
 
-	server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?Hello%%zzworld", hash), server.Bob)
 	assert.Equal("40 Bad input\r\n", edit)
@@ -264,7 +268,8 @@ func TestEdit_AddHashtag(t *testing.T) {
 
 	hash := say[15 : len(say)-2]
 
-	server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?%%23Hello%%20%%23world", hash), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", hash), edit)
@@ -293,7 +298,8 @@ func TestEdit_RemoveHashtag(t *testing.T) {
 
 	hash := say[15 : len(say)-2]
 
-	server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?%%23Hello%%20world", hash), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", hash), edit)
@@ -322,7 +328,8 @@ func TestEdit_KeepHashtags(t *testing.T) {
 
 	hash := say[15 : len(say)-2]
 
-	server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?%%23Hello%%20%%20%%23world", hash), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", hash), edit)
@@ -354,7 +361,8 @@ func TestEdit_AddMention(t *testing.T) {
 	assert.NotContains(lines, "> Hello @alice")
 	assert.NotContains(lines, fmt.Sprintf("=> /users/outbox/%x alice", sha256.Sum256([]byte(server.Alice.ID))))
 
-	server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?Hello%%20%%40alice", hash), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", hash), edit)
@@ -385,7 +393,8 @@ func TestEdit_RemoveMention(t *testing.T) {
 	assert.Contains(lines, "> Hello @alice")
 	assert.Contains(lines, fmt.Sprintf("=> /users/outbox/%x alice", sha256.Sum256([]byte(server.Alice.ID))))
 
-	server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?Hello%%20world", hash), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", hash), edit)
@@ -416,7 +425,8 @@ func TestEdit_KeepMention(t *testing.T) {
 	assert.Contains(lines, "> Hello @alice")
 	assert.Contains(lines, fmt.Sprintf("=> /users/outbox/%x alice", sha256.Sum256([]byte(server.Alice.ID))))
 
-	server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?Hello%%20%%20%%40alice", hash), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", hash), edit)
@@ -455,7 +465,8 @@ func TestEdit_AddGroup(t *testing.T) {
 	today := server.Handle("/users/inbox/today", server.Alice)
 	assert.NotContains(today, "Hello people")
 
-	server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	_, err = server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?Hello%%20people%%20in%%20%%40people%%40other.localdomain", hash), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", hash), edit)
@@ -492,7 +503,8 @@ func TestEdit_RemoveGroup(t *testing.T) {
 	today := server.Handle("/users/inbox/today", server.Alice)
 	assert.Contains(today, "Hello people")
 
-	server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	_, err = server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?Hello%%20people%%20in%%20people%%40other.localdomain", hash), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", hash), edit)
@@ -537,7 +549,8 @@ func TestEdit_ChangeGroup(t *testing.T) {
 	today := server.Handle("/users/inbox/today", server.Alice)
 	assert.NotContains(today, "Hello people")
 
-	server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	_, err = server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?Hello%%20people%%20in%%20%%40people%%40other.localdomain", hash), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", hash), edit)
@@ -579,7 +592,8 @@ func TestEdit_AddReplyGroup(t *testing.T) {
 	today := server.Handle("/users/inbox/today", server.Alice)
 	assert.NotContains(today, "Hello there")
 
-	server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), replyHash)
+	_, err = server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), replyHash)
+	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?Hello%%20people%%20in%%20%%40people%%40other.localdomain", replyHash), server.Carol)
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", replyHash), edit)
@@ -629,7 +643,8 @@ func TestEdit_ChangeReplyGroup(t *testing.T) {
 	today := server.Handle("/users/inbox/today", server.Alice)
 	assert.Contains(today, "Hello there")
 
-	server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), replyHash)
+	_, err = server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), replyHash)
+	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?Hello%%20adults%%20in%%20%%40adults%%40other.localdomain", replyHash), server.Carol)
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", replyHash), edit)
@@ -679,7 +694,8 @@ func TestEdit_RemoveReplyGroup(t *testing.T) {
 	today := server.Handle("/users/inbox/today", server.Alice)
 	assert.Contains(today, "Hello adults")
 
-	server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), replyHash)
+	_, err = server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), replyHash)
+	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?Hello%%20adults", replyHash), server.Carol)
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", replyHash), edit)
@@ -713,7 +729,8 @@ func TestEdit_PollAddOption(t *testing.T) {
 	assert.NotContains(strings.Split(view, "\n"), "0          I couldn't care less")
 	assert.NotContains(strings.Split(view, "\n"), "1 ████████ I couldn't care less")
 
-	server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?%%5bPOLL%%20So%%2c%%20polls%%20on%%20Station%%20are%%20pretty%%20cool%%2c%%20right%%3f%%5d%%20Nope%%20%%7c%%20Hell%%20yeah%%21%%20%%7c%%20I%%20couldn%%27t%%20care%%20less", hash), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", hash), edit)
@@ -758,7 +775,8 @@ func TestEdit_RemoveQuestion(t *testing.T) {
 	assert.NotContains(strings.Split(view, "\n"), "0          I couldn't care less")
 	assert.NotContains(strings.Split(view, "\n"), "1 ████████ I couldn't care less")
 
-	server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where hash = ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), hash)
+	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?This%%20is%%20not%%20a%%20poll", hash), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", hash), edit)

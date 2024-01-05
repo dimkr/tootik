@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -38,4 +38,6 @@ type Actor struct {
 	Icon                      Attachment        `json:"icon,omitempty"`
 	ManuallyApprovesFollowers bool              `json:"manuallyApprovesFollowers"`
 	AlsoKnownAs               Audience          `json:"alsoKnownAs,omitempty"`
+	Published                 Time              `json:"published"`
+	Updated                   *Time             `json:"updated,omitempty"`
 }

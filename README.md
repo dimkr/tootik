@@ -33,6 +33,7 @@ Welcome, fedinaut! localhost.localdomain:8443 is an instance of tootik, a federa
 🔭 Find user
 🔥 Hashtags
 📊 Statistics
+📜 Set bio
 🔔 New post
 📣 New public post
 🛟 Help
@@ -154,6 +155,7 @@ Users are authenticated using TLS client certificates; see [Gemini protocol spec
 * /users/follow sends a follow request to a user.
 * /users/unfollow deletes a follow request.
 * /users/outbox is equivalent to /outbox but also includes a link to /users/follow or /users/unfollow.
+* /users/bio allows users to edit their bio.
 
 Some clients generate a certificate for / (all pages of this capsule) when /foo requests a client certificate, while others use the certificate requested by /foo only for /foo and /foo/bar. Therefore, pages that don't require authentication are also mirrored under /users:
 

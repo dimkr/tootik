@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -285,7 +285,8 @@ func TestReply_SelfReply(t *testing.T) {
 	assert.Contains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
-	server.db.Exec("update outbox set inserted = inserted - 3600 where activity->>'type' = 'Create'")
+	_, err := server.db.Exec("update outbox set inserted = inserted - 3600 where activity->>'type' = 'Create'")
+	assert.NoError(err)
 
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20me", hash), server.Bob)
 	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)

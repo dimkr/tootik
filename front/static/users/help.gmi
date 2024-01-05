@@ -57,6 +57,10 @@ This page shows popular hashtags, allowing you to discover trends and shared int
 
 This page shows various statistics about this server and the parts of the fediverse it's connected to.
 
+> 📜 Set bio
+
+Follow this link to set the short (up to 500 characters long) description that appears at the top of your profile.
+
 > 🔔 New post
 
 Follow this link to publish a private post and send it to your followers.

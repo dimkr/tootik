@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/fed/icon"
+	"time"
 )
 
 func gen(ctx context.Context) ([]byte, []byte, error) {
@@ -95,6 +96,7 @@ func Create(ctx context.Context, db *sql.DB, id, name, certHash string) (*ap.Act
 			PublicKeyPem: string(pub),
 		},
 		ManuallyApprovesFollowers: false,
+		Published:                 ap.Time{Time: time.Now()},
 	}
 
 	body, err := json.Marshal(actor)

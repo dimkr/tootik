@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -71,6 +71,8 @@ func NewHandler(closed bool) Handler {
 
 	h[regexp.MustCompile(`^/outbox/[0-9a-f]{64}$`)] = withUserMenu(userOutbox)
 	h[regexp.MustCompile(`^/users/outbox/[0-9a-f]{64}$`)] = withUserMenu(userOutbox)
+
+	h[regexp.MustCompile(`^/users/bio$`)] = bio
 
 	h[regexp.MustCompile(`^/view/[0-9a-f]{64}$`)] = withUserMenu(view)
 	h[regexp.MustCompile(`^/users/view/[0-9a-f]{64}$`)] = withUserMenu(view)
