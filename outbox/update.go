@@ -27,7 +27,7 @@ import (
 	"time"
 )
 
-func Update(ctx context.Context, db *sql.DB, note *ap.Object) error {
+func UpdateNote(ctx context.Context, db *sql.DB, note *ap.Object) error {
 	body, err := json.Marshal(note)
 	if err != nil {
 		return fmt.Errorf("failed to marshal note: %w", err)
@@ -174,6 +174,36 @@ func Update(ctx context.Context, db *sql.DB, note *ap.Object) error {
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("failed to update note: %w", err)
+	}
+
+	return nil
+}
+
+func UpdateActor(ctx context.Context, tx *sql.Tx, actorID string) error {
+	updateID := fmt.Sprintf("https://%s/update/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", actorID, time.Now().UnixNano()))))
+
+	to := ap.Audience{}
+	to.Add(ap.Public)
+
+	update, err := json.Marshal(ap.Activity{
+		Context: "https://www.w3.org/ns/activitystreams",
+		ID:      updateID,
+		Type:    ap.UpdateActivity,
+		Actor:   actorID,
+		Object:  actorID,
+		To:      to,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to marshal update: %w", err)
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
+		string(update),
+		actorID,
+	); err != nil {
+		return fmt.Errorf("failed to insert update activity: %w", err)
 	}
 
 	return nil

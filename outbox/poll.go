@@ -102,7 +102,7 @@ func UpdatePollResults(ctx context.Context, log *slog.Logger, db *sql.DB) error 
 
 		log.Info("Updating poll results", "poll", poll.ID)
 
-		if err := Update(ctx, db, poll); err != nil {
+		if err := UpdateNote(ctx, db, poll); err != nil {
 			log.Warn("Failed to update poll results", "poll", poll.ID, "error", err)
 		}
 	}

@@ -208,7 +208,7 @@ func post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo *ap.Object, t
 	if oldNote != nil {
 		note.Published = oldNote.Published
 		note.Updated = &now
-		err = outbox.Update(r.Context, r.DB, &note)
+		err = outbox.UpdateNote(r.Context, r.DB, &note)
 	} else {
 		err = outbox.Create(r.Context, r.Log, r.DB, &note, r.User)
 	}

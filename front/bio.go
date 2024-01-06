@@ -20,6 +20,7 @@ import (
 	"crypto/sha256"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/text/plain"
+	"github.com/dimkr/tootik/outbox"
 	"net/url"
 	"time"
 	"unicode/utf8"
@@ -60,12 +61,33 @@ func bio(w text.Writer, r *request) {
 		return
 	}
 
-	if _, err := r.Exec(
+	tx, err := r.DB.BeginTx(r.Context, nil)
+	if err != nil {
+		r.Log.Warn("Failed to update summary", "error", err)
+		w.Error()
+		return
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(
+		r.Context,
 		"update persons set actor = json_set(actor, '$.summary', $1, '$.updated', $2) where id = $3",
 		plain.ToHTML(summary, nil),
 		now.Format(time.RFC3339Nano),
 		r.User.ID,
 	); err != nil {
+		r.Log.Error("Failed to update summary", "error", err)
+		w.Error()
+		return
+	}
+
+	if err := outbox.UpdateActor(r.Context, tx, r.User.ID); err != nil {
+		r.Log.Error("Failed to update summary", "error", err)
+		w.Error()
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
 		r.Log.Error("Failed to update summary", "error", err)
 		w.Error()
 		return
