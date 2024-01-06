@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -99,7 +99,7 @@ func processQueue(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *R
 			continue
 		}
 
-		if err := deliverWithTimeout(ctx, log, db, resolver, &activity, []byte(activityString), &actor, time.Unix(inserted, 0), recipients); err != nil {
+		if err := deliverWithTimeout(ctx, log, db, resolver, &activity, []byte(activityString), &actor, time.Unix(inserted, 0), &recipients); err != nil {
 			log.Warn("Failed to deliver activity", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
@@ -121,13 +121,13 @@ func processQueue(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *R
 	return nil
 }
 
-func deliverWithTimeout(parent context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, inserted time.Time, sent ap.Audience) error {
+func deliverWithTimeout(parent context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, inserted time.Time, sent *ap.Audience) error {
 	ctx, cancel := context.WithTimeout(parent, deliveryTimeout)
 	defer cancel()
 	return deliver(ctx, log, db, activity, rawActivity, actor, resolver, inserted, sent)
 }
 
-func deliver(ctx context.Context, log *slog.Logger, db *sql.DB, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, resolver *Resolver, inserted time.Time, received ap.Audience) error {
+func deliver(ctx context.Context, log *slog.Logger, db *sql.DB, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, resolver *Resolver, inserted time.Time, received *ap.Audience) error {
 	activityID, err := url.Parse(activity.ID)
 	if err != nil {
 		return err
