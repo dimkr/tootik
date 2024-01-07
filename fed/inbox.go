@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -93,7 +93,7 @@ func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	if _, err = h.DB.ExecContext(
 		r.Context(),
-		`INSERT INTO inbox (sender, activity) VALUES(?,?)`,
+		`INSERT OR IGNORE INTO inbox (sender, activity) VALUES(?,?)`,
 		sender.ID,
 		string(body),
 	); err != nil {

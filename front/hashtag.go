@@ -67,7 +67,7 @@ func hashtag(w text.Writer, r *request) {
 	if count == 0 {
 		w.Text("No posts.")
 	} else {
-		r.PrintNotes(w, notes, true, true)
+		r.PrintNotes(w, notes, true, true, false)
 	}
 
 	if offset >= postsPerPage || count == postsPerPage {
