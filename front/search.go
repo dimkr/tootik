@@ -64,6 +64,6 @@ func search(w text.Writer, r *request) {
 	if count == 0 {
 		w.Text("No results.")
 	} else {
-		r.PrintNotes(w, notes, true, true)
+		r.PrintNotes(w, notes, true, true, false)
 	}
 }
