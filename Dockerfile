@@ -1,4 +1,4 @@
-# Copyright 2023 Dima Krasner
+# Copyright 2023, 2024 Dima Krasner
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ COPY . /src
 RUN go vet ./...
 RUN go test ./... -failfast -vet off
 ARG TOOTIK_VERSION=?
-RUN go build -ldflags "-X github.com/dimkr/tootik/buildinfo.Version=$TOOTIK_VERSION"  ./cmd/tootik
+RUN go build -ldflags "-X github.com/dimkr/tootik/buildinfo.Version=$TOOTIK_VERSION" -tags fts5 ./cmd/tootik
 
 FROM alpine
 RUN apk add --no-cache ca-certificates openssl

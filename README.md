@@ -31,6 +31,7 @@ Welcome, fedinaut! localhost.localdomain:8443 is an instance of tootik, a federa
 📡 This planet
 ✨ FOMO from outer space
 🔭 Find user
+🔎 Search posts
 🔥 Hashtags
 📊 Statistics
 📜 Set bio
@@ -91,11 +92,11 @@ You can join an [existing instance](gemini://hd.206267.xyz) or [set up your own]
 
 Then:
 
-	go build ./cmd/tootik
+	go build ./cmd/tootik -tags fts5
 
 or, to build a static executable:
 
-	go build -tags netgo,sqlite_omit_load_extension -ldflags "-linkmode external -extldflags -static" ./cmd/tootik
+	go build -tags netgo,sqlite_omit_load_extension,fts5 -ldflags "-linkmode external -extldflags -static" ./cmd/tootik
 
 ## Directory Structure
 

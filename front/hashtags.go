@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -122,11 +122,5 @@ func hashtags(w text.Writer, r *request) {
 
 	if len(followed) > 0 || len(labels) > 0 || len(all) > 0 {
 		w.Separator()
-	}
-
-	if r.User == nil {
-		w.Link("/search", "🔎 Posts by hashtag")
-	} else {
-		w.Link("/users/search", "🔎 Posts by hashtag")
 	}
 }

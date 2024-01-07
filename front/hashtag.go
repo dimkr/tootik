@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -84,13 +84,5 @@ func hashtag(w text.Writer, r *request) {
 		w.Linkf(fmt.Sprintf("/hashtag/%s?%d", tag, offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
 	} else if count == postsPerPage {
 		w.Linkf(fmt.Sprintf("/users/hashtag/%s?%d", tag, offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
-	}
-
-	w.Separator()
-
-	if r.User == nil {
-		w.Link("/search", "🔎 Posts by hashtag")
-	} else {
-		w.Link("/users/search", "🔎 Posts by hashtag")
 	}
 }

@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/front/text/plain"
 	"log/slog"
 )
 
@@ -81,6 +82,8 @@ func Insert(ctx context.Context, log *slog.Logger, tx *sql.Tx, note *ap.Object) 
 		public = 1
 	}
 
+	content, _ := plain.FromHTML(note.Content)
+
 	if _, err = tx.ExecContext(
 		ctx,
 		`INSERT INTO notes (id, hash, author, object, public, to0, to1, to2, cc0, cc1, cc2) VALUES(?,?,?,?,?,?,?,?,?,?,?)`,
@@ -95,6 +98,15 @@ func Insert(ctx context.Context, log *slog.Logger, tx *sql.Tx, note *ap.Object) 
 		cc[0],
 		cc[1],
 		cc[2],
+	); err != nil {
+		return fmt.Errorf("failed to insert note %s: %w", note.ID, err)
+	}
+
+	if _, err = tx.ExecContext(
+		ctx,
+		`INSERT INTO notesfts (id, content) VALUES(?,?)`,
+		note.ID,
+		content,
 	); err != nil {
 		return fmt.Errorf("failed to insert note %s: %w", note.ID, err)
 	}
