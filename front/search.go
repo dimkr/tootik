@@ -35,7 +35,7 @@ func search(w text.Writer, r *request) {
 		return
 	}
 
-	rows, err := r.Query("select notes.object, persons.actor, case when notes.groupid is null then null else (select actor from persons where persons.id = notes.groupid limit 1) end from notesfts join notes on notes.id = notesfts.id join persons on persons.id = notes.author where notesfts.content match ? order by rank limit 30", query)
+	rows, err := r.Query("select notes.object, persons.actor, case when notes.groupid is null then null else (select actor from persons where persons.id = notes.groupid limit 1) end from notesfts join notes on notes.id = notesfts.id join persons on persons.id = notes.author where notesfts.content match ? order by rank, notes.inserted desc limit 30", query)
 	if err != nil {
 		r.Log.Warn("Failed to search for posts", "query", query, "error", err)
 		w.Error()

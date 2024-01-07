@@ -24,6 +24,8 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/front/text/plain"
+	"strings"
 	"time"
 )
 
@@ -48,6 +50,18 @@ func UpdateNote(ctx context.Context, db *sql.DB, note *ap.Object) error {
 		return fmt.Errorf("failed to marshal update: %w", err)
 	}
 
+	content, links := plain.FromHTML(note.Content)
+	if len(links) > 0 {
+		var b strings.Builder
+		b.WriteString(content)
+		links.Range(func(link, alt string) bool {
+			b.WriteByte(' ')
+			b.WriteString(link)
+			return true
+		})
+		content = b.String()
+	}
+
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -58,6 +72,15 @@ func UpdateNote(ctx context.Context, db *sql.DB, note *ap.Object) error {
 		ctx,
 		`UPDATE notes SET object = ? WHERE id = ?`,
 		string(body),
+		note.ID,
+	); err != nil {
+		return fmt.Errorf("failed to update note: %w", err)
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`UPDATE notesfts SET content = ? WHERE id = ?`,
+		content,
 		note.ID,
 	); err != nil {
 		return fmt.Errorf("failed to update note: %w", err)
