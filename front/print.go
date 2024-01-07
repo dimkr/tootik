@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -378,8 +378,8 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 	}
 }
 
-func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, noteMetadata], printAuthor, printParentAuthor bool) {
-	first := true
+func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, noteMetadata], printAuthor, printParentAuthor, printDaySeparators bool) {
+	var lastDay int64
 	rows.Range(func(noteString string, meta noteMetadata) bool {
 		note := ap.Object{}
 		if err := json.Unmarshal([]byte(noteString), &note); err != nil {
@@ -411,8 +411,14 @@ func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, noteMet
 			}
 		}
 
-		if !first {
-			w.Empty()
+		currentDay := note.Published.Unix() / (60 * 60 * 24)
+
+		if lastDay > 0 {
+			if !printDaySeparators || currentDay == lastDay {
+				w.Empty()
+			} else {
+				w.Separator()
+			}
 		}
 
 		if meta.Group.Valid {
@@ -421,7 +427,7 @@ func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, noteMet
 			r.PrintNote(w, &note, &author, nil, true, printAuthor, printParentAuthor, true)
 		}
 
-		first = false
+		lastDay = currentDay
 		return true
 	})
 }
