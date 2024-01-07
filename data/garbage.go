@@ -48,7 +48,7 @@ func CollectGarbage(ctx context.Context, db *sql.DB) error {
 		return fmt.Errorf("failed to remove posts by authors without followers: %w", err)
 	}
 
-	if _, err := db.ExecContext(ctx, `delete from notefts where id in (select id from notes where inserted < ? and host != ?)`, now.Add(-notesTTL).Unix(), cfg.Domain); err != nil {
+	if _, err := db.ExecContext(ctx, `delete from notesfts where id in (select id from notes where inserted < ? and host != ?)`, now.Add(-notesTTL).Unix(), cfg.Domain); err != nil {
 		return fmt.Errorf("failed to remove old posts: %w", err)
 	}
 
