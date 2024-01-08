@@ -45,7 +45,7 @@ func fts(w text.Writer, r *request) {
 				join notes on
 					notes.id = notesfts.id
 				join persons authors on
-					authors.id = notes.author
+					authors.id = notes.author and coalesce(authors.actor->>'discoverable', 1)
 				left join persons groups on
 					groups.actor->>'type' = 'Group' and groups.id = notes.groupid
 				where
