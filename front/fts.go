@@ -17,6 +17,7 @@ limitations under the License.
 package front
 
 import (
+	"database/sql"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
 	"net/url"
@@ -35,7 +36,84 @@ func fts(w text.Writer, r *request) {
 		return
 	}
 
-	rows, err := r.Query("select notes.object, persons.actor, case when notes.groupid is null then null else (select actor from persons where persons.id = notes.groupid limit 1) end from notesfts join notes on notes.id = notesfts.id join persons on persons.id = notes.author where notes.public = 1 and notesfts.content match ? order by rank, notes.inserted desc limit 30", query)
+	var rows *sql.Rows
+	if r.User == nil {
+		rows, err = r.Query(
+			`
+				select notes.object, authors.actor, groups.actor from
+				notesfts
+				join notes on
+					notes.id = notesfts.id
+				join persons authors on
+					authors.id = notes.author
+				left join persons groups on
+					groups.actor->>'type' = 'Group' and groups.id = notes.groupid
+				where
+					notes.public = 1 and
+					notesfts.content match $1
+				order by rank, notes.inserted desc
+				limit $2
+			`,
+			query,
+			30,
+		)
+	} else {
+		rows, err = r.Query(
+			`
+				select u.object, authors.actor, groups.actor from
+				(
+					select notes.object, notes.author, notes.inserted, notes.groupid, rank, 2 as aud from
+					notesfts
+					join notes on
+						notes.id = notesfts.id
+					where
+						notes.public = 1 and
+						notesfts.content match $1
+					union
+					select notes.object, notes.author, notes.inserted, notes.groupid, rank, 1 as aud from
+					follows
+					join
+					persons
+					on
+						persons.id = follows.followed
+					join
+					notes on
+						(
+							persons.actor->>'followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = persons.actor->>'followers')) or
+							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = persons.actor->>'followers'))
+						)
+					join
+					notesfts on
+						notesfts.id = notes.id
+					where
+						follows.follower = $2 and
+						notesfts.content match $1
+					union
+					select notes.object, notes.author, notes.inserted, notes.groupid, rank, 0 as aud from
+					notesfts
+					join notes on
+						notes.id = notesfts.id
+					where
+						notesfts.content match $1 and
+						(
+							$2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $2)) or
+							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $2))
+						)
+				) u
+				join persons authors on
+					authors.id = u.author
+				left join persons groups on
+					groups.actor->>'type' = 'Group' and groups.id = u.groupid
+				order by u.rank, u.aud, u.inserted desc
+				limit $3
+			`,
+			query,
+			r.User.ID,
+			30,
+		)
+	}
 	if err != nil {
 		r.Log.Warn("Failed to search for posts", "query", query, "error", err)
 		w.Error()
