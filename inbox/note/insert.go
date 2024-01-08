@@ -85,13 +85,22 @@ func Insert(ctx context.Context, log *slog.Logger, tx *sql.Tx, note *ap.Object) 
 	content, links := plain.FromHTML(note.Content)
 	if len(links) > 0 {
 		var b strings.Builder
-		b.WriteString(content)
+		appended := false
 		links.Range(func(link, alt string) bool {
+			if alt == "" {
+				return true
+			}
+			if !appended {
+				b.WriteString(content)
+			}
 			b.WriteByte(' ')
 			b.WriteString(link)
+			appended = true
 			return true
 		})
-		content = b.String()
+		if appended {
+			content = b.String()
+		}
 	}
 
 	if _, err = tx.ExecContext(

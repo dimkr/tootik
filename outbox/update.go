@@ -53,13 +53,23 @@ func UpdateNote(ctx context.Context, db *sql.DB, note *ap.Object) error {
 	content, links := plain.FromHTML(note.Content)
 	if len(links) > 0 {
 		var b strings.Builder
+		appended := false
 		b.WriteString(content)
 		links.Range(func(link, alt string) bool {
+			if alt == "" {
+				return true
+			}
+			if !appended {
+				b.WriteString(content)
+			}
 			b.WriteByte(' ')
 			b.WriteString(link)
+			appended = true
 			return true
 		})
-		content = b.String()
+		if appended {
+			content = b.String()
+		}
 	}
 
 	tx, err := db.BeginTx(ctx, nil)
