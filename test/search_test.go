@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,11 +27,8 @@ func TestSearch_Happyflow(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
-
 	search := server.Handle("/users/search?world", server.Bob)
-	assert.Contains(search, "Hello world")
+	assert.Equal("30 /users/hashtag/world\r\n", search)
 }
 
 func TestSearch_LeadingHash(t *testing.T) {
@@ -40,11 +37,8 @@ func TestSearch_LeadingHash(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20%23world", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
-
-	search := server.Handle("/users/search?world", server.Bob)
-	assert.Contains(search, "Hello #world")
+	search := server.Handle("/users/search?%23world", server.Bob)
+	assert.Equal("30 /users/hashtag/world\r\n", search)
 }
 
 func TestSearch_LeadingHashUnauthenticatedUser(t *testing.T) {
@@ -53,11 +47,8 @@ func TestSearch_LeadingHashUnauthenticatedUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20%23world", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
-
-	search := server.Handle("/search?world", nil)
-	assert.Contains(search, "Hello #world")
+	search := server.Handle("/search?%23world", nil)
+	assert.Equal("30 /hashtag/world\r\n", search)
 }
 
 func TestSearch_NoInput(t *testing.T) {
@@ -67,7 +58,7 @@ func TestSearch_NoInput(t *testing.T) {
 	assert := assert.New(t)
 
 	search := server.Handle("/users/search?", server.Bob)
-	assert.Equal("10 Query\r\n", search)
+	assert.Equal("10 Hashtag\r\n", search)
 }
 
 func TestSearch_EmptyInput(t *testing.T) {
@@ -77,7 +68,7 @@ func TestSearch_EmptyInput(t *testing.T) {
 	assert := assert.New(t)
 
 	search := server.Handle("/users/search?", server.Bob)
-	assert.Equal("10 Query\r\n", search)
+	assert.Equal("10 Hashtag\r\n", search)
 }
 
 func TestSearch_InvalidEscapeSequence(t *testing.T) {
@@ -96,9 +87,6 @@ func TestSearch_UnathenticatedUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
-
 	search := server.Handle("/search?world", nil)
-	assert.Contains(search, "Hello world")
+	assert.Equal("30 /hashtag/world\r\n", search)
 }

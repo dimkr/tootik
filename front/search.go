@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,53 +17,30 @@ limitations under the License.
 package front
 
 import (
-	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
 	"net/url"
 )
 
 func search(w text.Writer, r *request) {
 	if r.URL.RawQuery == "" {
-		w.Status(10, "Query")
+		w.Status(10, "Hashtag")
 		return
 	}
 
-	query, err := url.QueryUnescape(r.URL.RawQuery)
+	hashtag, err := url.QueryUnescape(r.URL.RawQuery)
 	if err != nil {
 		r.Log.Info("Failed to decode query", "url", r.URL, "error", err)
 		w.Status(40, "Bad input")
 		return
 	}
 
-	rows, err := r.Query("select notes.object, persons.actor, case when notes.groupid is null then null else (select actor from persons where persons.id = notes.groupid limit 1) end from notesfts join notes on notes.id = notesfts.id join persons on persons.id = notes.author where notesfts.content match ? order by rank, notes.inserted desc limit 30", query)
-	if err != nil {
-		r.Log.Warn("Failed to search for posts", "query", query, "error", err)
-		w.Error()
-		return
-	}
-
-	notes := data.OrderedMap[string, noteMetadata]{}
-
-	for rows.Next() {
-		noteString := ""
-		var meta noteMetadata
-		if err := rows.Scan(&noteString, &meta.Author, &meta.Group); err != nil {
-			r.Log.Warn("Failed to scan search result", "error", err)
-			continue
-		}
-		notes.Store(noteString, meta)
-	}
-	rows.Close()
-
-	count := len(notes)
-
-	w.OK()
-
-	w.Titlef("🔎 Search Results for '%s'", query)
-
-	if count == 0 {
-		w.Text("No results.")
+	if r.User == nil && hashtag[0] == '#' {
+		w.Redirect("/hashtag/" + hashtag[1:])
+	} else if r.User == nil {
+		w.Redirect("/hashtag/" + hashtag)
+	} else if hashtag[0] == '#' {
+		w.Redirect("/users/hashtag/" + hashtag[1:])
 	} else {
-		r.PrintNotes(w, notes, true, true, false)
+		w.Redirect("/users/hashtag/" + hashtag)
 	}
 }
