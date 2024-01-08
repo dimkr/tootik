@@ -34,7 +34,7 @@ func TestFTS_Happyflow(t *testing.T) {
 	assert.Contains(fts, "Hello world")
 }
 
-func TestFTS_LeadingHash(t *testing.T) {
+func TestFTS_HashtagWithoutHash(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
@@ -44,10 +44,10 @@ func TestFTS_LeadingHash(t *testing.T) {
 	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
 
 	fts := server.Handle("/users/fts?world", server.Bob)
-	assert.Contains(fts, "Hello #world")
+	assert.NotContains(fts, "Hello #world")
 }
 
-func TestFTS_LeadingHashUnauthenticatedUser(t *testing.T) {
+func TestFTS_HashtagWithHash(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
@@ -56,7 +56,33 @@ func TestFTS_LeadingHashUnauthenticatedUser(t *testing.T) {
 	say := server.Handle("/users/say?Hello%20%23world", server.Alice)
 	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
 
-	fts := server.Handle("/fts?world", nil)
+	fts := server.Handle("/users/fts?%23world", server.Bob)
+	assert.NotContains(fts, "Hello #world")
+}
+
+func TestFTS_HashtagWithHashAndQuotes(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	say := server.Handle("/users/say?Hello%20%23world", server.Alice)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
+
+	fts := server.Handle("/users/fts?%22%23world%22", server.Bob)
+	assert.Contains(fts, "Hello #world")
+}
+
+func TestFTS_HashtagWithHashAndQuotesUnauthenticatedUser(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	say := server.Handle("/users/say?Hello%20%23world", server.Alice)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
+
+	fts := server.Handle("/fts?%22%23world%22", nil)
 	assert.Contains(fts, "Hello #world")
 }
 
