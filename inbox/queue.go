@@ -26,6 +26,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/fed"
+	"github.com/dimkr/tootik/front/text/plain"
 	"github.com/dimkr/tootik/inbox/note"
 	"github.com/dimkr/tootik/outbox"
 	"log/slog"
@@ -354,6 +355,38 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			post.ID,
 		); err != nil {
 			return fmt.Errorf("failed to update post %s: %w", post.ID, err)
+		}
+
+		if post.Content != oldPost.Content {
+			content, links := plain.FromHTML(post.Content)
+			if len(links) > 0 {
+				var b strings.Builder
+				appended := false
+				links.Range(func(link, alt string) bool {
+					if alt == "" {
+						return true
+					}
+					if !appended {
+						b.WriteString(content)
+					}
+					b.WriteByte(' ')
+					b.WriteString(link)
+					appended = true
+					return true
+				})
+				if appended {
+					content = b.String()
+				}
+			}
+
+			if _, err := tx.ExecContext(
+				ctx,
+				`update notesfts set content = ? where id = ?`,
+				content,
+				post.ID,
+			); err != nil {
+				return fmt.Errorf("failed to update post %s: %w", post.ID, err)
+			}
 		}
 
 		if err := forwardActivity(ctx, log, tx, req, rawActivity); err != nil {

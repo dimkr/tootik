@@ -118,6 +118,10 @@ func (r *Resolver) Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 }
 
 func deleteActor(ctx context.Context, log *slog.Logger, db *sql.DB, id string) {
+	if _, err := db.ExecContext(ctx, `delete from notesfts where id in (select id from notes where author = ?)`, id); err != nil {
+		log.Warn("Failed to delete notes by actor", "id", id, "error", err)
+	}
+
 	if _, err := db.ExecContext(ctx, `delete from notes where author = ?`, id); err != nil {
 		log.Warn("Failed to delete notes by actor", "id", id, "error", err)
 	}
