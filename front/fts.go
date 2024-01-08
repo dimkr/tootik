@@ -62,7 +62,7 @@ func fts(w text.Writer, r *request) {
 			`
 				select u.object, authors.actor, groups.actor from
 				(
-					select notes.object, notes.author, notes.inserted, notes.groupid, rank, 2 as aud from
+					select notes.id, notes.object, notes.author, notes.inserted, notes.groupid, rank, 2 as aud from
 					notesfts
 					join notes on
 						notes.id = notesfts.id
@@ -70,7 +70,7 @@ func fts(w text.Writer, r *request) {
 						notes.public = 1 and
 						notesfts.content match $1
 					union
-					select notes.object, notes.author, notes.inserted, notes.groupid, rank, 1 as aud from
+					select notes.id, notes.object, notes.author, notes.inserted, notes.groupid, rank, 1 as aud from
 					follows
 					join
 					persons
@@ -90,7 +90,7 @@ func fts(w text.Writer, r *request) {
 						follows.follower = $2 and
 						notesfts.content match $1
 					union
-					select notes.object, notes.author, notes.inserted, notes.groupid, rank, 0 as aud from
+					select notes.id, notes.object, notes.author, notes.inserted, notes.groupid, rank, 0 as aud from
 					notesfts
 					join notes on
 						notes.id = notesfts.id
@@ -103,10 +103,15 @@ func fts(w text.Writer, r *request) {
 						)
 				) u
 				join persons authors on
-					authors.id = u.author
+					authors.id = u.author and coalesce(authors.actor->>'discoverable', 1)
 				left join persons groups on
 					groups.actor->>'type' = 'Group' and groups.id = u.groupid
-				order by u.rank, u.aud, u.inserted desc
+				group by
+					u.id
+				order by
+					u.rank,
+					min(u.aud),
+					u.inserted desc
 				limit $3
 			`,
 			query,
