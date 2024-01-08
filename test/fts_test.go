@@ -86,6 +86,19 @@ func TestFTS_HashtagWithHashAndQuotesUnauthenticatedUser(t *testing.T) {
 	assert.Contains(fts, "Hello #world")
 }
 
+func TestFTS_HashtagWithHashAndQuotesSecondPage(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	say := server.Handle("/users/say?Hello%20%23world", server.Alice)
+	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
+
+	fts := server.Handle("/users/fts?%22%23world%22%20skip%2030", server.Bob)
+	assert.NotContains(fts, "Hello #world")
+}
+
 func TestFTS_NoInput(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()

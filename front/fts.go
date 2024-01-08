@@ -18,10 +18,15 @@ package front
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
 	"net/url"
+	"regexp"
+	"strconv"
 )
+
+var skipRegex = regexp.MustCompile(` skip (\d+)$`)
 
 func fts(w text.Writer, r *request) {
 	if r.URL.RawQuery == "" {
@@ -34,6 +39,18 @@ func fts(w text.Writer, r *request) {
 		r.Log.Info("Failed to decode query", "url", r.URL, "error", err)
 		w.Status(40, "Bad input")
 		return
+	}
+
+	var offset int64
+	if loc := skipRegex.FindStringSubmatchIndex(query); loc != nil {
+		offset, err = strconv.ParseInt(query[loc[2]:loc[3]], 10, 64)
+		if err != nil {
+			r.Log.Info("Failed to parse offset", "query", query, "error", err)
+			w.Status(40, "Invalid offset")
+			return
+		}
+
+		query = query[:loc[0]]
 	}
 
 	var rows *sql.Rows
@@ -53,9 +70,11 @@ func fts(w text.Writer, r *request) {
 					notesfts.content match $1
 				order by rank, notes.inserted desc
 				limit $2
+				offset $3
 			`,
 			query,
-			30,
+			postsPerPage,
+			offset,
 		)
 	} else {
 		rows, err = r.Query(
@@ -113,10 +132,12 @@ func fts(w text.Writer, r *request) {
 					min(u.aud),
 					u.inserted desc
 				limit $3
+				offset $4
 			`,
 			query,
 			r.User.ID,
-			30,
+			postsPerPage,
+			offset,
 		)
 	}
 	if err != nil {
@@ -142,11 +163,31 @@ func fts(w text.Writer, r *request) {
 
 	w.OK()
 
-	w.Titlef("🔎 Search Results for '%s'", query)
+	if offset >= postsPerPage || count == postsPerPage {
+		w.Titlef("🔎 Search Results for '%s' (%d-%d)", query, offset, offset+postsPerPage)
+	} else {
+		w.Titlef("🔎 Search Results for '%s'", query)
+	}
 
 	if count == 0 {
 		w.Text("No results.")
 	} else {
 		r.PrintNotes(w, notes, true, true, false)
+	}
+
+	if offset >= postsPerPage || count == postsPerPage {
+		w.Separator()
+	}
+
+	if offset >= postsPerPage && r.User == nil {
+		w.Linkf("/fts?"+url.PathEscape(fmt.Sprintf("%s skip %d", query, offset-postsPerPage)), "Previous page (%d-%d)", offset-postsPerPage, offset)
+	} else if offset >= postsPerPage {
+		w.Linkf("/users/fts?"+url.PathEscape(fmt.Sprintf("%s skip %d", query, offset-postsPerPage)), "Previous page (%d-%d)", offset-postsPerPage, offset)
+	}
+
+	if count == postsPerPage && r.User == nil {
+		w.Linkf("/fts?"+url.PathEscape(fmt.Sprintf("%s skip %d", query, offset+postsPerPage)), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
+	} else if count == postsPerPage {
+		w.Linkf("/users/fts?"+url.PathEscape(fmt.Sprintf("%s skip %d", query, offset+postsPerPage)), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
 	}
 }
