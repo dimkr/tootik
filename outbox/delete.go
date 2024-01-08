@@ -66,6 +66,14 @@ func Delete(ctx context.Context, db *sql.DB, note *ap.Object) error {
 
 	if _, err := tx.ExecContext(
 		ctx,
+		`DELETE FROM notesfts WHERE id = ?`,
+		note.ID,
+	); err != nil {
+		return fmt.Errorf("failed to delete note: %w", err)
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
 		`DELETE FROM outbox WHERE activity->>'object.id' = ?`,
 		note.ID,
 	); err != nil {
