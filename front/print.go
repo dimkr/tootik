@@ -379,7 +379,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 }
 
 func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, noteMetadata], printAuthor, printParentAuthor, printDaySeparators bool) {
-	var lastDay int64
+	lastDay := int64(-1)
 	rows.Range(func(noteString string, meta noteMetadata) bool {
 		note := ap.Object{}
 		if err := json.Unmarshal([]byte(noteString), &note); err != nil {
@@ -413,7 +413,7 @@ func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, noteMet
 
 		currentDay := note.Published.Unix() / (60 * 60 * 24)
 
-		if lastDay > 0 {
+		if lastDay >= 0 {
 			if !printDaySeparators || currentDay == lastDay {
 				w.Empty()
 			} else {
