@@ -128,7 +128,7 @@ func fts(w text.Writer, r *request) {
 				group by
 					u.id
 				order by
-					u.rank,
+					round(u.rank * 0.8, 1),
 					min(u.aud),
 					u.inserted desc
 				limit $3
