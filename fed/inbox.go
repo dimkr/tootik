@@ -21,7 +21,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"io"
@@ -45,9 +44,9 @@ func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	receiver := fmt.Sprintf("https://%s/user/%s", cfg.Domain, filepath.Base(r.URL.Path))
+	receiver := filepath.Base(r.URL.Path)
 	var registered int
-	if err := h.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where id = ?)`, receiver).Scan(&registered); err != nil {
+	if err := h.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where actor->>'preferredUsername' = ? and host = ?)`, receiver, cfg.Domain).Scan(&registered); err != nil {
 		h.Log.Warn("Failed to check if receiving user exists", "receiver", receiver, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
