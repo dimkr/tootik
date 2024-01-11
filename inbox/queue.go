@@ -235,29 +235,43 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			return fmt.Errorf("received an invalid undo request for %s by %s", req.Actor, sender.ID)
 		}
 
-		followID, ok := req.Object.(string)
+		follow, ok := req.Object.(*ap.Activity)
 		if !ok {
-			if a, ok := req.Object.(*ap.Activity); ok {
-				if a.Type != ap.FollowActivity {
-					log.Debug("Ignoring request to undo a non-Follow activity")
-					return nil
-				}
-
-				followID = a.ID
-			} else {
-				return errors.New("received a request to undo a non-activity object")
-			}
+			return errors.New("received a request to undo a non-activity object")
 		}
-		if followID == "" {
-			return errors.New("received an undo request with empty ID")
+
+		if follow.Type != ap.FollowActivity {
+			log.Debug("Ignoring request to undo a non-Follow activity")
+			return nil
 		}
 
 		follower := req.Actor
-		if _, err := db.ExecContext(ctx, `delete from follows where id = ? and follower = ?`, followID, follower); err != nil {
-			return fmt.Errorf("failed to remove follow %s: %w", followID, err)
+
+		var followed string
+		if actor, ok := follow.Object.(*ap.Object); ok {
+			followed = actor.ID
+		} else if actorID, ok := follow.Object.(string); ok {
+			followed = actorID
+		} else {
+			return errors.New("received a request to undo follow on unknown object")
+		}
+		if followed == "" {
+			return errors.New("received an undo request with empty ID")
 		}
 
-		log.Info("Removed a Follow", "follow", followID, "follower", follower)
+		prefix := fmt.Sprintf("https://%s/", cfg.Domain)
+		if strings.HasPrefix(follower, prefix) {
+			return errors.New("received an undo request from local actor")
+		}
+		if !strings.HasPrefix(followed, prefix) {
+			return errors.New("received an undo request on federated actor")
+		}
+
+		if _, err := db.ExecContext(ctx, `delete from follows where follower = ? and followed = ?`, follower, followed); err != nil {
+			return fmt.Errorf("failed to remove follow of %s by %s: %w", followed, follower, err)
+		}
+
+		log.Info("Removed a Follow", "follower", follower, "followed", followed)
 
 	case ap.CreateActivity:
 		post, ok := req.Object.(*ap.Object)
