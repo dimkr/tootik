@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	inote "github.com/dimkr/tootik/inbox/note"
 	"time"
 )
 
@@ -58,6 +59,15 @@ func UpdateNote(ctx context.Context, db *sql.DB, note *ap.Object) error {
 		ctx,
 		`UPDATE notes SET object = ? WHERE id = ?`,
 		string(body),
+		note.ID,
+	); err != nil {
+		return fmt.Errorf("failed to update note: %w", err)
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`UPDATE notesfts SET content = ? WHERE id = ?`,
+		inote.Flatten(note),
 		note.ID,
 	); err != nil {
 		return fmt.Errorf("failed to update note: %w", err)

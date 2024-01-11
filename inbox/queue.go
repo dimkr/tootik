@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -168,8 +168,13 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			if _, err := db.ExecContext(ctx, `delete from persons where id = ?`, deleted); err != nil {
 				return fmt.Errorf("failed to delete person %s: %w", req.ID, err)
 			}
-		} else if _, err := db.ExecContext(ctx, `delete from notes where id = ? and author = ?`, deleted, sender.ID); err != nil {
-			return fmt.Errorf("failed to delete posts by %s", req.ID)
+		} else {
+			if _, err := db.ExecContext(ctx, `delete from notesfts where id = $1 and exists (select 1 from notes where id = $1 and author = $2)`, deleted, sender.ID); err != nil {
+				return fmt.Errorf("failed to delete posts by %s", req.ID)
+			}
+			if _, err := db.ExecContext(ctx, `delete from notes where id = ? and author = ?`, deleted, sender.ID); err != nil {
+				return fmt.Errorf("failed to delete posts by %s", req.ID)
+			}
 		}
 
 	case ap.FollowActivity:
@@ -354,6 +359,17 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			post.ID,
 		); err != nil {
 			return fmt.Errorf("failed to update post %s: %w", post.ID, err)
+		}
+
+		if post.Content != oldPost.Content {
+			if _, err := tx.ExecContext(
+				ctx,
+				`update notesfts set content = ? where id = ?`,
+				note.Flatten(post),
+				post.ID,
+			); err != nil {
+				return fmt.Errorf("failed to update post %s: %w", post.ID, err)
+			}
 		}
 
 		if err := forwardActivity(ctx, log, tx, req, rawActivity); err != nil {

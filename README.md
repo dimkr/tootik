@@ -31,6 +31,7 @@ Welcome, fedinaut! localhost.localdomain:8443 is an instance of tootik, a federa
 📡 This planet
 ✨ FOMO from outer space
 🔭 Find user
+🔎 Search posts
 🔥 Hashtags
 📊 Statistics
 📜 Set bio
@@ -91,11 +92,11 @@ You can join an [existing instance](gemini://hd.206267.xyz) or [set up your own]
 
 Then:
 
-	go build ./cmd/tootik
+	go build ./cmd/tootik -tags fts5
 
 or, to build a static executable:
 
-	go build -tags netgo,sqlite_omit_load_extension -ldflags "-linkmode external -extldflags -static" ./cmd/tootik
+	go build -tags netgo,sqlite_omit_load_extension,fts5 -ldflags "-linkmode external -extldflags -static" ./cmd/tootik
 
 ## Directory Structure
 
@@ -133,6 +134,7 @@ or, to build a static executable:
 * /hashtag shows a compact list of posts with a given hashtag.
 * /search shows an input prompt and redirects to /hashtag.
 * /hashtags shows a list of popular hashtags.
+* /fts shows an input prompt and performs full-text search in posts.
 * /stats shows statistics and server health metrics.
 
 * /view shows a complete post with extra details like links in the post, a list mentioned users, a list of hashtags, a link to the author's outbox, a list of replies and a link to the parent post (if found).
@@ -163,6 +165,7 @@ Some clients generate a certificate for / (all pages of this capsule) when /foo 
 * /users/federated
 * /users/hashtag
 * /users/hashtags
+* /users/fts
 * /users/stats
 * /users/view
 * /users/thread

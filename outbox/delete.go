@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -59,6 +59,14 @@ func Delete(ctx context.Context, db *sql.DB, note *ap.Object) error {
 	if _, err := tx.ExecContext(
 		ctx,
 		`DELETE FROM notes WHERE id = ?`,
+		note.ID,
+	); err != nil {
+		return fmt.Errorf("failed to delete note: %w", err)
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`DELETE FROM notesfts WHERE id = ?`,
 		note.ID,
 	); err != nil {
 		return fmt.Errorf("failed to delete note: %w", err)

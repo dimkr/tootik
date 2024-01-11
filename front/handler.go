@@ -105,6 +105,9 @@ func NewHandler(closed bool) Handler {
 	h[regexp.MustCompile(`^/search$`)] = withUserMenu(search)
 	h[regexp.MustCompile(`^/users/search$`)] = withUserMenu(search)
 
+	h[regexp.MustCompile(`^/fts$`)] = withUserMenu(fts)
+	h[regexp.MustCompile(`^/users/fts$`)] = withUserMenu(fts)
+
 	h[regexp.MustCompile(`^/stats$`)] = withCache(withUserMenu(stats), time.Minute*5, &cache)
 	h[regexp.MustCompile(`^/users/stats$`)] = withCache(withUserMenu(stats), time.Minute*5, &cache)
 

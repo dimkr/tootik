@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/front/text/plain"
 	"log/slog"
 )
 
@@ -45,6 +46,30 @@ func expand(aud ap.Audience, arr *[3]sql.NullString) {
 			}
 		}
 	}
+}
+
+func Flatten(note *ap.Object) string {
+	content, links := plain.FromHTML(note.Content)
+	if len(links) > 0 {
+		var b strings.Builder
+		appended := false
+		links.Range(func(link, alt string) bool {
+			if alt == "" {
+				return true
+			}
+			if !appended {
+				b.WriteString(content)
+			}
+			b.WriteByte(' ')
+			b.WriteString(link)
+			appended = true
+			return true
+		})
+		if appended {
+			content = b.String()
+		}
+	}
+	return content
 }
 
 func Insert(ctx context.Context, log *slog.Logger, tx *sql.Tx, note *ap.Object) error {
@@ -95,6 +120,15 @@ func Insert(ctx context.Context, log *slog.Logger, tx *sql.Tx, note *ap.Object) 
 		cc[0],
 		cc[1],
 		cc[2],
+	); err != nil {
+		return fmt.Errorf("failed to insert note %s: %w", note.ID, err)
+	}
+
+	if _, err = tx.ExecContext(
+		ctx,
+		`INSERT INTO notesfts (id, content) VALUES(?,?)`,
+		note.ID,
+		Flatten(note),
 	); err != nil {
 		return fmt.Errorf("failed to insert note %s: %w", note.ID, err)
 	}

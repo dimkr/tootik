@@ -18,9 +18,9 @@ jobs:
           go generate ./migrations
           go vet ./...
           go run honnef.co/go/tools/cmd/staticcheck ./...
-          go test ./... -failfast -vet off
+          go test ./... -failfast -vet off -tags fts5
       - run: go build ./cmd/tootik
-      - run: go build -tags netgo,sqlite_omit_load_extension -ldflags "-w -s -linkmode external -extldflags -static -X github.com/dimkr/tootik/buildinfo.Version=${{ inputs.version }}" ./cmd/tootik
+      - run: go build -tags netgo,sqlite_omit_load_extension,fts5 -ldflags "-w -s -linkmode external -extldflags -static -X github.com/dimkr/tootik/buildinfo.Version=${{ inputs.version }}" ./cmd/tootik
       - uses: actions/upload-artifact@v3
         with:
           name: tootik-${{ inputs.version }}
