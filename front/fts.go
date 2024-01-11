@@ -68,7 +68,7 @@ func fts(w text.Writer, r *request) {
 				where
 					notes.public = 1 and
 					notesfts.content match $1
-				order by rank, notes.inserted desc
+				order by rank desc
 				limit $2
 				offset $3
 			`,
@@ -81,7 +81,7 @@ func fts(w text.Writer, r *request) {
 			`
 				select u.object, authors.actor, groups.actor from
 				(
-					select notes.id, notes.object, notes.author, notes.inserted, notes.groupid, rank, 2 as aud from
+					select notes.id, notes.object, notes.author, notes.groupid, rank, 2 as aud from
 					notesfts
 					join notes on
 						notes.id = notesfts.id
@@ -89,7 +89,7 @@ func fts(w text.Writer, r *request) {
 						notes.public = 1 and
 						notesfts.content match $1
 					union
-					select notes.id, notes.object, notes.author, notes.inserted, notes.groupid, rank, 1 as aud from
+					select notes.id, notes.object, notes.author, notes.groupid, rank, 1 as aud from
 					follows
 					join
 					persons
@@ -109,7 +109,7 @@ func fts(w text.Writer, r *request) {
 						follows.follower = $2 and
 						notesfts.content match $1
 					union
-					select notes.id, notes.object, notes.author, notes.inserted, notes.groupid, rank, 0 as aud from
+					select notes.id, notes.object, notes.author, notes.groupid, rank, 0 as aud from
 					notesfts
 					join notes on
 						notes.id = notesfts.id
@@ -128,9 +128,9 @@ func fts(w text.Writer, r *request) {
 				group by
 					u.id
 				order by
-					round(u.rank * 0.8, 1),
+					round(u.rank, 1),
 					min(u.aud),
-					u.inserted desc
+					u.rank
 				limit $3
 				offset $4
 			`,
