@@ -61,9 +61,11 @@ This is a full-text search tool that lists posts containing keyword(s), ordered 
 
 This page shows various statistics about this server and the parts of the fediverse it's connected to.
 
-> 📜 Set bio
+> ⚙️ Settings
 
-Follow this link to set the short (up to 500 characters long) description that appears at the top of your profile.
+This page allows you to change:
+* Your display name
+* The short (up to 500 characters long) description that appears at the top of your profile
 
 > 🔔 New post
 

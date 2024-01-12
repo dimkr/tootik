@@ -1,3 +1,4 @@
 # ⚙️ Settings
 
+=> /users/name 👺 Set display name
 => /users/bio 📜 Set bio

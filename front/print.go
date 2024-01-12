@@ -125,10 +125,6 @@ func getDisplayName(id, preferredUsername, name string, t ap.ActorType, log *slo
 		displayName = displayName[:match[0]] + displayName[match[1]:]
 	}
 
-	if isLocal {
-		return fmt.Sprintf("%s %s", emoji, displayName)
-	}
-
 	u, err := url.Parse(id)
 	if err != nil {
 		log.Warn("Failed to parse user ID", "id", id, "error", err)

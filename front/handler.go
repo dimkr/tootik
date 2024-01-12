@@ -73,6 +73,7 @@ func NewHandler(closed bool) Handler {
 	h[regexp.MustCompile(`^/users/outbox/[0-9a-f]{64}$`)] = withUserMenu(userOutbox)
 
 	h[regexp.MustCompile(`^/users/bio$`)] = bio
+	h[regexp.MustCompile(`^/users/name$`)] = name
 
 	h[regexp.MustCompile(`^/view/[0-9a-f]{64}$`)] = withUserMenu(view)
 	h[regexp.MustCompile(`^/users/view/[0-9a-f]{64}$`)] = withUserMenu(view)
