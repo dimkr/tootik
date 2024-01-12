@@ -54,7 +54,7 @@ func writeUserMenu(w text.Writer, user *ap.Actor) {
 	if user == nil {
 		w.Link(fmt.Sprintf("gemini://%s/users", cfg.Domain), "🔑 Sign in")
 	} else {
-		w.Link("/users/bio", "📜 Set bio")
+		w.Link("/users/settings", "⚙️ Settings")
 		w.Link("/users/whisper", "🔔 New post")
 		w.Link("/users/say", "📣 New public post")
 	}
