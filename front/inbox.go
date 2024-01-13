@@ -103,7 +103,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 			groups.actor->>'type' = 'Group' and groups.id = u.groupid
 		) gup
 		left join (
-			select author, max(inserted) / 86400 as last, count(*) / 48 as avg from notes where inserted >= unixepoch()-2*24*60*60 group by author
+			select author, round(count(*) / 24.0, 1) as avg from notes where inserted >= $2 and inserted < $2 + 60*60*24 group by author
 		) stats
 		on
 			stats.author = gup.author
@@ -122,7 +122,6 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 			count(distinct replies.follow) desc,
 			count(distinct replies.author) desc,
 			stats.avg asc,
-			stats.last asc,
 			gup.inserted / 3600 desc,
 			gup.actor->>'type' = 'Person' desc,
 			gup.inserted desc
