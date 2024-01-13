@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -80,34 +80,33 @@ func (h *webFingerHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		username = fields[0]
 	}
 
-	id := fmt.Sprintf("https://%s/user/%s", cfg.Domain, username)
-	h.Log.Info("Looking up resource", "resource", resource, "id", id)
+	h.Log.Info("Looking up resource", "resource", resource, "user", username)
 
-	var exists int
-	if err := h.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where id = ?)`, id).Scan(&exists); err != nil {
+	var actorID sql.NullString
+	if err := h.DB.QueryRowContext(r.Context(), `select id from persons where actor->>'preferredUsername' = ? and host = ?`, username, cfg.Domain).Scan(&actorID); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	if exists == 0 {
-		h.Log.Info("Notifying that user does not exist", "user", id)
+	if !actorID.Valid {
+		h.Log.Info("Notifying that user does not exist", "user", username)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
 	j, err := json.Marshal(map[string]any{
 		"subject": fmt.Sprintf("acct:%s@%s", username, cfg.Domain),
-		"aliases": []string{id},
+		"aliases": []string{actorID.String},
 		"links": []map[string]any{
 			{
 				"rel":  "self",
 				"type": "application/activity+json",
-				"href": id,
+				"href": actorID.String,
 			},
 			{
 				"rel":  "self",
 				"type": `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`,
-				"href": id,
+				"href": actorID.String,
 			},
 		},
 	})

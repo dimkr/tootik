@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -39,7 +39,18 @@ func (h *userHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	name := filepath.Base(r.URL.Path)
-	actorID := fmt.Sprintf("https://%s/user/%s", cfg.Domain, name)
+
+	h.Log.Info("Looking up user", "name", name)
+
+	var actorID, actorString string
+	if err := h.DB.QueryRowContext(r.Context(), `select id, actor from persons where actor->>'preferredUsername' = ? and host = ?`, name, cfg.Domain).Scan(&actorID, &actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
+		h.Log.Info("Notifying about deleted user", "id", actorID)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	} else if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 	// redirect browsers to the outbox page over Gemini
 	if shouldRedirect(r) {
@@ -47,18 +58,6 @@ func (h *userHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		h.Log.Info("Redirecting to outbox over Gemini", "outbox", outbox)
 		w.Header().Set("Location", outbox)
 		w.WriteHeader(http.StatusMovedPermanently)
-		return
-	}
-
-	h.Log.Info("Looking up user", "id", actorID)
-
-	actorString := ""
-	if err := h.DB.QueryRowContext(r.Context(), `select actor from persons where id = ?`, actorID).Scan(&actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
-		h.Log.Info("Notifying about deleted user", "id", actorID)
-		w.WriteHeader(http.StatusNotFound)
-		return
-	} else if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 

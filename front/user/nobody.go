@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,10 +27,8 @@ import (
 )
 
 func CreateNobody(ctx context.Context, db *sql.DB) (*ap.Actor, error) {
-	id := fmt.Sprintf("https://%s/user/nobody", cfg.Domain)
-
 	var actorString string
-	if err := db.QueryRowContext(ctx, `select actor from persons where id = ?`, id).Scan(&actorString); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := db.QueryRowContext(ctx, `select actor from persons where actor->>'preferredUsername' = 'nobody' and host = ?`, cfg.Domain).Scan(&actorString); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("failed to create nobody user: %w", err)
 	} else if err == nil {
 		var actor ap.Actor
@@ -40,5 +38,5 @@ func CreateNobody(ctx context.Context, db *sql.DB) (*ap.Actor, error) {
 		return &actor, nil
 	}
 
-	return Create(ctx, db, id, "nobody", "")
+	return Create(ctx, db, "nobody", "")
 }

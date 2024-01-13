@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -95,7 +95,7 @@ func register(w text.Writer, r *request) {
 		return
 	}
 
-	if err := r.QueryRow(`select exists (select 1 from persons where id = ?)`, fmt.Sprintf("https://%s/user/%s", cfg.Domain, userName)).Scan(&taken); err != nil {
+	if err := r.QueryRow(`select exists (select 1 from persons where actor->>'preferredUsername' = ? and host = ?)`, userName, cfg.Domain).Scan(&taken); err != nil {
 		r.Log.Warn("Failed to check if username is taken", "name", userName, "error", err)
 		w.Error()
 		return
@@ -124,7 +124,7 @@ func register(w text.Writer, r *request) {
 
 	r.Log.Info("Creating new user", "name", userName)
 
-	if _, err := user.Create(r.Context, r.DB, fmt.Sprintf("https://%s/user/%s", cfg.Domain, userName), userName, certHash); err != nil {
+	if _, err := user.Create(r.Context, r.DB, userName, certHash); err != nil {
 		r.Log.Warn("Failed to create new user", "name", userName, "error", err)
 		w.Status(40, "Failed to create new user")
 		return

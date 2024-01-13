@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -375,7 +375,7 @@ func TestRegister_AlreadyRegistered(t *testing.T) {
 	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
 	assert.NoError(err)
 
-	_, err = user.Create(context.Background(), db, "https://localhost.localdomain:8443/user/erin", "erin", "e")
+	_, err = user.Create(context.Background(), db, "erin", "e")
 	assert.NoError(err)
 
 	gemini.Handle(context.Background(), front.NewHandler(false), tlsWriter, db, fed.NewResolver(nil), &wg, slog.Default())

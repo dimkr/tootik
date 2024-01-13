@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,9 +22,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
-	"fmt"
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/front/text/gmi"
@@ -69,17 +67,17 @@ func newTestServer() *server {
 		panic(err)
 	}
 
-	alice, err := user.Create(context.Background(), db, fmt.Sprintf("https://%s/user/alice", cfg.Domain), "alice", "a")
+	alice, err := user.Create(context.Background(), db, "alice", "a")
 	if err != nil {
 		panic(err)
 	}
 
-	bob, err := user.Create(context.Background(), db, fmt.Sprintf("https://%s/user/bob", cfg.Domain), "bob", "b")
+	bob, err := user.Create(context.Background(), db, "bob", "b")
 	if err != nil {
 		panic(err)
 	}
 
-	carol, err := user.Create(context.Background(), db, fmt.Sprintf("https://%s/user/carol", cfg.Domain), "carol", "c")
+	carol, err := user.Create(context.Background(), db, "carol", "c")
 	if err != nil {
 		panic(err)
 	}

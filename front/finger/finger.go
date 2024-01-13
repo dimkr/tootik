@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -82,10 +82,8 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, log *slog.Logger, wg
 		user = user[:sep]
 	}
 
-	id := fmt.Sprintf("https://%s/user/%s", cfg.Domain, user)
-
 	var actorString string
-	if err := db.QueryRowContext(ctx, `select actor from persons where id = ?`, id).Scan(&actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := db.QueryRowContext(ctx, `select actor from persons where actor->>'preferredUsername' = ? and host = ?`, user, cfg.Domain).Scan(&actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
 		log.Info("User does not exist")
 		fmt.Fprintf(conn, "Login: %s\r\nPlan:\r\nNo Plan.\r\n", user)
 		return
@@ -103,7 +101,7 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, log *slog.Logger, wg
 
 	posts := data.OrderedMap[string, int64]{}
 
-	rows, err := db.QueryContext(ctx, `select object->>'content', inserted from notes where public = 1 and author = ? order by inserted desc limit 5`, id)
+	rows, err := db.QueryContext(ctx, `select object->>'content', inserted from notes where public = 1 and author = ? order by inserted desc limit 5`, actor.ID)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		log.Warn("Failed to query posts", "error", err)
 		return

@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -99,10 +99,20 @@ func (h *outboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	username := filepath.Base(r.URL.Path)
-	actorID := fmt.Sprintf("https://%s/user/%s", cfg.Domain, username)
+
+	var actorID sql.NullString
+	if err := h.DB.QueryRowContext(r.Context(), `select id from persons where actor->>'preferredUsername' = ? and host = ?)`, username, cfg.Domain).Scan(&actorID); err != nil {
+		h.Log.Warn("Failed to check if user exists", "username", username, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if !actorID.Valid {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
 
 	if shouldRedirect(r) {
-		outbox := fmt.Sprintf("gemini://%s/outbox/%x", cfg.Domain, sha256.Sum256([]byte(actorID)))
+		outbox := fmt.Sprintf("gemini://%s/outbox/%x", cfg.Domain, sha256.Sum256([]byte(actorID.String)))
 		h.Log.Info("Redirecting to outbox over Gemini", "outbox", outbox)
 		w.Header().Set("Location", outbox)
 		w.WriteHeader(http.StatusMovedPermanently)
@@ -111,19 +121,8 @@ func (h *outboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	h.Log.Info("Fetching activities by user", "username", username)
 
-	var exists int
-	if err := h.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where id = ?)`, actorID).Scan(&exists); err != nil {
-		h.Log.Warn("Failed to check if user exists", "username", username, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	if exists == 0 {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
 	if r.URL.RawQuery == "" {
-		h.getCollection(w, r, username, actorID)
+		h.getCollection(w, r, username, actorID.String)
 		return
 	}
 
@@ -139,7 +138,7 @@ func (h *outboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := h.DB.QueryContext(r.Context(), `select outbox.activity from notes join outbox on outbox.activity->>'object.id' = notes.id where notes.author = $1 and notes.public = 1 and outbox.inserted >= $2 order by notes.inserted limit $3`, actorID, since, activitiesPerPage)
+	rows, err := h.DB.QueryContext(r.Context(), `select outbox.activity from notes join outbox on outbox.activity->>'object.id' = notes.id where notes.author = $1 and notes.public = 1 and outbox.inserted >= $2 order by notes.inserted limit $3`, actorID.String, since, activitiesPerPage)
 	if err != nil {
 		h.Log.Warn("Failed to fetch activities", "username", username, "since", since, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)

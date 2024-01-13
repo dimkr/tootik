@@ -64,12 +64,13 @@ func gen(ctx context.Context) ([]byte, []byte, error) {
 	return privPem.Bytes(), pubPem.Bytes(), nil
 }
 
-func Create(ctx context.Context, db *sql.DB, id, name, certHash string) (*ap.Actor, error) {
+func Create(ctx context.Context, db *sql.DB, name, certHash string) (*ap.Actor, error) {
 	priv, pub, err := gen(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate key pair: %w", err)
 	}
 
+	id := fmt.Sprintf("https://%s/user/%s", cfg.Domain, name)
 	actor := ap.Actor{
 		Context: []string{
 			"https://www.w3.org/ns/activitystreams",
