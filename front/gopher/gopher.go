@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package gopher
 import (
 	"context"
 	"database/sql"
+	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/front/text/gmap"
@@ -29,10 +30,8 @@ import (
 	"time"
 )
 
-const reqTimeout = time.Second * 30
-
-func handle(ctx context.Context, log *slog.Logger, conn net.Conn, handler front.Handler, db *sql.DB, resolver *fed.Resolver, wg *sync.WaitGroup) {
-	if err := conn.SetDeadline(time.Now().Add(reqTimeout)); err != nil {
+func handle(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, conn net.Conn, handler front.Handler, db *sql.DB, resolver *fed.Resolver, wg *sync.WaitGroup) {
+	if err := conn.SetDeadline(time.Now().Add(cfg.GopherRequestTimeout)); err != nil {
 		log.Warn("Failed to set deadline", "error", err)
 		return
 	}
@@ -72,12 +71,12 @@ func handle(ctx context.Context, log *slog.Logger, conn net.Conn, handler front.
 		return
 	}
 
-	w := gmap.Wrap(conn)
+	w := gmap.Wrap(conn, domain, cfg)
 
 	handler.Handle(ctx, log.With(slog.Group("request", "path", reqUrl.Path)), w, reqUrl, nil, db, resolver, wg)
 }
 
-func ListenAndServe(ctx context.Context, log *slog.Logger, handler front.Handler, db *sql.DB, resolver *fed.Resolver, addr string) error {
+func ListenAndServe(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, handler front.Handler, db *sql.DB, resolver *fed.Resolver, addr string) error {
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
@@ -112,13 +111,13 @@ func ListenAndServe(ctx context.Context, log *slog.Logger, handler front.Handler
 		select {
 		case <-ctx.Done():
 		case conn := <-conns:
-			requestCtx, cancelRequest := context.WithTimeout(ctx, reqTimeout)
+			requestCtx, cancelRequest := context.WithTimeout(ctx, cfg.GopherRequestTimeout)
 
-			timer := time.AfterFunc(reqTimeout, cancelRequest)
+			timer := time.AfterFunc(cfg.GopherRequestTimeout, cancelRequest)
 
 			wg.Add(1)
 			go func() {
-				handle(requestCtx, log, conn, handler, db, resolver, &wg)
+				handle(requestCtx, domain, cfg, log, conn, handler, db, resolver, &wg)
 				conn.Write([]byte(".\r\n"))
 				conn.Close()
 				timer.Stop()

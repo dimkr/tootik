@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -42,36 +42,36 @@ func robots(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Disallow: /\n"))
 }
 
-func ListenAndServe(ctx context.Context, db *sql.DB, resolver *Resolver, actor *ap.Actor, log *slog.Logger, addr, cert, key string, plain bool) error {
+func ListenAndServe(ctx context.Context, domain string, logLevel slog.Level, cfg *cfg.Config, db *sql.DB, resolver *Resolver, actor *ap.Actor, log *slog.Logger, addr, cert, key string, plain bool) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/robots.txt", robots)
 	mux.HandleFunc("/.well-known/webfinger", func(w http.ResponseWriter, r *http.Request) {
-		handler := webFingerHandler{log.With("query", r.URL.RawQuery), db}
+		handler := webFingerHandler{log.With("query", r.URL.RawQuery), db, domain}
 		handler.Handle(w, r)
 	})
 	mux.HandleFunc("/user/", func(w http.ResponseWriter, r *http.Request) {
-		handler := userHandler{log.With(slog.String("path", r.URL.Path)), db}
+		handler := userHandler{log.With(slog.String("path", r.URL.Path)), db, domain}
 		handler.Handle(w, r)
 	})
 	mux.HandleFunc("/icon/", func(w http.ResponseWriter, r *http.Request) {
-		handler := iconHandler{log.With(slog.String("path", r.URL.Path)), db}
+		handler := iconHandler{log.With(slog.String("path", r.URL.Path)), db, domain}
 		handler.Handle(w, r)
 	})
 	mux.HandleFunc("/inbox/", func(w http.ResponseWriter, r *http.Request) {
-		handler := inboxHandler{log.With(slog.String("path", r.URL.Path)), db, resolver, actor}
+		handler := inboxHandler{log.With(slog.String("path", r.URL.Path)), db, resolver, actor, domain, cfg}
 		handler.Handle(w, r)
 	})
 	mux.HandleFunc("/outbox/", func(w http.ResponseWriter, r *http.Request) {
-		handler := outboxHandler{log.With(slog.String("path", r.URL.Path)), db}
+		handler := outboxHandler{log.With(slog.String("path", r.URL.Path)), db, domain}
 		handler.Handle(w, r)
 	})
 	mux.HandleFunc("/post/", func(w http.ResponseWriter, r *http.Request) {
-		handler := postHandler{log.With(slog.String("path", r.URL.Path)), db}
+		handler := postHandler{log.With(slog.String("path", r.URL.Path)), db, domain}
 		handler.Handle(w, r)
 	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
-			w.Header().Set("Location", fmt.Sprintf("gemini://%s", cfg.Domain))
+			w.Header().Set("Location", fmt.Sprintf("gemini://%s", domain))
 			w.WriteHeader(http.StatusMovedPermanently)
 		} else {
 			log.Debug("Received request to non-existing path", "path", r.URL.Path)
@@ -79,11 +79,11 @@ func ListenAndServe(ctx context.Context, db *sql.DB, resolver *Resolver, actor *
 		}
 	})
 
-	if err := addNodeInfo(mux); err != nil {
+	if err := addNodeInfo(mux, domain, cfg); err != nil {
 		return err
 	}
 
-	addHostMeta(mux)
+	addHostMeta(mux, domain)
 
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -116,7 +116,7 @@ func ListenAndServe(ctx context.Context, db *sql.DB, resolver *Resolver, actor *
 		server := http.Server{
 			Addr:     addr,
 			Handler:  mux,
-			ErrorLog: slog.NewLogLogger(log.Handler(), slog.Level(cfg.LogLevel)),
+			ErrorLog: slog.NewLogLogger(log.Handler(), logLevel),
 			BaseContext: func(net.Listener) context.Context {
 				return serverCtx
 			},

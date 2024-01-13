@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,12 +21,7 @@ import (
 	"strconv"
 )
 
-const (
-	postsPerPage   = 30
-	repliesPerPage = 10
-)
-
-func getOffset(requestUrl *url.URL) (int64, error) {
+func getOffset(requestUrl *url.URL) (int, error) {
 	if requestUrl.RawQuery == "" {
 		return 0, nil
 	}
@@ -36,10 +31,10 @@ func getOffset(requestUrl *url.URL) (int64, error) {
 		return 0, err
 	}
 
-	offset, err := strconv.ParseInt(query, 10, 64)
+	offset, err := strconv.ParseInt(query, 10, 32)
 	if err != nil {
 		return 0, err
 	}
 
-	return offset, nil
+	return int(offset), nil
 }

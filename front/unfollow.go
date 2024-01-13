@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ import (
 	"path/filepath"
 )
 
-func unfollow(w text.Writer, r *request) {
+func (h *Handler) unfollow(w text.Writer, r *request) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -44,7 +44,7 @@ func unfollow(w text.Writer, r *request) {
 		return
 	}
 
-	if err := outbox.Unfollow(r.Context, r.Log, r.DB, r.User, followed, followID); err != nil {
+	if err := outbox.Unfollow(r.Context, h.Domain, r.Log, r.DB, r.User, followed, followID); err != nil {
 		r.Log.Warn("Failed undo follow", "followed", followed, "error", err)
 		w.Error()
 		return

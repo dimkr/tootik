@@ -20,7 +20,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/dimkr/tootik/cfg"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -29,8 +28,9 @@ import (
 )
 
 type webFingerHandler struct {
-	Log *slog.Logger
-	DB  *sql.DB
+	Log    *slog.Logger
+	DB     *sql.DB
+	Domain string
 }
 
 func (h *webFingerHandler) Handle(w http.ResponseWriter, r *http.Request) {
@@ -57,7 +57,7 @@ func (h *webFingerHandler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	var username string
 
-	prefix := fmt.Sprintf("https://%s/", cfg.Domain)
+	prefix := fmt.Sprintf("https://%s/", h.Domain)
 	if strings.HasPrefix(resource, prefix) {
 		username = filepath.Base(resource)
 	} else {
@@ -70,10 +70,10 @@ func (h *webFingerHandler) Handle(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if len(fields) == 2 && fields[1] != cfg.Domain {
+		if len(fields) == 2 && fields[1] != h.Domain {
 			h.Log.Info("Received invalid resource", "resource", resource, "domain", fields[1])
 			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, "Resource must end with @%s", cfg.Domain)
+			fmt.Fprintf(w, "Resource must end with @%s", h.Domain)
 			return
 		}
 
@@ -83,7 +83,7 @@ func (h *webFingerHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	h.Log.Info("Looking up resource", "resource", resource, "user", username)
 
 	var actorID sql.NullString
-	if err := h.DB.QueryRowContext(r.Context(), `select id from persons where actor->>'preferredUsername' = ? and host = ?`, username, cfg.Domain).Scan(&actorID); err != nil {
+	if err := h.DB.QueryRowContext(r.Context(), `select id from persons where actor->>'preferredUsername' = ? and host = ?`, username, h.Domain).Scan(&actorID); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -95,7 +95,7 @@ func (h *webFingerHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	j, err := json.Marshal(map[string]any{
-		"subject": fmt.Sprintf("acct:%s@%s", username, cfg.Domain),
+		"subject": fmt.Sprintf("acct:%s@%s", username, h.Domain),
 		"aliases": []string{actorID.String},
 		"links": []map[string]any{
 			{

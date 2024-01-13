@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,11 +24,11 @@ import (
 	"net/http"
 )
 
-func addNodeInfo(mux *http.ServeMux) error {
+func addNodeInfo(mux *http.ServeMux, domain string, cfg *cfg.Config) error {
 	if body, err := json.Marshal(map[string]any{
 		"links": map[string]any{
 			"rel":  "http://nodeinfo.diaspora.software/ns/schema/2.0",
-			"href": fmt.Sprintf("https://%s/nodeinfo/2.0", cfg.Domain),
+			"href": fmt.Sprintf("https://%s/nodeinfo/2.0", domain),
 		},
 	}); err != nil {
 		return err
@@ -72,7 +72,7 @@ func addNodeInfo(mux *http.ServeMux) error {
 	}
 
 	if body, err := json.Marshal(map[string]any{
-		"uri":               cfg.Domain,
+		"uri":               domain,
 		"title":             "tootik",
 		"short_description": "Federated nanoblogging service for the small internet",
 		"description":       "",

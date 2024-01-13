@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package gmap
 
 import (
 	"bytes"
+	"github.com/dimkr/tootik/cfg"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -26,7 +27,7 @@ func TestRaw_TrailingNewLine(t *testing.T) {
 	assert := assert.New(t)
 
 	var b bytes.Buffer
-	w := Wrap(&b)
+	w := Wrap(&b, "localhost.localdomain:8443", &cfg.Config{LineWidth: 70})
 
 	w.Raw(
 		"Alt text",
@@ -43,7 +44,7 @@ func TestRaw_NoTrailingNewLine(t *testing.T) {
 	assert := assert.New(t)
 
 	var b bytes.Buffer
-	w := Wrap(&b)
+	w := Wrap(&b, "localhost.localdomain:8443", &cfg.Config{LineWidth: 70})
 
 	w.Raw(
 		"Alt text",

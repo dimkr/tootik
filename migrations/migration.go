@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,19 +26,19 @@ import (
 
 type migration struct {
 	ID string
-	Up func(context.Context, *sql.Tx) error
+	Up func(context.Context, string, *sql.Tx) error
 }
 
 //go:generate ./list.sh
 
-func applyMigration(ctx context.Context, db *sql.DB, m migration) error {
+func applyMigration(ctx context.Context, domain string, db *sql.DB, m migration) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to apply %s: %w", m.ID, err)
 	}
 	defer tx.Rollback()
 
-	if err := m.Up(ctx, tx); err != nil {
+	if err := m.Up(ctx, domain, tx); err != nil {
 		return fmt.Errorf("failed to apply %s: %w", m.ID, err)
 	}
 
@@ -53,7 +53,7 @@ func applyMigration(ctx context.Context, db *sql.DB, m migration) error {
 	return nil
 }
 
-func Run(ctx context.Context, log *slog.Logger, db *sql.DB) error {
+func Run(ctx context.Context, log *slog.Logger, domain string, db *sql.DB) error {
 	if _, err := db.ExecContext(ctx, `create table if not exists migrations(id string not null primary key, applied integer default (unixepoch()))`); err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ func Run(ctx context.Context, log *slog.Logger, db *sql.DB) error {
 		}
 
 		log.Info("Applying migration", "id", m.ID)
-		if err := applyMigration(ctx, db, m); err != nil {
+		if err := applyMigration(ctx, domain, db, m); err != nil {
 			return err
 		}
 	}

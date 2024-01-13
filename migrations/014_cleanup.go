@@ -5,7 +5,7 @@ import (
 	"database/sql"
 )
 
-func cleanup(ctx context.Context, tx *sql.Tx) error {
+func cleanup(ctx context.Context, domain string, tx *sql.Tx) error {
 	_, err := tx.ExecContext(ctx, `DROP TABLE deliveries`)
 	if err != nil {
 		return err

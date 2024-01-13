@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,12 +19,11 @@ package front
 import (
 	"bytes"
 	"context"
+	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front/text"
 	"sync"
 	"time"
 )
-
-const updateTimeout = time.Second * 5
 
 type cacheEntry struct {
 	Value   []byte
@@ -52,7 +51,7 @@ func callAndCache(r *request, w text.Writer, f func(text.Writer, *request), key 
 	return raw
 }
 
-func withCache(f func(text.Writer, *request), d time.Duration, cache *sync.Map) func(text.Writer, *request) {
+func withCache(f func(text.Writer, *request), d time.Duration, cache *sync.Map, cfg *cfg.Config) func(text.Writer, *request) {
 	return func(w text.Writer, r *request) {
 		key := r.URL.String()
 		now := time.Now()
@@ -71,7 +70,7 @@ func withCache(f func(text.Writer, *request), d time.Duration, cache *sync.Map) 
 		}
 
 		update := make(chan []byte, 1)
-		timer := time.NewTimer(updateTimeout)
+		timer := time.NewTimer(cfg.CacheUpdateTimeout)
 		defer timer.Stop()
 
 		r.WaitGroup.Add(1)

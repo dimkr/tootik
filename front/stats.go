@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,8 +18,6 @@ package front
 
 import (
 	"database/sql"
-	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/front/graph"
 	"github.com/dimkr/tootik/front/text"
 	"time"
@@ -88,60 +86,60 @@ func getActiveUsersGraph(r *request) string {
 	return getGraph(r, `select strftime('%Y-%m-%d', datetime(day, 'unixepoch')), count(distinct author) from (select notes.inserted/(60*60*24)*60*60*24 as day, persons.id as author from notes join persons on persons.id = notes.author where notes.inserted>unixepoch()-60*60*24*7 and notes.inserted<unixepoch()/(60*60*24)*60*60*24) group by day`, keys, values)
 }
 
-func stats(w text.Writer, r *request) {
+func (h *Handler) stats(w text.Writer, r *request) {
 	var usersCount, postsCount, postsToday, federatedPostsCount, federatedPostsToday int64
 	var lastPost, lastFederatedPost, lastRegister, lastFederatedUser sql.NullInt64
 	var outboxSize, inboxSize int
 
-	if err := r.QueryRow(`select count(*) from persons where host = ?`, cfg.Domain).Scan(&usersCount); err != nil {
+	if err := r.QueryRow(`select count(*) from persons where host = ?`, h.Domain).Scan(&usersCount); err != nil {
 		r.Log.Info("Failed to get users count", "error", err)
 		w.Error()
 		return
 	}
 
-	if err := r.QueryRow(`select count(*) from notes where host = ?`, cfg.Domain).Scan(&postsCount); err != nil {
+	if err := r.QueryRow(`select count(*) from notes where host = ?`, h.Domain).Scan(&postsCount); err != nil {
 		r.Log.Info("Failed to get posts count", "error", err)
 		w.Error()
 		return
 	}
 
-	if err := r.QueryRow(`select count(*) from notes where host = ? and inserted >= unixepoch() - 24*60*60`, cfg.Domain).Scan(&postsToday); err != nil {
+	if err := r.QueryRow(`select count(*) from notes where host = ? and inserted >= unixepoch() - 24*60*60`, h.Domain).Scan(&postsToday); err != nil {
 		r.Log.Info("Failed to get daily posts count", "error", err)
 		w.Error()
 		return
 	}
 
-	if err := r.QueryRow(`select count(*) from notes where host != ?`, cfg.Domain).Scan(&federatedPostsCount); err != nil {
+	if err := r.QueryRow(`select count(*) from notes where host != ?`, h.Domain).Scan(&federatedPostsCount); err != nil {
 		r.Log.Info("Failed to get federated posts count", "error", err)
 		w.Error()
 		return
 	}
 
-	if err := r.QueryRow(`select count(*) from notes where host != ? and inserted >= unixepoch() - 24*60*60`, cfg.Domain).Scan(&federatedPostsToday); err != nil {
+	if err := r.QueryRow(`select count(*) from notes where host != ? and inserted >= unixepoch() - 24*60*60`, h.Domain).Scan(&federatedPostsToday); err != nil {
 		r.Log.Info("Failed to get daily federated posts count", "error", err)
 		w.Error()
 		return
 	}
 
-	if err := r.QueryRow(`select max(inserted) from notes where host = ?`, cfg.Domain).Scan(&lastPost); err != nil {
+	if err := r.QueryRow(`select max(inserted) from notes where host = ?`, h.Domain).Scan(&lastPost); err != nil {
 		r.Log.Info("Failed to get last post time", "error", err)
 		w.Error()
 		return
 	}
 
-	if err := r.QueryRow(`select max(inserted) from notes where host != ?`, cfg.Domain).Scan(&lastFederatedPost); err != nil {
+	if err := r.QueryRow(`select max(inserted) from notes where host != ?`, h.Domain).Scan(&lastFederatedPost); err != nil {
 		r.Log.Info("Failed to get last federated post time", "error", err)
 		w.Error()
 		return
 	}
 
-	if err := r.QueryRow(`select max(inserted) from persons where host = ?`, cfg.Domain).Scan(&lastRegister); err != nil {
+	if err := r.QueryRow(`select max(inserted) from persons where host = ?`, h.Domain).Scan(&lastRegister); err != nil {
 		r.Log.Info("Failed to get last post time", "error", err)
 		w.Error()
 		return
 	}
 
-	if err := r.QueryRow(`select max(max(inserted), max(updated)) from persons where host != ?`, cfg.Domain).Scan(&lastFederatedUser); err != nil {
+	if err := r.QueryRow(`select max(max(inserted), max(updated)) from persons where host != ?`, h.Domain).Scan(&lastFederatedUser); err != nil {
 		r.Log.Info("Failed to get last post time", "error", err)
 		w.Error()
 		return
@@ -153,7 +151,7 @@ func stats(w text.Writer, r *request) {
 		return
 	}
 
-	if err := r.QueryRow(`select count(*) from outbox where sent = 0 and attempts < ?`, fed.MaxDeliveryAttempts).Scan(&outboxSize); err != nil {
+	if err := r.QueryRow(`select count(*) from outbox where sent = 0 and attempts < ?`, r.Handler.Config.MaxDeliveryAttempts).Scan(&outboxSize); err != nil {
 		r.Log.Info("Failed to get delivery queue size", "error", err)
 		w.Error()
 		return

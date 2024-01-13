@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -49,16 +49,11 @@ type responseChunk struct {
 }
 
 const (
-	maxRequestSize    = 1024
-	responseChunkSize = 512
-	maxUnackedChunks  = 8
-	reqTimeout        = time.Second * 30
-	maxSessions       = 32
-	chunkTimeout      = time.Second * 2
-	retryInterval     = time.Millisecond * 100
+	maxRequestSize = 1024
+	retryInterval  = time.Millisecond * 100
 )
 
-func handle(ctx context.Context, log *slog.Logger, db *sql.DB, handler front.Handler, resolver *fed.Resolver, wg *sync.WaitGroup, from net.Addr, req []byte, acks <-chan []byte, done chan<- string, s net.PacketConn) {
+func handle(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, handler front.Handler, resolver *fed.Resolver, wg *sync.WaitGroup, from net.Addr, req []byte, acks <-chan []byte, done chan<- string, s net.PacketConn) {
 	defer func() {
 		done <- from.String()
 	}()
@@ -79,7 +74,7 @@ func handle(ctx context.Context, log *slog.Logger, db *sql.DB, handler front.Han
 	var buf bytes.Buffer
 	w := guppy.Wrap(&buf, seq)
 
-	if reqUrl.Host != cfg.Domain {
+	if reqUrl.Host != domain {
 		w.Status(4, "Wrong host")
 	} else {
 		log.Info("Handling request", "path", reqUrl.Path, "url", reqUrl.String(), "from", from)
@@ -91,7 +86,7 @@ func handle(ctx context.Context, log *slog.Logger, db *sql.DB, handler front.Han
 		return
 	}
 
-	chunk := make([]byte, responseChunkSize)
+	chunk := make([]byte, cfg.GuppyResponseChunkSize)
 
 	n, err := buf.Read(chunk)
 	if err != nil {
@@ -99,7 +94,7 @@ func handle(ctx context.Context, log *slog.Logger, db *sql.DB, handler front.Han
 		return
 	}
 
-	chunks := make([]responseChunk, 1, buf.Len()/responseChunkSize+2)
+	chunks := make([]responseChunk, 1, buf.Len()/cfg.GuppyResponseChunkSize+2)
 	chunks[0].Seq = seq
 	chunks[0].Data = chunk[:n]
 
@@ -182,10 +177,10 @@ func handle(ctx context.Context, log *slog.Logger, db *sql.DB, handler front.Han
 		now := time.Now()
 		sent := 0
 		for i := range chunks {
-			if chunks[i].Acked || now.Sub(chunks[i].Sent) <= chunkTimeout {
+			if chunks[i].Acked || now.Sub(chunks[i].Sent) <= cfg.GuppyChunkTimeout {
 				continue
 			}
-			if sent == maxUnackedChunks {
+			if sent == cfg.MaxSentGuppyChunks {
 				break
 			}
 			if chunks[i].Sent == (time.Time{}) {
@@ -202,7 +197,7 @@ func handle(ctx context.Context, log *slog.Logger, db *sql.DB, handler front.Han
 	}
 }
 
-func ListenAndServe(ctx context.Context, log *slog.Logger, db *sql.DB, handler front.Handler, resolver *fed.Resolver, addr string) error {
+func ListenAndServe(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, handler front.Handler, resolver *fed.Resolver, addr string) error {
 	l, err := net.ListenPacket("udp", addr)
 	if err != nil {
 		return err
@@ -258,25 +253,25 @@ loop:
 			k := pkt.From.String()
 
 			if acks, ok := sessions[k]; ok {
-				if len(acks) < maxUnackedChunks {
+				if len(acks) < cfg.MaxSentGuppyChunks {
 					acks <- pkt.Data
 				}
 				continue
 			}
-			if len(sessions) > maxSessions {
+			if len(sessions) > cfg.MaxGuppySessions {
 				log.Warn("Too many sessions")
 				l.WriteTo([]byte("4 Too many sessions\r\n"), pkt.From)
 				continue
 			}
 
-			acks := make(chan []byte, maxUnackedChunks)
+			acks := make(chan []byte, cfg.MaxSentGuppyChunks)
 			sessions[k] = acks
 
-			requestCtx, cancelRequest := context.WithTimeout(ctx, reqTimeout)
+			requestCtx, cancelRequest := context.WithTimeout(ctx, cfg.GuppyRequestTimeout)
 
 			wg.Add(1)
 			go func() {
-				handle(requestCtx, log, db, handler, resolver, &wg, pkt.From, pkt.Data, acks, done, l)
+				handle(requestCtx, domain, cfg, log, db, handler, resolver, &wg, pkt.From, pkt.Data, acks, done, l)
 				cancelRequest()
 				wg.Done()
 			}()

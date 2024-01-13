@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,15 +23,15 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
 	"log/slog"
 	"net/http"
 	"path/filepath"
 )
 
 type postHandler struct {
-	Log *slog.Logger
-	DB  *sql.DB
+	Log    *slog.Logger
+	DB     *sql.DB
+	Domain string
 }
 
 func (h *postHandler) Handle(w http.ResponseWriter, r *http.Request) {
@@ -40,10 +40,10 @@ func (h *postHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	postID := fmt.Sprintf("https://%s/post/%s", cfg.Domain, filepath.Base(r.URL.Path))
+	postID := fmt.Sprintf("https://%s/post/%s", h.Domain, filepath.Base(r.URL.Path))
 
 	if shouldRedirect(r) {
-		url := fmt.Sprintf("gemini://%s/view/%x", cfg.Domain, sha256.Sum256([]byte(postID)))
+		url := fmt.Sprintf("gemini://%s/view/%x", h.Domain, sha256.Sum256([]byte(postID)))
 		h.Log.Info("Redirecting to post over Gemini", "url", url)
 		w.Header().Set("Location", url)
 		w.WriteHeader(http.StatusMovedPermanently)

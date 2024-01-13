@@ -21,12 +21,12 @@ import (
 	"github.com/dimkr/tootik/front/text"
 )
 
-func say(w text.Writer, r *request) {
+func (h *Handler) say(w text.Writer, r *request) {
 	to := ap.Audience{}
 	cc := ap.Audience{}
 
 	to.Add(ap.Public)
 	cc.Add(r.User.Followers)
 
-	post(w, r, nil, nil, to, cc, "Post content")
+	h.post(w, r, nil, nil, to, cc, "Post content")
 }

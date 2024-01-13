@@ -5,7 +5,7 @@ import (
 	"database/sql"
 )
 
-func thread(ctx context.Context, tx *sql.Tx) error {
+func thread(ctx context.Context, domain string, tx *sql.Tx) error {
 	if _, err := tx.ExecContext(ctx, `CREATE INDEX notesidinreplytoauthorinserted ON notes(id, object->>'inReplyTo', author, inserted)`); err != nil {
 		return err
 	}

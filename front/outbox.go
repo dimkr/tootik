@@ -28,7 +28,7 @@ import (
 	"path/filepath"
 )
 
-func userOutbox(w text.Writer, r *request) {
+func (h *Handler) userOutbox(w text.Writer, r *request) {
 	hash := filepath.Base(r.URL.Path)
 
 	var actorID, actorString string
@@ -70,7 +70,7 @@ func userOutbox(w text.Writer, r *request) {
 			) notes
 			join persons on persons.id = notes.author`,
 			actorID,
-			postsPerPage,
+			h.Config.PostsPerPage,
 			offset,
 		)
 	} else if actor.Type == ap.Group && r.User != nil {
@@ -90,7 +90,7 @@ func userOutbox(w text.Writer, r *request) {
 			join persons on persons.id = notes.author`,
 			actorID,
 			r.User.ID,
-			postsPerPage,
+			h.Config.PostsPerPage,
 			offset,
 		)
 	} else if r.User == nil {
@@ -106,7 +106,7 @@ func userOutbox(w text.Writer, r *request) {
 			) groups on groups.id = notes.groupid`,
 			actorString,
 			actorID,
-			postsPerPage, offset,
+			h.Config.PostsPerPage, offset,
 		)
 	} else if r.User.ID == actorID {
 		// users can see all their posts
@@ -121,7 +121,7 @@ func userOutbox(w text.Writer, r *request) {
 			) groups on groups.id = notes.groupid`,
 			actorString,
 			actorID,
-			postsPerPage,
+			h.Config.PostsPerPage,
 			offset,
 		)
 	} else {
@@ -157,7 +157,7 @@ func userOutbox(w text.Writer, r *request) {
 			actorString,
 			actorID,
 			r.User.ID,
-			postsPerPage,
+			h.Config.PostsPerPage,
 			offset,
 		)
 	}
@@ -186,7 +186,7 @@ func userOutbox(w text.Writer, r *request) {
 
 	w.OK()
 
-	displayName := getActorDisplayName(&actor, r.Log)
+	displayName := h.getActorDisplayName(&actor, r.Log)
 
 	var summary []string
 	var links data.OrderedMap[string, string]
@@ -194,8 +194,8 @@ func userOutbox(w text.Writer, r *request) {
 		summary, links = getTextAndLinks(actor.Summary, -1, -1)
 	}
 
-	if offset >= postsPerPage || count == postsPerPage {
-		w.Titlef("%s (%d-%d)", displayName, offset, offset+postsPerPage)
+	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
+		w.Titlef("%s (%d-%d)", displayName, offset, offset+h.Config.PostsPerPage)
 	} else {
 		w.Title(displayName)
 	}
@@ -223,20 +223,20 @@ func userOutbox(w text.Writer, r *request) {
 		r.PrintNotes(w, notes, false, true, true)
 	}
 
-	if offset >= postsPerPage || count == postsPerPage {
+	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
 		w.Separator()
 	}
 
-	if offset >= postsPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/outbox/%s?%d", hash, offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
-	} else if offset >= postsPerPage {
-		w.Linkf(fmt.Sprintf("/users/outbox/%s?%d", hash, offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
+	if offset >= h.Config.PostsPerPage && r.User == nil {
+		w.Linkf(fmt.Sprintf("/outbox/%s?%d", hash, offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
+	} else if offset >= h.Config.PostsPerPage {
+		w.Linkf(fmt.Sprintf("/users/outbox/%s?%d", hash, offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
 	}
 
-	if count == postsPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/outbox/%s?%d", hash, offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
-	} else if count == postsPerPage {
-		w.Linkf(fmt.Sprintf("/users/outbox/%s?%d", hash, offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
+	if count == h.Config.PostsPerPage && r.User == nil {
+		w.Linkf(fmt.Sprintf("/outbox/%s?%d", hash, offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
+	} else if count == h.Config.PostsPerPage {
+		w.Linkf(fmt.Sprintf("/users/outbox/%s?%d", hash, offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
 	}
 
 	if r.User != nil && actorID != r.User.ID {

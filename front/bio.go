@@ -26,12 +26,7 @@ import (
 	"unicode/utf8"
 )
 
-const (
-	minBioEditInterval = time.Minute * 30
-	maxBioLength       = 500
-)
-
-func bio(w text.Writer, r *request) {
+func (h *Handler) bio(w text.Writer, r *request) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -39,7 +34,7 @@ func bio(w text.Writer, r *request) {
 
 	now := time.Now()
 
-	if (r.User.Updated != nil && now.Sub(r.User.Updated.Time) < minBioEditInterval) || (r.User.Updated == nil && now.Sub(r.User.Published.Time) < minBioEditInterval) {
+	if (r.User.Updated != nil && now.Sub(r.User.Updated.Time) < h.Config.MinActorEditInterval) || (r.User.Updated == nil && now.Sub(r.User.Published.Time) < h.Config.MinActorEditInterval) {
 		r.Log.Warn("Throttled request to set summary")
 		w.Status(40, "Please try again later")
 		return
@@ -56,7 +51,7 @@ func bio(w text.Writer, r *request) {
 		return
 	}
 
-	if utf8.RuneCountInString(summary) > maxBioLength {
+	if utf8.RuneCountInString(summary) > h.Config.MaxBioLength {
 		w.Status(40, "Summary is too long")
 		return
 	}
@@ -81,7 +76,7 @@ func bio(w text.Writer, r *request) {
 		return
 	}
 
-	if err := outbox.UpdateActor(r.Context, tx, r.User.ID); err != nil {
+	if err := outbox.UpdateActor(r.Context, h.Domain, tx, r.User.ID); err != nil {
 		r.Log.Error("Failed to update summary", "error", err)
 		w.Error()
 		return

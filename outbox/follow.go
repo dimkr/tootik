@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,17 +23,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
 	"strings"
 	"time"
 )
 
-func Follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB) error {
+func Follow(ctx context.Context, domain string, follower *ap.Actor, followed string, db *sql.DB) error {
 	if followed == follower.ID {
 		return fmt.Errorf("%s cannot follow %s", follower.ID, followed)
 	}
 
-	followID := fmt.Sprintf("https://%s/follow/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", follower.ID, followed, time.Now().UnixNano()))))
+	followID := fmt.Sprintf("https://%s/follow/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", follower.ID, followed, time.Now().UnixNano()))))
 
 	to := ap.Audience{}
 	to.Add(followed)
@@ -50,7 +49,7 @@ func Follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB
 		return fmt.Errorf("failed to marshal follow: %w", err)
 	}
 
-	isLocal := strings.HasPrefix(followed, fmt.Sprintf("https://%s/", cfg.Domain))
+	isLocal := strings.HasPrefix(followed, fmt.Sprintf("https://%s/", domain))
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {

@@ -5,7 +5,7 @@ import (
 	"database/sql"
 )
 
-func iconsname(ctx context.Context, tx *sql.Tx) error {
+func iconsname(ctx context.Context, domain string, tx *sql.Tx) error {
 	if _, err := tx.ExecContext(ctx, `DROP TABLE icons`); err != nil {
 		return err
 	}

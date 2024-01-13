@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import (
 
 type request struct {
 	Context   context.Context
+	Handler   *Handler
 	URL       *url.URL
 	User      *ap.Actor
 	DB        *sql.DB

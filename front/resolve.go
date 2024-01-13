@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,13 +19,12 @@ package front
 import (
 	"crypto/sha256"
 	"fmt"
-	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front/text"
 	"net/url"
 	"strings"
 )
 
-func resolve(w text.Writer, r *request) {
+func (h *Handler) resolve(w text.Writer, r *request) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -49,7 +48,7 @@ func resolve(w text.Writer, r *request) {
 	switch len(tokens) {
 	case 1:
 		name = tokens[0]
-		host = cfg.Domain
+		host = h.Domain
 	case 2:
 		name = tokens[0]
 		host = tokens[1]

@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ func TestMove_FederatedToFederated(t *testing.T) {
 	assert.NoError(
 		outbox.Follow(
 			context.Background(),
+			domain,
 			server.Alice,
 			"https://127.0.0.1/user/dan",
 			server.db,
@@ -65,7 +66,7 @@ func TestMove_FederatedToFederated(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(outbox.Move(context.Background(), slog.Default(), server.db, fed.NewResolver(nil), server.Nobody))
+	assert.NoError(outbox.Move(context.Background(), domain, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody))
 
 	var followed int
 	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 0) and exists (select 1 from outbox where activity->>'type' = 'Follow' and activity->>'actor' = $1 and activity->>'object' = $2)`, server.Alice.ID, "https://::1/user/dan").Scan(&followed))
@@ -81,6 +82,7 @@ func TestMove_FederatedToFederatedTwoAccounts(t *testing.T) {
 	assert.NoError(
 		outbox.Follow(
 			context.Background(),
+			domain,
 			server.Alice,
 			"https://127.0.0.1/user/dan",
 			server.db,
@@ -112,7 +114,7 @@ func TestMove_FederatedToFederatedTwoAccounts(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(outbox.Move(context.Background(), slog.Default(), server.db, fed.NewResolver(nil), server.Nobody))
+	assert.NoError(outbox.Move(context.Background(), domain, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody))
 
 	var followed int
 	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 0) and exists (select 1 from outbox where activity->>'type' = 'Follow' and activity->>'actor' = $1 and activity->>'object' = $2)`, server.Alice.ID, "https://::1/user/dan").Scan(&followed))
@@ -128,6 +130,7 @@ func TestMove_FederatedToFederatedNotLinked(t *testing.T) {
 	assert.NoError(
 		outbox.Follow(
 			context.Background(),
+			domain,
 			server.Alice,
 			"https://127.0.0.1/user/dan",
 			server.db,
@@ -159,7 +162,7 @@ func TestMove_FederatedToFederatedNotLinked(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(outbox.Move(context.Background(), slog.Default(), server.db, fed.NewResolver(nil), server.Nobody))
+	assert.NoError(outbox.Move(context.Background(), domain, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody))
 
 	var followed int
 	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 0) or exists (select 1 from outbox where activity->>'type' = 'Follow' and activity->>'actor' = $1 and activity->>'object' = $2)`, server.Alice.ID, "https://::1/user/dan").Scan(&followed))
@@ -175,6 +178,7 @@ func TestMove_FederatedToFederatedFollowedAfterUpdate(t *testing.T) {
 	assert.NoError(
 		outbox.Follow(
 			context.Background(),
+			domain,
 			server.Alice,
 			"https://127.0.0.1/user/dan",
 			server.db,
@@ -206,7 +210,7 @@ func TestMove_FederatedToFederatedFollowedAfterUpdate(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(outbox.Move(context.Background(), slog.Default(), server.db, fed.NewResolver(nil), server.Nobody))
+	assert.NoError(outbox.Move(context.Background(), domain, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody))
 
 	var followed int
 	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 0) and exists (select 1 from outbox where activity->>'type' = 'Follow' and activity->>'actor' = $1 and activity->>'object' = $2)`, server.Alice.ID, "https://::1/user/dan").Scan(&followed))
@@ -222,6 +226,7 @@ func TestMove_FederatedToLocal(t *testing.T) {
 	assert.NoError(
 		outbox.Follow(
 			context.Background(),
+			domain,
 			server.Alice,
 			"https://127.0.0.1/user/dan",
 			server.db,
@@ -245,7 +250,7 @@ func TestMove_FederatedToLocal(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(outbox.Move(context.Background(), slog.Default(), server.db, fed.NewResolver(nil), server.Nobody))
+	assert.NoError(outbox.Move(context.Background(), domain, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody))
 
 	var followed int
 	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 1) and not exists (select 1 from outbox where activity->>'type' = 'Follow' and activity->>'actor' = $1 and activity->>'object' = $2)`, server.Alice.ID, server.Bob.ID).Scan(&followed))
@@ -261,6 +266,7 @@ func TestMove_FederatedToLocalLinked(t *testing.T) {
 	assert.NoError(
 		outbox.Follow(
 			context.Background(),
+			domain,
 			server.Alice,
 			"https://127.0.0.1/user/dan",
 			server.db,
@@ -287,7 +293,7 @@ func TestMove_FederatedToLocalLinked(t *testing.T) {
 	_, err = server.db.Exec(`UPDATE persons SET actor = json_set(actor, '$.alsoKnownAs', $1) WHERE id = $2`, "https://127.0.0.1/user/dan", server.Bob.ID)
 	assert.NoError(err)
 
-	assert.NoError(outbox.Move(context.Background(), slog.Default(), server.db, fed.NewResolver(nil), server.Nobody))
+	assert.NoError(outbox.Move(context.Background(), domain, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody))
 
 	var followed int
 	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 1) and not exists (select 1 from outbox where activity->>'type' = 'Follow' and activity->>'actor' = $1 and activity->>'object' = $2)`, server.Alice.ID, server.Bob.ID).Scan(&followed))

@@ -5,7 +5,7 @@ import (
 	"database/sql"
 )
 
-func outboxsender(ctx context.Context, tx *sql.Tx) error {
+func outboxsender(ctx context.Context, domain string, tx *sql.Tx) error {
 	if _, err := tx.ExecContext(ctx, `ALTER TABLE outbox ADD COLUMN sender STRING`); err != nil {
 		return err
 	}

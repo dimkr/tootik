@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,14 +25,14 @@ import (
 	"strings"
 )
 
-const lineWidth = 70
-
 type writer struct {
 	text.Base
+	Domain string
+	Config *cfg.Config
 }
 
-func Wrap(w io.Writer) text.Writer {
-	return &writer{Base: text.Base{Writer: w}}
+func Wrap(w io.Writer, domain string, cfg *cfg.Config) text.Writer {
+	return &writer{Base: text.Base{Writer: w}, Domain: domain, Config: cfg}
 }
 
 func (w *writer) Status(code int, meta string) {
@@ -50,7 +50,7 @@ func (w *writer) Error() {
 }
 
 func (w *writer) wrap(t byte, prefix, cont, name, selector, host, port string) {
-	lines := text.WordWrap(name, lineWidth-len(prefix), -1)
+	lines := text.WordWrap(name, w.Config.LineWidth-len(prefix), -1)
 
 	if len(lines) > 0 {
 		fmt.Fprintf(w, "%c%s%s\t%s\t%s\t%s\r\n", t, prefix, lines[0], selector, host, port)
@@ -101,7 +101,7 @@ func (w *writer) Empty() {
 
 func (w *writer) Link(link, name string) {
 	if link[0] == '/' {
-		w.wrap('1', "", "", name, link, cfg.Domain, "70")
+		w.wrap('1', "", "", name, link, w.Domain, "70")
 	} else if u, err := url.Parse(link); err == nil {
 		if u.Scheme == "gopher" {
 			port := u.Port()
@@ -152,6 +152,6 @@ func (w *writer) Separator() {
 	w.Empty()
 }
 
-func (*writer) Clone(w io.Writer) text.Writer {
-	return &writer{Base: text.Base{Writer: w}}
+func (gw *writer) Clone(w io.Writer) text.Writer {
+	return &writer{Base: text.Base{Writer: w}, Domain: gw.Domain, Config: gw.Config}
 }

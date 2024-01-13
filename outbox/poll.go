@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
 	"log/slog"
 	"time"
 )
@@ -31,8 +30,8 @@ type pollResult struct {
 	PollID, Option string
 }
 
-func UpdatePollResults(ctx context.Context, log *slog.Logger, db *sql.DB) error {
-	rows, err := db.QueryContext(ctx, `select poll, option, count(*) from (select polls.id as poll, votes.object->>'name' as option, votes.author as voter from notes polls join notes votes on votes.object->>'inReplyTo' = polls.id where polls.object->>'type' = 'Question' and polls.id like $1 and polls.object->>'closed' is null and votes.object->>'name' is not null group by poll, option, voter) group by poll, option`, fmt.Sprintf("https://%s/%%", cfg.Domain))
+func UpdatePollResults(ctx context.Context, domain string, log *slog.Logger, db *sql.DB) error {
+	rows, err := db.QueryContext(ctx, `select poll, option, count(*) from (select polls.id as poll, votes.object->>'name' as option, votes.author as voter from notes polls join notes votes on votes.object->>'inReplyTo' = polls.id where polls.object->>'type' = 'Question' and polls.id like $1 and polls.object->>'closed' is null and votes.object->>'name' is not null group by poll, option, voter) group by poll, option`, fmt.Sprintf("https://%s/%%", domain))
 	if err != nil {
 		return err
 	}
@@ -102,7 +101,7 @@ func UpdatePollResults(ctx context.Context, log *slog.Logger, db *sql.DB) error 
 
 		log.Info("Updating poll results", "poll", poll.ID)
 
-		if err := UpdateNote(ctx, db, poll); err != nil {
+		if err := UpdateNote(ctx, domain, db, poll); err != nil {
 			log.Warn("Failed to update poll results", "poll", poll.ID, "error", err)
 		}
 	}

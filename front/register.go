@@ -21,7 +21,6 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"fmt"
-	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/user"
 	"net/url"
@@ -29,11 +28,9 @@ import (
 	"time"
 )
 
-const registrationInterval = time.Hour
-
 var userNameRegex = regexp.MustCompile(`^[a-zA-Z0-9-_]{4,32}$`)
 
-func register(w text.Writer, r *request) {
+func (h *Handler) register(w text.Writer, r *request) {
 	if r.User != nil {
 		r.Log.Warn("Registered user cannot register again")
 		w.Statusf(40, "Already registered as %s", r.User.PreferredUsername)
@@ -59,7 +56,7 @@ func register(w text.Writer, r *request) {
 	certHash := fmt.Sprintf("%x", sha256.Sum256(clientCert.Raw))
 
 	var taken int
-	if err := r.QueryRow(`select exists (select 1 from persons where host = ? and certhash = ?)`, cfg.Domain, certHash).Scan(&taken); err != nil {
+	if err := r.QueryRow(`select exists (select 1 from persons where host = ? and certhash = ?)`, h.Domain, certHash).Scan(&taken); err != nil {
 		r.Log.Warn("Failed to check if cerificate hash is already in use", "hash", certHash, "error", err)
 		w.Error()
 		return
@@ -95,7 +92,7 @@ func register(w text.Writer, r *request) {
 		return
 	}
 
-	if err := r.QueryRow(`select exists (select 1 from persons where actor->>'preferredUsername' = ? and host = ?)`, userName, cfg.Domain).Scan(&taken); err != nil {
+	if err := r.QueryRow(`select exists (select 1 from persons where actor->>'preferredUsername' = ? and host = ?)`, userName, h.Domain).Scan(&taken); err != nil {
 		r.Log.Warn("Failed to check if username is taken", "name", userName, "error", err)
 		w.Error()
 		return
@@ -108,7 +105,7 @@ func register(w text.Writer, r *request) {
 	}
 
 	var lastRegister sql.NullInt64
-	if err := r.QueryRow(`select max(inserted) from persons where host = ?`, cfg.Domain).Scan(&lastRegister); err != nil {
+	if err := r.QueryRow(`select max(inserted) from persons where host = ?`, h.Domain).Scan(&lastRegister); err != nil {
 		r.Log.Warn("Failed to check last registration time", "name", userName, "error", err)
 		w.Error()
 		return
@@ -116,15 +113,15 @@ func register(w text.Writer, r *request) {
 
 	if lastRegister.Valid {
 		elapsed := time.Since(time.Unix(lastRegister.Int64, 0))
-		if elapsed < registrationInterval {
-			w.Statusf(40, "Registration is closed for %s", (registrationInterval - elapsed).Truncate(time.Second).String())
+		if elapsed < h.Config.RegistrationInterval {
+			w.Statusf(40, "Registration is closed for %s", (h.Config.RegistrationInterval - elapsed).Truncate(time.Second).String())
 			return
 		}
 	}
 
 	r.Log.Info("Creating new user", "name", userName)
 
-	if _, err := user.Create(r.Context, r.DB, userName, certHash); err != nil {
+	if _, err := user.Create(r.Context, r.Handler.Domain, r.DB, userName, certHash); err != nil {
 		r.Log.Warn("Failed to create new user", "name", userName, "error", err)
 		w.Status(40, "Failed to create new user")
 		return

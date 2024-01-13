@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ package front
 import (
 	"database/sql"
 	"fmt"
-	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front/graph"
 	"github.com/dimkr/tootik/front/text"
 )
@@ -53,8 +52,8 @@ func printHashtags(w text.Writer, r *request, title string, tags []string) {
 	}
 }
 
-func hashtags(w text.Writer, r *request) {
-	rows, err := r.Query(`select hashtag from (select hashtag, max(inserted)/86400 as last, count(distinct author) as users, count(*) as posts from (select hashtags.hashtag, notes.author, notes.inserted from hashtags join notes on notes.id = hashtags.note join follows on follows.followed = notes.author where follows.accepted = 1 and follows.follower like ? and notes.inserted > unixepoch()-60*60*24*7) group by hashtag) where users > 1 order by users desc, posts desc, last desc limit 30`, fmt.Sprintf("https://%s/%%", cfg.Domain))
+func (h *Handler) hashtags(w text.Writer, r *request) {
+	rows, err := r.Query(`select hashtag from (select hashtag, max(inserted)/86400 as last, count(distinct author) as users, count(*) as posts from (select hashtags.hashtag, notes.author, notes.inserted from hashtags join notes on notes.id = hashtags.note join follows on follows.followed = notes.author where follows.accepted = 1 and follows.follower like ? and notes.inserted > unixepoch()-60*60*24*7) group by hashtag) where users > 1 order by users desc, posts desc, last desc limit 30`, fmt.Sprintf("https://%s/%%", h.Domain))
 	if err != nil {
 		r.Log.Warn("Failed to list hashtags", "error", err)
 		w.Error()

@@ -33,17 +33,8 @@ import (
 	"time"
 )
 
-const (
-	maxActivitiesQueueSize    = 10000
-	activitiesBatchSize       = 64
-	activitiesPollingInterval = time.Second * 5
-	activitiesBatchDelay      = time.Millisecond * 100
-	activityProcessingTimeout = time.Second * 15
-	maxForwardingDepth        = 5
-)
-
 // a reply by B in a thread started by A is forwarded to all followers of A
-func forwardActivity(ctx context.Context, log *slog.Logger, tx *sql.Tx, activity *ap.Activity, rawActivity []byte) error {
+func forwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, tx *sql.Tx, activity *ap.Activity, rawActivity []byte) error {
 	obj, ok := activity.Object.(*ap.Object)
 	if !ok {
 		return nil
@@ -56,18 +47,18 @@ func forwardActivity(ctx context.Context, log *slog.Logger, tx *sql.Tx, activity
 
 	var firstPostID, threadStarterID string
 	var depth int
-	if err := tx.QueryRowContext(ctx, `with recursive thread(id, author, parent, depth) as (select notes.id, notes.author, notes.object->>'inReplyTo' as parent, 1 as depth from notes where id = $1 union select notes.id, notes.author, notes.object->>'inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent where t.depth <= $2) select id, author, depth from thread order by depth desc limit 1`, obj.ID, maxForwardingDepth+1).Scan(&firstPostID, &threadStarterID, &depth); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := tx.QueryRowContext(ctx, `with recursive thread(id, author, parent, depth) as (select notes.id, notes.author, notes.object->>'inReplyTo' as parent, 1 as depth from notes where id = $1 union select notes.id, notes.author, notes.object->>'inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent where t.depth <= $2) select id, author, depth from thread order by depth desc limit 1`, obj.ID, cfg.MaxForwardingDepth+1).Scan(&firstPostID, &threadStarterID, &depth); err != nil && errors.Is(err, sql.ErrNoRows) {
 		log.Debug("Failed to find thread for post", "post", obj.ID)
 		return nil
 	} else if err != nil {
 		return fmt.Errorf("failed to fetch first post in thread: %w", err)
 	}
-	if depth > maxForwardingDepth {
+	if depth > cfg.MaxForwardingDepth {
 		log.Debug("Thread exceeds depth limit for forwarding")
 		return nil
 	}
 
-	prefix := fmt.Sprintf("https://%s/", cfg.Domain)
+	prefix := fmt.Sprintf("https://%s/", domain)
 	if !strings.HasPrefix(threadStarterID, prefix) {
 		log.Debug("Thread starter is federated")
 		return nil
@@ -95,8 +86,8 @@ func forwardActivity(ctx context.Context, log *slog.Logger, tx *sql.Tx, activity
 	return nil
 }
 
-func processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, req *ap.Activity, rawActivity []byte, post *ap.Object, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) error {
-	prefix := fmt.Sprintf("https://%s/", cfg.Domain)
+func processCreateActivity(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, sender *ap.Actor, req *ap.Activity, rawActivity []byte, post *ap.Object, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) error {
+	prefix := fmt.Sprintf("https://%s/", domain)
 	if strings.HasPrefix(sender.ID, prefix) || strings.HasPrefix(post.ID, prefix) || strings.HasPrefix(post.AttributedTo, prefix) || strings.HasPrefix(req.Actor, prefix) {
 		return fmt.Errorf("received invalid Create for %s by %s from %s", post.ID, post.AttributedTo, req.Actor)
 	}
@@ -123,7 +114,7 @@ func processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Act
 		return fmt.Errorf("cannot insert %s: %w", post.ID, err)
 	}
 
-	if err := forwardActivity(ctx, log, tx, req, rawActivity); err != nil {
+	if err := forwardActivity(ctx, domain, cfg, log, tx, req, rawActivity); err != nil {
 		return fmt.Errorf("cannot forward %s: %w", post.ID, err)
 	}
 
@@ -152,7 +143,7 @@ func processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Act
 	return nil
 }
 
-func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, req *ap.Activity, rawActivity []byte, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) error {
+func processActivity(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, sender *ap.Actor, req *ap.Activity, rawActivity []byte, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) error {
 	log.Debug("Processing activity")
 
 	switch req.Type {
@@ -195,7 +186,7 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			return errors.New("received an invalid follow request")
 		}
 
-		prefix := fmt.Sprintf("https://%s/", cfg.Domain)
+		prefix := fmt.Sprintf("https://%s/", domain)
 		if strings.HasPrefix(req.Actor, prefix) || !strings.HasPrefix(followed, prefix) {
 			return fmt.Errorf("received an invalid follow request for %s by %s", followed, req.Actor)
 		}
@@ -212,7 +203,7 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 
 		log.Info("Approving follow request", "follower", req.Actor, "followed", followed)
 
-		if err := outbox.Accept(ctx, followed, req.Actor, req.ID, db); err != nil {
+		if err := outbox.Accept(ctx, domain, followed, req.Actor, req.ID, db); err != nil {
 			return fmt.Errorf("failed to marshal accept response: %w", err)
 		}
 
@@ -264,7 +255,7 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			return errors.New("received an undo request with empty ID")
 		}
 
-		prefix := fmt.Sprintf("https://%s/", cfg.Domain)
+		prefix := fmt.Sprintf("https://%s/", domain)
 		if strings.HasPrefix(follower, prefix) {
 			return errors.New("received an undo request from local actor")
 		}
@@ -284,7 +275,7 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			return errors.New("received invalid Create")
 		}
 
-		return processCreateActivity(ctx, log, sender, req, rawActivity, post, db, resolver, from)
+		return processCreateActivity(ctx, domain, cfg, log, sender, req, rawActivity, post, db, resolver, from)
 
 	case ap.AnnounceActivity:
 		create, ok := req.Object.(*ap.Activity)
@@ -309,7 +300,7 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			return errors.New("sender is not post author or recipient")
 		}
 
-		return processCreateActivity(ctx, log, sender, create, rawActivity, post, db, resolver, from)
+		return processCreateActivity(ctx, domain, cfg, log, sender, create, rawActivity, post, db, resolver, from)
 
 	case ap.UpdateActivity:
 		post, ok := req.Object.(*ap.Object)
@@ -322,7 +313,7 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			return errors.New("received invalid Update")
 		}
 
-		prefix := fmt.Sprintf("https://%s/", cfg.Domain)
+		prefix := fmt.Sprintf("https://%s/", domain)
 		if strings.HasPrefix(post.ID, prefix) {
 			return fmt.Errorf("%s cannot update posts by %s", sender.ID, post.AttributedTo)
 		}
@@ -331,7 +322,7 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 		var lastUpdate int64
 		if err := db.QueryRowContext(ctx, `select max(inserted, updated), object from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastUpdate, &oldPostString); err != nil && errors.Is(err, sql.ErrNoRows) {
 			log.Debug("Received Update for non-existing post")
-			return processCreateActivity(ctx, log, sender, req, rawActivity, post, db, resolver, from)
+			return processCreateActivity(ctx, domain, cfg, log, sender, req, rawActivity, post, db, resolver, from)
 		} else if err != nil {
 			return fmt.Errorf("failed to get last update time for %s: %w", post.ID, err)
 		}
@@ -391,7 +382,7 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 			}
 		}
 
-		if err := forwardActivity(ctx, log, tx, req, rawActivity); err != nil {
+		if err := forwardActivity(ctx, domain, cfg, log, tx, req, rawActivity); err != nil {
 			return fmt.Errorf("failed to forward update pos %s: %w", post.ID, err)
 		}
 
@@ -418,8 +409,8 @@ func processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, re
 	return nil
 }
 
-func processActivityWithTimeout(parent context.Context, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity []byte, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) {
-	ctx, cancel := context.WithTimeout(parent, activityProcessingTimeout)
+func processActivityWithTimeout(parent context.Context, domain string, cfg *cfg.Config, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity []byte, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) {
+	ctx, cancel := context.WithTimeout(parent, cfg.ActivityProcessingTimeout)
 	defer cancel()
 
 	if o, ok := activity.Object.(*ap.Object); ok {
@@ -430,15 +421,15 @@ func processActivityWithTimeout(parent context.Context, log *slog.Logger, sender
 		log = log.With(slog.Group("activity", "id", activity.ID, "sender", sender.ID, "type", activity.Type, "actor", activity.Actor, slog.Group("object", "kind", "string", "id", s)))
 	}
 
-	if err := processActivity(ctx, log, sender, activity, rawActivity, db, resolver, from); err != nil {
+	if err := processActivity(ctx, domain, cfg, log, sender, activity, rawActivity, db, resolver, from); err != nil {
 		log.Warn("Failed to process activity", "error", err)
 	}
 }
 
-func ProcessBatch(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) (int, error) {
+func ProcessBatch(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) (int, error) {
 	log.Debug("Polling activities queue")
 
-	rows, err := db.QueryContext(ctx, `select inbox.id, persons.actor, inbox.activity from (select * from inbox limit -1 offset case when (select count(*) from inbox) >= $1 then $1/10 else 0 end) inbox left join persons on persons.id = inbox.sender order by inbox.id limit $2`, maxActivitiesQueueSize, activitiesBatchSize)
+	rows, err := db.QueryContext(ctx, `select inbox.id, persons.actor, inbox.activity from (select * from inbox limit -1 offset case when (select count(*) from inbox) >= $1 then $1/10 else 0 end) inbox left join persons on persons.id = inbox.sender order by inbox.id limit $2`, cfg.MaxActivitiesQueueSize, cfg.ActivitiesBatchSize)
 	if err != nil {
 		return 0, fmt.Errorf("failed to fetch activities to process: %w", err)
 	}
@@ -487,7 +478,7 @@ func ProcessBatch(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *f
 			return true
 		}
 
-		processActivityWithTimeout(ctx, log, &sender, &activity, []byte(activityString), db, resolver, from)
+		processActivityWithTimeout(ctx, domain, cfg, log, &sender, &activity, []byte(activityString), db, resolver, from)
 		return true
 	})
 
@@ -498,17 +489,17 @@ func ProcessBatch(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *f
 	return rowsCount, nil
 }
 
-func processQueue(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) error {
-	t := time.NewTicker(activitiesBatchDelay)
+func processQueue(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) error {
+	t := time.NewTicker(cfg.ActivitiesBatchDelay)
 	defer t.Stop()
 
 	for {
-		n, err := ProcessBatch(ctx, log, db, resolver, from)
+		n, err := ProcessBatch(ctx, domain, cfg, log, db, resolver, from)
 		if err != nil {
 			return err
 		}
 
-		if n < activitiesBatchSize {
+		if n < cfg.ActivitiesBatchSize {
 			return nil
 		}
 
@@ -521,8 +512,8 @@ func processQueue(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *f
 	}
 }
 
-func ProcessQueue(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) error {
-	t := time.NewTicker(activitiesPollingInterval)
+func ProcessQueue(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) error {
+	t := time.NewTicker(cfg.ActivitiesPollingInterval)
 	defer t.Stop()
 
 	for {
@@ -531,7 +522,7 @@ func ProcessQueue(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *f
 			return nil
 
 		case <-t.C:
-			if err := processQueue(ctx, log, db, resolver, from); err != nil {
+			if err := processQueue(ctx, domain, cfg, log, db, resolver, from); err != nil {
 				return err
 			}
 		}

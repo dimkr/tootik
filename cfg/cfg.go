@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,22 +16,260 @@ limitations under the License.
 
 package cfg
 
-import (
-	"flag"
-	"log/slog"
-)
+import "time"
 
-const (
-	MaxPostsLength      = 500
-	MaxResolverRequests = 16
-)
+type Config struct {
+	RegistrationInterval time.Duration
 
-var (
-	Domain   string
-	LogLevel int
-)
+	MaxPostsLength     int
+	MaxPostsPerDay     int64
+	PostThrottleFactor int64
+	PostThrottleUnit   time.Duration
 
-func init() {
-	flag.StringVar(&Domain, "domain", "localhost.localdomain:8443", "Domain name")
-	flag.IntVar(&LogLevel, "loglevel", int(slog.LevelInfo), "Logging verbosity")
+	EditThrottleFactor float64
+	EditThrottleUnit   time.Duration
+
+	PollMaxOptions int
+	PollDuration   time.Duration
+
+	MaxDisplayNameLength int
+	MaxBioLength         int
+	MinActorEditInterval time.Duration
+
+	MaxFollowsPerUser int
+
+	PostsPerPage   int
+	RepliesPerPage int
+	MaxOffset      int
+
+	MaxRequestBodySize int64
+
+	CompactViewMaxRunes int
+	CompactViewMaxLines int
+
+	CacheUpdateTimeout time.Duration
+
+	GeminiRequestTimeout time.Duration
+
+	GopherRequestTimeout time.Duration
+	LineWidth            int
+
+	GuppyRequestTimeout    time.Duration
+	MaxGuppySessions       int
+	GuppyChunkTimeout      time.Duration
+	GuppyResponseChunkSize int
+	MaxSentGuppyChunks     int
+
+	DeliveryBatchSize     int
+	DeliveryRetryInterval int64
+	MaxDeliveryAttempts   int
+	DeliveryTimeout       time.Duration
+
+	OutboxPollingInterval time.Duration
+
+	MaxActivitiesQueueSize    int
+	ActivitiesBatchSize       int
+	ActivitiesPollingInterval time.Duration
+	ActivitiesBatchDelay      time.Duration
+	ActivityProcessingTimeout time.Duration
+	MaxForwardingDepth        int
+
+	ResolverCacheTTL        time.Duration
+	ResolverRetryInterval   time.Duration
+	ResolverMaxIdleConns    int
+	ResolverIdleConnTimeout time.Duration
+	MaxInstanceRecoveryTime time.Duration
+	MaxResolverRequests     int
+
+	NotesTTL    time.Duration
+	DeliveryTTL time.Duration
+}
+
+func (c *Config) FillDefaults() {
+	if c.RegistrationInterval <= 0 {
+		c.RegistrationInterval = time.Hour
+	}
+
+	if c.MaxPostsLength <= 0 {
+		c.MaxPostsLength = 500
+	}
+
+	if c.MaxPostsPerDay <= 0 {
+		c.MaxPostsPerDay = 30
+	}
+
+	if c.PostThrottleFactor <= 0 {
+		c.PostThrottleFactor = 2
+	}
+
+	if c.PostThrottleUnit <= 0 {
+		c.PostThrottleUnit = time.Minute
+	}
+
+	if c.EditThrottleFactor <= 0 {
+		c.EditThrottleFactor = 4
+	}
+
+	if c.EditThrottleUnit <= 0 {
+		c.EditThrottleUnit = time.Minute
+	}
+
+	if c.PollMaxOptions < 2 {
+		c.PollMaxOptions = 5
+	}
+
+	if c.PollDuration <= 0 {
+		c.PollDuration = time.Hour * 24 * 30
+	}
+
+	if c.MaxDisplayNameLength <= 0 {
+		c.MaxDisplayNameLength = 30
+	}
+
+	if c.MaxBioLength <= 0 {
+		c.MaxBioLength = 500
+	}
+
+	if c.MinActorEditInterval <= 0 {
+		c.MinActorEditInterval = time.Minute * 30
+	}
+
+	if c.MaxFollowsPerUser <= 0 {
+		c.MaxFollowsPerUser = 150
+	}
+
+	if c.PostsPerPage <= 0 {
+		c.PostsPerPage = 30
+	}
+
+	if c.RepliesPerPage <= 0 {
+		c.RepliesPerPage = 10
+	}
+
+	if c.MaxOffset <= 0 {
+		c.MaxOffset = c.PostsPerPage * 30
+	}
+
+	if c.MaxRequestBodySize <= 0 {
+		c.MaxRequestBodySize = 1024 * 1024
+	}
+
+	if c.CompactViewMaxRunes <= 0 {
+		c.CompactViewMaxRunes = 200
+	}
+	if c.CompactViewMaxLines <= 0 {
+		c.CompactViewMaxLines = 4
+	}
+
+	if c.CacheUpdateTimeout <= 0 {
+		c.CacheUpdateTimeout = time.Second * 5
+	}
+
+	if c.GeminiRequestTimeout <= 0 {
+		c.GeminiRequestTimeout = time.Second * 30
+	}
+
+	if c.GopherRequestTimeout <= 0 {
+		c.GopherRequestTimeout = time.Second * 30
+	}
+
+	if c.LineWidth <= 0 {
+		c.LineWidth = 70
+	}
+
+	if c.GuppyRequestTimeout <= 0 {
+		c.GuppyRequestTimeout = time.Second * 30
+	}
+
+	if c.MaxGuppySessions <= 0 {
+		c.MaxGuppySessions = 30
+	}
+
+	if c.GuppyChunkTimeout <= 0 {
+		c.GuppyChunkTimeout = time.Second * 2
+	}
+
+	if c.GuppyResponseChunkSize <= 0 {
+		c.GuppyResponseChunkSize = 512
+	}
+
+	if c.MaxSentGuppyChunks <= 0 {
+		c.MaxSentGuppyChunks = 8
+	}
+
+	if c.DeliveryBatchSize <= 0 {
+		c.DeliveryBatchSize = 16
+	}
+
+	if c.DeliveryRetryInterval <= 0 {
+		c.DeliveryRetryInterval = int64((time.Hour / 2) / time.Second)
+	}
+
+	if c.MaxDeliveryAttempts <= 0 {
+		c.MaxDeliveryAttempts = 5
+	}
+
+	if c.DeliveryTimeout <= 0 {
+		c.DeliveryTimeout = time.Minute * 5
+	}
+
+	if c.OutboxPollingInterval <= 0 {
+		c.OutboxPollingInterval = time.Second * 5
+	}
+
+	if c.MaxActivitiesQueueSize <= 0 {
+		c.MaxActivitiesQueueSize = 10000
+	}
+
+	if c.ActivitiesBatchSize <= 0 {
+		c.ActivitiesBatchSize = 64
+	}
+
+	if c.ActivitiesPollingInterval <= 0 {
+		c.ActivitiesPollingInterval = time.Second * 5
+	}
+
+	if c.ActivitiesBatchDelay <= 0 {
+		c.ActivitiesBatchDelay = time.Millisecond * 100
+	}
+
+	if c.ActivityProcessingTimeout <= 0 {
+		c.ActivityProcessingTimeout = time.Second * 15
+	}
+
+	if c.MaxForwardingDepth <= 0 {
+		c.MaxForwardingDepth = 5
+	}
+
+	if c.ResolverCacheTTL <= 0 {
+		c.ResolverCacheTTL = time.Hour * 24 * 3
+	}
+
+	if c.ResolverRetryInterval <= 0 {
+		c.ResolverRetryInterval = time.Hour * 6
+	}
+
+	if c.ResolverMaxIdleConns <= 0 {
+		c.ResolverMaxIdleConns = 128
+	}
+
+	if c.ResolverIdleConnTimeout <= 0 {
+		c.ResolverIdleConnTimeout = time.Minute
+	}
+
+	if c.MaxInstanceRecoveryTime <= 0 {
+		c.MaxInstanceRecoveryTime = time.Hour * 24 * 30
+	}
+
+	if c.MaxResolverRequests <= 0 {
+		c.MaxResolverRequests = 16
+	}
+
+	if c.NotesTTL <= 0 {
+		c.NotesTTL = time.Hour * 24 * 30
+	}
+
+	if c.DeliveryTTL <= 0 {
+		c.DeliveryTTL = time.Hour * 24 * 7
+	}
 }

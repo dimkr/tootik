@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ type threadNode struct {
 	PostID, Inserted, AuthorUserName string
 }
 
-func thread(w text.Writer, r *request) {
+func (h *Handler) thread(w text.Writer, r *request) {
 	hash := filepath.Base(r.URL.Path)
 
 	offset, err := getOffset(r.URL)
@@ -59,7 +59,7 @@ func thread(w text.Writer, r *request) {
 		return
 	}
 
-	rows, err := r.Query(`select thread.depth, thread.id, strftime('%Y-%m-%d', datetime(thread.inserted, 'unixepoch')), persons.actor->>'preferredUsername' from (with recursive thread(id, author, inserted, parent, depth, path) as (select notes.id, notes.author, notes.inserted, object->>'inReplyTo' as parent, 0 as depth, notes.inserted || notes.id as path from notes where hash = $1 union select notes.id, notes.author, notes.inserted, notes.object->>'inReplyTo', t.depth + 1, t.path || notes.inserted || notes.id from thread t join notes on notes.object->>'inReplyTo' = t.id) select thread.depth, thread.id, thread.author, thread.inserted, thread.path from thread order by thread.path limit $2 offset $3) thread join persons on persons.id = thread.author order by thread.path`, hash, postsPerPage, offset)
+	rows, err := r.Query(`select thread.depth, thread.id, strftime('%Y-%m-%d', datetime(thread.inserted, 'unixepoch')), persons.actor->>'preferredUsername' from (with recursive thread(id, author, inserted, parent, depth, path) as (select notes.id, notes.author, notes.inserted, object->>'inReplyTo' as parent, 0 as depth, notes.inserted || notes.id as path from notes where hash = $1 union select notes.id, notes.author, notes.inserted, notes.object->>'inReplyTo', t.depth + 1, t.path || notes.inserted || notes.id from thread t join notes on notes.object->>'inReplyTo' = t.id) select thread.depth, thread.id, thread.author, thread.inserted, thread.path from thread order by thread.path limit $2 offset $3) thread join persons on persons.id = thread.author order by thread.path`, hash, h.Config.PostsPerPage, offset)
 	if err != nil {
 		r.Log.Info("Failed to fetch thread", "hash", hash, "error", err)
 		w.Status(40, "Post not found")
@@ -68,7 +68,7 @@ func thread(w text.Writer, r *request) {
 	defer rows.Close()
 
 	count := 0
-	nodes := make([]threadNode, postsPerPage)
+	nodes := make([]threadNode, h.Config.PostsPerPage)
 
 	for rows.Next() {
 		if err := rows.Scan(
@@ -95,13 +95,13 @@ func thread(w text.Writer, r *request) {
 
 	var displayName string
 	if rootAuthorName.Valid {
-		displayName = getDisplayName(rootAuthorID, rootAuthorUsername, rootAuthorName.String, ap.ActorType(rootAuthorType), r.Log)
+		displayName = h.getDisplayName(rootAuthorID, rootAuthorUsername, rootAuthorName.String, ap.ActorType(rootAuthorType), r.Log)
 	} else {
-		displayName = getDisplayName(rootAuthorID, rootAuthorUsername, "", ap.ActorType(rootAuthorType), r.Log)
+		displayName = h.getDisplayName(rootAuthorID, rootAuthorUsername, "", ap.ActorType(rootAuthorType), r.Log)
 	}
 
-	if offset > 0 && offset >= postsPerPage {
-		w.Titlef("🧵 Replies to %s (%d-%d)", displayName, offset, offset+postsPerPage)
+	if offset > 0 && offset >= h.Config.PostsPerPage {
+		w.Titlef("🧵 Replies to %s (%d-%d)", displayName, offset, offset+h.Config.PostsPerPage)
 	} else {
 		w.Titlef("🧵 Replies to %s", displayName)
 	}
@@ -125,7 +125,7 @@ func thread(w text.Writer, r *request) {
 		}
 	}
 
-	if (threadHead.Valid && count > 0 && threadHead.String != nodes[0].PostID) || offset >= postsPerPage || count == postsPerPage {
+	if (threadHead.Valid && count > 0 && threadHead.String != nodes[0].PostID) || offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
 		w.Separator()
 	}
 
@@ -135,21 +135,21 @@ func thread(w text.Writer, r *request) {
 		w.Link(fmt.Sprintf("/users/view/%x", sha256.Sum256([]byte(threadHead.String))), "View first post in thread")
 	}
 
-	if offset > postsPerPage && r.User == nil {
+	if offset > h.Config.PostsPerPage && r.User == nil {
 		w.Link("/thread/"+hash, "First page")
-	} else if offset > postsPerPage {
+	} else if offset > h.Config.PostsPerPage {
 		w.Link("/users/thread/"+hash, "First page")
 	}
 
-	if offset >= postsPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/thread/%s?%d", hash, offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
-	} else if offset >= postsPerPage {
-		w.Linkf(fmt.Sprintf("/users/thread/%s?%d", hash, offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
+	if offset >= h.Config.PostsPerPage && r.User == nil {
+		w.Linkf(fmt.Sprintf("/thread/%s?%d", hash, offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
+	} else if offset >= h.Config.PostsPerPage {
+		w.Linkf(fmt.Sprintf("/users/thread/%s?%d", hash, offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
 	}
 
-	if count == postsPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/thread/%s?%d", hash, offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
-	} else if count == postsPerPage {
-		w.Linkf(fmt.Sprintf("/users/thread/%s?%d", hash, offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
+	if count == h.Config.PostsPerPage && r.User == nil {
+		w.Linkf(fmt.Sprintf("/thread/%s?%d", hash, offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
+	} else if count == h.Config.PostsPerPage {
+		w.Linkf(fmt.Sprintf("/users/thread/%s?%d", hash, offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
 	}
 }

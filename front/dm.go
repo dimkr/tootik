@@ -25,7 +25,7 @@ import (
 	"path/filepath"
 )
 
-func dm(w text.Writer, r *request) {
+func (h *Handler) dm(w text.Writer, r *request) {
 	hash := filepath.Base(r.URL.Path)
 
 	var actorString string
@@ -64,5 +64,5 @@ func dm(w text.Writer, r *request) {
 
 	cc := ap.Audience{}
 
-	post(w, r, nil, nil, to, cc, "Message")
+	h.post(w, r, nil, nil, to, cc, "Message")
 }

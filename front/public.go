@@ -18,14 +18,11 @@ package front
 
 import (
 	"fmt"
-	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
 )
 
-const maxOffset = postsPerPage * 30
-
-func local(w text.Writer, r *request) {
+func (h *Handler) local(w text.Writer, r *request) {
 	offset, err := getOffset(r.URL)
 	if err != nil {
 		r.Log.Info("Failed to parse query", "url", r.URL, "error", err)
@@ -33,13 +30,13 @@ func local(w text.Writer, r *request) {
 		return
 	}
 
-	if offset > maxOffset {
+	if offset > h.Config.MaxOffset {
 		r.Log.Warn("Offset is too big", "offset", offset)
-		w.Statusf(40, "Offset must be <= %d", maxOffset)
+		w.Statusf(40, "Offset must be <= %d", h.Config.MaxOffset)
 		return
 	}
 
-	rows, err := r.Query(`select notes.object, persons.actor from notes left join (select object->>'inReplyTo' as id, count(*) as count from notes where inserted > unixepoch()-60*60*24*7 group by object->>'inReplyTo') replies on notes.id = replies.id join persons on notes.author = persons.id left join (select author, max(inserted) as last, count(*)/(60*60*24) as avg from notes where inserted > unixepoch()-60*60*24*7 group by author) stats on notes.author = stats.author where notes.public = 1 and notes.host = $1 order by notes.inserted / 86400 desc, replies.count desc, stats.avg asc, stats.last asc, notes.inserted desc limit $2 offset $3;`, cfg.Domain, postsPerPage, offset)
+	rows, err := r.Query(`select notes.object, persons.actor from notes left join (select object->>'inReplyTo' as id, count(*) as count from notes where inserted > unixepoch()-60*60*24*7 group by object->>'inReplyTo') replies on notes.id = replies.id join persons on notes.author = persons.id left join (select author, max(inserted) as last, count(*)/(60*60*24) as avg from notes where inserted > unixepoch()-60*60*24*7 group by author) stats on notes.author = stats.author where notes.public = 1 and notes.host = $1 order by notes.inserted / 86400 desc, replies.count desc, stats.avg asc, stats.last asc, notes.inserted desc limit $2 offset $3;`, h.Domain, h.Config.PostsPerPage, offset)
 	if err != nil {
 		r.Log.Warn("Failed to fetch public posts", "error", err)
 		w.Error()
@@ -65,8 +62,8 @@ func local(w text.Writer, r *request) {
 
 	w.OK()
 
-	if offset >= postsPerPage || count == postsPerPage {
-		w.Titlef("📡 This Planet (%d-%d)", offset, offset+postsPerPage)
+	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
+		w.Titlef("📡 This Planet (%d-%d)", offset, offset+h.Config.PostsPerPage)
 	} else {
 		w.Title("📡 This Planet")
 	}
@@ -77,24 +74,24 @@ func local(w text.Writer, r *request) {
 		r.PrintNotes(w, notes, true, true, true)
 	}
 
-	if offset >= postsPerPage || count == postsPerPage {
+	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
 		w.Separator()
 	}
 
-	if offset >= postsPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/local?%d", offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
-	} else if offset >= postsPerPage {
-		w.Linkf(fmt.Sprintf("/users/local?%d", offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
+	if offset >= h.Config.PostsPerPage && r.User == nil {
+		w.Linkf(fmt.Sprintf("/local?%d", offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
+	} else if offset >= h.Config.PostsPerPage {
+		w.Linkf(fmt.Sprintf("/users/local?%d", offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
 	}
 
-	if count == postsPerPage && offset+postsPerPage <= maxOffset && r.User == nil {
-		w.Linkf(fmt.Sprintf("/local?%d", offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
-	} else if count == postsPerPage && offset+postsPerPage <= maxOffset {
-		w.Linkf(fmt.Sprintf("/users/local?%d", offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
+	if count == h.Config.PostsPerPage && offset+h.Config.PostsPerPage <= h.Config.MaxOffset && r.User == nil {
+		w.Linkf(fmt.Sprintf("/local?%d", offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
+	} else if count == h.Config.PostsPerPage && offset+h.Config.PostsPerPage <= h.Config.MaxOffset {
+		w.Linkf(fmt.Sprintf("/users/local?%d", offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
 	}
 }
 
-func federated(w text.Writer, r *request) {
+func (h *Handler) federated(w text.Writer, r *request) {
 	offset, err := getOffset(r.URL)
 	if err != nil {
 		r.Log.Info("Failed to parse query", "url", r.URL, "error", err)
@@ -102,13 +99,13 @@ func federated(w text.Writer, r *request) {
 		return
 	}
 
-	if offset > maxOffset {
+	if offset > h.Config.MaxOffset {
 		r.Log.Warn("Offset is too big", "offset", offset)
-		w.Statusf(40, "Offset must be <= %d", maxOffset)
+		w.Statusf(40, "Offset must be <= %d", h.Config.MaxOffset)
 		return
 	}
 
-	rows, err := r.Query(`select notes.object, persons.actor, groups.actor from notes join persons on notes.author = persons.id left join (select author, max(inserted) as last, count(*)/(60*60*24) as avg from notes where inserted > unixepoch()-60*60*24*7 group by author) stats on notes.author = stats.author left join (select id, actor from persons where actor->>'type' = 'Group') groups on groups.id = notes.groupid where notes.public = 1 group by notes.id order by notes.inserted / 3600 desc, stats.avg asc, stats.last asc, notes.inserted desc limit $1 offset $2;`, postsPerPage, offset)
+	rows, err := r.Query(`select notes.object, persons.actor, groups.actor from notes join persons on notes.author = persons.id left join (select author, max(inserted) as last, count(*)/(60*60*24) as avg from notes where inserted > unixepoch()-60*60*24*7 group by author) stats on notes.author = stats.author left join (select id, actor from persons where actor->>'type' = 'Group') groups on groups.id = notes.groupid where notes.public = 1 group by notes.id order by notes.inserted / 3600 desc, stats.avg asc, stats.last asc, notes.inserted desc limit $1 offset $2;`, h.Config.PostsPerPage, offset)
 	if err != nil {
 		r.Log.Warn("Failed to fetch federated posts", "error", err)
 		w.Error()
@@ -134,32 +131,32 @@ func federated(w text.Writer, r *request) {
 
 	w.OK()
 
-	if offset >= postsPerPage || count == postsPerPage {
-		w.Titlef("✨️ FOMO From Outer Space (%d-%d)", offset, offset+postsPerPage)
+	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
+		w.Titlef("✨️ FOMO From Outer Space (%d-%d)", offset, offset+h.Config.PostsPerPage)
 	} else {
 		w.Title("✨️ FOMO From Outer Space")
 	}
 
 	r.PrintNotes(w, notes, true, true, true)
 
-	if offset >= postsPerPage || count == postsPerPage {
+	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
 		w.Separator()
 	}
 
-	if offset >= postsPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/federated?%d", offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
-	} else if offset >= postsPerPage {
-		w.Linkf(fmt.Sprintf("/users/federated?%d", offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
+	if offset >= h.Config.PostsPerPage && r.User == nil {
+		w.Linkf(fmt.Sprintf("/federated?%d", offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
+	} else if offset >= h.Config.PostsPerPage {
+		w.Linkf(fmt.Sprintf("/users/federated?%d", offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
 	}
 
-	if count == postsPerPage && offset+postsPerPage <= maxOffset && r.User == nil {
-		w.Linkf(fmt.Sprintf("/federated?%d", offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
-	} else if count == postsPerPage && offset+postsPerPage <= maxOffset {
-		w.Linkf(fmt.Sprintf("/users/federated?%d", offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
+	if count == h.Config.PostsPerPage && offset+h.Config.PostsPerPage <= h.Config.MaxOffset && r.User == nil {
+		w.Linkf(fmt.Sprintf("/federated?%d", offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
+	} else if count == h.Config.PostsPerPage && offset+h.Config.PostsPerPage <= h.Config.MaxOffset {
+		w.Linkf(fmt.Sprintf("/users/federated?%d", offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
 	}
 }
 
-func home(w text.Writer, r *request) {
+func (h *Handler) home(w text.Writer, r *request) {
 	if r.User != nil {
 		w.Redirect("/users")
 		return
@@ -167,6 +164,6 @@ func home(w text.Writer, r *request) {
 
 	w.OK()
 	w.Raw(logoAlt, logo)
-	w.Title(cfg.Domain)
-	w.Textf("Welcome, fedinaut! %s is an instance of tootik, a federated nanoblogging service.", cfg.Domain)
+	w.Title(h.Domain)
+	w.Textf("Welcome, fedinaut! %s is an instance of tootik, a federated nanoblogging service.", h.Domain)
 }

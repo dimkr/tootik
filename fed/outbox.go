@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
 	"log/slog"
 	"net/http"
 	"path/filepath"
@@ -32,14 +31,15 @@ import (
 const activitiesPerPage = 30
 
 type outboxHandler struct {
-	Log *slog.Logger
-	DB  *sql.DB
+	Log    *slog.Logger
+	DB     *sql.DB
+	Domain string
 }
 
 func (h *outboxHandler) getCollection(w http.ResponseWriter, r *http.Request, username, actorID string) {
 	collection := map[string]any{
 		"@context": "https://www.w3.org/ns/activitystreams",
-		"id":       fmt.Sprintf("https://%s/outbox/%s", cfg.Domain, username),
+		"id":       fmt.Sprintf("https://%s/outbox/%s", h.Domain, username),
 		"type":     "OrderedCollection",
 	}
 
@@ -64,7 +64,7 @@ func (h *outboxHandler) getCollection(w http.ResponseWriter, r *http.Request, us
 		return
 	}
 	if firstSince.Valid {
-		collection["first"] = fmt.Sprintf("https://%s/outbox/%s?0%d", cfg.Domain, username, firstSince.Int64)
+		collection["first"] = fmt.Sprintf("https://%s/outbox/%s?0%d", h.Domain, username, firstSince.Int64)
 	}
 
 	if totalItems.Valid && totalItems.Int64 > activitiesPerPage {
@@ -75,7 +75,7 @@ func (h *outboxHandler) getCollection(w http.ResponseWriter, r *http.Request, us
 			return
 		}
 		if lastSince.Valid {
-			collection["last"] = fmt.Sprintf("https://%s/outbox/%s?%d", cfg.Domain, username, lastSince.Int64)
+			collection["last"] = fmt.Sprintf("https://%s/outbox/%s?%d", h.Domain, username, lastSince.Int64)
 		}
 	} else if firstSince.Valid {
 		collection["last"] = collection["first"]
@@ -101,7 +101,7 @@ func (h *outboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	username := filepath.Base(r.URL.Path)
 
 	var actorID sql.NullString
-	if err := h.DB.QueryRowContext(r.Context(), `select id from persons where actor->>'preferredUsername' = ? and host = ?`, username, cfg.Domain).Scan(&actorID); err != nil {
+	if err := h.DB.QueryRowContext(r.Context(), `select id from persons where actor->>'preferredUsername' = ? and host = ?`, username, h.Domain).Scan(&actorID); err != nil {
 		h.Log.Warn("Failed to check if user exists", "username", username, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -112,7 +112,7 @@ func (h *outboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if shouldRedirect(r) {
-		outbox := fmt.Sprintf("gemini://%s/outbox/%x", cfg.Domain, sha256.Sum256([]byte(actorID.String)))
+		outbox := fmt.Sprintf("gemini://%s/outbox/%x", h.Domain, sha256.Sum256([]byte(actorID.String)))
 		h.Log.Info("Redirecting to outbox over Gemini", "outbox", outbox)
 		w.Header().Set("Location", outbox)
 		w.WriteHeader(http.StatusMovedPermanently)
@@ -169,9 +169,9 @@ func (h *outboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	page := map[string]any{
 		"@context":     []string{"https://www.w3.org/ns/activitystreams"},
-		"id":           fmt.Sprintf("https://%s/outbox/%s?%d", cfg.Domain, username, since),
+		"id":           fmt.Sprintf("https://%s/outbox/%s?%d", h.Domain, username, since),
 		"type":         "OrderedCollectionPage",
-		"partOf":       fmt.Sprintf("https://%s/outbox/%s", cfg.Domain, username),
+		"partOf":       fmt.Sprintf("https://%s/outbox/%s", h.Domain, username),
 		"orderedItems": activities,
 	}
 
@@ -182,7 +182,7 @@ func (h *outboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if nextSince.Valid {
-		page["next"] = fmt.Sprintf("https://%s/outbox/%s?%d", cfg.Domain, username, nextSince.Int64)
+		page["next"] = fmt.Sprintf("https://%s/outbox/%s?%d", h.Domain, username, nextSince.Int64)
 	}
 
 	var prevSince sql.NullInt64
@@ -192,7 +192,7 @@ func (h *outboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if prevSince.Valid {
-		page["prev"] = fmt.Sprintf("https://%s/outbox/%s?%d", cfg.Domain, username, prevSince.Int64)
+		page["prev"] = fmt.Sprintf("https://%s/outbox/%s?%d", h.Domain, username, prevSince.Int64)
 	}
 
 	j, err := json.Marshal(page)

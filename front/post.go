@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/text/plain"
 	"github.com/dimkr/tootik/outbox"
@@ -36,8 +35,6 @@ import (
 const (
 	pollOptionsDelimeter = "|"
 	pollMinOptions       = 2
-	pollMaxOptions       = 5
-	pollDuration         = time.Hour * 24 * 30
 )
 
 var (
@@ -46,7 +43,7 @@ var (
 	pollRegex    = regexp.MustCompile(`^\[(?:(?i)POLL)\s+(.+)\s*\]\s*(.+)`)
 )
 
-func post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo *ap.Object, to ap.Audience, cc ap.Audience, prompt string) {
+func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo *ap.Object, to ap.Audience, cc ap.Audience, prompt string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -62,7 +59,7 @@ func post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo *ap.Object, t
 			return
 		}
 
-		if today.Valid && today.Int64 >= 30 {
+		if today.Valid && today.Int64 >= h.Config.MaxPostsPerDay {
 			r.Log.Warn("User has exceeded the daily posts quota", "posts", today.Int64)
 			w.Status(40, "Please wait before posting again")
 			return
@@ -70,7 +67,7 @@ func post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo *ap.Object, t
 
 		if today.Valid && last.Valid {
 			t := time.Unix(last.Int64, 0)
-			interval := max(1, time.Duration(today.Int64/2)) * time.Minute
+			interval := max(1, time.Duration(today.Int64/h.Config.PostThrottleFactor)) * h.Config.PostThrottleUnit
 			if now.Sub(t) < interval {
 				r.Log.Warn("User is posting too frequently", "last", t, "can", t.Add(interval))
 				w.Status(40, "Please wait before posting again")
@@ -90,14 +87,14 @@ func post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo *ap.Object, t
 		return
 	}
 
-	if utf8.RuneCountInString(content) > cfg.MaxPostsLength {
+	if utf8.RuneCountInString(content) > h.Config.MaxPostsLength {
 		w.Status(40, "Post is too long")
 		return
 	}
 
 	var postID string
 	if oldNote == nil {
-		postID = fmt.Sprintf("https://%s/post/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", r.User.ID, content, now.Unix()))))
+		postID = fmt.Sprintf("https://%s/post/%x", h.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", r.User.ID, content, now.Unix()))))
 	} else {
 		postID = oldNote.ID
 	}
@@ -105,7 +102,7 @@ func post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo *ap.Object, t
 	var tags []ap.Mention
 
 	for _, hashtag := range hashtagRegex.FindAllString(content, -1) {
-		tags = append(tags, ap.Mention{Type: ap.HashtagMention, Name: hashtag, Href: fmt.Sprintf("gemini://%s/hashtag/%s", cfg.Domain, hashtag[1:])})
+		tags = append(tags, ap.Mention{Type: ap.HashtagMention, Name: hashtag, Href: fmt.Sprintf("gemini://%s/hashtag/%s", h.Domain, hashtag[1:])})
 	}
 
 	for _, mention := range mentionRegex.FindAllStringSubmatch(content, -1) {
@@ -115,9 +112,9 @@ func post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo *ap.Object, t
 		var actorID string
 		var err error
 		if mention[2] == "" && inReplyTo != nil {
-			err = r.QueryRow(`select id from (select id, case when id = $1 then 3 when id in (select followed from follows where follower = $2 and accepted = 1) then 2 when host = $3 then 1 else 0 end as score from persons where actor->>'preferredUsername' = $4) where score > 0 order by score desc limit 1`, inReplyTo.AttributedTo, r.User.ID, cfg.Domain, mention[1]).Scan(&actorID)
+			err = r.QueryRow(`select id from (select id, case when id = $1 then 3 when id in (select followed from follows where follower = $2 and accepted = 1) then 2 when host = $3 then 1 else 0 end as score from persons where actor->>'preferredUsername' = $4) where score > 0 order by score desc limit 1`, inReplyTo.AttributedTo, r.User.ID, h.Domain, mention[1]).Scan(&actorID)
 		} else if mention[2] == "" && inReplyTo == nil {
-			err = r.QueryRow(`select id from (select id, case when host = $1 then 2 when id in (select followed from follows where follower = $2 and accepted = 1) then 1 else 0 end as score from persons where actor->>'preferredUsername' = $3) where score > 0 order by score desc limit 1`, cfg.Domain, r.User.ID, mention[1]).Scan(&actorID)
+			err = r.QueryRow(`select id from (select id, case when host = $1 then 2 when id in (select followed from follows where follower = $2 and accepted = 1) then 1 else 0 end as score from persons where actor->>'preferredUsername' = $3) where score > 0 order by score desc limit 1`, h.Domain, r.User.ID, mention[1]).Scan(&actorID)
 		} else {
 			err = r.QueryRow(`select id from persons where actor->>'preferredUsername' = $1 and host = $2`, mention[1], mention[2]).Scan(&actorID)
 		}
@@ -176,10 +173,10 @@ func post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo *ap.Object, t
 	}
 
 	if m := pollRegex.FindStringSubmatchIndex(note.Content); m != nil {
-		optionNames := strings.SplitN(note.Content[m[4]:], pollOptionsDelimeter, pollMaxOptions+1)
-		if len(optionNames) < pollMinOptions || len(optionNames) > pollMaxOptions {
+		optionNames := strings.SplitN(note.Content[m[4]:], pollOptionsDelimeter, h.Config.PollMaxOptions+1)
+		if len(optionNames) < pollMinOptions || len(optionNames) > h.Config.PollMaxOptions {
 			r.Log.Info("Received invalid poll", "content", note.Content)
-			w.Statusf(40, "Polls must have %d to %d options", pollMinOptions, pollMaxOptions)
+			w.Statusf(40, "Polls must have %d to %d options", pollMinOptions, h.Config.PollMaxOptions)
 			return
 		}
 
@@ -197,7 +194,7 @@ func post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo *ap.Object, t
 
 		note.Type = ap.QuestionObject
 		note.Content = note.Content[m[2]:m[3]]
-		endTime := ap.Time{Time: time.Now().Add(pollDuration)}
+		endTime := ap.Time{Time: time.Now().Add(h.Config.PollDuration)}
 		note.EndTime = &endTime
 	}
 
@@ -208,9 +205,9 @@ func post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo *ap.Object, t
 	if oldNote != nil {
 		note.Published = oldNote.Published
 		note.Updated = &now
-		err = outbox.UpdateNote(r.Context, r.DB, &note)
+		err = outbox.UpdateNote(r.Context, h.Domain, r.DB, &note)
 	} else {
-		err = outbox.Create(r.Context, r.Log, r.DB, &note, r.User)
+		err = outbox.Create(r.Context, h.Domain, h.Config, r.Log, r.DB, &note, r.User)
 	}
 	if err != nil {
 		r.Log.Error("Failed to insert post", "error", err)

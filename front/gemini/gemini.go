@@ -36,9 +36,7 @@ import (
 	"time"
 )
 
-const reqTimeout = time.Second * 30
-
-func getUser(ctx context.Context, db *sql.DB, conn net.Conn, tlsConn *tls.Conn, log *slog.Logger) (*ap.Actor, error) {
+func getUser(ctx context.Context, domain string, db *sql.DB, conn net.Conn, tlsConn *tls.Conn, log *slog.Logger) (*ap.Actor, error) {
 	state := tlsConn.ConnectionState()
 
 	if len(state.PeerCertificates) == 0 {
@@ -51,7 +49,7 @@ func getUser(ctx context.Context, db *sql.DB, conn net.Conn, tlsConn *tls.Conn, 
 
 	id := ""
 	actorString := ""
-	if err := db.QueryRowContext(ctx, `select id, actor from persons where host = ? and certhash = ?`, cfg.Domain, certHash).Scan(&id, &actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := db.QueryRowContext(ctx, `select id, actor from persons where host = ? and certhash = ?`, domain, certHash).Scan(&id, &actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
 		return nil, front.ErrNotRegistered
 	} else if err != nil {
 		return nil, fmt.Errorf("failed to fetch user for %s: %w", certHash, err)
@@ -67,8 +65,8 @@ func getUser(ctx context.Context, db *sql.DB, conn net.Conn, tlsConn *tls.Conn, 
 	return &actor, nil
 }
 
-func Handle(ctx context.Context, handler front.Handler, conn net.Conn, db *sql.DB, resolver *fed.Resolver, wg *sync.WaitGroup, log *slog.Logger) {
-	if err := conn.SetDeadline(time.Now().Add(reqTimeout)); err != nil {
+func Handle(ctx context.Context, domain string, cfg *cfg.Config, handler front.Handler, conn net.Conn, db *sql.DB, resolver *fed.Resolver, wg *sync.WaitGroup, log *slog.Logger) {
+	if err := conn.SetDeadline(time.Now().Add(cfg.GeminiRequestTimeout)); err != nil {
 		log.Warn("Failed to set deadline", "error", err)
 		return
 	}
@@ -116,7 +114,7 @@ func Handle(ctx context.Context, handler front.Handler, conn net.Conn, db *sql.D
 
 	w := gmi.Wrap(conn)
 
-	user, err := getUser(ctx, db, conn, tlsConn, log)
+	user, err := getUser(ctx, domain, db, conn, tlsConn, log)
 	if err != nil && errors.Is(err, front.ErrNotRegistered) && reqUrl.Path == "/users" {
 		log.Info("Redirecting new user")
 		w.Redirect("/users/register")
@@ -130,7 +128,7 @@ func Handle(ctx context.Context, handler front.Handler, conn net.Conn, db *sql.D
 	handler.Handle(ctx, log, w, reqUrl, user, db, resolver, wg)
 }
 
-func ListenAndServe(ctx context.Context, log *slog.Logger, db *sql.DB, handler front.Handler, resolver *fed.Resolver, addr, certPath, keyPath string) error {
+func ListenAndServe(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, handler front.Handler, resolver *fed.Resolver, addr, certPath, keyPath string) error {
 	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
 		return err
@@ -175,13 +173,13 @@ func ListenAndServe(ctx context.Context, log *slog.Logger, db *sql.DB, handler f
 		select {
 		case <-ctx.Done():
 		case conn := <-conns:
-			requestCtx, cancelRequest := context.WithTimeout(ctx, reqTimeout)
+			requestCtx, cancelRequest := context.WithTimeout(ctx, cfg.GeminiRequestTimeout)
 
-			timer := time.AfterFunc(reqTimeout, cancelRequest)
+			timer := time.AfterFunc(cfg.GeminiRequestTimeout, cancelRequest)
 
 			wg.Add(1)
 			go func() {
-				Handle(requestCtx, handler, conn, db, resolver, &wg, log)
+				Handle(requestCtx, domain, cfg, handler, conn, db, resolver, &wg, log)
 				conn.Close()
 				timer.Stop()
 				cancelRequest()

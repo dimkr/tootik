@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,7 +27,6 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/buildinfo"
-	"github.com/dimkr/tootik/cfg"
 	"github.com/go-fed/httpsig"
 	"io"
 	"log/slog"
@@ -37,25 +36,25 @@ import (
 
 var userAgent = "tootik/" + buildinfo.Version
 
-func send(log *slog.Logger, db *sql.DB, from *ap.Actor, resolver *Resolver, r *http.Request) (*http.Response, error) {
-	urlString := r.URL.String()
+func (r *Resolver) send(log *slog.Logger, db *sql.DB, from *ap.Actor, req *http.Request) (*http.Response, error) {
+	urlString := req.URL.String()
 
-	if r.URL.Scheme != "https" {
-		return nil, fmt.Errorf("invalid scheme in %s: %s", urlString, r.URL.Scheme)
+	if req.URL.Scheme != "https" {
+		return nil, fmt.Errorf("invalid scheme in %s: %s", urlString, req.URL.Scheme)
 	}
 
-	if r.URL.Host == "localhost" || r.URL.Host == "localhost.localdomain" || r.URL.Host == "127.0.0.1" || r.URL.Host == "::1" {
-		return nil, fmt.Errorf("invalid host in %s: %s", urlString, r.URL.Host)
+	if req.URL.Host == "localhost" || req.URL.Host == "localhost.localdomain" || req.URL.Host == "127.0.0.1" || req.URL.Host == "::1" {
+		return nil, fmt.Errorf("invalid host in %s: %s", urlString, req.URL.Host)
 	}
 
-	r.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
+	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	if from == nil {
 		log.Debug("Sending request", "url", urlString)
 	} else {
 		log.Debug("Sending request", "url", urlString, "from", from.ID)
 		var publicKeyID, privateKeyPemString string
-		if err := db.QueryRowContext(r.Context(), `select actor->>'publicKey.id', privkey from persons where id = ?`, from.ID).Scan(&publicKeyID, &privateKeyPemString); err != nil {
+		if err := db.QueryRowContext(req.Context(), `select actor->>'publicKey.id', privkey from persons where id = ?`, from.ID).Scan(&publicKeyID, &privateKeyPemString); err != nil {
 			return nil, fmt.Errorf("failed to fetch key for %s: %w", from.ID, err)
 		}
 
@@ -73,15 +72,15 @@ func send(log *slog.Logger, db *sql.DB, from *ap.Actor, resolver *Resolver, r *h
 		var body []byte
 		var hash [sha256.Size]byte
 
-		if r.Body == nil {
+		if req.Body == nil {
 			hash = sha256.Sum256(nil)
 		} else {
-			body, err = io.ReadAll(r.Body)
+			body, err = io.ReadAll(req.Body)
 			if err != nil {
 				return nil, fmt.Errorf("failed to read body for %s: %w", urlString, err)
 			}
 
-			r.Body = io.NopCloser(bytes.NewReader(body))
+			req.Body = io.NopCloser(bytes.NewReader(body))
 			hash = sha256.Sum256(body)
 		}
 
@@ -96,22 +95,22 @@ func send(log *slog.Logger, db *sql.DB, from *ap.Actor, resolver *Resolver, r *h
 			}
 		}
 
-		r.Header.Add("Digest", "SHA-256="+base64.StdEncoding.EncodeToString(hash[:]))
-		r.Header.Add("Date", time.Now().UTC().Format(http.TimeFormat))
-		r.Header.Add("Host", r.URL.Host)
+		req.Header.Add("Digest", "SHA-256="+base64.StdEncoding.EncodeToString(hash[:]))
+		req.Header.Add("Date", time.Now().UTC().Format(http.TimeFormat))
+		req.Header.Add("Host", req.URL.Host)
 
-		if err := signer.SignRequest(privateKey, publicKeyID, r, nil); err != nil {
+		if err := signer.SignRequest(privateKey, publicKeyID, req, nil); err != nil {
 			return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
 		}
 	}
 
-	resp, err := resolver.Client.Do(r)
+	resp, err := r.Client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request to %s: %w", urlString, err)
 	}
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		body, err := io.ReadAll(io.LimitReader(resp.Body, maxBodySize))
+		body, err := io.ReadAll(io.LimitReader(resp.Body, r.Config.MaxRequestBodySize))
 		resp.Body.Close()
 		if err != nil {
 			return resp, fmt.Errorf("failed to send request to %s: %d, %w", urlString, resp.StatusCode, err)
@@ -122,25 +121,25 @@ func send(log *slog.Logger, db *sql.DB, from *ap.Actor, resolver *Resolver, r *h
 	return resp, nil
 }
 
-func Send(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, resolver *Resolver, inbox string, body []byte) error {
+func (r *Resolver) Send(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, inbox string, body []byte) error {
 	if inbox == "" {
 		return fmt.Errorf("cannot send request to %s: empty URL", inbox)
 	}
 
-	r, err := http.NewRequestWithContext(ctx, http.MethodPost, inbox, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, inbox, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("failed to send request to %s: %w", inbox, err)
 	}
 
-	if r.URL.Host == cfg.Domain {
+	if req.URL.Host == r.Domain {
 		log.Info("Skipping request", "inbox", inbox, "from", from.ID)
 		return nil
 	}
 
-	r.Header.Set("User-Agent", userAgent)
-	r.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
+	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
-	resp, err := send(log, db, from, resolver, r)
+	resp, err := r.send(log, db, from, req)
 	if err != nil {
 		return fmt.Errorf("failed to send request to %s: %w", inbox, err)
 	}

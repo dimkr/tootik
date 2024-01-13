@@ -34,10 +34,8 @@ import (
 	"log/slog"
 )
 
-const reqTimeout = time.Second * 30
-
-func handle(ctx context.Context, conn net.Conn, db *sql.DB, log *slog.Logger, wg *sync.WaitGroup) {
-	if err := conn.SetDeadline(time.Now().Add(reqTimeout)); err != nil {
+func handle(ctx context.Context, domain string, cfg *cfg.Config, conn net.Conn, db *sql.DB, log *slog.Logger, wg *sync.WaitGroup) {
+	if err := conn.SetDeadline(time.Now().Add(cfg.GuppyRequestTimeout)); err != nil {
 		log.Warn("Failed to set deadline", "error", err)
 		return
 	}
@@ -75,7 +73,7 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, log *slog.Logger, wg
 	}
 
 	sep := strings.IndexByte(user, '@')
-	if sep > 0 && user[sep+1:] != cfg.Domain {
+	if sep > 0 && user[sep+1:] != domain {
 		log.Warn("Invalid domain specified")
 		return
 	} else if sep > 0 {
@@ -83,7 +81,7 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, log *slog.Logger, wg
 	}
 
 	var actorString string
-	if err := db.QueryRowContext(ctx, `select actor from persons where actor->>'preferredUsername' = ? and host = ?`, user, cfg.Domain).Scan(&actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := db.QueryRowContext(ctx, `select actor from persons where actor->>'preferredUsername' = ? and host = ?`, user, domain).Scan(&actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
 		log.Info("User does not exist")
 		fmt.Fprintf(conn, "Login: %s\r\nPlan:\r\nNo Plan.\r\n", user)
 		return
@@ -181,7 +179,7 @@ func handle(ctx context.Context, conn net.Conn, db *sql.DB, log *slog.Logger, wg
 	}
 }
 
-func ListenAndServe(ctx context.Context, log *slog.Logger, db *sql.DB, addr string) error {
+func ListenAndServe(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, addr string) error {
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
@@ -216,13 +214,13 @@ func ListenAndServe(ctx context.Context, log *slog.Logger, db *sql.DB, addr stri
 		select {
 		case <-ctx.Done():
 		case conn := <-conns:
-			requestCtx, cancelRequest := context.WithTimeout(ctx, reqTimeout)
+			requestCtx, cancelRequest := context.WithTimeout(ctx, cfg.GuppyRequestTimeout)
 
-			timer := time.AfterFunc(reqTimeout, cancelRequest)
+			timer := time.AfterFunc(cfg.GuppyRequestTimeout, cancelRequest)
 
 			wg.Add(1)
 			go func() {
-				handle(requestCtx, conn, db, log, &wg)
+				handle(requestCtx, domain, cfg, conn, db, log, &wg)
 				conn.Close()
 				timer.Stop()
 				cancelRequest()

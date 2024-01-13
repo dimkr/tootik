@@ -29,13 +29,13 @@ import (
 	"path/filepath"
 )
 
-const maxBodySize = 1024 * 1024
-
 type inboxHandler struct {
 	Log      *slog.Logger
 	DB       *sql.DB
 	Resolver *Resolver
 	Actor    *ap.Actor
+	Domain   string
+	Config   *cfg.Config
 }
 
 func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
@@ -46,7 +46,7 @@ func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	receiver := filepath.Base(r.URL.Path)
 	var registered int
-	if err := h.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where actor->>'preferredUsername' = ? and host = ?)`, receiver, cfg.Domain).Scan(&registered); err != nil {
+	if err := h.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where actor->>'preferredUsername' = ? and host = ?)`, receiver, h.Domain).Scan(&registered); err != nil {
 		h.Log.Warn("Failed to check if receiving user exists", "receiver", receiver, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -56,7 +56,7 @@ func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, err := io.ReadAll(io.LimitReader(r.Body, maxBodySize))
+	body, err := io.ReadAll(io.LimitReader(r.Body, h.Config.MaxRequestBodySize))
 	if err != nil {
 		return
 	}
@@ -76,7 +76,7 @@ func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		offline = true
 	}
 
-	sender, err := verify(r.Context(), h.Log, r, h.DB, h.Resolver, h.Actor, offline)
+	sender, err := verify(r.Context(), h.Domain, h.Log, r, h.DB, h.Resolver, h.Actor, offline)
 	if err != nil {
 		if errors.Is(err, ErrActorGone) {
 			w.WriteHeader(http.StatusOK)

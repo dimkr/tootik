@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,9 +25,7 @@ import (
 	"path/filepath"
 )
 
-const maxFollowsPerUser = 150
-
-func follow(w text.Writer, r *request) {
+func (h *Handler) follow(w text.Writer, r *request) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -53,7 +51,7 @@ func follow(w text.Writer, r *request) {
 		return
 	}
 
-	if follows >= maxFollowsPerUser {
+	if follows >= h.Config.MaxFollowsPerUser {
 		w.Status(40, "Following too many users")
 		return
 	}
@@ -69,7 +67,7 @@ func follow(w text.Writer, r *request) {
 		return
 	}
 
-	if err := outbox.Follow(r.Context, r.User, followed, r.DB); err != nil {
+	if err := outbox.Follow(r.Context, h.Domain, r.User, followed, r.DB); err != nil {
 		r.Log.Warn("Failed to follow user", "followed", followed, "error", err)
 		w.Error()
 		return

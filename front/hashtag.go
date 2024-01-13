@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 )
 
-func hashtag(w text.Writer, r *request) {
+func (h *Handler) hashtag(w text.Writer, r *request) {
 	offset, err := getOffset(r.URL)
 	if err != nil {
 		w.Status(40, "Invalid query")
@@ -32,7 +32,7 @@ func hashtag(w text.Writer, r *request) {
 
 	tag := filepath.Base(r.URL.Path)
 
-	rows, err := r.Query(`select notes.object, persons.actor from notes join hashtags on notes.id = hashtags.note left join (select object->>'inReplyTo' as id, count(*) as count from notes where inserted >= unixepoch() - 7*24*60*60 group by object->>'inReplyTo') replies on notes.id = replies.id left join persons on notes.author = persons.id where notes.public = 1 and hashtags.hashtag = $1 order by replies.count desc, notes.inserted/(24*60*60) desc, notes.inserted desc limit $2 offset $3`, tag, postsPerPage, offset)
+	rows, err := r.Query(`select notes.object, persons.actor from notes join hashtags on notes.id = hashtags.note left join (select object->>'inReplyTo' as id, count(*) as count from notes where inserted >= unixepoch() - 7*24*60*60 group by object->>'inReplyTo') replies on notes.id = replies.id left join persons on notes.author = persons.id where notes.public = 1 and hashtags.hashtag = $1 order by replies.count desc, notes.inserted/(24*60*60) desc, notes.inserted desc limit $2 offset $3`, tag, h.Config.PostsPerPage, offset)
 	if err != nil {
 		r.Log.Error("Failed to fetch notes by hashtag", "hashtag", tag, "error", err)
 		w.Error()
@@ -58,8 +58,8 @@ func hashtag(w text.Writer, r *request) {
 
 	w.OK()
 
-	if offset >= postsPerPage || count == postsPerPage {
-		w.Titlef("Posts Tagged #%s (%d-%d)", tag, offset, offset+postsPerPage)
+	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
+		w.Titlef("Posts Tagged #%s (%d-%d)", tag, offset, offset+h.Config.PostsPerPage)
 	} else {
 		w.Titlef("Posts Tagged #%s", tag)
 	}
@@ -70,20 +70,20 @@ func hashtag(w text.Writer, r *request) {
 		r.PrintNotes(w, notes, true, true, false)
 	}
 
-	if offset >= postsPerPage || count == postsPerPage {
+	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
 		w.Separator()
 	}
 
-	if offset >= postsPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/hashtag/%s?%d", tag, offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
-	} else if offset >= postsPerPage {
-		w.Linkf(fmt.Sprintf("/users/hashtag/%s?%d", tag, offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
+	if offset >= h.Config.PostsPerPage && r.User == nil {
+		w.Linkf(fmt.Sprintf("/hashtag/%s?%d", tag, offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
+	} else if offset >= h.Config.PostsPerPage {
+		w.Linkf(fmt.Sprintf("/users/hashtag/%s?%d", tag, offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
 	}
 
-	if count == postsPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/hashtag/%s?%d", tag, offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
-	} else if count == postsPerPage {
-		w.Linkf(fmt.Sprintf("/users/hashtag/%s?%d", tag, offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
+	if count == h.Config.PostsPerPage && r.User == nil {
+		w.Linkf(fmt.Sprintf("/hashtag/%s?%d", tag, offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
+	} else if count == h.Config.PostsPerPage {
+		w.Linkf(fmt.Sprintf("/users/hashtag/%s?%d", tag, offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
 	}
 
 	w.Separator()

@@ -25,7 +25,7 @@ import (
 	"path/filepath"
 )
 
-func reply(w text.Writer, r *request) {
+func (h *Handler) reply(w text.Writer, r *request) {
 	hash := filepath.Base(r.URL.Path)
 
 	var noteString string
@@ -82,5 +82,5 @@ func reply(w text.Writer, r *request) {
 		cc.Add(group.String)
 	}
 
-	post(w, r, nil, &note, to, cc, "Reply content")
+	h.post(w, r, nil, &note, to, cc, "Reply content")
 }

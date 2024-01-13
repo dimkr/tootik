@@ -21,15 +21,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/dimkr/tootik/cfg"
 	"log/slog"
 	"net/http"
 	"path/filepath"
 )
 
 type userHandler struct {
-	Log *slog.Logger
-	DB  *sql.DB
+	Log    *slog.Logger
+	DB     *sql.DB
+	Domain string
 }
 
 func (h *userHandler) Handle(w http.ResponseWriter, r *http.Request) {
@@ -43,7 +43,7 @@ func (h *userHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	h.Log.Info("Looking up user", "name", name)
 
 	var actorID, actorString string
-	if err := h.DB.QueryRowContext(r.Context(), `select id, actor from persons where actor->>'preferredUsername' = ? and host = ?`, name, cfg.Domain).Scan(&actorID, &actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := h.DB.QueryRowContext(r.Context(), `select id, actor from persons where actor->>'preferredUsername' = ? and host = ?`, name, h.Domain).Scan(&actorID, &actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
 		h.Log.Info("Notifying about deleted user", "id", actorID)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -54,7 +54,7 @@ func (h *userHandler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	// redirect browsers to the outbox page over Gemini
 	if shouldRedirect(r) {
-		outbox := fmt.Sprintf("gemini://%s/outbox/%x", cfg.Domain, sha256.Sum256([]byte(actorID)))
+		outbox := fmt.Sprintf("gemini://%s/outbox/%x", h.Domain, sha256.Sum256([]byte(actorID)))
 		h.Log.Info("Redirecting to outbox over Gemini", "outbox", outbox)
 		w.Header().Set("Location", outbox)
 		w.WriteHeader(http.StatusMovedPermanently)

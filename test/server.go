@@ -23,6 +23,7 @@ import (
 	"context"
 	"database/sql"
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/front/text/gmi"
@@ -34,7 +35,10 @@ import (
 	"os"
 )
 
+const domain = "localhost.localdomain:8443"
+
 type server struct {
+	cfg     *cfg.Config
 	db      *sql.DB
 	dbPath  string
 	handler front.Handler
@@ -63,34 +67,38 @@ func newTestServer() *server {
 		panic(err)
 	}
 
-	if err := migrations.Run(context.Background(), slog.Default(), db); err != nil {
+	var cfg cfg.Config
+	cfg.FillDefaults()
+
+	if err := migrations.Run(context.Background(), slog.Default(), domain, db); err != nil {
 		panic(err)
 	}
 
-	alice, err := user.Create(context.Background(), db, "alice", "a")
+	alice, err := user.Create(context.Background(), domain, db, "alice", "a")
 	if err != nil {
 		panic(err)
 	}
 
-	bob, err := user.Create(context.Background(), db, "bob", "b")
+	bob, err := user.Create(context.Background(), domain, db, "bob", "b")
 	if err != nil {
 		panic(err)
 	}
 
-	carol, err := user.Create(context.Background(), db, "carol", "c")
+	carol, err := user.Create(context.Background(), domain, db, "carol", "c")
 	if err != nil {
 		panic(err)
 	}
 
-	nobody, err := user.CreateNobody(context.Background(), db)
+	nobody, err := user.CreateNobody(context.Background(), domain, db)
 	if err != nil {
 		panic(err)
 	}
 
 	return &server{
+		cfg:     &cfg,
 		dbPath:  path,
 		db:      db,
-		handler: front.NewHandler(false),
+		handler: front.NewHandler(domain, false, &cfg),
 		Alice:   alice,
 		Bob:     bob,
 		Carol:   carol,
@@ -106,7 +114,7 @@ func (s *server) Handle(request string, user *ap.Actor) string {
 
 	var buf bytes.Buffer
 	var wg sync.WaitGroup
-	s.handler.Handle(context.Background(), slog.Default(), gmi.Wrap(&buf), u, user, s.db, fed.NewResolver(nil), &wg)
+	s.handler.Handle(context.Background(), slog.Default(), gmi.Wrap(&buf), u, user, s.db, fed.NewResolver(nil, domain, s.cfg), &wg)
 
 	return buf.String()
 }

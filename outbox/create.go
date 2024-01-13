@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/inbox/note"
 	"log/slog"
 	"time"
@@ -35,9 +34,9 @@ const maxDeliveryQueueSize = 128
 
 var ErrDeliveryQueueFull = errors.New("delivery queue is full")
 
-func Create(ctx context.Context, log *slog.Logger, db *sql.DB, post *ap.Object, author *ap.Actor) error {
+func Create(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, post *ap.Object, author *ap.Actor) error {
 	var queueSize int
-	if err := db.QueryRowContext(ctx, `select count(*) from outbox where sent = 0 and attempts < ?`, fed.MaxDeliveryAttempts).Scan(&queueSize); err != nil {
+	if err := db.QueryRowContext(ctx, `select count(*) from outbox where sent = 0 and attempts < ?`, cfg.MaxDeliveryAttempts).Scan(&queueSize); err != nil {
 		return fmt.Errorf("failed to query delivery queue size: %w", err)
 	}
 
@@ -48,7 +47,7 @@ func Create(ctx context.Context, log *slog.Logger, db *sql.DB, post *ap.Object, 
 	create, err := json.Marshal(ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		Type:    ap.CreateActivity,
-		ID:      fmt.Sprintf("https://%s/create/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", post.ID, time.Now().Unix())))),
+		ID:      fmt.Sprintf("https://%s/create/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", post.ID, time.Now().Unix())))),
 		Actor:   author.ID,
 		Object:  post,
 		To:      post.To,

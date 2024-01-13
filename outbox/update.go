@@ -23,18 +23,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
 	inote "github.com/dimkr/tootik/inbox/note"
 	"time"
 )
 
-func UpdateNote(ctx context.Context, db *sql.DB, note *ap.Object) error {
+func UpdateNote(ctx context.Context, domain string, db *sql.DB, note *ap.Object) error {
 	body, err := json.Marshal(note)
 	if err != nil {
 		return fmt.Errorf("failed to marshal note: %w", err)
 	}
 
-	updateID := fmt.Sprintf("https://%s/update/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", note.ID, time.Now().UnixNano()))))
+	updateID := fmt.Sprintf("https://%s/update/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", note.ID, time.Now().UnixNano()))))
 
 	update, err := json.Marshal(ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
@@ -189,8 +188,8 @@ func UpdateNote(ctx context.Context, db *sql.DB, note *ap.Object) error {
 	return nil
 }
 
-func UpdateActor(ctx context.Context, tx *sql.Tx, actorID string) error {
-	updateID := fmt.Sprintf("https://%s/update/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", actorID, time.Now().UnixNano()))))
+func UpdateActor(ctx context.Context, domain string, tx *sql.Tx, actorID string) error {
+	updateID := fmt.Sprintf("https://%s/update/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", actorID, time.Now().UnixNano()))))
 
 	to := ap.Audience{}
 	to.Add(ap.Public)

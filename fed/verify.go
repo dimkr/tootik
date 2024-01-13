@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,13 +24,12 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
 	"github.com/go-fed/httpsig"
 	"log/slog"
 	"net/http"
 )
 
-func verify(ctx context.Context, log *slog.Logger, r *http.Request, db *sql.DB, resolver *Resolver, from *ap.Actor, offline bool) (*ap.Actor, error) {
+func verify(ctx context.Context, domain string, log *slog.Logger, r *http.Request, db *sql.DB, resolver *Resolver, from *ap.Actor, offline bool) (*ap.Actor, error) {
 	sig := r.Header.Get("Signature")
 	if sig == "" {
 		return nil, errors.New("failed to verify message: no signature")
@@ -56,7 +55,7 @@ func verify(ctx context.Context, log *slog.Logger, r *http.Request, db *sql.DB, 
 	}
 
 	if r.Header.Get("Host") == "" {
-		r.Header.Add("Host", cfg.Domain)
+		r.Header.Add("Host", domain)
 	}
 
 	if err := verifier.Verify(publicKey, httpsig.RSA_SHA256); err != nil {

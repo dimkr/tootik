@@ -1,6 +1,6 @@
 #!/bin/sh -e
 
-# Copyright 2023 Dima Krasner
+# Copyright 2023, 2024 Dima Krasner
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ import (
 	"database/sql"
 )
 
-func $1(ctx context.Context, tx *sql.Tx) error {
+func $1(ctx context.Context, domain string, tx *sql.Tx) error {
 	// do stuff
 
 	return nil

@@ -27,12 +27,7 @@ import (
 	"unicode/utf8"
 )
 
-const (
-	minNameEditInterval = time.Minute * 30
-	maxNameLength       = 30
-)
-
-func name(w text.Writer, r *request) {
+func (h *Handler) name(w text.Writer, r *request) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -40,7 +35,7 @@ func name(w text.Writer, r *request) {
 
 	now := time.Now()
 
-	if (r.User.Updated != nil && now.Sub(r.User.Updated.Time) < minNameEditInterval) || (r.User.Updated == nil && now.Sub(r.User.Published.Time) < minNameEditInterval) {
+	if (r.User.Updated != nil && now.Sub(r.User.Updated.Time) < h.Config.MinActorEditInterval) || (r.User.Updated == nil && now.Sub(r.User.Published.Time) < h.Config.MinActorEditInterval) {
 		r.Log.Warn("Throttled request to set name")
 		w.Status(40, "Please try again later")
 		return
@@ -64,7 +59,7 @@ func name(w text.Writer, r *request) {
 		return
 	}
 
-	if utf8.RuneCountInString(plainDisplayName) > maxNameLength {
+	if utf8.RuneCountInString(plainDisplayName) > h.Config.MaxDisplayNameLength {
 		w.Status(40, "Display name is too long")
 		return
 	}
@@ -89,7 +84,7 @@ func name(w text.Writer, r *request) {
 		return
 	}
 
-	if err := outbox.UpdateActor(r.Context, tx, r.User.ID); err != nil {
+	if err := outbox.UpdateActor(r.Context, h.Domain, tx, r.User.ID); err != nil {
 		r.Log.Error("Failed to update name", "error", err)
 		w.Error()
 		return

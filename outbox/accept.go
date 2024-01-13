@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,11 +23,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
 	"time"
 )
 
-func Accept(ctx context.Context, followed, follower, followID string, db *sql.DB) error {
+func Accept(ctx context.Context, domain string, followed, follower, followID string, db *sql.DB) error {
 	recipients := ap.Audience{}
 	recipients.Add(follower)
 
@@ -40,7 +39,7 @@ func Accept(ctx context.Context, followed, follower, followID string, db *sql.DB
 	accept, err := json.Marshal(ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		Type:    ap.AcceptActivity,
-		ID:      fmt.Sprintf("https://%s/accept/%x", cfg.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", followed, follower, time.Now().UnixNano())))),
+		ID:      fmt.Sprintf("https://%s/accept/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", followed, follower, time.Now().UnixNano())))),
 		Actor:   followed,
 		To:      recipients,
 		Object: &ap.Activity{

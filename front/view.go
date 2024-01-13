@@ -29,7 +29,7 @@ import (
 	"path/filepath"
 )
 
-func view(w text.Writer, r *request) {
+func (h *Handler) view(w text.Writer, r *request) {
 	hash := filepath.Base(r.URL.Path)
 
 	offset, err := getOffset(r.URL)
@@ -92,7 +92,7 @@ func view(w text.Writer, r *request) {
 			where notes.hash = $1 and replies.public = 1
 			order by replies.inserted desc limit $2 offset $3`,
 			hash,
-			repliesPerPage,
+			h.Config.RepliesPerPage,
 			offset,
 		)
 	} else {
@@ -105,7 +105,7 @@ func view(w text.Writer, r *request) {
 			order by replies.inserted desc limit $3 offset $4`,
 			hash,
 			r.User.ID,
-			repliesPerPage,
+			h.Config.RepliesPerPage,
 			offset,
 		)
 	}
@@ -135,7 +135,7 @@ func view(w text.Writer, r *request) {
 	w.OK()
 
 	if offset > 0 {
-		w.Titlef("💬 Replies to %s (%d-%d)", author.PreferredUsername, offset, offset+repliesPerPage)
+		w.Titlef("💬 Replies to %s (%d-%d)", author.PreferredUsername, offset, offset+h.Config.RepliesPerPage)
 	} else {
 		if r.User != nil && ((len(note.To.OrderedMap) == 0 || len(note.To.OrderedMap) == 1 && note.To.Contains(r.User.ID)) && (len(note.CC.OrderedMap) == 0 || len(note.CC.OrderedMap) == 1 && note.CC.Contains(r.User.ID))) {
 			w.Titlef("📟 Message from %s", author.PreferredUsername)
@@ -180,9 +180,9 @@ func view(w text.Writer, r *request) {
 			}
 		}
 
-		if count > 0 && offset >= repliesPerPage {
+		if count > 0 && offset >= h.Config.RepliesPerPage {
 			w.Empty()
-			w.Subtitlef("💬 Replies to %s (%d-%d)", author.PreferredUsername, offset, offset+repliesPerPage)
+			w.Subtitlef("💬 Replies to %s (%d-%d)", author.PreferredUsername, offset, offset+h.Config.RepliesPerPage)
 		} else if count > 0 {
 			w.Empty()
 			w.Subtitle("💬 Replies")
@@ -210,7 +210,7 @@ func view(w text.Writer, r *request) {
 		r.Log.Warn("Failed to query thread depth", "error", err)
 	}
 
-	if originalPostExists == 1 || (threadHead.Valid && threadHead.String != note.ID && threadHead.String != note.InReplyTo) || threadDepth > 2 || offset > repliesPerPage || offset >= repliesPerPage || count == repliesPerPage {
+	if originalPostExists == 1 || (threadHead.Valid && threadHead.String != note.ID && threadHead.String != note.InReplyTo) || threadDepth > 2 || offset > h.Config.RepliesPerPage || offset >= h.Config.RepliesPerPage || count == h.Config.RepliesPerPage {
 		w.Separator()
 	}
 
@@ -232,21 +232,21 @@ func view(w text.Writer, r *request) {
 		w.Link("/users/thread/"+hash, "View thread")
 	}
 
-	if offset > repliesPerPage && r.User == nil {
+	if offset > h.Config.RepliesPerPage && r.User == nil {
 		w.Link("/view/"+hash, "First page")
-	} else if offset > repliesPerPage {
+	} else if offset > h.Config.RepliesPerPage {
 		w.Link("/users/view/"+hash, "First page")
 	}
 
-	if offset >= repliesPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/view/%s?%d", hash, offset-repliesPerPage), "Previous page (%d-%d)", offset-repliesPerPage, offset)
-	} else if offset >= repliesPerPage {
-		w.Linkf(fmt.Sprintf("/users/view/%s?%d", hash, offset-repliesPerPage), "Previous page (%d-%d)", offset-repliesPerPage, offset)
+	if offset >= h.Config.RepliesPerPage && r.User == nil {
+		w.Linkf(fmt.Sprintf("/view/%s?%d", hash, offset-h.Config.RepliesPerPage), "Previous page (%d-%d)", offset-h.Config.RepliesPerPage, offset)
+	} else if offset >= h.Config.RepliesPerPage {
+		w.Linkf(fmt.Sprintf("/users/view/%s?%d", hash, offset-h.Config.RepliesPerPage), "Previous page (%d-%d)", offset-h.Config.RepliesPerPage, offset)
 	}
 
-	if count == repliesPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/view/%s?%d", hash, offset+repliesPerPage), "Next page (%d-%d)", offset+repliesPerPage, offset+2*repliesPerPage)
-	} else if count == repliesPerPage {
-		w.Linkf(fmt.Sprintf("/users/view/%s?%d", hash, offset+repliesPerPage), "Next page (%d-%d)", offset+repliesPerPage, offset+2*repliesPerPage)
+	if count == h.Config.RepliesPerPage && r.User == nil {
+		w.Linkf(fmt.Sprintf("/view/%s?%d", hash, offset+h.Config.RepliesPerPage), "Next page (%d-%d)", offset+h.Config.RepliesPerPage, offset+2*h.Config.RepliesPerPage)
+	} else if count == h.Config.RepliesPerPage {
+		w.Linkf(fmt.Sprintf("/users/view/%s?%d", hash, offset+h.Config.RepliesPerPage), "Next page (%d-%d)", offset+h.Config.RepliesPerPage, offset+2*h.Config.RepliesPerPage)
 	}
 }

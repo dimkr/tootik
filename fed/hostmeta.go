@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,16 +18,15 @@ package fed
 
 import (
 	"fmt"
-	"github.com/dimkr/tootik/cfg"
 	"net/http"
 )
 
-func addHostMeta(mux *http.ServeMux) {
+func addHostMeta(mux *http.ServeMux, domain string) {
 	xml := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <XRD xmlns="http://docs.oasis-open.org/ns/xri/xrd-1.0">
   <Link rel="lrdd" template="https://%s/.well-known/webfinger?resource={uri}"/>
 </XRD>
-`, cfg.Domain)
+`, domain)
 
 	mux.HandleFunc("/.well-known/host-meta", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/xrd+xml; charset=utf-8")

@@ -37,14 +37,6 @@ import (
 	"time"
 )
 
-const (
-	resolverCacheTTL        = time.Hour * 24 * 3
-	resolverRetryInterval   = time.Hour * 6
-	resolverMaxIdleConns    = 128
-	maxInstanceRecoveryTime = time.Hour * 24 * 30
-	resolverIdleConnTimeout = time.Minute
-)
-
 type webFingerResponse struct {
 	Subject string `json:"subject"`
 	Links   []struct {
@@ -57,6 +49,8 @@ type webFingerResponse struct {
 type Resolver struct {
 	Client         http.Client
 	BlockedDomains *BlockList
+	Domain         string
+	Config         *cfg.Config
 	locks          []*semaphore.Weighted
 }
 
@@ -67,10 +61,10 @@ var (
 	ErrInvalidScheme  = errors.New("invalid scheme")
 )
 
-func NewResolver(blockedDomains *BlockList) *Resolver {
+func NewResolver(blockedDomains *BlockList, domain string, cfg *cfg.Config) *Resolver {
 	transport := http.Transport{
-		MaxIdleConns:    resolverMaxIdleConns,
-		IdleConnTimeout: resolverIdleConnTimeout,
+		MaxIdleConns:    cfg.ResolverMaxIdleConns,
+		IdleConnTimeout: cfg.ResolverIdleConnTimeout,
 	}
 	r := Resolver{
 		Client: http.Client{
@@ -80,6 +74,8 @@ func NewResolver(blockedDomains *BlockList) *Resolver {
 			},
 		},
 		BlockedDomains: blockedDomains,
+		Domain:         domain,
+		Config:         cfg,
 		locks:          make([]*semaphore.Weighted, cfg.MaxResolverRequests),
 	}
 	for i := 0; i < len(r.locks); i++ {
@@ -153,7 +149,7 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 		return nil, nil, fmt.Errorf("cannot resolve %s: empty name", to)
 	}
 
-	isLocal := strings.HasPrefix(to, fmt.Sprintf("https://%s/", cfg.Domain))
+	isLocal := strings.HasPrefix(to, fmt.Sprintf("https://%s/", r.Domain))
 
 	if !isLocal && !offline {
 		lock := r.locks[crc32.ChecksumIEEE([]byte(to))%uint32(len(r.locks))]
@@ -180,7 +176,7 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 		cachedActor = &tmp
 
 		sinceLastUpdate = time.Since(time.Unix(updated, 0))
-		if !isLocal && !offline && sinceLastUpdate > resolverCacheTTL && (!fetched.Valid || time.Since(time.Unix(fetched.Int64, 0)) >= resolverRetryInterval) {
+		if !isLocal && !offline && sinceLastUpdate > r.Config.ResolverCacheTTL && (!fetched.Valid || time.Since(time.Unix(fetched.Int64, 0)) >= r.Config.ResolverRetryInterval) {
 			log.Info("Updating old cache entry for actor", "to", to)
 			update = true
 		} else {
@@ -215,7 +211,7 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	}
 	req.Header.Set("User-Agent", userAgent)
 
-	resp, err := send(log, db, from, r, req)
+	resp, err := r.send(log, db, from, req)
 	if err != nil {
 		if resp != nil && (resp.StatusCode == http.StatusGone || resp.StatusCode == http.StatusNotFound) {
 			log.Warn("Actor is gone, deleting associated objects", "to", to)
@@ -229,7 +225,7 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 			dnsError *net.DNSError
 		)
 		// if it's been a while since the last update and the server's domain is expired (NXDOMAIN), actor is gone
-		if sinceLastUpdate > maxInstanceRecoveryTime && errors.As(err, &urlError) && errors.As(urlError.Err, &opError) && errors.As(opError.Err, &dnsError) && dnsError.IsNotFound {
+		if sinceLastUpdate > r.Config.MaxInstanceRecoveryTime && errors.As(err, &urlError) && errors.As(urlError.Err, &opError) && errors.As(opError.Err, &dnsError) && dnsError.IsNotFound {
 			log.Warn("Server is probably gone, deleting associated objects", "to", to)
 			deleteActor(ctx, log, db, to)
 			return nil, nil, fmt.Errorf("failed to fetch %s: %w", finger, err)
@@ -278,7 +274,7 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 			}
 			cachedActor = &tmp
 
-			if !isLocal && time.Since(time.Unix(updated, 0)) > resolverCacheTTL && (!fetched.Valid || time.Since(time.Unix(fetched.Int64, 0)) >= resolverRetryInterval) {
+			if !isLocal && time.Since(time.Unix(updated, 0)) > r.Config.ResolverCacheTTL && (!fetched.Valid || time.Since(time.Unix(fetched.Int64, 0)) >= r.Config.ResolverRetryInterval) {
 				log.Info("Updating old cache entry for actor", "to", to)
 				update = true
 
@@ -303,13 +299,13 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Add("Accept", "application/activity+json")
 
-	resp, err = send(log, db, from, r, req)
+	resp, err = r.send(log, db, from, req)
 	if err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", profile, err)
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxBodySize))
+	body, err := io.ReadAll(io.LimitReader(resp.Body, r.Config.MaxRequestBodySize))
 	if err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", profile, err)
 	}

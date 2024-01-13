@@ -5,7 +5,7 @@ import (
 	"database/sql"
 )
 
-func namehost(ctx context.Context, tx *sql.Tx) error {
+func namehost(ctx context.Context, domain string, tx *sql.Tx) error {
 	if _, err := tx.ExecContext(ctx, `DROP INDEX personspreferredusername`); err != nil {
 		return err
 	}

@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front/text"
 	"math"
 	"net/url"
@@ -30,7 +29,7 @@ import (
 	"unicode/utf8"
 )
 
-func edit(w text.Writer, r *request) {
+func (h *Handler) edit(w text.Writer, r *request) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -47,7 +46,7 @@ func edit(w text.Writer, r *request) {
 		return
 	}
 
-	if utf8.RuneCountInString(content) > cfg.MaxPostsLength {
+	if utf8.RuneCountInString(content) > h.Config.MaxPostsLength {
 		w.Status(40, "Post is too long")
 		return
 	}
@@ -90,7 +89,7 @@ func edit(w text.Writer, r *request) {
 		lastEditTime = *note.Updated
 	}
 
-	canEdit := lastEditTime.Add(time.Minute * time.Duration(math.Pow(4, float64(edits))))
+	canEdit := lastEditTime.Add(h.Config.EditThrottleUnit * time.Duration(math.Pow(h.Config.EditThrottleFactor, float64(edits))))
 	if time.Now().Before(canEdit) {
 		r.Log.Warn("Throttled request to edit post", "note", note.ID, "can", canEdit)
 		w.Status(40, "Please try again later")
@@ -98,7 +97,7 @@ func edit(w text.Writer, r *request) {
 	}
 
 	if note.InReplyTo == "" {
-		post(w, r, &note, nil, note.To, note.CC, "Post content")
+		h.post(w, r, &note, nil, note.To, note.CC, "Post content")
 		return
 	}
 
@@ -118,5 +117,5 @@ func edit(w text.Writer, r *request) {
 	}
 
 	// the starting point is the original value of to and cc: recipients can be added but not removed when editing
-	post(w, r, &note, &parent, note.To, note.CC, "Post content")
+	h.post(w, r, &note, &parent, note.To, note.CC, "Post content")
 }

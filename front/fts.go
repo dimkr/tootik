@@ -28,7 +28,7 @@ import (
 
 var skipRegex = regexp.MustCompile(` skip (\d+)$`)
 
-func fts(w text.Writer, r *request) {
+func (h *Handler) fts(w text.Writer, r *request) {
 	if r.URL.RawQuery == "" {
 		w.Status(10, "Query")
 		return
@@ -41,15 +41,16 @@ func fts(w text.Writer, r *request) {
 		return
 	}
 
-	var offset int64
+	var offset int
 	if loc := skipRegex.FindStringSubmatchIndex(query); loc != nil {
-		offset, err = strconv.ParseInt(query[loc[2]:loc[3]], 10, 64)
+		offset64, err := strconv.ParseInt(query[loc[2]:loc[3]], 10, 32)
 		if err != nil {
 			r.Log.Info("Failed to parse offset", "query", query, "error", err)
 			w.Status(40, "Invalid offset")
 			return
 		}
 
+		offset = int(offset64)
 		query = query[:loc[0]]
 	}
 
@@ -73,7 +74,7 @@ func fts(w text.Writer, r *request) {
 				offset $3
 			`,
 			query,
-			postsPerPage,
+			h.Config.PostsPerPage,
 			offset,
 		)
 	} else {
@@ -136,7 +137,7 @@ func fts(w text.Writer, r *request) {
 			`,
 			query,
 			r.User.ID,
-			postsPerPage,
+			h.Config.PostsPerPage,
 			offset,
 		)
 	}
@@ -163,8 +164,8 @@ func fts(w text.Writer, r *request) {
 
 	w.OK()
 
-	if offset >= postsPerPage || count == postsPerPage {
-		w.Titlef("🔎 Search Results for '%s' (%d-%d)", query, offset, offset+postsPerPage)
+	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
+		w.Titlef("🔎 Search Results for '%s' (%d-%d)", query, offset, offset+h.Config.PostsPerPage)
 	} else {
 		w.Titlef("🔎 Search Results for '%s'", query)
 	}
@@ -175,19 +176,19 @@ func fts(w text.Writer, r *request) {
 		r.PrintNotes(w, notes, true, true, false)
 	}
 
-	if offset >= postsPerPage || count == postsPerPage {
+	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
 		w.Separator()
 	}
 
-	if offset >= postsPerPage && r.User == nil {
-		w.Linkf("/fts?"+url.PathEscape(fmt.Sprintf("%s skip %d", query, offset-postsPerPage)), "Previous page (%d-%d)", offset-postsPerPage, offset)
-	} else if offset >= postsPerPage {
-		w.Linkf("/users/fts?"+url.PathEscape(fmt.Sprintf("%s skip %d", query, offset-postsPerPage)), "Previous page (%d-%d)", offset-postsPerPage, offset)
+	if offset >= h.Config.PostsPerPage && r.User == nil {
+		w.Linkf("/fts?"+url.PathEscape(fmt.Sprintf("%s skip %d", query, offset-h.Config.PostsPerPage)), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
+	} else if offset >= h.Config.PostsPerPage {
+		w.Linkf("/users/fts?"+url.PathEscape(fmt.Sprintf("%s skip %d", query, offset-h.Config.PostsPerPage)), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
 	}
 
-	if count == postsPerPage && r.User == nil {
-		w.Linkf("/fts?"+url.PathEscape(fmt.Sprintf("%s skip %d", query, offset+postsPerPage)), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
-	} else if count == postsPerPage {
-		w.Linkf("/users/fts?"+url.PathEscape(fmt.Sprintf("%s skip %d", query, offset+postsPerPage)), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
+	if count == h.Config.PostsPerPage && r.User == nil {
+		w.Linkf("/fts?"+url.PathEscape(fmt.Sprintf("%s skip %d", query, offset+h.Config.PostsPerPage)), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
+	} else if count == h.Config.PostsPerPage {
+		w.Linkf("/users/fts?"+url.PathEscape(fmt.Sprintf("%s skip %d", query, offset+h.Config.PostsPerPage)), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
 	}
 }

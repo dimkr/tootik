@@ -25,7 +25,7 @@ import (
 	"github.com/dimkr/tootik/front/text"
 )
 
-func dailyPosts(w text.Writer, r *request, day time.Time) {
+func (h *Handler) dailyPosts(w text.Writer, r *request, day time.Time) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -126,7 +126,7 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 			gup.actor->>'type' = 'Person' desc,
 			gup.inserted desc
 		limit $3
-		offset $4`, r.User.ID, day.Unix(), postsPerPage, offset)
+		offset $4`, r.User.ID, day.Unix(), h.Config.PostsPerPage, offset)
 	if err != nil {
 		r.Log.Warn("Failed to fetch posts", "error", err)
 		w.Error()
@@ -152,8 +152,8 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 
 	w.OK()
 
-	if offset >= postsPerPage || count == postsPerPage {
-		w.Titlef("📻 Posts From %s (%d-%d)", day.Format(time.DateOnly), offset, offset+postsPerPage)
+	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
+		w.Titlef("📻 Posts From %s (%d-%d)", day.Format(time.DateOnly), offset, offset+h.Config.PostsPerPage)
 	} else {
 		w.Titlef("📻 Posts From %s", day.Format(time.DateOnly))
 	}
@@ -164,19 +164,19 @@ func dailyPosts(w text.Writer, r *request, day time.Time) {
 		r.PrintNotes(w, notes, true, true, false)
 	}
 
-	if offset >= postsPerPage || count == postsPerPage {
+	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
 		w.Separator()
 	}
 
-	if offset >= postsPerPage {
-		w.Linkf(fmt.Sprintf("%s?%d", r.URL.Path, offset-postsPerPage), "Previous page (%d-%d)", offset-postsPerPage, offset)
+	if offset >= h.Config.PostsPerPage {
+		w.Linkf(fmt.Sprintf("%s?%d", r.URL.Path, offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
 	}
-	if count == postsPerPage {
-		w.Linkf(fmt.Sprintf("%s?%d", r.URL.Path, offset+postsPerPage), "Next page (%d-%d)", offset+postsPerPage, offset+2*postsPerPage)
+	if count == h.Config.PostsPerPage {
+		w.Linkf(fmt.Sprintf("%s?%d", r.URL.Path, offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
 	}
 }
 
-func byDate(w text.Writer, r *request) {
+func (h *Handler) byDate(w text.Writer, r *request) {
 	day, err := time.Parse(time.DateOnly, filepath.Base(r.URL.Path))
 	if err != nil {
 		r.Log.Info("Failed to parse date", "error", err)
@@ -184,13 +184,13 @@ func byDate(w text.Writer, r *request) {
 		return
 	}
 
-	dailyPosts(w, r, day)
+	h.dailyPosts(w, r, day)
 }
 
-func today(w text.Writer, r *request) {
-	dailyPosts(w, r, time.Unix(time.Now().Unix()/86400*86400, 0))
+func (h *Handler) today(w text.Writer, r *request) {
+	h.dailyPosts(w, r, time.Unix(time.Now().Unix()/86400*86400, 0))
 }
 
-func yesterday(w text.Writer, r *request) {
-	dailyPosts(w, r, time.Unix((time.Now().Unix()/86400-1)*86400, 0))
+func (h *Handler) yesterday(w text.Writer, r *request) {
+	h.dailyPosts(w, r, time.Unix((time.Now().Unix()/86400-1)*86400, 0))
 }

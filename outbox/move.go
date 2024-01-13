@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/fed"
 	"log/slog"
 )
@@ -55,8 +54,8 @@ func updatedMoveTargets(ctx context.Context, log *slog.Logger, db *sql.DB, resol
 	return nil
 }
 
-func Move(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) error {
-	prefix := fmt.Sprintf("https://%s/%%", cfg.Domain)
+func Move(ctx context.Context, domain string, log *slog.Logger, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) error {
+	prefix := fmt.Sprintf("https://%s/%%", domain)
 
 	// updated new actor if old actor specifies movedTo but new actor doesn't specify old actor in alsoKnownAs
 	if err := updatedMoveTargets(ctx, log, db, resolver, from, prefix); err != nil {
@@ -83,11 +82,11 @@ func Move(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *fed.Resol
 		}
 
 		log.Info("Moving follow", "follow", oldFollowID, "old", oldID, "new", newID)
-		if err := Follow(ctx, &actor, newID, db); err != nil {
+		if err := Follow(ctx, domain, &actor, newID, db); err != nil {
 			log.Warn("Failed to follow new actor", "follow", oldFollowID, "old", oldID, "new", newID, "error", err)
 			continue
 		}
-		if err := Unfollow(ctx, log, db, &actor, oldID, oldFollowID); err != nil {
+		if err := Unfollow(ctx, domain, log, db, &actor, oldID, oldFollowID); err != nil {
 			log.Warn("Failed to unfollow old actor", "follow", oldFollowID, "old", oldID, "new", newID, "error", err)
 		}
 	}

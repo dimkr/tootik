@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
+			domain,
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
@@ -85,7 +86,7 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), slog.Default(), server.db, fed.NewResolver(nil), server.Nobody)
+	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -103,6 +104,7 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
+			domain,
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
@@ -155,7 +157,7 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), slog.Default(), server.db, fed.NewResolver(nil), server.Nobody)
+	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -173,6 +175,7 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
+			domain,
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
@@ -237,7 +240,7 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), slog.Default(), server.db, fed.NewResolver(nil), server.Nobody)
+	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -255,6 +258,7 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
+			domain,
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
@@ -303,7 +307,7 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), slog.Default(), server.db, fed.NewResolver(nil), server.Nobody)
+	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -321,6 +325,7 @@ func TestForward_ReplyToDM(t *testing.T) {
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
+			domain,
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
@@ -369,7 +374,7 @@ func TestForward_ReplyToDM(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), slog.Default(), server.db, fed.NewResolver(nil), server.Nobody)
+	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -425,7 +430,7 @@ func TestForward_NotFollowingAuthor(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), slog.Default(), server.db, fed.NewResolver(nil), server.Nobody)
+	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -443,6 +448,7 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
+			domain,
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
@@ -491,7 +497,7 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), slog.Default(), server.db, fed.NewResolver(nil), server.Nobody)
+	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -547,7 +553,7 @@ func TestForward_ReplyToFederatedPost(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), slog.Default(), server.db, fed.NewResolver(nil), server.Nobody)
+	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -565,6 +571,7 @@ func TestForward_MaxDepth(t *testing.T) {
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
+			domain,
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
@@ -661,7 +668,7 @@ func TestForward_MaxDepth(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), slog.Default(), server.db, fed.NewResolver(nil), server.Nobody)
+	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -679,6 +686,7 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
+			domain,
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
@@ -791,7 +799,7 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), slog.Default(), server.db, fed.NewResolver(nil), server.Nobody)
+	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
 	assert.NoError(err)
 	assert.Equal(1, n)
 

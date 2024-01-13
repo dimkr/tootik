@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -51,6 +52,8 @@ const (
 )
 
 var (
+	domain        = flag.String("domain", "localhost.localdomain:8443", "Domain name")
+	logLevel      = flag.Int("loglevel", int(slog.LevelInfo), "Logging verbosity")
 	dbPath        = flag.String("db", "db.sqlite3", "database path")
 	gemCert       = flag.String("gemcert", "gemini-cert.pem", "Gemini TLS certificate")
 	gemKey        = flag.String("gemkey", "gemini-key.pem", "Gemini TLS key")
@@ -64,18 +67,46 @@ var (
 	blockListPath = flag.String("blocklist", "", "Blocklist CSV")
 	closed        = flag.Bool("closed", false, "Disable new user registration")
 	plain         = flag.Bool("plain", false, "Use HTTP instead of HTTPS")
+	cfgPath       = flag.String("cfg", "", "Configuration file")
+	dumpCfg       = flag.Bool("dumpcfg", false, "Print default configuration and exit")
 	version       = flag.Bool("version", false, "Print version and exit")
 )
 
 func main() {
 	flag.Parse()
 
-	if version != nil && *version {
+	if *version {
 		fmt.Println(buildinfo.Version)
 		return
 	}
 
-	opts := slog.HandlerOptions{Level: slog.Level(cfg.LogLevel)}
+	var cfg cfg.Config
+
+	if *dumpCfg {
+		cfg.FillDefaults()
+		e := json.NewEncoder(os.Stdout)
+		e.SetIndent("", "\t")
+		if err := e.Encode(cfg); err != nil {
+			panic(err)
+		}
+		return
+	}
+
+	if *cfgPath != "" {
+		f, err := os.Open(*cfgPath)
+		if err != nil {
+			panic(err)
+		}
+		if err := json.NewDecoder(f).Decode(&cfg); err != nil {
+			f.Close()
+			panic(err)
+		}
+		f.Close()
+	}
+
+	cfg.FillDefaults()
+
+	opts := slog.HandlerOptions{Level: slog.Level(*logLevel)}
 	if opts.Level == slog.LevelDebug {
 		opts.AddSource = true
 	}
@@ -83,7 +114,7 @@ func main() {
 	log := slog.New(slog.NewJSONHandler(os.Stderr, &opts))
 
 	var blockList *fed.BlockList
-	if blockListPath != nil && *blockListPath != "" {
+	if *blockListPath != "" {
 		var err error
 		blockList, err = fed.NewBlockList(log, *blockListPath)
 		if err != nil {
@@ -99,7 +130,9 @@ func main() {
 	}
 	defer db.Close()
 
-	resolver := fed.NewResolver(blockList)
+	log.Debug("Starting", "version", buildinfo.Version, "cfg", &cfg)
+
+	resolver := fed.NewResolver(blockList, *domain, &cfg)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -120,33 +153,33 @@ func main() {
 		}
 	}()
 
-	if err := migrations.Run(ctx, log, db); err != nil {
+	if err := migrations.Run(ctx, log, *domain, db); err != nil {
 		panic(err)
 	}
 
-	if err := data.CollectGarbage(ctx, db); err != nil {
+	if err := data.CollectGarbage(ctx, *domain, &cfg, db); err != nil {
 		panic(err)
 	}
 
-	nobody, err := user.CreateNobody(ctx, db)
+	nobody, err := user.CreateNobody(ctx, *domain, db)
 	if err != nil {
 		panic(err)
 	}
 
 	wg.Add(1)
 	go func() {
-		if err := fed.ListenAndServe(ctx, db, resolver, nobody, log, *addr, *cert, *key, *plain); err != nil {
+		if err := fed.ListenAndServe(ctx, *domain, slog.Level(*logLevel), &cfg, db, resolver, nobody, log, *addr, *cert, *key, *plain); err != nil {
 			log.Error("HTTPS listener has failed", "error", err)
 		}
 		cancel()
 		wg.Done()
 	}()
 
-	handler := front.NewHandler(*closed)
+	handler := front.NewHandler(*domain, *closed, &cfg)
 
 	wg.Add(1)
 	go func() {
-		if err := gemini.ListenAndServe(ctx, log, db, handler, resolver, *gemAddr, *gemCert, *gemKey); err != nil {
+		if err := gemini.ListenAndServe(ctx, *domain, &cfg, log, db, handler, resolver, *gemAddr, *gemCert, *gemKey); err != nil {
 			log.Error("Gemini listener has failed", "error", err)
 		}
 		cancel()
@@ -155,7 +188,7 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		if err := gopher.ListenAndServe(ctx, log, handler, db, resolver, *gopherAddr); err != nil {
+		if err := gopher.ListenAndServe(ctx, *domain, &cfg, log, handler, db, resolver, *gopherAddr); err != nil {
 			log.Error("Gopher listener has failed", "error", err)
 		}
 		cancel()
@@ -164,7 +197,7 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		if err := finger.ListenAndServe(ctx, log, db, *fingerAddr); err != nil {
+		if err := finger.ListenAndServe(ctx, *domain, &cfg, log, db, *fingerAddr); err != nil {
 			log.Error("Finger listener has failed", "error", err)
 		}
 		cancel()
@@ -173,7 +206,7 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		if err := guppy.ListenAndServe(ctx, log, db, handler, resolver, *guppyAddr); err != nil {
+		if err := guppy.ListenAndServe(ctx, *domain, &cfg, log, db, handler, resolver, *guppyAddr); err != nil {
 			log.Error("Guppy listener has failed", "error", err)
 		}
 		cancel()
@@ -182,13 +215,13 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		fed.ProcessQueue(ctx, log, db, resolver)
+		fed.ProcessQueue(ctx, *domain, &cfg, log, db, resolver)
 		wg.Done()
 	}()
 
 	wg.Add(1)
 	go func() {
-		if err := inbox.ProcessQueue(ctx, log, db, resolver, nobody); err != nil {
+		if err := inbox.ProcessQueue(ctx, *domain, &cfg, log, db, resolver, nobody); err != nil {
 			log.Error("Failed to process activities", "error", err)
 		}
 		cancel()
@@ -205,7 +238,7 @@ func main() {
 
 		for {
 			log.Info("Updating poll results")
-			if err := outbox.UpdatePollResults(ctx, log, db); err != nil {
+			if err := outbox.UpdatePollResults(ctx, *domain, log, db); err != nil {
 				log.Error("Failed to update poll results", "error", err)
 				break
 			}
@@ -229,7 +262,7 @@ func main() {
 		defer t.Stop()
 
 		for {
-			if err := outbox.Move(ctx, log, db, resolver, nobody); err != nil {
+			if err := outbox.Move(ctx, *domain, log, db, resolver, nobody); err != nil {
 				log.Error("Failed to move follows", "error", err)
 				break
 			}
@@ -253,7 +286,7 @@ func main() {
 
 		for {
 			log.Info("Collecting garbage")
-			if err := data.CollectGarbage(ctx, db); err != nil {
+			if err := data.CollectGarbage(ctx, *domain, &cfg, db); err != nil {
 				log.Error("Failed to collect garbage", "error", err)
 				break
 			}

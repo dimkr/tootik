@@ -30,16 +30,8 @@ import (
 	"time"
 )
 
-const (
-	batchSize             = 16
-	deliveryRetryInterval = int64((time.Hour / 2) / time.Second)
-	MaxDeliveryAttempts   = 5
-	pollingInterval       = time.Second * 5
-	deliveryTimeout       = time.Minute * 5
-)
-
-func ProcessQueue(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver) {
-	t := time.NewTicker(pollingInterval)
+func ProcessQueue(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, resolver *Resolver) {
+	t := time.NewTicker(cfg.OutboxPollingInterval)
 	defer t.Stop()
 
 	for {
@@ -48,17 +40,17 @@ func ProcessQueue(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *R
 			return
 
 		case <-t.C:
-			if err := processQueue(ctx, log, db, resolver); err != nil {
+			if err := processQueue(ctx, domain, cfg, log, db, resolver); err != nil {
 				log.Error("Failed to deliver posts", "error", err)
 			}
 		}
 	}
 }
 
-func processQueue(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver) error {
+func processQueue(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, resolver *Resolver) error {
 	log.Debug("Polling delivery queue")
 
-	rows, err := db.QueryContext(ctx, `select outbox.attempts, outbox.activity, outbox.inserted, outbox.received, persons.actor from outbox join persons on persons.id = outbox.sender where outbox.sent = 0 and (outbox.attempts = 0 or (outbox.attempts < ? and outbox.last <= unixepoch() - ?)) order by outbox.attempts asc, outbox.last asc limit ?`, MaxDeliveryAttempts, deliveryRetryInterval, batchSize)
+	rows, err := db.QueryContext(ctx, `select outbox.attempts, outbox.activity, outbox.inserted, outbox.received, persons.actor from outbox join persons on persons.id = outbox.sender where outbox.sent = 0 and (outbox.attempts = 0 or (outbox.attempts < ? and outbox.last <= unixepoch() - ?)) order by outbox.attempts asc, outbox.last asc limit ?`, cfg.MaxDeliveryAttempts, cfg.DeliveryRetryInterval, cfg.DeliveryBatchSize)
 	if err != nil {
 		return fmt.Errorf("failed to fetch posts to deliver: %w", err)
 	}
@@ -99,7 +91,7 @@ func processQueue(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *R
 			continue
 		}
 
-		if err := deliverWithTimeout(ctx, log, db, resolver, &activity, []byte(activityString), &actor, time.Unix(inserted, 0), &recipients); err != nil {
+		if err := deliverWithTimeout(ctx, domain, cfg, log, db, resolver, &activity, []byte(activityString), &actor, time.Unix(inserted, 0), &recipients); err != nil {
 			log.Warn("Failed to deliver activity", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
@@ -121,13 +113,13 @@ func processQueue(ctx context.Context, log *slog.Logger, db *sql.DB, resolver *R
 	return nil
 }
 
-func deliverWithTimeout(parent context.Context, log *slog.Logger, db *sql.DB, resolver *Resolver, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, inserted time.Time, sent *ap.Audience) error {
-	ctx, cancel := context.WithTimeout(parent, deliveryTimeout)
+func deliverWithTimeout(parent context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, resolver *Resolver, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, inserted time.Time, sent *ap.Audience) error {
+	ctx, cancel := context.WithTimeout(parent, cfg.DeliveryTimeout)
 	defer cancel()
-	return deliver(ctx, log, db, activity, rawActivity, actor, resolver, inserted, sent)
+	return deliver(ctx, domain, log, db, activity, rawActivity, actor, resolver, inserted, sent)
 }
 
-func deliver(ctx context.Context, log *slog.Logger, db *sql.DB, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, resolver *Resolver, inserted time.Time, received *ap.Audience) error {
+func deliver(ctx context.Context, domain string, log *slog.Logger, db *sql.DB, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, resolver *Resolver, inserted time.Time, received *ap.Audience) error {
 	activityID, err := url.Parse(activity.ID)
 	if err != nil {
 		return err
@@ -153,7 +145,7 @@ func deliver(ctx context.Context, log *slog.Logger, db *sql.DB, activity *ap.Act
 
 	// list the actor's federated followers if we're forwarding an activity by another actor, or if addressed by actor
 	if wideDelivery {
-		followers, err := db.QueryContext(ctx, `select distinct follower from follows where followed = ? and follower not like ? and follower not like ? and accepted = 1 and inserted < ?`, actor.ID, fmt.Sprintf("https://%s/%%", cfg.Domain), fmt.Sprintf("https://%s/%%", activityID.Host), inserted.Unix())
+		followers, err := db.QueryContext(ctx, `select distinct follower from follows where followed = ? and follower not like ? and follower not like ? and accepted = 1 and inserted < ?`, actor.ID, fmt.Sprintf("https://%s/%%", domain), fmt.Sprintf("https://%s/%%", activityID.Host), inserted.Unix())
 		if err != nil {
 			log.Warn("Failed to list followers", "activity", activity.ID, "error", err)
 		} else {
@@ -224,7 +216,7 @@ func deliver(ctx context.Context, log *slog.Logger, db *sql.DB, activity *ap.Act
 
 		log.Info("Delivering activity to recipient", "to", actorID, "inbox", inbox, "activity", activity.ID)
 
-		if err := Send(ctx, log, db, actor, resolver, inbox, rawActivity); err != nil {
+		if err := resolver.Send(ctx, log, db, actor, inbox, rawActivity); err != nil {
 			log.Warn("Failed to send an activity", "to", actorID, "activity", activity.ID, "error", err)
 			if !errors.Is(err, ErrBlockedDomain) {
 				anyFailed = true

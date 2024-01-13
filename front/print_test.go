@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ func TestGetTextAndLinks_EmptyPost(t *testing.T) {
 	}
 	expectedLinks := data.OrderedMap[string, string]{}
 
-	raw, links := getTextAndLinks(post, compactViewMaxRunes, compactViewMaxLines)
+	raw, links := getTextAndLinks(post, 200, 4)
 	assert.Equal(t, expected, raw)
 	assert.Equal(t, expectedLinks, links)
 }
@@ -43,7 +43,7 @@ func TestGetTextAndLinks_FewLines(t *testing.T) {
 	}
 	expectedLinks := data.OrderedMap[string, string]{}
 
-	raw, links := getTextAndLinks(post, compactViewMaxRunes, compactViewMaxLines)
+	raw, links := getTextAndLinks(post, 200, 4)
 	assert.Equal(t, expected, raw)
 	assert.Equal(t, expectedLinks, links)
 }
@@ -58,7 +58,7 @@ func TestGetTextAndLinks_ManyLines(t *testing.T) {
 	}
 	expectedLinks := data.OrderedMap[string, string]{}
 
-	raw, links := getTextAndLinks(post, compactViewMaxRunes, compactViewMaxLines)
+	raw, links := getTextAndLinks(post, 200, 4)
 	assert.Equal(t, expected, raw)
 	assert.Equal(t, expectedLinks, links)
 }
@@ -73,7 +73,7 @@ func TestGetTextAndLinks_ManyLinesExtraLineBreak(t *testing.T) {
 	}
 	expectedLinks := data.OrderedMap[string, string]{}
 
-	raw, links := getTextAndLinks(post, compactViewMaxRunes, compactViewMaxLines)
+	raw, links := getTextAndLinks(post, 200, 4)
 	assert.Equal(t, expected, raw)
 	assert.Equal(t, expectedLinks, links)
 }
@@ -88,7 +88,7 @@ func TestGetTextAndLinks_ManyLinesExtraLineBreaks(t *testing.T) {
 	}
 	expectedLinks := data.OrderedMap[string, string]{}
 
-	raw, links := getTextAndLinks(post, compactViewMaxRunes, compactViewMaxLines)
+	raw, links := getTextAndLinks(post, 200, 4)
 	assert.Equal(t, expected, raw)
 	assert.Equal(t, expectedLinks, links)
 }
@@ -103,7 +103,7 @@ func TestGetTextAndLinks_ManyLinesNoParagraphs(t *testing.T) {
 	}
 	expectedLinks := data.OrderedMap[string, string]{}
 
-	raw, links := getTextAndLinks(post, compactViewMaxRunes, compactViewMaxLines)
+	raw, links := getTextAndLinks(post, 200, 4)
 	assert.Equal(t, expected, raw)
 	assert.Equal(t, expectedLinks, links)
 }
@@ -117,7 +117,7 @@ func TestGetTextAndLinks_ManyLinesNoParagraphsExtraLineBreak(t *testing.T) {
 	}
 	expectedLinks := data.OrderedMap[string, string]{}
 
-	raw, links := getTextAndLinks(post, compactViewMaxRunes, compactViewMaxLines)
+	raw, links := getTextAndLinks(post, 200, 4)
 	assert.Equal(t, expected, raw)
 	assert.Equal(t, expectedLinks, links)
 }
@@ -131,7 +131,7 @@ func TestGetTextAndLinks_ManyLinesManyRunes(t *testing.T) {
 	}
 	expectedLinks := data.OrderedMap[string, string]{}
 
-	raw, links := getTextAndLinks(post, compactViewMaxRunes/5, compactViewMaxLines)
+	raw, links := getTextAndLinks(post, 200/5, 4)
 	assert.Equal(t, expected, raw)
 	assert.Equal(t, expectedLinks, links)
 }
@@ -145,7 +145,7 @@ func TestGetTextAndLinks_EmptyLinesInMiddle(t *testing.T) {
 	}
 	expectedLinks := data.OrderedMap[string, string]{}
 
-	raw, links := getTextAndLinks(post, compactViewMaxRunes, compactViewMaxLines)
+	raw, links := getTextAndLinks(post, 200, 4)
 	assert.Equal(t, expected, raw)
 	assert.Equal(t, expectedLinks, links)
 }
@@ -160,7 +160,7 @@ func TestGetTextAndLinks_EmptyLinesInMiddleThenMoreLines(t *testing.T) {
 	}
 	expectedLinks := data.OrderedMap[string, string]{}
 
-	raw, links := getTextAndLinks(post, compactViewMaxRunes, compactViewMaxLines)
+	raw, links := getTextAndLinks(post, 200, 4)
 	assert.Equal(t, expected, raw)
 	assert.Equal(t, expectedLinks, links)
 }
@@ -182,7 +182,7 @@ func TestGetTextAndLinks_ManyLinesNoLinesLimit(t *testing.T) {
 	}
 	expectedLinks := data.OrderedMap[string, string]{}
 
-	raw, links := getTextAndLinks(post, compactViewMaxRunes, -1)
+	raw, links := getTextAndLinks(post, 200, -1)
 	assert.Equal(t, expected, raw)
 	assert.Equal(t, expectedLinks, links)
 }

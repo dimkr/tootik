@@ -28,7 +28,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/fed/icon"
 	"time"
 )
@@ -64,13 +63,13 @@ func gen(ctx context.Context) ([]byte, []byte, error) {
 	return privPem.Bytes(), pubPem.Bytes(), nil
 }
 
-func Create(ctx context.Context, db *sql.DB, name, certHash string) (*ap.Actor, error) {
+func Create(ctx context.Context, domain string, db *sql.DB, name, certHash string) (*ap.Actor, error) {
 	priv, pub, err := gen(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate key pair: %w", err)
 	}
 
-	id := fmt.Sprintf("https://%s/user/%s", cfg.Domain, name)
+	id := fmt.Sprintf("https://%s/user/%s", domain, name)
 	actor := ap.Actor{
 		Context: []string{
 			"https://www.w3.org/ns/activitystreams",
@@ -82,17 +81,17 @@ func Create(ctx context.Context, db *sql.DB, name, certHash string) (*ap.Actor, 
 		Icon: ap.Attachment{
 			Type:      ap.ImageAttachment,
 			MediaType: icon.MediaType,
-			URL:       fmt.Sprintf("https://%s/icon/%s%s", cfg.Domain, name, icon.FileNameExtension),
+			URL:       fmt.Sprintf("https://%s/icon/%s%s", domain, name, icon.FileNameExtension),
 		},
-		Inbox:  fmt.Sprintf("https://%s/inbox/%s", cfg.Domain, name),
-		Outbox: fmt.Sprintf("https://%s/outbox/%s", cfg.Domain, name),
+		Inbox:  fmt.Sprintf("https://%s/inbox/%s", domain, name),
+		Outbox: fmt.Sprintf("https://%s/outbox/%s", domain, name),
 		// use nobody's inbox as a shared inbox
 		Endpoints: map[string]string{
-			"sharedInbox": fmt.Sprintf("https://%s/inbox/nobody", cfg.Domain),
+			"sharedInbox": fmt.Sprintf("https://%s/inbox/nobody", domain),
 		},
-		Followers: fmt.Sprintf("https://%s/followers/%s", cfg.Domain, name),
+		Followers: fmt.Sprintf("https://%s/followers/%s", domain, name),
 		PublicKey: ap.PublicKey{
-			ID:           fmt.Sprintf("https://%s/user/%s#main-key", cfg.Domain, name),
+			ID:           fmt.Sprintf("https://%s/user/%s#main-key", domain, name),
 			Owner:        id,
 			PublicKeyPem: string(pub),
 		},

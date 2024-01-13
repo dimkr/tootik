@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ type followedUserActivity struct {
 	Count sql.NullInt64
 }
 
-func follows(w text.Writer, r *request) {
+func (h *Handler) follows(w text.Writer, r *request) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -82,7 +82,7 @@ func follows(w text.Writer, r *request) {
 		w.Empty()
 
 		for _, row := range active {
-			displayName := getActorDisplayName(&row.Actor, r.Log)
+			displayName := h.getActorDisplayName(&row.Actor, r.Log)
 
 			if row.Count.Valid && row.Count.Int64 > 1 {
 				w.Linkf(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(row.Actor.ID))), "%s %s: %d posts", time.Unix(row.Last.Int64, 0).Format(time.DateOnly), displayName, row.Count.Int64)
@@ -102,7 +102,7 @@ func follows(w text.Writer, r *request) {
 		w.Empty()
 
 		for _, row := range inactive {
-			w.Link(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(row.Actor.ID))), getActorDisplayName(&row.Actor, r.Log))
+			w.Link(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(row.Actor.ID))), h.getActorDisplayName(&row.Actor, r.Log))
 		}
 	}
 }

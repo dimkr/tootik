@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/text/plain"
@@ -32,11 +31,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-)
-
-const (
-	compactViewMaxRunes = 200
-	compactViewMaxLines = 4
 )
 
 type noteMetadata struct {
@@ -100,8 +94,8 @@ func getTextAndLinks(s string, maxRunes, maxLines int) ([]string, data.OrderedMa
 	return summary, links
 }
 
-func getDisplayName(id, preferredUsername, name string, t ap.ActorType, log *slog.Logger) string {
-	prefix := fmt.Sprintf("https://%s/user/", cfg.Domain)
+func (h *Handler) getDisplayName(id, preferredUsername, name string, t ap.ActorType, log *slog.Logger) string {
+	prefix := fmt.Sprintf("https://%s/user/", h.Domain)
 
 	isLocal := strings.HasPrefix(id, prefix)
 
@@ -134,10 +128,10 @@ func getDisplayName(id, preferredUsername, name string, t ap.ActorType, log *slo
 	return fmt.Sprintf("%s %s (%s@%s)", emoji, displayName, preferredUsername, u.Host)
 }
 
-func getActorDisplayName(actor *ap.Actor, log *slog.Logger) string {
+func (h *Handler) getActorDisplayName(actor *ap.Actor, log *slog.Logger) string {
 	userName, _ := plain.FromHTML(actor.PreferredUsername)
 	name, _ := plain.FromHTML(actor.Name)
-	return getDisplayName(actor.ID, userName, name, actor.Type, log)
+	return h.getDisplayName(actor.ID, userName, name, actor.Type, log)
 }
 
 func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, group *ap.Actor, compact, printAuthor, printParentAuthor, titleIsLink bool) {
@@ -149,8 +143,8 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 	maxLines := -1
 	maxRunes := -1
 	if compact {
-		maxLines = compactViewMaxLines
-		maxRunes = compactViewMaxRunes
+		maxLines = r.Handler.Config.CompactViewMaxLines
+		maxRunes = r.Handler.Config.CompactViewMaxRunes
 	}
 
 	noteBody := note.Content

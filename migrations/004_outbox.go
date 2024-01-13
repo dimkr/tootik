@@ -4,10 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/dimkr/tootik/cfg"
 )
 
-func outbox(ctx context.Context, tx *sql.Tx) error {
+func outbox(ctx context.Context, domain string, tx *sql.Tx) error {
 	if _, err := tx.ExecContext(ctx, `CREATE TABLE outbox(activity STRING NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()), attempts INTEGER DEFAULT 0, last INTEGER DEFAULT (UNIXEPOCH()), sent INTEGER DEFAULT 0)`); err != nil {
 		return err
 	}
@@ -68,7 +67,7 @@ func outbox(ctx context.Context, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `UPDATE notes SET object = json_remove(object, '$.url') where id like ?`, fmt.Sprintf("https://%s/%%", cfg.Domain)); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE notes SET object = json_remove(object, '$.url') where id like ?`, fmt.Sprintf("https://%s/%%", domain)); err != nil {
 		return err
 	}
 
