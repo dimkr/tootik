@@ -19,6 +19,7 @@ package fed
 import (
 	"database/sql"
 	"errors"
+	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/fed/icon"
 	"log/slog"
 	"net/http"
@@ -59,7 +60,7 @@ func (h *iconHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var exists int
-	if err := h.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where name = ?)`, name).Scan(&exists); err != nil {
+	if err := h.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where actor->>'preferredUsername' = ? and host = ?)`, name, cfg.Domain).Scan(&exists); err != nil {
 		h.Log.Warn("Failed to check if user exists", "name", name, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
