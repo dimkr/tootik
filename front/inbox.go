@@ -110,7 +110,7 @@ func (h *Handler) dailyPosts(w text.Writer, r *request, day time.Time) {
 			select notes.object, notes.author, follows.id as follow from notes left join follows on follows.followed = notes.author and follows.follower = $1 where notes.inserted >= unixepoch()-2*24*60*60
 		) replies
 		on
-			replies.object->>'inReplyTo' = gup.id and replies.author != gup.author
+			replies.object->>'inReplyTo' = gup.id and replies.author != gup.author and replies.author != $1
 		group by gup.id
 		order by
 			(case
