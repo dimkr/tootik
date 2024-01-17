@@ -162,7 +162,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 	}
 
 	hashtags := data.OrderedMap[string, string]{}
-	mentionedUsers := data.OrderedMap[string, struct{}]{}
+	mentionedUsers := ap.Audience{}
 
 	for _, tag := range note.Tag {
 		switch tag.Type {
@@ -177,7 +177,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 			}
 
 		case ap.MentionMention:
-			mentionedUsers.Store(tag.Href, struct{}{})
+			mentionedUsers.Add(tag.Href)
 
 		case ap.EmojiMention:
 			if tag.Icon != nil && tag.Name != "" && tag.Icon.URL != "" {
@@ -252,12 +252,12 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 			meta += fmt.Sprintf(" %d#️", len(hashtags))
 		}
 
-		if len(mentionedUsers) == 1 && (parentAuthor.ID == "" || !mentionedUsers.Contains(parentAuthor.ID)) {
+		if len(mentionedUsers.OrderedMap) == 1 && (parentAuthor.ID == "" || !mentionedUsers.Contains(parentAuthor.ID)) {
 			meta += " 1👤"
-		} else if len(mentionedUsers) > 1 && (parentAuthor.ID == "" || !mentionedUsers.Contains(parentAuthor.ID)) {
-			meta += fmt.Sprintf(" %d👤", len(mentionedUsers))
-		} else if len(mentionedUsers) > 1 && parentAuthor.ID != "" && mentionedUsers.Contains(parentAuthor.ID) {
-			meta += fmt.Sprintf(" %d👤", len(mentionedUsers)-1)
+		} else if len(mentionedUsers.OrderedMap) > 1 && (parentAuthor.ID == "" || !mentionedUsers.Contains(parentAuthor.ID)) {
+			meta += fmt.Sprintf(" %d👤", len(mentionedUsers.OrderedMap))
+		} else if len(mentionedUsers.OrderedMap) > 1 && parentAuthor.ID != "" && mentionedUsers.Contains(parentAuthor.ID) {
+			meta += fmt.Sprintf(" %d👤", len(mentionedUsers.OrderedMap)-1)
 		}
 
 		if replies > 0 {

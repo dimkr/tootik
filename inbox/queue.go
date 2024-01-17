@@ -128,11 +128,11 @@ func processCreateActivity(ctx context.Context, domain string, cfg *cfg.Config, 
 
 	log.Info("Received a new post")
 
-	mentionedUsers := data.OrderedMap[string, struct{}]{}
+	mentionedUsers := ap.Audience{}
 
 	for _, tag := range post.Tag {
 		if tag.Type == ap.MentionMention && tag.Href != post.AttributedTo {
-			mentionedUsers.Store(tag.Href, struct{}{})
+			mentionedUsers.Add(tag.Href)
 		}
 	}
 

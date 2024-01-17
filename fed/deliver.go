@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/data"
 	"log/slog"
 	"net/url"
 	"time"
@@ -125,22 +124,22 @@ func deliver(ctx context.Context, domain string, log *slog.Logger, db *sql.DB, a
 		return err
 	}
 
-	recipients := data.OrderedMap[string, struct{}]{}
+	recipients := ap.Audience{}
 
 	// deduplicate recipients or skip if we're forwarding an activity
 	if activity.Actor == actor.ID {
 		activity.To.Range(func(id string, _ struct{}) bool {
-			recipients.Store(id, struct{}{})
+			recipients.Add(id)
 			return true
 		})
 
 		activity.CC.Range(func(id string, _ struct{}) bool {
-			recipients.Store(id, struct{}{})
+			recipients.Add(id)
 			return true
 		})
 	}
 
-	actorIDs := data.OrderedMap[string, struct{}]{}
+	actorIDs := ap.Audience{}
 	wideDelivery := activity.Actor != actor.ID || activity.IsPublic() || recipients.Contains(actor.Followers)
 
 	// list the actor's federated followers if we're forwarding an activity by another actor, or if addressed by actor
@@ -156,7 +155,7 @@ func deliver(ctx context.Context, domain string, log *slog.Logger, db *sql.DB, a
 					continue
 				}
 
-				actorIDs.Store(follower, struct{}{})
+				actorIDs.Add(follower)
 			}
 
 			followers.Close()
@@ -165,7 +164,7 @@ func deliver(ctx context.Context, domain string, log *slog.Logger, db *sql.DB, a
 
 	// assume that all other federated recipients are actors and not collections
 	recipients.Range(func(recipient string, _ struct{}) bool {
-		actorIDs.Store(recipient, struct{}{})
+		actorIDs.Add(recipient)
 		return true
 	})
 
