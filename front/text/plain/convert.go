@@ -42,6 +42,7 @@ var (
 	mentionRegex      = regexp.MustCompile(`\B@(\w+)(?:@(?:(?:\w+\.)+\w+(?::\d{1,5}){0,1})){0,1}\b`)
 )
 
+// FromHTML converts HTML to plain text and extracts links.
 func FromHTML(text string) (string, data.OrderedMap[string, string]) {
 	res := html.UnescapeString(text)
 	links := data.OrderedMap[string, string]{}
@@ -117,6 +118,7 @@ func FromHTML(text string) (string, data.OrderedMap[string, string]) {
 	return strings.TrimRight(res, " \n\r\t"), links
 }
 
+// ToHTML converts plain text to HTML.
 func ToHTML(text string, mentions []ap.Mention) string {
 	if text == "" {
 		return ""

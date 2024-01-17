@@ -25,6 +25,8 @@ import (
 	"github.com/dimkr/tootik/ap"
 )
 
+// CreateNobody creates the special "nobdoy" user.
+// This user is used to sign outgoing requests not initiated by a particular user.
 func CreateNobody(ctx context.Context, domain string, db *sql.DB) (*ap.Actor, error) {
 	var actorString string
 	if err := db.QueryRowContext(ctx, `select actor from persons where actor->>'preferredUsername' = 'nobody' and host = ?`, domain).Scan(&actorString); err != nil && !errors.Is(err, sql.ErrNoRows) {

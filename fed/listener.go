@@ -42,6 +42,7 @@ func robots(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Disallow: /\n"))
 }
 
+// ListenAndServe handles HTTP requests from other servers.
 func ListenAndServe(ctx context.Context, domain string, logLevel slog.Level, cfg *cfg.Config, db *sql.DB, resolver *Resolver, actor *ap.Actor, log *slog.Logger, addr, cert, key string, plain bool) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/robots.txt", robots)

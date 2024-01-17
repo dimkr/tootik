@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package ap
-
-// Public is the special ActivityPub collection used for public addressing.
-const Public = "https://www.w3.org/ns/activitystreams#Public"
+// Package front implements a UI and exposes it over text-based protocols
+package front

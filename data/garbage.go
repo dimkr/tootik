@@ -24,6 +24,7 @@ import (
 	"time"
 )
 
+// CollectGarbage deletes old data.
 func CollectGarbage(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB) error {
 	now := time.Now()
 

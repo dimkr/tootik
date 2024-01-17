@@ -21,6 +21,7 @@ import (
 	"strings"
 )
 
+// IsIDValid determines whether or not a string can be a valid actor, object or activity ID.
 func IsIDValid(id string) bool {
 	if id == "" {
 		return false

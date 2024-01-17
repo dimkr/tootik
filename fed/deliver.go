@@ -29,6 +29,7 @@ import (
 	"time"
 )
 
+// ProcessQueue polls the queue of outgoing activities and delivers them to other servers with timeout and retries.
 func ProcessQueue(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, resolver *Resolver) {
 	t := time.NewTicker(cfg.OutboxPollingInterval)
 	defer t.Stop()

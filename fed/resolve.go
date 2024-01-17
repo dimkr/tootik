@@ -46,12 +46,14 @@ type webFingerResponse struct {
 	} `json:"links"`
 }
 
+// Resolver retrieves actor objects given their ID.
+// Actors are cached, updated periodically and deleted if gone from the remote server.
 type Resolver struct {
-	Client         http.Client
 	BlockedDomains *BlockList
 	Domain         string
 	Config         *cfg.Config
 	locks          []*semaphore.Weighted
+	client         http.Client
 }
 
 var (
@@ -61,22 +63,23 @@ var (
 	ErrInvalidScheme  = errors.New("invalid scheme")
 )
 
+// NewResolver returns a new [Resolver].
 func NewResolver(blockedDomains *BlockList, domain string, cfg *cfg.Config) *Resolver {
 	transport := http.Transport{
 		MaxIdleConns:    cfg.ResolverMaxIdleConns,
 		IdleConnTimeout: cfg.ResolverIdleConnTimeout,
 	}
 	r := Resolver{
-		Client: http.Client{
+		BlockedDomains: blockedDomains,
+		Domain:         domain,
+		Config:         cfg,
+		locks:          make([]*semaphore.Weighted, cfg.MaxResolverRequests),
+		client: http.Client{
 			Transport: &transport,
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				return http.ErrUseLastResponse
 			},
 		},
-		BlockedDomains: blockedDomains,
-		Domain:         domain,
-		Config:         cfg,
-		locks:          make([]*semaphore.Weighted, cfg.MaxResolverRequests),
 	}
 	for i := 0; i < len(r.locks); i++ {
 		r.locks[i] = semaphore.NewWeighted(1)
@@ -85,6 +88,7 @@ func NewResolver(blockedDomains *BlockList, domain string, cfg *cfg.Config) *Res
 	return &r
 }
 
+// Resolve retrieves an actor object.
 func (r *Resolver) Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, to string, offline bool) (*ap.Actor, error) {
 	u, err := url.Parse(to)
 	if err != nil {

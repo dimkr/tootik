@@ -33,6 +33,7 @@ import (
 	"time"
 )
 
+// Handler handles frontend (client-to-server) requests.
 type Handler struct {
 	handlers map[*regexp.Regexp]func(text.Writer, *request, ...string)
 	Domain   string
@@ -49,6 +50,7 @@ func serveStaticFile(w text.Writer, r *request, args ...string) {
 	}
 }
 
+// NewHandler returns a new [Handler].
 func NewHandler(domain string, closed bool, cfg *cfg.Config) Handler {
 	h := Handler{
 		handlers: map[*regexp.Regexp]func(text.Writer, *request, ...string){},
@@ -133,6 +135,7 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) Handler {
 	return h
 }
 
+// Handle handles a request and writes a response.
 func (h *Handler) Handle(ctx context.Context, log *slog.Logger, w text.Writer, reqUrl *url.URL, user *ap.Actor, db *sql.DB, resolver *fed.Resolver, wg *sync.WaitGroup) {
 	for re, handler := range h.handlers {
 		m := re.FindStringSubmatch(reqUrl.Path)
@@ -156,7 +159,8 @@ func (h *Handler) Handle(ctx context.Context, log *slog.Logger, w text.Writer, r
 					WaitGroup: wg,
 					Log:       l,
 				},
-				m...)
+				m...,
+			)
 			return
 		}
 	}

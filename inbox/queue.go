@@ -430,6 +430,7 @@ func processActivityWithTimeout(parent context.Context, domain string, cfg *cfg.
 	}
 }
 
+// ProcessBatch processes one batch of incoming activites in the queue.
 func ProcessBatch(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) (int, error) {
 	log.Debug("Polling activities queue")
 
@@ -516,6 +517,7 @@ func processQueue(ctx context.Context, domain string, cfg *cfg.Config, log *slog
 	}
 }
 
+// ProcessQueue polls the queue of incoming activities and processes them.
 func ProcessQueue(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) error {
 	t := time.NewTicker(cfg.ActivitiesPollingInterval)
 	defer t.Stop()

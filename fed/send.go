@@ -104,7 +104,7 @@ func (r *Resolver) send(log *slog.Logger, db *sql.DB, from *ap.Actor, req *http.
 		}
 	}
 
-	resp, err := r.Client.Do(req)
+	resp, err := r.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request to %s: %w", urlString, err)
 	}
@@ -121,6 +121,7 @@ func (r *Resolver) send(log *slog.Logger, db *sql.DB, from *ap.Actor, req *http.
 	return resp, nil
 }
 
+// Send sends a signed request.
 func (r *Resolver) Send(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, inbox string, body []byte) error {
 	if inbox == "" {
 		return fmt.Errorf("cannot send request to %s: empty URL", inbox)

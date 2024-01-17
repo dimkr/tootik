@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package gmap builds gophermaps.
 package gmap
 
 import (
@@ -31,6 +32,7 @@ type writer struct {
 	Config *cfg.Config
 }
 
+// Wrap wraps an [io.Writer] with a gophermap writer.
 func Wrap(w io.Writer, domain string, cfg *cfg.Config) text.Writer {
 	return &writer{Base: text.Base{Writer: w}, Domain: domain, Config: cfg}
 }

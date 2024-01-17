@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,19 +21,24 @@ type valueAndIndex[TV any] struct {
 	index int
 }
 
+// OrderedMap is a map that maintains insertion order. Listing of keys (using [OrderedMap.Keys]) iterates over keys and allocates memory.
 type OrderedMap[TK comparable, TV any] map[TK]valueAndIndex[TV]
 
+// Contains determines if the map contains a key.
 func (m OrderedMap[TK, TV]) Contains(key TK) bool {
 	_, contains := m[key]
 	return contains
 }
 
+// Store adds a key/value pair to the map if the map doesn't contain it already.
 func (m OrderedMap[TK, TV]) Store(key TK, value TV) {
 	if _, dup := m[key]; !dup {
 		m[key] = valueAndIndex[TV]{value, len(m)}
 	}
 }
 
+// Keys returns a list of keys in the map.
+// To do so, it iterates over keys and allocates memory.
 func (m OrderedMap[TK, TV]) Keys() []TK {
 	l := make([]TK, len(m))
 
@@ -44,6 +49,9 @@ func (m OrderedMap[TK, TV]) Keys() []TK {
 	return l
 }
 
+// Range iterates over the map and calls a callback for each key/value pair.
+// Iteration stops if the callback returns false.
+// Range calls [OrderedMap.Keys], therefore it allocates memory.
 func (m OrderedMap[TK, TV]) Range(f func(key TK, value TV) bool) {
 	for _, k := range m.Keys() {
 		if !f(k, m[k].value) {

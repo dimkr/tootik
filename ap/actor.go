@@ -23,6 +23,7 @@ const (
 	Group  ActorType = "Group"
 )
 
+// Object represents an ActivityPub actor.
 type Actor struct {
 	Context                   any               `json:"@context"`
 	ID                        string            `json:"id"`

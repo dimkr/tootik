@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package gemini exposes a Gemini interface.
 package gemini
 
 import (
@@ -65,6 +66,7 @@ func getUser(ctx context.Context, domain string, db *sql.DB, conn net.Conn, tlsC
 	return &actor, nil
 }
 
+// Handle handles a Gemini request.
 func Handle(ctx context.Context, domain string, cfg *cfg.Config, handler front.Handler, conn net.Conn, db *sql.DB, resolver *fed.Resolver, wg *sync.WaitGroup, log *slog.Logger) {
 	if err := conn.SetDeadline(time.Now().Add(cfg.GeminiRequestTimeout)); err != nil {
 		log.Warn("Failed to set deadline", "error", err)
@@ -128,6 +130,7 @@ func Handle(ctx context.Context, domain string, cfg *cfg.Config, handler front.H
 	handler.Handle(ctx, log, w, reqUrl, user, db, resolver, wg)
 }
 
+// ListenAndServe handles Gemini requests.
 func ListenAndServe(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, handler front.Handler, resolver *fed.Resolver, addr, certPath, keyPath string) error {
 	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {

@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import (
 	"github.com/dimkr/tootik/data"
 )
 
+// Audience is an ordered, unique list of actor IDs.
 type Audience struct {
 	data.OrderedMap[string, struct{}]
 }

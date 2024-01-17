@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,6 +25,8 @@ const (
 	QuestionObject ObjectType = "Question"
 )
 
+// Object represents most ActivityPub objects.
+// Actors are represented by Actor.
 type Object struct {
 	Context      any          `json:"@context,omitempty"`
 	ID           string       `json:"id"`

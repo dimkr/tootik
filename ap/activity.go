@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -45,6 +45,8 @@ type anyActivity struct {
 	CC      Audience        `json:"cc"`
 }
 
+// Activity represents an ActivityPub activity.
+// Object can point to another Activity, an [Object] or a string.
 type Activity struct {
 	Context any          `json:"@context,omitempty"`
 	ID      string       `json:"id"`

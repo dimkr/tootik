@@ -62,6 +62,7 @@ func gen(ctx context.Context) ([]byte, []byte, error) {
 	return privPem.Bytes(), pubPem.Bytes(), nil
 }
 
+// Create creates a new user.
 func Create(ctx context.Context, domain string, db *sql.DB, name, certHash string) (*ap.Actor, error) {
 	priv, pub, err := gen(ctx)
 	if err != nil {

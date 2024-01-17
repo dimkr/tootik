@@ -40,6 +40,8 @@ Welcome, fedinaut! localhost.localdomain:8443 is an instance of tootik, a federa
 🛟 Help
 ```
 
+[![Latest release](https://img.shields.io/github/v/release/dimkr/tootik)](https://github.com/dimkr/tootik/releases) [![Build status](https://github.com/dimkr/tootik/actions/workflows/ci.yml/badge.svg)](https://github.com/dimkr/tootik/actions) [![Go Reference](https://pkg.go.dev/badge/github.com/dimkr/tootik.svg)](https://pkg.go.dev/github.com/dimkr/tootik)
+
 ## Overview
 
 tootik is a federated nanoblogging service for the small internet. With tootik, you can interact with your friends, including those on [Mastodon](https://joinmastodon.org/), [Lemmy](https://join-lemmy.org/) and other [ActivityPub](https://www.w3.org/TR/activitypub/)-compatible servers, from the comfort of a minimalistic, text-based interface in the small internet:
@@ -97,34 +99,6 @@ Then:
 or, to build a static executable:
 
 	go build -tags netgo,sqlite_omit_load_extension,fts5 -ldflags "-linkmode external -extldflags -static" ./cmd/tootik
-
-## Directory Structure
-
-* cmd/ implements main().
-
-* outbox/ translates user actions into a queue of activities that need to be sent to other servers.
-* inbox/ processes a queue of activities received from other servers.
-  * inbox/note/ handles insertion of posts: both posts received from other servers and posts created by local users.
-* fed/ implements federation: it handles all communication with other servers, sends what's in the "outbox" queue to other servers and adds incoming activities to the "inbox" queue.
-  * fed/icon/ generates pseudo-random icons used as avatars.
-
-* front/ implements the frontend.
-  * front/static/ contains static content like the help page.
-  * text/text/plain/ converts HTML to plain text.
-  * text/text/gmi/ contains a gemtext writer.
-  * text/text/gmap/ contains a gophermap writer with line wrapping.
-  * text/text/guppy/ contains a Guppy response writer.
-  * front/gemini/ exposes the frontend over Gemini.
-  * front/gopher/ exposes the frontend over Gopher.
-  * front/finger/ exposes some content over Finger.
-  * front/guppy/ exposes the frontend over Guppy.
-
-* ap/ implements ActivityPub vocabulary.
-* migrations/ contains the database schema.
-* data/ contains useful data structures.
-* cfg/ contains global configuration parameters.
-
-* test/ contains tests.
 
 ## Gemini Frontend
 

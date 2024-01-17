@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package guppy exposes a limited Guppy interface.
 package guppy
 
 import (
@@ -197,6 +198,7 @@ func handle(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 	}
 }
 
+// ListenAndServe handles Guppy requests.
 func ListenAndServe(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, handler front.Handler, resolver *fed.Resolver, addr string) error {
 	l, err := net.ListenPacket("udp", addr)
 	if err != nil {

@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package note handles insertion of posts.
 package note
 
 import (
@@ -47,6 +48,7 @@ func expand(aud ap.Audience, arr *[3]sql.NullString) {
 	}
 }
 
+// Flatten converts a post into text that can be indexed for search purposes.
 func Flatten(note *ap.Object) string {
 	content, links := plain.FromHTML(note.Content)
 	if len(links) > 0 {
@@ -71,6 +73,7 @@ func Flatten(note *ap.Object) string {
 	return content
 }
 
+// Insert inserts a post.
 func Insert(ctx context.Context, log *slog.Logger, tx *sql.Tx, note *ap.Object) error {
 	body, err := json.Marshal(note)
 	if err != nil {

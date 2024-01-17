@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@ limitations under the License.
 
 package text
 
+// WordWrap wraps long lines.
 func WordWrap(text string, width, maxLines int) []string {
 	if text == "" {
 		return []string{""}

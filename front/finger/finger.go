@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package finger exposes a limited Finger interface.
 package finger
 
 import (
@@ -179,6 +180,7 @@ func handle(ctx context.Context, domain string, cfg *cfg.Config, conn net.Conn, 
 	}
 }
 
+// ListenAndServe handles Finger queries.
 func ListenAndServe(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, addr string) error {
 	l, err := net.Listen("tcp", addr)
 	if err != nil {

@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package static serves static content.
 package static
 
 import (
@@ -25,6 +26,7 @@ import (
 //go:embed *.gmi */*.gmi
 var rawFiles embed.FS
 
+// Files maps relative paths to static content.
 var Files = map[string][]string{}
 
 func readDirectory(dir string) {

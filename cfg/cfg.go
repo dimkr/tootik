@@ -14,10 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package cfg defines the tootik configuration file format and defaults
 package cfg
 
 import "time"
 
+// Config represents a tootik configuration file.
 type Config struct {
 	RegistrationInterval time.Duration
 
@@ -85,6 +87,7 @@ type Config struct {
 	DeliveryTTL time.Duration
 }
 
+// FillDefaults replaces missing or invalid settings with defaults.
 func (c *Config) FillDefaults() {
 	if c.RegistrationInterval <= 0 {
 		c.RegistrationInterval = time.Hour

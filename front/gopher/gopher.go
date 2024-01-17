@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package gopher exposes a limited Gopher interface.
 package gopher
 
 import (
@@ -76,6 +77,7 @@ func handle(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 	handler.Handle(ctx, log.With(slog.Group("request", "path", reqUrl.Path)), w, reqUrl, nil, db, resolver, wg)
 }
 
+// ListenAndServe handles Gopher requests.
 func ListenAndServe(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, handler front.Handler, db *sql.DB, resolver *fed.Resolver, addr string) error {
 	l, err := net.Listen("tcp", addr)
 	if err != nil {

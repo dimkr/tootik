@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import (
 	"time"
 )
 
+// BlockList is a list of blocked domains.
 type BlockList struct {
 	lock    sync.Mutex
 	wg      sync.WaitGroup
@@ -131,6 +132,7 @@ func NewBlockList(log *slog.Logger, path string) (*BlockList, error) {
 	return b, nil
 }
 
+// Contains determines if a domain is blocked.
 func (b *BlockList) Contains(domain string) bool {
 	b.lock.Lock()
 	_, contains := b.domains[domain]
@@ -138,6 +140,7 @@ func (b *BlockList) Contains(domain string) bool {
 	return contains
 }
 
+// Close frees resources.
 func (b *BlockList) Close() {
 	b.w.Close()
 	b.wg.Wait()

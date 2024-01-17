@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package icon generates tiny, pseudo-random user avatars
 package icon
 
 import (
@@ -30,6 +31,7 @@ const (
 	FileNameExtension = ".gif"
 )
 
+// Generate generates a tiny pseudo-random image by user name
 func Generate(s string) ([]byte, error) {
 	hash := sha256.Sum256([]byte(s))
 
