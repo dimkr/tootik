@@ -18,7 +18,6 @@ package front
 
 import (
 	"fmt"
-	"path/filepath"
 	"time"
 
 	"github.com/dimkr/tootik/data"
@@ -176,8 +175,8 @@ func (h *Handler) dailyPosts(w text.Writer, r *request, day time.Time) {
 	}
 }
 
-func (h *Handler) byDate(w text.Writer, r *request) {
-	day, err := time.Parse(time.DateOnly, filepath.Base(r.URL.Path))
+func (h *Handler) byDate(w text.Writer, r *request, args ...string) {
+	day, err := time.Parse(time.DateOnly, args[1])
 	if err != nil {
 		r.Log.Info("Failed to parse date", "error", err)
 		w.Status(40, "Invalid date")
@@ -187,10 +186,10 @@ func (h *Handler) byDate(w text.Writer, r *request) {
 	h.dailyPosts(w, r, day)
 }
 
-func (h *Handler) today(w text.Writer, r *request) {
+func (h *Handler) today(w text.Writer, r *request, args ...string) {
 	h.dailyPosts(w, r, time.Unix(time.Now().Unix()/86400*86400, 0))
 }
 
-func (h *Handler) yesterday(w text.Writer, r *request) {
+func (h *Handler) yesterday(w text.Writer, r *request, args ...string) {
 	h.dailyPosts(w, r, time.Unix((time.Now().Unix()/86400-1)*86400, 0))
 }

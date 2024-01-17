@@ -17,30 +17,28 @@ limitations under the License.
 package front
 
 import (
-	"crypto/sha256"
-	"database/sql"
-	"errors"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/outbox"
-	"path/filepath"
 )
 
-func (h *Handler) follow(w text.Writer, r *request) {
+func (h *Handler) follow(w text.Writer, r *request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
 	}
 
-	hash := filepath.Base(r.URL.Path)
+	followed := "https://" + args[1]
 
-	followed := ""
-	if err := r.QueryRow(`select id from persons where hash = ?`, hash).Scan(&followed); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.Warn("Cannot follow a non-existing user", "hash", hash)
-		w.Status(40, "No such user")
-		return
-	} else if err != nil {
-		r.Log.Warn("Failed to find followed user", "hash", hash, "error", err)
+	var exists int
+	if err := r.QueryRow(`select exists (select 1 from persons where id = ?)`, followed).Scan(&exists); err != nil {
+		r.Log.Warn("Failed to check if user exists", "followed", followed, "error", err)
 		w.Error()
+		return
+	}
+
+	if exists == 0 {
+		r.Log.Warn("Cannot follow a non-existing user", "followed", followed)
+		w.Status(40, "No such user")
 		return
 	}
 
@@ -73,5 +71,5 @@ func (h *Handler) follow(w text.Writer, r *request) {
 		return
 	}
 
-	w.Redirectf("/users/outbox/%x", sha256.Sum256([]byte(followed)))
+	w.Redirectf("/users/outbox/" + args[1])
 }

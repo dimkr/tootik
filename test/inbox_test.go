@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@ limitations under the License.
 package test
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"strings"
@@ -81,11 +80,11 @@ func TestInbox_PostToFollowersToday(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	today := server.Handle("/users/inbox/today", server.Alice)
 	assert.Contains(today, "Hello world")
@@ -97,11 +96,11 @@ func TestInbox_PostToFollowersTodayBigOffset(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	today := server.Handle("/users/inbox/today?123", server.Alice)
 	assert.NotContains(today, "Hello world")
@@ -113,11 +112,11 @@ func TestInbox_PostToFollowersTodayByDate(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	today := server.Handle("/users/inbox/"+time.Now().Format(time.DateOnly), server.Alice)
 	assert.Contains(today, "Hello world")
@@ -129,11 +128,11 @@ func TestInbox_PostToFollowersYesterday(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	yesterday := server.Handle("/users/inbox/yesterday", server.Alice)
 	assert.Contains(yesterday, "No posts.")
@@ -145,17 +144,17 @@ func TestInbox_MentionAndNoMention(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	follow = server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Carol.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Carol.ID))), follow)
+	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Carol.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Carol.ID, "https://")), follow)
 
 	whisper := server.Handle("/users/whisper?Hello%20%40alice%21", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	whisper = server.Handle("/users/whisper?Hello%20alice%21", server.Carol)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	today := server.Handle("/users/inbox/today", server.Alice)
 	postWithMention := strings.Index(today, "Hello @alice!")
@@ -171,17 +170,17 @@ func TestInbox_LeadingMentionAndNoMention(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	follow = server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Carol.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Carol.ID))), follow)
+	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Carol.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Carol.ID, "https://")), follow)
 
 	whisper := server.Handle("/users/whisper?%40alice%20Hello", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	whisper = server.Handle("/users/whisper?Hello%20alice%21", server.Carol)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	today := server.Handle("/users/inbox/today", server.Alice)
 	postWithMention := strings.Index(today, "@alice Hello")
@@ -197,17 +196,17 @@ func TestInbox_LeadingMentionAndCommaAndNoMention(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	follow = server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Carol.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Carol.ID))), follow)
+	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Carol.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Carol.ID, "https://")), follow)
 
 	whisper := server.Handle("/users/whisper?%40alice%2c%20Hello", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	whisper = server.Handle("/users/whisper?Hello%20alice%21", server.Carol)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	today := server.Handle("/users/inbox/today", server.Alice)
 	postWithMention := strings.Index(today, "@alice, Hello")
@@ -223,17 +222,17 @@ func TestInbox_NoMentionAndMention(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	follow = server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Carol.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Carol.ID))), follow)
+	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Carol.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Carol.ID, "https://")), follow)
 
 	whisper := server.Handle("/users/whisper?Hello%20alice%21", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	whisper = server.Handle("/users/whisper?Hello%20%40alice%21", server.Carol)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	today := server.Handle("/users/inbox/today", server.Alice)
 	postWithMention := strings.Index(today, "Hello @alice!")
@@ -249,17 +248,17 @@ func TestInbox_NoMentionAndMentionWithHost(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	follow = server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Carol.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Carol.ID))), follow)
+	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Carol.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Carol.ID, "https://")), follow)
 
 	whisper := server.Handle("/users/whisper?Hello%20alice%21", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	whisper = server.Handle("/users/whisper?Hello%20%40alice%40localhost.localdomain%3a8443%21", server.Carol)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	today := server.Handle("/users/inbox/today", server.Alice)
 	postWithMention := strings.Index(today, "Hello @alice@localhost.localdomain:8443!")
@@ -275,17 +274,17 @@ func TestInbox_DMWithoutMentionAndMention(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	follow = server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Carol.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Carol.ID))), follow)
+	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Carol.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Carol.ID, "https://")), follow)
 
-	dm := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20Alice", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", dm)
+	dm := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20Alice", strings.TrimPrefix(server.Alice.ID, "https://")), server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
 	whisper := server.Handle("/users/whisper?Hello%20%40alice%21", server.Carol)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`30 /users/view/\S+\r\n`, whisper)
 
 	today := server.Handle("/users/inbox/today", server.Alice)
 	dmWithoutMention := strings.Index(today, "Hello Alice")
@@ -301,17 +300,17 @@ func TestInbox_MentionAndDMWithoutMention(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	follow = server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Carol.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Carol.ID))), follow)
+	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Carol.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Carol.ID, "https://")), follow)
 
 	whisper := server.Handle("/users/whisper?Hello%20%40alice%21", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
-	dm := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20Alice", sha256.Sum256([]byte(server.Alice.ID))), server.Carol)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", dm)
+	dm := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20Alice", strings.TrimPrefix(server.Alice.ID, "https://")), server.Carol)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
 	today := server.Handle("/users/inbox/today", server.Alice)
 	dmWithoutMention := strings.Index(today, "Hello Alice")

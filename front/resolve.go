@@ -17,14 +17,13 @@ limitations under the License.
 package front
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"github.com/dimkr/tootik/front/text"
 	"net/url"
 	"strings"
 )
 
-func (h *Handler) resolve(w text.Writer, r *request) {
+func (h *Handler) resolve(w text.Writer, r *request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -68,5 +67,5 @@ func (h *Handler) resolve(w text.Writer, r *request) {
 		return
 	}
 
-	w.Redirectf("/users/outbox/%x", sha256.Sum256([]byte(person.ID)))
+	w.Redirect("/users/outbox/" + strings.TrimPrefix(person.ID, "https://"))
 }

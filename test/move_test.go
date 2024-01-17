@@ -51,17 +51,15 @@ func TestMove_FederatedToFederated(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, hash, actor) values(?,?,?)`,
+		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		"eab50d465047c1ccfc581759f33612c583486044f5de62b2a5e77e220c2f1ae3",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","movedTo":"https://::1/user/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, hash, actor) values(?,?,?)`,
+		`insert into persons (id, actor) values(?,?)`,
 		"https://::1/user/dan",
-		"2ca631feec88844591a19e830b895cadc880d127d689ff10e995750db22e07ff",
 		`{"id":"https://::1/user/dan","type":"Person","alsoKnownAs":"https://127.0.0.1/user/dan"}`,
 	)
 	assert.NoError(err)
@@ -99,17 +97,15 @@ func TestMove_FederatedToFederatedTwoAccounts(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, hash, actor) values(?,?,?)`,
+		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		"eab50d465047c1ccfc581759f33612c583486044f5de62b2a5e77e220c2f1ae3",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","movedTo":"https://::1/user/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, hash, actor) values(?,?,?)`,
+		`insert into persons (id, actor) values(?,?)`,
 		"https://::1/user/dan",
-		"2ca631feec88844591a19e830b895cadc880d127d689ff10e995750db22e07ff",
 		`{"id":"https://::1/user/dan","type":"Person","alsoKnownAs":["https://::1/user/dan","https://127.0.0.1/user/dan"]}`,
 	)
 	assert.NoError(err)
@@ -147,17 +143,15 @@ func TestMove_FederatedToFederatedNotLinked(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, hash, actor) values(?,?,?)`,
+		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		"eab50d465047c1ccfc581759f33612c583486044f5de62b2a5e77e220c2f1ae3",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","movedTo":"https://::1/user/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, hash, actor) values(?,?,?)`,
+		`insert into persons (id, actor) values(?,?)`,
 		"https://::1/user/dan",
-		"2ca631feec88844591a19e830b895cadc880d127d689ff10e995750db22e07ff",
 		`{"id":"https://::1/user/dan","type":"Person"}`,
 	)
 	assert.NoError(err)
@@ -195,17 +189,15 @@ func TestMove_FederatedToFederatedFollowedAfterUpdate(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, hash, actor) values(?,?,?)`,
+		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		"eab50d465047c1ccfc581759f33612c583486044f5de62b2a5e77e220c2f1ae3",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","movedTo":"https://::1/user/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, hash, actor) values(?,?,?)`,
+		`insert into persons (id, actor) values(?,?)`,
 		"https://::1/user/dan",
-		"2ca631feec88844591a19e830b895cadc880d127d689ff10e995750db22e07ff",
 		`{"id":"https://::1/user/dan","type":"Person","alsoKnownAs":"https://127.0.0.1/user/dan"}`,
 	)
 	assert.NoError(err)
@@ -243,9 +235,8 @@ func TestMove_FederatedToLocal(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, hash, actor) values(?,?,?)`,
+		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		"eab50d465047c1ccfc581759f33612c583486044f5de62b2a5e77e220c2f1ae3",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","movedTo":"https://localhost.localdomain:8443/user/bob"}`,
 	)
 	assert.NoError(err)
@@ -283,9 +274,8 @@ func TestMove_FederatedToLocalLinked(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, hash, actor) values(?,?,?)`,
+		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		"eab50d465047c1ccfc581759f33612c583486044f5de62b2a5e77e220c2f1ae3",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","movedTo":"https://localhost.localdomain:8443/user/bob"}`,
 	)
 	assert.NoError(err)

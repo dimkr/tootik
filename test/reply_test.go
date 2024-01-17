@@ -17,9 +17,9 @@ limitations under the License.
 package test
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"strings"
 	"testing"
 )
 
@@ -30,18 +30,18 @@ func TestReply_AuthorNotFollowed(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20world", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	hash := say[15 : len(say)-2]
+	id := say[15 : len(say)-2]
 
-	view := server.Handle("/users/view/"+hash, server.Bob)
+	view := server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", hash), server.Alice)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
-	view = server.Handle("/users/view/"+hash, server.Alice)
+	view = server.Handle("/users/view/"+id, server.Alice)
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
@@ -59,22 +59,22 @@ func TestReply_AuthorFollowed(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	say := server.Handle("/users/say?Hello%20world", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	hash := say[15 : len(say)-2]
+	id := say[15 : len(say)-2]
 
-	view := server.Handle("/users/view/"+hash, server.Bob)
+	view := server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", hash), server.Alice)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
-	view = server.Handle("/users/view/"+hash, server.Alice)
+	view = server.Handle("/users/view/"+id, server.Alice)
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
@@ -92,22 +92,22 @@ func TestReply_PostToFollowers(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
-	hash := whisper[15 : len(whisper)-2]
+	id := whisper[15 : len(whisper)-2]
 
-	view := server.Handle("/users/view/"+hash, server.Bob)
+	view := server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", hash), server.Alice)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
-	view = server.Handle("/users/view/"+hash, server.Alice)
+	view = server.Handle("/users/view/"+id, server.Alice)
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
@@ -126,18 +126,18 @@ func TestReply_PostToFollowersNotFollowing(t *testing.T) {
 	assert := assert.New(t)
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
-	hash := whisper[15 : len(whisper)-2]
+	id := whisper[15 : len(whisper)-2]
 
-	view := server.Handle("/users/view/"+hash, server.Bob)
+	view := server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", hash), server.Alice)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
 	assert.Equal("40 Post not found\r\n", reply)
 
-	view = server.Handle("/users/view/"+hash, server.Alice)
+	view = server.Handle("/users/view/"+id, server.Alice)
 	assert.Equal("40 Post not found\r\n", view)
 
 	today := server.Handle("/users/inbox/today", server.Bob)
@@ -154,25 +154,25 @@ func TestReply_PostToFollowersUnfollowedBeforeReply(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
-	hash := whisper[15 : len(whisper)-2]
+	id := whisper[15 : len(whisper)-2]
 
-	view := server.Handle("/users/view/"+hash, server.Bob)
+	view := server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
-	unfollow := server.Handle(fmt.Sprintf("/users/unfollow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), unfollow)
+	unfollow := server.Handle("/users/unfollow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), unfollow)
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", hash), server.Alice)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
 	assert.Equal("40 Post not found\r\n", reply)
 
-	view = server.Handle("/users/view/"+hash, server.Alice)
+	view = server.Handle("/users/view/"+id, server.Alice)
 	assert.NotContains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
@@ -190,25 +190,25 @@ func TestReply_PostToFollowersUnfollowedAfterReply(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
-	hash := whisper[15 : len(whisper)-2]
+	id := whisper[15 : len(whisper)-2]
 
-	view := server.Handle("/users/view/"+hash, server.Bob)
+	view := server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", hash), server.Alice)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
-	unfollow := server.Handle(fmt.Sprintf("/users/unfollow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), unfollow)
+	unfollow := server.Handle("/users/unfollow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), unfollow)
 
-	view = server.Handle("/users/view/"+hash, server.Alice)
+	view = server.Handle("/users/view/"+id, server.Alice)
 	assert.Equal("40 Post not found\r\n", view)
 
 	today := server.Handle("/users/inbox/today", server.Bob)
@@ -226,32 +226,31 @@ func TestReply_PostToFollowersInFollowedGroup(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, hash, actor) values(?,?,?)`,
+		`insert into persons (id, actor) values(?,?)`,
 		"https://other.localdomain/group/people",
-		"4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f", server.Alice)
-	assert.Equal("30 /users/outbox/4eeaa25305ef85dec1dc646e02f54fc1702f594d5bc0c8b9b1c41595a16ea70f\r\n", follow)
+	follow := server.Handle("/users/follow/other.localdomain/group/people", server.Alice)
+	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
 
 	whisper := server.Handle("/users/whisper?Hello%20people%20in%20%40people%40other.localdomain", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
-	hash := whisper[15 : len(whisper)-2]
+	id := whisper[15 : len(whisper)-2]
 
-	view := server.Handle("/users/view/"+hash, server.Bob)
+	view := server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "Hello people in @people@other.localdomain")
 	assert.NotContains(view, "Welcome Bob")
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", hash), server.Alice)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
-	view = server.Handle("/users/view/"+hash, server.Alice)
+	view = server.Handle("/users/view/"+id, server.Alice)
 	assert.Contains(view, "Hello people in @people@other.localdomain")
 	assert.Contains(view, "Welcome Bob")
 
@@ -273,25 +272,25 @@ func TestReply_SelfReply(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
-	hash := whisper[15 : len(whisper)-2]
+	id := whisper[15 : len(whisper)-2]
 
-	view := server.Handle("/users/view/"+hash, server.Bob)
+	view := server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
 	_, err := server.db.Exec("update outbox set inserted = inserted - 3600 where activity->>'type' = 'Create'")
 	assert.NoError(err)
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20me", hash), server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20me", id), server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
-	view = server.Handle("/users/view/"+hash, server.Alice)
+	view = server.Handle("/users/view/"+id, server.Alice)
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome me")
 
@@ -309,22 +308,22 @@ func TestReply_ReplyToPublicPostByFollowedUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	say := server.Handle("/users/say?Hello%20world", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	hash := say[15 : len(say)-2]
+	id := say[15 : len(say)-2]
 
-	view := server.Handle("/users/view/"+hash, server.Bob)
+	view := server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", hash), server.Carol)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Carol)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
-	view = server.Handle("/users/view/"+hash, server.Alice)
+	view = server.Handle("/users/view/"+id, server.Alice)
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
@@ -344,18 +343,18 @@ func TestReply_ReplyToPublicPostByNotFollowedUser(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20world", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	hash := say[15 : len(say)-2]
+	id := say[15 : len(say)-2]
 
-	view := server.Handle("/users/view/"+hash, server.Bob)
+	view := server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", hash), server.Carol)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Carol)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
-	view = server.Handle("/users/view/"+hash, server.Alice)
+	view = server.Handle("/users/view/"+id, server.Alice)
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
@@ -374,11 +373,11 @@ func TestReply_DM(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Regexp("^30 /users/outbox/[0-9a-f]{64}\r\n$", follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	dm := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20Alice", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", dm)
+	dm := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20Alice", strings.TrimPrefix(server.Alice.ID, "https://")), server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
 	today := server.Handle("/users/inbox/today", server.Alice)
 	assert.Contains(today, "Hello Alice")
@@ -388,13 +387,13 @@ func TestReply_DM(t *testing.T) {
 	assert.NotContains(today, "Hello Alice")
 	assert.NotContains(today, "Hello Bob")
 
-	hash := dm[15 : len(dm)-2]
+	id := dm[15 : len(dm)-2]
 
-	view := server.Handle("/users/view/"+hash, server.Alice)
+	view := server.Handle("/users/view/"+id, server.Alice)
 	assert.Contains(view, "Hello Alice")
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hello%%20Bob", hash), server.Alice)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hello%%20Bob", id), server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
 	today = server.Handle("/users/inbox/today", server.Alice)
 	assert.Contains(today, "Hello Alice")
@@ -411,11 +410,11 @@ func TestReply_DMUnfollowed(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Regexp("^30 /users/outbox/[0-9a-f]{64}\r\n$", follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	dm := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20Alice", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", dm)
+	dm := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20Alice", strings.TrimPrefix(server.Alice.ID, "https://")), server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
 	today := server.Handle("/users/inbox/today", server.Alice)
 	assert.Contains(today, "Hello Alice")
@@ -425,16 +424,16 @@ func TestReply_DMUnfollowed(t *testing.T) {
 	assert.NotContains(today, "Hello Alice")
 	assert.NotContains(today, "Hello Bob")
 
-	hash := dm[15 : len(dm)-2]
+	id := dm[15 : len(dm)-2]
 
-	view := server.Handle("/users/view/"+hash, server.Alice)
+	view := server.Handle("/users/view/"+id, server.Alice)
 	assert.Contains(view, "Hello Alice")
 
-	unfollow := server.Handle(fmt.Sprintf("/users/unfollow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), unfollow)
+	unfollow := server.Handle("/users/unfollow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), unfollow)
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hello%%20Bob", hash), server.Alice)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hello%%20Bob", id), server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
 	today = server.Handle("/users/inbox/today", server.Alice)
 	assert.NotContains(today, "Hello Alice")
@@ -451,11 +450,11 @@ func TestReply_DMToAnotherUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Regexp("^30 /users/outbox/[0-9a-f]{64}\r\n$", follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	dm := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20Alice", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", dm)
+	dm := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20Alice", strings.TrimPrefix(server.Alice.ID, "https://")), server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
 	today := server.Handle("/users/inbox/today", server.Alice)
 	assert.Contains(today, "Hello Alice")
@@ -465,12 +464,12 @@ func TestReply_DMToAnotherUser(t *testing.T) {
 	assert.NotContains(today, "Hello Alice")
 	assert.NotContains(today, "Hello Bob")
 
-	hash := dm[15 : len(dm)-2]
+	id := dm[15 : len(dm)-2]
 
-	view := server.Handle("/users/view/"+hash, server.Alice)
+	view := server.Handle("/users/view/"+id, server.Alice)
 	assert.Contains(view, "Hello Alice")
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hello%%20Bob", hash), server.Carol)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hello%%20Bob", id), server.Carol)
 	assert.Equal("40 Post not found\r\n", reply)
 
 	today = server.Handle("/users/inbox/today", server.Alice)
@@ -488,6 +487,6 @@ func TestReply_NoSuchPost(t *testing.T) {
 
 	assert := assert.New(t)
 
-	reply := server.Handle("/users/reply/87428fc522803d31065e7bce3cf03fe475096631e5e07bbd7a0fde60c4cf25c7?Welcome%%20Bob", server.Alice)
+	reply := server.Handle("/users/reply/x?Welcome%%20Bob", server.Alice)
 	assert.Equal("40 Post not found\r\n", reply)
 }

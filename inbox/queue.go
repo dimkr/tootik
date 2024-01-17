@@ -92,6 +92,10 @@ func processCreateActivity(ctx context.Context, domain string, cfg *cfg.Config, 
 		return fmt.Errorf("received invalid Create for %s by %s from %s", post.ID, post.AttributedTo, req.Actor)
 	}
 
+	if !data.IsIDValid(post.ID) {
+		return fmt.Errorf("received invalid post ID: %s", post.ID)
+	}
+
 	var duplicate int
 	if err := db.QueryRowContext(ctx, `select exists (select 1 from notes where id = ?)`, post.ID).Scan(&duplicate); err != nil {
 		return fmt.Errorf("failed to check of %s is a duplicate: %w", post.ID, err)

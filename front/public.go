@@ -22,7 +22,7 @@ import (
 	"github.com/dimkr/tootik/front/text"
 )
 
-func (h *Handler) local(w text.Writer, r *request) {
+func (h *Handler) local(w text.Writer, r *request, args ...string) {
 	offset, err := getOffset(r.URL)
 	if err != nil {
 		r.Log.Info("Failed to parse query", "url", r.URL, "error", err)
@@ -78,20 +78,16 @@ func (h *Handler) local(w text.Writer, r *request) {
 		w.Separator()
 	}
 
-	if offset >= h.Config.PostsPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/local?%d", offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
-	} else if offset >= h.Config.PostsPerPage {
-		w.Linkf(fmt.Sprintf("/users/local?%d", offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
+	if offset >= h.Config.PostsPerPage {
+		w.Linkf(fmt.Sprintf("%s?%d", r.URL.Path, offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
 	}
 
-	if count == h.Config.PostsPerPage && offset+h.Config.PostsPerPage <= h.Config.MaxOffset && r.User == nil {
-		w.Linkf(fmt.Sprintf("/local?%d", offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
-	} else if count == h.Config.PostsPerPage && offset+h.Config.PostsPerPage <= h.Config.MaxOffset {
-		w.Linkf(fmt.Sprintf("/users/local?%d", offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
+	if count == h.Config.PostsPerPage && offset+h.Config.PostsPerPage <= h.Config.MaxOffset {
+		w.Linkf(fmt.Sprintf("%s?%d", r.URL.Path, offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
 	}
 }
 
-func (h *Handler) federated(w text.Writer, r *request) {
+func (h *Handler) federated(w text.Writer, r *request, args ...string) {
 	offset, err := getOffset(r.URL)
 	if err != nil {
 		r.Log.Info("Failed to parse query", "url", r.URL, "error", err)
@@ -143,20 +139,16 @@ func (h *Handler) federated(w text.Writer, r *request) {
 		w.Separator()
 	}
 
-	if offset >= h.Config.PostsPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/federated?%d", offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
-	} else if offset >= h.Config.PostsPerPage {
-		w.Linkf(fmt.Sprintf("/users/federated?%d", offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
+	if offset >= h.Config.PostsPerPage {
+		w.Linkf(fmt.Sprintf("%s?%d", r.URL.Path, offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
 	}
 
-	if count == h.Config.PostsPerPage && offset+h.Config.PostsPerPage <= h.Config.MaxOffset && r.User == nil {
-		w.Linkf(fmt.Sprintf("/federated?%d", offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
-	} else if count == h.Config.PostsPerPage && offset+h.Config.PostsPerPage <= h.Config.MaxOffset {
-		w.Linkf(fmt.Sprintf("/users/federated?%d", offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
+	if count == h.Config.PostsPerPage && offset+h.Config.PostsPerPage <= h.Config.MaxOffset {
+		w.Linkf(fmt.Sprintf("%s?%d", r.URL.Path, offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
 	}
 }
 
-func (h *Handler) home(w text.Writer, r *request) {
+func (h *Handler) home(w text.Writer, r *request, args ...string) {
 	if r.User != nil {
 		w.Redirect("/users")
 		return

@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@ limitations under the License.
 package test
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"strings"
 	"testing"
 )
 
@@ -39,15 +39,15 @@ func TestFollows_TwoInactive(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	follows := server.Handle("/users/follows", server.Alice)
 	assert.Contains(follows, server.Bob.PreferredUsername)
 	assert.NotContains(follows, server.Carol.PreferredUsername)
 
-	follow = server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Carol.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Carol.ID))), follow)
+	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Carol.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Carol.ID, "https://")), follow)
 
 	follows = server.Handle("/users/follows", server.Alice)
 	assert.Contains(follows, server.Bob.PreferredUsername)
@@ -60,11 +60,11 @@ func TestFollows_OneActiveOneInactive(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	follow = server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Carol.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Carol.ID))), follow)
+	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Carol.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Carol.ID, "https://")), follow)
 
 	follows := server.Handle("/users/follows", server.Alice)
 	assert.Contains(follows, server.Bob.PreferredUsername)
@@ -72,7 +72,7 @@ func TestFollows_OneActiveOneInactive(t *testing.T) {
 	assert.Contains(follows, server.Carol.PreferredUsername)
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	follows = server.Handle("/users/follows", server.Alice)
 	assert.Contains(follows, server.Bob.PreferredUsername)

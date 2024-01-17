@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@ limitations under the License.
 package test
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"strings"
 	"testing"
 )
 
@@ -29,16 +29,16 @@ func TestWhisper_HappyFlow(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	view := server.Handle(whisper[3:len(whisper)-2], server.Bob)
 	assert.Contains(view, "Hello world")
 
-	outbox := server.Handle(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
+	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Contains(outbox, "Hello world")
 
 	local := server.Handle("/local", server.Carol)
@@ -52,18 +52,18 @@ func TestWhisper_FollowAfterPost(t *testing.T) {
 	assert := assert.New(t)
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	view := server.Handle(whisper[3:len(whisper)-2], server.Bob)
 	assert.Equal("40 Post not found\r\n", view)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
 	view = server.Handle(whisper[3:len(whisper)-2], server.Bob)
 	assert.Contains(view, "Hello world")
 
-	outbox := server.Handle(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
+	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Contains(outbox, "Hello world")
 
 	local := server.Handle("/local", server.Carol)
@@ -76,22 +76,22 @@ func TestWhisper_Throttling(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	view := server.Handle(whisper[3:len(whisper)-2], server.Bob)
 	assert.Contains(view, "Hello world")
 
-	outbox := server.Handle(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Alice)
+	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Alice)
 	assert.Contains(outbox, "Hello world")
 
 	whisper = server.Handle("/users/whisper?Hello%20once%20more,%20world", server.Alice)
 	assert.Equal("40 Please wait before posting again\r\n", whisper)
 
-	outbox = server.Handle(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
+	outbox = server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Contains(outbox, "Hello world")
 	assert.NotContains(outbox, "Hello once more, world")
 

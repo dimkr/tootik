@@ -17,7 +17,6 @@ limitations under the License.
 package test
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"strings"
@@ -44,9 +43,9 @@ func TestBio_HappyFlow(t *testing.T) {
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
 
 	summary := server.Handle("/users/bio?Hello%20world", server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), summary)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), summary)
 
-	outbox := server.Handle(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
+	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Contains(strings.Split(outbox, "\n"), "> Hello world")
 }
 
@@ -71,9 +70,9 @@ func TestBio_MultiLine(t *testing.T) {
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
 
 	summary := server.Handle("/users/bio?Hello%0Aworld", server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), summary)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), summary)
 
-	outbox := strings.Split(server.Handle(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob), "\n")
+	outbox := strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob), "\n")
 	assert.Contains(outbox, "> Hello")
 	assert.Contains(outbox, "> world")
 }
@@ -87,9 +86,9 @@ func TestBio_MultiLineWithLink(t *testing.T) {
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
 
 	summary := server.Handle("/users/bio?Hi%21%0A%0AI%27m%20a%20friend%20of%20https%3a%2f%2flocalhost.localdomain%3a8443%2fuser%2fbob", server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), summary)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), summary)
 
-	outbox := strings.Split(server.Handle(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob), "\n")
+	outbox := strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob), "\n")
 	assert.Contains(outbox, "> Hi!")
 	assert.Contains(outbox, "> I'm a friend of https://localhost.localdomain:8443/user/bob")
 	assert.Contains(outbox, "=> https://localhost.localdomain:8443/user/bob https://localhost.localdomain:8443/user/bob")

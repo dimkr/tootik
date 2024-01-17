@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@ limitations under the License.
 package test
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"strings"
 	"testing"
 )
 
@@ -29,15 +29,15 @@ func TestFollow_PostToFollowers(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "Nothing to see! Are you following anyone?")
 	assert.NotContains(users, "1 post")
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	users = server.Handle("/users", server.Alice)
 	assert.NotContains(users, "Nothing to see! Are you following anyone?")
@@ -58,10 +58,10 @@ func TestFollow_PostToFollowersBeforeFollow(t *testing.T) {
 	assert.NotContains(users, "1 post")
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	users = server.Handle("/users", server.Alice)
 	assert.NotContains(users, "Nothing to see! Are you following anyone?")
@@ -81,11 +81,11 @@ func TestFollow_DMUnfollowFollow(t *testing.T) {
 	assert.Contains(users, "Nothing to see! Are you following anyone?")
 	assert.NotContains(users, "1 post")
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	dm := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20Alice", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", dm)
+	dm := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20Alice", strings.TrimPrefix(server.Alice.ID, "https://")), server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
 	users = server.Handle("/users", server.Alice)
 	assert.NotContains(users, "Nothing to see! Are you following anyone?")
@@ -94,8 +94,8 @@ func TestFollow_DMUnfollowFollow(t *testing.T) {
 	today := server.Handle("/users/inbox/today", server.Alice)
 	assert.Contains(today, "Hello Alice")
 
-	unfollow := server.Handle(fmt.Sprintf("/users/unfollow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), unfollow)
+	unfollow := server.Handle("/users/unfollow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), unfollow)
 
 	users = server.Handle("/users", server.Alice)
 	assert.Contains(users, "Nothing to see! Are you following anyone?")
@@ -111,15 +111,15 @@ func TestFollow_PublicPost(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "Nothing to see! Are you following anyone?")
 	assert.NotContains(users, "1 post")
 
 	whisper := server.Handle("/users/say?Hello%20world", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	users = server.Handle("/users", server.Alice)
 	assert.NotContains(users, "Nothing to see! Are you following anyone?")
@@ -135,8 +135,8 @@ func TestFollow_Mutual(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "Nothing to see! Are you following anyone?")
@@ -147,12 +147,12 @@ func TestFollow_Mutual(t *testing.T) {
 	assert.NotContains(users, "1 post")
 
 	whisper := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
-	hash := whisper[15 : len(whisper)-2]
+	id := whisper[15 : len(whisper)-2]
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hello%%20Alice", hash), server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hello%%20Alice", id), server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
 	users = server.Handle("/users", server.Alice)
 	assert.NotContains(users, "Nothing to see! Are you following anyone?")
@@ -165,8 +165,8 @@ func TestFollow_Mutual(t *testing.T) {
 	today := server.Handle("/users/inbox/today", server.Alice)
 	assert.Contains(today, "Hello Alice")
 
-	follow = server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), follow)
+	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
 	users = server.Handle("/users", server.Bob)
 	assert.NotContains(users, "Nothing to see! Are you following anyone?")
@@ -182,10 +182,10 @@ func TestFollow_AlreadyFollowing(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	follow = server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
+	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal("40 Already following https://localhost.localdomain:8443/user/bob\r\n", follow)
 }
 
@@ -195,7 +195,7 @@ func TestFollow_NoSuchUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/87428fc522803d31065e7bce3cf03fe475096631e5e07bbd7a0fde60c4cf25c7", server.Alice)
+	follow := server.Handle("/users/follow/localhost.localdomain:8443/user/erin", server.Alice)
 	assert.Equal("40 No such user\r\n", follow)
 }
 
@@ -205,6 +205,6 @@ func TestFollow_UnauthenticatedUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/87428fc522803d31065e7bce3cf03fe475096631e5e07bbd7a0fde60c4cf25c7", nil)
+	follow := server.Handle("/users/follow/localhost.localdomain:8443/user/erin", nil)
 	assert.Equal("30 /users\r\n", follow)
 }

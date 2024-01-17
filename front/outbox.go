@@ -17,7 +17,6 @@ limitations under the License.
 package front
 
 import (
-	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -25,26 +24,26 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
-	"path/filepath"
+	"strings"
 )
 
-func (h *Handler) userOutbox(w text.Writer, r *request) {
-	hash := filepath.Base(r.URL.Path)
+func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
+	actorID := "https://" + args[1]
 
-	var actorID, actorString string
-	if err := r.QueryRow(`select id, actor from persons where hash = ?`, hash).Scan(&actorID, &actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.Info("Person was not found", "hash", hash)
+	var actorString string
+	if err := r.QueryRow(`select actor from persons where id = ?`, actorID).Scan(&actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
+		r.Log.Info("Person was not found", "actor", actorID)
 		w.Status(40, "User not found")
 		return
 	} else if err != nil {
-		r.Log.Warn("Failed to find person by hash", "hash", hash, "error", err)
+		r.Log.Warn("Failed to find person by ID", "actor", actorID, "error", err)
 		w.Error()
 		return
 	}
 
 	actor := ap.Actor{}
 	if err := json.Unmarshal([]byte(actorString), &actor); err != nil {
-		r.Log.Warn("Failed to unmarshal actor", "hash", hash, "error", err)
+		r.Log.Warn("Failed to unmarshal actor", "actor", actorID, "error", err)
 		w.Error()
 		return
 	}
@@ -227,16 +226,12 @@ func (h *Handler) userOutbox(w text.Writer, r *request) {
 		w.Separator()
 	}
 
-	if offset >= h.Config.PostsPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/outbox/%s?%d", hash, offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
-	} else if offset >= h.Config.PostsPerPage {
-		w.Linkf(fmt.Sprintf("/users/outbox/%s?%d", hash, offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
+	if offset >= h.Config.PostsPerPage {
+		w.Linkf(fmt.Sprintf("%s?%d", r.URL.Path, offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
 	}
 
-	if count == h.Config.PostsPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/outbox/%s?%d", hash, offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
-	} else if count == h.Config.PostsPerPage {
-		w.Linkf(fmt.Sprintf("/users/outbox/%s?%d", hash, offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
+	if count == h.Config.PostsPerPage {
+		w.Linkf(fmt.Sprintf("%s?%d", r.URL.Path, offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
 	}
 
 	if r.User != nil && actorID != r.User.ID {
@@ -245,17 +240,17 @@ func (h *Handler) userOutbox(w text.Writer, r *request) {
 			r.Log.Warn("Failed to check if user is followed", "folowed", actorID, "error", err)
 		} else if followed == 0 {
 			w.Separator()
-			w.Linkf(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(actorID))), "⚡ Follow %s", actor.PreferredUsername)
+			w.Linkf("/users/follow/"+strings.TrimPrefix(actorID, "https://"), "⚡ Follow %s", actor.PreferredUsername)
 		} else {
 			w.Separator()
-			w.Linkf(fmt.Sprintf("/users/unfollow/%x", sha256.Sum256([]byte(actorID))), "🔌 Unfollow %s", actor.PreferredUsername)
+			w.Linkf("/users/unfollow/"+strings.TrimPrefix(actorID, "https://"), "🔌 Unfollow %s", actor.PreferredUsername)
 		}
 
 		var following int
 		if err := r.QueryRow(`select exists (select 1 from follows where follower = ? and followed = ? and accepted = 1)`, actorID, r.User.ID).Scan(&following); err != nil {
 			r.Log.Warn("Failed to check if user is a follower", "follower", actorID, "error", err)
 		} else if following == 1 {
-			w.Linkf(fmt.Sprintf("/users/dm/%x", sha256.Sum256([]byte(actorID))), "📟 Message %s", actor.PreferredUsername)
+			w.Linkf("/users/dm/"+strings.TrimPrefix(actorID, "https://"), "📟 Message %s", actor.PreferredUsername)
 		}
 	}
 }

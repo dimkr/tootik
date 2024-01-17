@@ -21,7 +21,7 @@ import (
 	"github.com/dimkr/tootik/front/text"
 )
 
-func (h *Handler) say(w text.Writer, r *request) {
+func (h *Handler) say(w text.Writer, r *request, args ...string) {
 	to := ap.Audience{}
 	cc := ap.Audience{}
 

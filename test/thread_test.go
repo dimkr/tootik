@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ package test
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/inbox/note"
@@ -35,22 +34,22 @@ func TestThread_TwoReplies(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20world", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n`, say)
 
-	hash := say[15 : len(say)-2]
+	id := say[15 : len(say)-2]
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", hash), server.Alice)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n`, reply)
 
-	reply = server.Handle(fmt.Sprintf("/users/reply/%s?Hi%%20Bob", hash), server.Carol)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
+	reply = server.Handle(fmt.Sprintf("/users/reply/%s?Hi%%20Bob", id), server.Carol)
+	assert.Regexp(`^30 /users/view/\S+\r\n`, reply)
 
 	view := server.Handle("/users/view/"+reply[15:len(reply)-2], server.Alice)
-	assert.Contains(strings.Split(view, "\n"), fmt.Sprintf("=> /users/view/%s View parent post", hash))
+	assert.Contains(strings.Split(view, "\n"), fmt.Sprintf("=> /users/view/%s View parent post", id))
 	assert.NotContains(view, "View first post in thread")
 	assert.NotContains(view, "View thread")
 
-	thread := server.Handle("/users/thread/"+hash, server.Alice)
+	thread := server.Handle("/users/thread/"+id, server.Alice)
 	assert.Contains(thread, "Replies to 😈 bob")
 	assert.Contains(thread, " bob")
 	assert.Contains(thread, " · alice")
@@ -64,22 +63,22 @@ func TestThread_NestedReplies(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20world", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n`, say)
 
-	hash := say[15 : len(say)-2]
+	id := say[15 : len(say)-2]
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", hash), server.Alice)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n`, reply)
 
 	reply = server.Handle(fmt.Sprintf("/users/reply/%s?Hi%%20Bob", reply[15:len(reply)-2]), server.Carol)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
+	assert.Regexp(`^30 /users/view/\S+\r\n`, reply)
 
-	view := server.Handle("/users/view/"+hash, server.Alice)
+	view := server.Handle("/users/view/"+id, server.Alice)
 	assert.NotContains(view, "View parent post")
 	assert.NotContains(view, "View first post in thread")
 	assert.NotContains(view, "View thread")
 
-	thread := server.Handle("/users/thread/"+hash, server.Alice)
+	thread := server.Handle("/users/thread/"+id, server.Alice)
 	assert.Contains(thread, "Replies to 😈 bob")
 	assert.Contains(thread, " bob")
 	assert.Contains(thread, " · alice")
@@ -93,19 +92,19 @@ func TestThread_NestedReply(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20world", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n`, say)
 
-	hash := say[15 : len(say)-2]
+	id := say[15 : len(say)-2]
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", hash), server.Alice)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n`, reply)
 
-	view := server.Handle("/users/view/"+hash, server.Alice)
+	view := server.Handle("/users/view/"+id, server.Alice)
 	assert.NotContains(view, "View parent post")
 	assert.NotContains(view, "View first post in thread")
 	assert.NotContains(view, "View thread")
 
-	thread := server.Handle("/users/thread/"+hash, server.Alice)
+	thread := server.Handle("/users/thread/"+id, server.Alice)
 	assert.Contains(thread, "Replies to 😈 bob")
 	assert.Contains(thread, " bob")
 	assert.Contains(thread, " · alice")
@@ -119,16 +118,16 @@ func TestThread_NoReplies(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20world", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n`, say)
 
-	hash := say[15 : len(say)-2]
+	id := say[15 : len(say)-2]
 
-	view := server.Handle("/users/view/"+hash, server.Alice)
+	view := server.Handle("/users/view/"+id, server.Alice)
 	assert.NotContains(view, "View parent post")
 	assert.NotContains(view, "View first post in thread")
 	assert.NotContains(view, "View thread")
 
-	thread := server.Handle("/users/thread/"+hash, server.Alice)
+	thread := server.Handle("/users/thread/"+id, server.Alice)
 	assert.Contains(thread, "Replies to 😈 bob")
 	assert.Contains(thread, " bob")
 	assert.NotContains(thread, "alice")
@@ -142,21 +141,21 @@ func TestThread_NestedRepliesFromBottom(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20world", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n`, say)
 
-	hash := say[15 : len(say)-2]
+	id := say[15 : len(say)-2]
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", hash), server.Alice)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n`, reply)
 
 	parentReplyHash := reply[15 : len(reply)-2]
 
 	reply = server.Handle(fmt.Sprintf("/users/reply/%s?Hi%%20Bob", parentReplyHash), server.Carol)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
+	assert.Regexp(`^30 /users/view/\S+\r\n`, reply)
 
 	view := server.Handle("/users/view/"+reply[15:len(reply)-2], server.Alice)
 	assert.Contains(strings.Split(view, "\n"), fmt.Sprintf("=> /users/view/%s View parent post", parentReplyHash))
-	assert.Contains(strings.Split(view, "\n"), fmt.Sprintf("=> /users/view/%s View first post in thread", hash))
+	assert.Contains(strings.Split(view, "\n"), fmt.Sprintf("=> /users/view/%s View first post in thread", id))
 	assert.NotContains(view, "View thread")
 
 	thread := server.Handle("/users/thread/"+reply[15:len(reply)-2], server.Alice)
@@ -173,20 +172,20 @@ func TestThread_NestedRepliesFromBottomMissingNode(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20world", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n`, say)
 
-	hash := say[15 : len(say)-2]
+	id := say[15 : len(say)-2]
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", hash), server.Alice)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n`, reply)
 
 	firstReplyHash := reply[15 : len(reply)-2]
 
 	reply = server.Handle(fmt.Sprintf("/users/reply/%s?Hi%%20Bob", firstReplyHash), server.Carol)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
+	assert.Regexp(`^30 /users/view/\S+\r\n`, reply)
 
 	delete := server.Handle("/users/delete/"+firstReplyHash, server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), delete)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), delete)
 
 	view := server.Handle("/users/view/"+reply[15:len(reply)-2], server.Alice)
 	assert.NotContains(view, "View parent post")
@@ -207,20 +206,20 @@ func TestThread_NestedRepliesFromBottomMissingFirstNode(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20world", server.Bob)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n`, say)
 
-	hash := say[15 : len(say)-2]
+	id := say[15 : len(say)-2]
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", hash), server.Alice)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n`, reply)
 
 	parentReplyHash := reply[15 : len(reply)-2]
 
 	reply = server.Handle(fmt.Sprintf("/users/reply/%s?Hi%%20Bob", parentReplyHash), server.Carol)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", reply)
+	assert.Regexp(`^30 /users/view/\S+\r\n`, reply)
 
-	delete := server.Handle("/users/delete/"+hash, server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Bob.ID))), delete)
+	delete := server.Handle("/users/delete/"+id, server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), delete)
 
 	view := server.Handle("/users/view/"+reply[15:len(reply)-2], server.Alice)
 	assert.Contains(strings.Split(view, "\n"), fmt.Sprintf("=> /users/view/%s View parent post", parentReplyHash))
@@ -344,14 +343,14 @@ func TestThread_Tree(t *testing.T) {
 
 	assert.NoError(tx.Commit())
 
-	thread := server.Handle("/thread/f42d4ca96d006a7b924cde2b3694d2dacb0fe92e140232e336a0ad3cbc049984", nil)
+	thread := server.Handle("/thread/localhost.localdomain:8443/note/1", nil)
 	assert.Contains(thread, "Replies to 😈 alice")
 	assert.Contains(thread, " · bob")
 	assert.Contains(thread, " ·· alice")
 	assert.Contains(thread, " ··· carol")
 	assert.Contains(thread, " · carol")
 	assert.Contains(thread, " ·· bob")
-	assert.NotContains(strings.Split(thread, "\n"), "=> /view/f42d4ca96d006a7b924cde2b3694d2dacb0fe92e140232e336a0ad3cbc049984 View first post in thread")
+	assert.NotContains(strings.Split(thread, "\n"), "=> /view/localhost.localdomain:8443/note/1 View first post in thread")
 }
 
 func TestThread_SubTree(t *testing.T) {
@@ -464,10 +463,10 @@ func TestThread_SubTree(t *testing.T) {
 
 	assert.NoError(tx.Commit())
 
-	thread := server.Handle("/thread/6f5c6eb90e28bac6a71c73c93d8957e7d6627926838539561a918eaf21a4a800", nil)
+	thread := server.Handle("/thread/localhost.localdomain:8443/note/2", nil)
 	assert.Contains(thread, "Replies to 😈 bob")
 	assert.Contains(thread, " bob")
 	assert.Contains(thread, " · alice")
 	assert.Contains(thread, " ·· carol")
-	assert.Contains(strings.Split(thread, "\n"), "=> /view/f42d4ca96d006a7b924cde2b3694d2dacb0fe92e140232e336a0ad3cbc049984 View first post in thread")
+	assert.Contains(strings.Split(thread, "\n"), "=> /view/localhost.localdomain:8443/note/1 View first post in thread")
 }

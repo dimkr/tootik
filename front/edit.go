@@ -24,12 +24,11 @@ import (
 	"github.com/dimkr/tootik/front/text"
 	"math"
 	"net/url"
-	"path/filepath"
 	"time"
 	"unicode/utf8"
 )
 
-func (h *Handler) edit(w text.Writer, r *request) {
+func (h *Handler) edit(w text.Writer, r *request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -51,22 +50,22 @@ func (h *Handler) edit(w text.Writer, r *request) {
 		return
 	}
 
-	hash := filepath.Base(r.URL.Path)
+	postID := "https://" + args[1]
 
 	var noteString string
-	if err := r.QueryRow(`select object from notes where hash = ? and author = ?`, hash, r.User.ID).Scan(&noteString); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.Warn("Attempted to edit non-existing post", "hash", hash, "error", err)
+	if err := r.QueryRow(`select object from notes where id = ? and author = ?`, postID, r.User.ID).Scan(&noteString); err != nil && errors.Is(err, sql.ErrNoRows) {
+		r.Log.Warn("Attempted to edit non-existing post", "post", postID, "error", err)
 		w.Error()
 		return
 	} else if err != nil {
-		r.Log.Warn("Failed to fetch post to edit", "hash", hash, "error", err)
+		r.Log.Warn("Failed to fetch post to edit", "post", postID, "error", err)
 		w.Error()
 		return
 	}
 
 	var note ap.Object
 	if err := json.Unmarshal([]byte(noteString), &note); err != nil {
-		r.Log.Warn("Failed to unmarshal post to edit", "hash", hash, "error", err)
+		r.Log.Warn("Failed to unmarshal post to edit", "post", postID, "error", err)
 		w.Error()
 		return
 	}
@@ -79,7 +78,7 @@ func (h *Handler) edit(w text.Writer, r *request) {
 
 	var edits int
 	if err := r.QueryRow(`select count(*) from outbox where activity->>'object.id' = ? and (activity->>'type' = 'Update' or activity->>'type' = 'Create')`, note.ID).Scan(&edits); err != nil {
-		r.Log.Warn("Failed to count post edits", "hash", hash, "error", err)
+		r.Log.Warn("Failed to count post edits", "post", postID, "error", err)
 		w.Error()
 		return
 	}

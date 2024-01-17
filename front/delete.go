@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,38 +17,37 @@ limitations under the License.
 package front
 
 import (
-	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/outbox"
-	"path/filepath"
+	"strings"
 )
 
-func delete(w text.Writer, r *request) {
+func delete(w text.Writer, r *request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
 	}
 
-	hash := filepath.Base(r.URL.Path)
+	postID := "https://" + args[1]
 
 	var noteString string
-	if err := r.QueryRow(`select object from notes where hash = ? and author = ?`, hash, r.User.ID).Scan(&noteString); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.Warn("Attempted to delete a non-existing post", "hash", hash, "error", err)
+	if err := r.QueryRow(`select object from notes where id = ? and author = ?`, postID, r.User.ID).Scan(&noteString); err != nil && errors.Is(err, sql.ErrNoRows) {
+		r.Log.Warn("Attempted to delete a non-existing post", "post", postID, "error", err)
 		w.Error()
 		return
 	} else if err != nil {
-		r.Log.Warn("Failed to fetch post to delete", "hash", hash, "error", err)
+		r.Log.Warn("Failed to fetch post to delete", "post", postID, "error", err)
 		w.Error()
 		return
 	}
 
 	var note ap.Object
 	if err := json.Unmarshal([]byte(noteString), &note); err != nil {
-		r.Log.Warn("Failed to unmarshal post to delete", "hash", hash, "error", err)
+		r.Log.Warn("Failed to unmarshal post to delete", "post", postID, "error", err)
 		w.Error()
 		return
 	}
@@ -59,5 +58,5 @@ func delete(w text.Writer, r *request) {
 		return
 	}
 
-	w.Redirectf("/users/outbox/%x", sha256.Sum256([]byte(r.User.ID)))
+	w.Redirect("/users/outbox/" + strings.TrimPrefix(r.User.ID, "https://"))
 }

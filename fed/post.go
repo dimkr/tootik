@@ -17,7 +17,6 @@ limitations under the License.
 package fed
 
 import (
-	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -25,7 +24,6 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"log/slog"
 	"net/http"
-	"path/filepath"
 )
 
 type postHandler struct {
@@ -40,10 +38,10 @@ func (h *postHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	postID := fmt.Sprintf("https://%s/post/%s", h.Domain, filepath.Base(r.URL.Path))
+	postID := fmt.Sprintf("https://%s%s", h.Domain, r.URL.Path)
 
 	if shouldRedirect(r) {
-		url := fmt.Sprintf("gemini://%s/view/%x", h.Domain, sha256.Sum256([]byte(postID)))
+		url := fmt.Sprintf("gemini://%s/view/%s%s", h.Domain, h.Domain, r.URL.Path)
 		h.Log.Info("Redirecting to post over Gemini", "url", url)
 		w.Header().Set("Location", url)
 		w.WriteHeader(http.StatusMovedPermanently)

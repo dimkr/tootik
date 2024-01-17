@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import (
 	"github.com/dimkr/tootik/front/text"
 )
 
-func users(w text.Writer, r *request) {
+func users(w text.Writer, r *request, args ...string) {
 	if r.User == nil {
 		w.Status(61, "Peer certificate is required")
 		return

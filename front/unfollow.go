@@ -17,29 +17,26 @@ limitations under the License.
 package front
 
 import (
-	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/outbox"
-	"path/filepath"
 )
 
-func (h *Handler) unfollow(w text.Writer, r *request) {
+func (h *Handler) unfollow(w text.Writer, r *request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
 	}
 
-	hash := filepath.Base(r.URL.Path)
+	followed := "https://" + args[1]
 
-	var followID, followed string
-	if err := r.QueryRow(`select follows.id, persons.id from persons join follows on persons.id = follows.followed where persons.hash = ? and follows.follower = ?`, hash, r.User.ID).Scan(&followID, &followed); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.Warn("Cannot undo a non-existing follow", "hash", hash, "error", err)
+	var followID string
+	if err := r.QueryRow(`select follows.id from persons join follows on persons.id = follows.followed where persons.id = ? and follows.follower = ?`, followed, r.User.ID).Scan(&followID); err != nil && errors.Is(err, sql.ErrNoRows) {
+		r.Log.Warn("Cannot undo a non-existing follow", "followed", followed, "error", err)
 		w.Status(40, "No such follow")
-		return
 	} else if err != nil {
-		r.Log.Warn("Failed to find followed user", "hash", hash, "error", err)
+		r.Log.Warn("Failed to find followed user", "followed", followed, "error", err)
 		w.Error()
 		return
 	}
@@ -50,5 +47,5 @@ func (h *Handler) unfollow(w text.Writer, r *request) {
 		return
 	}
 
-	w.Redirectf("/users/outbox/%x", sha256.Sum256([]byte(followed)))
+	w.Redirect("/users/outbox/" + args[1])
 }

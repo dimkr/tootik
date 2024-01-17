@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,9 +17,8 @@ limitations under the License.
 package test
 
 import (
-	"crypto/sha256"
-	"fmt"
 	"github.com/stretchr/testify/assert"
+	"strings"
 	"testing"
 )
 
@@ -30,12 +29,12 @@ func TestSay_HappyFlow(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
 	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "Hello world")
 
-	outbox := server.Handle(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
+	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Contains(outbox, "Hello world")
 
 	local := server.Handle("/local", server.Carol)
@@ -49,18 +48,18 @@ func TestSay_Throttling(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
 	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "Hello world")
 
-	outbox := server.Handle(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Alice)
+	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Alice)
 	assert.Contains(outbox, "Hello world")
 
 	say = server.Handle("/users/say?Hello%20once%20more,%20world", server.Alice)
 	assert.Equal("40 Please wait before posting again\r\n", say)
 
-	outbox = server.Handle(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
+	outbox = server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Contains(outbox, "Hello world")
 	assert.NotContains(outbox, "Hello once more, world")
 

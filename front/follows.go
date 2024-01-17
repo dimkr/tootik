@@ -17,12 +17,11 @@ limitations under the License.
 package front
 
 import (
-	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
+	"strings"
 	"time"
 )
 
@@ -32,7 +31,7 @@ type followedUserActivity struct {
 	Count sql.NullInt64
 }
 
-func (h *Handler) follows(w text.Writer, r *request) {
+func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -85,11 +84,11 @@ func (h *Handler) follows(w text.Writer, r *request) {
 			displayName := h.getActorDisplayName(&row.Actor, r.Log)
 
 			if row.Count.Valid && row.Count.Int64 > 1 {
-				w.Linkf(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(row.Actor.ID))), "%s %s: %d posts", time.Unix(row.Last.Int64, 0).Format(time.DateOnly), displayName, row.Count.Int64)
+				w.Linkf("/users/outbox/"+strings.TrimPrefix(row.Actor.ID, "https://"), "%s %s: %d posts", time.Unix(row.Last.Int64, 0).Format(time.DateOnly), displayName, row.Count.Int64)
 			} else if row.Count.Valid {
-				w.Linkf(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(row.Actor.ID))), "%s %s: 1 post", time.Unix(row.Last.Int64, 0).Format(time.DateOnly), displayName)
+				w.Linkf("/users/outbox/"+strings.TrimPrefix(row.Actor.ID, "https://"), "%s %s: 1 post", time.Unix(row.Last.Int64, 0).Format(time.DateOnly), displayName)
 			} else {
-				w.Link(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(row.Actor.ID))), displayName)
+				w.Link("/users/outbox/"+strings.TrimPrefix(row.Actor.ID, "https://"), displayName)
 			}
 		}
 	}
@@ -102,7 +101,7 @@ func (h *Handler) follows(w text.Writer, r *request) {
 		w.Empty()
 
 		for _, row := range inactive {
-			w.Link(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(row.Actor.ID))), h.getActorDisplayName(&row.Actor, r.Log))
+			w.Link("/users/outbox/"+strings.TrimPrefix(row.Actor.ID, "https://"), h.getActorDisplayName(&row.Actor, r.Log))
 		}
 	}
 }

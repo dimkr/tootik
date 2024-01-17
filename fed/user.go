@@ -17,13 +17,13 @@ limitations under the License.
 package fed
 
 import (
-	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"path/filepath"
+	"strings"
 )
 
 type userHandler struct {
@@ -54,7 +54,7 @@ func (h *userHandler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	// redirect browsers to the outbox page over Gemini
 	if shouldRedirect(r) {
-		outbox := fmt.Sprintf("gemini://%s/outbox/%x", h.Domain, sha256.Sum256([]byte(actorID)))
+		outbox := fmt.Sprintf("gemini://%s/outbox/%s", h.Domain, strings.TrimPrefix(actorID, "https://"))
 		h.Log.Info("Redirecting to outbox over Gemini", "outbox", outbox)
 		w.Header().Set("Location", outbox)
 		w.WriteHeader(http.StatusMovedPermanently)

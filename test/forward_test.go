@@ -70,9 +70,8 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, hash, actor) values(?,?,?)`,
+		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		"eab50d465047c1ccfc581759f33612c583486044f5de62b2a5e77e220c2f1ae3",
 		`{"type":"Person"}`,
 	)
 	assert.NoError(err)
@@ -141,9 +140,8 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, hash, actor) values(?,?,?)`,
+		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		"eab50d465047c1ccfc581759f33612c583486044f5de62b2a5e77e220c2f1ae3",
 		`{"type":"Person"}`,
 	)
 	assert.NoError(err)
@@ -224,9 +222,8 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, hash, actor) values(?,?,?)`,
+		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		"eab50d465047c1ccfc581759f33612c583486044f5de62b2a5e77e220c2f1ae3",
 		`{"type":"Person"}`,
 	)
 	assert.NoError(err)
@@ -291,9 +288,8 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, hash, actor) values(?,?,?)`,
+		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		"eab50d465047c1ccfc581759f33612c583486044f5de62b2a5e77e220c2f1ae3",
 		`{"type":"Person"}`,
 	)
 	assert.NoError(err)
@@ -358,9 +354,8 @@ func TestForward_ReplyToDM(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, hash, actor) values(?,?,?)`,
+		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		"eab50d465047c1ccfc581759f33612c583486044f5de62b2a5e77e220c2f1ae3",
 		`{"type":"Person"}`,
 	)
 	assert.NoError(err)
@@ -414,9 +409,8 @@ func TestForward_NotFollowingAuthor(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, hash, actor) values(?,?,?)`,
+		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		"eab50d465047c1ccfc581759f33612c583486044f5de62b2a5e77e220c2f1ae3",
 		`{"type":"Person"}`,
 	)
 	assert.NoError(err)
@@ -481,9 +475,8 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, hash, actor) values(?,?,?)`,
+		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		"eab50d465047c1ccfc581759f33612c583486044f5de62b2a5e77e220c2f1ae3",
 		`{"type":"Person"}`,
 	)
 	assert.NoError(err)
@@ -537,9 +530,8 @@ func TestForward_ReplyToFederatedPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, hash, actor) values(?,?,?)`,
+		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		"eab50d465047c1ccfc581759f33612c583486044f5de62b2a5e77e220c2f1ae3",
 		`{"type":"Person"}`,
 	)
 	assert.NoError(err)
@@ -652,9 +644,8 @@ func TestForward_MaxDepth(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, hash, actor) values(?,?,?)`,
+		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		"eab50d465047c1ccfc581759f33612c583486044f5de62b2a5e77e220c2f1ae3",
 		`{"type":"Person"}`,
 	)
 	assert.NoError(err)
@@ -783,9 +774,8 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, hash, actor) values(?,?,?)`,
+		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		"eab50d465047c1ccfc581759f33612c583486044f5de62b2a5e77e220c2f1ae3",
 		`{"type":"Person"}`,
 	)
 	assert.NoError(err)

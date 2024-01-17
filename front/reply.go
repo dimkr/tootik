@@ -22,20 +22,19 @@ import (
 	"errors"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
-	"path/filepath"
 )
 
-func (h *Handler) reply(w text.Writer, r *request) {
-	hash := filepath.Base(r.URL.Path)
+func (h *Handler) reply(w text.Writer, r *request, args ...string) {
+	postID := "https://" + args[1]
 
 	var noteString string
 	var group sql.NullString
-	if err := r.QueryRow(`select notes.object, notes.groupid from notes join persons on persons.id = notes.author left join (select id, actor from persons where actor->>'type' = 'Group') groups on groups.id = notes.groupid where notes.hash = $1 and (notes.public = 1 or notes.author = $2 or $2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $2)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $2)) or exists (select 1 from (select persons.id, persons.actor->>'followers' as followers, persons.actor->>'type' as type from persons join follows on follows.followed = persons.id where follows.accepted = 1 and follows.follower = $2) follows where follows.followers in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.followers)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.followers)) or (follows.id = notes.groupid and follows.type = 'Group')))`, hash, r.User.ID).Scan(&noteString, &group); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.Warn("Post does not exist", "hash", hash)
+	if err := r.QueryRow(`select notes.object, notes.groupid from notes join persons on persons.id = notes.author left join (select id, actor from persons where actor->>'type' = 'Group') groups on groups.id = notes.groupid where notes.id = $1 and (notes.public = 1 or notes.author = $2 or $2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $2)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $2)) or exists (select 1 from (select persons.id, persons.actor->>'followers' as followers, persons.actor->>'type' as type from persons join follows on follows.followed = persons.id where follows.accepted = 1 and follows.follower = $2) follows where follows.followers in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.followers)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.followers)) or (follows.id = notes.groupid and follows.type = 'Group')))`, postID, r.User.ID).Scan(&noteString, &group); err != nil && errors.Is(err, sql.ErrNoRows) {
+		r.Log.Warn("Post does not exist", "post", postID)
 		w.Status(40, "Post not found")
 		return
 	} else if err != nil {
-		r.Log.Warn("Failed to find post by hash", "hash", hash, "error", err)
+		r.Log.Warn("Failed to find post by ID", "post", postID, "error", err)
 		w.Error()
 		return
 	}

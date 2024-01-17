@@ -21,7 +21,6 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha256"
 	"crypto/x509"
 	"database/sql"
 	"encoding/json"
@@ -106,9 +105,8 @@ func Create(ctx context.Context, domain string, db *sql.DB, name, certHash strin
 
 	if _, err = db.ExecContext(
 		ctx,
-		`INSERT INTO persons (id, hash, actor, privkey, certhash) VALUES(?,?,?,?,?)`,
+		`INSERT INTO persons (id, actor, privkey, certhash) VALUES(?,?,?,?)`,
 		id,
-		fmt.Sprintf("%x", sha256.Sum256([]byte(id))),
 		string(body),
 		string(priv),
 		certHash,

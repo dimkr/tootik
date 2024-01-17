@@ -18,7 +18,6 @@ package note
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -108,9 +107,8 @@ func Insert(ctx context.Context, log *slog.Logger, tx *sql.Tx, note *ap.Object) 
 
 	if _, err = tx.ExecContext(
 		ctx,
-		`INSERT INTO notes (id, hash, author, object, public, to0, to1, to2, cc0, cc1, cc2) VALUES(?,?,?,?,?,?,?,?,?,?,?)`,
+		`INSERT INTO notes (id, author, object, public, to0, to1, to2, cc0, cc1, cc2) VALUES(?,?,?,?,?,?,?,?,?,?)`,
 		note.ID,
-		fmt.Sprintf("%x", sha256.Sum256([]byte(note.ID))),
 		note.AttributedTo,
 		string(body),
 		public,

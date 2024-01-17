@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@ limitations under the License.
 package test
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"strings"
 	"testing"
 )
 
@@ -30,7 +30,7 @@ func TestResolve_LocalUser(t *testing.T) {
 	assert := assert.New(t)
 
 	resolve := server.Handle("/users/resolve?alice%40localhost.localdomain:8443", server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), resolve)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), resolve)
 }
 
 func TestResolve_LocalUserByNameOnly(t *testing.T) {
@@ -40,7 +40,7 @@ func TestResolve_LocalUserByNameOnly(t *testing.T) {
 	assert := assert.New(t)
 
 	resolve := server.Handle("/users/resolve?alice", server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), resolve)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), resolve)
 }
 
 func TestResolve_NoSuchLocalUser(t *testing.T) {

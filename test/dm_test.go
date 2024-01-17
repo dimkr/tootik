@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@ limitations under the License.
 package test
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"strings"
 	"testing"
 )
 
@@ -29,11 +29,11 @@ func TestDM_HappyFlow(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Bob.ID))), server.Alice)
-	assert.Regexp("^30 /users/outbox/[0-9a-f]{64}\r\n$", follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	dm := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20Alice", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", dm)
+	dm := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20Alice", strings.TrimPrefix(server.Alice.ID, "https://")), server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
 	view := server.Handle(dm[3:len(dm)-2], server.Alice)
 	assert.Contains(view, "Hello Alice")
@@ -45,7 +45,7 @@ func TestDM_Loopback(t *testing.T) {
 
 	assert := assert.New(t)
 
-	dm := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20world", sha256.Sum256([]byte(server.Alice.ID))), server.Alice)
+	dm := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20world", strings.TrimPrefix(server.Alice.ID, "https://")), server.Alice)
 	assert.Equal("40 Error\r\n", dm)
 }
 
@@ -55,7 +55,7 @@ func TestDM_NotFollowed(t *testing.T) {
 
 	assert := assert.New(t)
 
-	dm := server.Handle(fmt.Sprintf("/users/dm/%x?Hello%%20world", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
+	dm := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20world", strings.TrimPrefix(server.Alice.ID, "https://")), server.Bob)
 	assert.Equal("40 Error\r\n", dm)
 }
 
@@ -65,6 +65,6 @@ func TestDM_NoSuchUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	dm := server.Handle("/users/dm/87428fc522803d31065e7bce3cf03fe475096631e5e07bbd7a0fde60c4cf25c7?Hello%20world", server.Bob)
+	dm := server.Handle("/users/dm/x?Hello%20world", server.Bob)
 	assert.Equal("40 User does not exist\r\n", dm)
 }

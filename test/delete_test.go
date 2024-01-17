@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@ limitations under the License.
 package test
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"strings"
 	"testing"
 )
 
@@ -30,17 +30,17 @@ func TestDelete_HappyFlow(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", say)
+	assert.Regexp(`30 /users/view/\S+\r\n$`, say)
 
-	hash := say[15 : len(say)-2]
+	id := say[15 : len(say)-2]
 
-	view := server.Handle("/users/view/"+hash, server.Bob)
+	view := server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
 
-	delete := server.Handle("/users/delete/"+hash, server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), delete)
+	delete := server.Handle("/users/delete/"+id, server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), delete)
 
-	view = server.Handle("/users/view/"+hash, server.Alice)
+	view = server.Handle("/users/view/"+id, server.Alice)
 	assert.Equal(view, "40 Post not found\r\n")
 }
 
@@ -51,17 +51,17 @@ func TestDelete_NotAuthor(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", say)
+	assert.Regexp(`30 /users/view/\S+\r\n$`, say)
 
-	hash := say[15 : len(say)-2]
+	id := say[15 : len(say)-2]
 
-	view := server.Handle("/users/view/"+hash, server.Bob)
+	view := server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
 
-	delete := server.Handle("/users/delete/"+hash, server.Bob)
+	delete := server.Handle("/users/delete/"+id, server.Bob)
 	assert.Equal(delete, "40 Error\r\n")
 
-	view = server.Handle("/users/view/"+hash, server.Alice)
+	view = server.Handle("/users/view/"+id, server.Alice)
 	assert.Contains(view, "Hello world")
 }
 
@@ -71,7 +71,7 @@ func TestDelete_NoSuchPost(t *testing.T) {
 
 	assert := assert.New(t)
 
-	delete := server.Handle("/users/delete/87428fc522803d31065e7bce3cf03fe475096631e5e07bbd7a0fde60c4cf25c7", server.Alice)
+	delete := server.Handle("/users/delete/x", server.Alice)
 	assert.Equal(delete, "40 Error\r\n")
 }
 
@@ -82,16 +82,16 @@ func TestDelete_UnauthenticatedUser(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp("30 /users/view/[0-9a-f]{64}", say)
+	assert.Regexp(`30 /users/view/\S+\r\n$`, say)
 
-	hash := say[15 : len(say)-2]
+	id := say[15 : len(say)-2]
 
-	view := server.Handle("/users/view/"+hash, server.Bob)
+	view := server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
 
-	delete := server.Handle("/users/delete/"+hash, nil)
+	delete := server.Handle("/users/delete/"+id, nil)
 	assert.Equal(delete, "30 /users\r\n")
 
-	view = server.Handle("/users/view/"+hash, server.Alice)
+	view = server.Handle("/users/view/"+id, server.Alice)
 	assert.Contains(view, "Hello world")
 }

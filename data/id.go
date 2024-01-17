@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,18 +14,38 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package front
+package data
 
 import (
-	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/front/text"
+	"net/url"
+	"strings"
 )
 
-func (h *Handler) whisper(w text.Writer, r *request, args ...string) {
-	to := ap.Audience{}
-	cc := ap.Audience{}
+func IsIDValid(id string) bool {
+	if id == "" {
+		return false
+	}
 
-	to.Add(r.User.Followers)
+	u, err := url.Parse(id)
+	if err != nil {
+		return false
+	}
 
-	h.post(w, r, nil, nil, to, cc, "Post content")
+	if u.Scheme != "https" {
+		return false
+	}
+
+	if u.User != nil {
+		return false
+	}
+
+	if u.RawQuery != "" {
+		return false
+	}
+
+	if strings.Contains(u.Path, "/..") {
+		return false
+	}
+
+	return true
 }

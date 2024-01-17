@@ -17,13 +17,11 @@ limitations under the License.
 package front
 
 import (
-	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
-	"path/filepath"
 	"strings"
 )
 
@@ -32,8 +30,8 @@ type threadNode struct {
 	PostID, Inserted, AuthorUserName string
 }
 
-func (h *Handler) thread(w text.Writer, r *request) {
-	hash := filepath.Base(r.URL.Path)
+func (h *Handler) thread(w text.Writer, r *request, args ...string) {
+	postID := "https://" + args[1]
 
 	offset, err := getOffset(r.URL)
 	if err != nil {
@@ -42,10 +40,10 @@ func (h *Handler) thread(w text.Writer, r *request) {
 		return
 	}
 
-	r.Log.Info("Viewing thread", "hash", hash)
+	r.Log.Info("Viewing thread", "post", postID)
 
 	var threadHead sql.NullString
-	if err := r.QueryRow(`with recursive thread(id, parent) as (select notes.id, notes.object->>'inReplyTo' as parent from notes where hash = ? union select notes.id, notes.object->>'inReplyTo' as parent from thread t join notes on notes.id = t.parent) select thread.id from thread where thread.parent is null limit 1`, hash).Scan(&threadHead); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := r.QueryRow(`with recursive thread(id, parent) as (select notes.id, notes.object->>'inReplyTo' as parent from notes where id = ? union select notes.id, notes.object->>'inReplyTo' as parent from thread t join notes on notes.id = t.parent) select thread.id from thread where thread.parent is null limit 1`, postID).Scan(&threadHead); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Failed to fetch thread head", "error", err)
 		w.Error()
 		return
@@ -53,15 +51,15 @@ func (h *Handler) thread(w text.Writer, r *request) {
 
 	var rootAuthorID, rootAuthorType, rootAuthorUsername string
 	var rootAuthorName sql.NullString
-	if err := r.QueryRow(`select persons.id, persons.actor->>'type', persons.actor->>'preferredUsername', persons.actor->>'name' from notes join persons on persons.id = notes.author where notes.hash = ?`, hash).Scan(&rootAuthorID, &rootAuthorType, &rootAuthorUsername, &rootAuthorName); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := r.QueryRow(`select persons.id, persons.actor->>'type', persons.actor->>'preferredUsername', persons.actor->>'name' from notes join persons on persons.id = notes.author where notes.id = ?`, postID).Scan(&rootAuthorID, &rootAuthorType, &rootAuthorUsername, &rootAuthorName); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Failed to fetch thread root author", "error", err)
 		w.Error()
 		return
 	}
 
-	rows, err := r.Query(`select thread.depth, thread.id, strftime('%Y-%m-%d', datetime(thread.inserted, 'unixepoch')), persons.actor->>'preferredUsername' from (with recursive thread(id, author, inserted, parent, depth, path) as (select notes.id, notes.author, notes.inserted, object->>'inReplyTo' as parent, 0 as depth, notes.inserted || notes.id as path from notes where hash = $1 union select notes.id, notes.author, notes.inserted, notes.object->>'inReplyTo', t.depth + 1, t.path || notes.inserted || notes.id from thread t join notes on notes.object->>'inReplyTo' = t.id) select thread.depth, thread.id, thread.author, thread.inserted, thread.path from thread order by thread.path limit $2 offset $3) thread join persons on persons.id = thread.author order by thread.path`, hash, h.Config.PostsPerPage, offset)
+	rows, err := r.Query(`select thread.depth, thread.id, strftime('%Y-%m-%d', datetime(thread.inserted, 'unixepoch')), persons.actor->>'preferredUsername' from (with recursive thread(id, author, inserted, parent, depth, path) as (select notes.id, notes.author, notes.inserted, object->>'inReplyTo' as parent, 0 as depth, notes.inserted || notes.id as path from notes where id = $1 union select notes.id, notes.author, notes.inserted, notes.object->>'inReplyTo', t.depth + 1, t.path || notes.inserted || notes.id from thread t join notes on notes.object->>'inReplyTo' = t.id) select thread.depth, thread.id, thread.author, thread.inserted, thread.path from thread order by thread.path limit $2 offset $3) thread join persons on persons.id = thread.author order by thread.path`, postID, h.Config.PostsPerPage, offset)
 	if err != nil {
-		r.Log.Info("Failed to fetch thread", "hash", hash, "error", err)
+		r.Log.Info("Failed to fetch thread", "post", postID, "error", err)
 		w.Status(40, "Post not found")
 		return
 	}
@@ -77,7 +75,7 @@ func (h *Handler) thread(w text.Writer, r *request) {
 			&nodes[count].Inserted,
 			&nodes[count].AuthorUserName,
 		); err != nil {
-			r.Log.Info("Failed to scan post", "hash", hash, "error", err)
+			r.Log.Info("Failed to scan post", "post", postID, "error", err)
 			continue
 		}
 
@@ -86,7 +84,7 @@ func (h *Handler) thread(w text.Writer, r *request) {
 	rows.Close()
 
 	if count == 0 {
-		r.Log.Info("Failed to fetch any nodes in thread", "hash", hash)
+		r.Log.Info("Failed to fetch any nodes in thread", "post", postID)
 		w.Error()
 		return
 	}
@@ -119,9 +117,9 @@ func (h *Handler) thread(w text.Writer, r *request) {
 		b.WriteString(node.AuthorUserName)
 
 		if r.User == nil {
-			w.Link(fmt.Sprintf("/view/%x", sha256.Sum256([]byte(node.PostID))), b.String())
+			w.Link("/view/"+strings.TrimPrefix(node.PostID, "https://"), b.String())
 		} else {
-			w.Link(fmt.Sprintf("/users/view/%x", sha256.Sum256([]byte(node.PostID))), b.String())
+			w.Link("/users/view/"+strings.TrimPrefix(node.PostID, "https://"), b.String())
 		}
 	}
 
@@ -130,26 +128,20 @@ func (h *Handler) thread(w text.Writer, r *request) {
 	}
 
 	if threadHead.Valid && count > 0 && threadHead.String != nodes[0].PostID && r.User == nil {
-		w.Link(fmt.Sprintf("/view/%x", sha256.Sum256([]byte(threadHead.String))), "View first post in thread")
+		w.Link("/view/"+strings.TrimPrefix(threadHead.String, "https://"), "View first post in thread")
 	} else if threadHead.Valid && count > 0 && threadHead.String != nodes[0].PostID {
-		w.Link(fmt.Sprintf("/users/view/%x", sha256.Sum256([]byte(threadHead.String))), "View first post in thread")
+		w.Link("/users/view/"+strings.TrimPrefix(threadHead.String, "https://"), "View first post in thread")
 	}
 
-	if offset > h.Config.PostsPerPage && r.User == nil {
-		w.Link("/thread/"+hash, "First page")
-	} else if offset > h.Config.PostsPerPage {
-		w.Link("/users/thread/"+hash, "First page")
+	if offset > h.Config.PostsPerPage {
+		w.Link(r.URL.Path, "First page")
 	}
 
-	if offset >= h.Config.PostsPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/thread/%s?%d", hash, offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
-	} else if offset >= h.Config.PostsPerPage {
-		w.Linkf(fmt.Sprintf("/users/thread/%s?%d", hash, offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
+	if offset >= h.Config.PostsPerPage {
+		w.Linkf(fmt.Sprintf("%s?%d", r.URL.Path, offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
 	}
 
-	if count == h.Config.PostsPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/thread/%s?%d", hash, offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
-	} else if count == h.Config.PostsPerPage {
-		w.Linkf(fmt.Sprintf("/users/thread/%s?%d", hash, offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
+	if count == h.Config.PostsPerPage {
+		w.Linkf(fmt.Sprintf("%s?%d", r.URL.Path, offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
 	}
 }

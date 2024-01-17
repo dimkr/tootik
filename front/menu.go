@@ -60,11 +60,11 @@ func writeUserMenu(w text.Writer, user *ap.Actor) {
 	w.Link(prefix+"/help", "🛟 Help")
 }
 
-func withUserMenu(f func(text.Writer, *request)) func(text.Writer, *request) {
-	return func(w text.Writer, r *request) {
+func withUserMenu(f func(text.Writer, *request, ...string)) func(text.Writer, *request, ...string) {
+	return func(w text.Writer, r *request, args ...string) {
 		var buf bytes.Buffer
 		clone := w.Clone(&buf)
-		f(clone, r)
+		f(clone, r, args...)
 		writeUserMenu(clone, r.User)
 		w.Write(buf.Bytes())
 	}

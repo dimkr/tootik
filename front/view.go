@@ -17,7 +17,6 @@ limitations under the License.
 package front
 
 import (
-	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -26,11 +25,11 @@ import (
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/graph"
 	"github.com/dimkr/tootik/front/text"
-	"path/filepath"
+	"strings"
 )
 
-func (h *Handler) view(w text.Writer, r *request) {
-	hash := filepath.Base(r.URL.Path)
+func (h *Handler) view(w text.Writer, r *request, args ...string) {
+	postID := "https://" + args[1]
 
 	offset, err := getOffset(r.URL)
 	if err != nil {
@@ -39,29 +38,29 @@ func (h *Handler) view(w text.Writer, r *request) {
 		return
 	}
 
-	r.Log.Info("Viewing post", "hash", hash)
+	r.Log.Info("Viewing post", "post", postID)
 
 	var noteString, authorString string
 	var groupString sql.NullString
 
 	if r.User == nil {
-		err = r.QueryRow(`select notes.object, persons.actor, groups.actor from notes join persons on persons.id = notes.author left join (select id, actor from persons where actor->>'type' = 'Group') groups on groups.id = notes.groupid where notes.hash = ? and notes.public = 1`, hash).Scan(&noteString, &authorString, &groupString)
+		err = r.QueryRow(`select notes.object, persons.actor, groups.actor from notes join persons on persons.id = notes.author left join (select id, actor from persons where actor->>'type' = 'Group') groups on groups.id = notes.groupid where notes.id = ? and notes.public = 1`, postID).Scan(&noteString, &authorString, &groupString)
 	} else {
-		err = r.QueryRow(`select notes.object, persons.actor, groups.actor from notes join persons on persons.id = notes.author left join (select id, actor from persons where actor->>'type' = 'Group') groups on groups.id = notes.groupid where notes.hash = $1 and (notes.public = 1 or notes.author = $2 or $2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $2)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $2)) or exists (select 1 from (select persons.id, persons.actor->>'followers' as followers, persons.actor->>'type' as type from persons join follows on follows.followed = persons.id where follows.accepted = 1 and follows.follower = $2) follows where follows.followers in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.followers)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.followers)) or (follows.id = notes.groupid and follows.type = 'Group')))`, hash, r.User.ID).Scan(&noteString, &authorString, &groupString)
+		err = r.QueryRow(`select notes.object, persons.actor, groups.actor from notes join persons on persons.id = notes.author left join (select id, actor from persons where actor->>'type' = 'Group') groups on groups.id = notes.groupid where notes.id = $1 and (notes.public = 1 or notes.author = $2 or $2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $2)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $2)) or exists (select 1 from (select persons.id, persons.actor->>'followers' as followers, persons.actor->>'type' as type from persons join follows on follows.followed = persons.id where follows.accepted = 1 and follows.follower = $2) follows where follows.followers in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.followers)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.followers)) or (follows.id = notes.groupid and follows.type = 'Group')))`, postID, r.User.ID).Scan(&noteString, &authorString, &groupString)
 	}
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.Info("Post was not found", "hash", hash)
+		r.Log.Info("Post was not found", "post", postID)
 		w.Status(40, "Post not found")
 		return
 	} else if err != nil {
-		r.Log.Info("Failed to find post", "hash", hash, "error", err)
+		r.Log.Info("Failed to find post", "post", postID, "error", err)
 		w.Error()
 		return
 	}
 
 	note := ap.Object{}
 	if err := json.Unmarshal([]byte(noteString), &note); err != nil {
-		r.Log.Info("Failed to unmarshal post", "hash", hash, "error", err)
+		r.Log.Info("Failed to unmarshal post", "post", postID, "error", err)
 		w.Error()
 		return
 	}
@@ -89,9 +88,9 @@ func (h *Handler) view(w text.Writer, r *request) {
 		rows, err = r.Query(
 			`select replies.object, persons.actor from notes join notes replies on replies.object->>'inReplyTo' = notes.id
 			left join persons on persons.id = replies.author
-			where notes.hash = $1 and replies.public = 1
+			where notes.id = $1 and replies.public = 1
 			order by replies.inserted desc limit $2 offset $3`,
-			hash,
+			postID,
 			h.Config.RepliesPerPage,
 			offset,
 		)
@@ -101,9 +100,9 @@ func (h *Handler) view(w text.Writer, r *request) {
 			notes join notes replies on replies.object->>'inReplyTo' = notes.id
 			left join persons on persons.id = replies.author
 			left join (select id from persons where actor->>'type' = 'Group') groups on groups.id = replies.groupid
-			where notes.hash = $1 and (replies.public = 1 or replies.author = $2 or $2 in (replies.cc0, replies.to0, replies.cc1, replies.to1, replies.cc2, replies.to2) or (replies.to2 is not null and exists (select 1 from json_each(replies.object->'to') where value = $2)) or (replies.cc2 is not null and exists (select 1 from json_each(replies.object->'cc') where value = $2)) or exists (select 1 from persons join follows on follows.followed = persons.id where follows.follower = $2 and follows.accepted = 1 and persons.actor->>'followers' in (replies.cc0, replies.to0, replies.cc1, replies.to1, replies.cc2, replies.to2) or (notes.to2 is not null and exists (select 1 from json_each(replies.object->'to') where value = persons.actor->>'followers')) or (notes.cc2 is not null and exists (select 1 from json_each(replies.object->'cc') where value = persons.actor->>'followers')) or (follows.followed = groups.id and persons.actor->>'type' = 'Group')))
+			where notes.id = $1 and (replies.public = 1 or replies.author = $2 or $2 in (replies.cc0, replies.to0, replies.cc1, replies.to1, replies.cc2, replies.to2) or (replies.to2 is not null and exists (select 1 from json_each(replies.object->'to') where value = $2)) or (replies.cc2 is not null and exists (select 1 from json_each(replies.object->'cc') where value = $2)) or exists (select 1 from persons join follows on follows.followed = persons.id where follows.follower = $2 and follows.accepted = 1 and persons.actor->>'followers' in (replies.cc0, replies.to0, replies.cc1, replies.to1, replies.cc2, replies.to2) or (notes.to2 is not null and exists (select 1 from json_each(replies.object->'to') where value = persons.actor->>'followers')) or (notes.cc2 is not null and exists (select 1 from json_each(replies.object->'cc') where value = persons.actor->>'followers')) or (follows.followed = groups.id and persons.actor->>'type' = 'Group')))
 			order by replies.inserted desc limit $3 offset $4`,
-			hash,
+			postID,
 			r.User.ID,
 			h.Config.RepliesPerPage,
 			offset,
@@ -215,38 +214,32 @@ func (h *Handler) view(w text.Writer, r *request) {
 	}
 
 	if originalPostExists == 1 && r.User == nil {
-		w.Link(fmt.Sprintf("/view/%x", sha256.Sum256([]byte(note.InReplyTo))), "View parent post")
+		w.Link("/view/"+strings.TrimPrefix(note.InReplyTo, "https://"), "View parent post")
 	} else if originalPostExists == 1 {
-		w.Link(fmt.Sprintf("/users/view/%x", sha256.Sum256([]byte(note.InReplyTo))), "View parent post")
+		w.Link("/users/view/"+strings.TrimPrefix(note.InReplyTo, "https://"), "View parent post")
 	}
 
 	if threadHead.Valid && threadHead.String != note.ID && threadHead.String != note.InReplyTo && r.User == nil {
-		w.Link(fmt.Sprintf("/view/%x", sha256.Sum256([]byte(threadHead.String))), "View first post in thread")
+		w.Link("/view/"+strings.TrimPrefix(threadHead.String, "https://"), "View first post in thread")
 	} else if threadHead.Valid && threadHead.String != note.ID && threadHead.String != note.InReplyTo {
-		w.Link(fmt.Sprintf("/users/view/%x", sha256.Sum256([]byte(threadHead.String))), "View first post in thread")
+		w.Link("/users/view/"+strings.TrimPrefix(threadHead.String, "https://"), "View first post in thread")
 	}
 
 	if threadDepth > 2 && r.User == nil {
-		w.Link("/thread/"+hash, "View thread")
+		w.Link("/thread/"+strings.TrimPrefix(postID, "https://"), "View thread")
 	} else if threadDepth > 2 {
-		w.Link("/users/thread/"+hash, "View thread")
+		w.Link("/users/thread/"+strings.TrimPrefix(postID, "https://"), "View thread")
 	}
 
-	if offset > h.Config.RepliesPerPage && r.User == nil {
-		w.Link("/view/"+hash, "First page")
-	} else if offset > h.Config.RepliesPerPage {
-		w.Link("/users/view/"+hash, "First page")
+	if offset > h.Config.RepliesPerPage {
+		w.Link(r.URL.Path, "First page")
 	}
 
-	if offset >= h.Config.RepliesPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/view/%s?%d", hash, offset-h.Config.RepliesPerPage), "Previous page (%d-%d)", offset-h.Config.RepliesPerPage, offset)
-	} else if offset >= h.Config.RepliesPerPage {
-		w.Linkf(fmt.Sprintf("/users/view/%s?%d", hash, offset-h.Config.RepliesPerPage), "Previous page (%d-%d)", offset-h.Config.RepliesPerPage, offset)
+	if offset >= h.Config.RepliesPerPage {
+		w.Linkf(fmt.Sprintf("%s?%d", r.URL.Path, offset-h.Config.RepliesPerPage), "Previous page (%d-%d)", offset-h.Config.RepliesPerPage, offset)
 	}
 
-	if count == h.Config.RepliesPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/view/%s?%d", hash, offset+h.Config.RepliesPerPage), "Next page (%d-%d)", offset+h.Config.RepliesPerPage, offset+2*h.Config.RepliesPerPage)
-	} else if count == h.Config.RepliesPerPage {
-		w.Linkf(fmt.Sprintf("/users/view/%s?%d", hash, offset+h.Config.RepliesPerPage), "Next page (%d-%d)", offset+h.Config.RepliesPerPage, offset+2*h.Config.RepliesPerPage)
+	if count == h.Config.RepliesPerPage {
+		w.Linkf(fmt.Sprintf("%s?%d", r.URL.Path, offset+h.Config.RepliesPerPage), "Next page (%d-%d)", offset+h.Config.RepliesPerPage, offset+2*h.Config.RepliesPerPage)
 	}
 }

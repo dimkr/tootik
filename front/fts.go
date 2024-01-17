@@ -28,7 +28,7 @@ import (
 
 var skipRegex = regexp.MustCompile(` skip (\d+)$`)
 
-func (h *Handler) fts(w text.Writer, r *request) {
+func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 	if r.URL.RawQuery == "" {
 		w.Status(10, "Query")
 		return
@@ -180,15 +180,11 @@ func (h *Handler) fts(w text.Writer, r *request) {
 		w.Separator()
 	}
 
-	if offset >= h.Config.PostsPerPage && r.User == nil {
-		w.Linkf("/fts?"+url.PathEscape(fmt.Sprintf("%s skip %d", query, offset-h.Config.PostsPerPage)), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
-	} else if offset >= h.Config.PostsPerPage {
-		w.Linkf("/users/fts?"+url.PathEscape(fmt.Sprintf("%s skip %d", query, offset-h.Config.PostsPerPage)), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
+	if offset >= h.Config.PostsPerPage {
+		w.Linkf(fmt.Sprintf("%s?%s", r.URL.Path, url.PathEscape(fmt.Sprintf("%s skip %d", query, offset-h.Config.PostsPerPage))), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
 	}
 
-	if count == h.Config.PostsPerPage && r.User == nil {
-		w.Linkf("/fts?"+url.PathEscape(fmt.Sprintf("%s skip %d", query, offset+h.Config.PostsPerPage)), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
-	} else if count == h.Config.PostsPerPage {
-		w.Linkf("/users/fts?"+url.PathEscape(fmt.Sprintf("%s skip %d", query, offset+h.Config.PostsPerPage)), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
+	if count == h.Config.PostsPerPage {
+		w.Linkf(fmt.Sprintf("%s?%s", r.URL.Path, url.PathEscape(fmt.Sprintf("%s skip %d", query, offset+h.Config.PostsPerPage))), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
 	}
 }

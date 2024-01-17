@@ -30,7 +30,7 @@ import (
 
 var userNameRegex = regexp.MustCompile(`^[a-zA-Z0-9-_]{4,32}$`)
 
-func (h *Handler) register(w text.Writer, r *request) {
+func (h *Handler) register(w text.Writer, r *request, args ...string) {
 	if r.User != nil {
 		r.Log.Warn("Registered user cannot register again")
 		w.Statusf(40, "Already registered as %s", r.User.PreferredUsername)

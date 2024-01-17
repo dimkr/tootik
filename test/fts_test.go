@@ -28,7 +28,7 @@ func TestFTS_Happyflow(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
 	fts := server.Handle("/users/fts?world", server.Bob)
 	assert.Contains(fts, "Hello world")
@@ -41,7 +41,7 @@ func TestFTS_HashtagWithoutHash(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20%23world", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
 	fts := server.Handle("/users/fts?world", server.Bob)
 	assert.NotContains(fts, "Hello #world")
@@ -54,7 +54,7 @@ func TestFTS_HashtagWithHash(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20%23world", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
 	fts := server.Handle("/users/fts?%23world", server.Bob)
 	assert.NotContains(fts, "Hello #world")
@@ -67,7 +67,7 @@ func TestFTS_HashtagWithHashAndQuotes(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20%23world", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
 	fts := server.Handle("/users/fts?%22%23world%22", server.Bob)
 	assert.Contains(fts, "Hello #world")
@@ -80,7 +80,7 @@ func TestFTS_HashtagWithHashAndQuotesUnauthenticatedUser(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20%23world", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
 	fts := server.Handle("/fts?%22%23world%22", nil)
 	assert.Contains(fts, "Hello #world")
@@ -93,7 +93,7 @@ func TestFTS_HashtagWithHashAndQuotesSecondPage(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20%23world", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
 	fts := server.Handle("/users/fts?%22%23world%22%20skip%2030", server.Bob)
 	assert.NotContains(fts, "Hello #world")
@@ -136,7 +136,7 @@ func TestFTS_UnathenticatedUser(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
 	fts := server.Handle("/fts?world", nil)
 	assert.Contains(fts, "Hello world")

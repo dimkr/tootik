@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import (
 	"net/url"
 )
 
-func search(w text.Writer, r *request) {
+func search(w text.Writer, r *request, args ...string) {
 	if r.URL.RawQuery == "" {
 		w.Status(10, "Hashtag")
 		return

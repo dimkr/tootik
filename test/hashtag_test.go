@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@ limitations under the License.
 package test
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"strings"
 	"testing"
 )
 
@@ -30,7 +30,7 @@ func TestHashtag_PublicPost(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20%23world", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
 	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "Hello #world")
@@ -46,7 +46,7 @@ func TestHashtag_PublicPostUnauthenticatedUser(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20%23world", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
 	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "Hello #world")
@@ -62,7 +62,7 @@ func TestHashtag_ExclamationMark(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20%23world%21", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
 	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "Hello #world!")
@@ -78,7 +78,7 @@ func TestHashtag_Beginning(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?%23Hello%20world%21", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
 	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "#Hello world!")
@@ -94,7 +94,7 @@ func TestHashtag_Multiple(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?%23Hello%20%23world%21", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
 	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "#Hello #world!")
@@ -113,7 +113,7 @@ func TestHashtag_CaseSensitivity(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20%23wOrLd", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
 	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "Hello #wOrLd")
@@ -128,11 +128,11 @@ func TestHashtag_PostToFollowers(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle(fmt.Sprintf("/users/follow/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
 	whisper := server.Handle("/users/whisper?Hello%20%23world", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	view := server.Handle(whisper[3:len(whisper)-2], server.Bob)
 	assert.Contains(view, "Hello #world")
@@ -148,7 +148,7 @@ func TestHashtag_BigOffset(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20%23world", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
 	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "Hello #world")
@@ -164,7 +164,7 @@ func TestHashtag_BigOffsetUnauthenticatedUser(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20%23world", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
 	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "Hello #world")
@@ -180,7 +180,7 @@ func TestHashtag_InvalidOffset(t *testing.T) {
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20%23world", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", say)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
 	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "Hello #world")

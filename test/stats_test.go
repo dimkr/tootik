@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ func TestStats_WithPosts(t *testing.T) {
 	assert := assert.New(t)
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
-	assert.Regexp("^30 /users/view/[0-9a-f]{64}\r\n$", whisper)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	stats := server.Handle("/stats", server.Alice)
 	assert.Regexp("^20 text/gemini\r\n", stats)

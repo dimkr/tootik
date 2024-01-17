@@ -133,8 +133,6 @@ func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo 
 		cc.Add(actorID)
 	}
 
-	hash := sha256.Sum256([]byte(postID))
-
 	note := ap.Object{
 		Type:         ap.NoteObject,
 		ID:           postID,
@@ -219,5 +217,5 @@ func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo 
 		return
 	}
 
-	w.Redirectf("/users/view/%x", hash)
+	w.Redirectf("/users/view/%s", strings.TrimPrefix(postID, "https://"))
 }

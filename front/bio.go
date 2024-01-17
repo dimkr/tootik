@@ -17,16 +17,16 @@ limitations under the License.
 package front
 
 import (
-	"crypto/sha256"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/text/plain"
 	"github.com/dimkr/tootik/outbox"
 	"net/url"
+	"strings"
 	"time"
 	"unicode/utf8"
 )
 
-func (h *Handler) bio(w text.Writer, r *request) {
+func (h *Handler) bio(w text.Writer, r *request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -88,5 +88,5 @@ func (h *Handler) bio(w text.Writer, r *request) {
 		return
 	}
 
-	w.Redirectf("/users/outbox/%x", sha256.Sum256([]byte(r.User.ID)))
+	w.Redirect("/users/outbox/" + strings.TrimPrefix(r.User.ID, "https://"))
 }

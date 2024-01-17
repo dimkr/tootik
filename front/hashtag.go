@@ -20,17 +20,16 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
-	"path/filepath"
 )
 
-func (h *Handler) hashtag(w text.Writer, r *request) {
+func (h *Handler) hashtag(w text.Writer, r *request, args ...string) {
 	offset, err := getOffset(r.URL)
 	if err != nil {
 		w.Status(40, "Invalid query")
 		return
 	}
 
-	tag := filepath.Base(r.URL.Path)
+	tag := args[1]
 
 	rows, err := r.Query(`select notes.object, persons.actor from notes join hashtags on notes.id = hashtags.note left join (select object->>'inReplyTo' as id, count(*) as count from notes where inserted >= unixepoch() - 7*24*60*60 group by object->>'inReplyTo') replies on notes.id = replies.id left join persons on notes.author = persons.id where notes.public = 1 and hashtags.hashtag = $1 order by replies.count desc, notes.inserted/(24*60*60) desc, notes.inserted desc limit $2 offset $3`, tag, h.Config.PostsPerPage, offset)
 	if err != nil {
@@ -74,16 +73,12 @@ func (h *Handler) hashtag(w text.Writer, r *request) {
 		w.Separator()
 	}
 
-	if offset >= h.Config.PostsPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/hashtag/%s?%d", tag, offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
-	} else if offset >= h.Config.PostsPerPage {
-		w.Linkf(fmt.Sprintf("/users/hashtag/%s?%d", tag, offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
+	if offset >= h.Config.PostsPerPage {
+		w.Linkf(fmt.Sprintf("%s?%d", r.URL.Path, offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
 	}
 
-	if count == h.Config.PostsPerPage && r.User == nil {
-		w.Linkf(fmt.Sprintf("/hashtag/%s?%d", tag, offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
-	} else if count == h.Config.PostsPerPage {
-		w.Linkf(fmt.Sprintf("/users/hashtag/%s?%d", tag, offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
+	if count == h.Config.PostsPerPage {
+		w.Linkf(fmt.Sprintf("%s?%d", r.URL.Path, offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
 	}
 
 	w.Separator()

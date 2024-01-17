@@ -17,7 +17,6 @@ limitations under the License.
 package fed
 
 import (
-	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -26,6 +25,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 const activitiesPerPage = 30
@@ -112,7 +112,7 @@ func (h *outboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if shouldRedirect(r) {
-		outbox := fmt.Sprintf("gemini://%s/outbox/%x", h.Domain, sha256.Sum256([]byte(actorID.String)))
+		outbox := fmt.Sprintf("gemini://%s/outbox/%s", h.Domain, strings.TrimPrefix(actorID.String, "https://"))
 		h.Log.Info("Redirecting to outbox over Gemini", "outbox", outbox)
 		w.Header().Set("Location", outbox)
 		w.WriteHeader(http.StatusMovedPermanently)

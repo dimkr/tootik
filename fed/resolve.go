@@ -18,13 +18,13 @@ package fed
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/data"
 	"golang.org/x/sync/semaphore"
 	"hash/crc32"
 	"io"
@@ -316,8 +316,8 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	}
 
 	resolvedID := actor.ID
-	if resolvedID == "" {
-		return nil, cachedActor, fmt.Errorf("failed to unmarshal %s: empty ID", profile)
+	if !data.IsIDValid(resolvedID) {
+		return nil, cachedActor, fmt.Errorf("failed to unmarshal %s: invalid ID", profile)
 	}
 	if resolvedID != to {
 		log.Info("Replacing actor ID", "before", to, "after", resolvedID)
@@ -334,9 +334,8 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 		}
 	} else if _, err := db.ExecContext(
 		ctx,
-		`INSERT INTO persons(id, hash, actor, fetched) VALUES(?,?,?,UNIXEPOCH())`,
+		`INSERT INTO persons(id, actor, fetched) VALUES(?,?,UNIXEPOCH())`,
 		resolvedID,
-		fmt.Sprintf("%x", sha256.Sum256([]byte(resolvedID))),
 		string(body),
 	); err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", resolvedID, err)

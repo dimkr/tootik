@@ -17,7 +17,6 @@ limitations under the License.
 package test
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"strings"
@@ -44,9 +43,9 @@ func TestName_HappyFlow(t *testing.T) {
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
 
 	summary := server.Handle("/users/name?Jane%20Doe", server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), summary)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), summary)
 
-	outbox := server.Handle(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob)
+	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Contains(strings.Split(outbox, "\n"), "# 😈 Jane Doe (alice@localhost.localdomain:8443)")
 }
 
@@ -71,8 +70,8 @@ func TestName_MultiLine(t *testing.T) {
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
 
 	summary := server.Handle("/users/name?Jane%0A%0A%0A%0ADoe", server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%x\r\n", sha256.Sum256([]byte(server.Alice.ID))), summary)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), summary)
 
-	outbox := strings.Split(server.Handle(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(server.Alice.ID))), server.Bob), "\n")
+	outbox := strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob), "\n")
 	assert.Contains(outbox, "# 😈 Jane Doe (alice@localhost.localdomain:8443)")
 }

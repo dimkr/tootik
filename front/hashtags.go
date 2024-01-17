@@ -52,7 +52,7 @@ func printHashtags(w text.Writer, r *request, title string, tags []string) {
 	}
 }
 
-func (h *Handler) hashtags(w text.Writer, r *request) {
+func (h *Handler) hashtags(w text.Writer, r *request, args ...string) {
 	rows, err := r.Query(`select hashtag from (select hashtag, max(inserted)/86400 as last, count(distinct author) as users, count(*) as posts from (select hashtags.hashtag, notes.author, notes.inserted from hashtags join notes on notes.id = hashtags.note join follows on follows.followed = notes.author where follows.accepted = 1 and follows.follower like ? and notes.inserted > unixepoch()-60*60*24*7) group by hashtag) where users > 1 order by users desc, posts desc, last desc limit 30`, fmt.Sprintf("https://%s/%%", h.Domain))
 	if err != nil {
 		r.Log.Warn("Failed to list hashtags", "error", err)

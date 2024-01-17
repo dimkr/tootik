@@ -17,7 +17,6 @@ limitations under the License.
 package front
 
 import (
-	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -283,9 +282,9 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 	if !titleIsLink {
 		w.Link(note.ID, title)
 	} else if r.User == nil {
-		w.Link(fmt.Sprintf("/view/%x", sha256.Sum256([]byte(note.ID))), title)
+		w.Link("/view/"+strings.TrimPrefix(note.ID, "https://"), title)
 	} else {
-		w.Link(fmt.Sprintf("/users/view/%x", sha256.Sum256([]byte(note.ID))), title)
+		w.Link("/users/view/"+strings.TrimPrefix(note.ID, "https://"), title)
 	}
 
 	for _, line := range contentLines {
@@ -303,9 +302,9 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 		})
 
 		if r.User == nil {
-			w.Link(fmt.Sprintf("/outbox/%x", sha256.Sum256([]byte(author.ID))), authorDisplayName)
+			w.Link("/outbox/"+strings.TrimPrefix(author.ID, "https://"), authorDisplayName)
 		} else {
-			w.Link(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(author.ID))), authorDisplayName)
+			w.Link("/users/outbox/"+strings.TrimPrefix(author.ID, "https://"), authorDisplayName)
 		}
 
 		for _, mentionID := range mentionedUsers.Keys() {
@@ -319,16 +318,16 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 			}
 
 			if r.User == nil {
-				w.Link(fmt.Sprintf("/outbox/%x", sha256.Sum256([]byte(mentionID))), mentionUserName)
+				w.Link("/outbox/"+strings.TrimPrefix(mentionID, "https://"), mentionUserName)
 			} else {
-				w.Link(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(mentionID))), mentionUserName)
+				w.Link("/users/outbox/"+strings.TrimPrefix(mentionID, "https://"), mentionUserName)
 			}
 		}
 
 		if r.User == nil && group != nil {
-			w.Linkf(fmt.Sprintf("/outbox/%x", sha256.Sum256([]byte(group.ID))), "👥 %s", group.PreferredUsername)
+			w.Linkf("/outbox/"+strings.TrimPrefix(group.ID, "https://"), "👥 %s", group.PreferredUsername)
 		} else if group != nil {
-			w.Linkf(fmt.Sprintf("/users/outbox/%x", sha256.Sum256([]byte(group.ID))), "👥 %s", group.PreferredUsername)
+			w.Linkf("/users/outbox/"+strings.TrimPrefix(group.ID, "https://"), "👥 %s", group.PreferredUsername)
 		}
 
 		hashtags.Range(func(_ string, tag string) bool {
@@ -348,10 +347,10 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 		})
 
 		if r.User != nil && note.AttributedTo == r.User.ID && note.Type != ap.QuestionObject && note.Name == "" { // polls and votes cannot be edited
-			w.Link(fmt.Sprintf("/users/edit/%x", sha256.Sum256([]byte(note.ID))), "🩹 Edit")
+			w.Link("/users/edit/"+strings.TrimPrefix(note.ID, "https://"), "🩹 Edit")
 		}
 		if r.User != nil && note.AttributedTo == r.User.ID {
-			w.Link(fmt.Sprintf("/users/delete/%x", sha256.Sum256([]byte(note.ID))), "💣 Delete")
+			w.Link("/users/delete/"+strings.TrimPrefix(note.ID, "https://"), "💣 Delete")
 		}
 		if r.User != nil && note.Type == ap.QuestionObject && note.Closed == nil && (note.EndTime == nil || time.Now().Before(note.EndTime.Time)) {
 			options := note.OneOf
@@ -359,11 +358,11 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 				options = note.AnyOf
 			}
 			for _, option := range options {
-				w.Linkf(fmt.Sprintf("/users/reply/%x?%s", sha256.Sum256([]byte(note.ID)), url.PathEscape(option.Name)), "📮 Vote %s", option.Name)
+				w.Linkf(fmt.Sprintf("/users/reply/%s?%s", strings.TrimPrefix(note.ID, "https://"), url.PathEscape(option.Name)), "📮 Vote %s", option.Name)
 			}
 		}
 		if r.User != nil {
-			w.Link(fmt.Sprintf("/users/reply/%x", sha256.Sum256([]byte(note.ID))), "💬 Reply")
+			w.Link("/users/reply/"+strings.TrimPrefix(note.ID, "https://"), "💬 Reply")
 		}
 	}
 }

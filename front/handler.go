@@ -34,14 +34,14 @@ import (
 )
 
 type Handler struct {
-	handlers map[*regexp.Regexp]func(text.Writer, *request)
+	handlers map[*regexp.Regexp]func(text.Writer, *request, ...string)
 	Domain   string
 	Config   *cfg.Config
 }
 
 var ErrNotRegistered = errors.New("user is not registered")
 
-func serveStaticFile(w text.Writer, r *request) {
+func serveStaticFile(w text.Writer, r *request, args ...string) {
 	w.OK()
 
 	for _, line := range static.Files[r.URL.Path] {
@@ -51,7 +51,7 @@ func serveStaticFile(w text.Writer, r *request) {
 
 func NewHandler(domain string, closed bool, cfg *cfg.Config) Handler {
 	h := Handler{
-		handlers: map[*regexp.Regexp]func(text.Writer, *request){},
+		handlers: map[*regexp.Regexp]func(text.Writer, *request, ...string){},
 		Domain:   domain,
 		Config:   cfg,
 	}
@@ -61,14 +61,14 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) Handler {
 
 	h.handlers[regexp.MustCompile(`^/users$`)] = withUserMenu(users)
 	if closed {
-		h.handlers[regexp.MustCompile(`^/users/register$`)] = func(w text.Writer, r *request) {
+		h.handlers[regexp.MustCompile(`^/users/register$`)] = func(w text.Writer, r *request, args ...string) {
 			w.Status(40, "Registration is closed")
 		}
 	} else {
 		h.handlers[regexp.MustCompile(`^/users/register$`)] = h.register
 	}
 
-	h.handlers[regexp.MustCompile(`^/users/inbox/[0-9]{4}-[0-9]{2}-[0-9]{2}$`)] = withUserMenu(h.byDate)
+	h.handlers[regexp.MustCompile(`^/users/inbox/([0-9]{4}-[0-9]{2}-[0-9]{2})$`)] = withUserMenu(h.byDate)
 	h.handlers[regexp.MustCompile(`^/users/inbox/today$`)] = withUserMenu(h.today)
 	h.handlers[regexp.MustCompile(`^/users/inbox/yesterday$`)] = withUserMenu(h.yesterday)
 
@@ -78,36 +78,36 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) Handler {
 	h.handlers[regexp.MustCompile(`^/federated$`)] = withCache(withUserMenu(h.federated), time.Minute*10, &cache, cfg)
 	h.handlers[regexp.MustCompile(`^/users/federated$`)] = withCache(withUserMenu(h.federated), time.Minute*10, &cache, cfg)
 
-	h.handlers[regexp.MustCompile(`^/outbox/[0-9a-f]{64}$`)] = withUserMenu(h.userOutbox)
-	h.handlers[regexp.MustCompile(`^/users/outbox/[0-9a-f]{64}$`)] = withUserMenu(h.userOutbox)
+	h.handlers[regexp.MustCompile(`^/outbox/(\S+)$`)] = withUserMenu(h.userOutbox)
+	h.handlers[regexp.MustCompile(`^/users/outbox/(\S+)$`)] = withUserMenu(h.userOutbox)
 
 	h.handlers[regexp.MustCompile(`^/users/bio$`)] = h.bio
 	h.handlers[regexp.MustCompile(`^/users/name$`)] = h.name
 
-	h.handlers[regexp.MustCompile(`^/view/[0-9a-f]{64}$`)] = withUserMenu(h.view)
-	h.handlers[regexp.MustCompile(`^/users/view/[0-9a-f]{64}$`)] = withUserMenu(h.view)
+	h.handlers[regexp.MustCompile(`^/view/(\S+)$`)] = withUserMenu(h.view)
+	h.handlers[regexp.MustCompile(`^/users/view/(\S+)$`)] = withUserMenu(h.view)
 
-	h.handlers[regexp.MustCompile(`^/thread/[0-9a-f]{64}$`)] = withUserMenu(h.thread)
-	h.handlers[regexp.MustCompile(`^/users/thread/[0-9a-f]{64}$`)] = withUserMenu(h.thread)
+	h.handlers[regexp.MustCompile(`^/thread/(\S+)$`)] = withUserMenu(h.thread)
+	h.handlers[regexp.MustCompile(`^/users/thread/(\S+)$`)] = withUserMenu(h.thread)
 
 	h.handlers[regexp.MustCompile(`^/users/whisper$`)] = h.whisper
 	h.handlers[regexp.MustCompile(`^/users/say$`)] = h.say
-	h.handlers[regexp.MustCompile(`^/users/dm/[0-9a-f]{64}`)] = h.dm
+	h.handlers[regexp.MustCompile(`^/users/dm/(\S+)`)] = h.dm
 
-	h.handlers[regexp.MustCompile(`^/users/reply/[0-9a-f]{64}`)] = h.reply
+	h.handlers[regexp.MustCompile(`^/users/reply/(\S+)`)] = h.reply
 
-	h.handlers[regexp.MustCompile(`^/users/edit/[0-9a-f]{64}`)] = h.edit
-	h.handlers[regexp.MustCompile(`^/users/delete/[0-9a-f]{64}`)] = delete
+	h.handlers[regexp.MustCompile(`^/users/edit/(\S+)`)] = h.edit
+	h.handlers[regexp.MustCompile(`^/users/delete/(\S+)`)] = delete
 
 	h.handlers[regexp.MustCompile(`^/users/resolve$`)] = withUserMenu(h.resolve)
 
-	h.handlers[regexp.MustCompile(`^/users/follow/[0-9a-f]{64}$`)] = withUserMenu(h.follow)
-	h.handlers[regexp.MustCompile(`^/users/unfollow/[0-9a-f]{64}$`)] = withUserMenu(h.unfollow)
+	h.handlers[regexp.MustCompile(`^/users/follow/(\S+)$`)] = withUserMenu(h.follow)
+	h.handlers[regexp.MustCompile(`^/users/unfollow/(\S+)$`)] = withUserMenu(h.unfollow)
 
 	h.handlers[regexp.MustCompile(`^/users/follows$`)] = withUserMenu(h.follows)
 
-	h.handlers[regexp.MustCompile(`^/hashtag/[a-zA-Z0-9]+$`)] = withCache(withUserMenu(h.hashtag), time.Minute*5, &cache, cfg)
-	h.handlers[regexp.MustCompile(`^/users/hashtag/[a-zA-Z0-9]+$`)] = withCache(withUserMenu(h.hashtag), time.Minute*5, &cache, cfg)
+	h.handlers[regexp.MustCompile(`^/hashtag/([a-zA-Z0-9]+)$`)] = withCache(withUserMenu(h.hashtag), time.Minute*5, &cache, cfg)
+	h.handlers[regexp.MustCompile(`^/users/hashtag/([a-zA-Z0-9]+)$`)] = withCache(withUserMenu(h.hashtag), time.Minute*5, &cache, cfg)
 
 	h.handlers[regexp.MustCompile(`^/hashtags$`)] = withCache(withUserMenu(h.hashtags), time.Minute*30, &cache, cfg)
 	h.handlers[regexp.MustCompile(`^/users/hashtags$`)] = withCache(withUserMenu(h.hashtags), time.Minute*30, &cache, cfg)
@@ -135,7 +135,8 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) Handler {
 
 func (h *Handler) Handle(ctx context.Context, log *slog.Logger, w text.Writer, reqUrl *url.URL, user *ap.Actor, db *sql.DB, resolver *fed.Resolver, wg *sync.WaitGroup) {
 	for re, handler := range h.handlers {
-		if re.MatchString(reqUrl.Path) {
+		m := re.FindStringSubmatch(reqUrl.Path)
+		if m != nil {
 			var l *slog.Logger
 			if user == nil {
 				l = log.With(slog.Group("request", "path", reqUrl.Path))
@@ -143,16 +144,19 @@ func (h *Handler) Handle(ctx context.Context, log *slog.Logger, w text.Writer, r
 				l = log.With(slog.Group("request", "path", reqUrl.Path, "user", user.ID))
 			}
 
-			handler(w, &request{
-				Context:   ctx,
-				Handler:   h,
-				URL:       reqUrl,
-				User:      user,
-				DB:        db,
-				Resolver:  resolver,
-				WaitGroup: wg,
-				Log:       l,
-			})
+			handler(
+				w,
+				&request{
+					Context:   ctx,
+					Handler:   h,
+					URL:       reqUrl,
+					User:      user,
+					DB:        db,
+					Resolver:  resolver,
+					WaitGroup: wg,
+					Log:       l,
+				},
+				m...)
 			return
 		}
 	}
