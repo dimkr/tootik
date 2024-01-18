@@ -17,6 +17,10 @@ limitations under the License.
 package front
 
 import (
+	"database/sql"
+	"fmt"
+	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/front/text"
 	"net/url"
 	"strconv"
 )
@@ -37,4 +41,69 @@ func getOffset(requestUrl *url.URL) (int, error) {
 	}
 
 	return int(offset), nil
+}
+
+func (h *Handler) showFeedPage(w text.Writer, r *request, title string, query func(int) (*sql.Rows, error), printDaySeparators bool) {
+	offset, err := getOffset(r.URL)
+	if err != nil {
+		r.Log.Info("Failed to parse query", "url", r.URL, "error", err)
+		w.Status(40, "Invalid query")
+		return
+	}
+
+	if offset > h.Config.MaxOffset {
+		r.Log.Warn("Offset is too big", "offset", offset)
+		w.Statusf(40, "Offset must be <= %d", h.Config.MaxOffset)
+		return
+	}
+
+	rows, err := query(offset)
+	if err != nil {
+		r.Log.Warn("Failed to fetch posts", "error", err)
+		w.Error()
+		return
+	}
+	defer rows.Close()
+
+	notes := data.OrderedMap[string, noteMetadata]{}
+
+	for rows.Next() {
+		noteString := ""
+		var meta noteMetadata
+		if err := rows.Scan(&noteString, &meta.Author, &meta.Group); err != nil {
+			r.Log.Warn("Failed to scan post", "error", err)
+			continue
+		}
+
+		notes.Store(noteString, meta)
+	}
+	rows.Close()
+
+	count := len(notes)
+
+	w.OK()
+
+	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
+		w.Titlef("%s (%d-%d)", title, offset, offset+h.Config.PostsPerPage)
+	} else {
+		w.Title(title)
+	}
+
+	if count == 0 {
+		w.Text("No posts.")
+	} else {
+		r.PrintNotes(w, notes, true, true, printDaySeparators)
+	}
+
+	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
+		w.Separator()
+	}
+
+	if offset >= h.Config.PostsPerPage {
+		w.Linkf(fmt.Sprintf("%s?%d", r.URL.Path, offset-h.Config.PostsPerPage), "Previous page (%d-%d)", offset-h.Config.PostsPerPage, offset)
+	}
+
+	if count == h.Config.PostsPerPage && offset+h.Config.PostsPerPage <= h.Config.MaxOffset {
+		w.Linkf(fmt.Sprintf("%s?%d", r.URL.Path, offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
+	}
 }

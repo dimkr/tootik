@@ -21,29 +21,18 @@ import (
 	"github.com/dimkr/tootik/front/text"
 )
 
-func (h *Handler) hashtag(w text.Writer, r *request, args ...string) {
-	tag := args[1]
-
+func (h *Handler) federated(w text.Writer, r *request, args ...string) {
 	h.showFeedPage(
 		w,
 		r,
-		"Posts Tagged #"+tag,
+		"✨️ FOMO From Outer Space",
 		func(offset int) (*sql.Rows, error) {
 			return r.Query(
-				`select notes.object, persons.actor, null from notes join hashtags on notes.id = hashtags.note left join (select object->>'inReplyTo' as id, count(*) as count from notes where inserted >= unixepoch() - 7*24*60*60 group by object->>'inReplyTo') replies on notes.id = replies.id left join persons on notes.author = persons.id where notes.public = 1 and hashtags.hashtag = $1 order by replies.count desc, notes.inserted/(24*60*60) desc, notes.inserted desc limit $2 offset $3`,
-				tag,
+				`select notes.object, persons.actor, groups.actor from notes join persons on notes.author = persons.id left join (select author, max(inserted) as last, count(*)/(60*60*24) as avg from notes where inserted > unixepoch()-60*60*24*7 group by author) stats on notes.author = stats.author left join (select id, actor from persons where actor->>'type' = 'Group') groups on groups.id = notes.groupid where notes.public = 1 group by notes.id order by notes.inserted / 3600 desc, stats.avg asc, stats.last asc, notes.inserted desc limit $1 offset $2`,
 				h.Config.PostsPerPage,
 				offset,
 			)
 		},
 		false,
 	)
-
-	w.Separator()
-
-	if r.User == nil {
-		w.Link("/search", "🔎 Posts by hashtag")
-	} else {
-		w.Link("/users/search", "🔎 Posts by hashtag")
-	}
 }

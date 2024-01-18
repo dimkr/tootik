@@ -14,7 +14,7 @@ This page shows posts by followed users and posts sent to you, grouped by day.
 Posts are sorted by:
 * Audience: direct messages to you, then posts that mention you, then everything else
 * Relevance and popularity: the number of followed reply authors, or the total number of reply authors
-* Noise: the number of posts by this author and time since the author's previous post
+* Noise: the number of posts by this author
 * Recency: the time the post was published
 * Artificiality: posts by users or groups, then posts by bots
 
