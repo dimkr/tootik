@@ -125,7 +125,12 @@ func (h *Handler) dailyPosts(w text.Writer, r *request, day time.Time) {
 			gup.actor->>'type' = 'Person' desc,
 			gup.inserted desc
 		limit $3
-		offset $4`, r.User.ID, day.Unix(), h.Config.PostsPerPage, offset)
+		offset $4`,
+		r.User.ID,
+		day.Unix(),
+		h.Config.PostsPerPage,
+		offset,
+	)
 	if err != nil {
 		r.Log.Warn("Failed to fetch posts", "error", err)
 		w.Error()
