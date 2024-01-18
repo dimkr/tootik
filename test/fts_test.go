@@ -17,7 +17,11 @@ limitations under the License.
 package test
 
 import (
+	"context"
+	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/inbox/note"
 	"github.com/stretchr/testify/assert"
+	"log/slog"
 	"testing"
 )
 
@@ -140,4 +144,112 @@ func TestFTS_UnathenticatedUser(t *testing.T) {
 
 	fts := server.Handle("/fts?world", nil)
 	assert.Contains(fts, "Hello world")
+}
+
+func TestFTS_SearchByAuthorUserName(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	say := server.Handle("/users/say?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+
+	fts := server.Handle("/users/fts?alice", server.Bob)
+	assert.Contains(fts, "Hello world")
+}
+
+func TestFTS_SearchByAuthorID(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	say := server.Handle("/users/say?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+
+	fts := server.Handle("/users/fts?%22https%3a%2f%2flocalhost.localdomain%3a8443%2fuser%2falice%22", server.Bob)
+	assert.Contains(fts, "Hello world")
+}
+
+func TestFTS_SearchByMentionUserName(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	tx, err := server.db.BeginTx(context.Background(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
+	to := ap.Audience{}
+	to.Add(ap.Public)
+
+	assert.NoError(
+		note.Insert(
+			context.Background(),
+			slog.Default(),
+			tx,
+			&ap.Object{
+				ID:           "https://localhost.localdomain:8443/note/1",
+				Type:         ap.NoteObject,
+				AttributedTo: server.Alice.ID,
+				Content:      "Hello @abc",
+				To:           to,
+				Tag: []ap.Mention{
+					ap.Mention{
+						Type: ap.MentionMention,
+						Name: "@abc@localhost.localdomain:8443",
+						Href: server.Bob.ID,
+					},
+				},
+			},
+		),
+	)
+
+	assert.NoError(tx.Commit())
+
+	fts := server.Handle("/users/fts?bob", server.Bob)
+	assert.Contains(fts, "Hello @abc")
+}
+
+func TestFTS_SearchByMentionID(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	tx, err := server.db.BeginTx(context.Background(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
+	to := ap.Audience{}
+	to.Add(ap.Public)
+
+	assert.NoError(
+		note.Insert(
+			context.Background(),
+			slog.Default(),
+			tx,
+			&ap.Object{
+				ID:           "https://localhost.localdomain:8443/note/1",
+				Type:         ap.NoteObject,
+				AttributedTo: server.Alice.ID,
+				Content:      "Hello @abc",
+				To:           to,
+				Tag: []ap.Mention{
+					ap.Mention{
+						Type: ap.MentionMention,
+						Name: "@abc@localhost.localdomain:8443",
+						Href: server.Bob.ID,
+					},
+				},
+			},
+		),
+	)
+
+	assert.NoError(tx.Commit())
+
+	fts := server.Handle("/users/fts?%22https%3a%2f%2flocalhost.localdomain%3a8443%2fuser%2fbob%22", server.Bob)
+	assert.Contains(fts, "Hello @abc")
 }

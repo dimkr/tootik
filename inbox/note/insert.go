@@ -51,26 +51,31 @@ func expand(aud ap.Audience, arr *[3]sql.NullString) {
 // Flatten converts a post into text that can be indexed for search purposes.
 func Flatten(note *ap.Object) string {
 	content, links := plain.FromHTML(note.Content)
-	if len(links) > 0 {
-		var b strings.Builder
-		appended := false
-		links.Range(func(link, alt string) bool {
-			if alt == "" {
-				return true
-			}
-			if !appended {
-				b.WriteString(content)
-			}
-			b.WriteByte(' ')
-			b.WriteString(link)
-			appended = true
-			return true
-		})
-		if appended {
-			content = b.String()
+	for _, mention := range note.Tag {
+		if mention.Type == ap.MentionMention {
+			links.Store(mention.Href, mention.Href)
 		}
 	}
-	return content
+	for _, attachment := range note.Attachment {
+		if attachment.Href != "" {
+			links.Store(attachment.Href, attachment.Href)
+		} else if attachment.URL != "" {
+			links.Store(attachment.URL, attachment.URL)
+		}
+	}
+	var b strings.Builder
+	b.WriteString(content)
+	b.WriteByte(' ')
+	b.WriteString(note.AttributedTo)
+	links.Range(func(link, alt string) bool {
+		if alt == "" {
+			return true
+		}
+		b.WriteByte(' ')
+		b.WriteString(link)
+		return true
+	})
+	return b.String()
 }
 
 // Insert inserts a post.
