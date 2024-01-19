@@ -99,9 +99,6 @@ func processCreateActivity(ctx context.Context, domain string, cfg *cfg.Config, 
 	var duplicate int
 	if err := db.QueryRowContext(ctx, `select exists (select 1 from notes where id = ?)`, post.ID).Scan(&duplicate); err != nil {
 		return fmt.Errorf("failed to check of %s is a duplicate: %w", post.ID, err)
-	} else if duplicate == 1 {
-		log.Debug("Post is a duplicate")
-		return nil
 	}
 
 	if _, err := resolver.Resolve(ctx, log, db, from, post.AttributedTo, false); err != nil {
@@ -114,15 +111,39 @@ func processCreateActivity(ctx context.Context, domain string, cfg *cfg.Config, 
 	}
 	defer tx.Rollback()
 
-	if err := note.Insert(ctx, log, tx, post); err != nil {
-		return fmt.Errorf("cannot insert %s: %w", post.ID, err)
-	}
+	if duplicate == 0 {
+		if err := note.Insert(ctx, log, tx, post); err != nil {
+			return fmt.Errorf("cannot insert %s: %w", post.ID, err)
+		}
 
-	if err := forwardActivity(ctx, domain, cfg, log, tx, req, rawActivity); err != nil {
-		return fmt.Errorf("cannot forward %s: %w", post.ID, err)
+		if err := forwardActivity(ctx, domain, cfg, log, tx, req, rawActivity); err != nil {
+			return fmt.Errorf("cannot forward %s: %w", post.ID, err)
+		}
+
+		log.Info("Received a new post")
+
+		mentionedUsers := ap.Audience{}
+
+		for _, tag := range post.Tag {
+			if tag.Type == ap.MentionMention && tag.Href != post.AttributedTo {
+				mentionedUsers.Add(tag.Href)
+			}
+		}
+
+		mentionedUsers.Range(func(id string, _ struct{}) bool {
+			if _, err := resolver.Resolve(ctx, log, db, from, id, false); err != nil {
+				log.Warn("Failed to resolve mention", "mention", id, "error", err)
+			}
+
+			return true
+		})
 	}
 
 	if sender.ID != post.AttributedTo {
+		if duplicate == 1 {
+			log.Info("Received a share", "post", post.ID, "by", sender.ID)
+		}
+
 		if _, err = tx.ExecContext(
 			ctx,
 			`INSERT OR IGNORE INTO shares (note, by) VALUES(?,?)`,
@@ -136,24 +157,6 @@ func processCreateActivity(ctx context.Context, domain string, cfg *cfg.Config, 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("cannot insert %s: %w", post.ID, err)
 	}
-
-	log.Info("Received a new post")
-
-	mentionedUsers := ap.Audience{}
-
-	for _, tag := range post.Tag {
-		if tag.Type == ap.MentionMention && tag.Href != post.AttributedTo {
-			mentionedUsers.Add(tag.Href)
-		}
-	}
-
-	mentionedUsers.Range(func(id string, _ struct{}) bool {
-		if _, err := resolver.Resolve(ctx, log, db, from, id, false); err != nil {
-			log.Warn("Failed to resolve mention", "mention", id, "error", err)
-		}
-
-		return true
-	})
 
 	return nil
 }

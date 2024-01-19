@@ -134,7 +134,7 @@ func (h *Handler) getActorDisplayName(actor *ap.Actor, log *slog.Logger) string 
 	return h.getDisplayName(actor.ID, userName, name, actor.Type, log)
 }
 
-func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, group *ap.Actor, compact, printAuthor, printParentAuthor, titleIsLink bool) {
+func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, group *ap.Actor, by *ap.Actor, compact, printAuthor, printParentAuthor, titleIsLink bool) {
 	if note.AttributedTo == "" {
 		r.Log.Warn("Note has no author", "id", note.ID)
 		return
@@ -225,6 +225,28 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 
 	if note.Updated != nil && *note.Updated != (ap.Time{}) {
 		title += " ┃ edited"
+	}
+
+	if by == nil && r.User != nil {
+		if rows, err := r.Query(
+			`select persons.id, persons.actor->>'preferredUsername' from shares join persons on persons.id = shares.by where note = $1 and exists (select 1 from follows where follower = $2 and followed = shares.by)`,
+			note.ID,
+			r.User.ID,
+		); err != nil {
+			r.Log.Warn("Failed to list sharers", "error", err)
+		} else {
+			for rows.Next() {
+				var sharerID, sharerName string
+				if err := rows.Scan(&sharerID, &sharerName); err != nil {
+					r.Log.Warn("Failed to scan sharer", "error", err)
+					continue
+				}
+				links.Store(sharerID, "🔄 "+sharerName)
+			}
+			rows.Close()
+		}
+	} else if by != nil {
+		title = fmt.Sprintf("%s ┃ 🔄 %s", title, by.PreferredUsername)
 	}
 
 	var parentAuthor ap.Actor
@@ -331,6 +353,12 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 			w.Linkf("/users/outbox/"+strings.TrimPrefix(group.ID, "https://"), "👥 %s", group.PreferredUsername)
 		}
 
+		if r.User == nil && by != nil {
+			w.Link("/outbox/"+strings.TrimPrefix(by.ID, "https://"), by.PreferredUsername)
+		} else if group != nil {
+			w.Link("/users/outbox/"+strings.TrimPrefix(by.ID, "https://"), by.PreferredUsername)
+		}
+
 		hashtags.Range(func(_ string, tag string) bool {
 			var exists int
 			if err := r.QueryRow(`select exists (select 1 from hashtags where hashtag = ? and note != ?)`, tag, note.ID).Scan(&exists); err != nil {
@@ -418,10 +446,14 @@ func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, noteMet
 			w.Empty()
 		}
 
-		if meta.Group.Valid {
-			r.PrintNote(w, &note, &author, &group, true, printAuthor, printParentAuthor, true)
+		if meta.Group.Valid && meta.By.Valid {
+			r.PrintNote(w, &note, &author, &group, &by, true, printAuthor, printParentAuthor, true)
+		} else if meta.Group.Valid && !meta.By.Valid {
+			r.PrintNote(w, &note, &author, &group, nil, true, printAuthor, printParentAuthor, true)
+		} else if !meta.Group.Valid && meta.By.Valid {
+			r.PrintNote(w, &note, &author, nil, &by, true, printAuthor, printParentAuthor, true)
 		} else {
-			r.PrintNote(w, &note, &author, nil, true, printAuthor, printParentAuthor, true)
+			r.PrintNote(w, &note, &author, nil, nil, true, printAuthor, printParentAuthor, true)
 		}
 
 		lastDay = currentDay

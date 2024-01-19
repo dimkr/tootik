@@ -17,8 +17,12 @@ limitations under the License.
 package test
 
 import (
+	"context"
 	"fmt"
+	"github.com/dimkr/tootik/fed"
+	"github.com/dimkr/tootik/inbox"
 	"github.com/stretchr/testify/assert"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -318,4 +322,89 @@ func TestInbox_MentionAndDMWithoutMention(t *testing.T) {
 	assert.NotEqual(dmWithoutMention, -1)
 	assert.NotEqual(postWithMention, -1)
 	assert.True(dmWithoutMention < postWithMention)
+}
+
+func TestInbox_PublicPostShared(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	_, err := server.db.Exec(
+		`insert into persons (id, actor) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
+	)
+	assert.NoError(err)
+
+	_, err = server.db.Exec(
+		`insert into persons (id, actor) values(?,?)`,
+		"https://127.0.0.1/user/erin",
+		`{"id":"https://127.0.0.1/user/erin","type":"Person","preferredUsername":"erin","followers":"https://127.0.0.1/followers/erin"}`,
+	)
+	assert.NoError(err)
+
+	follow := server.Handle("/users/follow/127.0.0.1/user/erin", server.Alice)
+	assert.Equal("30 /users/outbox/127.0.0.1/user/erin\r\n", follow)
+
+	_, err = server.db.Exec(`update follows set accepted = 1`)
+	assert.NoError(err)
+
+	_, err = server.db.Exec(
+		`insert into inbox (sender, activity) values(?,?)`,
+		"https://127.0.0.1/user/erin",
+		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/update/1","type":"Announce","actor":"https://127.0.0.1/user/erin","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/erin"]}`,
+	)
+	assert.NoError(err)
+
+	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	assert.NoError(err)
+	assert.Equal(1, n)
+
+	today := server.Handle("/users/inbox/today", server.Alice)
+	assert.Contains(today, "Hello world")
+}
+
+func TestInbox_PublicPostSharedNotFollowing(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	_, err := server.db.Exec(
+		`insert into persons (id, actor) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
+	)
+	assert.NoError(err)
+
+	_, err = server.db.Exec(
+		`insert into persons (id, actor) values(?,?)`,
+		"https://127.0.0.1/user/erin",
+		`{"id":"https://127.0.0.1/user/erin","type":"Person","preferredUsername":"erin","followers":"https://127.0.0.1/followers/erin"}`,
+	)
+	assert.NoError(err)
+
+	follow := server.Handle("/users/follow/127.0.0.1/user/erin", server.Alice)
+	assert.Equal("30 /users/outbox/127.0.0.1/user/erin\r\n", follow)
+
+	_, err = server.db.Exec(`update follows set accepted = 1`)
+	assert.NoError(err)
+
+	_, err = server.db.Exec(
+		`insert into inbox (sender, activity) values(?,?)`,
+		"https://127.0.0.1/user/erin",
+		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/update/1","type":"Announce","actor":"https://127.0.0.1/user/erin","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/erin"]}`,
+	)
+	assert.NoError(err)
+
+	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	assert.NoError(err)
+	assert.Equal(1, n)
+
+	unfollow := server.Handle("/users/unfollow/127.0.0.1/user/erin", server.Alice)
+	assert.Equal("30 /users/outbox/127.0.0.1/user/erin\r\n", unfollow)
+
+	today := server.Handle("/users/inbox/today", server.Alice)
+	assert.NotContains(today, "Hello world")
 }
