@@ -139,45 +139,6 @@ func Insert(ctx context.Context, log *slog.Logger, tx *sql.Tx, note *ap.Object) 
 		return fmt.Errorf("failed to insert note %s: %w", note.ID, err)
 	}
 
-	if _, err = tx.ExecContext(
-		ctx,
-		`update notes
-		set groupid = coalesce(
-			case
-				when notes.object->'inReplyTo' is null then
-					(
-						select value->>'href' from json_each(notes.object->'tag')
-						where value->>'type' = 'Mention' and exists (select 1 from persons where persons.id = value->>'href' and persons.actor->>'type' = 'Group')
-						limit 1
-					)
-				else
-					null
-			end,
-			case
-				when notes.object->'inReplyTo' is null then
-					null
-				else
-					(
-						select value from json_each(notes.object->'cc')
-						where exists (select 1 from persons where persons.id = value and persons.actor->>'type' = 'Group')
-						limit 1
-					)
-			end,
-			case
-				when notes.object->'inReplyTo' is null then
-					null
-				else
-					(
-						select value from json_each(notes.object->'to')
-						where exists (select 1 from persons where persons.id = value and persons.actor->>'type' = 'Group')
-						limit 1
-					)
-			end
-		)
-		where id = ?`, note.ID); err != nil {
-		log.Warn("Failed to set post group", "error", err)
-	}
-
 	for _, hashtag := range hashtags {
 		if _, err = tx.ExecContext(ctx, `insert into hashtags (note, hashtag) values(?,?)`, note.ID, hashtag); err != nil {
 			log.Warn("Failed to tag post", "hashtag", hashtag, "error", err)

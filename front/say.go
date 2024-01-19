@@ -28,5 +28,5 @@ func (h *Handler) say(w text.Writer, r *request, args ...string) {
 	to.Add(ap.Public)
 	cc.Add(r.User.Followers)
 
-	h.post(w, r, nil, nil, to, cc, "Post content")
+	h.post(w, r, nil, nil, to, cc, "", "Post content")
 }

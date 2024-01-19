@@ -96,7 +96,7 @@ func (h *Handler) edit(w text.Writer, r *request, args ...string) {
 	}
 
 	if note.InReplyTo == "" {
-		h.post(w, r, &note, nil, note.To, note.CC, "Post content")
+		h.post(w, r, &note, nil, note.To, note.CC, note.Audience, "Post content")
 		return
 	}
 
@@ -116,5 +116,5 @@ func (h *Handler) edit(w text.Writer, r *request, args ...string) {
 	}
 
 	// the starting point is the original value of to and cc: recipients can be added but not removed when editing
-	h.post(w, r, &note, &parent, note.To, note.CC, "Post content")
+	h.post(w, r, &note, &parent, note.To, note.CC, note.Audience, "Post content")
 }

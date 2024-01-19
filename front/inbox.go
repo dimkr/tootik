@@ -48,7 +48,7 @@ func (h *Handler) dailyPosts(w text.Writer, r *request, day time.Time) {
 				(
 					select u.id, u.object, u.author, u.cc0, u.to0, u.cc1, u.to1, u.cc2, u.to2, u.inserted, authors.actor, groups.actor as g from
 					(
-						select notes.id, notes.object, notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2, notes.inserted, notes.groupid from
+						select notes.id, notes.object, notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2, notes.inserted from
 						follows
 						join
 						persons followed
@@ -70,14 +70,14 @@ func (h *Handler) dailyPosts(w text.Writer, r *request, day time.Time) {
 							or
 							(
 								followed.actor->>'type' = 'Group' and
-								notes.groupid = followed.id
+								notes.object->>'audience' = followed.id
 							)
 						where
 							follows.follower = $1 and
 							notes.inserted >= $2 and
 							notes.inserted < $2 + 60*60*24
 						union
-						select notes.id, notes.object, notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2, notes.inserted, notes.groupid from
+						select notes.id, notes.object, notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2, notes.inserted from
 						notes myposts
 						join
 						notes
@@ -96,7 +96,7 @@ func (h *Handler) dailyPosts(w text.Writer, r *request, day time.Time) {
 					left join
 					persons groups
 					on
-					groups.actor->>'type' = 'Group' and groups.id = u.groupid
+					groups.actor->>'type' = 'Group' and groups.id = u.object->>'audience'
 				) gup
 				left join (
 					select author, round(count(*) / 24.0, 1) as avg from notes where inserted >= $2 and inserted < $2 + 60*60*24 group by author
