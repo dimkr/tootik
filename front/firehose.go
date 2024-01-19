@@ -37,7 +37,7 @@ func (h *Handler) firehose(w text.Writer, r *request, args ...string) {
 			return r.Query(`
 				select gup.object, gup.actor, gup.g from
 				(
-					select u.object, u.author, u.inserted, authors.actor, groups.actor as g from
+					select u.object, u.inserted, authors.actor, groups.actor as g from
 					(
 						select notes.object, notes.author, notes.inserted, notes.groupid from
 						follows
