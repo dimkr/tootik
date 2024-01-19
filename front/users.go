@@ -45,6 +45,8 @@ func users(w text.Writer, r *request, args ...string) {
 						persons
 						on
 							follows.followed = persons.id
+						where
+							follows.follower = $1
 					) follows
 					on
 						(
@@ -60,7 +62,6 @@ func users(w text.Writer, r *request, args ...string) {
 							(follows.type = 'Group' and follows.followed = notes.groupid)
 						)
 					where
-						follows.follower = $1 and
 						notes.inserted > unixepoch() - 60*60*24*7
 					union
 					select notes.id, shares.inserted/86400 as day from
