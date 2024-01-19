@@ -64,7 +64,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		// unauthenticated users can only see public posts in a group
 		rows, err = r.Query(
 			`select notes.object, persons.actor, null from (
-				select object, author from notes where object->>'audience' = $1 and public = 1
+				select object, author from notes where object->>'audience' = $1 and public = 1 and object->'inReplyTo' is null
 				order by notes.inserted desc limit $2 offset $3
 			) notes
 			join persons on persons.id = notes.author`,
@@ -82,7 +82,8 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 					(
 						public = 1 or
 						exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
-					)
+					) and
+					object->'inReplyTo' is null
 					order by inserted desc limit $3 offset $4
 			) notes
 			join persons on persons.id = notes.author`,

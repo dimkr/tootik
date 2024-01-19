@@ -86,7 +86,7 @@ func forwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 	return nil
 }
 
-func processCreateActivity(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, sender *ap.Actor, req *ap.Activity, rawActivity []byte, post *ap.Object, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) error {
+func processCreateActivity(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, sender *ap.Actor, req *ap.Activity, rawActivity []byte, post *ap.Object, db *sql.DB, resolver *fed.Resolver, from *ap.Actor, shared bool) error {
 	prefix := fmt.Sprintf("https://%s/", domain)
 	if strings.HasPrefix(sender.ID, prefix) || strings.HasPrefix(post.ID, prefix) || strings.HasPrefix(post.AttributedTo, prefix) || strings.HasPrefix(req.Actor, prefix) {
 		return fmt.Errorf("received invalid Create for %s by %s from %s", post.ID, post.AttributedTo, req.Actor)
@@ -139,7 +139,7 @@ func processCreateActivity(ctx context.Context, domain string, cfg *cfg.Config, 
 		})
 	}
 
-	if sender.ID != post.AttributedTo {
+	if shared && sender.ID != post.AttributedTo {
 		if duplicate == 1 {
 			log.Info("Received a share", "post", post.ID, "by", sender.ID)
 		}
@@ -296,7 +296,7 @@ func processActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 			return errors.New("received invalid Create")
 		}
 
-		return processCreateActivity(ctx, domain, cfg, log, sender, req, rawActivity, post, db, resolver, from)
+		return processCreateActivity(ctx, domain, cfg, log, sender, req, rawActivity, post, db, resolver, from, false)
 
 	case ap.AnnounceActivity:
 		create, ok := req.Object.(*ap.Activity)
@@ -321,7 +321,7 @@ func processActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 			return errors.New("sender is not post author or recipient")
 		}
 
-		return processCreateActivity(ctx, domain, cfg, log, sender, create, rawActivity, post, db, resolver, from)
+		return processCreateActivity(ctx, domain, cfg, log, sender, create, rawActivity, post, db, resolver, from, true)
 
 	case ap.UpdateActivity:
 		post, ok := req.Object.(*ap.Object)
@@ -343,7 +343,7 @@ func processActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 		var lastUpdate int64
 		if err := db.QueryRowContext(ctx, `select max(inserted, updated), object from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastUpdate, &oldPostString); err != nil && errors.Is(err, sql.ErrNoRows) {
 			log.Debug("Received Update for non-existing post")
-			return processCreateActivity(ctx, domain, cfg, log, sender, req, rawActivity, post, db, resolver, from)
+			return processCreateActivity(ctx, domain, cfg, log, sender, req, rawActivity, post, db, resolver, from, false)
 		} else if err != nil {
 			return fmt.Errorf("failed to get last update time for %s: %w", post.ID, err)
 		}
