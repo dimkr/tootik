@@ -18,6 +18,10 @@ func shares(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
+	if _, err := tx.ExecContext(ctx, `ALTER TABLE notes DROP COLUMN groupid`); err != nil {
+		return err
+	}
+
 	_, err := tx.ExecContext(ctx, `CREATE INDEX notesaudience ON notes(object->>'audience')`)
 	return err
 }
