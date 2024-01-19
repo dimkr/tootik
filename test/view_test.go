@@ -887,8 +887,8 @@ func TestView_PublicPostSharedTwice(t *testing.T) {
 
 	view := strings.Split(server.Handle("/users/view/127.0.0.1/note/1", server.Alice), "\n")
 	assert.Contains(view, "> Hello world")
-	assert.Contains(view, "=> https://127.0.0.1/user/erin 🔄 erin")
-	assert.Contains(view, "=> https://127.0.0.1/user/frank 🔄 frank")
+	assert.Contains(view, "=> https://127.0.0.1/user/erin 🔁 erin")
+	assert.Contains(view, "=> https://127.0.0.1/user/frank 🔁 frank")
 }
 
 func TestView_PublicPostSharedTwiceOneUnfollow(t *testing.T) {
@@ -950,8 +950,8 @@ func TestView_PublicPostSharedTwiceOneUnfollow(t *testing.T) {
 
 	view := strings.Split(server.Handle("/users/view/127.0.0.1/note/1", server.Alice), "\n")
 	assert.Contains(view, "> Hello world")
-	assert.NotContains(view, "=> https://127.0.0.1/user/erin 🔄 erin")
-	assert.Contains(view, "=> https://127.0.0.1/user/frank 🔄 frank")
+	assert.NotContains(view, "=> https://127.0.0.1/user/erin 🔁 erin")
+	assert.Contains(view, "=> https://127.0.0.1/user/frank 🔁 frank")
 }
 
 func TestView_PublicPostSharedTwiceTwoUnfollows(t *testing.T) {
@@ -1016,6 +1016,6 @@ func TestView_PublicPostSharedTwiceTwoUnfollows(t *testing.T) {
 
 	view := strings.Split(server.Handle("/users/view/127.0.0.1/note/1", server.Alice), "\n")
 	assert.Contains(view, "> Hello world")
-	assert.NotContains(view, "=> https://127.0.0.1/user/erin 🔄 erin")
-	assert.NotContains(view, "=> https://127.0.0.1/user/frank 🔄 frank")
+	assert.NotContains(view, "=> https://127.0.0.1/user/erin 🔁 erin")
+	assert.NotContains(view, "=> https://127.0.0.1/user/frank 🔁 frank")
 }

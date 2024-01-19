@@ -241,12 +241,12 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 					r.Log.Warn("Failed to scan sharer", "error", err)
 					continue
 				}
-				links.Store(sharerID, "🔄 "+sharerName)
+				links.Store(sharerID, "🔁 "+sharerName)
 			}
 			rows.Close()
 		}
 	} else if by != nil {
-		title = fmt.Sprintf("%s ┃ 🔄 %s", title, by.PreferredUsername)
+		title = fmt.Sprintf("%s ┃ 🔁 %s", title, by.PreferredUsername)
 	}
 
 	var parentAuthor ap.Actor
