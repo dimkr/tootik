@@ -163,7 +163,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 					persons.id = $1 and
 					exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
 				union
-				select notes.id, notes.author, notes.object, shares.inserted, notes from
+				select notes.id, notes.author, notes.object, shares.inserted from
 				shares
 				join notes on notes.id = shares.note
 				where shares.by = $1
