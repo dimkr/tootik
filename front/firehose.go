@@ -35,11 +35,11 @@ func (h *Handler) firehose(w text.Writer, r *request, args ...string) {
 		"🚿 Firehose",
 		func(offset int) (*sql.Rows, error) {
 			return r.Query(`
-				select gup.object, gup.actor, gup.g from
+				select gup.object, gup.actor, gup.g, gup.by from
 				(
-					select u.id, u.object, u.author, u.cc0, u.to0, u.cc1, u.to1, u.cc2, u.to2, u.inserted, authors.actor, groups.actor as g from
+					select u.id, u.object, u.inserted, authors.actor, groups.actor as g, u.by from
 					(
-						select notes.id, notes.object, notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2, notes.inserted, notes.groupid from
+						select notes.id, notes.object, notes.author, notes.inserted, notes.groupid, null as by from
 						follows
 						join
 						persons followed
@@ -67,7 +67,25 @@ func (h *Handler) firehose(w text.Writer, r *request, args ...string) {
 							follows.follower = $1 and
 							notes.inserted >= $2
 						union
-						select notes.id, notes.object, notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2, notes.inserted, notes.groupid from
+						select notes.id, notes.object, notes.author, shares.inserted, notes.groupid, followed.actor as by from
+						follows
+						join
+						persons followed
+						on
+							followed.id = follows.followed
+						join
+						shares
+						on
+							shares.by = followed.id
+						join
+						notes
+						on
+							notes.id = shares.note
+						where
+							follows.follower = $1 and
+							shares.inserted >= $2
+						union
+						select notes.id, notes.object, notes.author, notes.inserted, notes.groupid, null as by from
 						notes myposts
 						join
 						notes
@@ -81,14 +99,16 @@ func (h *Handler) firehose(w text.Writer, r *request, args ...string) {
 					join
 					persons authors
 					on
-					authors.id = u.author
+						authors.id = u.author
 					left join
 					persons groups
 					on
-					groups.actor->>'type' = 'Group' and groups.id = u.groupid
+						groups.actor->>'type' = 'Group' and groups.id = u.groupid
 				) gup
+				group by
+					gup.id
 				order by
-					gup.inserted desc
+					max(gup.inserted) desc
 				limit $3
 				offset $4`,
 				r.User.ID,

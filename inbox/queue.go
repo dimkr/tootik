@@ -122,6 +122,17 @@ func processCreateActivity(ctx context.Context, domain string, cfg *cfg.Config, 
 		return fmt.Errorf("cannot forward %s: %w", post.ID, err)
 	}
 
+	if sender.ID != post.AttributedTo {
+		if _, err = tx.ExecContext(
+			ctx,
+			`INSERT OR IGNORE INTO shares (note, by) VALUES(?,?)`,
+			post.ID,
+			sender.ID,
+		); err != nil {
+			return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, sender.ID, err)
+		}
+	}
+
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("cannot insert %s: %w", post.ID, err)
 	}
@@ -173,6 +184,9 @@ func processActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 				return fmt.Errorf("failed to delete posts by %s", req.ID)
 			}
 			if _, err := db.ExecContext(ctx, `delete from notes where id = ? and author = ?`, deleted, sender.ID); err != nil {
+				return fmt.Errorf("failed to delete posts by %s", req.ID)
+			}
+			if _, err := db.ExecContext(ctx, `delete from shares where note = $1 and exists (select 1 from notes where id = $1 and author = $2)`, deleted, sender.ID); err != nil {
 				return fmt.Errorf("failed to delete posts by %s", req.ID)
 			}
 		}
@@ -300,7 +314,7 @@ func processActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 			return errors.New("received Announce for private post")
 		}
 
-		if post.AttributedTo != sender.ID && !post.To.Contains(sender.ID) && !post.CC.Contains(sender.ID) {
+		if post.AttributedTo != sender.ID && !post.To.Contains(sender.ID) && !post.CC.Contains(sender.ID) && !post.IsPublic() {
 			return errors.New("sender is not post author or recipient")
 		}
 

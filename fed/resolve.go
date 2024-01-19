@@ -122,6 +122,10 @@ func deleteActor(ctx context.Context, log *slog.Logger, db *sql.DB, id string) {
 		log.Warn("Failed to delete notes by actor", "id", id, "error", err)
 	}
 
+	if _, err := db.ExecContext(ctx, `delete from shares where by = $1 or note in (select id from notes where author = $1)`, id); err != nil {
+		log.Warn("Failed to delete shares by actor", "id", id, "error", err)
+	}
+
 	if _, err := db.ExecContext(ctx, `delete from notes where author = ?`, id); err != nil {
 		log.Warn("Failed to delete notes by actor", "id", id, "error", err)
 	}

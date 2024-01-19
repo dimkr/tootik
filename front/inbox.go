@@ -44,11 +44,11 @@ func (h *Handler) dailyPosts(w text.Writer, r *request, day time.Time) {
 		"📻 Posts From "+day.Format(time.DateOnly),
 		func(offset int) (*sql.Rows, error) {
 			return r.Query(`
-				select gup.object, gup.actor, gup.g from
+				select gup.object, gup.actor, gup.g, gup.by from
 				(
-					select u.id, u.object, u.author, u.cc0, u.to0, u.cc1, u.to1, u.cc2, u.to2, u.inserted, authors.actor, groups.actor as g from
+					select u.id, u.object, u.author, u.cc0, u.to0, u.cc1, u.to1, u.cc2, u.to2, u.inserted, authors.actor, groups.actor as g, u.by from
 					(
-						select notes.id, notes.object, notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2, notes.inserted, notes.groupid from
+						select notes.id, notes.object, notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2, notes.inserted, notes.groupid, null as by from
 						follows
 						join
 						persons followed
@@ -77,7 +77,26 @@ func (h *Handler) dailyPosts(w text.Writer, r *request, day time.Time) {
 							notes.inserted >= $2 and
 							notes.inserted < $2 + 60*60*24
 						union
-						select notes.id, notes.object, notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2, notes.inserted, notes.groupid from
+						select notes.id, notes.object, notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2, shares.inserted, notes.groupid, followed.actor from
+						follows
+						join
+						persons followed
+						on
+							followed.id = follows.followed
+						join
+						shares
+						on
+							shares.by = followed.id
+						join
+						notes
+						on
+							notes.id = shares.note
+						where
+							follows.follower = $1 and
+							shares.inserted >= $2 and
+							shares.inserted < $2 + 60*60*24
+						union
+						select notes.id, notes.object, notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2, notes.inserted, notes.groupid, null as by from
 						notes myposts
 						join
 						notes
@@ -117,6 +136,7 @@ func (h *Handler) dailyPosts(w text.Writer, r *request, day time.Time) {
 					end),
 					count(distinct replies.follow) desc,
 					count(distinct replies.author) desc,
+					count(distinct gup.by) desc,
 					stats.avg asc,
 					gup.inserted / 3600 desc,
 					gup.actor->>'type' = 'Person' desc,

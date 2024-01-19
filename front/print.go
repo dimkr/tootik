@@ -35,6 +35,7 @@ import (
 type noteMetadata struct {
 	Author sql.NullString
 	Group  sql.NullString
+	By     sql.NullString
 }
 
 var verifiedRegex = regexp.MustCompile(`(\s*:[a-zA-Z0-9_]+:\s*)+`)
@@ -397,6 +398,14 @@ func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, noteMet
 		if meta.Group.Valid {
 			if err := json.Unmarshal([]byte(meta.Group.String), &group); err != nil {
 				r.Log.Warn("Failed to unmarshal post group", "error", err)
+				return true
+			}
+		}
+
+		by := ap.Actor{}
+		if meta.By.Valid {
+			if err := json.Unmarshal([]byte(meta.By.String), &by); err != nil {
+				r.Log.Warn("Failed to unmarshal post sharer", "error", err)
 				return true
 			}
 		}
