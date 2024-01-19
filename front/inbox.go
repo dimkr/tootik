@@ -135,8 +135,8 @@ func (h *Handler) dailyPosts(w text.Writer, r *request, day time.Time) {
 						else 2
 					end),
 					count(distinct replies.follow) desc,
-					count(distinct replies.author) desc,
 					count(distinct gup.by) desc,
+					count(distinct replies.author) desc,
 					stats.avg asc,
 					max(gup.inserted) / 3600 desc,
 					gup.actor->>'type' = 'Person' desc,
