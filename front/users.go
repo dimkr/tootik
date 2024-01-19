@@ -80,4 +80,7 @@ func users(w text.Writer, r *request, args ...string) {
 		}
 		return true
 	})
+
+	w.Empty()
+	w.Link("/users/firehose", "🚿 Firehose")
 }

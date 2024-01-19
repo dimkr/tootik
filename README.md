@@ -119,6 +119,7 @@ Users are authenticated using TLS client certificates; see [Gemini protocol spec
 
 * /users shows the number of incoming posts by date.
 * /users/inbox shows a list of posts by followed users and posts sent to the authenticated user.
+* /users/firehose is like /users/inbox but sorted chronologically.
 * /users/register creates a new user.
 * /users/follows shows a list of followed users, ordered by activity.
 * /users/resolve looks up federated user *user@domain* or local user *user*.

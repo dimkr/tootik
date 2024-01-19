@@ -73,6 +73,7 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) Handler {
 	h.handlers[regexp.MustCompile(`^/users/inbox/([0-9]{4}-[0-9]{2}-[0-9]{2})$`)] = withUserMenu(h.byDate)
 	h.handlers[regexp.MustCompile(`^/users/inbox/today$`)] = withUserMenu(h.today)
 	h.handlers[regexp.MustCompile(`^/users/inbox/yesterday$`)] = withUserMenu(h.yesterday)
+	h.handlers[regexp.MustCompile(`^/users/firehose$`)] = withUserMenu(h.firehose)
 
 	h.handlers[regexp.MustCompile(`^/local$`)] = withCache(withUserMenu(h.local), time.Minute*15, &cache, cfg)
 	h.handlers[regexp.MustCompile(`^/users/local$`)] = withCache(withUserMenu(h.local), time.Minute*15, &cache, cfg)
