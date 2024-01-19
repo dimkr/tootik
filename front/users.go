@@ -81,7 +81,7 @@ func users(w text.Writer, r *request, args ...string) {
 						follows.follower = $1 and
 						shares.inserted > unixepoch() - 60*60*24*7
 					union
-					select notes.id, notes.inserted/86400 as day, notes.object from
+					select notes.id, notes.inserted/86400 as day from
 					notes
 					join
 					(
