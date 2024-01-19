@@ -80,7 +80,7 @@ func (h *Handler) firehose(w text.Writer, r *request, args ...string) {
 						join
 						notes
 						on
-							notes.id = shares.note
+							notes.id = shares.note and notes.object->>'audience' != shares.by
 						where
 							follows.follower = $1 and
 							shares.inserted >= $2
