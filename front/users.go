@@ -59,7 +59,7 @@ func users(w text.Writer, r *request, args ...string) {
 									(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.followers or value = $1))
 								)
 							) or
-							(follows.type = 'Group' and follows.followed = notes.groupid)
+							(follows.type = 'Group' and follows.followed = notes.object->>'audience')
 						)
 					where
 						notes.inserted > unixepoch() - 60*60*24*7

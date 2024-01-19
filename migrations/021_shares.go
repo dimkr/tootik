@@ -10,6 +10,14 @@ func shares(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	_, err := tx.ExecContext(ctx, `CREATE INDEX sharesnote ON shares(note)`)
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX sharesnote ON shares(note)`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `DROP INDEX notesgroupid`); err != nil {
+		return err
+	}
+
+	_, err := tx.ExecContext(ctx, `CREATE INDEX notesaudience ON notes(object->>'audience')`)
 	return err
 }

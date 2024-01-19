@@ -39,7 +39,7 @@ func (h *Handler) firehose(w text.Writer, r *request, args ...string) {
 				(
 					select u.id, u.object, u.inserted, authors.actor, groups.actor as g from
 					(
-						select notes.id, notes.object, notes.author, notes.inserted, notes.groupid from
+						select notes.id, notes.object, notes.author, notes.inserted from
 						follows
 						join
 						persons followed
@@ -61,13 +61,13 @@ func (h *Handler) firehose(w text.Writer, r *request, args ...string) {
 							or
 							(
 								followed.actor->>'type' = 'Group' and
-								notes.groupid = followed.id
+								notes.object->>'audience' = followed.id
 							)
 						where
 							follows.follower = $1 and
 							notes.inserted >= $2
 						union
-						select notes.id, notes.object, notes.author, shares.inserted, notes.groupid from
+						select notes.id, notes.object, notes.author, shares.inserted from
 						follows
 						join
 						persons followed
@@ -85,7 +85,7 @@ func (h *Handler) firehose(w text.Writer, r *request, args ...string) {
 							follows.follower = $1 and
 							shares.inserted >= $2
 						union
-						select notes.id, notes.object, notes.author, notes.inserted, notes.groupid from
+						select notes.id, notes.object, notes.author, notes.inserted from
 						notes myposts
 						join
 						notes
@@ -103,7 +103,7 @@ func (h *Handler) firehose(w text.Writer, r *request, args ...string) {
 					left join
 					persons groups
 					on
-						groups.actor->>'type' = 'Group' and groups.id = u.groupid
+						groups.actor->>'type' = 'Group' and groups.id = u.object->>'audience'
 				) gup
 				group by
 					gup.id

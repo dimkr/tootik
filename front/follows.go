@@ -37,7 +37,7 @@ func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	rows, err := r.Query(`with followed as (select followed as id, inserted from follows where follower = ?) select persons.actor, max(notes.inserted) as last, count(distinct notes.id) as count from followed join (select id, actor from persons) persons on persons.id = followed.id left join (select * from notes where inserted >= unixepoch() - 7*24*60*60) notes on (persons.actor->>'type' != 'Group' and notes.author = followed.id) or (persons.actor->>'type' = 'Group' and notes.object->'inReplyTo' is null and notes.groupid = followed.id) group by followed.id order by last desc, followed.inserted desc`, r.User.ID)
+	rows, err := r.Query(`with followed as (select followed as id, inserted from follows where follower = ?) select persons.actor, max(notes.inserted) as last, count(distinct notes.id) as count from followed join (select id, actor from persons) persons on persons.id = followed.id left join (select * from notes where inserted >= unixepoch() - 7*24*60*60) notes on (persons.actor->>'type' != 'Group' and notes.author = followed.id) or (persons.actor->>'type' = 'Group' and notes.object->'inReplyTo' is null and notes.object->>'audience' = followed.id) group by followed.id order by last desc, followed.inserted desc`, r.User.ID)
 	if err != nil {
 		r.Log.Warn("Failed to list followed users", "error", err)
 		w.Error()

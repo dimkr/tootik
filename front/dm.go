@@ -63,5 +63,5 @@ func (h *Handler) dm(w text.Writer, r *request, args ...string) {
 
 	cc := ap.Audience{}
 
-	h.post(w, r, nil, nil, to, cc, "Message")
+	h.post(w, r, nil, nil, to, cc, "", "Message")
 }

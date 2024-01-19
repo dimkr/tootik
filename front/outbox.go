@@ -64,7 +64,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		// unauthenticated users can only see public posts in a group
 		rows, err = r.Query(
 			`select notes.object, persons.actor, null from (
-				select object, author from notes where groupid = $1 and public = 1
+				select object, author from notes where object->>'audience' = $1 and public = 1
 				order by notes.inserted desc limit $2 offset $3
 			) notes
 			join persons on persons.id = notes.author`,
@@ -78,7 +78,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 			select notes.object, persons.actor, null from (
 				select notes.object, notes.author from notes
 				where
-					groupid = $1 and
+					object->>'audience' = $1 and
 					(
 						public = 1 or
 						exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
@@ -95,10 +95,10 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		// unauthenticated users can only see public posts
 		rows, err = r.Query(
 			`select object, persons.actor, groups.actor from (
-				select id, author, object, inserted, groupid from notes
+				select id, author, object, inserted from notes
 				where author = $1 and public = 1
 				union
-				select notes.id, notes.author, notes.object, shares.inserted, notes.groupid from
+				select notes.id, notes.author, notes.object, shares.inserted from
 				shares
 				join notes on notes.id = shares.note
 				where shares.by = $1 and notes.public = 1
@@ -106,7 +106,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 			join persons on persons.id = notes.author
 			left join (
 				select id, actor from persons where actor->>'type' = 'Group'
-			) groups on groups.id = notes.groupid
+			) groups on groups.id = notes.object->>'audience'
 			group by notes.id
 			order by max(notes.inserted) desc limit $2 offset $3`,
 			actorID,
@@ -118,17 +118,17 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		rows, err = r.Query(
 			`select object, $1, g from (
 				select notes.id, notes.object, groups.actor as g from (
-					select id, object, inserted, groupid from notes
+					select id, object, inserted from notes
 					where author = $2
 					union
-					select notes.id, notes.object, shares.inserted, notes.groupid from
+					select notes.id, notes.object, shares.inserted from
 					shares
 					join notes on notes.id = shares.note
 					where shares.by = $2
 				) notes
 				left join (
 					select id, actor from persons where actor->>'type' = 'Group'
-				) groups on groups.id = notes.groupid
+				) groups on groups.id = notes.object->>'audience'
 				group by notes.id
 				order by max(notes.inserted) desc limit $3 offset $4
 			)`,
@@ -141,10 +141,10 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		// users can see only public posts by others, posts to followers if following, and DMs
 		rows, err = r.Query(
 			`select u.object, persons.actor, groups.actor as g from (
-				select id, $1 as author, object, inserted, groupid from notes
+				select id, $1 as author, object, inserted from notes
 				where public = 1 and author = $1
 				union
-				select id, $1 as author, object, inserted, groupid from notes
+				select id, $1 as author, object, inserted from notes
 				where (
 					author = $1 and (
 						$2 in (cc0, to0, cc1, to1, cc2, to2) or
@@ -153,7 +153,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 					)
 				)
 				union
-				select notes.id, $1 as author, object, notes.inserted, groupid from notes
+				select notes.id, $1 as author, object, notes.inserted from notes
 				join persons on
 					persons.actor->>'followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
 					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = persons.actor->>'followers')) or
@@ -163,7 +163,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 					persons.id = $1 and
 					exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
 				union
-				select notes.id, notes.author, notes.object, shares.inserted, notes.groupid from
+				select notes.id, notes.author, notes.object, shares.inserted, notes from
 				shares
 				join notes on notes.id = shares.note
 				where shares.by = $1
@@ -171,7 +171,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 			join persons on persons.id = u.author
 			left join (
 				select id, actor from persons where actor->>'type' = 'Group'
-			) groups on groups.id = u.groupid
+			) groups on groups.id = u.object->>'audience'
 			group by u.id
 			order by max(u.inserted) desc limit $3 offset $4`,
 			actorID,

@@ -43,7 +43,7 @@ var (
 	pollRegex    = regexp.MustCompile(`^\[(?:(?i)POLL)\s+(.+)\s*\]\s*(.+)`)
 )
 
-func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo *ap.Object, to ap.Audience, cc ap.Audience, prompt string) {
+func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo *ap.Object, to ap.Audience, cc ap.Audience, audience, prompt string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -141,6 +141,7 @@ func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo 
 		Published:    now,
 		To:           to,
 		CC:           cc,
+		Audience:     audience,
 		Tag:          tags,
 	}
 

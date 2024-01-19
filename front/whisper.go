@@ -27,5 +27,5 @@ func (h *Handler) whisper(w text.Writer, r *request, args ...string) {
 
 	to.Add(r.User.Followers)
 
-	h.post(w, r, nil, nil, to, cc, "Post content")
+	h.post(w, r, nil, nil, to, cc, "", "Post content")
 }
