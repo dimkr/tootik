@@ -300,7 +300,7 @@ func processActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 			return errors.New("received Announce for private post")
 		}
 
-		if post.AttributedTo != sender.ID && !post.To.Contains(sender.ID) && !post.CC.Contains(sender.ID) {
+		if !post.IsPublic() && post.AttributedTo != sender.ID && !post.To.Contains(sender.ID) && !post.CC.Contains(sender.ID) {
 			return errors.New("sender is not post author or recipient")
 		}
 
