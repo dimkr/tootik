@@ -124,7 +124,7 @@ func main() {
 		defer blockList.Close()
 	}
 
-	db, err := sql.Open("sqlite3", *dbPath+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite3", fmt.Sprintf("%s?%s", *dbPath, cfg.DatabaseOptions))
 	if err != nil {
 		panic(err)
 	}

@@ -21,6 +21,8 @@ import "time"
 
 // Config represents a tootik configuration file.
 type Config struct {
+	DatabaseOptions string
+
 	RegistrationInterval time.Duration
 
 	MaxPostsLength     int
@@ -89,6 +91,10 @@ type Config struct {
 
 // FillDefaults replaces missing or invalid settings with defaults.
 func (c *Config) FillDefaults() {
+	if c.DatabaseOptions == "" {
+		c.DatabaseOptions = "_journal_mode=WAL&_busy_timeout=5000"
+	}
+
 	if c.RegistrationInterval <= 0 {
 		c.RegistrationInterval = time.Hour
 	}
