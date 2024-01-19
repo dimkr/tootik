@@ -106,7 +106,7 @@ func (h *Handler) firehose(w text.Writer, r *request, args ...string) {
 						groups.actor->>'type' = 'Group' and groups.id = u.groupid
 				) gup
 				group by
-					gup.id,
+					gup.id
 				order by
 					max(gup.inserted) desc
 				limit $3
