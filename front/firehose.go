@@ -35,11 +35,11 @@ func (h *Handler) firehose(w text.Writer, r *request, args ...string) {
 		"🚿 Firehose",
 		func(offset int) (*sql.Rows, error) {
 			return r.Query(`
-				select gup.object, gup.actor, gup.g, gup.by from
+				select gup.object, gup.actor, gup.g from
 				(
-					select u.id, u.object, u.inserted, authors.actor, groups.actor as g, u.by from
+					select u.id, u.object, u.inserted, authors.actor, groups.actor as g from
 					(
-						select notes.id, notes.object, notes.author, notes.inserted, notes.groupid, null as by from
+						select notes.id, notes.object, notes.author, notes.inserted, notes.groupid from
 						follows
 						join
 						persons followed
@@ -67,7 +67,7 @@ func (h *Handler) firehose(w text.Writer, r *request, args ...string) {
 							follows.follower = $1 and
 							notes.inserted >= $2
 						union
-						select notes.id, notes.object, notes.author, shares.inserted, notes.groupid, followed.actor as by from
+						select notes.id, notes.object, notes.author, shares.inserted, notes.groupid from
 						follows
 						join
 						persons followed
@@ -85,7 +85,7 @@ func (h *Handler) firehose(w text.Writer, r *request, args ...string) {
 							follows.follower = $1 and
 							shares.inserted >= $2
 						union
-						select notes.id, notes.object, notes.author, notes.inserted, notes.groupid, null as by from
+						select notes.id, notes.object, notes.author, notes.inserted, notes.groupid from
 						notes myposts
 						join
 						notes
@@ -106,7 +106,7 @@ func (h *Handler) firehose(w text.Writer, r *request, args ...string) {
 						groups.actor->>'type' = 'Group' and groups.id = u.groupid
 				) gup
 				group by
-					gup.id
+					gup.id,
 				order by
 					max(gup.inserted) desc
 				limit $3

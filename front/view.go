@@ -147,9 +147,9 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 		}
 
 		if groupString.Valid {
-			r.PrintNote(w, &note, &author, &group, nil, false, false, true, false)
+			r.PrintNote(w, &note, &author, &group, false, false, true, false)
 		} else {
-			r.PrintNote(w, &note, &author, nil, nil, false, false, true, false)
+			r.PrintNote(w, &note, &author, nil, false, false, true, false)
 		}
 
 		if note.Type == ap.QuestionObject && note.VotersCount > 0 && offset == 0 {

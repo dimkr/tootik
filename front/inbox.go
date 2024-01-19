@@ -44,7 +44,7 @@ func (h *Handler) dailyPosts(w text.Writer, r *request, day time.Time) {
 		"📻 Posts From "+day.Format(time.DateOnly),
 		func(offset int) (*sql.Rows, error) {
 			return r.Query(`
-				select gup.object, gup.actor, gup.g, gup.by from
+				select gup.object, gup.actor, gup.g from
 				(
 					select u.id, u.object, u.author, u.cc0, u.to0, u.cc1, u.to1, u.cc2, u.to2, u.inserted, authors.actor, groups.actor as g, u.by from
 					(
@@ -138,7 +138,7 @@ func (h *Handler) dailyPosts(w text.Writer, r *request, day time.Time) {
 					count(distinct replies.author) desc,
 					count(distinct gup.by) desc,
 					stats.avg asc,
-					gup.inserted / 3600 desc,
+					max(gup.inserted) / 3600 desc,
 					gup.actor->>'type' = 'Person' desc,
 					gup.inserted desc
 				limit $3

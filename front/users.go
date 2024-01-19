@@ -33,7 +33,7 @@ func users(w text.Writer, r *request, args ...string) {
 		`
 			select day*86400, count(*) from
 			(
-				select * from
+				select id, max(day) from
 				(
 					select notes.id, notes.inserted/86400 as day from
 					notes
@@ -94,7 +94,6 @@ func users(w text.Writer, r *request, args ...string) {
 						notes.inserted > unixepoch() - 60*60*24*7
 				)
 				group by
-					day,
 					id
 			)
 			group by
