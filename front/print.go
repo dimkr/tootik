@@ -226,7 +226,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 		title += " ┃ edited"
 	}
 
-	if r.User != nil {
+	if note.IsPublic() && r.User != nil {
 		if rows, err := r.Query(
 			`select persons.id, persons.actor->>'preferredUsername' from shares join persons on persons.id = shares.by where note = $1 and exists (select 1 from follows where follower = $2 and followed = shares.by)`,
 			note.ID,
