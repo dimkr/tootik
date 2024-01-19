@@ -10,6 +10,6 @@ func shares(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	_, err := tx.ExecContext(ctx, `CREATE UNIQUE INDEX sharesnote ON shares(note)`)
+	_, err := tx.ExecContext(ctx, `CREATE INDEX sharesnote ON shares(note)`)
 	return err
 }
