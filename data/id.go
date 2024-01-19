@@ -48,5 +48,9 @@ func IsIDValid(id string) bool {
 		return false
 	}
 
+	if u.Host == "localhost" || u.Host == "localhost.localdomain" || u.Host == "127.0.0.1" || u.Host == "::1" {
+		return false
+	}
+
 	return true
 }
