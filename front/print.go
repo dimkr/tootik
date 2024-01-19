@@ -240,7 +240,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 					r.Log.Warn("Failed to scan sharer", "error", err)
 					continue
 				}
-				links.Store(sharerID, "🔁 "+sharerName)
+				links.Store("/users/outbox/"+strings.TrimPrefix(sharerID, "https://"), "🔁 "+sharerName)
 			}
 			rows.Close()
 		}
