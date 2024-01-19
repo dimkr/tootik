@@ -173,7 +173,7 @@ func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 	if count == 0 {
 		w.Text("No results.")
 	} else {
-		r.PrintNotes(w, notes, true, true, false)
+		r.PrintNotes(w, notes, true, false)
 	}
 
 	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {

@@ -188,7 +188,7 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 		}
 	}
 
-	r.PrintNotes(w, replies, true, false, false)
+	r.PrintNotes(w, replies, false, false)
 
 	var originalPostExists int
 	var threadHead sql.NullString
