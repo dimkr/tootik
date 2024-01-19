@@ -37,9 +37,9 @@ func (h *Handler) firehose(w text.Writer, r *request, args ...string) {
 			return r.Query(`
 				select gup.object, gup.actor, gup.g from
 				(
-					select u.id, u.object, u.author, u.cc0, u.to0, u.cc1, u.to1, u.cc2, u.to2, u.inserted, authors.actor, groups.actor as g from
+					select u.object, u.author, u.inserted, authors.actor, groups.actor as g from
 					(
-						select notes.id, notes.object, notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2, notes.inserted, notes.groupid from
+						select notes.object, notes.author, notes.inserted, notes.groupid from
 						follows
 						join
 						persons followed
@@ -67,7 +67,7 @@ func (h *Handler) firehose(w text.Writer, r *request, args ...string) {
 							follows.follower = $1 and
 							notes.inserted >= $2
 						union
-						select notes.id, notes.object, notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2, notes.inserted, notes.groupid from
+						select notes.object, notes.author, notes.inserted, notes.groupid from
 						notes myposts
 						join
 						notes
