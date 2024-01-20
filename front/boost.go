@@ -85,5 +85,5 @@ func (h *Handler) boost(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	w.Redirect(r.URL.Path)
+	w.Redirectf("/users/view/" + args[1])
 }
