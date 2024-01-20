@@ -83,7 +83,8 @@ func (h *Handler) firehose(w text.Writer, r *request, args ...string) {
 							notes.id = shares.note and notes.object->>'audience' != shares.by
 						where
 							follows.follower = $1 and
-							shares.inserted >= $2
+							shares.inserted >= $2 and
+							notes.public = 1
 						union
 						select notes.id, notes.object, notes.author, notes.inserted from
 						notes myposts

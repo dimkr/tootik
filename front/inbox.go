@@ -94,7 +94,8 @@ func (h *Handler) dailyPosts(w text.Writer, r *request, day time.Time) {
 						where
 							follows.follower = $1 and
 							shares.inserted >= $2 and
-							shares.inserted < $2 + 60*60*24
+							shares.inserted < $2 + 60*60*24 and
+							notes.public = 1
 						union
 						select notes.id, notes.object, notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2, notes.inserted, null as by from
 						notes myposts

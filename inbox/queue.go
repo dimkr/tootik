@@ -86,7 +86,7 @@ func forwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 	return nil
 }
 
-func processCreateActivity(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, sender *ap.Actor, req *ap.Activity, rawActivity []byte, post *ap.Object, db *sql.DB, resolver *fed.Resolver, from *ap.Actor, shared bool) error {
+func processCreateActivity(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, sender *ap.Actor, req *ap.Activity, rawActivity []byte, post *ap.Object, db *sql.DB, resolver *fed.Resolver, from *ap.Actor) error {
 	prefix := fmt.Sprintf("https://%s/", domain)
 	if strings.HasPrefix(sender.ID, prefix) || strings.HasPrefix(post.ID, prefix) || strings.HasPrefix(post.AttributedTo, prefix) || strings.HasPrefix(req.Actor, prefix) {
 		return fmt.Errorf("received invalid Create for %s by %s from %s", post.ID, post.AttributedTo, req.Actor)
@@ -99,6 +99,9 @@ func processCreateActivity(ctx context.Context, domain string, cfg *cfg.Config, 
 	var duplicate int
 	if err := db.QueryRowContext(ctx, `select exists (select 1 from notes where id = ?)`, post.ID).Scan(&duplicate); err != nil {
 		return fmt.Errorf("failed to check of %s is a duplicate: %w", post.ID, err)
+	} else if duplicate == 1 {
+		log.Debug("Post is a duplicate")
+		return nil
 	}
 
 	if _, err := resolver.Resolve(ctx, log, db, from, post.AttributedTo, false); err != nil {
@@ -111,48 +114,31 @@ func processCreateActivity(ctx context.Context, domain string, cfg *cfg.Config, 
 	}
 	defer tx.Rollback()
 
-	if duplicate == 0 {
-		if err := note.Insert(ctx, log, tx, post); err != nil {
-			return fmt.Errorf("cannot insert %s: %w", post.ID, err)
-		}
-
-		if err := forwardActivity(ctx, domain, cfg, log, tx, req, rawActivity); err != nil {
-			return fmt.Errorf("cannot forward %s: %w", post.ID, err)
-		}
-
-		log.Info("Received a new post")
-
-		mentionedUsers := ap.Audience{}
-
-		for _, tag := range post.Tag {
-			if tag.Type == ap.MentionMention && tag.Href != post.AttributedTo {
-				mentionedUsers.Add(tag.Href)
-			}
-		}
-
-		mentionedUsers.Range(func(id string, _ struct{}) bool {
-			if _, err := resolver.Resolve(ctx, log, db, from, id, false); err != nil {
-				log.Warn("Failed to resolve mention", "mention", id, "error", err)
-			}
-
-			return true
-		})
+	if err := note.Insert(ctx, log, tx, post); err != nil {
+		return fmt.Errorf("cannot insert %s: %w", post.ID, err)
 	}
 
-	if shared && sender.ID != post.AttributedTo {
-		if duplicate == 1 {
-			log.Info("Received a share", "post", post.ID, "by", sender.ID)
-		}
+	if err := forwardActivity(ctx, domain, cfg, log, tx, req, rawActivity); err != nil {
+		return fmt.Errorf("cannot forward %s: %w", post.ID, err)
+	}
 
-		if _, err = tx.ExecContext(
-			ctx,
-			`INSERT OR IGNORE INTO shares (note, by) VALUES(?,?)`,
-			post.ID,
-			sender.ID,
-		); err != nil {
-			return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, sender.ID, err)
+	log.Info("Received a new post")
+
+	mentionedUsers := ap.Audience{}
+
+	for _, tag := range post.Tag {
+		if tag.Type == ap.MentionMention && tag.Href != post.AttributedTo {
+			mentionedUsers.Add(tag.Href)
 		}
 	}
+
+	mentionedUsers.Range(func(id string, _ struct{}) bool {
+		if _, err := resolver.Resolve(ctx, log, db, from, id, false); err != nil {
+			log.Warn("Failed to resolve mention", "mention", id, "error", err)
+		}
+
+		return true
+	})
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("cannot insert %s: %w", post.ID, err)
@@ -296,12 +282,23 @@ func processActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 			return errors.New("received invalid Create")
 		}
 
-		return processCreateActivity(ctx, domain, cfg, log, sender, req, rawActivity, post, db, resolver, from, false)
+		return processCreateActivity(ctx, domain, cfg, log, sender, req, rawActivity, post, db, resolver, from)
 
 	case ap.AnnounceActivity:
 		create, ok := req.Object.(*ap.Activity)
 		if !ok {
-			log.Debug("Ignoring unsupported Announce object")
+			if postID, ok := req.Object.(string); ok && postID != "" {
+				if _, err := db.ExecContext(
+					ctx,
+					`INSERT OR IGNORE INTO shares (note, by) VALUES(?,?)`,
+					postID,
+					sender.ID,
+				); err != nil {
+					return fmt.Errorf("cannot insert share for %s by %s: %w", postID, sender.ID, err)
+				}
+			} else {
+				log.Debug("Ignoring unsupported Announce object")
+			}
 			return nil
 		}
 		if create.Type != ap.CreateActivity {
@@ -313,15 +310,19 @@ func processActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 		if !ok {
 			return errors.New("received invalid Create")
 		}
-		if !post.IsPublic() {
-			return errors.New("received Announce for private post")
+
+		if err := processCreateActivity(ctx, domain, cfg, log, sender, create, rawActivity, post, db, resolver, from); err != nil {
+			return err
 		}
 
-		if !post.IsPublic() && post.AttributedTo != sender.ID && !post.To.Contains(sender.ID) && !post.CC.Contains(sender.ID) {
-			return errors.New("sender is not post author or recipient")
+		if _, err := db.ExecContext(
+			ctx,
+			`INSERT OR IGNORE INTO shares (note, by) VALUES(?,?)`,
+			post.ID,
+			sender.ID,
+		); err != nil {
+			return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, sender.ID, err)
 		}
-
-		return processCreateActivity(ctx, domain, cfg, log, sender, create, rawActivity, post, db, resolver, from, true)
 
 	case ap.UpdateActivity:
 		post, ok := req.Object.(*ap.Object)
@@ -343,7 +344,7 @@ func processActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 		var lastUpdate int64
 		if err := db.QueryRowContext(ctx, `select max(inserted, updated), object from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastUpdate, &oldPostString); err != nil && errors.Is(err, sql.ErrNoRows) {
 			log.Debug("Received Update for non-existing post")
-			return processCreateActivity(ctx, domain, cfg, log, sender, req, rawActivity, post, db, resolver, from, false)
+			return processCreateActivity(ctx, domain, cfg, log, sender, req, rawActivity, post, db, resolver, from)
 		} else if err != nil {
 			return fmt.Errorf("failed to get last update time for %s: %w", post.ID, err)
 		}

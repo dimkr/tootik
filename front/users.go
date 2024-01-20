@@ -80,7 +80,8 @@ func users(w text.Writer, r *request, args ...string) {
 						notes.id = shares.note
 					where
 						follows.follower = $1 and
-						shares.inserted > unixepoch() - 60*60*24*7
+						shares.inserted > unixepoch() - 60*60*24*7 and
+						and notes.public = 1
 					union
 					select notes.id, notes.inserted/86400 as day from
 					notes
