@@ -385,7 +385,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 			w.Link("/users/reply/"+strings.TrimPrefix(note.ID, "https://"), "💬 Reply")
 		}
 
-		if r.User != nil && note.IsPublic() {
+		if r.User != nil && note.IsPublic() && note.AttributedTo != r.User.ID {
 			var boosted int
 			if err := r.QueryRow(`select exists (select 1 from shares where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&boosted); err != nil {
 				r.Log.Warn("Failed to check if post is boosted", "id", note.ID, "error", err)

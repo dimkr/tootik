@@ -117,23 +117,23 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 	} else if r.User.ID == actorID {
 		// users can see all their posts
 		rows, err = r.Query(
-			`select object, $1, g from (
-				select notes.id, notes.object, groups.actor as g from (
-					select id, object, inserted from notes
-					where author = $2
+			`select object, actor, g from (
+				select notes.id, persons.actor, notes.object, groups.actor as g from (
+					select id, author, object, inserted from notes
+					where author = $1
 					union
-					select notes.id, notes.object, shares.inserted from
+					select notes.id, notes.author, notes.object, shares.inserted from
 					shares
 					join notes on notes.id = shares.note
-					where shares.by = $2
+					where shares.by = $1
 				) notes
+				join persons on persons.id = notes.author
 				left join (
 					select id, actor from persons where actor->>'type' = 'Group'
 				) groups on groups.id = notes.object->>'audience'
 				group by notes.id
-				order by max(notes.inserted) desc limit $3 offset $4
+				order by max(notes.inserted) desc limit $2 offset $3
 			)`,
-			actorString,
 			actorID,
 			h.Config.PostsPerPage,
 			offset,
