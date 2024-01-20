@@ -226,26 +226,6 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 		title += " ┃ edited"
 	}
 
-	if note.IsPublic() && r.User != nil {
-		if rows, err := r.Query(
-			`select persons.id, persons.actor->>'preferredUsername' from shares join persons on persons.id = shares.by where note = $1 and exists (select 1 from follows where follower = $2 and followed = shares.by)`,
-			note.ID,
-			r.User.ID,
-		); err != nil {
-			r.Log.Warn("Failed to list sharers", "error", err)
-		} else {
-			for rows.Next() {
-				var sharerID, sharerName string
-				if err := rows.Scan(&sharerID, &sharerName); err != nil {
-					r.Log.Warn("Failed to scan sharer", "error", err)
-					continue
-				}
-				links.Store("/users/outbox/"+strings.TrimPrefix(sharerID, "https://"), "🔁 "+sharerName)
-			}
-			rows.Close()
-		}
-	}
-
 	var parentAuthor ap.Actor
 	if note.InReplyTo != "" {
 		var parentAuthorString string
@@ -312,15 +292,6 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 	}
 
 	if !compact {
-		links.Range(func(link string, alt string) bool {
-			if alt == "" {
-				w.Link(link, link)
-			} else {
-				w.Link(link, alt)
-			}
-			return true
-		})
-
 		if r.User == nil {
 			w.Link("/outbox/"+strings.TrimPrefix(author.ID, "https://"), authorDisplayName)
 		} else {
@@ -338,9 +309,9 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 			}
 
 			if r.User == nil {
-				w.Link("/outbox/"+strings.TrimPrefix(mentionID, "https://"), mentionUserName)
+				links.Store("/outbox/"+strings.TrimPrefix(mentionID, "https://"), mentionUserName)
 			} else {
-				w.Link("/users/outbox/"+strings.TrimPrefix(mentionID, "https://"), mentionUserName)
+				links.Store("/users/outbox/"+strings.TrimPrefix(mentionID, "https://"), mentionUserName)
 			}
 		}
 
@@ -349,6 +320,35 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 		} else if group != nil {
 			links.Store("/users/outbox/"+strings.TrimPrefix(group.ID, "https://"), "🔁 "+group.PreferredUsername)
 		}
+
+		if note.IsPublic() && r.User != nil {
+			if rows, err := r.Query(
+				`select persons.id, persons.actor->>'preferredUsername' from shares join persons on persons.id = shares.by where note = $1 and exists (select 1 from follows where follower = $2 and followed = shares.by)`,
+				note.ID,
+				r.User.ID,
+			); err != nil {
+				r.Log.Warn("Failed to list sharers", "error", err)
+			} else {
+				for rows.Next() {
+					var sharerID, sharerName string
+					if err := rows.Scan(&sharerID, &sharerName); err != nil {
+						r.Log.Warn("Failed to scan sharer", "error", err)
+						continue
+					}
+					links.Store("/users/outbox/"+strings.TrimPrefix(sharerID, "https://"), "🔁 "+sharerName)
+				}
+				rows.Close()
+			}
+		}
+
+		links.Range(func(link string, alt string) bool {
+			if alt == "" {
+				w.Link(link, link)
+			} else {
+				w.Link(link, alt)
+			}
+			return true
+		})
 
 		hashtags.Range(func(_ string, tag string) bool {
 			var exists int
