@@ -18,11 +18,13 @@ package outbox
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
+	"time"
 )
 
 func Undo(ctx context.Context, domain string, db *sql.DB, activity *ap.Activity) error {
@@ -36,7 +38,7 @@ func Undo(ctx context.Context, domain string, db *sql.DB, activity *ap.Activity)
 
 	body, err := json.Marshal(ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
-		ID:      activity.ID + "#undo",
+		ID:      fmt.Sprintf("https://%s/undo/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", activity.ID, time.Now().UnixNano())))),
 		Type:    ap.UndoActivity,
 		Actor:   activity.Actor,
 		To:      to,
