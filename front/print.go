@@ -384,6 +384,17 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 		if r.User != nil {
 			w.Link("/users/reply/"+strings.TrimPrefix(note.ID, "https://"), "💬 Reply")
 		}
+
+		if r.User != nil && note.IsPublic() {
+			var boosted int
+			if err := r.QueryRow(`select exists (select 1 from shares where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&boosted); err != nil {
+				r.Log.Warn("Failed to check if post is boosted", "id", note.ID, "error", err)
+			} else if boosted == 0 {
+				w.Link("/users/boost/"+strings.TrimPrefix(note.ID, "https://"), "🔁 Boost")
+			} else {
+				w.Link("/users/unboost/"+strings.TrimPrefix(note.ID, "https://"), "🔄️ Unboost")
+			}
+		}
 	}
 }
 
