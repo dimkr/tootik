@@ -6,6 +6,14 @@ import (
 )
 
 func shares(ctx context.Context, domain string, tx *sql.Tx) error {
+	if _, err := tx.ExecContext(ctx, `DROP INDEX notesidinreplytoauthorinserted`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX notesidinreplytoauthorinserted ON notes(id, object->>'inReplyTo', author, inserted) WHERE object->>'inReplyTo' IS NOT NULL`); err != nil {
+		return err
+	}
+
 	if _, err := tx.ExecContext(ctx, `CREATE TABLE shares(note STRING NOT NULL, by STRING NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()))`); err != nil {
 		return err
 	}
@@ -14,7 +22,7 @@ func shares(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE INDEX sharesby ON shares(by)`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX sharesbyinserted ON shares(by, inserted)`); err != nil {
 		return err
 	}
 

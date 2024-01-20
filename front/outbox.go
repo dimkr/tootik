@@ -95,8 +95,8 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 	} else if r.User == nil {
 		// unauthenticated users can only see public posts
 		rows, err = r.Query(
-			`select object, actor, by from (
-				select notes.id, persons.actor, notes.object, notes.inserted, null as by from notes
+			`select object, actor, sharer from (
+				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
 				join persons on persons.id = $1
 				where notes.author = $1 and notes.public = 1
 				union
@@ -116,8 +116,8 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 	} else if r.User.ID == actorID {
 		// users can see all their posts
 		rows, err = r.Query(
-			`select object, actor, by from (
-				select notes.id, persons.actor, notes.object, notes.inserted, null as by from notes
+			`select object, actor, sharer from (
+				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
 				join persons on persons.id = notes.author
 				where notes.author = $1
 				union
@@ -136,12 +136,12 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 	} else {
 		// users can see only public posts by others, posts to followers if following, and DMs
 		rows, err = r.Query(
-			`select object, actor, by from (
-				select notes.id, persons.actor, notes.object, notes.inserted, null as by from notes
+			`select object, actor, sharer from (
+				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
 				join persons on persons.id = $1
 				where notes.author = $1 and notes.public = 1
 				union
-				select notes.id, persons.actor, notes.object, notes.inserted, null as by from notes
+				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
 				join persons on persons.id = $1
 				where (
 					notes.author = $1 and (
@@ -151,7 +151,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 					)
 				)
 				union
-				select notes.id, authors.actor, object, notes.inserted, null as by from notes
+				select notes.id, authors.actor, object, notes.inserted, null as sharer from notes
 				join persons on
 					persons.actor->>'followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
 					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = persons.actor->>'followers')) or
@@ -189,7 +189,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 	for rows.Next() {
 		noteString := ""
 		var meta noteMetadata
-		if err := rows.Scan(&noteString, &meta.Author, &meta.Group); err != nil {
+		if err := rows.Scan(&noteString, &meta.Author, &meta.Sharer); err != nil {
 			r.Log.Warn("Failed to scan post", "error", err)
 			continue
 		}

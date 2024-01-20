@@ -29,14 +29,14 @@ func (h *Handler) local(w text.Writer, r *request, args ...string) {
 		func(offset int) (*sql.Rows, error) {
 			return r.Query(
 				`
-					select u.object, u.actor, u.by from
+					select u.object, u.actor, u.sharer from
 					(
-						select notes.id, notes.author, notes.object, notes.inserted, persons.actor, null as by from persons
+						select notes.id, notes.author, notes.object, notes.inserted, persons.actor, null as sharer from persons
 						join notes
 						on notes.author = persons.id
 						where notes.public = 1 and persons.host = $1
 						union
-						select notes.id, notes.author, notes.object, notes.inserted, persons.actor, sharers.actor as by from persons sharers
+						select notes.id, notes.author, notes.object, notes.inserted, persons.actor, sharers.actor as sharer from persons sharers
 						join shares
 						on shares.by = sharers.id
 						join notes

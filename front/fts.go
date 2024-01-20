@@ -152,7 +152,7 @@ func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 	for rows.Next() {
 		noteString := ""
 		var meta noteMetadata
-		if err := rows.Scan(&noteString, &meta.Author, &meta.Group); err != nil {
+		if err := rows.Scan(&noteString, &meta.Author, &meta.Sharer); err != nil {
 			r.Log.Warn("Failed to scan search result", "error", err)
 			continue
 		}
