@@ -90,7 +90,7 @@ func (h *Handler) dailyPosts(w text.Writer, r *request, day time.Time) {
 						join
 						notes
 						on
-							notes.id = shares.note and notes.object->>'audience' != shares.by
+							notes.id = shares.note and (notes.object->>'audience' is null or notes.object->>'audience' != shares.by)
 						where
 							follows.follower = $1 and
 							shares.inserted >= $2 and
