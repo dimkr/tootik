@@ -14,6 +14,10 @@ func shares(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX sharesby ON shares(by)`); err != nil {
+		return err
+	}
+
 	if _, err := tx.ExecContext(ctx, `DROP INDEX notesgroupid`); err != nil {
 		return err
 	}

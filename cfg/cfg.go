@@ -90,7 +90,7 @@ type Config struct {
 
 	NotesTTL    time.Duration
 	DeliveryTTL time.Duration
-	SharesTTL    time.Duration
+	SharesTTL   time.Duration
 }
 
 // FillDefaults replaces missing or invalid settings with defaults.
