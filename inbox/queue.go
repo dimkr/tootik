@@ -256,6 +256,7 @@ func processActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 			); err != nil {
 				return fmt.Errorf("failed to remove share for %s by %s: %w", noteID, req.Actor, err)
 			}
+			return nil
 		}
 
 		if inner.Type != ap.FollowActivity {
