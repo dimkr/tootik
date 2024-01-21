@@ -23,7 +23,7 @@ import (
 	"testing"
 )
 
-func TestBoost_PublicPost(t *testing.T) {
+func TestShare_PublicPost(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
@@ -34,8 +34,8 @@ func TestBoost_PublicPost(t *testing.T) {
 
 	id := say[15 : len(say)-2]
 
-	boost := server.Handle("/users/boost/"+id, server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), boost)
+	share := server.Handle("/users/share/"+id, server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), share)
 
 	outbox := strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Carol), "\n")
 	assert.Contains(outbox, "> Hello world")
@@ -44,7 +44,7 @@ func TestBoost_PublicPost(t *testing.T) {
 	assert.Contains(outbox, "> Hello world")
 }
 
-func TestBoost_Throttling(t *testing.T) {
+func TestShare_Throttling(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
@@ -55,19 +55,19 @@ func TestBoost_Throttling(t *testing.T) {
 
 	id := say[15 : len(say)-2]
 
-	boost := server.Handle("/users/boost/"+id, server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), boost)
+	share := server.Handle("/users/share/"+id, server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), share)
 
 	say = server.Handle("/users/say?Hello%20world", server.Carol)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
 	id = say[15 : len(say)-2]
 
-	boost = server.Handle("/users/boost/"+id, server.Bob)
-	assert.Equal("40 Please wait before boosting\r\n", boost)
+	share = server.Handle("/users/share/"+id, server.Bob)
+	assert.Equal("40 Please wait before shareing\r\n", share)
 }
 
-func TestBoost_UnboostThrottling(t *testing.T) {
+func TestShare_UnshareThrottling(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
@@ -78,14 +78,14 @@ func TestBoost_UnboostThrottling(t *testing.T) {
 
 	id := say[15 : len(say)-2]
 
-	boost := server.Handle("/users/boost/"+id, server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), boost)
+	share := server.Handle("/users/share/"+id, server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), share)
 
-	unboost := server.Handle("/users/unboost/"+id, server.Bob)
-	assert.Equal("40 Please wait before unboosting\r\n", unboost)
+	unshare := server.Handle("/users/unshare/"+id, server.Bob)
+	assert.Equal("40 Please wait before unshareing\r\n", unshare)
 }
 
-func TestBoost_PostToFollowers(t *testing.T) {
+func TestShare_PostToFollowers(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
@@ -96,11 +96,11 @@ func TestBoost_PostToFollowers(t *testing.T) {
 
 	id := whisper[15 : len(whisper)-2]
 
-	boost := server.Handle("/users/boost/"+id, server.Bob)
-	assert.Equal("40 Error\r\n", boost)
+	share := server.Handle("/users/share/"+id, server.Bob)
+	assert.Equal("40 Error\r\n", share)
 }
 
-func TestBoost_Twice(t *testing.T) {
+func TestShare_Twice(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
@@ -111,8 +111,8 @@ func TestBoost_Twice(t *testing.T) {
 
 	id := say[15 : len(say)-2]
 
-	boost := server.Handle("/users/boost/"+id, server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), boost)
+	share := server.Handle("/users/share/"+id, server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), share)
 
 	outbox := strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Carol), "\n")
 	assert.Contains(outbox, "> Hello world")
@@ -120,11 +120,11 @@ func TestBoost_Twice(t *testing.T) {
 	outbox = strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
 	assert.Contains(outbox, "> Hello world")
 
-	boost = server.Handle("/users/boost/"+id, server.Bob)
-	assert.Equal("40 Error\r\n", boost)
+	share = server.Handle("/users/share/"+id, server.Bob)
+	assert.Equal("40 Error\r\n", share)
 }
 
-func TestBoost_Unboost(t *testing.T) {
+func TestShare_Unshare(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
@@ -135,8 +135,8 @@ func TestBoost_Unboost(t *testing.T) {
 
 	id := say[15 : len(say)-2]
 
-	boost := server.Handle("/users/boost/"+id, server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), boost)
+	share := server.Handle("/users/share/"+id, server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), share)
 
 	outbox := strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Carol), "\n")
 	assert.Contains(outbox, "> Hello world")
@@ -147,14 +147,14 @@ func TestBoost_Unboost(t *testing.T) {
 	_, err := server.db.Exec(`update outbox set inserted = inserted = 3600 where activity->>'type' = 'Announce'`)
 	assert.NoError(err)
 
-	unboost := server.Handle("/users/unboost/"+id, server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), unboost)
+	unshare := server.Handle("/users/unshare/"+id, server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), unshare)
 
 	outbox = strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
 	assert.NotContains(outbox, "> Hello world")
 }
 
-func TestBoost_BoostAfterUnboost(t *testing.T) {
+func TestShare_ShareAfterUnshare(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
@@ -165,8 +165,8 @@ func TestBoost_BoostAfterUnboost(t *testing.T) {
 
 	id := say[15 : len(say)-2]
 
-	boost := server.Handle("/users/boost/"+id, server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), boost)
+	share := server.Handle("/users/share/"+id, server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), share)
 
 	outbox := strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Carol), "\n")
 	assert.Contains(outbox, "> Hello world")
@@ -177,8 +177,8 @@ func TestBoost_BoostAfterUnboost(t *testing.T) {
 	_, err := server.db.Exec(`update outbox set inserted = inserted = 3600 where activity->>'type' = 'Announce'`)
 	assert.NoError(err)
 
-	unboost := server.Handle("/users/unboost/"+id, server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), unboost)
+	unshare := server.Handle("/users/unshare/"+id, server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), unshare)
 
 	outbox = strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
 	assert.NotContains(outbox, "> Hello world")
@@ -186,8 +186,8 @@ func TestBoost_BoostAfterUnboost(t *testing.T) {
 	_, err = server.db.Exec(`update outbox set inserted = inserted = 3600 where activity->>'type' = 'Undo'`)
 	assert.NoError(err)
 
-	boost = server.Handle("/users/boost/"+id, server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), boost)
+	share = server.Handle("/users/share/"+id, server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), share)
 
 	outbox = strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
 	assert.Contains(outbox, "> Hello world")
