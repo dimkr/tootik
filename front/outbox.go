@@ -63,30 +63,32 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 	if actor.Type == ap.Group && r.User == nil {
 		// unauthenticated users can only see public posts in a group
 		rows, err = r.Query(
-			`select notes.object, persons.actor, null from (
-				select object, author from notes where object->>'audience' = $1 and public = 1 and object->'inReplyTo' is null
-				order by notes.inserted desc limit $2 offset $3
-			) notes
-			join persons on persons.id = notes.author`,
+			`select notes.object, persons.actor, null from notes
+			join persons on persons.id = notes.author
+			left join notes replies on replies.object->>'inReplyTo' = notes.id
+			where notes.object->>'audience' = $1 and notes.public = 1 and notes.object->'inReplyTo' is null and replies.inserted > unixepoch() - 86400
+			group by notes.id
+			order by max(notes.inserted, coalesce(max(replies.inserted), 0)) / 86400 desc, count(replies.id) desc, notes.inserted desc limit $2 offset $3`,
 			actorID,
 			h.Config.PostsPerPage,
 			offset,
 		)
 	} else if actor.Type == ap.Group && r.User != nil {
 		// users can see public posts in a group and non-public posts if they follow the group
-		rows, err = r.Query(`
-			select notes.object, persons.actor, null from (
-				select notes.object, notes.author from notes
-				where
-					object->>'audience' = $1 and
-					(
-						public = 1 or
-						exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
-					) and
-					object->'inReplyTo' is null
-					order by inserted desc limit $3 offset $4
-			) notes
-			join persons on persons.id = notes.author`,
+		rows, err = r.Query(
+			`select notes.object, persons.actor, null from notes
+			join persons on persons.id = notes.author
+			left join notes replies on replies.object->>'inReplyTo' = notes.id
+			where
+				notes.object->>'audience' = $1 and
+				(
+					notes.public = 1 or
+					exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
+				) and
+				notes.object->'inReplyTo' is null and
+				replies.inserted > unixepoch() - 86400
+			group by notes.id
+			order by max(notes.inserted, coalesce(max(replies.inserted), 0)) / 86400 desc, count(replies.id) desc, notes.inserted desc limit $3 offset $4`,
 			actorID,
 			r.User.ID,
 			h.Config.PostsPerPage,
@@ -234,7 +236,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 	if count == 0 {
 		w.Text("No posts.")
 	} else {
-		r.PrintNotes(w, notes, true, true)
+		r.PrintNotes(w, notes, true, actor.Type != ap.Group)
 	}
 
 	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
