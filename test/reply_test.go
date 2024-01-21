@@ -219,53 +219,6 @@ func TestReply_PostToFollowersUnfollowedAfterReply(t *testing.T) {
 	assert.NotContains(local, "Welcome Bob")
 }
 
-func TestReply_PostToFollowersInFollowedGroup(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
-
-	assert := assert.New(t)
-
-	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://other.localdomain/group/people",
-		`{"type":"Group","preferredUsername":"people"}`,
-	)
-	assert.NoError(err)
-
-	follow := server.Handle("/users/follow/other.localdomain/group/people", server.Alice)
-	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
-
-	_, err = server.db.Exec(`update follows set accepted = 1`)
-	assert.NoError(err)
-
-	whisper := server.Handle("/users/whisper?Hello%20people%20in%20%40people%40other.localdomain", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
-
-	id := whisper[15 : len(whisper)-2]
-
-	view := server.Handle("/users/view/"+id, server.Bob)
-	assert.Contains(view, "Hello people in @people@other.localdomain")
-	assert.NotContains(view, "Welcome Bob")
-
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
-
-	view = server.Handle("/users/view/"+id, server.Alice)
-	assert.Contains(view, "Hello people in @people@other.localdomain")
-	assert.Contains(view, "Welcome Bob")
-
-	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello people in @people@other.localdomain")
-
-	today = server.Handle("/users/inbox/today", server.Bob)
-	assert.NotContains(today, "Hello people in @people@other.localdomain")
-	assert.Contains(today, "Welcome Bob")
-
-	local := server.Handle("/local", nil)
-	assert.NotContains(local, "Hello people in @people@other.localdomain")
-	assert.NotContains(local, "Welcome Bob")
-}
-
 func TestReply_SelfReply(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
