@@ -64,7 +64,7 @@ func TestShare_Throttling(t *testing.T) {
 	id = say[15 : len(say)-2]
 
 	share = server.Handle("/users/share/"+id, server.Bob)
-	assert.Equal("40 Please wait before shareing\r\n", share)
+	assert.Equal("40 Please wait before sharing\r\n", share)
 }
 
 func TestShare_UnshareThrottling(t *testing.T) {
@@ -82,7 +82,7 @@ func TestShare_UnshareThrottling(t *testing.T) {
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), share)
 
 	unshare := server.Handle("/users/unshare/"+id, server.Bob)
-	assert.Equal("40 Please wait before unshareing\r\n", unshare)
+	assert.Equal("40 Please wait before unsharing\r\n", unshare)
 }
 
 func TestShare_PostToFollowers(t *testing.T) {
