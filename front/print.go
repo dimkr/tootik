@@ -376,13 +376,13 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 		}
 
 		if r.User != nil && note.IsPublic() && note.AttributedTo != r.User.ID {
-			var boosted int
-			if err := r.QueryRow(`select exists (select 1 from shares where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&boosted); err != nil {
-				r.Log.Warn("Failed to check if post is boosted", "id", note.ID, "error", err)
-			} else if boosted == 0 {
-				w.Link("/users/boost/"+strings.TrimPrefix(note.ID, "https://"), "🔁 Boost")
+			var shared int
+			if err := r.QueryRow(`select exists (select 1 from shares where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&shared); err != nil {
+				r.Log.Warn("Failed to check if post is shared", "id", note.ID, "error", err)
+			} else if shared == 0 {
+				w.Link("/users/share/"+strings.TrimPrefix(note.ID, "https://"), "🔁 Boost")
 			} else {
-				w.Link("/users/unboost/"+strings.TrimPrefix(note.ID, "https://"), "🔄️ Unboost")
+				w.Link("/users/unshare/"+strings.TrimPrefix(note.ID, "https://"), "🔄️ Unshare")
 			}
 		}
 	}

@@ -25,7 +25,7 @@ import (
 	"github.com/dimkr/tootik/outbox"
 )
 
-func (h *Handler) unboost(w text.Writer, r *request, args ...string) {
+func (h *Handler) unshare(w text.Writer, r *request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -33,36 +33,36 @@ func (h *Handler) unboost(w text.Writer, r *request, args ...string) {
 
 	postID := "https://" + args[1]
 
-	var boostString string
-	if err := r.QueryRow(`select activity from outbox where activity->>'actor' = $1 and activity->>'type' = 'Announce' and activity->>'object' = $2`, r.User.ID, postID).Scan(&boostString); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.Warn("Attempted to unboost non-existing boost", "post", postID, "error", err)
+	var shareString string
+	if err := r.QueryRow(`select activity from outbox where activity->>'actor' = $1 and activity->>'type' = 'Announce' and activity->>'object' = $2`, r.User.ID, postID).Scan(&shareString); err != nil && errors.Is(err, sql.ErrNoRows) {
+		r.Log.Warn("Attempted to unshare non-existing share", "post", postID, "error", err)
 		w.Error()
 		return
 	} else if err != nil {
-		r.Log.Warn("Failed to fetch boost to unboost", "post", postID, "error", err)
+		r.Log.Warn("Failed to fetch share to unshare", "post", postID, "error", err)
 		w.Error()
 		return
 	}
 
-	var boost ap.Activity
-	if err := json.Unmarshal([]byte(boostString), &boost); err != nil {
-		r.Log.Warn("Failed to unmarshal boost to unboost", "post", postID, "error", err)
+	var share ap.Activity
+	if err := json.Unmarshal([]byte(shareString), &share); err != nil {
+		r.Log.Warn("Failed to unmarshal share to unshare", "post", postID, "error", err)
 		w.Error()
 		return
 	}
 
 	if throttle, err := h.shouldThrottleBoost(r); err != nil {
-		r.Log.Warn("Failed to check if unboost needs to be throttled", "error", err)
+		r.Log.Warn("Failed to check if unshare needs to be throttled", "error", err)
 		w.Error()
 		return
 	} else if throttle {
-		r.Log.Warn("User is boosting and unboosting too frequently")
-		w.Status(40, "Please wait before unboosting")
+		r.Log.Warn("User is sharing and unsharing too frequently")
+		w.Status(40, "Please wait before unsharing")
 		return
 	}
 
-	if err := outbox.Undo(r.Context, r.Handler.Domain, r.DB, &boost); err != nil {
-		r.Log.Warn("Failed to unboost post", "post", postID, "error", err)
+	if err := outbox.Undo(r.Context, r.Handler.Domain, r.DB, &share); err != nil {
+		r.Log.Warn("Failed to unshare post", "post", postID, "error", err)
 		w.Error()
 		return
 	}

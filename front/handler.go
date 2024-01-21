@@ -99,8 +99,8 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) Handler {
 
 	h.handlers[regexp.MustCompile(`^/users/reply/(\S+)`)] = h.reply
 
-	h.handlers[regexp.MustCompile(`^/users/boost/(\S+)`)] = h.boost
-	h.handlers[regexp.MustCompile(`^/users/unboost/(\S+)`)] = h.unboost
+	h.handlers[regexp.MustCompile(`^/users/share/(\S+)`)] = h.share
+	h.handlers[regexp.MustCompile(`^/users/unshare/(\S+)`)] = h.unshare
 
 	h.handlers[regexp.MustCompile(`^/users/edit/(\S+)`)] = h.edit
 	h.handlers[regexp.MustCompile(`^/users/delete/(\S+)`)] = delete

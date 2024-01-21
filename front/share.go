@@ -43,7 +43,7 @@ func (h *Handler) shouldThrottleBoost(r *request) (bool, error) {
 	return now.Sub(t) < interval, nil
 }
 
-func (h *Handler) boost(w text.Writer, r *request, args ...string) {
+func (h *Handler) share(w text.Writer, r *request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -53,34 +53,34 @@ func (h *Handler) boost(w text.Writer, r *request, args ...string) {
 
 	var noteString string
 	if err := r.QueryRow(`select object from notes where id = $1 and public = 1 and author != $2 and not exists (select 1 from shares where note = notes.id and by = $2)`, postID, r.User.ID).Scan(&noteString); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.Warn("Attempted to boost non-existing post", "post", postID, "error", err)
+		r.Log.Warn("Attempted to share non-existing post", "post", postID, "error", err)
 		w.Error()
 		return
 	} else if err != nil {
-		r.Log.Warn("Failed to fetch post to boost", "post", postID, "error", err)
+		r.Log.Warn("Failed to fetch post to share", "post", postID, "error", err)
 		w.Error()
 		return
 	}
 
 	var note ap.Object
 	if err := json.Unmarshal([]byte(noteString), &note); err != nil {
-		r.Log.Warn("Failed to unmarshal post to boost", "post", postID, "error", err)
+		r.Log.Warn("Failed to unmarshal post to share", "post", postID, "error", err)
 		w.Error()
 		return
 	}
 
 	if throttle, err := h.shouldThrottleBoost(r); err != nil {
-		r.Log.Warn("Failed to check if boost needs to be throttled", "error", err)
+		r.Log.Warn("Failed to check if share needs to be throttled", "error", err)
 		w.Error()
 		return
 	} else if throttle {
-		r.Log.Warn("User is boosting and unboosting too frequently")
-		w.Status(40, "Please wait before boosting")
+		r.Log.Warn("User is sharing and unsharing too frequently")
+		w.Status(40, "Please wait before sharing")
 		return
 	}
 
 	if err := outbox.Announce(r.Context, r.Handler.Domain, r.DB, r.User, &note); err != nil {
-		r.Log.Warn("Failed to boost post", "post", postID, "error", err)
+		r.Log.Warn("Failed to share post", "post", postID, "error", err)
 		w.Error()
 		return
 	}

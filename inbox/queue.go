@@ -238,12 +238,27 @@ func processActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 			return fmt.Errorf("received an invalid undo request for %s by %s", req.Actor, sender.ID)
 		}
 
-		follow, ok := req.Object.(*ap.Activity)
+		inner, ok := req.Object.(*ap.Activity)
 		if !ok {
 			return errors.New("received a request to undo a non-activity object")
 		}
 
-		if follow.Type != ap.FollowActivity {
+		if inner.Type == ap.AnnounceActivity {
+			noteID, ok := inner.Object.(string)
+			if !ok {
+				return errors.New("cannot undo Announce")
+			}
+			if _, err := db.ExecContext(
+				ctx,
+				`delete from shares where note = ? and by = ?`,
+				noteID,
+				req.Actor,
+			); err != nil {
+				return fmt.Errorf("failed to remove share for %s by %s: %w", noteID, req.Actor, err)
+			}
+		}
+
+		if inner.Type != ap.FollowActivity {
 			log.Debug("Ignoring request to undo a non-Follow activity")
 			return nil
 		}
@@ -251,9 +266,9 @@ func processActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 		follower := req.Actor
 
 		var followed string
-		if actor, ok := follow.Object.(*ap.Object); ok {
+		if actor, ok := inner.Object.(*ap.Object); ok {
 			followed = actor.ID
-		} else if actorID, ok := follow.Object.(string); ok {
+		} else if actorID, ok := inner.Object.(string); ok {
 			followed = actorID
 		} else {
 			return errors.New("received a request to undo follow on unknown object")
