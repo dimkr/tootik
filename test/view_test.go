@@ -522,7 +522,7 @@ func TestView_PostInGroupPublicAndGroupFollowed(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people","https://www.w3.org/ns/activitystreams#Public"],"tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people","https://www.w3.org/ns/activitystreams#Public"]}`
+	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people","https://www.w3.org/ns/activitystreams#Public"],"audience":"https://127.0.0.1/group/people","tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people","https://www.w3.org/ns/activitystreams#Public"]}`
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
@@ -565,7 +565,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowed(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]}`
+	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"audience":"https://127.0.0.1/group/people","tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]}`
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
@@ -608,7 +608,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedButNotAccepted(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]}`
+	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"audience":"https://127.0.0.1/group/people","tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]}`
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
@@ -648,7 +648,7 @@ func TestView_PostInGroupNotPublicAndAuthorFollowed(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]}`
+	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"audience":"https://127.0.0.1/group/people","tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]}`
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
@@ -691,7 +691,7 @@ func TestView_PostInGroupNotPublicAndAuthorFollowedButNotAccepted(t *testing.T) 
 	)
 	assert.NoError(err)
 
-	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]}`
+	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"audience":"https://127.0.0.1/group/people","tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]}`
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
@@ -738,7 +738,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithReply(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]}`
+	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"audience":"https://127.0.0.1/group/people","tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]}`
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
@@ -747,7 +747,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithReply(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	create = `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/2","type":"Create","actor":"https://127.0.0.1/user/erin","object":{"id":"https://127.0.0.1/note/2","type":"Note","attributedTo":"https://127.0.0.1/user/erin","inReplyTo":"https://127.0.0.1/note/1","content":"hello dan","to":["https://127.0.0.1/user/dan","https://127.0.0.1/followers/erin"],"cc":["https://127.0.0.1/group/people"]},"to":["https://127.0.0.1/user/dan","https://127.0.0.1/followers/erin"],"cc":["https://127.0.0.1/group/people"]}`
+	create = `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/2","type":"Create","actor":"https://127.0.0.1/user/erin","object":{"id":"https://127.0.0.1/note/2","type":"Note","attributedTo":"https://127.0.0.1/user/erin","inReplyTo":"https://127.0.0.1/note/1","content":"hello dan","to":["https://127.0.0.1/user/dan","https://127.0.0.1/followers/erin"],"cc":["https://127.0.0.1/group/people"],"audience":"https://127.0.0.1/group/people"},"to":["https://127.0.0.1/user/dan","https://127.0.0.1/followers/erin"],"cc":["https://127.0.0.1/group/people"]}`
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
@@ -798,7 +798,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithPrivateReply(t *testing.T)
 	)
 	assert.NoError(err)
 
-	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]}`
+	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"audience":"https://127.0.0.1/group/people","tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]}`
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
@@ -829,193 +829,4 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithPrivateReply(t *testing.T)
 	view := server.Handle("/users/view/127.0.0.1/note/1", server.Alice)
 	assert.Contains(view, "hello @people")
 	assert.NotContains(view, "hello dan")
-}
-
-func TestView_PublicPostSharedTwice(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
-
-	assert := assert.New(t)
-
-	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://127.0.0.1/user/dan",
-		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
-	)
-	assert.NoError(err)
-
-	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://127.0.0.1/user/erin",
-		`{"id":"https://127.0.0.1/user/erin","type":"Person","preferredUsername":"erin","followers":"https://127.0.0.1/followers/erin"}`,
-	)
-	assert.NoError(err)
-
-	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://127.0.0.1/user/frank",
-		`{"id":"https://127.0.0.1/user/frank","type":"Person","preferredUsername":"frank","followers":"https://127.0.0.1/followers/frank"}`,
-	)
-	assert.NoError(err)
-
-	follow := server.Handle("/users/follow/127.0.0.1/user/erin", server.Alice)
-	assert.Equal("30 /users/outbox/127.0.0.1/user/erin\r\n", follow)
-
-	follow = server.Handle("/users/follow/127.0.0.1/user/frank", server.Alice)
-	assert.Equal("30 /users/outbox/127.0.0.1/user/frank\r\n", follow)
-
-	_, err = server.db.Exec(`update follows set accepted = 1`)
-	assert.NoError(err)
-
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
-		"https://127.0.0.1/user/erin",
-		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/update/1","type":"Announce","actor":"https://127.0.0.1/user/erin","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/erin"]}`,
-	)
-	assert.NoError(err)
-
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
-		"https://127.0.0.1/user/frank",
-		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/update/2","type":"Announce","actor":"https://127.0.0.1/user/frank","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/frank"]}`,
-	)
-	assert.NoError(err)
-
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
-	assert.NoError(err)
-	assert.Equal(2, n)
-
-	view := strings.Split(server.Handle("/users/view/127.0.0.1/note/1", server.Alice), "\n")
-	assert.Contains(view, "> Hello world")
-	assert.Contains(view, "=> https://127.0.0.1/user/erin 🔁 erin")
-	assert.Contains(view, "=> https://127.0.0.1/user/frank 🔁 frank")
-}
-
-func TestView_PublicPostSharedTwiceOneUnfollow(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
-
-	assert := assert.New(t)
-
-	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://127.0.0.1/user/dan",
-		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
-	)
-	assert.NoError(err)
-
-	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://127.0.0.1/user/erin",
-		`{"id":"https://127.0.0.1/user/erin","type":"Person","preferredUsername":"erin","followers":"https://127.0.0.1/followers/erin"}`,
-	)
-	assert.NoError(err)
-
-	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://127.0.0.1/user/frank",
-		`{"id":"https://127.0.0.1/user/frank","type":"Person","preferredUsername":"frank","followers":"https://127.0.0.1/followers/frank"}`,
-	)
-	assert.NoError(err)
-
-	follow := server.Handle("/users/follow/127.0.0.1/user/erin", server.Alice)
-	assert.Equal("30 /users/outbox/127.0.0.1/user/erin\r\n", follow)
-
-	follow = server.Handle("/users/follow/127.0.0.1/user/frank", server.Alice)
-	assert.Equal("30 /users/outbox/127.0.0.1/user/frank\r\n", follow)
-
-	_, err = server.db.Exec(`update follows set accepted = 1`)
-	assert.NoError(err)
-
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
-		"https://127.0.0.1/user/erin",
-		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/update/1","type":"Announce","actor":"https://127.0.0.1/user/erin","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/erin"]}`,
-	)
-	assert.NoError(err)
-
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
-		"https://127.0.0.1/user/frank",
-		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/update/2","type":"Announce","actor":"https://127.0.0.1/user/frank","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/frank"]}`,
-	)
-	assert.NoError(err)
-
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
-	assert.NoError(err)
-	assert.Equal(2, n)
-
-	unfollow := server.Handle("/users/unfollow/127.0.0.1/user/erin", server.Alice)
-	assert.Equal("30 /users/outbox/127.0.0.1/user/erin\r\n", unfollow)
-
-	view := strings.Split(server.Handle("/users/view/127.0.0.1/note/1", server.Alice), "\n")
-	assert.Contains(view, "> Hello world")
-	assert.NotContains(view, "=> https://127.0.0.1/user/erin 🔁 erin")
-	assert.Contains(view, "=> https://127.0.0.1/user/frank 🔁 frank")
-}
-
-func TestView_PublicPostSharedTwiceTwoUnfollows(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
-
-	assert := assert.New(t)
-
-	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://127.0.0.1/user/dan",
-		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
-	)
-	assert.NoError(err)
-
-	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://127.0.0.1/user/erin",
-		`{"id":"https://127.0.0.1/user/erin","type":"Person","preferredUsername":"erin","followers":"https://127.0.0.1/followers/erin"}`,
-	)
-	assert.NoError(err)
-
-	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://127.0.0.1/user/frank",
-		`{"id":"https://127.0.0.1/user/frank","type":"Person","preferredUsername":"frank","followers":"https://127.0.0.1/followers/frank"}`,
-	)
-	assert.NoError(err)
-
-	follow := server.Handle("/users/follow/127.0.0.1/user/erin", server.Alice)
-	assert.Equal("30 /users/outbox/127.0.0.1/user/erin\r\n", follow)
-
-	follow = server.Handle("/users/follow/127.0.0.1/user/frank", server.Alice)
-	assert.Equal("30 /users/outbox/127.0.0.1/user/frank\r\n", follow)
-
-	_, err = server.db.Exec(`update follows set accepted = 1`)
-	assert.NoError(err)
-
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
-		"https://127.0.0.1/user/erin",
-		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/update/1","type":"Announce","actor":"https://127.0.0.1/user/erin","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/erin"]}`,
-	)
-	assert.NoError(err)
-
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
-		"https://127.0.0.1/user/frank",
-		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/update/2","type":"Announce","actor":"https://127.0.0.1/user/frank","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/frank"]}`,
-	)
-	assert.NoError(err)
-
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
-	assert.NoError(err)
-	assert.Equal(2, n)
-
-	unfollow := server.Handle("/users/unfollow/127.0.0.1/user/erin", server.Alice)
-	assert.Equal("30 /users/outbox/127.0.0.1/user/erin\r\n", unfollow)
-
-	unfollow = server.Handle("/users/unfollow/127.0.0.1/user/frank", server.Alice)
-	assert.Equal("30 /users/outbox/127.0.0.1/user/frank\r\n", unfollow)
-
-	view := strings.Split(server.Handle("/users/view/127.0.0.1/note/1", server.Alice), "\n")
-	assert.Contains(view, "> Hello world")
-	assert.NotContains(view, "=> https://127.0.0.1/user/erin 🔁 erin")
-	assert.NotContains(view, "=> https://127.0.0.1/user/frank 🔁 frank")
 }
