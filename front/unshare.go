@@ -51,7 +51,7 @@ func (h *Handler) unshare(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	if throttle, err := h.shouldThrottleBoost(r); err != nil {
+	if throttle, err := h.shouldThrottleShare(r); err != nil {
 		r.Log.Warn("Failed to check if unshare needs to be throttled", "error", err)
 		w.Error()
 		return

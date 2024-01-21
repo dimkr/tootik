@@ -26,7 +26,7 @@ import (
 	"time"
 )
 
-func (h *Handler) shouldThrottleBoost(r *request) (bool, error) {
+func (h *Handler) shouldThrottleShare(r *request) (bool, error) {
 	now := time.Now()
 
 	var today, last sql.NullInt64
@@ -39,7 +39,7 @@ func (h *Handler) shouldThrottleBoost(r *request) (bool, error) {
 	}
 
 	t := time.Unix(last.Int64, 0)
-	interval := max(1, time.Duration(today.Int64/h.Config.BoostThrottleFactor)) * h.Config.BoostThrottleUnit
+	interval := max(1, time.Duration(today.Int64/h.Config.ShareThrottleFactor)) * h.Config.ShareThrottleUnit
 	return now.Sub(t) < interval, nil
 }
 
@@ -69,7 +69,7 @@ func (h *Handler) share(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	if throttle, err := h.shouldThrottleBoost(r); err != nil {
+	if throttle, err := h.shouldThrottleShare(r); err != nil {
 		r.Log.Warn("Failed to check if share needs to be throttled", "error", err)
 		w.Error()
 		return

@@ -324,9 +324,9 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 			if err := r.QueryRow(
 				`select persons.id, persons.actor->>'preferredUsername' from persons where id = ?`,
 				note.Audience,
-			).Scan(&sharerID, &sharerName); err != nil {
-				r.Log.Warn("Failed to list sharer", "error", err)
-			} else {
+			).Scan(&sharerID, &sharerName); err != nil && !errors.Is(err, sql.ErrNoRows) {
+				r.Log.Warn("Failed to query sharer", "error", err)
+			} else if err == nil {
 				links.Store("/users/outbox/"+strings.TrimPrefix(sharerID, "https://"), "◀️ "+sharerName)
 			}
 		}
@@ -380,7 +380,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 			if err := r.QueryRow(`select exists (select 1 from shares where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&shared); err != nil {
 				r.Log.Warn("Failed to check if post is shared", "id", note.ID, "error", err)
 			} else if shared == 0 {
-				w.Link("/users/share/"+strings.TrimPrefix(note.ID, "https://"), "🔁 Boost")
+				w.Link("/users/share/"+strings.TrimPrefix(note.ID, "https://"), "🔁 Share")
 			} else {
 				w.Link("/users/unshare/"+strings.TrimPrefix(note.ID, "https://"), "🔄️ Unshare")
 			}

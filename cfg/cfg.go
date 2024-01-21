@@ -33,8 +33,8 @@ type Config struct {
 	EditThrottleFactor float64
 	EditThrottleUnit   time.Duration
 
-	BoostThrottleFactor int64
-	BoostThrottleUnit   time.Duration
+	ShareThrottleFactor int64
+	ShareThrottleUnit   time.Duration
 
 	PollMaxOptions int
 	PollDuration   time.Duration
@@ -127,12 +127,12 @@ func (c *Config) FillDefaults() {
 		c.EditThrottleUnit = time.Minute
 	}
 
-	if c.BoostThrottleFactor <= 0 {
-		c.BoostThrottleFactor = 4
+	if c.ShareThrottleFactor <= 0 {
+		c.ShareThrottleFactor = 4
 	}
 
-	if c.BoostThrottleUnit <= 0 {
-		c.BoostThrottleUnit = time.Minute
+	if c.ShareThrottleUnit <= 0 {
+		c.ShareThrottleUnit = time.Minute
 	}
 
 	if c.PollMaxOptions < 2 {
