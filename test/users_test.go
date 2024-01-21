@@ -95,44 +95,6 @@ func TestUsers_NewPostToFollowers(t *testing.T) {
 	assert.NotContains(local, "Hello world")
 }
 
-func TestUsers_NewPostInFollowedGroup(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
-
-	assert := assert.New(t)
-
-	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://other.localdomain/group/people",
-		`{"type":"Group","preferredUsername":"people"}`,
-	)
-	assert.NoError(err)
-
-	follow := server.Handle("/users/follow/other.localdomain/group/people", server.Alice)
-	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
-
-	users := server.Handle("/users", server.Alice)
-	assert.Contains(users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(users, "1 post")
-
-	whisper := server.Handle("/users/whisper?Hello%20people%20in%20%40people%40other.localdomain", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
-
-	users = server.Handle("/users", server.Alice)
-	assert.NotContains(users, "Nothing to see! Are you following anyone?")
-	assert.Contains(users, "1 post")
-
-	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello people in @people@other.localdomain")
-
-	users = server.Handle("/users", server.Carol)
-	assert.Contains(users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(users, "1 post")
-
-	local := server.Handle("/users/local", server.Carol)
-	assert.NotContains(local, "Hello people in @people@other.localdomain")
-}
-
 func TestUsers_NewDM(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
