@@ -319,7 +319,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 			links.Store("/outbox/"+strings.TrimPrefix(sharer.ID, "https://"), "◀️ "+sharer.PreferredUsername)
 		} else if sharer != nil {
 			links.Store("/users/outbox/"+strings.TrimPrefix(sharer.ID, "https://"), "◀️ "+sharer.PreferredUsername)
-		} else if note.IsPublic() && r.User != nil {
+		} else if note.IsPublic() {
 			var sharerID, sharerName string
 			if err := r.QueryRow(
 				`select persons.id, persons.actor->>'preferredUsername' from persons where id = ?`,
@@ -328,6 +328,29 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 				r.Log.Warn("Failed to query sharer", "error", err)
 			} else if err == nil {
 				links.Store("/users/outbox/"+strings.TrimPrefix(sharerID, "https://"), "◀️ "+sharerName)
+			}
+
+			if r.User != nil {
+				if rows, err := r.Query(
+					`select persons.id, persons.actor->>'preferredUsername' from shares
+					join follows on follows.followed = shares.by
+					join persons on persons.id = follows.followed
+					where shares.note = $1 and follows.follower = $2
+					order by shares.inserted`,
+					note.ID,
+					r.User.ID,
+				); err != nil && !errors.Is(err, sql.ErrNoRows) {
+					r.Log.Warn("Failed to query sharers", "error", err)
+				} else if err == nil {
+					for rows.Next() {
+						if err := rows.Scan(&sharerID, &sharerName); err != nil {
+							r.Log.Warn("Failed to scan sharer", "error", err)
+							continue
+						}
+						links.Store("/users/outbox/"+strings.TrimPrefix(sharerID, "https://"), "◀️ "+sharerName)
+					}
+					rows.Close()
+				}
 			}
 		}
 
