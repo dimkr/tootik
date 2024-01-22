@@ -80,7 +80,7 @@ func ListenAndServe(ctx context.Context, domain string, logLevel slog.Level, cfg
 		}
 	})
 
-	if err := addNodeInfo(mux, domain, cfg); err != nil {
+	if err := addNodeInfo(mux, domain); err != nil {
 		return err
 	}
 
