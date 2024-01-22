@@ -45,7 +45,7 @@ func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 			join persons
 			on
 				persons.id = follows.followed
-			left join notes
+			join notes
 			on
 				notes.object->>'audience' = follows.followed
 			where
@@ -69,7 +69,7 @@ func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 			union
 			select persons.actor, shares.inserted as ninserted, follows.inserted as finserted, notes.id from
 			follows
-			left join shares
+			join shares
 			on
 				shares.by = follows.followed
 			join persons
@@ -81,6 +81,14 @@ func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 			where
 				shares.inserted >= unixepoch() - 7*24*60*60 and
 				notes.public = 1 and
+				follows.follower = $1
+			union
+			select persons.actor, null as ninserted, follows.inserted as finserted, null as id from
+			follows
+			join persons
+			on
+				persons.id = follows.followed
+			where
 				follows.follower = $1
 		) u
 		group by
