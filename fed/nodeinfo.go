@@ -20,11 +20,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dimkr/tootik/buildinfo"
-	"github.com/dimkr/tootik/cfg"
 	"net/http"
 )
 
-func addNodeInfo(mux *http.ServeMux, domain string, cfg *cfg.Config) error {
+func addNodeInfo(mux *http.ServeMux, domain string) error {
 	if body, err := json.Marshal(map[string]any{
 		"links": map[string]any{
 			"rel":  "http://nodeinfo.diaspora.software/ns/schema/2.0",
@@ -66,40 +65,6 @@ func addNodeInfo(mux *http.ServeMux, domain string, cfg *cfg.Config) error {
 		return err
 	} else {
 		mux.HandleFunc("/nodeinfo/2.0", func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			w.Write(body)
-		})
-	}
-
-	if body, err := json.Marshal(map[string]any{
-		"uri":               domain,
-		"title":             "tootik",
-		"short_description": "Federated nanoblogging service for the small internet",
-		"description":       "",
-		"email":             "",
-		"version":           buildinfo.Version,
-		"stats": map[string]any{
-			"user_count":   0,
-			"status_count": 0,
-			"domain_count": 0,
-		},
-		"registrations":     true,
-		"approval_required": false,
-		"configuration": map[string]any{
-			"statuses": map[string]any{
-				"max_characters":        cfg.MaxPostsLength,
-				"max_media_attachments": 0,
-			},
-		},
-		"contact_account": map[string]any{
-			"username":     "nobody",
-			"acct":         "nobody",
-			"display_name": "nobody",
-		},
-	}); err != nil {
-		return err
-	} else {
-		mux.HandleFunc("/api/v1/instance", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.Write(body)
 		})
