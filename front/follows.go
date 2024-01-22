@@ -47,28 +47,35 @@ func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 				persons.id = follows.followed
 			left join notes
 			on
-				notes.inserted >= unixepoch() - 7*24*60*60 and
-				(
-					persons.actor->>'type' != 'Group'and
-					notes.author = follows.followed
-				) or
-				(
-					persons.actor->>'type' = 'Group' and
-					notes.object->'inReplyTo' is null and
-					notes.object->>'audience' = follows.followed
-				)
+				notes.object->>'audience' = follows.followed
 			where
-				follows.follower = $1
+				follows.follower = $1 and
+				persons.actor->>'type' = 'Group' and
+				notes.object->'inReplyTo' is null and
+				notes.inserted >= unixepoch() - 7*24*60*60
 			union
-			select persons.actor, shares.inserted as ninserted, follows.inserted as finserted, notes.id from
+			select persons.actor, notes.inserted as ninserted, follows.inserted as finserted, notes.id from
 			follows
 			join persons
 			on
 				persons.id = follows.followed
+			join notes
+			on
+				notes.author = follows.followed
+			where
+				follows.follower = $1 and
+				persons.actor->>'type' != 'Group' and
+				notes.inserted >= unixepoch() - 7*24*60*60
+			union
+			select persons.actor, shares.inserted as ninserted, follows.inserted as finserted, notes.id from
+			follows
 			left join shares
 			on
 				shares.by = follows.followed
-			left join notes
+			join persons
+			on
+				persons.id = follows.followed
+			join notes
 			on
 				notes.id = shares.note
 			where
