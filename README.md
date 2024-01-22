@@ -129,6 +129,8 @@ Users are authenticated using TLS client certificates; see [Gemini protocol spec
 * /users/reply replies to a post.
 * /users/edit edits a post.
 * /users/delete deletes a post.
+* /users/share shares a post.
+* /users/unshare removes a shared post.
 * /users/follow sends a follow request to a user.
 * /users/unfollow deletes a follow request.
 * /users/outbox is equivalent to /outbox but also includes a link to /users/follow or /users/unfollow.
