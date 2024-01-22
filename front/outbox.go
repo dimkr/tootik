@@ -63,8 +63,9 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 	if actor.Type == ap.Group && r.User == nil {
 		// unauthenticated users can only see public posts in a group
 		rows, err = r.Query(
-			`select notes.object, persons.actor, null from notes
-			join persons on persons.id = notes.author
+			`select notes.object, authors.actor, sharers.actor from notes
+			join persons authors on authors.id = notes.author
+			join persons sharers on sharers.id = $1
 			left join notes replies on replies.object->>'inReplyTo' = notes.id
 			where notes.object->>'audience' = $1 and notes.public = 1 and notes.object->>'inReplyTo' is null and (replies.inserted is null or replies.inserted > unixepoch() - 86400)
 			group by notes.id
@@ -76,8 +77,9 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 	} else if actor.Type == ap.Group && r.User != nil {
 		// users can see public posts in a group and non-public posts if they follow the group
 		rows, err = r.Query(
-			`select notes.object, persons.actor, null from notes
-			join persons on persons.id = notes.author
+			`select notes.object, authors.actor, sharers.actor from notes
+			join persons authors on authors.id = notes.author
+			join persons sharers on sharers.id = $1
 			left join notes replies on replies.object->>'inReplyTo' = notes.id
 			where
 				notes.object->>'audience' = $1 and
