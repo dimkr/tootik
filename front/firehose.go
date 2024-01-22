@@ -35,60 +35,71 @@ func (h *Handler) firehose(w text.Writer, r *request, args ...string) {
 		"🚿 Firehose",
 		func(offset int) (*sql.Rows, error) {
 			return r.Query(`
-				select gup.object, gup.actor, gup.g from
+				select object, actor, sharer from
 				(
-					select u.object, u.inserted, authors.actor, groups.actor as g from
-					(
-						select notes.object, notes.author, notes.inserted, notes.groupid from
-						follows
-						join
-						persons followed
-						on
-							followed.id = follows.followed
-						join
-						notes
-						on
-							(
-								notes.author = follows.followed and
-								(
-									notes.public = 1 or
-									followed.actor->>'followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-									$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-									(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = followed.actor->>'followers' or value = $1)) or
-									(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = followed.actor->>'followers' or value = $1))
-								)
-							)
-							or
-							(
-								followed.actor->>'type' = 'Group' and
-								notes.groupid = followed.id
-							)
-						where
-							follows.follower = $1 and
-							notes.inserted >= $2
-						union
-						select notes.object, notes.author, notes.inserted, notes.groupid from
-						notes myposts
-						join
-						notes
-						on
-							notes.object->>'inReplyTo' = myposts.id
-						where
-							myposts.author = $1 and
-							notes.author != $1 and
-							notes.inserted >= $2
-					) u
+					select notes.id, notes.object, persons.actor, notes.inserted, null as sharer from
+					follows
+					join
+					persons
+					on
+						persons.id = follows.followed
+					join
+					notes
+					on
+						notes.author = follows.followed and
+						(
+							notes.public = 1 or
+							persons.actor->>'followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+							$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = persons.actor->>'followers' or value = $1)) or
+							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = persons.actor->>'followers' or value = $1))
+						)
+					where
+						follows.follower = $1 and
+						notes.inserted >= $2
+					union
+					select notes.id, notes.object, authors.actor, shares.inserted, sharers.actor as sharer from
+					follows
+					join
+					shares
+					on
+						shares.by = follows.followed
+					join
+					notes
+					on
+						notes.id = shares.note
 					join
 					persons authors
 					on
-					authors.id = u.author
-					left join
-					persons groups
+						authors.id = notes.author
+					join
+					persons sharers
 					on
-					groups.actor->>'type' = 'Group' and groups.id = u.groupid
-				) gup
+						sharers.id = follows.followed
+					where
+						follows.follower = $1 and
+						shares.inserted >= $2 and
+						notes.public = 1
+					union
+					select notes.id, notes.object, persons.actor, notes.inserted, null as sharer from
+					notes myposts
+					join
+					notes
+					on
+						notes.object->>'inReplyTo' = myposts.id
+					join
+					persons
+					on
+						persons.id = $1
+					where
+						myposts.author = $1 and
+						notes.author != $1 and
+						notes.inserted >= $2
+				)
+				group by
+					id
 				order by
-					gup.inserted desc
+					max(inserted) desc
 				limit $3
 				offset $4`,
 				r.User.ID,

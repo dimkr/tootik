@@ -63,30 +63,34 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 	if actor.Type == ap.Group && r.User == nil {
 		// unauthenticated users can only see public posts in a group
 		rows, err = r.Query(
-			`select notes.object, persons.actor, null from (
-				select object, author from notes where groupid = $1 and public = 1 and object->'inReplyTo' is null
-				order by notes.inserted desc limit $2 offset $3
-			) notes
-			join persons on persons.id = notes.author`,
+			`select notes.object, authors.actor, sharers.actor from notes
+			join persons authors on authors.id = notes.author
+			join persons sharers on sharers.id = $1
+			left join notes replies on replies.object->>'inReplyTo' = notes.id
+			where notes.object->>'audience' = $1 and notes.public = 1 and notes.object->>'inReplyTo' is null and (replies.inserted is null or replies.inserted > unixepoch() - 86400)
+			group by notes.id
+			order by max(notes.inserted, coalesce(max(replies.inserted), 0)) / 86400 desc, count(replies.id) desc, notes.inserted desc limit $2 offset $3`,
 			actorID,
 			h.Config.PostsPerPage,
 			offset,
 		)
 	} else if actor.Type == ap.Group && r.User != nil {
 		// users can see public posts in a group and non-public posts if they follow the group
-		rows, err = r.Query(`
-			select notes.object, persons.actor, null from (
-				select notes.object, notes.author from notes
-				where
-					groupid = $1 and
-					(
-						public = 1 or
-						exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
-					) and
-					object->'inReplyTo' is null
-					order by inserted desc limit $3 offset $4
-			) notes
-			join persons on persons.id = notes.author`,
+		rows, err = r.Query(
+			`select notes.object, authors.actor, sharers.actor from notes
+			join persons authors on authors.id = notes.author
+			join persons sharers on sharers.id = $1
+			left join notes replies on replies.object->>'inReplyTo' = notes.id
+			where
+				notes.object->>'audience' = $1 and
+				(
+					notes.public = 1 or
+					exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
+				) and
+				notes.object->>'inReplyTo' is null and
+				(replies.inserted is null or replies.inserted > unixepoch() - 86400)
+			group by notes.id
+			order by max(notes.inserted, coalesce(max(replies.inserted), 0)) / 86400 desc, count(replies.id) desc, notes.inserted desc limit $3 offset $4`,
 			actorID,
 			r.User.ID,
 			h.Config.PostsPerPage,
@@ -95,30 +99,40 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 	} else if r.User == nil {
 		// unauthenticated users can only see public posts
 		rows, err = r.Query(
-			`select notes.object, $1, groups.actor from (
-				select object, inserted, groupid from notes
-				where author = $2 and public = 1
-				order by notes.inserted desc limit $3 offset $4
-			) notes
-			left join (
-				select id, actor from persons where actor->>'type' = 'Group'
-			) groups on groups.id = notes.groupid`,
-			actorString,
+			`select object, actor, sharer from (
+				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
+				join persons on persons.id = $1
+				where notes.author = $1 and notes.public = 1
+				union
+				select notes.id, authors.actor, notes.object, shares.inserted, sharers.actor as by from
+				shares
+				join notes on notes.id = shares.note
+				join persons authors on authors.id = notes.author
+				join persons sharers on sharers.id = $1
+				where shares.by = $1 and notes.public = 1
+			)
+			group by id
+			order by max(inserted) desc limit $2 offset $3`,
 			actorID,
-			h.Config.PostsPerPage, offset,
+			h.Config.PostsPerPage,
+			offset,
 		)
 	} else if r.User.ID == actorID {
 		// users can see all their posts
 		rows, err = r.Query(
-			`select notes.object, $1, groups.actor from (
-				select object, inserted, groupid from notes
-				where author = $2
-				order by notes.inserted desc limit $3 offset $4
-			) notes
-			left join (
-				select id, actor from persons where actor->>'type' = 'Group'
-			) groups on groups.id = notes.groupid`,
-			actorString,
+			`select object, actor, sharer from (
+				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
+				join persons on persons.id = notes.author
+				where notes.author = $1
+				union
+				select notes.id, authors.actor, notes.object, shares.inserted, sharers.actor as by from shares
+				join notes on notes.id = shares.note
+				join persons authors on authors.id = notes.author
+				join persons sharers on sharers.id = $1
+				where shares.by = $1
+			)
+			group by id
+			order by max(inserted) desc limit $2 offset $3`,
 			actorID,
 			h.Config.PostsPerPage,
 			offset,
@@ -126,34 +140,41 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 	} else {
 		// users can see only public posts by others, posts to followers if following, and DMs
 		rows, err = r.Query(
-			`select u.object, $1, groups.actor from (
-				select object, inserted, groupid from notes
-				where public = 1 and author = $2
+			`select object, actor, sharer from (
+				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
+				join persons on persons.id = $1
+				where notes.author = $1 and notes.public = 1
 				union
-				select object, inserted, groupid from notes
+				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
+				join persons on persons.id = $1
 				where (
-					author = $2 and (
-						$3 in (cc0, to0, cc1, to1, cc2, to2) or
-						(to2 is not null and exists (select 1 from json_each(object->'to') where value = $3)) or
-						(cc2 is not null and exists (select 1 from json_each(object->'cc') where value = $3))
+					notes.author = $1 and (
+						$2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+						(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $2)) or
+						(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $2))
 					)
 				)
 				union
-				select object, notes.inserted, groupid from notes
+				select notes.id, authors.actor, object, notes.inserted, null as sharer from notes
 				join persons on
 					persons.actor->>'followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
 					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = persons.actor->>'followers')) or
 					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = persons.actor->>'followers'))
+				join persons authors on authors.id = $1
 				where notes.public = 0 and
-					notes.author = $2 and
-					persons.id = $2 and
-					exists (select 1 from follows where follower = $3 and followed = $2 and accepted = 1)
-				order by inserted desc limit $4 offset $5
-			) u
-			left join (
-				select id, actor from persons where actor->>'type' = 'Group'
-			) groups on groups.id = u.groupid`,
-			actorString,
+					notes.author = $1 and
+					persons.id = $1 and
+					exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
+				union
+				select notes.id, authors.actor, notes.object, shares.inserted, sharers.actor as by from
+				shares
+				join notes on notes.id = shares.note
+				join persons authors on authors.id = notes.author
+				join persons sharers on sharers.id = $1
+				where shares.by = $1 and notes.public = 1
+			)
+			group by id
+			order by max(inserted) desc limit $3 offset $4`,
 			actorID,
 			r.User.ID,
 			h.Config.PostsPerPage,
@@ -172,7 +193,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 	for rows.Next() {
 		noteString := ""
 		var meta noteMetadata
-		if err := rows.Scan(&noteString, &meta.Author, &meta.Group); err != nil {
+		if err := rows.Scan(&noteString, &meta.Author, &meta.Sharer); err != nil {
 			r.Log.Warn("Failed to scan post", "error", err)
 			continue
 		}
@@ -216,10 +237,8 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 
 	if count == 0 {
 		w.Text("No posts.")
-	} else if actor.Type == ap.Group {
-		r.PrintNotes(w, notes, true, true, true)
 	} else {
-		r.PrintNotes(w, notes, false, true, true)
+		r.PrintNotes(w, notes, true, actor.Type != ap.Group)
 	}
 
 	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {

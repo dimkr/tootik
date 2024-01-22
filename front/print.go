@@ -34,7 +34,7 @@ import (
 
 type noteMetadata struct {
 	Author sql.NullString
-	Group  sql.NullString
+	Sharer sql.NullString
 }
 
 var verifiedRegex = regexp.MustCompile(`(\s*:[a-zA-Z0-9_]+:\s*)+`)
@@ -133,7 +133,7 @@ func (h *Handler) getActorDisplayName(actor *ap.Actor, log *slog.Logger) string 
 	return h.getDisplayName(actor.ID, userName, name, actor.Type, log)
 }
 
-func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, group *ap.Actor, compact, printAuthor, printParentAuthor, titleIsLink bool) {
+func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sharer *ap.Actor, compact, printAuthor, printParentAuthor, titleIsLink bool) {
 	if note.AttributedTo == "" {
 		r.Log.Warn("Note has no author", "id", note.ID)
 		return
@@ -212,12 +212,12 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 	authorDisplayName := author.PreferredUsername
 
 	var title string
-	if printAuthor && group == nil {
+	if printAuthor && sharer == nil {
 		title = fmt.Sprintf("%s %s", note.Published.Format(time.DateOnly), authorDisplayName)
-	} else if printAuthor && group != nil {
-		title = fmt.Sprintf("%s %s ┃ 👥 %s", note.Published.Format(time.DateOnly), authorDisplayName, group.PreferredUsername)
-	} else if group != nil {
-		title = fmt.Sprintf("%s 👥 %s", note.Published.Format(time.DateOnly), group.PreferredUsername)
+	} else if printAuthor && sharer != nil {
+		title = fmt.Sprintf("%s %s ┃ 🔁 %s", note.Published.Format(time.DateOnly), authorDisplayName, sharer.PreferredUsername)
+	} else if sharer != nil {
+		title = fmt.Sprintf("%s 🔁 %s", note.Published.Format(time.DateOnly), sharer.PreferredUsername)
 	} else {
 		title = note.Published.Format(time.DateOnly)
 	}
@@ -292,15 +292,6 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 	}
 
 	if !compact {
-		links.Range(func(link string, alt string) bool {
-			if alt == "" {
-				w.Link(link, link)
-			} else {
-				w.Link(link, alt)
-			}
-			return true
-		})
-
 		if r.User == nil {
 			w.Link("/outbox/"+strings.TrimPrefix(author.ID, "https://"), authorDisplayName)
 		} else {
@@ -318,17 +309,59 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 			}
 
 			if r.User == nil {
-				w.Link("/outbox/"+strings.TrimPrefix(mentionID, "https://"), mentionUserName)
+				links.Store("/outbox/"+strings.TrimPrefix(mentionID, "https://"), mentionUserName)
 			} else {
-				w.Link("/users/outbox/"+strings.TrimPrefix(mentionID, "https://"), mentionUserName)
+				links.Store("/users/outbox/"+strings.TrimPrefix(mentionID, "https://"), mentionUserName)
 			}
 		}
 
-		if r.User == nil && group != nil {
-			w.Linkf("/outbox/"+strings.TrimPrefix(group.ID, "https://"), "👥 %s", group.PreferredUsername)
-		} else if group != nil {
-			w.Linkf("/users/outbox/"+strings.TrimPrefix(group.ID, "https://"), "👥 %s", group.PreferredUsername)
+		if r.User == nil && sharer != nil {
+			links.Store("/outbox/"+strings.TrimPrefix(sharer.ID, "https://"), "◀️ "+sharer.PreferredUsername)
+		} else if sharer != nil {
+			links.Store("/users/outbox/"+strings.TrimPrefix(sharer.ID, "https://"), "◀️ "+sharer.PreferredUsername)
+		} else if note.IsPublic() {
+			var sharerID, sharerName string
+			if err := r.QueryRow(
+				`select persons.id, persons.actor->>'preferredUsername' from persons where id = ?`,
+				note.Audience,
+			).Scan(&sharerID, &sharerName); err != nil && !errors.Is(err, sql.ErrNoRows) {
+				r.Log.Warn("Failed to query sharer", "error", err)
+			} else if err == nil {
+				links.Store("/users/outbox/"+strings.TrimPrefix(sharerID, "https://"), "◀️ "+sharerName)
+			}
+
+			if r.User != nil {
+				if rows, err := r.Query(
+					`select persons.id, persons.actor->>'preferredUsername' from shares
+					join follows on follows.followed = shares.by
+					join persons on persons.id = follows.followed
+					where shares.note = $1 and follows.follower = $2
+					order by shares.inserted`,
+					note.ID,
+					r.User.ID,
+				); err != nil && !errors.Is(err, sql.ErrNoRows) {
+					r.Log.Warn("Failed to query sharers", "error", err)
+				} else if err == nil {
+					for rows.Next() {
+						if err := rows.Scan(&sharerID, &sharerName); err != nil {
+							r.Log.Warn("Failed to scan sharer", "error", err)
+							continue
+						}
+						links.Store("/users/outbox/"+strings.TrimPrefix(sharerID, "https://"), "◀️ "+sharerName)
+					}
+					rows.Close()
+				}
+			}
 		}
+
+		links.Range(func(link string, alt string) bool {
+			if alt == "" {
+				w.Link(link, link)
+			} else {
+				w.Link(link, alt)
+			}
+			return true
+		})
 
 		hashtags.Range(func(_ string, tag string) bool {
 			var exists int
@@ -364,10 +397,21 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, gr
 		if r.User != nil {
 			w.Link("/users/reply/"+strings.TrimPrefix(note.ID, "https://"), "💬 Reply")
 		}
+
+		if r.User != nil && note.IsPublic() && note.AttributedTo != r.User.ID {
+			var shared int
+			if err := r.QueryRow(`select exists (select 1 from shares where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&shared); err != nil {
+				r.Log.Warn("Failed to check if post is shared", "id", note.ID, "error", err)
+			} else if shared == 0 {
+				w.Link("/users/share/"+strings.TrimPrefix(note.ID, "https://"), "🔁 Share")
+			} else {
+				w.Link("/users/unshare/"+strings.TrimPrefix(note.ID, "https://"), "🔄️ Unshare")
+			}
+		}
 	}
 }
 
-func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, noteMetadata], printAuthor, printParentAuthor, printDaySeparators bool) {
+func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, noteMetadata], printParentAuthor, printDaySeparators bool) {
 	var lastDay int64
 	first := true
 	rows.Range(func(noteString string, meta noteMetadata) bool {
@@ -393,10 +437,10 @@ func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, noteMet
 			return true
 		}
 
-		group := ap.Actor{}
-		if meta.Group.Valid {
-			if err := json.Unmarshal([]byte(meta.Group.String), &group); err != nil {
-				r.Log.Warn("Failed to unmarshal post group", "error", err)
+		sharer := ap.Actor{}
+		if meta.Sharer.Valid {
+			if err := json.Unmarshal([]byte(meta.Sharer.String), &sharer); err != nil {
+				r.Log.Warn("Failed to unmarshal post sharer", "error", err)
 				return true
 			}
 		}
@@ -409,10 +453,10 @@ func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, noteMet
 			w.Empty()
 		}
 
-		if meta.Group.Valid {
-			r.PrintNote(w, &note, &author, &group, true, printAuthor, printParentAuthor, true)
+		if meta.Sharer.Valid {
+			r.PrintNote(w, &note, &author, &sharer, true, true, printParentAuthor, true)
 		} else {
-			r.PrintNote(w, &note, &author, nil, true, printAuthor, printParentAuthor, true)
+			r.PrintNote(w, &note, &author, nil, true, true, printParentAuthor, true)
 		}
 
 		lastDay = currentDay

@@ -65,7 +65,7 @@ func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 				join persons authors on
 					authors.id = notes.author and coalesce(authors.actor->>'discoverable', 1)
 				left join persons groups on
-					groups.actor->>'type' = 'Group' and groups.id = notes.groupid
+					groups.actor->>'type' = 'Group' and groups.id = notes.object->>'audience'
 				where
 					notes.public = 1 and
 					notesfts.content match $1
@@ -82,7 +82,7 @@ func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 			`
 				select u.object, authors.actor, groups.actor from
 				(
-					select notes.id, notes.object, notes.author, notes.groupid, rank, 2 as aud from
+					select notes.id, notes.object, notes.author, rank, 2 as aud from
 					notesfts
 					join notes on
 						notes.id = notesfts.id
@@ -90,7 +90,7 @@ func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 						notes.public = 1 and
 						notesfts.content match $1
 					union
-					select notes.id, notes.object, notes.author, notes.groupid, rank, 1 as aud from
+					select notes.id, notes.object, notes.author, rank, 1 as aud from
 					follows
 					join
 					persons
@@ -110,7 +110,7 @@ func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 						follows.follower = $2 and
 						notesfts.content match $1
 					union
-					select notes.id, notes.object, notes.author, notes.groupid, rank, 0 as aud from
+					select notes.id, notes.object, notes.author, rank, 0 as aud from
 					notesfts
 					join notes on
 						notes.id = notesfts.id
@@ -125,7 +125,7 @@ func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 				join persons authors on
 					authors.id = u.author and coalesce(authors.actor->>'discoverable', 1)
 				left join persons groups on
-					groups.actor->>'type' = 'Group' and groups.id = u.groupid
+					groups.actor->>'type' = 'Group' and groups.id = u.object->>'audience'
 				group by
 					u.id
 				order by
@@ -152,7 +152,7 @@ func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 	for rows.Next() {
 		noteString := ""
 		var meta noteMetadata
-		if err := rows.Scan(&noteString, &meta.Author, &meta.Group); err != nil {
+		if err := rows.Scan(&noteString, &meta.Author, &meta.Sharer); err != nil {
 			r.Log.Warn("Failed to scan search result", "error", err)
 			continue
 		}
@@ -173,7 +173,7 @@ func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 	if count == 0 {
 		w.Text("No results.")
 	} else {
-		r.PrintNotes(w, notes, true, true, false)
+		r.PrintNotes(w, notes, true, false)
 	}
 
 	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {

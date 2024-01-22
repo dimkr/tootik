@@ -17,8 +17,12 @@ limitations under the License.
 package test
 
 import (
+	"context"
 	"fmt"
+	"github.com/dimkr/tootik/fed"
+	"github.com/dimkr/tootik/inbox"
 	"github.com/stretchr/testify/assert"
+	"log/slog"
 	"strings"
 	"testing"
 )
@@ -216,16 +220,31 @@ func TestOutbox_PublicPostInGroup(t *testing.T) {
 
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
+	)
+	assert.NoError(err)
+
+	_, err = server.db.Exec(
+		`insert into persons (id, actor) values(?,?)`,
 		"https://other.localdomain/group/people",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
-	say := server.Handle("/users/say?Hello%20people%20in%20%40people%40other.localdomain", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n`, say)
+	_, err = server.db.Exec(
+		`insert into inbox (sender, activity) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]}`,
+	)
+	assert.NoError(err)
+
+	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	assert.NoError(err)
+	assert.Equal(1, n)
 
 	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
-	assert.Contains(outbox, "Hello people in @people@other.localdomain")
+	assert.Contains(outbox, "Hello world")
 }
 
 func TestOutbox_PublicPostInGroupUnauthenticatedUser(t *testing.T) {
@@ -236,16 +255,31 @@ func TestOutbox_PublicPostInGroupUnauthenticatedUser(t *testing.T) {
 
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
+	)
+	assert.NoError(err)
+
+	_, err = server.db.Exec(
+		`insert into persons (id, actor) values(?,?)`,
 		"https://other.localdomain/group/people",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
-	say := server.Handle("/users/say?Hello%20people%20in%20%40people%40other.localdomain", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n`, say)
+	_, err = server.db.Exec(
+		`insert into inbox (sender, activity) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]}`,
+	)
+	assert.NoError(err)
+
+	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	assert.NoError(err)
+	assert.Equal(1, n)
 
 	outbox := server.Handle("/outbox/other.localdomain/group/people", nil)
-	assert.Contains(outbox, "Hello people in @people@other.localdomain")
+	assert.Contains(outbox, "Hello world")
 }
 
 func TestOutbox_PostToFollowersInGroup(t *testing.T) {
@@ -256,6 +290,13 @@ func TestOutbox_PostToFollowersInGroup(t *testing.T) {
 
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
+	)
+	assert.NoError(err)
+
+	_, err = server.db.Exec(
+		`insert into persons (id, actor) values(?,?)`,
 		"https://other.localdomain/group/people",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
@@ -264,17 +305,22 @@ func TestOutbox_PostToFollowersInGroup(t *testing.T) {
 	follow := server.Handle("/users/follow/other.localdomain/group/people", server.Alice)
 	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
 
-	follow = server.Handle("/users/follow/other.localdomain/group/people", server.Bob)
-	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
-
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
 
-	whisper := server.Handle("/users/whisper?Hello%20people%20in%20%40people%40other.localdomain", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n`, whisper)
+	_, err = server.db.Exec(
+		`insert into inbox (sender, activity) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":[],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":[],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]}`,
+	)
+	assert.NoError(err)
 
-	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
-	assert.Contains(outbox, "Hello people in @people@other.localdomain")
+	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	assert.NoError(err)
+	assert.Equal(1, n)
+
+	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Alice)
+	assert.Contains(outbox, "Hello world")
 }
 
 func TestOutbox_PostToFollowersInGroupNotFollowingGroup(t *testing.T) {
@@ -285,6 +331,13 @@ func TestOutbox_PostToFollowersInGroupNotFollowingGroup(t *testing.T) {
 
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
+	)
+	assert.NoError(err)
+
+	_, err = server.db.Exec(
+		`insert into persons (id, actor) values(?,?)`,
 		"https://other.localdomain/group/people",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
@@ -296,12 +349,19 @@ func TestOutbox_PostToFollowersInGroupNotFollowingGroup(t *testing.T) {
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
 
-	whisper := server.Handle("/users/whisper?Hello%20people%20in%20%40people%40other.localdomain", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n`, whisper)
+	_, err = server.db.Exec(
+		`insert into inbox (sender, activity) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":[],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":[],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]}`,
+	)
+	assert.NoError(err)
+
+	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	assert.NoError(err)
+	assert.Equal(1, n)
 
 	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
-	assert.NotContains(outbox, "Hello people in @people@other.localdomain")
-	assert.Contains(strings.Split(outbox, "\n"), "No posts.")
+	assert.NotContains(outbox, "Hello world")
 }
 
 func TestOutbox_PostToFollowersInGroupNotAccepted(t *testing.T) {
@@ -312,6 +372,13 @@ func TestOutbox_PostToFollowersInGroupNotAccepted(t *testing.T) {
 
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
+	)
+	assert.NoError(err)
+
+	_, err = server.db.Exec(
+		`insert into persons (id, actor) values(?,?)`,
 		"https://other.localdomain/group/people",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
@@ -320,18 +387,19 @@ func TestOutbox_PostToFollowersInGroupNotAccepted(t *testing.T) {
 	follow := server.Handle("/users/follow/other.localdomain/group/people", server.Alice)
 	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
 
-	_, err = server.db.Exec(`update follows set accepted = 1`)
+	_, err = server.db.Exec(
+		`insert into inbox (sender, activity) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":[],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":[],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]}`,
+	)
 	assert.NoError(err)
 
-	follow = server.Handle("/users/follow/other.localdomain/group/people", server.Bob)
-	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
+	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	assert.NoError(err)
+	assert.Equal(1, n)
 
-	whisper := server.Handle("/users/whisper?Hello%20people%20in%20%40people%40other.localdomain", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n`, whisper)
-
-	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
-	assert.NotContains(outbox, "Hello people in @people@other.localdomain")
-	assert.Contains(strings.Split(outbox, "\n"), "No posts.")
+	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Alice)
+	assert.NotContains(outbox, "Hello world")
 }
 
 func TestOutbox_PostToFollowersInGroupFollowingAuthor(t *testing.T) {
@@ -342,26 +410,37 @@ func TestOutbox_PostToFollowersInGroupFollowingAuthor(t *testing.T) {
 
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
+	)
+	assert.NoError(err)
+
+	_, err = server.db.Exec(
+		`insert into persons (id, actor) values(?,?)`,
 		"https://other.localdomain/group/people",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/other.localdomain/group/people", server.Alice)
-	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
+	follow := server.Handle("/users/follow/127.0.0.1/user/dan", server.Alice)
+	assert.Equal("30 /users/outbox/127.0.0.1/user/dan\r\n", follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
 
-	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
+	_, err = server.db.Exec(
+		`insert into inbox (sender, activity) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":[],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":[],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]}`,
+	)
+	assert.NoError(err)
 
-	whisper := server.Handle("/users/whisper?Hello%20people%20in%20%40people%40other.localdomain", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n`, whisper)
+	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	assert.NoError(err)
+	assert.Equal(1, n)
 
-	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
-	assert.NotContains(outbox, "Hello people in @people@other.localdomain")
-	assert.Contains(strings.Split(outbox, "\n"), "No posts.")
+	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Alice)
+	assert.NotContains(outbox, "Hello world")
 }
 
 func TestOutbox_PostToFollowersInGroupUnauthenticatedUser(t *testing.T) {
@@ -372,17 +451,37 @@ func TestOutbox_PostToFollowersInGroupUnauthenticatedUser(t *testing.T) {
 
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
+	)
+	assert.NoError(err)
+
+	_, err = server.db.Exec(
+		`insert into persons (id, actor) values(?,?)`,
 		"https://other.localdomain/group/people",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
-	whisper := server.Handle("/users/whisper?Hello%20people%20in%20%40people%40other.localdomain", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n`, whisper)
+	follow := server.Handle("/users/follow/other.localdomain/group/people", server.Alice)
+	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
+
+	_, err = server.db.Exec(`update follows set accepted = 1`)
+	assert.NoError(err)
+
+	_, err = server.db.Exec(
+		`insert into inbox (sender, activity) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":[],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":[],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]}`,
+	)
+	assert.NoError(err)
+
+	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	assert.NoError(err)
+	assert.Equal(1, n)
 
 	outbox := server.Handle("/outbox/other.localdomain/group/people", nil)
-	assert.NotContains(outbox, "Hello people in @people@other.localdomain")
-	assert.Contains(strings.Split(outbox, "\n"), "No posts.")
+	assert.NotContains(outbox, "Hello world")
 }
 
 func TestOutbox_DMInGroup(t *testing.T) {
@@ -393,6 +492,13 @@ func TestOutbox_DMInGroup(t *testing.T) {
 
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
+	)
+	assert.NoError(err)
+
+	_, err = server.db.Exec(
+		`insert into persons (id, actor) values(?,?)`,
 		"https://other.localdomain/group/people",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
@@ -401,20 +507,25 @@ func TestOutbox_DMInGroup(t *testing.T) {
 	follow := server.Handle("/users/follow/other.localdomain/group/people", server.Alice)
 	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
 
-	follow = server.Handle("/users/follow/other.localdomain/group/people", server.Bob)
-	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
+	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
 
-	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
+	_, err = server.db.Exec(
+		`insert into inbox (sender, activity) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://other.localdomain/group/people"]}`,
+	)
+	assert.NoError(err)
 
-	whisper := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20bob%%20from%%20%%40people%%40other.localdomain", strings.TrimPrefix(server.Bob.ID, "https://")), server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n`, whisper)
+	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	assert.NoError(err)
+	assert.Equal(1, n)
 
-	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
-	assert.Contains(outbox, "Hello bob from @people@other.localdomain")
+	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Alice)
+	assert.Contains(outbox, "Hello world")
 }
 
 func TestOutbox_DMInGroupNotFollowingGroup(t *testing.T) {
@@ -425,26 +536,37 @@ func TestOutbox_DMInGroupNotFollowingGroup(t *testing.T) {
 
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
+	)
+	assert.NoError(err)
+
+	_, err = server.db.Exec(
+		`insert into persons (id, actor) values(?,?)`,
 		"https://other.localdomain/group/people",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/other.localdomain/group/people", server.Alice)
-	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
 
-	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
+	_, err = server.db.Exec(
+		`insert into inbox (sender, activity) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://other.localdomain/group/people"]}`,
+	)
+	assert.NoError(err)
 
-	whisper := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20bob%%20from%%20%%40people%%40other.localdomain", strings.TrimPrefix(server.Bob.ID, "https://")), server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n`, whisper)
+	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	assert.NoError(err)
+	assert.Equal(1, n)
 
-	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
-	assert.NotContains(outbox, "Hello bob from @people@other.localdomain")
-	assert.Contains(strings.Split(outbox, "\n"), "No posts.")
+	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Alice)
+	assert.NotContains(outbox, "Hello world")
 }
 
 func TestOutbox_DMInGroupAnotherUser(t *testing.T) {
@@ -455,40 +577,12 @@ func TestOutbox_DMInGroupAnotherUser(t *testing.T) {
 
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
-		"https://other.localdomain/group/people",
-		`{"type":"Group","preferredUsername":"people"}`,
+		"https://127.0.0.1/user/dan",
+		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/other.localdomain/group/people", server.Alice)
-	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
-
-	follow = server.Handle("/users/follow/other.localdomain/group/people", server.Bob)
-	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
-
-	follow = server.Handle("/users/follow/other.localdomain/group/people", server.Carol)
-	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
-
-	_, err = server.db.Exec(`update follows set accepted = 1`)
-	assert.NoError(err)
-
-	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
-
-	whisper := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20bob%%20from%%20%%40people%%40other.localdomain", strings.TrimPrefix(server.Bob.ID, "https://")), server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n`, whisper)
-
-	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Carol)
-	assert.Contains(outbox, "Hello bob from @people@other.localdomain")
-}
-
-func TestOutbox_DMInGroupSelf(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
-
-	assert := assert.New(t)
-
-	_, err := server.db.Exec(
+	_, err = server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://other.localdomain/group/people",
 		`{"type":"Group","preferredUsername":"people"}`,
@@ -498,122 +592,23 @@ func TestOutbox_DMInGroupSelf(t *testing.T) {
 	follow := server.Handle("/users/follow/other.localdomain/group/people", server.Alice)
 	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
 
-	follow = server.Handle("/users/follow/other.localdomain/group/people", server.Bob)
-	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
+	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
 
-	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
-
-	whisper := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20bob%%20from%%20%%40people%%40other.localdomain", strings.TrimPrefix(server.Bob.ID, "https://")), server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n`, whisper)
-
-	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Alice)
-	assert.Contains(outbox, "Hello bob from @people@other.localdomain")
-}
-
-func TestOutbox_DMInGroupSelfGroupUnfollowed(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
-
-	assert := assert.New(t)
-
-	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://other.localdomain/group/people",
-		`{"type":"Group","preferredUsername":"people"}`,
+	_, err = server.db.Exec(
+		`insert into inbox (sender, activity) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://other.localdomain/group/people"]}`,
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/other.localdomain/group/people", server.Alice)
-	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
-
-	follow = server.Handle("/users/follow/other.localdomain/group/people", server.Bob)
-	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
-
-	_, err = server.db.Exec(`update follows set accepted = 1`)
+	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
 	assert.NoError(err)
+	assert.Equal(1, n)
 
-	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
-
-	whisper := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20bob%%20from%%20%%40people%%40other.localdomain", strings.TrimPrefix(server.Bob.ID, "https://")), server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n`, whisper)
-
-	unfollow := server.Handle("/users/unfollow/other.localdomain/group/people", server.Alice)
-	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", unfollow)
-
-	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Alice)
-	assert.NotContains(outbox, "Hello people in @people@other.localdomain")
-	assert.Contains(strings.Split(outbox, "\n"), "No posts.")
-}
-
-func TestOutbox_DMInGroupSelfRecipientUnfollowed(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
-
-	assert := assert.New(t)
-
-	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://other.localdomain/group/people",
-		`{"type":"Group","preferredUsername":"people"}`,
-	)
-	assert.NoError(err)
-
-	follow := server.Handle("/users/follow/other.localdomain/group/people", server.Alice)
-	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
-
-	follow = server.Handle("/users/follow/other.localdomain/group/people", server.Bob)
-	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
-
-	_, err = server.db.Exec(`update follows set accepted = 1`)
-	assert.NoError(err)
-
-	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
-
-	whisper := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20bob%%20from%%20%%40people%%40other.localdomain", strings.TrimPrefix(server.Bob.ID, "https://")), server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n`, whisper)
-
-	unfollow := server.Handle("/users/unfollow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), unfollow)
-
-	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Alice)
-	assert.Contains(outbox, "Hello bob from @people@other.localdomain")
-}
-
-func TestOutbox_DMInGroupAnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
-
-	assert := assert.New(t)
-
-	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://other.localdomain/group/people",
-		`{"type":"Group","preferredUsername":"people"}`,
-	)
-	assert.NoError(err)
-
-	follow := server.Handle("/users/follow/other.localdomain/group/people", server.Alice)
-	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
-
-	follow = server.Handle("/users/follow/other.localdomain/group/people", server.Bob)
-	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
-
-	_, err = server.db.Exec(`update follows set accepted = 1`)
-	assert.NoError(err)
-
-	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
-
-	whisper := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20bob%%20from%%20%%40people%%40other.localdomain", strings.TrimPrefix(server.Bob.ID, "https://")), server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n`, whisper)
-
-	outbox := server.Handle("/outbox/other.localdomain/group/people", nil)
-	assert.NotContains(outbox, "Hello people in @people@other.localdomain")
-	assert.Contains(strings.Split(outbox, "\n"), "No posts.")
+	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
+	assert.NotContains(outbox, "Hello world")
 }

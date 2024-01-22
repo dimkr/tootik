@@ -122,10 +122,6 @@ func processCreateActivity(ctx context.Context, domain string, cfg *cfg.Config, 
 		return fmt.Errorf("cannot forward %s: %w", post.ID, err)
 	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("cannot insert %s: %w", post.ID, err)
-	}
-
 	log.Info("Received a new post")
 
 	mentionedUsers := ap.Audience{}
@@ -143,6 +139,10 @@ func processCreateActivity(ctx context.Context, domain string, cfg *cfg.Config, 
 
 		return true
 	})
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("cannot insert %s: %w", post.ID, err)
+	}
 
 	return nil
 }
@@ -173,6 +173,9 @@ func processActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 				return fmt.Errorf("failed to delete posts by %s", req.ID)
 			}
 			if _, err := db.ExecContext(ctx, `delete from notes where id = ? and author = ?`, deleted, sender.ID); err != nil {
+				return fmt.Errorf("failed to delete posts by %s", req.ID)
+			}
+			if _, err := db.ExecContext(ctx, `delete from shares where note = $1 and exists (select 1 from notes where id = $1 and author = $2)`, deleted, sender.ID); err != nil {
 				return fmt.Errorf("failed to delete posts by %s", req.ID)
 			}
 		}
@@ -235,12 +238,28 @@ func processActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 			return fmt.Errorf("received an invalid undo request for %s by %s", req.Actor, sender.ID)
 		}
 
-		follow, ok := req.Object.(*ap.Activity)
+		inner, ok := req.Object.(*ap.Activity)
 		if !ok {
 			return errors.New("received a request to undo a non-activity object")
 		}
 
-		if follow.Type != ap.FollowActivity {
+		if inner.Type == ap.AnnounceActivity {
+			noteID, ok := inner.Object.(string)
+			if !ok {
+				return errors.New("cannot undo Announce")
+			}
+			if _, err := db.ExecContext(
+				ctx,
+				`delete from shares where note = ? and by = ?`,
+				noteID,
+				req.Actor,
+			); err != nil {
+				return fmt.Errorf("failed to remove share for %s by %s: %w", noteID, req.Actor, err)
+			}
+			return nil
+		}
+
+		if inner.Type != ap.FollowActivity {
 			log.Debug("Ignoring request to undo a non-Follow activity")
 			return nil
 		}
@@ -248,9 +267,9 @@ func processActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 		follower := req.Actor
 
 		var followed string
-		if actor, ok := follow.Object.(*ap.Object); ok {
+		if actor, ok := inner.Object.(*ap.Object); ok {
 			followed = actor.ID
-		} else if actorID, ok := follow.Object.(string); ok {
+		} else if actorID, ok := inner.Object.(string); ok {
 			followed = actorID
 		} else {
 			return errors.New("received a request to undo follow on unknown object")
@@ -284,7 +303,18 @@ func processActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 	case ap.AnnounceActivity:
 		create, ok := req.Object.(*ap.Activity)
 		if !ok {
-			log.Debug("Ignoring unsupported Announce object")
+			if postID, ok := req.Object.(string); ok && postID != "" {
+				if _, err := db.ExecContext(
+					ctx,
+					`INSERT OR IGNORE INTO shares (note, by) VALUES(?,?)`,
+					postID,
+					sender.ID,
+				); err != nil {
+					return fmt.Errorf("cannot insert share for %s by %s: %w", postID, sender.ID, err)
+				}
+			} else {
+				log.Debug("Ignoring unsupported Announce object")
+			}
 			return nil
 		}
 		if create.Type != ap.CreateActivity {
@@ -296,15 +326,19 @@ func processActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 		if !ok {
 			return errors.New("received invalid Create")
 		}
-		if !post.IsPublic() {
-			return errors.New("received Announce for private post")
+
+		if err := processCreateActivity(ctx, domain, cfg, log, sender, create, rawActivity, post, db, resolver, from); err != nil {
+			return err
 		}
 
-		if !post.IsPublic() && post.AttributedTo != sender.ID && !post.To.Contains(sender.ID) && !post.CC.Contains(sender.ID) {
-			return errors.New("sender is not post author or recipient")
+		if _, err := db.ExecContext(
+			ctx,
+			`INSERT OR IGNORE INTO shares (note, by) VALUES(?,?)`,
+			post.ID,
+			sender.ID,
+		); err != nil {
+			return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, sender.ID, err)
 		}
-
-		return processCreateActivity(ctx, domain, cfg, log, sender, create, rawActivity, post, db, resolver, from)
 
 	case ap.UpdateActivity:
 		post, ok := req.Object.(*ap.Object)

@@ -37,7 +37,68 @@ func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	rows, err := r.Query(`with followed as (select followed as id, inserted from follows where follower = ?) select persons.actor, max(notes.inserted) as last, count(distinct notes.id) as count from followed join (select id, actor from persons) persons on persons.id = followed.id left join (select * from notes where inserted >= unixepoch() - 7*24*60*60) notes on (persons.actor->>'type' != 'Group' and notes.author = followed.id) or (persons.actor->>'type' = 'Group' and notes.object->'inReplyTo' is null and notes.groupid = followed.id) group by followed.id order by last desc, followed.inserted desc`, r.User.ID)
+	rows, err := r.Query(`
+		select u.actor, max(u.ninserted), count(distinct u.id) from
+		(
+			select persons.actor, notes.inserted as ninserted, follows.inserted as finserted, notes.id from
+			follows
+			join persons
+			on
+				persons.id = follows.followed
+			join notes
+			on
+				notes.object->>'audience' = follows.followed
+			where
+				follows.follower = $1 and
+				persons.actor->>'type' = 'Group' and
+				notes.object->'inReplyTo' is null and
+				notes.inserted >= unixepoch() - 7*24*60*60
+			union
+			select persons.actor, notes.inserted as ninserted, follows.inserted as finserted, notes.id from
+			follows
+			join persons
+			on
+				persons.id = follows.followed
+			join notes
+			on
+				notes.author = follows.followed
+			where
+				follows.follower = $1 and
+				persons.actor->>'type' != 'Group' and
+				notes.inserted >= unixepoch() - 7*24*60*60
+			union
+			select persons.actor, shares.inserted as ninserted, follows.inserted as finserted, notes.id from
+			follows
+			join shares
+			on
+				shares.by = follows.followed
+			join persons
+			on
+				persons.id = follows.followed
+			join notes
+			on
+				notes.id = shares.note
+			where
+				shares.inserted >= unixepoch() - 7*24*60*60 and
+				notes.public = 1 and
+				follows.follower = $1
+			union
+			select persons.actor, null as ninserted, follows.inserted as finserted, null as id from
+			follows
+			join persons
+			on
+				persons.id = follows.followed
+			where
+				follows.follower = $1
+		) u
+		group by
+			u.actor
+		order by
+			max(u.ninserted) desc,
+			u.finserted desc
+		`,
+		r.User.ID,
+	)
 	if err != nil {
 		r.Log.Warn("Failed to list followed users", "error", err)
 		w.Error()

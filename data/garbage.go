@@ -52,8 +52,12 @@ func CollectGarbage(ctx context.Context, domain string, cfg *cfg.Config, db *sql
 		return fmt.Errorf("failed to remove old posts: %w", err)
 	}
 
-	if _, err := db.ExecContext(ctx, `delete from hashtags where note in (select distinct hashtags.note from hashtags left join notes on notes.id = hashtags.note where notes.id is null)`); err != nil {
+	if _, err := db.ExecContext(ctx, `delete from hashtags where not exists (select 1 from notes where notes.id = hashtags.note)`); err != nil {
 		return fmt.Errorf("failed to remove old hashtags: %w", err)
+	}
+
+	if _, err := db.ExecContext(ctx, `delete from shares where not exists (select 1 from persons where persons.id = shares.by) or (inserted < ? and not exists (select 1 from notes where notes.id = shares.note))`, now.Add(-cfg.SharesTTL).Unix()); err != nil {
+		return fmt.Errorf("failed to remove old shares: %w", err)
 	}
 
 	if _, err := db.ExecContext(ctx, `delete from outbox where inserted < ? and host != ?`, now.Add(-cfg.DeliveryTTL).Unix(), domain); err != nil {

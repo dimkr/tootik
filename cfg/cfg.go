@@ -33,6 +33,9 @@ type Config struct {
 	EditThrottleFactor float64
 	EditThrottleUnit   time.Duration
 
+	ShareThrottleFactor int64
+	ShareThrottleUnit   time.Duration
+
 	PollMaxOptions int
 	PollDuration   time.Duration
 
@@ -87,6 +90,7 @@ type Config struct {
 
 	NotesTTL    time.Duration
 	DeliveryTTL time.Duration
+	SharesTTL   time.Duration
 }
 
 // FillDefaults replaces missing or invalid settings with defaults.
@@ -121,6 +125,14 @@ func (c *Config) FillDefaults() {
 
 	if c.EditThrottleUnit <= 0 {
 		c.EditThrottleUnit = time.Minute
+	}
+
+	if c.ShareThrottleFactor <= 0 {
+		c.ShareThrottleFactor = 4
+	}
+
+	if c.ShareThrottleUnit <= 0 {
+		c.ShareThrottleUnit = time.Minute
 	}
 
 	if c.PollMaxOptions < 2 {
@@ -280,5 +292,9 @@ func (c *Config) FillDefaults() {
 
 	if c.DeliveryTTL <= 0 {
 		c.DeliveryTTL = time.Hour * 24 * 7
+	}
+
+	if c.SharesTTL <= 0 {
+		c.SharesTTL = time.Hour * 24 * 2
 	}
 }

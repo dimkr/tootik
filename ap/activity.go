@@ -48,13 +48,14 @@ type anyActivity struct {
 // Activity represents an ActivityPub activity.
 // Object can point to another Activity, an [Object] or a string.
 type Activity struct {
-	Context any          `json:"@context,omitempty"`
-	ID      string       `json:"id"`
-	Type    ActivityType `json:"type"`
-	Actor   string       `json:"actor"`
-	Object  any          `json:"object"`
-	To      Audience     `json:"to,omitempty"`
-	CC      Audience     `json:"cc,omitempty"`
+	Context   any          `json:"@context,omitempty"`
+	ID        string       `json:"id"`
+	Type      ActivityType `json:"type"`
+	Actor     string       `json:"actor"`
+	Object    any          `json:"object"`
+	To        Audience     `json:"to,omitempty"`
+	CC        Audience     `json:"cc,omitempty"`
+	Published Time         `json:"published,omitempty"`
 }
 
 var ErrInvalidActivity = errors.New("invalid activity")
