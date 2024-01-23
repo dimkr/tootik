@@ -49,6 +49,8 @@ type Config struct {
 	RepliesPerPage int
 	MaxOffset      int
 
+	SharesPerPost int
+
 	MaxRequestBodySize int64
 
 	CompactViewMaxRunes int
@@ -169,6 +171,10 @@ func (c *Config) FillDefaults() {
 
 	if c.MaxOffset <= 0 {
 		c.MaxOffset = c.PostsPerPage * 30
+	}
+
+	if c.SharesPerPost <= 0 {
+		c.SharesPerPost = 10
 	}
 
 	if c.MaxRequestBodySize <= 0 {

@@ -320,37 +320,73 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 		} else if sharer != nil {
 			links.Store("/users/outbox/"+strings.TrimPrefix(sharer.ID, "https://"), "◀️ "+sharer.PreferredUsername)
 		} else if note.IsPublic() {
-			var sharerID, sharerName string
-			if err := r.QueryRow(
-				`select persons.id, persons.actor->>'preferredUsername' from persons where id = ?`,
-				note.Audience,
-			).Scan(&sharerID, &sharerName); err != nil && !errors.Is(err, sql.ErrNoRows) {
-				r.Log.Warn("Failed to query sharer", "error", err)
-			} else if err == nil {
-				links.Store("/users/outbox/"+strings.TrimPrefix(sharerID, "https://"), "◀️ "+sharerName)
-			}
-
-			if r.User != nil {
-				if rows, err := r.Query(
-					`select persons.id, persons.actor->>'preferredUsername' from shares
-					join follows on follows.followed = shares.by
-					join persons on persons.id = follows.followed
-					where shares.note = $1 and follows.follower = $2
-					order by shares.inserted`,
+			var rows *sql.Rows
+			var err error
+			if r.User == nil {
+				rows, err = r.Query(
+					`select id, username from
+					(
+						select persons.id, persons.actor->>'preferredUsername' as username, shares.inserted, 1 as rank from shares
+						join notes on notes.id = shares.note
+						join persons on persons.id = shares.by and persons.id = notes.object->>'audience'
+						where shares.note = $1
+						union
+						select persons.id, persons.actor->>'preferredUsername' as username, shares.inserted, 2 as rank from shares
+						join persons on persons.id = shares.by
+						where shares.note = $1 and persons.host = $2
+						union
+						select persons.id, persons.actor->>'preferredUsername' as username, shares.inserted, 3 as rank from shares
+						join persons on persons.id = shares.by
+						where shares.note = $1 and persons.host != $2
+					)
+					group by id
+					order by min(rank), inserted limit $3`,
+					note.ID,
+					r.Handler.Domain,
+					r.Handler.Config.SharesPerPost,
+				)
+			} else {
+				rows, err = r.Query(
+					`select id, username from
+					(
+						select persons.id, persons.actor->>'preferredUsername' as username, shares.inserted, 1 as rank from shares
+						join notes on notes.id = shares.note
+						join persons on persons.id = shares.by and persons.id = notes.object->>'audience'
+						where shares.note = $1
+						union
+						select persons.id, persons.actor->>'preferredUsername' as username, shares.inserted, 2 as rank from shares
+						join follows on follows.followed = shares.by
+						join persons on persons.id = follows.followed
+						where shares.note = $1 and follows.follower = $2
+						union
+						select persons.id, persons.actor->>'preferredUsername' as username, shares.inserted, 3 as rank from shares
+						join persons on persons.id = shares.by
+						where shares.note = $1 and persons.host = $3
+						union
+						select persons.id, persons.actor->>'preferredUsername' as username, shares.inserted, 4 as rank from shares
+						join persons on persons.id = shares.by
+						where shares.note = $1 and persons.host != $3
+					)
+					group by id
+					order by min(rank), inserted limit $4`,
 					note.ID,
 					r.User.ID,
-				); err != nil && !errors.Is(err, sql.ErrNoRows) {
-					r.Log.Warn("Failed to query sharers", "error", err)
-				} else if err == nil {
-					for rows.Next() {
-						if err := rows.Scan(&sharerID, &sharerName); err != nil {
-							r.Log.Warn("Failed to scan sharer", "error", err)
-							continue
-						}
-						links.Store("/users/outbox/"+strings.TrimPrefix(sharerID, "https://"), "◀️ "+sharerName)
+					r.Handler.Domain,
+					r.Handler.Config.SharesPerPost,
+				)
+			}
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				r.Log.Warn("Failed to query sharers", "error", err)
+			} else if err == nil {
+				for rows.Next() {
+					var sharerID, sharerName string
+					if err := rows.Scan(&sharerID, &sharerName); err != nil {
+						r.Log.Warn("Failed to scan sharer", "error", err)
+						continue
 					}
-					rows.Close()
+					links.Store("/users/outbox/"+strings.TrimPrefix(sharerID, "https://"), "◀️ "+sharerName)
 				}
+				rows.Close()
 			}
 		}
 
