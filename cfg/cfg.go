@@ -43,7 +43,8 @@ type Config struct {
 	MaxBioLength         int
 	MinActorEditInterval time.Duration
 
-	MaxFollowsPerUser int
+	MaxFollowsPerUser   int
+	FollowAcceptTimeout time.Duration
 
 	PostsPerPage   int
 	RepliesPerPage int
@@ -160,6 +161,10 @@ func (c *Config) FillDefaults() {
 
 	if c.MaxFollowsPerUser <= 0 {
 		c.MaxFollowsPerUser = 150
+	}
+
+	if c.FollowAcceptTimeout <= 0 {
+		c.FollowAcceptTimeout = time.Hour * 24 * 2
 	}
 
 	if c.PostsPerPage <= 0 {
