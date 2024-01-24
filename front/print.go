@@ -215,9 +215,9 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 	if printAuthor && sharer == nil {
 		title = fmt.Sprintf("%s %s", note.Published.Format(time.DateOnly), authorDisplayName)
 	} else if printAuthor && sharer != nil {
-		title = fmt.Sprintf("%s %s ┃ 🔁 %s", note.Published.Format(time.DateOnly), authorDisplayName, sharer.PreferredUsername)
+		title = fmt.Sprintf("%s %s ┃ 🔄 %s", note.Published.Format(time.DateOnly), authorDisplayName, sharer.PreferredUsername)
 	} else if sharer != nil {
-		title = fmt.Sprintf("%s 🔁 %s", note.Published.Format(time.DateOnly), sharer.PreferredUsername)
+		title = fmt.Sprintf("%s 🔄 %s", note.Published.Format(time.DateOnly), sharer.PreferredUsername)
 	} else {
 		title = note.Published.Format(time.DateOnly)
 	}
@@ -316,9 +316,9 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 		}
 
 		if r.User == nil && sharer != nil {
-			links.Store("/outbox/"+strings.TrimPrefix(sharer.ID, "https://"), "◀️ "+sharer.PreferredUsername)
+			links.Store("/outbox/"+strings.TrimPrefix(sharer.ID, "https://"), "🔄 "+sharer.PreferredUsername)
 		} else if sharer != nil {
-			links.Store("/users/outbox/"+strings.TrimPrefix(sharer.ID, "https://"), "◀️ "+sharer.PreferredUsername)
+			links.Store("/users/outbox/"+strings.TrimPrefix(sharer.ID, "https://"), "🔄️ "+sharer.PreferredUsername)
 		} else if note.IsPublic() {
 			var rows *sql.Rows
 			var err error
@@ -384,7 +384,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 						r.Log.Warn("Failed to scan sharer", "error", err)
 						continue
 					}
-					links.Store("/users/outbox/"+strings.TrimPrefix(sharerID, "https://"), "◀️ "+sharerName)
+					links.Store("/users/outbox/"+strings.TrimPrefix(sharerID, "https://"), "🔄 "+sharerName)
 				}
 				rows.Close()
 			}
