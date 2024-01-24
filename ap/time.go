@@ -18,7 +18,7 @@ package ap
 
 import "time"
 
-// Time is a wrapper around time.Time with fallback if parsing of RFC3339 fails
+// Time is a wrapper around [time.Time] with fallback if parsing of RFC3339 fails.
 type Time struct {
 	time.Time
 }
