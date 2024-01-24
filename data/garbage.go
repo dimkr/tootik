@@ -68,5 +68,9 @@ func CollectGarbage(ctx context.Context, domain string, cfg *cfg.Config, db *sql
 		return fmt.Errorf("failed to remove failed follow requests: %w", err)
 	}
 
+	if _, err := db.ExecContext(ctx, `delete from persons where updated < ? and host != ? and not exists (select 1 from follows where followed = persons.id) and not exists (select 1 from notes where notes.author = persons.id) and not exists (select 1 from shares where shares.by = persons.id)`, now.Add(-cfg.ActorTTL).Unix(), domain); err != nil {
+		return fmt.Errorf("failed to remove idle actors: %w", err)
+	}
+
 	return nil
 }

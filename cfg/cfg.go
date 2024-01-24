@@ -93,6 +93,7 @@ type Config struct {
 	NotesTTL    time.Duration
 	DeliveryTTL time.Duration
 	SharesTTL   time.Duration
+	ActorTTL    time.Duration
 }
 
 // FillDefaults replaces missing or invalid settings with defaults.
@@ -302,5 +303,9 @@ func (c *Config) FillDefaults() {
 
 	if c.SharesTTL <= 0 {
 		c.SharesTTL = time.Hour * 24 * 2
+	}
+
+	if c.ActorTTL <= 0 {
+		c.ActorTTL = time.Hour * 24 * 7
 	}
 }
