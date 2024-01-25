@@ -239,7 +239,15 @@ func TestOutbox_PublicPostInGroup(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -274,7 +282,15 @@ func TestOutbox_PublicPostInGroupUnauthenticatedUser(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -315,7 +331,15 @@ func TestOutbox_PostToFollowersInGroup(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -356,7 +380,15 @@ func TestOutbox_PostToFollowersInGroupNotFollowingGroup(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -394,7 +426,15 @@ func TestOutbox_PostToFollowersInGroupNotAccepted(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -435,7 +475,15 @@ func TestOutbox_PostToFollowersInGroupFollowingAuthor(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -476,7 +524,15 @@ func TestOutbox_PostToFollowersInGroupUnauthenticatedUser(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -520,7 +576,15 @@ func TestOutbox_DMInGroup(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -561,7 +625,15 @@ func TestOutbox_DMInGroupNotFollowingGroup(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -605,7 +677,15 @@ func TestOutbox_DMInGroupAnotherUser(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 

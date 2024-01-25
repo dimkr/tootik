@@ -29,28 +29,38 @@ import (
 	"time"
 )
 
+type Queue struct {
+	Domain   string
+	Config   *cfg.Config
+	Log      *slog.Logger
+	DB       *sql.DB
+	Resolver *Resolver
+}
+
 // ProcessQueue polls the queue of outgoing activities and delivers them to other servers with timeout and retries.
-func ProcessQueue(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, resolver *Resolver) {
-	t := time.NewTicker(cfg.OutboxPollingInterval)
+func (q *Queue) Process(ctx context.Context) error {
+	t := time.NewTicker(q.Config.OutboxPollingInterval)
 	defer t.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return nil
 
 		case <-t.C:
-			if err := processQueue(ctx, domain, cfg, log, db, resolver); err != nil {
-				log.Error("Failed to deliver posts", "error", err)
+			if err := q.process(ctx); err != nil {
+				q.Log.Error("Failed to deliver posts", "error", err)
 			}
 		}
 	}
+
+	return nil
 }
 
-func processQueue(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, resolver *Resolver) error {
-	log.Debug("Polling delivery queue")
+func (q *Queue) process(ctx context.Context) error {
+	q.Log.Debug("Polling delivery queue")
 
-	rows, err := db.QueryContext(ctx, `select outbox.attempts, outbox.activity, outbox.inserted, outbox.received, persons.actor from outbox join persons on persons.id = outbox.sender where outbox.sent = 0 and (outbox.attempts = 0 or (outbox.attempts < ? and outbox.last <= unixepoch() - ?)) order by outbox.attempts asc, outbox.last asc limit ?`, cfg.MaxDeliveryAttempts, cfg.DeliveryRetryInterval, cfg.DeliveryBatchSize)
+	rows, err := q.DB.QueryContext(ctx, `select outbox.attempts, outbox.activity, outbox.inserted, outbox.received, persons.actor from outbox join persons on persons.id = outbox.sender where outbox.sent = 0 and (outbox.attempts = 0 or (outbox.attempts < ? and outbox.last <= unixepoch() - ?)) order by outbox.attempts asc, outbox.last asc limit ?`, q.Config.MaxDeliveryAttempts, q.Config.DeliveryRetryInterval, q.Config.DeliveryBatchSize)
 	if err != nil {
 		return fmt.Errorf("failed to fetch posts to deliver: %w", err)
 	}
@@ -62,64 +72,64 @@ func processQueue(ctx context.Context, domain string, cfg *cfg.Config, log *slog
 		var recipientsString sql.NullString
 		var deliveryAttempts int
 		if err := rows.Scan(&deliveryAttempts, &activityString, &inserted, &recipientsString, &actorString); err != nil {
-			log.Error("Failed to fetch post to deliver", "error", err)
+			q.Log.Error("Failed to fetch post to deliver", "error", err)
 			continue
 		}
 
 		var activity ap.Activity
 		if err := json.Unmarshal([]byte(activityString), &activity); err != nil {
-			log.Error("Failed to unmarshal undelivered activity", "attempts", deliveryAttempts, "error", err)
+			q.Log.Error("Failed to unmarshal undelivered activity", "attempts", deliveryAttempts, "error", err)
 			continue
 		}
 
 		var recipients ap.Audience
 		if recipientsString.Valid {
 			if err := json.Unmarshal([]byte(recipientsString.String), &recipients); err != nil {
-				log.Error("Failed to unmarshal past recipients", "attempts", deliveryAttempts, "error", err)
+				q.Log.Error("Failed to unmarshal past recipients", "attempts", deliveryAttempts, "error", err)
 				continue
 			}
 		}
 
-		if _, err := db.ExecContext(ctx, `update outbox set last = unixepoch(), attempts = ? where activity->>'id' = ?`, deliveryAttempts+1, activity.ID); err != nil {
-			log.Error("Failed to save last delivery attempt time", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
+		if _, err := q.DB.ExecContext(ctx, `update outbox set last = unixepoch(), attempts = ? where activity->>'id' = ?`, deliveryAttempts+1, activity.ID); err != nil {
+			q.Log.Error("Failed to save last delivery attempt time", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
 
 		var actor ap.Actor
 		if err := json.Unmarshal([]byte(actorString), &actor); err != nil {
-			log.Error("Failed to unmarshal undelivered activity actor", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
+			q.Log.Error("Failed to unmarshal undelivered activity actor", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
 
-		if err := deliverWithTimeout(ctx, domain, cfg, log, db, resolver, &activity, []byte(activityString), &actor, time.Unix(inserted, 0), &recipients); err != nil {
-			log.Warn("Failed to deliver activity", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
+		if err := q.deliverWithTimeout(ctx, &activity, []byte(activityString), &actor, time.Unix(inserted, 0), &recipients); err != nil {
+			q.Log.Warn("Failed to deliver activity", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
 
 		buf, err := json.Marshal(recipients)
 		if err != nil {
-			log.Error("Failed to marshal recipients list", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
+			q.Log.Error("Failed to marshal recipients list", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
 
-		if _, err := db.ExecContext(ctx, `update outbox set sent = 1, received = ? where activity->>'id' = ?`, string(buf), activity.ID); err != nil {
-			log.Error("Failed to mark delivery as completed", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
+		if _, err := q.DB.ExecContext(ctx, `update outbox set sent = 1, received = ? where activity->>'id' = ?`, string(buf), activity.ID); err != nil {
+			q.Log.Error("Failed to mark delivery as completed", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
 
-		log.Info("Successfully delivered an activity", "id", activity.ID, "attempts", deliveryAttempts)
+		q.Log.Info("Successfully delivered an activity", "id", activity.ID, "attempts", deliveryAttempts)
 	}
 
 	return nil
 }
 
-func deliverWithTimeout(parent context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, resolver *Resolver, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, inserted time.Time, sent *ap.Audience) error {
-	ctx, cancel := context.WithTimeout(parent, cfg.DeliveryTimeout)
+func (q *Queue) deliverWithTimeout(parent context.Context, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, inserted time.Time, sent *ap.Audience) error {
+	ctx, cancel := context.WithTimeout(parent, q.Config.DeliveryTimeout)
 	defer cancel()
-	return deliver(ctx, domain, log, db, activity, rawActivity, actor, resolver, inserted, sent)
+	return q.deliver(ctx, activity, rawActivity, actor, inserted, sent)
 }
 
-func deliver(ctx context.Context, domain string, log *slog.Logger, db *sql.DB, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, resolver *Resolver, inserted time.Time, received *ap.Audience) error {
+func (q *Queue) deliver(ctx context.Context, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, inserted time.Time, received *ap.Audience) error {
 	activityID, err := url.Parse(activity.ID)
 	if err != nil {
 		return err
@@ -145,14 +155,14 @@ func deliver(ctx context.Context, domain string, log *slog.Logger, db *sql.DB, a
 
 	// list the actor's federated followers if we're forwarding an activity by another actor, or if addressed by actor
 	if wideDelivery {
-		followers, err := db.QueryContext(ctx, `select distinct follower from follows where followed = ? and follower not like ? and follower not like ? and accepted = 1 and inserted < ?`, actor.ID, fmt.Sprintf("https://%s/%%", domain), fmt.Sprintf("https://%s/%%", activityID.Host), inserted.Unix())
+		followers, err := q.DB.QueryContext(ctx, `select distinct follower from follows where followed = ? and follower not like ? and follower not like ? and accepted = 1 and inserted < ?`, actor.ID, fmt.Sprintf("https://%s/%%", q.Domain), fmt.Sprintf("https://%s/%%", activityID.Host), inserted.Unix())
 		if err != nil {
-			log.Warn("Failed to list followers", "activity", activity.ID, "error", err)
+			q.Log.Warn("Failed to list followers", "activity", activity.ID, "error", err)
 		} else {
 			for followers.Next() {
 				var follower string
 				if err := followers.Scan(&follower); err != nil {
-					log.Warn("Skipped a follower", "activity", activity.ID, "error", err)
+					q.Log.Warn("Skipped a follower", "activity", activity.ID, "error", err)
 					continue
 				}
 
@@ -180,13 +190,13 @@ func deliver(ctx context.Context, domain string, log *slog.Logger, db *sql.DB, a
 
 	actorIDs.Range(func(actorID string, _ struct{}) bool {
 		if actorID == author || actorID == ap.Public {
-			log.Debug("Skipping recipient", "to", actorID, "activity", activity.ID)
+			q.Log.Debug("Skipping recipient", "to", actorID, "activity", activity.ID)
 			return true
 		}
 
-		to, err := resolver.Resolve(ctx, log, db, actor, actorID, false)
+		to, err := q.Resolver.Resolve(ctx, q.Log, q.DB, actor, actorID, false)
 		if err != nil {
-			log.Warn("Failed to resolve a recipient", "to", actorID, "activity", activity.ID, "error", err)
+			q.Log.Warn("Failed to resolve a recipient", "to", actorID, "activity", activity.ID, "error", err)
 			if !errors.Is(err, ErrActorGone) && !errors.Is(err, ErrBlockedDomain) {
 				anyFailed = true
 			}
@@ -197,27 +207,27 @@ func deliver(ctx context.Context, domain string, log *slog.Logger, db *sql.DB, a
 		inbox := to.Inbox
 		if wideDelivery {
 			if sharedInbox, ok := to.Endpoints["sharedInbox"]; ok && sharedInbox != "" {
-				log.Debug("Using shared inbox inbox", "to", actorID, "activity", activity.ID, "shared_inbox", inbox)
+				q.Log.Debug("Using shared inbox inbox", "to", actorID, "activity", activity.ID, "shared_inbox", inbox)
 				inbox = sharedInbox
 			}
 		}
 
 		if received.Contains(inbox) {
-			log.Info("Skipping recipient", "to", actorID, "activity", activity.ID, "inbox", inbox)
+			q.Log.Info("Skipping recipient", "to", actorID, "activity", activity.ID, "inbox", inbox)
 			return true
 		}
 
 		if _, ok := sent[inbox]; ok {
-			log.Info("Skipping recipient with shared inbox", "to", actorID, "activity", activity.ID, "inbox", inbox)
+			q.Log.Info("Skipping recipient with shared inbox", "to", actorID, "activity", activity.ID, "inbox", inbox)
 			return true
 		}
 
 		sent[inbox] = struct{}{}
 
-		log.Info("Delivering activity to recipient", "to", actorID, "inbox", inbox, "activity", activity.ID)
+		q.Log.Info("Delivering activity to recipient", "to", actorID, "inbox", inbox, "activity", activity.ID)
 
-		if err := resolver.Send(ctx, log, db, actor, inbox, rawActivity); err != nil {
-			log.Warn("Failed to send an activity", "to", actorID, "activity", activity.ID, "error", err)
+		if err := q.Resolver.Send(ctx, q.Log, q.DB, actor, inbox, rawActivity); err != nil {
+			q.Log.Warn("Failed to send an activity", "to", actorID, "activity", activity.ID, "error", err)
 			if !errors.Is(err, ErrBlockedDomain) {
 				anyFailed = true
 			}

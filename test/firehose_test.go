@@ -174,7 +174,15 @@ func TestFirehose_PublicPostShared(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -215,7 +223,15 @@ func TestFirehose_PublicPostSharedNotFollowing(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
