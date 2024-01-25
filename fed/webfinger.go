@@ -28,9 +28,8 @@ import (
 )
 
 type webFingerHandler struct {
-	Log    *slog.Logger
-	DB     *sql.DB
-	Domain string
+	*Listener
+	Log *slog.Logger
 }
 
 func (h *webFingerHandler) Handle(w http.ResponseWriter, r *http.Request) {

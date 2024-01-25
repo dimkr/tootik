@@ -27,9 +27,8 @@ import (
 )
 
 type iconHandler struct {
-	Log    *slog.Logger
-	DB     *sql.DB
-	Domain string
+	*Listener
+	Log *slog.Logger
 }
 
 func (h *iconHandler) Handle(w http.ResponseWriter, r *http.Request) {

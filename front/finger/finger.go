@@ -35,9 +35,17 @@ import (
 	"log/slog"
 )
 
-func handle(ctx context.Context, domain string, cfg *cfg.Config, conn net.Conn, db *sql.DB, log *slog.Logger, wg *sync.WaitGroup) {
-	if err := conn.SetDeadline(time.Now().Add(cfg.GuppyRequestTimeout)); err != nil {
-		log.Warn("Failed to set deadline", "error", err)
+type Listener struct {
+	Domain string
+	Config *cfg.Config
+	Log    *slog.Logger
+	DB     *sql.DB
+	Addr   string
+}
+
+func (fl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGroup) {
+	if err := conn.SetDeadline(time.Now().Add(fl.Config.GuppyRequestTimeout)); err != nil {
+		fl.Log.Warn("Failed to set deadline", "error", err)
 		return
 	}
 
@@ -46,17 +54,17 @@ func handle(ctx context.Context, domain string, cfg *cfg.Config, conn net.Conn, 
 	for {
 		n, err := conn.Read(req[total:])
 		if err != nil {
-			log.Warn("Failed to receive request", "error", err)
+			fl.Log.Warn("Failed to receive request", "error", err)
 			return
 		}
 		if n <= 0 {
-			log.Warn("Failed to receive request")
+			fl.Log.Warn("Failed to receive request")
 			return
 		}
 		total += n
 
 		if total == cap(req) {
-			log.Warn("Request is too big")
+			fl.Log.Warn("Request is too big")
 			return
 		}
 
@@ -66,7 +74,7 @@ func handle(ctx context.Context, domain string, cfg *cfg.Config, conn net.Conn, 
 	}
 
 	user := string(req[:total-2])
-	log = log.With(slog.String("user", user))
+	log := fl.Log.With(slog.String("user", user))
 
 	if user == "" {
 		log.Warn("Invalid username specified")
@@ -74,7 +82,7 @@ func handle(ctx context.Context, domain string, cfg *cfg.Config, conn net.Conn, 
 	}
 
 	sep := strings.IndexByte(user, '@')
-	if sep > 0 && user[sep+1:] != domain {
+	if sep > 0 && user[sep+1:] != fl.Domain {
 		log.Warn("Invalid domain specified")
 		return
 	} else if sep > 0 {
@@ -82,7 +90,7 @@ func handle(ctx context.Context, domain string, cfg *cfg.Config, conn net.Conn, 
 	}
 
 	var actorString string
-	if err := db.QueryRowContext(ctx, `select actor from persons where actor->>'preferredUsername' = ? and host = ?`, user, domain).Scan(&actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := fl.DB.QueryRowContext(ctx, `select actor from persons where actor->>'preferredUsername' = ? and host = ?`, user, fl.Domain).Scan(&actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
 		log.Info("User does not exist")
 		fmt.Fprintf(conn, "Login: %s\r\nPlan:\r\nNo Plan.\r\n", user)
 		return
@@ -100,7 +108,7 @@ func handle(ctx context.Context, domain string, cfg *cfg.Config, conn net.Conn, 
 
 	posts := data.OrderedMap[string, int64]{}
 
-	rows, err := db.QueryContext(ctx, `select object->>'content', inserted from notes where public = 1 and author = ? order by inserted desc limit 5`, actor.ID)
+	rows, err := fl.DB.QueryContext(ctx, `select object->>'content', inserted from notes where public = 1 and author = ? order by inserted desc limit 5`, actor.ID)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		log.Warn("Failed to query posts", "error", err)
 		return
@@ -181,8 +189,8 @@ func handle(ctx context.Context, domain string, cfg *cfg.Config, conn net.Conn, 
 }
 
 // ListenAndServe handles Finger queries.
-func ListenAndServe(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, addr string) error {
-	l, err := net.Listen("tcp", addr)
+func (fl *Listener) ListenAndServe(ctx context.Context) error {
+	l, err := net.Listen("tcp", fl.Addr)
 	if err != nil {
 		return err
 	}
@@ -203,7 +211,7 @@ func ListenAndServe(ctx context.Context, domain string, cfg *cfg.Config, log *sl
 		for ctx.Err() == nil {
 			conn, err := l.Accept()
 			if err != nil {
-				log.Warn("Failed to accept a connection", "error", err)
+				fl.Log.Warn("Failed to accept a connection", "error", err)
 				continue
 			}
 
@@ -216,13 +224,13 @@ func ListenAndServe(ctx context.Context, domain string, cfg *cfg.Config, log *sl
 		select {
 		case <-ctx.Done():
 		case conn := <-conns:
-			requestCtx, cancelRequest := context.WithTimeout(ctx, cfg.GuppyRequestTimeout)
+			requestCtx, cancelRequest := context.WithTimeout(ctx, fl.Config.GuppyRequestTimeout)
 
-			timer := time.AfterFunc(cfg.GuppyRequestTimeout, cancelRequest)
+			timer := time.AfterFunc(fl.Config.GuppyRequestTimeout, cancelRequest)
 
 			wg.Add(1)
 			go func() {
-				handle(requestCtx, domain, cfg, conn, db, log, &wg)
+				fl.handle(requestCtx, conn, &wg)
 				conn.Close()
 				timer.Stop()
 				cancelRequest()

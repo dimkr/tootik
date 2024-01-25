@@ -18,11 +18,9 @@ package fed
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
 	"io"
 	"log/slog"
 	"net/http"
@@ -30,12 +28,8 @@ import (
 )
 
 type inboxHandler struct {
-	Log      *slog.Logger
-	DB       *sql.DB
-	Resolver *Resolver
-	Actor    *ap.Actor
-	Domain   string
-	Config   *cfg.Config
+	*Listener
+	Log *slog.Logger
 }
 
 func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {

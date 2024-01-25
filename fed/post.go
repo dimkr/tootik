@@ -27,9 +27,8 @@ import (
 )
 
 type postHandler struct {
-	Log    *slog.Logger
-	DB     *sql.DB
-	Domain string
+	*Listener
+	Log *slog.Logger
 }
 
 func (h *postHandler) Handle(w http.ResponseWriter, r *http.Request) {

@@ -34,6 +34,20 @@ import (
 	"time"
 )
 
+type Listener struct {
+	Domain   string
+	LogLevel slog.Level
+	Config   *cfg.Config
+	DB       *sql.DB
+	Resolver *Resolver
+	Actor    *ap.Actor
+	Log      *slog.Logger
+	Addr     string
+	Cert     string
+	Key      string
+	Plain    bool
+}
+
 const certReloadDelay = time.Second * 5
 
 func robots(w http.ResponseWriter, r *http.Request) {
@@ -43,48 +57,48 @@ func robots(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListenAndServe handles HTTP requests from other servers.
-func ListenAndServe(ctx context.Context, domain string, logLevel slog.Level, cfg *cfg.Config, db *sql.DB, resolver *Resolver, actor *ap.Actor, log *slog.Logger, addr, cert, key string, plain bool) error {
+func (l *Listener) ListenAndServe(ctx context.Context) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/robots.txt", robots)
 	mux.HandleFunc("/.well-known/webfinger", func(w http.ResponseWriter, r *http.Request) {
-		handler := webFingerHandler{log.With("query", r.URL.RawQuery), db, domain}
+		handler := webFingerHandler{Listener: l, Log: l.Log.With("query", r.URL.RawQuery)}
 		handler.Handle(w, r)
 	})
 	mux.HandleFunc("/user/", func(w http.ResponseWriter, r *http.Request) {
-		handler := userHandler{log.With(slog.String("path", r.URL.Path)), db, domain}
+		handler := userHandler{Listener: l, Log: l.Log.With(slog.String("path", r.URL.Path))}
 		handler.Handle(w, r)
 	})
 	mux.HandleFunc("/icon/", func(w http.ResponseWriter, r *http.Request) {
-		handler := iconHandler{log.With(slog.String("path", r.URL.Path)), db, domain}
+		handler := iconHandler{Listener: l, Log: l.Log.With(slog.String("path", r.URL.Path))}
 		handler.Handle(w, r)
 	})
 	mux.HandleFunc("/inbox/", func(w http.ResponseWriter, r *http.Request) {
-		handler := inboxHandler{log.With(slog.String("path", r.URL.Path)), db, resolver, actor, domain, cfg}
+		handler := inboxHandler{Listener: l, Log: l.Log.With(slog.String("path", r.URL.Path))}
 		handler.Handle(w, r)
 	})
 	mux.HandleFunc("/outbox/", func(w http.ResponseWriter, r *http.Request) {
-		handler := outboxHandler{log.With(slog.String("path", r.URL.Path)), db, domain}
+		handler := outboxHandler{Listener: l, Log: l.Log.With(slog.String("path", r.URL.Path))}
 		handler.Handle(w, r)
 	})
 	mux.HandleFunc("/post/", func(w http.ResponseWriter, r *http.Request) {
-		handler := postHandler{log.With(slog.String("path", r.URL.Path)), db, domain}
+		handler := postHandler{Listener: l, Log: l.Log.With(slog.String("path", r.URL.Path))}
 		handler.Handle(w, r)
 	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
-			w.Header().Set("Location", fmt.Sprintf("gemini://%s", domain))
+			w.Header().Set("Location", fmt.Sprintf("gemini://%s", l.Domain))
 			w.WriteHeader(http.StatusMovedPermanently)
 		} else {
-			log.Debug("Received request to non-existing path", "path", r.URL.Path)
+			l.Log.Debug("Received request to non-existing path", "path", r.URL.Path)
 			w.WriteHeader(http.StatusNotFound)
 		}
 	})
 
-	if err := addNodeInfo(mux, domain); err != nil {
+	if err := addNodeInfo(mux, l.Domain); err != nil {
 		return err
 	}
 
-	addHostMeta(mux, domain)
+	addHostMeta(mux, l.Domain)
 
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -92,13 +106,13 @@ func ListenAndServe(ctx context.Context, domain string, logLevel slog.Level, cfg
 	}
 	defer w.Close()
 
-	certDir := filepath.Dir(cert)
-	certAbsPath := filepath.Join(certDir, filepath.Base(cert))
+	certDir := filepath.Dir(l.Cert)
+	certAbsPath := filepath.Join(certDir, filepath.Base(l.Cert))
 
-	keyDir := filepath.Dir(key)
-	keyAbsPath := filepath.Join(keyDir, filepath.Base(key))
+	keyDir := filepath.Dir(l.Key)
+	keyAbsPath := filepath.Join(keyDir, filepath.Base(l.Key))
 
-	if !plain {
+	if !l.Plain {
 		if err := w.Add(certDir); err != nil {
 			return err
 		}
@@ -115,9 +129,9 @@ func ListenAndServe(ctx context.Context, domain string, logLevel slog.Level, cfg
 		serverCtx, stopServer := context.WithCancel(ctx)
 
 		server := http.Server{
-			Addr:     addr,
+			Addr:     l.Addr,
 			Handler:  mux,
-			ErrorLog: slog.NewLogLogger(log.Handler(), logLevel),
+			ErrorLog: slog.NewLogLogger(l.Log.Handler(), l.LogLevel),
 			BaseContext: func(net.Listener) context.Context {
 				return serverCtx
 			},
@@ -153,7 +167,7 @@ func ListenAndServe(ctx context.Context, domain string, logLevel slog.Level, cfg
 					}
 
 					if (event.Has(fsnotify.Write) || event.Has(fsnotify.Create)) && (event.Name == certAbsPath || event.Name == keyAbsPath) {
-						log.Info("Stopping server: file has changed", "name", event.Name)
+						l.Log.Info("Stopping server: file has changed", "name", event.Name)
 						timer.Reset(certReloadDelay)
 					}
 
@@ -166,12 +180,12 @@ func ListenAndServe(ctx context.Context, domain string, logLevel slog.Level, cfg
 			}
 		}()
 
-		log.Info("Starting server")
+		l.Log.Info("Starting server")
 		var err error
-		if plain {
+		if l.Plain {
 			err = server.ListenAndServe()
 		} else {
-			err = server.ListenAndServeTLS(cert, key)
+			err = server.ListenAndServeTLS(l.Cert, l.Key)
 		}
 
 		stopServer()

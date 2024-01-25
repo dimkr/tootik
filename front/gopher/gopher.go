@@ -31,9 +31,19 @@ import (
 	"time"
 )
 
-func handle(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, conn net.Conn, handler front.Handler, db *sql.DB, resolver *fed.Resolver, wg *sync.WaitGroup) {
-	if err := conn.SetDeadline(time.Now().Add(cfg.GopherRequestTimeout)); err != nil {
-		log.Warn("Failed to set deadline", "error", err)
+type Listener struct {
+	Domain   string
+	Config   *cfg.Config
+	Log      *slog.Logger
+	Handler  front.Handler
+	DB       *sql.DB
+	Resolver *fed.Resolver
+	Addr     string
+}
+
+func (gl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGroup) {
+	if err := conn.SetDeadline(time.Now().Add(gl.Config.GopherRequestTimeout)); err != nil {
+		gl.Log.Warn("Failed to set deadline", "error", err)
 		return
 	}
 
@@ -42,17 +52,17 @@ func handle(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 	for {
 		n, err := conn.Read(req[total:])
 		if err != nil {
-			log.Warn("Failed to receive request", "error", err)
+			gl.Log.Warn("Failed to receive request", "error", err)
 			return
 		}
 		if n <= 0 {
-			log.Warn("Failed to receive request")
+			gl.Log.Warn("Failed to receive request")
 			return
 		}
 		total += n
 
 		if total == cap(req) {
-			log.Warn("Request is too big")
+			gl.Log.Warn("Request is too big")
 			return
 		}
 
@@ -68,18 +78,18 @@ func handle(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 
 	reqUrl, err := url.Parse(path)
 	if err != nil {
-		log.Warn("Failed to parse request", "path", path, "error", err)
+		gl.Log.Warn("Failed to parse request", "path", path, "error", err)
 		return
 	}
 
-	w := gmap.Wrap(conn, domain, cfg)
+	w := gmap.Wrap(conn, gl.Domain, gl.Config)
 
-	handler.Handle(ctx, log.With(slog.Group("request", "path", reqUrl.Path)), w, reqUrl, nil, db, resolver, wg)
+	gl.Handler.Handle(ctx, gl.Log.With(slog.Group("request", "path", reqUrl.Path)), w, reqUrl, nil, gl.DB, gl.Resolver, wg)
 }
 
 // ListenAndServe handles Gopher requests.
-func ListenAndServe(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, handler front.Handler, db *sql.DB, resolver *fed.Resolver, addr string) error {
-	l, err := net.Listen("tcp", addr)
+func (gl *Listener) ListenAndServe(ctx context.Context) error {
+	l, err := net.Listen("tcp", gl.Addr)
 	if err != nil {
 		return err
 	}
@@ -100,7 +110,7 @@ func ListenAndServe(ctx context.Context, domain string, cfg *cfg.Config, log *sl
 		for ctx.Err() == nil {
 			conn, err := l.Accept()
 			if err != nil {
-				log.Warn("Failed to accept a connection", "error", err)
+				gl.Log.Warn("Failed to accept a connection", "error", err)
 				continue
 			}
 
@@ -113,13 +123,13 @@ func ListenAndServe(ctx context.Context, domain string, cfg *cfg.Config, log *sl
 		select {
 		case <-ctx.Done():
 		case conn := <-conns:
-			requestCtx, cancelRequest := context.WithTimeout(ctx, cfg.GopherRequestTimeout)
+			requestCtx, cancelRequest := context.WithTimeout(ctx, gl.Config.GopherRequestTimeout)
 
-			timer := time.AfterFunc(cfg.GopherRequestTimeout, cancelRequest)
+			timer := time.AfterFunc(gl.Config.GopherRequestTimeout, cancelRequest)
 
 			wg.Add(1)
 			go func() {
-				handle(requestCtx, domain, cfg, log, conn, handler, db, resolver, &wg)
+				gl.handle(requestCtx, conn, &wg)
 				conn.Write([]byte(".\r\n"))
 				conn.Close()
 				timer.Stop()

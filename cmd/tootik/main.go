@@ -166,52 +166,91 @@ func main() {
 		panic(err)
 	}
 
-	wg.Add(1)
-	go func() {
-		if err := fed.ListenAndServe(ctx, *domain, slog.Level(*logLevel), &cfg, db, resolver, nobody, log, *addr, *cert, *key, *plain); err != nil {
-			log.Error("HTTPS listener has failed", "error", err)
-		}
-		cancel()
-		wg.Done()
-	}()
-
 	handler := front.NewHandler(*domain, *closed, &cfg)
 
-	wg.Add(1)
-	go func() {
-		if err := gemini.ListenAndServe(ctx, *domain, &cfg, log, db, handler, resolver, *gemAddr, *gemCert, *gemKey); err != nil {
-			log.Error("Gemini listener has failed", "error", err)
+	for _, svc := range []struct {
+		Name     string
+		Listener interface {
+			ListenAndServe(context.Context) error
 		}
-		cancel()
-		wg.Done()
-	}()
+	}{
+		{
+			"HTTPS",
+			&fed.Listener{
+				Domain:   *domain,
+				LogLevel: slog.Level(*logLevel),
+				Config:   &cfg,
+				DB:       db,
+				Resolver: resolver,
+				Actor:    nobody,
+				Log:      log,
+				Addr:     *addr,
+				Cert:     *cert,
+				Key:      *key,
+				Plain:    *plain,
+			},
+		},
+		{
+			"Gemini",
+			&gemini.Listener{
+				Domain:   *domain,
+				Config:   &cfg,
+				Log:      log,
+				DB:       db,
+				Handler:  handler,
+				Resolver: resolver,
+				Addr:     *gemAddr,
+				CertPath: *gemCert,
+				KeyPath:  *gemKey,
+			},
+		},
+		{
+			"Gopher",
+			&gopher.Listener{
+				Domain:   *domain,
+				Config:   &cfg,
+				Log:      log,
+				Handler:  handler,
+				DB:       db,
+				Resolver: resolver,
+				Addr:     *gopherAddr,
+			},
+		},
+		{
+			"Finger",
+			&finger.Listener{
+				Domain: *domain,
+				Config: &cfg,
+				Log:    log,
+				DB:     db,
+				Addr:   *fingerAddr,
+			},
+		},
+		{
+			"Guppy",
+			&guppy.Listener{
+				Domain:   *domain,
+				Config:   &cfg,
+				Log:      log,
+				DB:       db,
+				Handler:  handler,
+				Resolver: resolver,
+				Addr:     *guppyAddr,
+			},
+		},
+	} {
+		l := svc.Listener
+		name := svc.Name
+		wg.Add(1)
+		go func() {
+			if err := l.ListenAndServe(ctx); err != nil {
+				log.Error("Listener has failed", "name", name, "error", err)
+			}
+			cancel()
+			wg.Done()
+		}()
 
-	wg.Add(1)
-	go func() {
-		if err := gopher.ListenAndServe(ctx, *domain, &cfg, log, handler, db, resolver, *gopherAddr); err != nil {
-			log.Error("Gopher listener has failed", "error", err)
-		}
-		cancel()
-		wg.Done()
-	}()
-
-	wg.Add(1)
-	go func() {
-		if err := finger.ListenAndServe(ctx, *domain, &cfg, log, db, *fingerAddr); err != nil {
-			log.Error("Finger listener has failed", "error", err)
-		}
-		cancel()
-		wg.Done()
-	}()
-
-	wg.Add(1)
-	go func() {
-		if err := guppy.ListenAndServe(ctx, *domain, &cfg, log, db, handler, resolver, *guppyAddr); err != nil {
-			log.Error("Guppy listener has failed", "error", err)
-		}
-		cancel()
-		wg.Done()
-	}()
+	}
 
 	wg.Add(1)
 	go func() {

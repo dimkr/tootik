@@ -31,9 +31,8 @@ import (
 const activitiesPerPage = 30
 
 type outboxHandler struct {
-	Log    *slog.Logger
-	DB     *sql.DB
-	Domain string
+	*Listener
+	Log *slog.Logger
 }
 
 func (h *outboxHandler) getCollection(w http.ResponseWriter, r *http.Request, username, actorID string) {

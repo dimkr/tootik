@@ -37,7 +37,19 @@ import (
 	"time"
 )
 
-func getUser(ctx context.Context, domain string, db *sql.DB, conn net.Conn, tlsConn *tls.Conn, log *slog.Logger) (*ap.Actor, error) {
+type Listener struct {
+	Domain   string
+	Config   *cfg.Config
+	Log      *slog.Logger
+	DB       *sql.DB
+	Handler  front.Handler
+	Resolver *fed.Resolver
+	Addr     string
+	CertPath string
+	KeyPath  string
+}
+
+func (gl *Listener) getUser(ctx context.Context, conn net.Conn, tlsConn *tls.Conn) (*ap.Actor, error) {
 	state := tlsConn.ConnectionState()
 
 	if len(state.PeerCertificates) == 0 {
@@ -50,13 +62,13 @@ func getUser(ctx context.Context, domain string, db *sql.DB, conn net.Conn, tlsC
 
 	id := ""
 	actorString := ""
-	if err := db.QueryRowContext(ctx, `select id, actor from persons where host = ? and certhash = ?`, domain, certHash).Scan(&id, &actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := gl.DB.QueryRowContext(ctx, `select id, actor from persons where host = ? and certhash = ?`, gl.Domain, certHash).Scan(&id, &actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
 		return nil, front.ErrNotRegistered
 	} else if err != nil {
 		return nil, fmt.Errorf("failed to fetch user for %s: %w", certHash, err)
 	}
 
-	log.Debug("Found existing user", "hash", certHash, "user", id)
+	gl.Log.Debug("Found existing user", "hash", certHash, "user", id)
 
 	actor := ap.Actor{}
 	if err := json.Unmarshal([]byte(actorString), &actor); err != nil {
@@ -67,20 +79,20 @@ func getUser(ctx context.Context, domain string, db *sql.DB, conn net.Conn, tlsC
 }
 
 // Handle handles a Gemini request.
-func Handle(ctx context.Context, domain string, cfg *cfg.Config, handler front.Handler, conn net.Conn, db *sql.DB, resolver *fed.Resolver, wg *sync.WaitGroup, log *slog.Logger) {
-	if err := conn.SetDeadline(time.Now().Add(cfg.GeminiRequestTimeout)); err != nil {
-		log.Warn("Failed to set deadline", "error", err)
+func (gl *Listener) Handle(ctx context.Context, conn net.Conn, wg *sync.WaitGroup) {
+	if err := conn.SetDeadline(time.Now().Add(gl.Config.GeminiRequestTimeout)); err != nil {
+		gl.Log.Warn("Failed to set deadline", "error", err)
 		return
 	}
 
 	tlsConn, ok := conn.(*tls.Conn)
 	if !ok {
-		log.Warn("Invalid connection")
+		gl.Log.Warn("Invalid connection")
 		return
 	}
 
 	if err := tlsConn.HandshakeContext(ctx); err != nil {
-		log.Warn("Handshake failed", "error", err)
+		gl.Log.Warn("Handshake failed", "error", err)
 		return
 	}
 
@@ -89,17 +101,17 @@ func Handle(ctx context.Context, domain string, cfg *cfg.Config, handler front.H
 	for {
 		n, err := conn.Read(req[total:])
 		if err != nil {
-			log.Warn("Failed to receive request", "error", err)
+			gl.Log.Warn("Failed to receive request", "error", err)
 			return
 		}
 		if n <= 0 {
-			log.Warn("Failed to receive request")
+			gl.Log.Warn("Failed to receive request")
 			return
 		}
 		total += n
 
 		if total == cap(req) {
-			log.Warn("Request is too big")
+			gl.Log.Warn("Request is too big")
 			return
 		}
 
@@ -110,29 +122,29 @@ func Handle(ctx context.Context, domain string, cfg *cfg.Config, handler front.H
 
 	reqUrl, err := url.Parse(string(req[:total-2]))
 	if err != nil {
-		log.Warn("Failed to parse request", "request", string(req[:total-2]), "error", err)
+		gl.Log.Warn("Failed to parse request", "request", string(req[:total-2]), "error", err)
 		return
 	}
 
 	w := gmi.Wrap(conn)
 
-	user, err := getUser(ctx, domain, db, conn, tlsConn, log)
+	user, err := gl.getUser(ctx, conn, tlsConn)
 	if err != nil && errors.Is(err, front.ErrNotRegistered) && reqUrl.Path == "/users" {
-		log.Info("Redirecting new user")
+		gl.Log.Info("Redirecting new user")
 		w.Redirect("/users/register")
 		return
 	} else if err != nil && !errors.Is(err, front.ErrNotRegistered) {
-		log.Warn("Failed to get user", "error", err)
+		gl.Log.Warn("Failed to get user", "error", err)
 		w.Error()
 		return
 	}
 
-	handler.Handle(ctx, log, w, reqUrl, user, db, resolver, wg)
+	gl.Handler.Handle(ctx, gl.Log, w, reqUrl, user, gl.DB, gl.Resolver, wg)
 }
 
 // ListenAndServe handles Gemini requests.
-func ListenAndServe(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, handler front.Handler, resolver *fed.Resolver, addr, certPath, keyPath string) error {
-	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+func (gl *Listener) ListenAndServe(ctx context.Context) error {
+	cert, err := tls.LoadX509KeyPair(gl.CertPath, gl.KeyPath)
 	if err != nil {
 		return err
 	}
@@ -142,7 +154,7 @@ func ListenAndServe(ctx context.Context, domain string, cfg *cfg.Config, log *sl
 		MinVersion:   tls.VersionTLS12,
 		ClientAuth:   tls.RequestClientCert,
 	}
-	l, err := tls.Listen("tcp", addr, &config)
+	l, err := tls.Listen("tcp", gl.Addr, &config)
 	if err != nil {
 		return err
 	}
@@ -163,7 +175,7 @@ func ListenAndServe(ctx context.Context, domain string, cfg *cfg.Config, log *sl
 		for ctx.Err() == nil {
 			conn, err := l.Accept()
 			if err != nil {
-				log.Warn("Failed to accept a connection", "error", err)
+				gl.Log.Warn("Failed to accept a connection", "error", err)
 				continue
 			}
 
@@ -176,13 +188,13 @@ func ListenAndServe(ctx context.Context, domain string, cfg *cfg.Config, log *sl
 		select {
 		case <-ctx.Done():
 		case conn := <-conns:
-			requestCtx, cancelRequest := context.WithTimeout(ctx, cfg.GeminiRequestTimeout)
+			requestCtx, cancelRequest := context.WithTimeout(ctx, gl.Config.GeminiRequestTimeout)
 
-			timer := time.AfterFunc(cfg.GeminiRequestTimeout, cancelRequest)
+			timer := time.AfterFunc(gl.Config.GeminiRequestTimeout, cancelRequest)
 
 			wg.Add(1)
 			go func() {
-				Handle(requestCtx, domain, cfg, handler, conn, db, resolver, &wg, log)
+				gl.Handle(requestCtx, conn, &wg)
 				conn.Close()
 				timer.Stop()
 				cancelRequest()

@@ -27,9 +27,8 @@ import (
 )
 
 type userHandler struct {
-	Log    *slog.Logger
-	DB     *sql.DB
-	Domain string
+	*Listener
+	Log *slog.Logger
 }
 
 func (h *userHandler) Handle(w http.ResponseWriter, r *http.Request) {

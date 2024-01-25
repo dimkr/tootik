@@ -37,6 +37,16 @@ import (
 	"time"
 )
 
+type Listener struct {
+	Domain   string
+	Config   *cfg.Config
+	Log      *slog.Logger
+	DB       *sql.DB
+	Handler  front.Handler
+	Resolver *fed.Resolver
+	Addr     string
+}
+
 type incomingPacket struct {
 	Data []byte
 	From net.Addr
@@ -54,19 +64,19 @@ const (
 	retryInterval  = time.Millisecond * 100
 )
 
-func handle(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, handler front.Handler, resolver *fed.Resolver, wg *sync.WaitGroup, from net.Addr, req []byte, acks <-chan []byte, done chan<- string, s net.PacketConn) {
+func (gl *Listener) handle(ctx context.Context, wg *sync.WaitGroup, from net.Addr, req []byte, acks <-chan []byte, done chan<- string, s net.PacketConn) {
 	defer func() {
 		done <- from.String()
 	}()
 
 	if req[len(req)-1] == '\r' && req[len(req)] == '\n' {
-		log.Warn("Invalid request")
+		gl.Log.Warn("Invalid request")
 		return
 	}
 
 	reqUrl, err := url.Parse(string(req[:len(req)-2]))
 	if err != nil {
-		log.Warn("Invalid request", "request", string(req[:len(req)-2]), "error", err)
+		gl.Log.Warn("Invalid request", "request", string(req[:len(req)-2]), "error", err)
 		return
 	}
 
@@ -75,27 +85,27 @@ func handle(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 	var buf bytes.Buffer
 	w := guppy.Wrap(&buf, seq)
 
-	if reqUrl.Host != domain {
+	if reqUrl.Host != gl.Domain {
 		w.Status(4, "Wrong host")
 	} else {
-		log.Info("Handling request", "path", reqUrl.Path, "url", reqUrl.String(), "from", from)
-		handler.Handle(ctx, log, w, reqUrl, nil, db, resolver, wg)
+		gl.Log.Info("Handling request", "path", reqUrl.Path, "url", reqUrl.String(), "from", from)
+		gl.Handler.Handle(ctx, gl.Log, w, reqUrl, nil, gl.DB, gl.Resolver, wg)
 	}
 
 	if ctx.Err() != nil {
-		log.Warn("Failed to handle request in time", "path", reqUrl.Path, "from", from)
+		gl.Log.Warn("Failed to handle request in time", "path", reqUrl.Path, "from", from)
 		return
 	}
 
-	chunk := make([]byte, cfg.GuppyResponseChunkSize)
+	chunk := make([]byte, gl.Config.GuppyResponseChunkSize)
 
 	n, err := buf.Read(chunk)
 	if err != nil {
-		log.Error("Failed to read first respone chunk", "error", err)
+		gl.Log.Error("Failed to read first respone chunk", "error", err)
 		return
 	}
 
-	chunks := make([]responseChunk, 1, buf.Len()/cfg.GuppyResponseChunkSize+2)
+	chunks := make([]responseChunk, 1, buf.Len()/gl.Config.GuppyResponseChunkSize+2)
 	chunks[0].Seq = seq
 	chunks[0].Data = chunk[:n]
 
@@ -115,7 +125,7 @@ func handle(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 			chunks = append(chunks, responseChunk{Data: []byte(statusLine), Seq: seq})
 			break
 		} else if err != nil {
-			log.Error("Failed to read respone chunk", "error", err)
+			gl.Log.Error("Failed to read respone chunk", "error", err)
 			return
 		}
 		chunks = append(chunks, responseChunk{Data: append([]byte(statusLine), chunk[:n]...), Seq: seq})
@@ -124,7 +134,7 @@ func handle(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 	retry := time.NewTicker(retryInterval)
 	defer retry.Stop()
 
-	log.Debug("Sending response", "path", reqUrl.Path, "from", from, "first", chunks[0].Seq, "last", chunks[len(chunks)-1].Seq, "chunks", len(chunks))
+	gl.Log.Debug("Sending response", "path", reqUrl.Path, "from", from, "first", chunks[0].Seq, "last", chunks[len(chunks)-1].Seq, "chunks", len(chunks))
 
 	firstTime := true
 
@@ -132,38 +142,38 @@ func handle(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 		if !firstTime {
 			select {
 			case <-ctx.Done():
-				log.Warn("Session timed out", "path", reqUrl.Path, "from", from)
+				gl.Log.Warn("Session timed out", "path", reqUrl.Path, "from", from)
 				return
 
 			case ack, ok := <-acks:
 				if !ok {
-					log.Warn("Session timed out", "path", reqUrl.Path, "from", from)
+					gl.Log.Warn("Session timed out", "path", reqUrl.Path, "from", from)
 					return
 				}
 
 				var ackedSeq int
 				n, err := fmt.Sscanf(string(ack), "%d\r\n", &ackedSeq)
 				if err != nil {
-					log.Debug("Received invalid ack", "path", reqUrl.Path, "from", from, "ack", string(ack), "error", err)
+					gl.Log.Debug("Received invalid ack", "path", reqUrl.Path, "from", from, "ack", string(ack), "error", err)
 					continue
 				}
 				if n < 1 {
-					log.Debug("Received invalid ack", "path", reqUrl.Path, "from", from, "ack", string(ack))
+					gl.Log.Debug("Received invalid ack", "path", reqUrl.Path, "from", from, "ack", string(ack))
 					continue
 				}
 
 				i := ackedSeq - chunks[0].Seq
 				if i < 0 || i >= len(chunks) {
-					log.Debug("Received invalid ack", "path", reqUrl.Path, "from", from, "ack", string(ack))
+					gl.Log.Debug("Received invalid ack", "path", reqUrl.Path, "from", from, "ack", string(ack))
 					continue
 				}
 
 				if chunks[i].Acked {
-					log.Debug("Received duplicate ack", "path", reqUrl.Path, "from", from, "acked", ackedSeq)
+					gl.Log.Debug("Received duplicate ack", "path", reqUrl.Path, "from", from, "acked", ackedSeq)
 					continue
 				}
 
-				log.Debug("Marking packet as received", "path", reqUrl.Path, "from", from, "acked", ackedSeq)
+				gl.Log.Debug("Marking packet as received", "path", reqUrl.Path, "from", from, "acked", ackedSeq)
 				chunks[i].Acked = true
 
 				// stop if the acked packet is the EOF packet
@@ -178,16 +188,16 @@ func handle(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 		now := time.Now()
 		sent := 0
 		for i := range chunks {
-			if chunks[i].Acked || now.Sub(chunks[i].Sent) <= cfg.GuppyChunkTimeout {
+			if chunks[i].Acked || now.Sub(chunks[i].Sent) <= gl.Config.GuppyChunkTimeout {
 				continue
 			}
-			if sent == cfg.MaxSentGuppyChunks {
+			if sent == gl.Config.MaxSentGuppyChunks {
 				break
 			}
 			if chunks[i].Sent == (time.Time{}) {
-				log.Debug("Sending packet", "path", reqUrl.Path, "from", from, "seq", chunks[i].Seq)
+				gl.Log.Debug("Sending packet", "path", reqUrl.Path, "from", from, "seq", chunks[i].Seq)
 			} else {
-				log.Debug("Resending packet", "path", reqUrl.Path, "from", from, "seq", chunks[i].Seq)
+				gl.Log.Debug("Resending packet", "path", reqUrl.Path, "from", from, "seq", chunks[i].Seq)
 			}
 			s.WriteTo(chunks[i].Data, from)
 			chunks[i].Sent = now
@@ -199,8 +209,8 @@ func handle(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 }
 
 // ListenAndServe handles Guppy requests.
-func ListenAndServe(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, handler front.Handler, resolver *fed.Resolver, addr string) error {
-	l, err := net.ListenPacket("udp", addr)
+func (gl *Listener) ListenAndServe(ctx context.Context) error {
+	l, err := net.ListenPacket("udp", gl.Addr)
 	if err != nil {
 		return err
 	}
@@ -218,7 +228,7 @@ func ListenAndServe(ctx context.Context, domain string, cfg *cfg.Config, log *sl
 		for {
 			n, from, err := l.ReadFrom(buf)
 			if err != nil {
-				log.Error("Failed to receive a packet", "error", err)
+				gl.Log.Error("Failed to receive a packet", "error", err)
 				return
 			}
 			incoming <- incomingPacket{buf[:n], from}
@@ -255,25 +265,25 @@ loop:
 			k := pkt.From.String()
 
 			if acks, ok := sessions[k]; ok {
-				if len(acks) < cfg.MaxSentGuppyChunks {
+				if len(acks) < gl.Config.MaxSentGuppyChunks {
 					acks <- pkt.Data
 				}
 				continue
 			}
-			if len(sessions) > cfg.MaxGuppySessions {
-				log.Warn("Too many sessions")
+			if len(sessions) > gl.Config.MaxGuppySessions {
+				gl.Log.Warn("Too many sessions")
 				l.WriteTo([]byte("4 Too many sessions\r\n"), pkt.From)
 				continue
 			}
 
-			acks := make(chan []byte, cfg.MaxSentGuppyChunks)
+			acks := make(chan []byte, gl.Config.MaxSentGuppyChunks)
 			sessions[k] = acks
 
-			requestCtx, cancelRequest := context.WithTimeout(ctx, cfg.GuppyRequestTimeout)
+			requestCtx, cancelRequest := context.WithTimeout(ctx, gl.Config.GuppyRequestTimeout)
 
 			wg.Add(1)
 			go func() {
-				handle(requestCtx, domain, cfg, log, db, handler, resolver, &wg, pkt.From, pkt.Data, acks, done, l)
+				gl.handle(requestCtx, &wg, pkt.From, pkt.Data, acks, done, l)
 				cancelRequest()
 				wg.Done()
 			}()
