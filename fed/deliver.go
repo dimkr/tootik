@@ -53,8 +53,6 @@ func (q *Queue) Process(ctx context.Context) error {
 			}
 		}
 	}
-
-	return nil
 }
 
 func (q *Queue) process(ctx context.Context) error {
