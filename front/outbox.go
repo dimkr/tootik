@@ -220,6 +220,18 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		w.Title(displayName)
 	}
 
+	if actor.Icon.URL != "" {
+		w.Link(actor.Icon.URL, "Avatar")
+	}
+
+	if actor.Image.URL != "" {
+		w.Link(actor.Image.URL, "Header")
+	}
+
+	if actor.Icon.URL != "" || actor.Image.URL != "" {
+		w.Empty()
+	}
+
 	if len(summary) > 0 {
 		for _, line := range summary {
 			w.Quote(line)
@@ -232,6 +244,9 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 			}
 			return true
 		})
+	}
+
+	if actor.Icon.URL != "" || actor.Image.URL != "" || len(summary) > 0 {
 		w.Separator()
 	}
 
