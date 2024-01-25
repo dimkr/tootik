@@ -82,7 +82,7 @@ func TestShare_UnshareThrottling(t *testing.T) {
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), share)
 
 	unshare := server.Handle("/users/unshare/"+id, server.Bob)
-	assert.Equal("40 Please wait before unsharing\r\n", unshare)
+	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), unshare)
 }
 
 func TestShare_PostToFollowers(t *testing.T) {

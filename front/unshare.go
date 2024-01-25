@@ -51,16 +51,6 @@ func (h *Handler) unshare(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	if throttle, err := h.shouldThrottleShare(r); err != nil {
-		r.Log.Warn("Failed to check if unshare needs to be throttled", "error", err)
-		w.Error()
-		return
-	} else if throttle {
-		r.Log.Warn("User is sharing and unsharing too frequently")
-		w.Status(40, "Please wait before unsharing")
-		return
-	}
-
 	if err := outbox.Undo(r.Context, r.Handler.Domain, r.DB, &share); err != nil {
 		r.Log.Warn("Failed to unshare post", "post", postID, "error", err)
 		w.Error()
