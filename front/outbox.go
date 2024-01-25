@@ -228,11 +228,11 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		w.Link(actor.Image.URL, "Header")
 	}
 
-	if actor.Icon.URL != "" || actor.Image.URL != "" {
-		w.Empty()
-	}
-
 	if len(summary) > 0 {
+		if actor.Icon.URL != "" || actor.Image.URL != "" {
+			w.Empty()
+		}
+
 		for _, line := range summary {
 			w.Quote(line)
 		}
