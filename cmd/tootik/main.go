@@ -249,23 +249,47 @@ func main() {
 			cancel()
 			wg.Done()
 		}()
-
 	}
 
-	wg.Add(1)
-	go func() {
-		fed.ProcessQueue(ctx, *domain, &cfg, log, db, resolver)
-		wg.Done()
-	}()
-
-	wg.Add(1)
-	go func() {
-		if err := inbox.ProcessQueue(ctx, *domain, &cfg, log, db, resolver, nobody); err != nil {
-			log.Error("Failed to process activities", "error", err)
+	for _, queue := range []struct {
+		Name  string
+		Queue interface {
+			Process(context.Context) error
 		}
-		cancel()
-		wg.Done()
-	}()
+	}{
+		{
+			"incoming",
+			&inbox.Queue{
+				Domain:   *domain,
+				Config:   &cfg,
+				Log:      log,
+				DB:       db,
+				Resolver: resolver,
+				Actor:    nobody,
+			},
+		},
+		{
+			"outgoing",
+			&fed.Queue{
+				Domain:   *domain,
+				Config:   &cfg,
+				Log:      log,
+				DB:       db,
+				Resolver: resolver,
+			},
+		},
+	} {
+		q := queue.Queue
+		name := queue.Name
+		wg.Add(1)
+		go func() {
+			if err := q.Process(ctx); err != nil {
+				log.Error("Failed to process queue", "name", name, "error", err)
+			}
+			cancel()
+			wg.Done()
+		}()
+	}
 
 	wg.Add(1)
 	go func() {
