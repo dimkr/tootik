@@ -20,7 +20,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"strings"
@@ -37,16 +36,13 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 	to := ap.Audience{}
 	to.Add(followed)
 
-	body, err := json.Marshal(ap.Activity{
+	follow := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      followID,
 		Type:    ap.FollowActivity,
 		Actor:   follower.ID,
 		Object:  followed,
 		To:      to,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to marshal follow: %w", err)
 	}
 
 	isLocal := strings.HasPrefix(followed, fmt.Sprintf("https://%s/", domain))
@@ -72,7 +68,7 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 		if _, err := tx.ExecContext(
 			ctx,
 			`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
-			string(body),
+			&follow,
 			follower.ID,
 		); err != nil {
 			return fmt.Errorf("failed to insert follow activity: %w", err)

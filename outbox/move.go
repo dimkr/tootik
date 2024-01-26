@@ -19,7 +19,6 @@ package outbox
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/fed"
@@ -69,15 +68,10 @@ func Move(ctx context.Context, domain string, log *slog.Logger, db *sql.DB, reso
 	defer rows.Close()
 
 	for rows.Next() {
-		var actorString, oldID, newID, oldFollowID string
-		if err := rows.Scan(&actorString, &oldID, &newID, &oldFollowID); err != nil {
-			log.Error("Failed to scan follow to move", "error", err)
-			continue
-		}
-
 		var actor ap.Actor
-		if err := json.Unmarshal([]byte(actorString), &actor); err != nil {
-			log.Error("Failed to unmarshal follower actor", "follow", oldFollowID, "old", oldID, "new", newID, "error", err)
+		var oldID, newID, oldFollowID string
+		if err := rows.Scan(&actor, &oldID, &newID, &oldFollowID); err != nil {
+			log.Error("Failed to scan follow to move", "error", err)
 			continue
 		}
 

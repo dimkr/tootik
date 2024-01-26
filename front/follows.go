@@ -18,7 +18,6 @@ package front
 
 import (
 	"database/sql"
-	"encoding/json"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 	"strings"
@@ -110,14 +109,8 @@ func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 
 	for rows.Next() {
 		var row followedUserActivity
-		var actorString string
-		if err := rows.Scan(&actorString, &row.Last, &row.Count); err != nil {
+		if err := rows.Scan(&row.Actor, &row.Last, &row.Count); err != nil {
 			r.Log.Warn("Failed to list a followed user", "error", err)
-			continue
-		}
-
-		if err := json.Unmarshal([]byte(actorString), &row.Actor); err != nil {
-			r.Log.Warn("Failed to unmarshal a followed user", "error", err)
 			continue
 		}
 

@@ -207,14 +207,9 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return fmt.Errorf("received an invalid follow request for %s by %s", followed, req.Actor)
 		}
 
-		followedString := ""
-		if err := q.DB.QueryRowContext(ctx, `select actor from persons where id = ?`, followed).Scan(&followedString); err != nil {
+		var from ap.Actor
+		if err := q.DB.QueryRowContext(ctx, `select actor from persons where id = ?`, followed).Scan(&from); err != nil {
 			return fmt.Errorf("failed to fetch %s: %w", followed, err)
-		}
-
-		from := ap.Actor{}
-		if err := json.Unmarshal([]byte(followedString), &from); err != nil {
-			return fmt.Errorf("failed to unmarshal %s: %w", followed, err)
 		}
 
 		log.Info("Approving follow request", "follower", req.Actor, "followed", followed)
@@ -365,21 +360,16 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return fmt.Errorf("%s cannot update posts by %s", sender.ID, post.AttributedTo)
 		}
 
-		var oldPostString string
+		var oldPost ap.Object
 		var lastUpdate int64
-		if err := q.DB.QueryRowContext(ctx, `select max(inserted, updated), object from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastUpdate, &oldPostString); err != nil && errors.Is(err, sql.ErrNoRows) {
+		if err := q.DB.QueryRowContext(ctx, `select max(inserted, updated), object from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastUpdate, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
 			log.Debug("Received Update for non-existing post")
 			return q.processCreateActivity(ctx, log, sender, req, rawActivity, post)
 		} else if err != nil {
 			return fmt.Errorf("failed to get last update time for %s: %w", post.ID, err)
 		}
 
-		var oldPost ap.Object
-		if err := json.Unmarshal([]byte(oldPostString), &oldPost); err != nil {
-			return fmt.Errorf("failed to unmarshal old note: %w", err)
-		}
-
-		var body []byte
+		body := post
 		var err error
 		if (post.Type == ap.QuestionObject && post.Updated != nil && lastUpdate >= post.Updated.Unix()) || (post.Type != ap.QuestionObject && (post.Updated == nil || lastUpdate >= post.Updated.Unix())) {
 			log.Debug("Received old update request for new post")
@@ -394,9 +384,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			oldPost.EndTime = post.EndTime
 			oldPost.Closed = post.Closed
 
-			body, err = json.Marshal(oldPost)
-		} else {
-			body, err = json.Marshal(post)
+			body = &oldPost
 		}
 
 		if err != nil {
@@ -412,7 +400,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		if _, err := tx.ExecContext(
 			ctx,
 			`update notes set object = ?, updated = unixepoch() where id = ?`,
-			string(body),
+			body,
 			post.ID,
 		); err != nil {
 			return fmt.Errorf("failed to update post %s: %w", post.ID, err)
@@ -484,7 +472,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	}
 	defer rows.Close()
 
-	activities := data.OrderedMap[string, string]{}
+	activities := data.OrderedMap[string, *ap.Actor]{}
 	var maxID int64
 	var rowsCount int
 
@@ -493,20 +481,20 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 		var id int64
 		var activityString string
-		var senderString sql.NullString
-		if err := rows.Scan(&id, &senderString, &activityString); err != nil {
+		var sender ap.NullActor
+		if err := rows.Scan(&id, &sender, &activityString); err != nil {
 			q.Log.Error("Failed to scan activity", "error", err)
 			continue
 		}
 
 		maxID = id
 
-		if !senderString.Valid {
+		if !sender.Valid {
 			q.Log.Warn("Sender is unknown", "id", id)
 			continue
 		}
 
-		activities.Store(activityString, senderString.String)
+		activities.Store(activityString, &sender.Actor)
 	}
 	rows.Close()
 
@@ -514,20 +502,14 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		return 0, nil
 	}
 
-	activities.Range(func(activityString, senderString string) bool {
+	activities.Range(func(activityString string, sender *ap.Actor) bool {
 		var activity ap.Activity
 		if err := json.Unmarshal([]byte(activityString), &activity); err != nil {
 			q.Log.Error("Failed to unmarshal activity", "raw", activityString, "error", err)
 			return true
 		}
 
-		var sender ap.Actor
-		if err := json.Unmarshal([]byte(senderString), &sender); err != nil {
-			q.Log.Error("Failed to unmarshal actor", "raw", senderString, "error", err)
-			return true
-		}
-
-		q.processActivityWithTimeout(ctx, &sender, &activity, []byte(activityString))
+		q.processActivityWithTimeout(ctx, sender, &activity, []byte(activityString))
 		return true
 	})
 

@@ -171,16 +171,12 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	var cachedActor *ap.Actor
 	update := false
 
-	var actorString string
 	var updated int64
 	var fetched sql.NullInt64
 	var sinceLastUpdate time.Duration
-	if err := db.QueryRowContext(ctx, `select actor, updated, fetched from (select actor, updated, fetched, 0 as score from persons where id = $1 union select actor, updated, fetched, 1 as score from persons where actor->>'preferredUsername' = $2 and host = $3 order by score limit 1)`, to, name, u.Host).Scan(&actorString, &updated, &fetched); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := db.QueryRowContext(ctx, `select actor, updated, fetched from (select actor, updated, fetched, 0 as score from persons where id = $1 union select actor, updated, fetched, 1 as score from persons where actor->>'preferredUsername' = $2 and host = $3 order by score limit 1)`, to, name, u.Host).Scan(&tmp, &updated, &fetched); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, fmt.Errorf("failed to fetch %s cache: %w", to, err)
 	} else if err == nil {
-		if err := json.Unmarshal([]byte(actorString), &tmp); err != nil {
-			return nil, nil, fmt.Errorf("failed to unmarshal %s cache: %w", to, err)
-		}
 		cachedActor = &tmp
 
 		sinceLastUpdate = time.Since(time.Unix(updated, 0))
@@ -274,12 +270,9 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 		to = profile
 		cachedActor = nil
 
-		if err := db.QueryRowContext(ctx, `select actor, updated, fetched from persons where id = ?`, to).Scan(&actorString, &updated, &fetched); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		if err := db.QueryRowContext(ctx, `select actor, updated, fetched from persons where id = ?`, to).Scan(&tmp, &updated, &fetched); err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return nil, nil, fmt.Errorf("failed to fetch %s cache: %w", to, err)
 		} else if err == nil {
-			if err := json.Unmarshal([]byte(actorString), &tmp); err != nil {
-				return nil, nil, fmt.Errorf("failed to unmarshal %s cache: %w", to, err)
-			}
 			cachedActor = &tmp
 
 			if !isLocal && time.Since(time.Unix(updated, 0)) > r.Config.ResolverCacheTTL && (!fetched.Valid || time.Since(time.Unix(fetched.Int64, 0)) >= r.Config.ResolverRetryInterval) {

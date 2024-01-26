@@ -18,7 +18,6 @@ package front
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
@@ -30,20 +29,13 @@ import (
 func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 	actorID := "https://" + args[1]
 
-	var actorString string
-	if err := r.QueryRow(`select actor from persons where id = ?`, actorID).Scan(&actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
+	var actor ap.Actor
+	if err := r.QueryRow(`select actor from persons where id = ?`, actorID).Scan(&actor); err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Info("Person was not found", "actor", actorID)
 		w.Status(40, "User not found")
 		return
 	} else if err != nil {
 		r.Log.Warn("Failed to find person by ID", "actor", actorID, "error", err)
-		w.Error()
-		return
-	}
-
-	actor := ap.Actor{}
-	if err := json.Unmarshal([]byte(actorString), &actor); err != nil {
-		r.Log.Warn("Failed to unmarshal actor", "actor", actorID, "error", err)
 		w.Error()
 		return
 	}
@@ -191,14 +183,13 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 	notes := data.OrderedMap[string, noteMetadata]{}
 
 	for rows.Next() {
-		noteString := ""
 		var meta noteMetadata
-		if err := rows.Scan(&noteString, &meta.Author, &meta.Sharer); err != nil {
+		if err := rows.Scan(&meta.Note, &meta.Author, &meta.Sharer); err != nil {
 			r.Log.Warn("Failed to scan post", "error", err)
 			continue
 		}
 
-		notes.Store(noteString, meta)
+		notes.Store(meta.Note.ID, meta)
 	}
 	rows.Close()
 

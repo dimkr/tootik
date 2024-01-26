@@ -17,8 +17,10 @@ limitations under the License.
 package ap
 
 import (
+	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"fmt"
 )
 
 type ActivityType string
@@ -91,4 +93,17 @@ func (a *Activity) UnmarshalJSON(b []byte) error {
 	}
 
 	return nil
+}
+
+func (a *Activity) Scan(src any) error {
+	s, ok := src.(string)
+	if !ok {
+		return fmt.Errorf("unsupported conversion from %T to %T", src, a)
+	}
+	return json.Unmarshal([]byte(s), a)
+}
+
+func (a *Activity) Value() (driver.Value, error) {
+	buf, err := json.Marshal(a)
+	return string(buf), err
 }

@@ -23,7 +23,6 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"database/sql"
-	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
@@ -99,16 +98,11 @@ func Create(ctx context.Context, domain string, db *sql.DB, name, certHash strin
 		Published:                 ap.Time{Time: time.Now()},
 	}
 
-	body, err := json.Marshal(actor)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal %s: %w", id, err)
-	}
-
 	if _, err = db.ExecContext(
 		ctx,
 		`INSERT INTO persons (id, actor, privkey, certhash) VALUES(?,?,?,?)`,
 		id,
-		string(body),
+		&actor,
 		string(priv),
 		certHash,
 	); err != nil {

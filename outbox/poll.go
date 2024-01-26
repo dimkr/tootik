@@ -19,7 +19,6 @@ package outbox
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"log/slog"
@@ -53,15 +52,9 @@ func UpdatePollResults(ctx context.Context, domain string, log *slog.Logger, db 
 			continue
 		}
 
-		var pollString string
-		if err := db.QueryRowContext(ctx, "select object from notes where id = ?", pollID).Scan(&pollString); err != nil {
-			log.Warn("Failed to fetch poll", "poll", pollID, "error", err)
-			continue
-		}
-
 		var obj ap.Object
-		if err := json.Unmarshal([]byte(pollString), &obj); err != nil {
-			log.Warn("Failed to unmarshal poll", "poll", pollID, "error", err)
+		if err := db.QueryRowContext(ctx, "select object from notes where id = ?", pollID).Scan(&obj); err != nil {
+			log.Warn("Failed to fetch poll", "poll", pollID, "error", err)
 			continue
 		}
 

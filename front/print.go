@@ -18,7 +18,6 @@ package front
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
@@ -33,8 +32,9 @@ import (
 )
 
 type noteMetadata struct {
-	Author sql.NullString
-	Sharer sql.NullString
+	Note   ap.Object
+	Author ap.NullActor
+	Sharer ap.NullActor
 }
 
 var verifiedRegex = regexp.MustCompile(`(\s*:[a-zA-Z0-9_]+:\s*)+`)
@@ -226,15 +226,12 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 		title += " ┃ edited"
 	}
 
-	var parentAuthor ap.Actor
+	var parentAuthor ap.NullActor
 	if note.InReplyTo != "" {
-		var parentAuthorString string
-		if err := r.QueryRow(`select persons.actor from notes join persons on persons.id = notes.author where notes.id = ?`, note.InReplyTo).Scan(&parentAuthorString); err != nil && errors.Is(err, sql.ErrNoRows) {
+		if err := r.QueryRow(`select persons.actor from notes join persons on persons.id = notes.author where notes.id = ?`, note.InReplyTo).Scan(&parentAuthor); err != nil && errors.Is(err, sql.ErrNoRows) {
 			r.Log.Info("Parent post or author is missing", "id", note.InReplyTo)
 		} else if err != nil {
 			r.Log.Warn("Failed to query parent post author", "id", note.InReplyTo, "error", err)
-		} else if err := json.Unmarshal([]byte(parentAuthorString), &parentAuthor); err != nil {
-			r.Log.Warn("Failed to unmarshal parent post author", "id", note.InReplyTo, "error", err)
 		}
 	}
 
@@ -252,11 +249,11 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 			meta += fmt.Sprintf(" %d#️", len(hashtags))
 		}
 
-		if len(mentionedUsers.OrderedMap) == 1 && (parentAuthor.ID == "" || !mentionedUsers.Contains(parentAuthor.ID)) {
+		if len(mentionedUsers.OrderedMap) == 1 && (!parentAuthor.Valid || !mentionedUsers.Contains(parentAuthor.ID)) {
 			meta += " 1👤"
-		} else if len(mentionedUsers.OrderedMap) > 1 && (parentAuthor.ID == "" || !mentionedUsers.Contains(parentAuthor.ID)) {
+		} else if len(mentionedUsers.OrderedMap) > 1 && (!parentAuthor.Valid || !mentionedUsers.Contains(parentAuthor.ID)) {
 			meta += fmt.Sprintf(" %d👤", len(mentionedUsers.OrderedMap))
-		} else if len(mentionedUsers.OrderedMap) > 1 && parentAuthor.ID != "" && mentionedUsers.Contains(parentAuthor.ID) {
+		} else if len(mentionedUsers.OrderedMap) > 1 && parentAuthor.Valid && mentionedUsers.Contains(parentAuthor.ID) {
 			meta += fmt.Sprintf(" %d👤", len(mentionedUsers.OrderedMap)-1)
 		}
 
@@ -269,9 +266,9 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 		}
 	}
 
-	if printParentAuthor && parentAuthor.PreferredUsername != "" {
+	if printParentAuthor && parentAuthor.Valid && parentAuthor.PreferredUsername != "" {
 		title += fmt.Sprintf(" ┃ RE: %s", parentAuthor.PreferredUsername)
-	} else if printParentAuthor && note.InReplyTo != "" && parentAuthor.PreferredUsername == "" {
+	} else if printParentAuthor && note.InReplyTo != "" && parentAuthor.Valid && parentAuthor.PreferredUsername == "" {
 		title += " ┃ RE: ?"
 	}
 
@@ -450,38 +447,18 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, noteMetadata], printParentAuthor, printDaySeparators bool) {
 	var lastDay int64
 	first := true
-	rows.Range(func(noteString string, meta noteMetadata) bool {
-		note := ap.Object{}
-		if err := json.Unmarshal([]byte(noteString), &note); err != nil {
-			r.Log.Warn("Failed to unmarshal post", "error", err)
-			return true
-		}
-
-		if note.Type != ap.NoteObject && note.Type != ap.PageObject && note.Type != ap.ArticleObject && note.Type != ap.QuestionObject {
-			r.Log.Warn("Post type is unsupported", "type", note.Type)
+	rows.Range(func(_ string, meta noteMetadata) bool {
+		if meta.Note.Type != ap.NoteObject && meta.Note.Type != ap.PageObject && meta.Note.Type != ap.ArticleObject && meta.Note.Type != ap.QuestionObject {
+			r.Log.Warn("Post type is unsupported", "type", meta.Note.Type)
 			return true
 		}
 
 		if !meta.Author.Valid {
-			r.Log.Warn("Post author is unknown", "note", note.ID, "author", note.AttributedTo)
+			r.Log.Warn("Post author is unknown", "note", meta.Note.ID, "author", meta.Note.AttributedTo)
 			return true
 		}
 
-		author := ap.Actor{}
-		if err := json.Unmarshal([]byte(meta.Author.String), &author); err != nil {
-			r.Log.Warn("Failed to unmarshal post author", "error", err)
-			return true
-		}
-
-		sharer := ap.Actor{}
-		if meta.Sharer.Valid {
-			if err := json.Unmarshal([]byte(meta.Sharer.String), &sharer); err != nil {
-				r.Log.Warn("Failed to unmarshal post sharer", "error", err)
-				return true
-			}
-		}
-
-		currentDay := note.Published.Unix() / (60 * 60 * 24)
+		currentDay := meta.Note.Published.Unix() / (60 * 60 * 24)
 
 		if !first && printDaySeparators && currentDay != lastDay {
 			w.Separator()
@@ -490,9 +467,9 @@ func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, noteMet
 		}
 
 		if meta.Sharer.Valid {
-			r.PrintNote(w, &note, &author, &sharer, true, true, printParentAuthor, true)
+			r.PrintNote(w, &meta.Note, &meta.Author.Actor, &meta.Sharer.Actor, true, true, printParentAuthor, true)
 		} else {
-			r.PrintNote(w, &note, &author, nil, true, true, printParentAuthor, true)
+			r.PrintNote(w, &meta.Note, &meta.Author.Actor, nil, true, true, printParentAuthor, true)
 		}
 
 		lastDay = currentDay

@@ -65,11 +65,12 @@ func (q *Queue) process(ctx context.Context) error {
 	defer rows.Close()
 
 	for rows.Next() {
-		var activityString, actorString string
+		var activityString string
+		var actor ap.Actor
 		var inserted int64
-		var recipientsString sql.NullString
+		var recipients ap.Audience
 		var deliveryAttempts int
-		if err := rows.Scan(&deliveryAttempts, &activityString, &inserted, &recipientsString, &actorString); err != nil {
+		if err := rows.Scan(&deliveryAttempts, &activityString, &inserted, &recipients, &actor); err != nil {
 			q.Log.Error("Failed to fetch post to deliver", "error", err)
 			continue
 		}
@@ -80,22 +81,8 @@ func (q *Queue) process(ctx context.Context) error {
 			continue
 		}
 
-		var recipients ap.Audience
-		if recipientsString.Valid {
-			if err := json.Unmarshal([]byte(recipientsString.String), &recipients); err != nil {
-				q.Log.Error("Failed to unmarshal past recipients", "attempts", deliveryAttempts, "error", err)
-				continue
-			}
-		}
-
 		if _, err := q.DB.ExecContext(ctx, `update outbox set last = unixepoch(), attempts = ? where activity->>'id' = ?`, deliveryAttempts+1, activity.ID); err != nil {
 			q.Log.Error("Failed to save last delivery attempt time", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
-			continue
-		}
-
-		var actor ap.Actor
-		if err := json.Unmarshal([]byte(actorString), &actor); err != nil {
-			q.Log.Error("Failed to unmarshal undelivered activity actor", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
 
@@ -104,13 +91,7 @@ func (q *Queue) process(ctx context.Context) error {
 			continue
 		}
 
-		buf, err := json.Marshal(recipients)
-		if err != nil {
-			q.Log.Error("Failed to marshal recipients list", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
-			continue
-		}
-
-		if _, err := q.DB.ExecContext(ctx, `update outbox set sent = 1, received = ? where activity->>'id' = ?`, string(buf), activity.ID); err != nil {
+		if _, err := q.DB.ExecContext(ctx, `update outbox set sent = 1, received = ? where activity->>'id' = ?`, &recipients, activity.ID); err != nil {
 			q.Log.Error("Failed to mark delivery as completed", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}

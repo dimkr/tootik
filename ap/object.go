@@ -16,6 +16,12 @@ limitations under the License.
 
 package ap
 
+import (
+	"database/sql/driver"
+	"encoding/json"
+	"fmt"
+)
+
 type ObjectType string
 
 const (
@@ -54,4 +60,17 @@ type Object struct {
 
 func (o *Object) IsPublic() bool {
 	return o.To.Contains(Public) || o.CC.Contains(Public)
+}
+
+func (o *Object) Scan(src any) error {
+	s, ok := src.(string)
+	if !ok {
+		return fmt.Errorf("unsupported conversion from %T to %T", src, o)
+	}
+	return json.Unmarshal([]byte(s), o)
+}
+
+func (o *Object) Value() (driver.Value, error) {
+	buf, err := json.Marshal(o)
+	return string(buf), err
 }

@@ -149,15 +149,9 @@ func (h *outboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	activities := make([]ap.Activity, 0, activitiesPerPage)
 
 	for rows.Next() {
-		var activityString string
-		if err := rows.Scan(&activityString); err != nil {
-			h.Log.Warn("Failed to scan activity", "error", err)
-			continue
-		}
-
 		var activity ap.Activity
-		if err := json.Unmarshal([]byte(activityString), &activity); err != nil {
-			h.Log.Warn("Failed to unmarshal activity", "error", err)
+		if err := rows.Scan(&activity); err != nil {
+			h.Log.Warn("Failed to scan activity", "error", err)
 			continue
 		}
 

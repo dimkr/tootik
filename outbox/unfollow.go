@@ -20,7 +20,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
@@ -38,7 +37,7 @@ func Unfollow(ctx context.Context, domain string, log *slog.Logger, db *sql.DB, 
 	to := ap.Audience{}
 	to.Add(followed)
 
-	body, err := json.Marshal(ap.Activity{
+	unfollow := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      undoID,
 		Type:    ap.UndoActivity,
@@ -50,9 +49,6 @@ func Unfollow(ctx context.Context, domain string, log *slog.Logger, db *sql.DB, 
 			Object: followed,
 		},
 		To: to,
-	})
-	if err != nil {
-		return fmt.Errorf("%s cannot unfollow %s: %w", follower.ID, followed, err)
 	}
 
 	tx, err := db.BeginTx(ctx, nil)
@@ -73,7 +69,7 @@ func Unfollow(ctx context.Context, domain string, log *slog.Logger, db *sql.DB, 
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
-		string(body),
+		&unfollow,
 		follower.ID,
 	); err != nil {
 		return fmt.Errorf("failed to insert undo for %s: %w", followID, err)

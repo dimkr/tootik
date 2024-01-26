@@ -49,19 +49,12 @@ func (h *postHandler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	h.Log.Info("Fetching post", "post", postID)
 
-	var noteString string
-	if err := h.DB.QueryRowContext(r.Context(), `select object from notes where id = ? and public = 1`, postID).Scan(&noteString); err != nil && errors.Is(err, sql.ErrNoRows) {
+	var note ap.Object
+	if err := h.DB.QueryRowContext(r.Context(), `select object from notes where id = ? and public = 1`, postID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
 		h.Log.Warn("Failed to fetch post", "post", postID, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	var note ap.Object
-	if err := json.Unmarshal([]byte(noteString), &note); err != nil {
-		h.Log.Warn("Failed to unmarshal post", "post", postID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
