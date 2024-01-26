@@ -85,7 +85,15 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -155,7 +163,15 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -237,7 +253,15 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -303,7 +327,15 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -369,7 +401,15 @@ func TestForward_ReplyToDM(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -424,7 +464,15 @@ func TestForward_NotFollowingAuthor(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -490,7 +538,15 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -545,7 +601,15 @@ func TestForward_ReplyToFederatedPost(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -659,7 +723,15 @@ func TestForward_MaxDepth(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -789,7 +861,15 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 

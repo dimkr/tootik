@@ -324,7 +324,15 @@ func TestView_Update(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -342,7 +350,7 @@ func TestView_Update(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err = inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	n, err = queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -374,7 +382,15 @@ func TestView_OldUpdate(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -392,7 +408,7 @@ func TestView_OldUpdate(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err = inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	n, err = queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -531,7 +547,15 @@ func TestView_PostInGroupPublicAndGroupFollowed(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -574,7 +598,15 @@ func TestView_PostInGroupNotPublicAndGroupFollowed(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -617,7 +649,15 @@ func TestView_PostInGroupNotPublicAndGroupFollowedButNotAccepted(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -657,7 +697,15 @@ func TestView_PostInGroupNotPublicAndAuthorFollowed(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -700,7 +748,15 @@ func TestView_PostInGroupNotPublicAndAuthorFollowedButNotAccepted(t *testing.T) 
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -756,7 +812,15 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithReply(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(2, n)
 
@@ -816,7 +880,15 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithPrivateReply(t *testing.T)
 	)
 	assert.NoError(err)
 
-	n, err := inbox.ProcessBatch(context.Background(), domain, server.cfg, slog.Default(), server.db, fed.NewResolver(nil, domain, server.cfg), server.Nobody)
+	queue := inbox.Queue{
+		Domain:   domain,
+		Config:   server.cfg,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(2, n)
 

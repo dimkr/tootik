@@ -18,7 +18,6 @@ package front
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
@@ -27,20 +26,13 @@ import (
 func (h *Handler) dm(w text.Writer, r *request, args ...string) {
 	actorID := "https://" + args[1]
 
-	var actorString string
-	if err := r.QueryRow(`select actor from persons where id = ?`, actorID).Scan(&actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
+	var actor ap.Actor
+	if err := r.QueryRow(`select actor from persons where id = ?`, actorID).Scan(&actor); err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("User does not exist", "actor", actorID)
 		w.Status(40, "User does not exist")
 		return
 	} else if err != nil {
 		r.Log.Warn("Failed to find user by actorID", "actor", actorID, "error", err)
-		w.Error()
-		return
-	}
-
-	actor := ap.Object{}
-	if err := json.Unmarshal([]byte(actorString), &actor); err != nil {
-		r.Log.Warn("Failed to unmarshal actor", "actor", actorID, "error", err)
 		w.Error()
 		return
 	}

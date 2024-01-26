@@ -20,7 +20,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"time"
@@ -37,7 +36,7 @@ func Announce(ctx context.Context, domain string, db *sql.DB, actor *ap.Actor, n
 	to.Add(note.AttributedTo)
 	to.Add(actor.Followers)
 
-	body, err := json.Marshal(ap.Activity{
+	announce := ap.Activity{
 		Context:   "https://www.w3.org/ns/activitystreams",
 		ID:        announceID,
 		Type:      ap.AnnounceActivity,
@@ -46,9 +45,6 @@ func Announce(ctx context.Context, domain string, db *sql.DB, actor *ap.Actor, n
 		To:        to,
 		CC:        cc,
 		Object:    note.ID,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to marshal announce: %w", err)
 	}
 
 	tx, err := db.BeginTx(ctx, nil)
@@ -69,7 +65,7 @@ func Announce(ctx context.Context, domain string, db *sql.DB, actor *ap.Actor, n
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
-		string(body),
+		&announce,
 		actor.ID,
 	); err != nil {
 		return fmt.Errorf("failed to insert announce activity: %w", err)

@@ -68,14 +68,13 @@ func (h *Handler) showFeedPage(w text.Writer, r *request, title string, query fu
 	notes := data.OrderedMap[string, noteMetadata]{}
 
 	for rows.Next() {
-		noteString := ""
 		var meta noteMetadata
-		if err := rows.Scan(&noteString, &meta.Author, &meta.Sharer); err != nil {
+		if err := rows.Scan(&meta.Note, &meta.Author, &meta.Sharer); err != nil {
 			r.Log.Warn("Failed to scan post", "error", err)
 			continue
 		}
 
-		notes.Store(noteString, meta)
+		notes.Store(meta.Note.ID, meta)
 	}
 	rows.Close()
 

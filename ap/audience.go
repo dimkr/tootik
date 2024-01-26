@@ -17,8 +17,9 @@ limitations under the License.
 package ap
 
 import (
+	"database/sql/driver"
 	"encoding/json"
-
+	"fmt"
 	"github.com/dimkr/tootik/data"
 )
 
@@ -65,4 +66,22 @@ func (a Audience) MarshalJSON() ([]byte, error) {
 	}
 
 	return json.Marshal(a.Keys())
+}
+
+func (a *Audience) Scan(src any) error {
+	if src == nil {
+		a.OrderedMap = data.OrderedMap[string, struct{}]{}
+		return nil
+	}
+
+	s, ok := src.(string)
+	if !ok {
+		return fmt.Errorf("unsupported conversion from %T to %T", src, a)
+	}
+	return json.Unmarshal([]byte(s), a)
+}
+
+func (a *Audience) Value() (driver.Value, error) {
+	buf, err := json.Marshal(a)
+	return string(buf), err
 }

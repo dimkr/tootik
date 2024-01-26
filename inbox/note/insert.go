@@ -20,7 +20,6 @@ package note
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -80,11 +79,6 @@ func Flatten(note *ap.Object) string {
 
 // Insert inserts a post.
 func Insert(ctx context.Context, log *slog.Logger, tx *sql.Tx, note *ap.Object) error {
-	body, err := json.Marshal(note)
-	if err != nil {
-		return fmt.Errorf("failed to marshal note %s: %w", note.ID, err)
-	}
-
 	var to, cc [3]sql.NullString
 
 	expand(note.To, &to)
@@ -113,12 +107,12 @@ func Insert(ctx context.Context, log *slog.Logger, tx *sql.Tx, note *ap.Object) 
 		public = 1
 	}
 
-	if _, err = tx.ExecContext(
+	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO notes (id, author, object, public, to0, to1, to2, cc0, cc1, cc2) VALUES(?,?,?,?,?,?,?,?,?,?)`,
 		note.ID,
 		note.AttributedTo,
-		string(body),
+		note,
 		public,
 		to[0],
 		to[1],
@@ -130,7 +124,7 @@ func Insert(ctx context.Context, log *slog.Logger, tx *sql.Tx, note *ap.Object) 
 		return fmt.Errorf("failed to insert note %s: %w", note.ID, err)
 	}
 
-	if _, err = tx.ExecContext(
+	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO notesfts (id, content) VALUES(?,?)`,
 		note.ID,
@@ -140,7 +134,7 @@ func Insert(ctx context.Context, log *slog.Logger, tx *sql.Tx, note *ap.Object) 
 	}
 
 	for _, hashtag := range hashtags {
-		if _, err = tx.ExecContext(ctx, `insert into hashtags (note, hashtag) values(?,?)`, note.ID, hashtag); err != nil {
+		if _, err := tx.ExecContext(ctx, `insert into hashtags (note, hashtag) values(?,?)`, note.ID, hashtag); err != nil {
 			log.Warn("Failed to tag post", "hashtag", hashtag, "error", err)
 		}
 	}

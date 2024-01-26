@@ -18,7 +18,6 @@ package front
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
@@ -52,20 +51,13 @@ func (h *Handler) edit(w text.Writer, r *request, args ...string) {
 
 	postID := "https://" + args[1]
 
-	var noteString string
-	if err := r.QueryRow(`select object from notes where id = ? and author = ?`, postID, r.User.ID).Scan(&noteString); err != nil && errors.Is(err, sql.ErrNoRows) {
+	var note ap.Object
+	if err := r.QueryRow(`select object from notes where id = ? and author = ?`, postID, r.User.ID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Attempted to edit non-existing post", "post", postID, "error", err)
 		w.Error()
 		return
 	} else if err != nil {
 		r.Log.Warn("Failed to fetch post to edit", "post", postID, "error", err)
-		w.Error()
-		return
-	}
-
-	var note ap.Object
-	if err := json.Unmarshal([]byte(noteString), &note); err != nil {
-		r.Log.Warn("Failed to unmarshal post to edit", "post", postID, "error", err)
 		w.Error()
 		return
 	}
@@ -100,17 +92,11 @@ func (h *Handler) edit(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	if err := r.QueryRow(`select object from notes where id = ?`, note.InReplyTo).Scan(&noteString); err != nil && errors.Is(err, sql.ErrNoRows) {
+	var parent ap.Object
+	if err := r.QueryRow(`select object from notes where id = ?`, note.InReplyTo).Scan(&parent); err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Parent post does not exist", "parent", note.InReplyTo)
 	} else if err != nil {
 		r.Log.Warn("Failed to fetch parent post", "parent", note.InReplyTo, "error", err)
-		w.Error()
-		return
-	}
-
-	var parent ap.Object
-	if err := json.Unmarshal([]byte(noteString), &parent); err != nil {
-		r.Log.Warn("Failed to unmarshal parent post", "parent", note.InReplyTo, "error", err)
 		w.Error()
 		return
 	}

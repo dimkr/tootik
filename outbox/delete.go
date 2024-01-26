@@ -19,13 +19,12 @@ package outbox
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 )
 
 func Delete(ctx context.Context, db *sql.DB, note *ap.Object) error {
-	delete, err := json.Marshal(ap.Activity{
+	delete := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      note.ID + "#delete",
 		Type:    ap.DeleteActivity,
@@ -36,9 +35,6 @@ func Delete(ctx context.Context, db *sql.DB, note *ap.Object) error {
 		},
 		To: note.To,
 		CC: note.CC,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to marshal delete: %w", err)
 	}
 
 	tx, err := db.BeginTx(ctx, nil)
@@ -91,7 +87,7 @@ func Delete(ctx context.Context, db *sql.DB, note *ap.Object) error {
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
-		string(delete),
+		&delete,
 		note.AttributedTo,
 	); err != nil {
 		return fmt.Errorf("failed to insert delete activity: %w", err)

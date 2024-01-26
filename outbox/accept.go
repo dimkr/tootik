@@ -20,7 +20,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"time"
@@ -36,7 +35,7 @@ func Accept(ctx context.Context, domain string, followed, follower, followID str
 	}
 	defer tx.Rollback()
 
-	accept, err := json.Marshal(ap.Activity{
+	accept := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		Type:    ap.AcceptActivity,
 		ID:      fmt.Sprintf("https://%s/accept/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", followed, follower, time.Now().UnixNano())))),
@@ -46,15 +45,12 @@ func Accept(ctx context.Context, domain string, followed, follower, followID str
 			Type: ap.FollowActivity,
 			ID:   followID,
 		},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to marshal Accept: %w", err)
 	}
 
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
-		string(accept),
+		&accept,
 		followed,
 	); err != nil {
 		return fmt.Errorf("failed to insert Accept: %w", err)

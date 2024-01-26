@@ -20,7 +20,6 @@ package finger
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -89,8 +88,8 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 		user = user[:sep]
 	}
 
-	var actorString string
-	if err := fl.DB.QueryRowContext(ctx, `select actor from persons where actor->>'preferredUsername' = ? and host = ?`, user, fl.Domain).Scan(&actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
+	var actor ap.Actor
+	if err := fl.DB.QueryRowContext(ctx, `select actor from persons where actor->>'preferredUsername' = ? and host = ?`, user, fl.Domain).Scan(&actor); err != nil && errors.Is(err, sql.ErrNoRows) {
 		log.Info("User does not exist")
 		fmt.Fprintf(conn, "Login: %s\r\nPlan:\r\nNo Plan.\r\n", user)
 		return
@@ -99,11 +98,6 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 		return
 	}
 
-	var actor ap.Actor
-	if err := json.Unmarshal([]byte(actorString), &actor); err != nil {
-		log.Warn("Failed to unmarshal actor", "error", err)
-		return
-	}
 	summary, links := plain.FromHTML(actor.Summary)
 
 	posts := data.OrderedMap[string, int64]{}

@@ -20,7 +20,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	inote "github.com/dimkr/tootik/inbox/note"
@@ -28,14 +27,9 @@ import (
 )
 
 func UpdateNote(ctx context.Context, domain string, db *sql.DB, note *ap.Object) error {
-	body, err := json.Marshal(note)
-	if err != nil {
-		return fmt.Errorf("failed to marshal note: %w", err)
-	}
-
 	updateID := fmt.Sprintf("https://%s/update/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", note.ID, time.Now().UnixNano()))))
 
-	update, err := json.Marshal(ap.Activity{
+	update := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      updateID,
 		Type:    ap.UpdateActivity,
@@ -43,9 +37,6 @@ func UpdateNote(ctx context.Context, domain string, db *sql.DB, note *ap.Object)
 		Object:  note,
 		To:      note.To,
 		CC:      note.CC,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to marshal update: %w", err)
 	}
 
 	tx, err := db.BeginTx(ctx, nil)
@@ -57,7 +48,7 @@ func UpdateNote(ctx context.Context, domain string, db *sql.DB, note *ap.Object)
 	if _, err := tx.ExecContext(
 		ctx,
 		`UPDATE notes SET object = ? WHERE id = ?`,
-		string(body),
+		note,
 		note.ID,
 	); err != nil {
 		return fmt.Errorf("failed to update note: %w", err)
@@ -75,7 +66,7 @@ func UpdateNote(ctx context.Context, domain string, db *sql.DB, note *ap.Object)
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
-		string(update),
+		&update,
 		note.AttributedTo,
 	); err != nil {
 		return fmt.Errorf("failed to insert update activity: %w", err)
@@ -155,22 +146,19 @@ func UpdateActor(ctx context.Context, domain string, tx *sql.Tx, actorID string)
 	to := ap.Audience{}
 	to.Add(ap.Public)
 
-	update, err := json.Marshal(ap.Activity{
+	update := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      updateID,
 		Type:    ap.UpdateActivity,
 		Actor:   actorID,
 		Object:  actorID,
 		To:      to,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to marshal update: %w", err)
 	}
 
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
-		string(update),
+		&update,
 		actorID,
 	); err != nil {
 		return fmt.Errorf("failed to insert update activity: %w", err)

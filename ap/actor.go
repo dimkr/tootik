@@ -16,6 +16,12 @@ limitations under the License.
 
 package ap
 
+import (
+	"database/sql/driver"
+	"encoding/json"
+	"fmt"
+)
+
 type ActorType string
 
 const (
@@ -23,7 +29,7 @@ const (
 	Group  ActorType = "Group"
 )
 
-// Object represents an ActivityPub actor.
+// Actor represents an ActivityPub actor.
 type Actor struct {
 	Context                   any               `json:"@context"`
 	ID                        string            `json:"id"`
@@ -42,4 +48,45 @@ type Actor struct {
 	AlsoKnownAs               Audience          `json:"alsoKnownAs,omitempty"`
 	Published                 Time              `json:"published"`
 	Updated                   *Time             `json:"updated,omitempty"`
+}
+
+func (a *Actor) Scan(src any) error {
+	s, ok := src.(string)
+	if !ok {
+		return fmt.Errorf("unsupported conversion from %T to %T", src, a)
+	}
+	return json.Unmarshal([]byte(s), a)
+}
+
+func (a *Actor) Value() (driver.Value, error) {
+	buf, err := json.Marshal(a)
+	return string(buf), err
+}
+
+type NullActor struct {
+	Valid bool
+	Actor
+}
+
+func (a *NullActor) Scan(src any) error {
+	if src == nil {
+		return nil
+	}
+	s, ok := src.(string)
+	if !ok {
+		return fmt.Errorf("unsupported conversion from %T to %T", src, a)
+	}
+	err := json.Unmarshal([]byte(s), &a.Actor)
+	if err == nil {
+		a.Valid = true
+	}
+	return err
+}
+
+func (a *NullActor) Value() (driver.Value, error) {
+	if !a.Valid {
+		return nil, nil
+	}
+	buf, err := json.Marshal(a.Actor)
+	return string(buf), err
 }

@@ -22,7 +22,6 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
@@ -60,21 +59,15 @@ func (gl *Listener) getUser(ctx context.Context, conn net.Conn, tlsConn *tls.Con
 
 	certHash := fmt.Sprintf("%x", sha256.Sum256(clientCert.Raw))
 
-	id := ""
-	actorString := ""
-	if err := gl.DB.QueryRowContext(ctx, `select id, actor from persons where host = ? and certhash = ?`, gl.Domain, certHash).Scan(&id, &actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
+	var id string
+	var actor ap.Actor
+	if err := gl.DB.QueryRowContext(ctx, `select id, actor from persons where host = ? and certhash = ?`, gl.Domain, certHash).Scan(&id, &actor); err != nil && errors.Is(err, sql.ErrNoRows) {
 		return nil, front.ErrNotRegistered
 	} else if err != nil {
 		return nil, fmt.Errorf("failed to fetch user for %s: %w", certHash, err)
 	}
 
 	gl.Log.Debug("Found existing user", "hash", certHash, "user", id)
-
-	actor := ap.Actor{}
-	if err := json.Unmarshal([]byte(actorString), &actor); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal %s: %w", id, err)
-	}
-
 	return &actor, nil
 }
 

@@ -18,7 +18,6 @@ package front
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
@@ -33,20 +32,13 @@ func (h *Handler) unshare(w text.Writer, r *request, args ...string) {
 
 	postID := "https://" + args[1]
 
-	var shareString string
-	if err := r.QueryRow(`select activity from outbox where activity->>'actor' = $1 and activity->>'type' = 'Announce' and activity->>'object' = $2`, r.User.ID, postID).Scan(&shareString); err != nil && errors.Is(err, sql.ErrNoRows) {
+	var share ap.Activity
+	if err := r.QueryRow(`select activity from outbox where activity->>'actor' = $1 and activity->>'type' = 'Announce' and activity->>'object' = $2`, r.User.ID, postID).Scan(&share); err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Attempted to unshare non-existing share", "post", postID, "error", err)
 		w.Error()
 		return
 	} else if err != nil {
 		r.Log.Warn("Failed to fetch share to unshare", "post", postID, "error", err)
-		w.Error()
-		return
-	}
-
-	var share ap.Activity
-	if err := json.Unmarshal([]byte(shareString), &share); err != nil {
-		r.Log.Warn("Failed to unmarshal share to unshare", "post", postID, "error", err)
 		w.Error()
 		return
 	}

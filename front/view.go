@@ -18,7 +18,6 @@ package front
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
@@ -40,13 +39,14 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 
 	r.Log.Info("Viewing post", "post", postID)
 
-	var noteString, authorString string
-	var groupString sql.NullString
+	var note ap.Object
+	var author ap.Actor
+	var group ap.NullActor
 
 	if r.User == nil {
-		err = r.QueryRow(`select notes.object, persons.actor, groups.actor from notes join persons on persons.id = notes.author left join (select id, actor from persons where actor->>'type' = 'Group') groups on groups.id = notes.object->>'audience' where notes.id = ? and notes.public = 1`, postID).Scan(&noteString, &authorString, &groupString)
+		err = r.QueryRow(`select notes.object, persons.actor, groups.actor from notes join persons on persons.id = notes.author left join (select id, actor from persons where actor->>'type' = 'Group') groups on groups.id = notes.object->>'audience' where notes.id = ? and notes.public = 1`, postID).Scan(&note, &author, &group)
 	} else {
-		err = r.QueryRow(`select notes.object, persons.actor, groups.actor from notes join persons on persons.id = notes.author left join (select id, actor from persons where actor->>'type' = 'Group') groups on groups.id = notes.object->>'audience' where notes.id = $1 and (notes.public = 1 or notes.author = $2 or $2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $2)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $2)) or exists (select 1 from (select persons.id, persons.actor->>'followers' as followers, persons.actor->>'type' as type from persons join follows on follows.followed = persons.id where follows.accepted = 1 and follows.follower = $2) follows where follows.followers in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.followers)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.followers)) or (follows.id = notes.object->>'audience' and follows.type = 'Group')))`, postID, r.User.ID).Scan(&noteString, &authorString, &groupString)
+		err = r.QueryRow(`select notes.object, persons.actor, groups.actor from notes join persons on persons.id = notes.author left join (select id, actor from persons where actor->>'type' = 'Group') groups on groups.id = notes.object->>'audience' where notes.id = $1 and (notes.public = 1 or notes.author = $2 or $2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $2)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $2)) or exists (select 1 from (select persons.id, persons.actor->>'followers' as followers, persons.actor->>'type' as type from persons join follows on follows.followed = persons.id where follows.accepted = 1 and follows.follower = $2) follows where follows.followers in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.followers)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.followers)) or (follows.id = notes.object->>'audience' and follows.type = 'Group')))`, postID, r.User.ID).Scan(&note, &author, &group)
 	}
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Info("Post was not found", "post", postID)
@@ -58,30 +58,7 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	note := ap.Object{}
-	if err := json.Unmarshal([]byte(noteString), &note); err != nil {
-		r.Log.Info("Failed to unmarshal post", "post", postID, "error", err)
-		w.Error()
-		return
-	}
-
 	r.AddLogContext("post", note.ID)
-
-	author := ap.Actor{}
-	if err := json.Unmarshal([]byte(authorString), &author); err != nil {
-		r.Log.Info("Failed to unmarshal post author", "error", err)
-		w.Error()
-		return
-	}
-
-	group := ap.Actor{}
-	if groupString.Valid {
-		if err := json.Unmarshal([]byte(groupString.String), &group); err != nil {
-			r.Log.Info("Failed to unmarshal post group", "error", err)
-			w.Error()
-			return
-		}
-	}
 
 	var rows *sql.Rows
 	if r.User == nil {
@@ -118,14 +95,13 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 	replies := data.OrderedMap[string, noteMetadata]{}
 
 	for rows.Next() {
-		var replyString string
 		var meta noteMetadata
-		if err := rows.Scan(&replyString, &meta.Author); err != nil {
+		if err := rows.Scan(&meta.Note, &meta.Author); err != nil {
 			r.Log.Warn("Failed to scan reply", "error", err)
 			continue
 		}
 
-		replies.Store(replyString, meta)
+		replies.Store(meta.Note.ID, meta)
 	}
 	rows.Close()
 
@@ -146,8 +122,8 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 			w.Titlef("🔔 Post by %s", author.PreferredUsername)
 		}
 
-		if groupString.Valid {
-			r.PrintNote(w, &note, &author, &group, false, false, true, false)
+		if group.Valid {
+			r.PrintNote(w, &note, &author, &group.Actor, false, false, true, false)
 		} else {
 			r.PrintNote(w, &note, &author, nil, false, false, true, false)
 		}

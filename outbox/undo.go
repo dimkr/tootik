@@ -20,7 +20,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
@@ -36,16 +35,13 @@ func Undo(ctx context.Context, domain string, db *sql.DB, activity *ap.Activity)
 	to := ap.Audience{}
 	to.Add(ap.Public)
 
-	body, err := json.Marshal(ap.Activity{
+	undo := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      fmt.Sprintf("https://%s/undo/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", activity.ID, time.Now().UnixNano())))),
 		Type:    ap.UndoActivity,
 		Actor:   activity.Actor,
 		To:      to,
 		Object:  activity,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to marshal undo: %w", err)
 	}
 
 	tx, err := db.BeginTx(ctx, nil)
@@ -66,7 +62,7 @@ func Undo(ctx context.Context, domain string, db *sql.DB, activity *ap.Activity)
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
-		string(body),
+		&undo,
 		activity.Actor,
 	); err != nil {
 		return fmt.Errorf("failed to insert undo activity: %w", err)
