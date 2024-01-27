@@ -802,7 +802,12 @@ func TestPoll_Local3OptionsAnd2Votes(t *testing.T) {
 	assert.NotContains(strings.Split(view, "\n"), "1 ████████ Hell yeah!")
 	assert.NotContains(strings.Split(view, "\n"), "1 ████████ I couldn't care less")
 
-	assert.NoError(outbox.UpdatePollResults(context.Background(), domain, slog.Default(), server.db))
+	poller := outbox.Poller{
+		Domain: domain,
+		Log:    slog.Default(),
+		DB:     server.db,
+	}
+	assert.NoError(poller.Run(context.Background()))
 
 	view = server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
@@ -839,7 +844,12 @@ func TestPoll_Local3OptionsAnd2VotesAndDeletedVote(t *testing.T) {
 	delete := server.Handle("/users/delete/"+reply[15:len(reply)-2], server.Carol)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Carol.ID, "https://")), delete)
 
-	assert.NoError(outbox.UpdatePollResults(context.Background(), domain, slog.Default(), server.db))
+	poller := outbox.Poller{
+		Domain: domain,
+		Log:    slog.Default(),
+		DB:     server.db,
+	}
+	assert.NoError(poller.Run(context.Background()))
 
 	view = server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
@@ -871,7 +881,12 @@ func TestPoll_LocalVoteVisibilityFollowers(t *testing.T) {
 	reply = server.Handle(fmt.Sprintf("/users/reply/%s?I%%20couldn%%27t%%20care%%20less", whisper[15:len(whisper)-2]), server.Carol)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
-	assert.NoError(outbox.UpdatePollResults(context.Background(), domain, slog.Default(), server.db))
+	poller := outbox.Poller{
+		Domain: domain,
+		Log:    slog.Default(),
+		DB:     server.db,
+	}
+	assert.NoError(poller.Run(context.Background()))
 
 	view := server.Handle(whisper[3:len(whisper)-2], server.Alice)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
@@ -922,7 +937,12 @@ func TestPoll_LocalVoteVisibilityPublic(t *testing.T) {
 	reply = server.Handle(fmt.Sprintf("/users/reply/%s?I%%20couldn%%27t%%20care%%20less", say[15:len(say)-2]), server.Carol)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
-	assert.NoError(outbox.UpdatePollResults(context.Background(), domain, slog.Default(), server.db))
+	poller := outbox.Poller{
+		Domain: domain,
+		Log:    slog.Default(),
+		DB:     server.db,
+	}
+	assert.NoError(poller.Run(context.Background()))
 
 	view := server.Handle(say[3:len(say)-2], server.Alice)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")

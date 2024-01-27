@@ -25,12 +25,18 @@ import (
 	"time"
 )
 
+type Poller struct {
+	Domain string
+	Log    *slog.Logger
+	DB     *sql.DB
+}
+
 type pollResult struct {
 	PollID, Option string
 }
 
-func UpdatePollResults(ctx context.Context, domain string, log *slog.Logger, db *sql.DB) error {
-	rows, err := db.QueryContext(ctx, `select poll, option, count(*) from (select polls.id as poll, votes.object->>'name' as option, votes.author as voter from notes polls join notes votes on votes.object->>'inReplyTo' = polls.id where polls.object->>'type' = 'Question' and polls.id like $1 and polls.object->>'closed' is null and votes.object->>'name' is not null group by poll, option, voter) group by poll, option`, fmt.Sprintf("https://%s/%%", domain))
+func (p *Poller) Run(ctx context.Context) error {
+	rows, err := p.DB.QueryContext(ctx, `select poll, option, count(*) from (select polls.id as poll, votes.object->>'name' as option, votes.author as voter from notes polls join notes votes on votes.object->>'inReplyTo' = polls.id where polls.object->>'type' = 'Question' and polls.id like $1 and polls.object->>'closed' is null and votes.object->>'name' is not null group by poll, option, voter) group by poll, option`, fmt.Sprintf("https://%s/%%", p.Domain))
 	if err != nil {
 		return err
 	}
@@ -43,7 +49,7 @@ func UpdatePollResults(ctx context.Context, domain string, log *slog.Logger, db 
 		var pollID, option string
 		var count int64
 		if err := rows.Scan(&pollID, &option, &count); err != nil {
-			log.Warn("Failed to scan poll result", "error", err)
+			p.Log.Warn("Failed to scan poll result", "error", err)
 			continue
 		}
 
@@ -53,8 +59,8 @@ func UpdatePollResults(ctx context.Context, domain string, log *slog.Logger, db 
 		}
 
 		var obj ap.Object
-		if err := db.QueryRowContext(ctx, "select object from notes where id = ?", pollID).Scan(&obj); err != nil {
-			log.Warn("Failed to fetch poll", "poll", pollID, "error", err)
+		if err := p.DB.QueryRowContext(ctx, "select object from notes where id = ?", pollID).Scan(&obj); err != nil {
+			p.Log.Warn("Failed to fetch poll", "poll", pollID, "error", err)
 			continue
 		}
 
@@ -92,10 +98,10 @@ func UpdatePollResults(ctx context.Context, domain string, log *slog.Logger, db 
 			continue
 		}
 
-		log.Info("Updating poll results", "poll", poll.ID)
+		p.Log.Info("Updating poll results", "poll", poll.ID)
 
-		if err := UpdateNote(ctx, domain, db, poll); err != nil {
-			log.Warn("Failed to update poll results", "poll", poll.ID, "error", err)
+		if err := UpdateNote(ctx, p.Domain, p.DB, poll); err != nil {
+			p.Log.Warn("Failed to update poll results", "poll", poll.ID, "error", err)
 		}
 	}
 
