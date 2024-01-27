@@ -427,9 +427,6 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 				w.Linkf(fmt.Sprintf("/users/reply/%s?%s", strings.TrimPrefix(note.ID, "https://"), url.PathEscape(option.Name)), "📮 Vote %s", option.Name)
 			}
 		}
-		if r.User != nil {
-			w.Link("/users/reply/"+strings.TrimPrefix(note.ID, "https://"), "💬 Reply")
-		}
 
 		if r.User != nil && note.IsPublic() && note.AttributedTo != r.User.ID {
 			var shared int
@@ -440,6 +437,10 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 			} else {
 				w.Link("/users/unshare/"+strings.TrimPrefix(note.ID, "https://"), "🔄️ Unshare")
 			}
+		}
+
+		if r.User != nil {
+			w.Link("/users/reply/"+strings.TrimPrefix(note.ID, "https://"), "💬 Reply")
 		}
 	}
 }
