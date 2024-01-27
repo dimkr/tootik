@@ -157,7 +157,12 @@ func main() {
 		panic(err)
 	}
 
-	if err := data.CollectGarbage(ctx, *domain, &cfg, db); err != nil {
+	gc := data.GarbageCollector{
+		Domain: *domain,
+		Config: &cfg,
+		DB:     db,
+	}
+	if err := gc.Run(ctx); err != nil {
 		panic(err)
 	}
 
@@ -291,77 +296,66 @@ func main() {
 		}()
 	}
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		defer cancel()
-
-		t := time.NewTicker(pollResultsUpdateInterval)
-		defer t.Stop()
-
-		for {
-			log.Info("Updating poll results")
-			if err := outbox.UpdatePollResults(ctx, *domain, log, db); err != nil {
-				log.Error("Failed to update poll results", "error", err)
-				break
-			}
-
-			select {
-			case <-ctx.Done():
-				return
-
-			case <-t.C:
-			}
-
+	for _, job := range []struct {
+		Name     string
+		Interval time.Duration
+		Runner   interface {
+			Run(context.Context) error
 		}
-	}()
+	}{
+		{
+			"poller",
+			pollResultsUpdateInterval,
+			&outbox.Poller{
+				Domain: *domain,
+				Log:    log,
+				DB:     db,
+			},
+		},
+		{
+			"mover",
+			followMoveInterval,
+			&outbox.Mover{
+				Domain:   *domain,
+				Log:      log,
+				DB:       db,
+				Resolver: resolver,
+				Actor:    nobody,
+			},
+		},
+		{
+			"gc",
+			garbageCollectionInterval,
+			&gc,
+		},
+	} {
+		name := job.Name
+		interval := job.Interval
+		runner := job.Runner
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer cancel()
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		defer cancel()
+			t := time.NewTicker(interval)
+			defer t.Stop()
 
-		t := time.NewTicker(followMoveInterval)
-		defer t.Stop()
+			for {
+				log.Info("Running periodic job", "name", name)
+				if err := runner.Run(ctx); err != nil {
+					log.Error("Periodic job has failed", "name", name, "error", err)
+					break
+				}
 
-		for {
-			if err := outbox.Move(ctx, *domain, log, db, resolver, nobody); err != nil {
-				log.Error("Failed to move follows", "error", err)
-				break
+				select {
+				case <-ctx.Done():
+					return
+
+				case <-t.C:
+				}
 			}
-
-			select {
-			case <-ctx.Done():
-				return
-
-			case <-t.C:
-			}
-		}
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		defer cancel()
-
-		t := time.NewTicker(garbageCollectionInterval)
-		defer t.Stop()
-
-		for {
-			log.Info("Collecting garbage")
-			if err := data.CollectGarbage(ctx, *domain, &cfg, db); err != nil {
-				log.Error("Failed to collect garbage", "error", err)
-				break
-			}
-
-			select {
-			case <-ctx.Done():
-				return
-
-			case <-t.C:
-			}
-		}
-	}()
+		}()
+	}
 
 	<-ctx.Done()
 	log.Info("Shutting down")

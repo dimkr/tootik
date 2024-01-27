@@ -450,7 +450,12 @@ func TestEdit_PollAddOption(t *testing.T) {
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hell%%20yeah%%21", say[15:len(say)-2]), server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
-	assert.NoError(outbox.UpdatePollResults(context.Background(), domain, slog.Default(), server.db))
+	poller := outbox.Poller{
+		Domain: domain,
+		Log:    slog.Default(),
+		DB:     server.db,
+	}
+	assert.NoError(poller.Run(context.Background()))
 
 	view := server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
@@ -470,7 +475,7 @@ func TestEdit_PollAddOption(t *testing.T) {
 	reply = server.Handle(fmt.Sprintf("/users/reply/%s?I%%20couldn%%27t%%20care%%20less", say[15:len(say)-2]), server.Carol)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
-	assert.NoError(outbox.UpdatePollResults(context.Background(), domain, slog.Default(), server.db))
+	assert.NoError(poller.Run(context.Background()))
 
 	view = server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
@@ -496,7 +501,12 @@ func TestEdit_RemoveQuestion(t *testing.T) {
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hell%%20yeah%%21", say[15:len(say)-2]), server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
-	assert.NoError(outbox.UpdatePollResults(context.Background(), domain, slog.Default(), server.db))
+	poller := outbox.Poller{
+		Domain: domain,
+		Log:    slog.Default(),
+		DB:     server.db,
+	}
+	assert.NoError(poller.Run(context.Background()))
 
 	view := server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
@@ -513,7 +523,7 @@ func TestEdit_RemoveQuestion(t *testing.T) {
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?This%%20is%%20not%%20a%%20poll", id), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), edit)
 
-	assert.NoError(outbox.UpdatePollResults(context.Background(), domain, slog.Default(), server.db))
+	assert.NoError(poller.Run(context.Background()))
 
 	view = server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "This is not a poll")
