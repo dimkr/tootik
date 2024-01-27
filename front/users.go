@@ -36,33 +36,22 @@ func users(w text.Writer, r *request, args ...string) {
 				select id, max(day) as day from
 				(
 					select notes.id, notes.inserted/86400 as day from
-					notes
-					join
-					(
-						select follows.followed, persons.actor->>'followers' as followers, persons.actor->>'type' as type from
-						follows
-						join
-						persons
-						on
-							follows.followed = persons.id
-						where
-							follows.follower = $1
-					) follows
+					follows
+					join persons
 					on
+						persons.id = follows.followed
+					join notes
+					on
+						notes.author = persons.id and
 						(
-							(
-								follows.type != 'Group' and notes.author = follows.followed and
-								(
-									notes.public = 1 or follows.followers in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-									$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-									(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = follows.followers or value = $1)) or
-									(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = follows.followers or value = $1))
-								)
-							) or
-							(follows.type = 'Group' and follows.followed = notes.object->>'audience')
+							notes.public = 1 or persons.actor->>'followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+							$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = persons.actor->>'followers' or value = $1)) or
+							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = persons.actor->>'followers' or value = $1))
 						)
 					where
-						notes.inserted > unixepoch() - 60*60*24*7
+						notes.inserted > unixepoch() - 60*60*24*7 and
+						follows.follower = $1
 					union
 					select notes.id, shares.inserted/86400 as day from
 					follows
