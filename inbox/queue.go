@@ -458,7 +458,7 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Ac
 	}
 
 	if err := q.processActivity(ctx, log, sender, activity, rawActivity); err != nil {
-		q.Log.Warn("Failed to process activity", "error", err)
+		log.Warn("Failed to process activity", "error", err)
 	}
 }
 
