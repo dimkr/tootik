@@ -124,7 +124,7 @@ Users are authenticated using TLS client certificates; see [Gemini protocol spec
 * /users/register creates a new user.
 * /users/follows shows a list of followed users, ordered by activity.
 * /users/resolve looks up federated user *user@domain* or local user *user*.
-* /users/dm creates a post visible to a given user.
+* /users/dm creates a post visible to mentioned users.
 * /users/whisper creates a post visible to followers.
 * /users/say creates a public post.
 * /users/reply replies to a post.
@@ -185,11 +185,10 @@ User A is allowed to send a message to user B only if B follows A.
 
 ### Reply Visibility
 
-| Post type          | To          | CC                                                              |
-|--------------------|-------------|-----------------------------------------------------------------|
-| To mentioned users | Post author | -                                                               |
-| To followers       | Post author | Post recipients and mentions                                    |
-| To public          | Post author | Post recipients, mentions, followers of reply author and Public |
+| Post type       | To          | CC                                   |
+|-----------------|-------------|--------------------------------------|
+| To public       | Post author | Followers of reply author and Public |
+| Everything else | Post author | Post audience                        |
 
 ### Post Editing
 
