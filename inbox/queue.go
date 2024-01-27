@@ -133,6 +133,10 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 
 	log.Info("Received a new post")
 
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("cannot insert %s: %w", post.ID, err)
+	}
+
 	mentionedUsers := ap.Audience{}
 
 	for _, tag := range post.Tag {
@@ -148,10 +152,6 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 
 		return true
 	})
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("cannot insert %s: %w", post.ID, err)
-	}
 
 	return nil
 }
