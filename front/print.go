@@ -268,7 +268,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 
 	if printParentAuthor && parentAuthor.Valid && parentAuthor.PreferredUsername != "" {
 		title += fmt.Sprintf(" ┃ RE: %s", parentAuthor.PreferredUsername)
-	} else if printParentAuthor && note.InReplyTo != "" && parentAuthor.Valid && parentAuthor.PreferredUsername == "" {
+	} else if printParentAuthor && note.InReplyTo != "" && (!parentAuthor.Valid || parentAuthor.PreferredUsername == "") {
 		title += " ┃ RE: ?"
 	}
 
