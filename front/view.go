@@ -112,9 +112,7 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 	if offset > 0 {
 		w.Titlef("💬 Replies to %s (%d-%d)", author.PreferredUsername, offset, offset+h.Config.RepliesPerPage)
 	} else {
-		if r.User != nil && ((len(note.To.OrderedMap) == 0 || len(note.To.OrderedMap) == 1 && note.To.Contains(r.User.ID)) && (len(note.CC.OrderedMap) == 0 || len(note.CC.OrderedMap) == 1 && note.CC.Contains(r.User.ID))) {
-			w.Titlef("📟 Message from %s", author.PreferredUsername)
-		} else if note.InReplyTo != "" {
+		if note.InReplyTo != "" {
 			w.Titlef("💬 Reply by %s", author.PreferredUsername)
 		} else if note.IsPublic() {
 			w.Titlef("📣 Post by %s", author.PreferredUsername)

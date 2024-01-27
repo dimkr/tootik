@@ -30,13 +30,14 @@ Welcome, fedinaut! localhost.localdomain:8443 is an instance of tootik, a federa
 ⚡️ Followed users
 📡 This planet
 ✨ FOMO from outer space
+🔥 Hashtags
 🔭 Find user
 🔎 Search posts
-🔥 Hashtags
-📊 Statistics
+💌 Post to mentioned users
+🔔 Post to followers
+📣 Post to public
 ⚙️ Settings
-🔔 New post
-📣 New public post
+📊 Statistics
 🛟 Help
 ```
 
@@ -176,19 +177,19 @@ User A is allowed to send a message to user B only if B follows A.
 
 ### Post Visibility
 
-| Post type   | To                 | CC                              |
-|-------------|--------------------|---------------------------------|
-| Message     | Receiving user     | -                               |
-| Post        | Author's followers | Mentions                        |
-| Public post | Public             | Mentions and author's followers |
+| Post type          | To                 | CC                              |
+|--------------------|--------------------|---------------------------------|
+| To mentioned users | -                  | Mentions                        |
+| To followers       | Author's followers | Mentions                        |
+| To public          | Public             | Mentions and author's followers |
 
 ### Reply Visibility
 
-| Post type   | To          | CC                                                              |
-|-------------|-------------|-----------------------------------------------------------------|
-| Message     | Post author | -                                                               |
-| Post        | Post author | Post recipients, mentions and followers of reply author         |
-| Public post | Post author | Post recipients, mentions, followers of reply author and Public |
+| Post type          | To          | CC                                                              |
+|--------------------|-------------|-----------------------------------------------------------------|
+| To mentioned users | Post author | -                                                               |
+| To followers       | Post author | Post recipients and mentions                                    |
+| To public          | Post author | Post recipients, mentions, followers of reply author and Public |
 
 ### Post Editing
 

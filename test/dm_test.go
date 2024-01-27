@@ -17,9 +17,7 @@ limitations under the License.
 package test
 
 import (
-	"fmt"
 	"github.com/stretchr/testify/assert"
-	"strings"
 	"testing"
 )
 
@@ -29,14 +27,34 @@ func TestDM_HappyFlow(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
-
-	dm := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20Alice", strings.TrimPrefix(server.Alice.ID, "https://")), server.Bob)
+	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
-	view := server.Handle(dm[3:len(dm)-2], server.Alice)
-	assert.Contains(view, "Hello Alice")
+	id := dm[15 : len(dm)-2]
+
+	view := server.Handle("/users/view/"+id, server.Alice)
+	assert.Contains(view, "Hello @alice@localhost.localdomain:8443")
+
+	view = server.Handle("/users/view/"+id, server.Carol)
+	assert.Equal(view, "40 Post not found\r\n")
+
+	view = server.Handle("/users/view/"+id, server.Bob)
+	assert.Contains(view, "Hello @alice@localhost.localdomain:8443")
+}
+
+func TestDM_UnauthenticatedUser(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
+
+	id := dm[15 : len(dm)-2]
+
+	view := server.Handle("/view/"+id, nil)
+	assert.Equal(view, "40 Post not found\r\n")
 }
 
 func TestDM_Loopback(t *testing.T) {
@@ -45,26 +63,48 @@ func TestDM_Loopback(t *testing.T) {
 
 	assert := assert.New(t)
 
-	dm := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20world", strings.TrimPrefix(server.Alice.ID, "https://")), server.Alice)
-	assert.Equal("40 Error\r\n", dm)
+	dm := server.Handle("/users/dm?Hello%20%40bob%40localhost.localdomain%3a8443", server.Bob)
+	assert.Equal("40 Post audience is empty\r\n", dm)
 }
 
-func TestDM_NotFollowed(t *testing.T) {
+func TestDM_TwoMentions(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
 	assert := assert.New(t)
 
-	dm := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20world", strings.TrimPrefix(server.Alice.ID, "https://")), server.Bob)
-	assert.Equal("40 Error\r\n", dm)
+	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443%20and%20%40carol%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
+
+	id := dm[15 : len(dm)-2]
+
+	view := server.Handle("/users/view/"+id, server.Alice)
+	assert.Contains(view, "Hello @alice@localhost.localdomain:8443 and @carol@localhost.localdomain:8443")
+
+	view = server.Handle("/users/view/"+id, server.Carol)
+	assert.Contains(view, "Hello @alice@localhost.localdomain:8443 and @carol@localhost.localdomain:8443")
+
+	view = server.Handle("/users/view/"+id, server.Bob)
+	assert.Contains(view, "Hello @alice@localhost.localdomain:8443 and @carol@localhost.localdomain:8443")
 }
 
-func TestDM_NoSuchUser(t *testing.T) {
+func TestDM_TwoMentionsOneLoopback(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
 	assert := assert.New(t)
 
-	dm := server.Handle("/users/dm/x?Hello%20world", server.Bob)
-	assert.Equal("40 User does not exist\r\n", dm)
+	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443%20and%20%40bob%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
+
+	id := dm[15 : len(dm)-2]
+
+	view := server.Handle("/users/view/"+id, server.Alice)
+	assert.Contains(view, "Hello @alice@localhost.localdomain:8443 and @bob@localhost.localdomain:8443")
+
+	view = server.Handle("/users/view/"+id, server.Carol)
+	assert.Equal(view, "40 Post not found\r\n")
+
+	view = server.Handle("/users/view/"+id, server.Bob)
+	assert.Contains(view, "Hello @alice@localhost.localdomain:8443 and @bob@localhost.localdomain:8443")
 }
