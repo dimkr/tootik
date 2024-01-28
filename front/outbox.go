@@ -270,12 +270,5 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 			w.Separator()
 			w.Linkf("/users/unfollow/"+strings.TrimPrefix(actorID, "https://"), "🔌 Unfollow %s", actor.PreferredUsername)
 		}
-
-		var following int
-		if err := r.QueryRow(`select exists (select 1 from follows where follower = ? and followed = ? and accepted = 1)`, actorID, r.User.ID).Scan(&following); err != nil {
-			r.Log.Warn("Failed to check if user is a follower", "follower", actorID, "error", err)
-		} else if following == 1 {
-			w.Linkf("/users/dm/"+strings.TrimPrefix(actorID, "https://"), "📟 Message %s", actor.PreferredUsername)
-		}
 	}
 }

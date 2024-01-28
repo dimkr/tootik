@@ -171,6 +171,28 @@ func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo 
 		}
 	}
 
+	anyRecipient := false
+	note.To.Range(func(actorID string, _ struct{}) bool {
+		if actorID != r.User.ID {
+			anyRecipient = true
+			return false
+		}
+		return true
+	})
+	if !anyRecipient {
+		note.CC.Range(func(actorID string, _ struct{}) bool {
+			if actorID != r.User.ID {
+				anyRecipient = true
+				return false
+			}
+			return true
+		})
+	}
+	if !anyRecipient {
+		w.Status(40, "Post audience is empty")
+		return
+	}
+
 	if m := pollRegex.FindStringSubmatchIndex(note.Content); m != nil {
 		optionNames := strings.SplitN(note.Content[m[4]:], pollOptionsDelimeter, h.Config.PollMaxOptions+1)
 		if len(optionNames) < pollMinOptions || len(optionNames) > h.Config.PollMaxOptions {

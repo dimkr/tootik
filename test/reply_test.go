@@ -329,31 +329,31 @@ func TestReply_DM(t *testing.T) {
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	dm := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20Alice", strings.TrimPrefix(server.Alice.ID, "https://")), server.Bob)
+	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
 	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello Alice")
+	assert.Contains(today, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(today, "Hello Bob")
 
 	today = server.Handle("/users/inbox/today", server.Bob)
-	assert.NotContains(today, "Hello Alice")
+	assert.NotContains(today, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(today, "Hello Bob")
 
 	id := dm[15 : len(dm)-2]
 
 	view := server.Handle("/users/view/"+id, server.Alice)
-	assert.Contains(view, "Hello Alice")
+	assert.Contains(view, "Hello @alice@localhost.localdomain:8443")
 
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hello%%20Bob", id), server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
 	today = server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello Alice")
+	assert.Contains(today, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(today, "Hello Bob")
 
 	today = server.Handle("/users/inbox/today", server.Bob)
-	assert.NotContains(today, "Hello Alice")
+	assert.NotContains(today, "Hello @alice@localhost.localdomain:8443")
 	assert.Contains(today, "Hello Bob")
 }
 
@@ -366,21 +366,21 @@ func TestReply_DMUnfollowed(t *testing.T) {
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	dm := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20Alice", strings.TrimPrefix(server.Alice.ID, "https://")), server.Bob)
+	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
 	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello Alice")
+	assert.Contains(today, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(today, "Hello Bob")
 
 	today = server.Handle("/users/inbox/today", server.Bob)
-	assert.NotContains(today, "Hello Alice")
+	assert.NotContains(today, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(today, "Hello Bob")
 
 	id := dm[15 : len(dm)-2]
 
 	view := server.Handle("/users/view/"+id, server.Alice)
-	assert.Contains(view, "Hello Alice")
+	assert.Contains(view, "Hello @alice@localhost.localdomain:8443")
 
 	unfollow := server.Handle("/users/unfollow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), unfollow)
@@ -389,11 +389,11 @@ func TestReply_DMUnfollowed(t *testing.T) {
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
 	today = server.Handle("/users/inbox/today", server.Alice)
-	assert.NotContains(today, "Hello Alice")
+	assert.NotContains(today, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(today, "Hello Bob")
 
 	today = server.Handle("/users/inbox/today", server.Bob)
-	assert.NotContains(today, "Hello Alice")
+	assert.NotContains(today, "Hello @alice@localhost.localdomain:8443")
 	assert.Contains(today, "Hello Bob")
 }
 
@@ -406,31 +406,31 @@ func TestReply_DMToAnotherUser(t *testing.T) {
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	dm := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20Alice", strings.TrimPrefix(server.Alice.ID, "https://")), server.Bob)
+	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
 	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello Alice")
+	assert.Contains(today, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(today, "Hello Bob")
 
 	today = server.Handle("/users/inbox/today", server.Bob)
-	assert.NotContains(today, "Hello Alice")
+	assert.NotContains(today, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(today, "Hello Bob")
 
 	id := dm[15 : len(dm)-2]
 
 	view := server.Handle("/users/view/"+id, server.Alice)
-	assert.Contains(view, "Hello Alice")
+	assert.Contains(view, "Hello @alice@localhost.localdomain:8443")
 
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hello%%20Bob", id), server.Carol)
 	assert.Equal("40 Post not found\r\n", reply)
 
 	today = server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello Alice")
+	assert.Contains(today, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(today, "Hello Bob")
 
 	today = server.Handle("/users/inbox/today", server.Bob)
-	assert.NotContains(today, "Hello Alice")
+	assert.NotContains(today, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(today, "Hello Bob")
 }
 

@@ -155,11 +155,11 @@ func TestOutbox_DM(t *testing.T) {
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	dm := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20bob", strings.TrimPrefix(server.Bob.ID, "https://")), server.Alice)
+	dm := server.Handle("/users/dm?Hello%20%40bob", server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
 	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Contains(outbox, "Hello bob")
+	assert.Contains(outbox, "Hello @bob")
 }
 
 func TestOutbox_DMSelf(t *testing.T) {
@@ -171,11 +171,11 @@ func TestOutbox_DMSelf(t *testing.T) {
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	dm := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20bob", strings.TrimPrefix(server.Bob.ID, "https://")), server.Alice)
+	dm := server.Handle("/users/dm?Hello%20%40bob", server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
 	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Alice)
-	assert.Contains(outbox, "Hello bob")
+	assert.Contains(outbox, "Hello @bob")
 }
 
 func TestOutbox_DMNotRecipient(t *testing.T) {
@@ -187,11 +187,11 @@ func TestOutbox_DMNotRecipient(t *testing.T) {
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	dm := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20bob", strings.TrimPrefix(server.Bob.ID, "https://")), server.Alice)
+	dm := server.Handle("/users/dm?Hello%20%40bob", server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
 	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Carol)
-	assert.NotContains(outbox, "Hello bob")
+	assert.NotContains(outbox, "Hello @bob")
 	assert.Contains(strings.Split(outbox, "\n"), "No posts.")
 }
 
@@ -204,11 +204,11 @@ func TestOutbox_UnauthenticatedUser(t *testing.T) {
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	dm := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20bob", strings.TrimPrefix(server.Bob.ID, "https://")), server.Alice)
+	dm := server.Handle("/users/dm?Hello%20%40bob", server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
 	outbox := server.Handle("/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), nil)
-	assert.NotContains(outbox, "Hello bob")
+	assert.NotContains(outbox, "Hello @bob")
 	assert.Contains(strings.Split(outbox, "\n"), "No posts.")
 }
 

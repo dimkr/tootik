@@ -17,43 +17,13 @@ limitations under the License.
 package front
 
 import (
-	"database/sql"
-	"errors"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 )
 
 func (h *Handler) dm(w text.Writer, r *request, args ...string) {
-	actorID := "https://" + args[1]
-
-	var actor ap.Actor
-	if err := r.QueryRow(`select actor from persons where id = ?`, actorID).Scan(&actor); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.Warn("User does not exist", "actor", actorID)
-		w.Status(40, "User does not exist")
-		return
-	} else if err != nil {
-		r.Log.Warn("Failed to find user by actorID", "actor", actorID, "error", err)
-		w.Error()
-		return
-	}
-
-	var following int
-	if err := r.QueryRow(`select exists (select 1 from follows where follower = ? and followed = ?)`, actor.ID, r.User.ID).Scan(&following); err != nil {
-		r.Log.Warn("Failed to check if user is a follower", "follower", actor.ID, "error", err)
-		w.Error()
-		return
-	} else if following == 0 {
-		r.Log.Warn("Cannot DM a user not following", "follower", actor.ID)
-		w.Error()
-		return
-	}
-
-	r.Log.Info("Sending DM to user", "to", actor.ID)
-
 	to := ap.Audience{}
-	to.Add(actor.ID)
-
 	cc := ap.Audience{}
 
-	h.post(w, r, nil, nil, to, cc, "", "Message")
+	h.post(w, r, nil, nil, to, cc, "", "Post content")
 }

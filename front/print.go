@@ -272,10 +272,6 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 		title += " ┃ RE: ?"
 	}
 
-	if r.User != nil && ((len(note.To.OrderedMap) == 0 || len(note.To.OrderedMap) == 1 && note.To.Contains(r.User.ID)) && (len(note.CC.OrderedMap) == 0 || len(note.CC.OrderedMap) == 1 && note.CC.Contains(r.User.ID))) {
-		title += " ┃ DM"
-	}
-
 	if !titleIsLink {
 		w.Link(note.ID, title)
 	} else if r.User == nil {

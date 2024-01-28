@@ -84,7 +84,7 @@ func TestFollow_DMUnfollowFollow(t *testing.T) {
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	dm := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20Alice", strings.TrimPrefix(server.Alice.ID, "https://")), server.Bob)
+	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
 	users = server.Handle("/users", server.Alice)
@@ -92,7 +92,7 @@ func TestFollow_DMUnfollowFollow(t *testing.T) {
 	assert.Contains(users, "1 post")
 
 	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello Alice")
+	assert.Contains(today, "Hello @alice@localhost.localdomain:8443")
 
 	unfollow := server.Handle("/users/unfollow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), unfollow)
@@ -102,7 +102,7 @@ func TestFollow_DMUnfollowFollow(t *testing.T) {
 	assert.NotContains(users, "1 post")
 
 	today = server.Handle("/users/inbox/today", server.Alice)
-	assert.NotContains(today, "Hello Alice")
+	assert.NotContains(today, "Hello @alice@localhost.localdomain:8443")
 }
 
 func TestFollow_PublicPost(t *testing.T) {

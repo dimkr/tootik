@@ -93,9 +93,9 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) Handler {
 	h.handlers[regexp.MustCompile(`^/thread/(\S+)$`)] = withUserMenu(h.thread)
 	h.handlers[regexp.MustCompile(`^/users/thread/(\S+)$`)] = withUserMenu(h.thread)
 
+	h.handlers[regexp.MustCompile(`^/users/dm$`)] = h.dm
 	h.handlers[regexp.MustCompile(`^/users/whisper$`)] = h.whisper
 	h.handlers[regexp.MustCompile(`^/users/say$`)] = h.say
-	h.handlers[regexp.MustCompile(`^/users/dm/(\S+)`)] = h.dm
 
 	h.handlers[regexp.MustCompile(`^/users/reply/(\S+)`)] = h.reply
 

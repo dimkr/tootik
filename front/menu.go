@@ -42,21 +42,21 @@ func writeUserMenu(w text.Writer, user *ap.Actor) {
 		w.Link("/hashtags", "🔥 Hashtags")
 		w.Link("/fts", "🔎 Search posts")
 	} else {
+		w.Link("/users/hashtags", "🔥 Hashtags")
 		w.Link("/users/resolve", "🔭 Find user")
 		w.Link("/users/fts", "🔎 Search posts")
-		w.Link("/users/hashtags", "🔥 Hashtags")
 	}
-
-	w.Link(prefix+"/stats", "📊 Statistics")
 
 	if user == nil {
 		w.Link("/users", "🔑 Sign in")
 	} else {
+		w.Link("/users/dm", "💌 Post to mentioned users")
+		w.Link("/users/whisper", "🔔 Post to followers")
+		w.Link("/users/say", "📣 Post to public")
 		w.Link("/users/settings", "⚙️ Settings")
-		w.Link("/users/whisper", "🔔 New post")
-		w.Link("/users/say", "📣 New public post")
 	}
 
+	w.Link(prefix+"/stats", "📊 Statistics")
 	w.Link(prefix+"/help", "🛟 Help")
 }
 
