@@ -38,7 +38,7 @@ func jsonb(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE TABLE follows(id STRING NOT NULL PRIMARY KEY, follower STRING NOT NULL, followed STRING NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()), accepted INTEGER DEFAULT 0)`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE TABLE followsb(id STRING NOT NULL PRIMARY KEY, follower STRING NOT NULL, followed STRING NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()), accepted INTEGER DEFAULT 0)`); err != nil {
 		return err
 	}
 
@@ -58,7 +58,7 @@ func jsonb(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `INSERT INTO outboxb(activity, inserted, attempts, last, sent, sender, received) SELECT activity, inserted, attempts, last, sent, sender, received outbox`); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO outboxb(activity, inserted, attempts, last, sent, sender, received) SELECT activity, inserted, attempts, last, sent, sender, received FROM outbox`); err != nil {
 		return err
 	}
 
