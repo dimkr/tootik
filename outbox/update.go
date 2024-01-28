@@ -48,7 +48,7 @@ func UpdateNote(ctx context.Context, domain string, db *sql.DB, note *ap.Object)
 	if _, err := tx.ExecContext(
 		ctx,
 		`UPDATE notes SET object = ? WHERE id = ?`,
-		note,
+		&note,
 		note.ID,
 	); err != nil {
 		return fmt.Errorf("failed to update note: %w", err)
@@ -70,54 +70,6 @@ func UpdateNote(ctx context.Context, domain string, db *sql.DB, note *ap.Object)
 		note.AttributedTo,
 	); err != nil {
 		return fmt.Errorf("failed to insert update activity: %w", err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`update notes set to0 = object->>'to[0]' where id = ?`,
-		note.ID,
-	); err != nil {
-		return fmt.Errorf("failed to update to0: %w", err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`update notes set to1 = object->>'to[1]' where id = ?`,
-		note.ID,
-	); err != nil {
-		return fmt.Errorf("failed to update to1: %w", err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`update notes set to2 = object->>'to[2]' where id = ?`,
-		note.ID,
-	); err != nil {
-		return fmt.Errorf("failed to update to2: %w", err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`update notes set cc0 = object->>'cc[0]' where id = ?`,
-		note.ID,
-	); err != nil {
-		return fmt.Errorf("failed to update cc0: %w", err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`update notes set cc1 = object->>'cc[1]' where id = ?`,
-		note.ID,
-	); err != nil {
-		return fmt.Errorf("failed to update cc1: %w", err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`update notes set cc2 = object->>'cc[2]' where id = ?`,
-		note.ID,
-	); err != nil {
-		return fmt.Errorf("failed to update cc2: %w", err)
 	}
 
 	if _, err = tx.ExecContext(ctx, `delete from hashtags where note = ?`, note.ID); err != nil {

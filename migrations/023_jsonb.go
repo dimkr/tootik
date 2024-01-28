@@ -6,11 +6,11 @@ import (
 )
 
 func jsonb(ctx context.Context, domain string, tx *sql.Tx) error {
-	if _, err := tx.ExecContext(ctx, `CREATE TABLE notesb(id STRING NOT NULL PRIMARY KEY, author STRING NOT NULL, object JSONB NOT NULL, public INTEGER NOT NULL, to0 STRING, to1 STRING, to2 STRING, cc0 STRING, cc1 STRING, cc2 STRING, inserted INTEGER DEFAULT (UNIXEPOCH()), updated INTEGER DEFAULT 0, host TEXT AS (substr(substr(author, 9), 0, instr(substr(author, 9), '/'))));`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE TABLE notesb(id STRING NOT NULL PRIMARY KEY, author STRING NOT NULL, object JSONB NOT NULL, public INTEGER NOT NULL, to0 STRING AS (object->>'to[0]'), to1 STRING AS (object->>'to[1]'), to2 STRING AS (object->>'to[2]'), cc0 STRING AS (object->>'cc[0]'), cc1 STRING AS (object->>'cc[1]'), cc2 STRING AS (object->>'cc[2]'), inserted INTEGER DEFAULT (UNIXEPOCH()), updated INTEGER DEFAULT 0, host TEXT AS (substr(substr(author, 9), 0, instr(substr(author, 9), '/'))));`); err != nil {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `INSERT INTO notesb(id, author, object, public, to0, to1, to2, cc0, cc1, cc2, inserted, updated) SELECT id, author, object, public, to0, to1, to2, cc0, cc1, cc2, inserted, updated FROM notes`); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO notesb(id, author, object, public, inserted, updated) SELECT id, author, object, public, inserted, updated FROM notes`); err != nil {
 		return err
 	}
 
