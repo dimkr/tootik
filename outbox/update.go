@@ -48,7 +48,7 @@ func UpdateNote(ctx context.Context, domain string, db *sql.DB, note *ap.Object)
 	if _, err := tx.ExecContext(
 		ctx,
 		`UPDATE notes SET object = ? WHERE id = ?`,
-		note,
+		&note,
 		note.ID,
 	); err != nil {
 		return fmt.Errorf("failed to update note: %w", err)
