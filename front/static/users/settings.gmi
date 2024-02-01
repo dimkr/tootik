@@ -2,4 +2,4 @@
 
 => /users/name 👺 Set display name
 => /users/bio 📜 Set bio
-=> /users/alias 🟰 Set alias
+=> /users/alias 🔗 Set alias
