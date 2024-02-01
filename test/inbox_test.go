@@ -272,7 +272,7 @@ func TestInbox_NoMentionAndMentionWithHost(t *testing.T) {
 	assert.True(postWithMention < postWithoutMention)
 }
 
-func TestInbox_DMWithoutMentionAndMention(t *testing.T) {
+func TestInbox_DMAndMention(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
@@ -284,44 +284,15 @@ func TestInbox_DMWithoutMentionAndMention(t *testing.T) {
 	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Carol.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Carol.ID, "https://")), follow)
 
-	dm := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20Alice", strings.TrimPrefix(server.Alice.ID, "https://")), server.Bob)
+	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
 	whisper := server.Handle("/users/whisper?Hello%20%40alice%21", server.Carol)
 	assert.Regexp(`30 /users/view/\S+\r\n`, whisper)
 
 	today := server.Handle("/users/inbox/today", server.Alice)
-	dmWithoutMention := strings.Index(today, "Hello Alice")
-	postWithMention := strings.Index(today, "Hello @alice!")
-	assert.NotEqual(dmWithoutMention, -1)
-	assert.NotEqual(postWithMention, -1)
-	assert.True(dmWithoutMention < postWithMention)
-}
-
-func TestInbox_MentionAndDMWithoutMention(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
-
-	assert := assert.New(t)
-
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
-
-	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Carol.ID, "https://"), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Carol.ID, "https://")), follow)
-
-	whisper := server.Handle("/users/whisper?Hello%20%40alice%21", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
-
-	dm := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20Alice", strings.TrimPrefix(server.Alice.ID, "https://")), server.Carol)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
-
-	today := server.Handle("/users/inbox/today", server.Alice)
-	dmWithoutMention := strings.Index(today, "Hello Alice")
-	postWithMention := strings.Index(today, "Hello @alice!")
-	assert.NotEqual(dmWithoutMention, -1)
-	assert.NotEqual(postWithMention, -1)
-	assert.True(dmWithoutMention < postWithMention)
+	assert.Contains(today, "Hello @alice@localhost.localdomain:8443")
+	assert.Contains(today, "Hello @alice!")
 }
 
 func TestInbox_PublicPostShared(t *testing.T) {

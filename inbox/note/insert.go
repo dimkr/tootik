@@ -28,25 +28,6 @@ import (
 	"log/slog"
 )
 
-func expand(aud ap.Audience, arr *[3]sql.NullString) {
-	have := 0
-
-	for _, id := range aud.Keys() {
-		if id == ap.Public {
-			continue
-		}
-
-		if !arr[have].Valid {
-			arr[have].Valid = true
-			arr[have].String = id
-			have++
-			if have == len(arr) {
-				break
-			}
-		}
-	}
-}
-
 // Flatten converts a post into text that can be indexed for search purposes.
 func Flatten(note *ap.Object) string {
 	content, links := plain.FromHTML(note.Content)
@@ -79,11 +60,6 @@ func Flatten(note *ap.Object) string {
 
 // Insert inserts a post.
 func Insert(ctx context.Context, log *slog.Logger, tx *sql.Tx, note *ap.Object) error {
-	var to, cc [3]sql.NullString
-
-	expand(note.To, &to)
-	expand(note.CC, &cc)
-
 	hashtags := map[string]string{}
 
 	for _, tag := range note.Tag {
@@ -109,17 +85,11 @@ func Insert(ctx context.Context, log *slog.Logger, tx *sql.Tx, note *ap.Object) 
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO notes (id, author, object, public, to0, to1, to2, cc0, cc1, cc2) VALUES(?,?,?,?,?,?,?,?,?,?)`,
+		`INSERT INTO notes (id, author, object, public) VALUES(?,?,?,?)`,
 		note.ID,
 		note.AttributedTo,
-		note,
+		&note,
 		public,
-		to[0],
-		to[1],
-		to[2],
-		cc[0],
-		cc[1],
-		cc[2],
 	); err != nil {
 		return fmt.Errorf("failed to insert note %s: %w", note.ID, err)
 	}

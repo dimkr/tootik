@@ -85,6 +85,7 @@ func main() {
 	if *dumpCfg {
 		cfg.FillDefaults()
 		e := json.NewEncoder(os.Stdout)
+		e.SetEscapeHTML(false)
 		e.SetIndent("", "\t")
 		if err := e.Encode(cfg); err != nil {
 			panic(err)

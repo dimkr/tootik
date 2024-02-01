@@ -112,7 +112,7 @@ func TestUsers_NewDM(t *testing.T) {
 	assert.Contains(today, "No posts.")
 	assert.NotContains(today, "Hello Alice")
 
-	dm := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20Alice", strings.TrimPrefix(server.Alice.ID, "https://")), server.Bob)
+	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
 	users = server.Handle("/users", server.Alice)
@@ -121,14 +121,14 @@ func TestUsers_NewDM(t *testing.T) {
 
 	today = server.Handle("/users/inbox/today", server.Alice)
 	assert.NotContains(today, "No posts.")
-	assert.Contains(today, "Hello Alice")
+	assert.Contains(today, "Hello @alice@localhost.localdomain:8443")
 
 	users = server.Handle("/users", server.Carol)
 	assert.Contains(users, "Nothing to see! Are you following anyone?")
 	assert.NotContains(users, "1 post")
 
 	local := server.Handle("/users/local", server.Carol)
-	assert.NotContains(local, "Hello Alice")
+	assert.NotContains(local, "Hello @alice@localhost.localdomain:8443")
 }
 
 func TestUsers_UnauthenticatedUser(t *testing.T) {

@@ -57,11 +57,11 @@ func TestFirehose_DM(t *testing.T) {
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	dm := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20Alice", strings.TrimPrefix(server.Alice.ID, "https://")), server.Bob)
+	dm := server.Handle("/users/dm?Hello%20%40alice", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
 	firehose := server.Handle("/users/firehose", server.Alice)
-	assert.Contains(firehose, "Hello Alice")
+	assert.Contains(firehose, "Hello @alice")
 }
 
 func TestFirehose_DMNotFollowing(t *testing.T) {
@@ -73,14 +73,14 @@ func TestFirehose_DMNotFollowing(t *testing.T) {
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	dm := server.Handle(fmt.Sprintf("/users/dm/%s?Hello%%20Alice", strings.TrimPrefix(server.Alice.ID, "https://")), server.Bob)
+	dm := server.Handle("/users/dm?Hello%20%40alice", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
 	unfollow := server.Handle("/users/unfollow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), unfollow)
 
 	firehose := server.Handle("/users/firehose", server.Alice)
-	assert.NotContains(firehose, "Hello Alice")
+	assert.NotContains(firehose, "Hello @alice")
 }
 
 func TestFirehose_PostToFollowers(t *testing.T) {

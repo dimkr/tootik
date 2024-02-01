@@ -47,21 +47,29 @@ Posts are sorted by:
 * Time since the author's previous post
 * Exact time of posting
 
-> 🔭 Find user
-
-Use this tool to locate a user in the fediverse and see the posts published by this user that were received by this server. The list of posts can be incomplete or even empty if nobody on this server follows this user. You can follow, unfollow or message a following user through the user's page.
-
 > 🔥 Hashtags
 
 This page shows popular hashtags, allowing you to discover trends and shared interests.
+
+> 🔭 Find user
+
+Use this tool to locate a user in the fediverse and see the posts published by this user that were received by this server. The list of posts can be incomplete or even empty if nobody on this server follows this user. You can follow, unfollow or message a following user through the user's page.
 
 > 🔎 Search posts
 
 This is a full-text search tool that lists posts containing keyword(s), ordered by relevance.
 
-> 📊 Statistics
+> 💌 Post to mentioned users
 
-This page shows various statistics about this server and the parts of the fediverse it's connected to.
+Follow this link to publish a post and send it to mentioned users only.
+
+> 🔔 Post to followers
+
+Follow this link to publish a post and send it to your followers and mentioned users.
+
+> 📣 Post to public
+
+Follow this link to publish a public post visible to anyone.
 
 > ⚙️ Settings
 
@@ -69,13 +77,9 @@ This page allows you to change:
 * Your display name (up to 30 characters long)
 * The short (up to 500 characters long) description that appears at the top of your profile
 
-> 🔔 New post
+> 📊 Statistics
 
-Follow this link to publish a private post and send it to your followers.
-
-> 📣 New public post
-
-Follow this link to publish a public post visible to anyone.
+This page shows various statistics about this server and the parts of the fediverse it's connected to.
 
 ## Posts
 

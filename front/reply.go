@@ -45,15 +45,12 @@ func (h *Handler) reply(w text.Writer, r *request, args ...string) {
 	if note.AttributedTo == r.User.ID {
 		to = note.To
 		cc = note.CC
-	} else if (len(note.To.OrderedMap) == 0 || len(note.To.OrderedMap) == 1 && note.To.Contains(r.User.ID)) && (len(note.CC.OrderedMap) == 0 || len(note.CC.OrderedMap) == 1 && note.CC.Contains(r.User.ID)) {
-		to.Add(note.AttributedTo)
 	} else if note.IsPublic() {
 		to.Add(note.AttributedTo)
 		cc.Add(r.User.Followers)
 		cc.Add(ap.Public)
-	} else if !note.IsPublic() {
+	} else {
 		to.Add(note.AttributedTo)
-		cc.Add(r.User.Followers)
 		note.To.Range(func(id string, _ struct{}) bool {
 			cc.Add(id)
 			return true
@@ -62,10 +59,6 @@ func (h *Handler) reply(w text.Writer, r *request, args ...string) {
 			cc.Add(id)
 			return true
 		})
-	} else {
-		r.Log.Error("Post audience is invalid", "post", note.ID)
-		w.Error()
-		return
 	}
 
 	h.post(w, r, nil, &note, to, cc, note.Audience, "Reply content")

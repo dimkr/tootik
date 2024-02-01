@@ -133,6 +133,10 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 
 	log.Info("Received a new post")
 
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("cannot insert %s: %w", post.ID, err)
+	}
+
 	mentionedUsers := ap.Audience{}
 
 	for _, tag := range post.Tag {
@@ -148,10 +152,6 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 
 		return true
 	})
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("cannot insert %s: %w", post.ID, err)
-	}
 
 	return nil
 }
@@ -458,7 +458,7 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Ac
 	}
 
 	if err := q.processActivity(ctx, log, sender, activity, rawActivity); err != nil {
-		q.Log.Warn("Failed to process activity", "error", err)
+		log.Warn("Failed to process activity", "error", err)
 	}
 }
 
