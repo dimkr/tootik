@@ -76,6 +76,7 @@ Follow this link to publish a public post visible to anyone.
 This page allows you to change:
 * Your display name (up to 30 characters long)
 * The short (up to 500 characters long) description that appears at the top of your profile
+* Your account alias, to allow account migration to tootik
 
 > 📊 Statistics
 

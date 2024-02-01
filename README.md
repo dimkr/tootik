@@ -136,6 +136,8 @@ Users are authenticated using TLS client certificates; see [Gemini protocol spec
 * /users/unfollow deletes a follow request.
 * /users/outbox is equivalent to /outbox but also includes a link to /users/follow or /users/unfollow.
 * /users/bio allows users to edit their bio.
+* /users/name allows users to set their display name.
+* /users/alias allows users to set an account alias, to allow migration of accounts to tootik.
 
 Some clients generate a certificate for / (all pages of this capsule) when /foo requests a client certificate, while others use the certificate requested by /foo only for /foo and /foo/bar. Therefore, pages that don't require authentication are also mirrored under /users:
 
