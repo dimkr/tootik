@@ -18,6 +18,7 @@ package fed
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -68,6 +69,9 @@ func NewResolver(blockedDomains *BlockList, domain string, cfg *cfg.Config) *Res
 	transport := http.Transport{
 		MaxIdleConns:    cfg.ResolverMaxIdleConns,
 		IdleConnTimeout: cfg.ResolverIdleConnTimeout,
+		TLSClientConfig: &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		},
 	}
 	r := Resolver{
 		BlockedDomains: blockedDomains,
