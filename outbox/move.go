@@ -69,7 +69,28 @@ func (m *Mover) Run(ctx context.Context) error {
 		return err
 	}
 
-	rows, err := m.DB.QueryContext(ctx, `select persons.actor, old.id, new.id, follows.id from persons old join persons new on old.actor->>'movedTo' = new.id and exists (select 1 from json_each(new.actor->'alsoKnownAs') where value = old.id) join follows on follows.followed = old.id and follows.inserted < old.updated join persons on persons.id = follows.follower where old.actor->>'movedTo' is not null and follows.follower like ?`, prefix)
+	rows, err := m.DB.QueryContext(
+		ctx,
+		`
+			select persons.actor, old.id, new.id, follows.id, exists (select 1 from follows where follower = persons.id and followed = new.id) from
+			persons old
+			join
+			persons new
+			on
+				old.actor->>'movedTo' = new.id and
+				exists (select 1 from json_each(new.actor->'alsoKnownAs') where value = old.id)
+			join follows
+			on
+				follows.followed = old.id and follows.inserted < old.updated
+			join persons
+			on
+				persons.id = follows.follower
+			where
+				old.actor->>'movedTo' is not null and
+				follows.follower like ?
+		`,
+		prefix,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to fetch follows to move: %w", err)
 	}
@@ -78,15 +99,20 @@ func (m *Mover) Run(ctx context.Context) error {
 	for rows.Next() {
 		var actor ap.Actor
 		var oldID, newID, oldFollowID string
-		if err := rows.Scan(&actor, &oldID, &newID, &oldFollowID); err != nil {
+		var newFollowed bool
+		if err := rows.Scan(&actor, &oldID, &newID, &oldFollowID, &newFollowed); err != nil {
 			m.Log.Error("Failed to scan follow to move", "error", err)
 			continue
 		}
 
-		m.Log.Info("Moving follow", "follow", oldFollowID, "old", oldID, "new", newID)
-		if err := Follow(ctx, m.Domain, &actor, newID, m.DB); err != nil {
-			m.Log.Warn("Failed to follow new actor", "follow", oldFollowID, "old", oldID, "new", newID, "error", err)
-			continue
+		if newFollowed {
+			m.Log.Info("Removing follow of moved actor", "follow", oldFollowID, "old", oldID, "new", newID)
+		} else {
+			m.Log.Info("Moving follow", "follow", oldFollowID, "old", oldID, "new", newID)
+			if err := Follow(ctx, m.Domain, &actor, newID, m.DB); err != nil {
+				m.Log.Warn("Failed to follow new actor", "follow", oldFollowID, "old", oldID, "new", newID, "error", err)
+				continue
+			}
 		}
 		if err := Unfollow(ctx, m.Domain, m.Log, m.DB, &actor, oldID, oldFollowID); err != nil {
 			m.Log.Warn("Failed to unfollow old actor", "follow", oldFollowID, "old", oldID, "new", newID, "error", err)

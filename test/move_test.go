@@ -331,3 +331,66 @@ func TestMove_FederatedToLocalLinked(t *testing.T) {
 	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 1) and not exists (select 1 from outbox where activity->>'type' = 'Follow' and activity->>'actor' = $1 and activity->>'object' = $2)`, server.Alice.ID, server.Bob.ID).Scan(&followed))
 	assert.Equal(1, followed)
 }
+
+func TestMove_FollowingBoth(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	assert.NoError(
+		outbox.Follow(
+			context.Background(),
+			domain,
+			server.Alice,
+			"https://127.0.0.1/user/dan",
+			server.db,
+		),
+	)
+
+	assert.NoError(
+		outbox.Follow(
+			context.Background(),
+			domain,
+			server.Alice,
+			"https://::1/user/dan",
+			server.db,
+		),
+	)
+
+	_, err := server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
+	assert.NoError(err)
+
+	tx, err := server.db.BeginTx(context.Background(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
+	assert.NoError(tx.Commit())
+
+	_, err = server.db.Exec(
+		`insert into persons (id, actor) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","movedTo":"https://::1/user/dan"}`,
+	)
+	assert.NoError(err)
+
+	_, err = server.db.Exec(
+		`insert into persons (id, actor) values(?,?)`,
+		"https://::1/user/dan",
+		`{"id":"https://::1/user/dan","type":"Person","alsoKnownAs":"https://127.0.0.1/user/dan"}`,
+	)
+	assert.NoError(err)
+
+	mover := outbox.Mover{
+		Domain:   domain,
+		Log:      slog.Default(),
+		DB:       server.db,
+		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Actor:    server.Nobody,
+	}
+	assert.NoError(mover.Run(context.Background()))
+
+	var unfollowed int
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 1) and not exists (select 1 from follows where follower = $1 and followed = $3)`, server.Alice.ID, "https://::1/user/dan", "https://127.0.0.1/user/dan").Scan(&unfollowed))
+	assert.Equal(1, unfollowed)
+}
