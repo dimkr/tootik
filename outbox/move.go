@@ -74,7 +74,7 @@ func (m *Mover) Run(ctx context.Context) error {
 	rows, err := m.DB.QueryContext(
 		ctx,
 		`
-			select persons.actor, old.id, new.id, follows.id, exists (select 1 from follows where follower = persons.id and followed = new.id) from
+			select persons.actor, old.id, new.id, follows.id, new.id = follows.follower or exists (select 1 from follows where follower = persons.id and followed = new.id) from
 			persons old
 			join
 			persons new
@@ -101,13 +101,13 @@ func (m *Mover) Run(ctx context.Context) error {
 	for rows.Next() {
 		var actor ap.Actor
 		var oldID, newID, oldFollowID string
-		var newFollowed bool
-		if err := rows.Scan(&actor, &oldID, &newID, &oldFollowID, &newFollowed); err != nil {
+		var onlyRemove bool
+		if err := rows.Scan(&actor, &oldID, &newID, &oldFollowID, &onlyRemove); err != nil {
 			m.Log.Error("Failed to scan follow to move", "error", err)
 			continue
 		}
 
-		if newFollowed {
+		if onlyRemove {
 			m.Log.Info("Removing follow of moved actor", "follow", oldFollowID, "old", oldID, "new", newID)
 		} else {
 			m.Log.Info("Moving follow", "follow", oldFollowID, "old", oldID, "new", newID)
