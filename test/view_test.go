@@ -23,6 +23,7 @@ import (
 	"github.com/dimkr/tootik/inbox"
 	"github.com/stretchr/testify/assert"
 	"log/slog"
+	"net/http"
 	"strings"
 	"testing"
 )
@@ -329,7 +330,7 @@ func TestView_Update(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -387,7 +388,7 @@ func TestView_OldUpdate(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -552,7 +553,7 @@ func TestView_PostInGroupPublicAndGroupFollowed(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -603,7 +604,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowed(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -654,7 +655,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedButNotAccepted(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -702,7 +703,7 @@ func TestView_PostInGroupNotPublicAndAuthorFollowed(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -753,7 +754,7 @@ func TestView_PostInGroupNotPublicAndAuthorFollowedButNotAccepted(t *testing.T) 
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -817,7 +818,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithReply(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -885,7 +886,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithPrivateReply(t *testing.T)
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())

@@ -31,6 +31,7 @@ import (
 	"github.com/dimkr/tootik/migrations"
 	_ "github.com/mattn/go-sqlite3"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"os"
 )
@@ -114,7 +115,7 @@ func (s *server) Handle(request string, user *ap.Actor) string {
 
 	var buf bytes.Buffer
 	var wg sync.WaitGroup
-	s.handler.Handle(context.Background(), slog.Default(), gmi.Wrap(&buf), u, user, s.db, fed.NewResolver(nil, domain, s.cfg), &wg)
+	s.handler.Handle(context.Background(), slog.Default(), gmi.Wrap(&buf), u, user, s.db, fed.NewResolver(nil, domain, s.cfg, &http.Client{}), &wg)
 
 	return buf.String()
 }

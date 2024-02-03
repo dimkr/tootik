@@ -23,6 +23,7 @@ import (
 	"github.com/dimkr/tootik/inbox"
 	"github.com/stretchr/testify/assert"
 	"log/slog"
+	"net/http"
 	"strings"
 	"testing"
 )
@@ -244,7 +245,7 @@ func TestOutbox_PublicPostInGroup(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -287,7 +288,7 @@ func TestOutbox_PublicPostInGroupUnauthenticatedUser(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -336,7 +337,7 @@ func TestOutbox_PostToFollowersInGroup(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -385,7 +386,7 @@ func TestOutbox_PostToFollowersInGroupNotFollowingGroup(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -431,7 +432,7 @@ func TestOutbox_PostToFollowersInGroupNotAccepted(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -480,7 +481,7 @@ func TestOutbox_PostToFollowersInGroupFollowingAuthor(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -529,7 +530,7 @@ func TestOutbox_PostToFollowersInGroupUnauthenticatedUser(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -581,7 +582,7 @@ func TestOutbox_DMInGroup(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -630,7 +631,7 @@ func TestOutbox_DMInGroupNotFollowingGroup(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -682,7 +683,7 @@ func TestOutbox_DMInGroupAnotherUser(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())

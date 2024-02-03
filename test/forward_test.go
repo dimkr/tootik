@@ -25,6 +25,7 @@ import (
 	"github.com/dimkr/tootik/outbox"
 	"github.com/stretchr/testify/assert"
 	"log/slog"
+	"net/http"
 	"testing"
 )
 
@@ -72,7 +73,7 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 	_, err = server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		`{"type":"Person"}`,
+		`{"type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -90,7 +91,7 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -150,7 +151,7 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 	_, err = server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		`{"type":"Person"}`,
+		`{"type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -168,7 +169,7 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -240,7 +241,7 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 	_, err = server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		`{"type":"Person"}`,
+		`{"type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -258,7 +259,7 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -314,7 +315,7 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 	_, err = server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		`{"type":"Person"}`,
+		`{"type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -332,7 +333,7 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -388,7 +389,7 @@ func TestForward_ReplyToDM(t *testing.T) {
 	_, err = server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		`{"type":"Person"}`,
+		`{"type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -406,7 +407,7 @@ func TestForward_ReplyToDM(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -451,7 +452,7 @@ func TestForward_NotFollowingAuthor(t *testing.T) {
 	_, err = server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		`{"type":"Person"}`,
+		`{"type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -469,7 +470,7 @@ func TestForward_NotFollowingAuthor(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -525,7 +526,7 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 	_, err = server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		`{"type":"Person"}`,
+		`{"type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -543,7 +544,7 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -588,7 +589,7 @@ func TestForward_ReplyToFederatedPost(t *testing.T) {
 	_, err = server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		`{"type":"Person"}`,
+		`{"type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -606,7 +607,7 @@ func TestForward_ReplyToFederatedPost(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -710,7 +711,7 @@ func TestForward_MaxDepth(t *testing.T) {
 	_, err = server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		`{"type":"Person"}`,
+		`{"type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -728,7 +729,7 @@ func TestForward_MaxDepth(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -848,7 +849,7 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 	_, err = server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		`{"type":"Person"}`,
+		`{"type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -866,7 +867,7 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())

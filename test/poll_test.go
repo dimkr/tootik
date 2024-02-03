@@ -24,6 +24,7 @@ import (
 	"github.com/dimkr/tootik/outbox"
 	"github.com/stretchr/testify/assert"
 	"log/slog"
+	"net/http"
 	"strings"
 	"testing"
 )
@@ -55,7 +56,7 @@ func TestPoll_TwoOptions(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -96,7 +97,7 @@ func TestPoll_TwoOptionsZeroVotes(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -137,7 +138,7 @@ func TestPoll_TwoOptionsOnlyZeroVotes(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -176,7 +177,7 @@ func TestPoll_OneOption(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -216,7 +217,7 @@ func TestPoll_Vote(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -264,7 +265,7 @@ func TestPoll_VoteClosedPoll(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -306,7 +307,7 @@ func TestPoll_VoteEndedPoll(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -348,7 +349,7 @@ func TestPoll_Reply(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -396,7 +397,7 @@ func TestPoll_ReplyClosedPoll(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -444,7 +445,7 @@ func TestPoll_EditVote(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -495,7 +496,7 @@ func TestPoll_DeleteReply(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -546,7 +547,7 @@ func TestPoll_Update(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -606,7 +607,7 @@ func TestPoll_OldUpdate(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -666,7 +667,7 @@ func TestPoll_UpdateClosed(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())

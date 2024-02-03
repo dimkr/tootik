@@ -23,6 +23,7 @@ import (
 	"github.com/dimkr/tootik/inbox"
 	"github.com/stretchr/testify/assert"
 	"log/slog"
+	"net/http"
 	"strings"
 
 	"testing"
@@ -179,7 +180,7 @@ func TestFirehose_PublicPostShared(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -228,7 +229,7 @@ func TestFirehose_PublicPostSharedNotFollowing(t *testing.T) {
 		Config:   server.cfg,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())

@@ -31,6 +31,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"sync"
 	"testing"
@@ -171,7 +172,7 @@ func TestRegister_Redirect(t *testing.T) {
 		Config:   &cfg,
 		Handler:  front.NewHandler(domain, false, &cfg),
 		DB:       db,
-		Resolver: fed.NewResolver(nil, domain, &cfg),
+		Resolver: fed.NewResolver(nil, domain, &cfg, &http.Client{}),
 		Log:      slog.Default(),
 	}
 	l.Handle(context.Background(), tlsWriter, &wg)
@@ -253,7 +254,7 @@ func TestRegister_HappyFlow(t *testing.T) {
 		Config:   &cfg,
 		Handler:  front.NewHandler(domain, false, &cfg),
 		DB:       db,
-		Resolver: fed.NewResolver(nil, domain, &cfg),
+		Resolver: fed.NewResolver(nil, domain, &cfg, &http.Client{}),
 		Log:      slog.Default(),
 	}
 	l.Handle(context.Background(), tlsWriter, &wg)
@@ -335,7 +336,7 @@ func TestRegister_HappyFlowRegistrationClosed(t *testing.T) {
 		Config:   &cfg,
 		Handler:  front.NewHandler(domain, true, &cfg),
 		DB:       db,
-		Resolver: fed.NewResolver(nil, domain, &cfg),
+		Resolver: fed.NewResolver(nil, domain, &cfg, &http.Client{}),
 		Log:      slog.Default(),
 	}
 	l.Handle(context.Background(), tlsWriter, &wg)
@@ -420,7 +421,7 @@ func TestRegister_AlreadyRegistered(t *testing.T) {
 		Config:   &cfg,
 		Handler:  front.NewHandler(domain, false, &cfg),
 		DB:       db,
-		Resolver: fed.NewResolver(nil, domain, &cfg),
+		Resolver: fed.NewResolver(nil, domain, &cfg, &http.Client{}),
 		Log:      slog.Default(),
 	}
 	l.Handle(context.Background(), tlsWriter, &wg)
@@ -507,7 +508,7 @@ func TestRegister_Twice(t *testing.T) {
 			Config:   &cfg,
 			Handler:  front.NewHandler(domain, false, &cfg),
 			DB:       db,
-			Resolver: fed.NewResolver(nil, domain, &cfg),
+			Resolver: fed.NewResolver(nil, domain, &cfg, &http.Client{}),
 			Log:      slog.Default(),
 		}
 		l.Handle(context.Background(), tlsWriter, &wg)
@@ -605,7 +606,7 @@ func TestRegister_Throttling(t *testing.T) {
 			Config:   &cfg,
 			Handler:  front.NewHandler(domain, false, &cfg),
 			DB:       db,
-			Resolver: fed.NewResolver(nil, domain, &cfg),
+			Resolver: fed.NewResolver(nil, domain, &cfg, &http.Client{}),
 			Log:      slog.Default(),
 		}
 		l.Handle(context.Background(), tlsWriter, &wg)
@@ -703,7 +704,7 @@ func TestRegister_Throttling30Minutes(t *testing.T) {
 			Config:   &cfg,
 			Handler:  front.NewHandler(domain, false, &cfg),
 			DB:       db,
-			Resolver: fed.NewResolver(nil, domain, &cfg),
+			Resolver: fed.NewResolver(nil, domain, &cfg, &http.Client{}),
 			Log:      slog.Default(),
 		}
 		l.Handle(context.Background(), tlsWriter, &wg)
@@ -804,7 +805,7 @@ func TestRegister_Throttling1Hour(t *testing.T) {
 			Config:   &cfg,
 			Handler:  front.NewHandler(domain, false, &cfg),
 			DB:       db,
-			Resolver: fed.NewResolver(nil, domain, &cfg),
+			Resolver: fed.NewResolver(nil, domain, &cfg, &http.Client{}),
 			Log:      slog.Default(),
 		}
 		l.Handle(context.Background(), tlsWriter, &wg)
@@ -899,7 +900,7 @@ func TestRegister_RedirectTwice(t *testing.T) {
 			Config:   &cfg,
 			Handler:  front.NewHandler(domain, false, &cfg),
 			DB:       db,
-			Resolver: fed.NewResolver(nil, domain, &cfg),
+			Resolver: fed.NewResolver(nil, domain, &cfg, &http.Client{}),
 			Log:      slog.Default(),
 		}
 		l.Handle(context.Background(), tlsWriter, &wg)

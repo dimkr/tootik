@@ -18,7 +18,6 @@ package fed
 
 import (
 	"context"
-	"crypto/tls"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -54,36 +53,26 @@ type Resolver struct {
 	Domain         string
 	Config         *cfg.Config
 	locks          []*semaphore.Weighted
-	client         http.Client
+	client         Client
 }
 
 var (
 	ErrActorGone      = errors.New("actor is gone")
+	ErrNoLocalActor   = errors.New("no such local user")
 	ErrActorNotCached = errors.New("actor is not cached")
 	ErrBlockedDomain  = errors.New("domain is blocked")
 	ErrInvalidScheme  = errors.New("invalid scheme")
+	ErrInvalidID      = errors.New("invalid actor ID")
 )
 
 // NewResolver returns a new [Resolver].
-func NewResolver(blockedDomains *BlockList, domain string, cfg *cfg.Config) *Resolver {
-	transport := http.Transport{
-		MaxIdleConns:    cfg.ResolverMaxIdleConns,
-		IdleConnTimeout: cfg.ResolverIdleConnTimeout,
-		TLSClientConfig: &tls.Config{
-			MinVersion: tls.VersionTLS12,
-		},
-	}
+func NewResolver(blockedDomains *BlockList, domain string, cfg *cfg.Config, client Client) *Resolver {
 	r := Resolver{
 		BlockedDomains: blockedDomains,
 		Domain:         domain,
 		Config:         cfg,
 		locks:          make([]*semaphore.Weighted, cfg.MaxResolverRequests),
-		client: http.Client{
-			Transport: &transport,
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				return http.ErrUseLastResponse
-			},
-		},
+		client:         client,
 	}
 	for i := 0; i < len(r.locks); i++ {
 		r.locks[i] = semaphore.NewWeighted(1)
@@ -178,11 +167,10 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	var updated int64
 	var fetched sql.NullInt64
 	var sinceLastUpdate time.Duration
-	if err := db.QueryRowContext(ctx, `select actor, updated, fetched from (select actor, updated, fetched, 0 as score from persons where id = $1 union select actor, updated, fetched, 1 as score from persons where actor->>'preferredUsername' = $2 and host = $3 order by score limit 1)`, to, name, u.Host).Scan(&tmp, &updated, &fetched); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := db.QueryRowContext(ctx, `select actor, updated, fetched from persons where actor->>'preferredUsername' = $1 and host = $2`, name, u.Host).Scan(&tmp, &updated, &fetched); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, fmt.Errorf("failed to fetch %s cache: %w", to, err)
 	} else if err == nil {
 		cachedActor = &tmp
-
 		sinceLastUpdate = time.Since(time.Unix(updated, 0))
 		if !isLocal && !offline && sinceLastUpdate > r.Config.ResolverCacheTTL && (!fetched.Valid || time.Since(time.Unix(fetched.Int64, 0)) >= r.Config.ResolverRetryInterval) {
 			log.Info("Updating old cache entry for actor", "to", to)
@@ -194,7 +182,7 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	}
 
 	if isLocal {
-		return nil, nil, fmt.Errorf("cannot resolve %s: no such local user", to)
+		return nil, nil, fmt.Errorf("cannot resolve %s: %w", to, ErrNoLocalActor)
 	}
 
 	if offline {
@@ -269,32 +257,8 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 		return nil, cachedActor, fmt.Errorf("no profile link in %s response", finger)
 	}
 
-	if profile != to {
-		log.Info("Replacing actor ID", "before", to, "after", profile)
-		to = profile
-		cachedActor = nil
-
-		if err := db.QueryRowContext(ctx, `select actor, updated, fetched from persons where id = ?`, to).Scan(&tmp, &updated, &fetched); err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return nil, nil, fmt.Errorf("failed to fetch %s cache: %w", to, err)
-		} else if err == nil {
-			cachedActor = &tmp
-
-			if !isLocal && time.Since(time.Unix(updated, 0)) > r.Config.ResolverCacheTTL && (!fetched.Valid || time.Since(time.Unix(fetched.Int64, 0)) >= r.Config.ResolverRetryInterval) {
-				log.Info("Updating old cache entry for actor", "to", to)
-				update = true
-
-				if _, err := db.ExecContext(
-					ctx,
-					`UPDATE persons SET fetched = UNIXEPOCH() WHERE id = ?`,
-					cachedActor.ID,
-				); err != nil {
-					return nil, cachedActor, fmt.Errorf("failed to update last fetch time for %s: %w", cachedActor.ID, err)
-				}
-			} else {
-				log.Debug("Resolved actor using cache", "to", to)
-				return nil, cachedActor, nil
-			}
-		}
+	if !data.IsIDValid(profile) {
+		return nil, nil, fmt.Errorf("cannot resolve %s: %w", profile, ErrInvalidID)
 	}
 
 	req, err = http.NewRequestWithContext(ctx, http.MethodGet, profile, nil)
@@ -320,12 +284,8 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 		return nil, cachedActor, fmt.Errorf("failed to unmarshal %s: %w", profile, err)
 	}
 
-	resolvedID := actor.ID
-	if !data.IsIDValid(resolvedID) {
-		return nil, cachedActor, fmt.Errorf("failed to unmarshal %s: invalid ID", profile)
-	}
-	if resolvedID != to {
-		log.Info("Replacing actor ID", "before", to, "after", resolvedID)
+	if actor.ID != profile {
+		return nil, cachedActor, fmt.Errorf("%s does not match %s", actor.ID, profile)
 	}
 
 	if update {
@@ -333,17 +293,17 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 			ctx,
 			`UPDATE persons SET actor = ?, updated = UNIXEPOCH() WHERE id = ?`,
 			string(body),
-			resolvedID,
+			actor.ID,
 		); err != nil {
-			return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", resolvedID, err)
+			return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
 		}
 	} else if _, err := db.ExecContext(
 		ctx,
 		`INSERT INTO persons(id, actor, fetched) VALUES(?,?,UNIXEPOCH())`,
-		resolvedID,
+		actor.ID,
 		string(body),
 	); err != nil {
-		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", resolvedID, err)
+		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
 	}
 
 	return &actor, cachedActor, nil

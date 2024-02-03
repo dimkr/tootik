@@ -18,11 +18,13 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 
 	"github.com/dimkr/tootik/buildinfo"
@@ -133,7 +135,20 @@ func main() {
 
 	log.Debug("Starting", "version", buildinfo.Version, "cfg", &cfg)
 
-	resolver := fed.NewResolver(blockList, *domain, &cfg)
+	transport := http.Transport{
+		MaxIdleConns:    cfg.ResolverMaxIdleConns,
+		IdleConnTimeout: cfg.ResolverIdleConnTimeout,
+		TLSClientConfig: &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		},
+	}
+	client := http.Client{
+		Transport: &transport,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	resolver := fed.NewResolver(blockList, *domain, &cfg, &client)
 
 	ctx, cancel := context.WithCancel(context.Background())
 

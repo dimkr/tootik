@@ -23,6 +23,7 @@ import (
 	"github.com/dimkr/tootik/outbox"
 	"github.com/stretchr/testify/assert"
 	"log/slog"
+	"net/http"
 	"strings"
 	"testing"
 )
@@ -49,14 +50,14 @@ func TestMove_FederatedToFederated(t *testing.T) {
 	_, err = server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		`{"id":"https://127.0.0.1/user/dan","type":"Person","movedTo":"https://::1/user/dan"}`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://::1/user/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://::1/user/dan",
-		`{"id":"https://::1/user/dan","type":"Person","alsoKnownAs":"https://127.0.0.1/user/dan"}`,
+		`{"id":"https://::1/user/dan","type":"Person","preferredUsername":"dan","alsoKnownAs":"https://127.0.0.1/user/dan"}`,
 	)
 	assert.NoError(err)
 
@@ -64,7 +65,7 @@ func TestMove_FederatedToFederated(t *testing.T) {
 		Domain:   domain,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	assert.NoError(mover.Run(context.Background()))
@@ -96,14 +97,14 @@ func TestMove_FederatedToFederatedTwoAccounts(t *testing.T) {
 	_, err = server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		`{"id":"https://127.0.0.1/user/dan","type":"Person","movedTo":"https://::1/user/dan"}`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://::1/user/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://::1/user/dan",
-		`{"id":"https://::1/user/dan","type":"Person","alsoKnownAs":["https://::1/user/dan","https://127.0.0.1/user/dan"]}`,
+		`{"id":"https://::1/user/dan","type":"Person","preferredUsername":"dan","alsoKnownAs":["https://::1/user/dan","https://127.0.0.1/user/dan"]}`,
 	)
 	assert.NoError(err)
 
@@ -111,7 +112,7 @@ func TestMove_FederatedToFederatedTwoAccounts(t *testing.T) {
 		Domain:   domain,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	assert.NoError(mover.Run(context.Background()))
@@ -143,14 +144,14 @@ func TestMove_FederatedToFederatedNotLinked(t *testing.T) {
 	_, err = server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		`{"id":"https://127.0.0.1/user/dan","type":"Person","movedTo":"https://::1/user/dan"}`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://::1/user/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://::1/user/dan",
-		`{"id":"https://::1/user/dan","type":"Person"}`,
+		`{"id":"https://::1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -158,7 +159,7 @@ func TestMove_FederatedToFederatedNotLinked(t *testing.T) {
 		Domain:   domain,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	assert.NoError(mover.Run(context.Background()))
@@ -190,7 +191,7 @@ func TestMove_FederatedToLocal(t *testing.T) {
 	_, err = server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		`{"id":"https://127.0.0.1/user/dan","type":"Person","movedTo":"https://localhost.localdomain:8443/user/bob"}`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://localhost.localdomain:8443/user/bob"}`,
 	)
 	assert.NoError(err)
 
@@ -198,7 +199,7 @@ func TestMove_FederatedToLocal(t *testing.T) {
 		Domain:   domain,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	assert.NoError(mover.Run(context.Background()))
@@ -230,7 +231,7 @@ func TestMove_FederatedToLocalLinked(t *testing.T) {
 	_, err = server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		`{"id":"https://127.0.0.1/user/dan","type":"Person","movedTo":"https://localhost.localdomain:8443/user/bob"}`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://localhost.localdomain:8443/user/bob"}`,
 	)
 	assert.NoError(err)
 
@@ -241,7 +242,7 @@ func TestMove_FederatedToLocalLinked(t *testing.T) {
 		Domain:   domain,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	assert.NoError(mover.Run(context.Background()))
@@ -283,14 +284,14 @@ func TestMove_FollowingBoth(t *testing.T) {
 	_, err = server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
-		`{"id":"https://127.0.0.1/user/dan","type":"Person","movedTo":"https://::1/user/dan"}`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://::1/user/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://::1/user/dan",
-		`{"id":"https://::1/user/dan","type":"Person","alsoKnownAs":"https://127.0.0.1/user/dan"}`,
+		`{"id":"https://::1/user/dan","type":"Person","preferredUsername":"dan","alsoKnownAs":"https://127.0.0.1/user/dan"}`,
 	)
 	assert.NoError(err)
 
@@ -298,7 +299,7 @@ func TestMove_FollowingBoth(t *testing.T) {
 		Domain:   domain,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	assert.NoError(mover.Run(context.Background()))
@@ -351,7 +352,7 @@ func TestMove_LocalToLocal(t *testing.T) {
 		Domain:   domain,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	assert.NoError(mover.Run(context.Background()))
@@ -384,7 +385,7 @@ func TestMove_LocalToLocalNoFollowers(t *testing.T) {
 		Domain:   domain,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	assert.NoError(mover.Run(context.Background()))
@@ -403,7 +404,7 @@ func TestMove_LocalToFederated(t *testing.T) {
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/alice",
-		`{"id":"https://127.0.0.1/user/alice","type":"Person","alsoKnownAs":["https://localhost.localdomain:8443/user/alice"]}`,
+		`{"id":"https://127.0.0.1/user/alice","type":"Person","preferredUsername":"alice","alsoKnownAs":["https://localhost.localdomain:8443/user/alice"]}`,
 	)
 	assert.NoError(err)
 
@@ -431,7 +432,7 @@ func TestMove_LocalToFederated(t *testing.T) {
 		Domain:   domain,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	assert.NoError(mover.Run(context.Background()))
@@ -450,7 +451,7 @@ func TestMove_LocalToFederatedNoSourceToTargetAlias(t *testing.T) {
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/alice",
-		`{"id":"https://127.0.0.1/user/alice","type":"Person","alsoKnownAs":["https://localhost.localdomain:8443/user/alice"]}`,
+		`{"id":"https://127.0.0.1/user/alice","type":"Person","preferredUsername":"alice","alsoKnownAs":["https://localhost.localdomain:8443/user/alice"]}`,
 	)
 	assert.NoError(err)
 
@@ -479,7 +480,7 @@ func TestMove_LocalToFederatedNoTargetToSourceAlias(t *testing.T) {
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/alice",
-		`{"id":"https://127.0.0.1/user/alice","type":"Person","alsoKnownAs":[]}`,
+		`{"id":"https://127.0.0.1/user/alice","type":"Person","preferredUsername":"alice","alsoKnownAs":[]}`,
 	)
 	assert.NoError(err)
 
@@ -513,7 +514,7 @@ func TestMove_LocalToFederatedAlreadyMoved(t *testing.T) {
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/alice",
-		`{"id":"https://127.0.0.1/user/alice","type":"Person","alsoKnownAs":["https://localhost.localdomain:8443/user/alice"]}`,
+		`{"id":"https://127.0.0.1/user/alice","type":"Person","preferredUsername":"alice","alsoKnownAs":["https://localhost.localdomain:8443/user/alice"]}`,
 	)
 	assert.NoError(err)
 
@@ -541,7 +542,7 @@ func TestMove_LocalToFederatedAlreadyMoved(t *testing.T) {
 		Domain:   domain,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg),
+		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
 		Actor:    server.Nobody,
 	}
 	assert.NoError(mover.Run(context.Background()))
