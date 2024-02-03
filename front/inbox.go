@@ -101,7 +101,7 @@ func (h *Handler) dailyPosts(w text.Writer, r *request, day time.Time) {
 					join
 					persons
 					on
-						persons.id = $1
+						persons.id = notes.author
 					where
 						myposts.author = $1 and
 						notes.author != $1 and
