@@ -120,12 +120,12 @@ Successful migration should preserve followers by moving them from the old accou
 To migrate an account to this instance:
 * Register on this instance (if you haven't already)
 * Set the old account as an alias of the new account
-* Set the new account as an alias of the old account
+* Use Settings → Set account alias to set the new account as an alias of the old account
 * Follow the account migration procedure of your existing instance
 
 To migrate an account from this instance:
 * Register an account on another instance (if you don't have one)
-* Set the new account as an alias of the old account
+* Use Settings → Set account alias to set the new account as an alias of the old account
 * Set the old account as an alias of the new account
 * Use Settings → Move account
 
