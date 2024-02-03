@@ -55,6 +55,7 @@ type Activity struct {
 	Type      ActivityType `json:"type"`
 	Actor     string       `json:"actor"`
 	Object    any          `json:"object"`
+	Target    string       `json:"target,omitempty"`
 	To        Audience     `json:"to,omitempty"`
 	CC        Audience     `json:"cc,omitempty"`
 	Published Time         `json:"published,omitempty"`

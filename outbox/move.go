@@ -18,11 +18,13 @@ package outbox
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/fed"
 	"log/slog"
+	"time"
 )
 
 type Mover struct {
@@ -81,7 +83,7 @@ func (m *Mover) Run(ctx context.Context) error {
 				exists (select 1 from json_each(new.actor->'alsoKnownAs') where value = old.id)
 			join follows
 			on
-				follows.followed = old.id and follows.inserted < old.updated
+				follows.followed = old.id
 			join persons
 			on
 				persons.id = follows.follower
@@ -117,6 +119,58 @@ func (m *Mover) Run(ctx context.Context) error {
 		if err := Unfollow(ctx, m.Domain, m.Log, m.DB, &actor, oldID, oldFollowID); err != nil {
 			m.Log.Warn("Failed to unfollow old actor", "follow", oldFollowID, "old", oldID, "new", newID, "error", err)
 		}
+	}
+
+	return nil
+}
+
+func Move(ctx context.Context, db *sql.DB, domain string, from *ap.Actor, to string) error {
+	now := time.Now()
+
+	aud := ap.Audience{}
+	aud.Add(from.Followers)
+
+	move := ap.Activity{
+		Context: "https://www.w3.org/ns/activitystreams",
+		ID:      fmt.Sprintf("https://%s/move/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", from.ID, to, now.UnixNano())))),
+		Actor:   from.ID,
+		Type:    ap.MoveActivity,
+		Object:  from.ID,
+		Target:  to,
+		To:      aud,
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`update persons set actor = json_set(actor, '$.movedTo', $1, '$.updated', $2) where id = $3`,
+		to,
+		now.Format(time.RFC3339Nano),
+		from.ID,
+	); err != nil {
+		return fmt.Errorf("failed to insert Move: %w", err)
+	}
+
+	if err := UpdateActor(ctx, domain, tx, from.ID); err != nil {
+		return fmt.Errorf("failed to insert Move: %w", err)
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`insert into outbox (activity, sender) values (?, ?)`,
+		&move,
+		from.ID,
+	); err != nil {
+		return fmt.Errorf("failed to insert Move: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to insert Move: %w", err)
 	}
 
 	return nil

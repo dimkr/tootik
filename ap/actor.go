@@ -48,6 +48,7 @@ type Actor struct {
 	AlsoKnownAs               Audience          `json:"alsoKnownAs,omitempty"`
 	Published                 Time              `json:"published"`
 	Updated                   *Time             `json:"updated,omitempty"`
+	MovedTo                   string            `json:"movedTo,omitempty"`
 }
 
 func (a *Actor) Scan(src any) error {

@@ -87,6 +87,7 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) Handler {
 	h.handlers[regexp.MustCompile(`^/users/bio$`)] = h.bio
 	h.handlers[regexp.MustCompile(`^/users/name$`)] = h.name
 	h.handlers[regexp.MustCompile(`^/users/alias$`)] = h.alias
+	h.handlers[regexp.MustCompile(`^/users/move$`)] = h.move
 
 	h.handlers[regexp.MustCompile(`^/view/(\S+)$`)] = withUserMenu(h.view)
 	h.handlers[regexp.MustCompile(`^/users/view/(\S+)$`)] = withUserMenu(h.view)

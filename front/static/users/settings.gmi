@@ -1,5 +1,11 @@
 # ⚙️ Settings
 
+## Profile
+
 => /users/name 👺 Set display name
 => /users/bio 📜 Set bio
-=> /users/alias 🔗 Set alias
+
+## Migration
+
+=> /users/alias 🔗 Set account alias
+=> /users/move 📦 Move account

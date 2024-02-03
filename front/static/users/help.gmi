@@ -73,10 +73,11 @@ Follow this link to publish a public post visible to anyone.
 
 > ⚙️ Settings
 
-This page allows you to change:
-* Your display name (up to 30 characters long)
-* The short (up to 500 characters long) description that appears at the top of your profile
-* Your account alias, to allow account migration to tootik
+This page allows you to:
+* Set your display name (up to 30 characters long)
+* Set the short (up to 500 characters long) description that appears at the top of your profile
+* Set an account alias, to allow account migration to this instance
+* Notify followers about account migration from this instance
 
 > 📊 Statistics
 
@@ -111,3 +112,23 @@ For example:
 ```
 
 Polls must have between 2 and 5 multi-choice options, and end after a month.
+
+## Account Migration
+
+Successful migration should preserve followers by moving them from the old account to the new account. Posts and other user actions are not migrated.
+
+To migrate an account to this instance:
+* Register on this instance (if you haven't already)
+* Set the old account as an alias of the new account
+* Set the new account as an alias of the old account
+* Follow the account migration procedure of your existing instance
+
+To migrate an account from this instance:
+* Register an account on another instance (if you don't have one)
+* Set the new account as an alias of the old account
+* Set the old account as an alias of the new account
+* Use Settings → Move account
+
+Migration can take time due to caching: it can take time for tootik to notice a newly added alias.
+
+tootik does not disable the moved account, but the account cannot be moved again.

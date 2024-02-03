@@ -49,7 +49,8 @@ tootik is a federated nanoblogging service for the small internet. With tootik, 
 
 ```
                          Gemini           ActivityPub (HTTPS)
- ┌───────────────────────┐ → ┌─────────────────┐ ⇄ ┌─────────────────────────┐
+                           →                     ⇄
+ ┌───────────────────────┐   ┌─────────────────┐   ┌─────────────────────────┐
  │  Bob's Gemini client  ├─┬─┤ tootik instance ├─┬─┤ Another tootik instance │
  ├───────────────────────┤ │ ├─────────────────┤ │ └─────────────────────────┘
  │2024-01-01 alice       │ │ │$ ./tootik ...   │ │ ┌────────────────┐
@@ -75,15 +76,29 @@ tootik is a federated nanoblogging service for the small internet. With tootik, 
                                                       └───────────────────────┘
 ```
 
-tootik's goal is to make the fediverse lighter, more private and more accessible:
-* Its frontend supports [Gemini](https://geminiprotocol.net/), Gopher, Finger and [Guppy](https://github.com/dimkr/guppy-protocol): there's a wide variety of clients to choose from and an old device incapable of running a modern web browser is good enough.
-* It converts rich content into plain text and links, reducing bandwidth requirements and making content more suitable for screen readers.
-* It puts the users in control of the content they see, there's no tracking or analytics and the post sorting algorithm imposes the slower pace of the small internet.
-* It's a single, easy-to-deploy executable that handles both the federation and frontend aspects, making it easy to [set up your own instance](https://github.com/dimkr/tootik/wiki/Quick-setup-guide) instead of joining an existing one.
-* It stores data like registered users and posts in a single file, a [sqlite](https://sqlite.org/) database that is easy to backup and restore.
-* It should be lightweight and efficient enough to host a single-user instance and even a small community on one, cheap server.
-* It implements only a subset of ActivityPub, enough for its feature set but not more, to stay small, reliable and maintainable.
-* It's permissively-licensed and everything is implemented in one language ([Go](https://go.dev/)), without abstraction layers (like web or ORM frameworks), making the codebase suitable for educational purposes and easy to understand and hack on.
+tootik is lightweight, private and accessible social network:
+* Its UI is served over [Gemini](https://geminiprotocol.net/), Gopher, Finger and [Guppy](https://github.com/dimkr/guppy-protocol): there's a wide variety of clients to choose from and some work great on old devices.
+* Rich content is reduced to plain text and links: it's a fast, low-bandwidth UI suitable for screen readers.
+* No promoted content, tracking or analytics: social networking, with the slow and non-commercial vibe of the small internet.
+* It's a single static executable, making it easy to [set up your own instance](https://github.com/dimkr/tootik/wiki/Quick-setup-guide) instead of joining an existing one.
+* All instance data is stored in a single file, a [sqlite](https://sqlite.org/) database that is easy to backup and restore.
+* It's lightweight: a <=$5/mo VPS or a SBC is more than enough for a small instance.
+* It implements the subset of ActivityPub required for its feature set but not more, to stay small, reliable and maintainable.
+* It's written in two languages ([Go](https://go.dev/) and SQL), making the codebase suitable for educational purposes and easy to hack on.
+* It's permissively-licensed.
+
+## Features
+
+* Good compatibility with various fediverse servers
+* Text posts, with 3 privacy levels
+  * Public
+  * To followers
+  * To mentioned users
+* Sharing of public posts
+* Users can follow each other to see non-public posts
+* Multi-choice polls
+* Full-text search within posts
+* Account migration, in both directions
 
 ## Using tootik
 
@@ -138,6 +153,7 @@ Users are authenticated using TLS client certificates; see [Gemini protocol spec
 * /users/bio allows users to edit their bio.
 * /users/name allows users to set their display name.
 * /users/alias allows users to set an account alias, to allow migration of accounts to tootik.
+* /users/move allows users to notify followers of account migration from tootik.
 
 Some clients generate a certificate for / (all pages of this capsule) when /foo requests a client certificate, while others use the certificate requested by /foo only for /foo and /foo/bar. Therefore, pages that don't require authentication are also mirrored under /users:
 

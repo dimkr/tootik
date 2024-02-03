@@ -219,8 +219,12 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		w.Link(actor.Image.URL, "Header")
 	}
 
+	if offset == 0 && actor.MovedTo != "" {
+		w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.MovedTo, "https://"), "Moved to %s", actor.MovedTo)
+	}
+
 	if len(summary) > 0 {
-		if actor.Icon.URL != "" || actor.Image.URL != "" {
+		if actor.Icon.URL != "" || actor.Image.URL != "" || actor.MovedTo != "" {
 			w.Empty()
 		}
 

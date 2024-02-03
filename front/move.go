@@ -25,74 +25,66 @@ import (
 	"time"
 )
 
-func (h *Handler) alias(w text.Writer, r *request, args ...string) {
+func (h *Handler) move(w text.Writer, r *request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
+		return
+	}
+
+	if r.User.MovedTo != "" {
+		r.Log.Warn("User cannot be moved again", "movedTo", r.User.MovedTo)
+		w.Status(40, "Already moved to "+r.User.MovedTo)
 		return
 	}
 
 	now := time.Now()
 
 	if (r.User.Updated != nil && now.Sub(r.User.Updated.Time) < h.Config.MinActorEditInterval) || (r.User.Updated == nil && now.Sub(r.User.Published.Time) < h.Config.MinActorEditInterval) {
-		r.Log.Warn("Throttled request to set alias")
+		r.Log.Warn("Throttled request to move account")
 		w.Status(40, "Please try again later")
 		return
 	}
 
 	if r.URL.RawQuery == "" {
-		w.Status(10, "Alias (name@domain)")
+		w.Status(10, "Target (name@domain)")
 		return
 	}
 
-	alias, err := url.QueryUnescape(r.URL.RawQuery)
+	target, err := url.QueryUnescape(r.URL.RawQuery)
 	if err != nil {
-		r.Log.Warn("Failed to decode alias", "query", r.URL.RawQuery, "error", err)
+		r.Log.Warn("Failed to decode move target", "query", r.URL.RawQuery, "error", err)
 		w.Status(40, "Bad input")
 		return
 	}
 
-	tokens := strings.SplitN(alias, "@", 3)
+	tokens := strings.SplitN(target, "@", 3)
 	if len(tokens) != 2 {
-		r.Log.Warn("Alias is invalid", "alias", alias)
+		r.Log.Warn("Target is invalid", "target", target)
 		w.Status(40, "Bad input")
 		return
 	}
 
 	actor, err := r.Resolve(fmt.Sprintf("https://%s/user/%s", tokens[1], tokens[0]), false)
 	if err != nil {
-		r.Log.Warn("Failed to resolve alias", "alias", alias, "error", err)
-		w.Status(40, "Failed to resolve "+alias)
+		r.Log.Warn("Failed to resolve target", "target", target, "error", err)
+		w.Status(40, "Failed to resolve "+target)
 		return
 	}
 
-	tx, err := r.DB.BeginTx(r.Context, nil)
-	if err != nil {
-		r.Log.Warn("Failed to update alias", "error", err)
-		w.Error()
-		return
-	}
-	defer tx.Rollback()
-
-	if _, err := tx.ExecContext(
-		r.Context,
-		"update persons set actor = json_set(actor, '$.alsoKnownAs', json_array($1), '$.updated', $2) where id = $3",
-		actor.ID,
-		now.Format(time.RFC3339Nano),
-		r.User.ID,
-	); err != nil {
-		r.Log.Error("Failed to update alias", "error", err)
-		w.Error()
+	if !r.User.AlsoKnownAs.Contains(actor.ID) {
+		r.Log.Warn("Move source is not an alias for target", "target", target)
+		w.Statusf(40, "%s is not an alias for %s", r.User.ID, actor.ID)
 		return
 	}
 
-	if err := outbox.UpdateActor(r.Context, h.Domain, tx, r.User.ID); err != nil {
-		r.Log.Error("Failed to update alias", "error", err)
-		w.Error()
+	if !actor.AlsoKnownAs.Contains(r.User.ID) {
+		r.Log.Warn("Move target is not an alias for source", "target", target)
+		w.Statusf(40, "%s is not an alias for %s", actor.ID, r.User.ID)
 		return
 	}
 
-	if err := tx.Commit(); err != nil {
-		r.Log.Error("Failed to update alias", "error", err)
+	if err := outbox.Move(r.Context, r.DB, r.Handler.Domain, r.User, actor.ID); err != nil {
+		r.Log.Error("Failed to move user", "error", err)
 		w.Error()
 		return
 	}
