@@ -58,6 +58,7 @@ func TestResolve_LocalActor(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -92,6 +93,7 @@ func TestResolve_LocalActorDoesNotExist(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -122,6 +124,7 @@ func TestResolve_FederatedActorInvalidURL(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -152,6 +155,7 @@ func TestResolve_FederatedActorInvalidScheme(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -182,6 +186,7 @@ func TestResolve_FederatedActorEmptyName(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -212,6 +217,7 @@ func TestResolve_FederatedActorFirstTime(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -292,6 +298,7 @@ func TestResolve_FederatedActorFirstTimeFromUnspecified(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -372,6 +379,7 @@ func TestResolve_FederatedActorFirstTimeThroughMention(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -452,6 +460,7 @@ func TestResolve_FederatedActorFirstTimeOffline(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -483,6 +492,7 @@ func TestResolve_FederatedActorFirstTimeCancelled(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -521,6 +531,7 @@ func TestResolve_FederatedActorFirstTimeInvalidWebFingerLink(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -606,6 +617,7 @@ func TestResolve_FederatedActorFirstTimeActorIDMismatch(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -683,6 +695,7 @@ func TestResolve_FederatedActorCached(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -769,6 +782,7 @@ func TestResolve_FederatedActorCachedButBlocked(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -862,6 +876,7 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -1006,6 +1021,7 @@ func TestResolve_FederatedActorOldCacheFetchedRecently(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -1095,6 +1111,7 @@ func TestResolve_FederatedActorOldCacheButOffline(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -1184,6 +1201,7 @@ func TestResolve_FederatedActorOldCacheInvalidID(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -1298,6 +1316,7 @@ func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -1398,6 +1417,7 @@ func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -1522,6 +1542,7 @@ func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -1645,6 +1666,7 @@ func TestResolve_FederatedActorOldCacheWebFingerError(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -1747,6 +1769,7 @@ func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -1873,6 +1896,7 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -1987,6 +2011,7 @@ func TestResolve_FederatedActorFirstTimeWrongID(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -2067,6 +2092,7 @@ func TestResolve_FederatedActorWrongIDCached(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -2153,6 +2179,7 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
@@ -2291,6 +2318,7 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 	f.Close()
 
 	path := f.Name()
+	defer os.Remove(path)
 
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
 	assert.NoError(err)
