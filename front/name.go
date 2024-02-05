@@ -73,7 +73,7 @@ func (h *Handler) name(w text.Writer, r *request, args ...string) {
 
 	if _, err := tx.ExecContext(
 		r.Context,
-		"update persons set actor = json_set(actor, '$.name', $1, '$.updated', $2) where id = $3",
+		"update persons set actor = json_setb(actor, '$.name', $1, '$.updated', $2) where id = $3",
 		plainDisplayName,
 		now.Format(time.RFC3339Nano),
 		r.User.ID,

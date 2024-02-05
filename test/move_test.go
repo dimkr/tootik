@@ -315,7 +315,7 @@ func TestMove_FederatedToLocalLinked(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	_, err = server.db.Exec(`UPDATE persons SET actor = json_set(actor, '$.alsoKnownAs', $1) WHERE id = $2`, "https://127.0.0.1/user/dan", server.Bob.ID)
+	_, err = server.db.Exec(`UPDATE persons SET actor = json_setb(actor, '$.alsoKnownAs', $1) WHERE id = $2`, "https://127.0.0.1/user/dan", server.Bob.ID)
 	assert.NoError(err)
 
 	mover := outbox.Mover{

@@ -10,7 +10,7 @@ func jsonb(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `UPDATE notes SET objectb = object`); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE notes SET objectb = jsonb(object)`); err != nil {
 		return err
 	}
 
@@ -106,7 +106,7 @@ func jsonb(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `UPDATE persons SET actorb = actor`); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE persons SET actorb = jsonb(actor)`); err != nil {
 		return err
 	}
 
@@ -170,7 +170,7 @@ func jsonb(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `UPDATE outbox SET activityb = activity`); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE outbox SET activityb = jsonb(activity)`); err != nil {
 		return err
 	}
 
@@ -226,7 +226,7 @@ func jsonb(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `UPDATE inbox SET activityb = activity`); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE inbox SET activityb = jsonb(activity)`); err != nil {
 		return err
 	}
 

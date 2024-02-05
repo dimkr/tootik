@@ -66,7 +66,7 @@ func (h *Handler) bio(w text.Writer, r *request, args ...string) {
 
 	if _, err := tx.ExecContext(
 		r.Context,
-		"update persons set actor = json_set(actor, '$.summary', $1, '$.updated', $2) where id = $3",
+		"update persons set actor = json_setb(actor, '$.summary', $1, '$.updated', $2) where id = $3",
 		plain.ToHTML(summary, nil),
 		now.Format(time.RFC3339Nano),
 		r.User.ID,
