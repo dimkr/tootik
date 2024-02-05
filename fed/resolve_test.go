@@ -21,8 +21,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front/user"
+	"github.com/dimkr/tootik/inbox/note"
 	"github.com/dimkr/tootik/migrations"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
@@ -77,7 +79,7 @@ func TestResolve_LocalActor(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	actor, err := resolver.Resolve(context.Background(), slog.Default(), db, nobody, nobody.ID, false)
+	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nobody, nobody.ID, false)
 	assert.NoError(err)
 	assert.Empty(client)
 
@@ -112,7 +114,7 @@ func TestResolve_LocalActorDoesNotExist(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	_, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://localhost.localdomain/user/doesnotexist", false)
+	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://localhost.localdomain/user/doesnotexist", false)
 	assert.True(errors.Is(err, ErrNoLocalActor))
 }
 
@@ -143,7 +145,7 @@ func TestResolve_FederatedActorInvalidURL(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	_, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan%zz", false)
+	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan%zz", false)
 	assert.Error(err)
 }
 
@@ -174,7 +176,7 @@ func TestResolve_FederatedActorInvalidScheme(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	_, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "http://0.0.0.0/user/dan", false)
+	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "http://0.0.0.0/user/dan", false)
 	assert.True(errors.Is(err, ErrInvalidScheme))
 }
 
@@ -205,7 +207,7 @@ func TestResolve_FederatedActorEmptyName(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	_, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/@", false)
+	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/@", false)
 	assert.Error(err)
 }
 
@@ -282,7 +284,7 @@ func TestResolve_FederatedActorFirstTime(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	actor, err := resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
@@ -363,7 +365,7 @@ func TestResolve_FederatedActorFirstTimeFromUnspecified(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	actor, err := resolver.Resolve(context.Background(), slog.Default(), db, nil, "https://0.0.0.0/user/dan", false)
+	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nil, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
@@ -444,7 +446,7 @@ func TestResolve_FederatedActorFirstTimeThroughMention(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	actor, err := resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/@dan", false)
+	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/@dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
@@ -479,7 +481,7 @@ func TestResolve_FederatedActorFirstTimeOffline(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	_, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", true)
+	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", true)
 	assert.True(errors.Is(err, ErrActorNotCached))
 	assert.Empty(client)
 }
@@ -518,7 +520,7 @@ func TestResolve_FederatedActorFirstTimeCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err = resolver.Resolve(ctx, slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	_, err = resolver.ResolveID(ctx, slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.True(errors.Is(err, context.Canceled))
 	assert.Empty(client)
 }
@@ -601,7 +603,7 @@ func TestResolve_FederatedActorFirstTimeInvalidWebFingerLink(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	actor, err := resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
@@ -682,7 +684,7 @@ func TestResolve_FederatedActorFirstTimeActorIDMismatch(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	_, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.Error(err)
 	assert.Empty(client)
 }
@@ -760,14 +762,14 @@ func TestResolve_FederatedActorCached(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	actor, err := resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	actor, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -847,14 +849,14 @@ func TestResolve_FederatedActorCachedButBlocked(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	actor, err := resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	actor, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -864,7 +866,7 @@ func TestResolve_FederatedActorCachedButBlocked(t *testing.T) {
 		"0.0.0.0": struct{}{},
 	}
 
-	_, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.True(errors.Is(err, ErrBlockedDomain))
 }
 
@@ -941,7 +943,7 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	actor, err := resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
@@ -987,7 +989,7 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 						],
 						"id": "https://0.0.0.0/user/dan",
 						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
+						"inbox": "https://0.0.0.0/inbox/dan123",
 						"outbox": "https://0.0.0.0/outbox/dan",
 						"preferredUsername": "dan",
 						"followers": "https://0.0.0.0/followers/dan",
@@ -999,18 +1001,18 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
-	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
+	assert.Equal("https://0.0.0.0/inbox/dan123", actor.Inbox)
 
-	actor, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
-	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
+	assert.Equal("https://0.0.0.0/inbox/dan123", actor.Inbox)
 }
 
 func TestResolve_FederatedActorOldCacheFetchedRecently(t *testing.T) {
@@ -1086,7 +1088,7 @@ func TestResolve_FederatedActorOldCacheFetchedRecently(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	actor, err := resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
@@ -1096,7 +1098,7 @@ func TestResolve_FederatedActorOldCacheFetchedRecently(t *testing.T) {
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*5 where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
-	actor, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -1176,7 +1178,7 @@ func TestResolve_FederatedActorOldCacheButOffline(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	actor, err := resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
@@ -1186,7 +1188,7 @@ func TestResolve_FederatedActorOldCacheButOffline(t *testing.T) {
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
-	actor, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", true)
+	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", true)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -1266,7 +1268,7 @@ func TestResolve_FederatedActorOldCacheInvalidID(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	actor, err := resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
@@ -1303,7 +1305,7 @@ func TestResolve_FederatedActorOldCacheInvalidID(t *testing.T) {
 		},
 	}
 
-	_, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.True(errors.Is(err, ErrInvalidID))
 	assert.Empty(client)
 }
@@ -1381,7 +1383,7 @@ func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	actor, err := resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
@@ -1400,12 +1402,132 @@ func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
+	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
+}
+
+func TestResolve_FederatedActorOldCacheBigWebFingerResponse(t *testing.T) {
+	assert := assert.New(t)
+
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	assert.NoError(err)
+	f.Close()
+
+	path := f.Name()
+	defer os.Remove(path)
+
+	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	assert.NoError(err)
+
+	blockList := BlockList{}
+
+	var cfg cfg.Config
+	cfg.FillDefaults()
+
+	client := testClient{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+			Response: &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader([]byte(
+					`{
+						"aliases": [
+							"https://0.0.0.0/user/dan"
+						],
+						"links": [
+							{
+								"href": "https://0.0.0.0/user/dan",
+								"rel": "self",
+								"type": "application/activity+json"
+							},
+							{
+								"href": "https://0.0.0.0/user/dan",
+								"rel": "self",
+								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+							}
+						],
+						"subject": "acct:dan@0.0.0.0"
+					}`))),
+			},
+		},
+		"https://0.0.0.0/user/dan": testResponse{
+			Response: &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader([]byte(
+					`{
+						"@context": [
+							"https://www.w3.org/ns/activitystreams",
+							"https://w3id.org/security/v1"
+						],
+						"id": "https://0.0.0.0/user/dan",
+						"type": "Person",
+						"inbox": "https://0.0.0.0/inbox/dan",
+						"outbox": "https://0.0.0.0/outbox/dan",
+						"preferredUsername": "dan",
+						"followers": "https://0.0.0.0/followers/dan",
+						"endpoints": {
+							"sharedInbox": "https://0.0.0.0/inbox/nobody"
+						}
+					}`))),
+			},
+		},
+	}
+
+	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
+
+	nobody, err := user.CreateNobody(context.Background(), "localhost.localdomain", db)
+	assert.NoError(err)
+
+	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
+
+	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	assert.NoError(err)
+	assert.Empty(client)
+
+	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
+	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
+
+	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
+	assert.NoError(err)
+
+	client = testClient{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+			Response: &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader([]byte(
+					`{
+						"aliases": [
+							"https://0.0.0.0/user/dan"
+						],
+						"links": [
+							{
+								"href": "https://0.0.0.0/user/dan",
+								"rel": "self",
+								"type": "application/activity+json"
+							},
+							{
+								"href": "https://0.0.0.0/user/dan",
+								"rel": "self",
+								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+							}
+						],
+						"subject": "acct:dan@0.0.0.0"
+					}`))),
+			},
+		},
+	}
+
+	cfg.MaxRequestBodySize = 1
+
+	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	assert.NoError(err)
+	assert.Empty(client)
+
+	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 }
 
@@ -1482,7 +1604,7 @@ func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	actor, err := resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
@@ -1525,12 +1647,152 @@ func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
+}
+
+func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
+	assert := assert.New(t)
+
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	assert.NoError(err)
+	f.Close()
+
+	path := f.Name()
+	defer os.Remove(path)
+
+	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	assert.NoError(err)
+
+	blockList := BlockList{}
+
+	var cfg cfg.Config
+	cfg.FillDefaults()
+
+	client := testClient{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+			Response: &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader([]byte(
+					`{
+						"aliases": [
+							"https://0.0.0.0/user/dan"
+						],
+						"links": [
+							{
+								"href": "https://0.0.0.0/user/dan",
+								"rel": "self",
+								"type": "application/activity+json"
+							},
+							{
+								"href": "https://0.0.0.0/user/dan",
+								"rel": "self",
+								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+							}
+						],
+						"subject": "acct:dan@0.0.0.0"
+					}`))),
+			},
+		},
+		"https://0.0.0.0/user/dan": testResponse{
+			Response: &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader([]byte(
+					`{
+						"@context": [
+							"https://www.w3.org/ns/activitystreams",
+							"https://w3id.org/security/v1"
+						],
+						"id": "https://0.0.0.0/user/dan",
+						"type": "Person",
+						"inbox": "https://0.0.0.0/inbox/dan",
+						"outbox": "https://0.0.0.0/outbox/dan",
+						"preferredUsername": "dan",
+						"followers": "https://0.0.0.0/followers/dan",
+						"endpoints": {
+							"sharedInbox": "https://0.0.0.0/inbox/nobody"
+						}
+					}`))),
+			},
+		},
+	}
+
+	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
+
+	nobody, err := user.CreateNobody(context.Background(), "localhost.localdomain", db)
+	assert.NoError(err)
+
+	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
+
+	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	assert.NoError(err)
+	assert.Empty(client)
+
+	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
+	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
+
+	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
+	assert.NoError(err)
+
+	client = testClient{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+			Response: &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader([]byte(
+					`{
+						"aliases": [
+							"https://0.0.0.0/user/dan"
+						],
+						"links": [
+							{
+								"href": "https://0.0.0.0/user/dan",
+								"rel": "self",
+								"type": "application/activity+json"
+							},
+							{
+								"href": "https://0.0.0.0/user/dan",
+								"rel": "self",
+								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+							}
+						],
+						"subject": "acct:dan@0.0.0.0"
+					}`))),
+			},
+		},
+		"https://0.0.0.0/user/dan": testResponse{
+			Response: &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader([]byte(
+					`{
+						"@context": [
+							"https://www.w3.org/ns/activitystreams",
+							"https://w3id.org/security/v1"
+						],
+						"id": "https://0.0.0.0/user/dan",
+						"type": "Person",
+						"inbox": "https://0.0.0.0/inbox/dan123",
+						"outbox": "https://0.0.0.0/outbox/dan",
+						"preferredUsername": "dan",
+						"followers": "https://0.0.0.0/followers/dan",
+						"endpoints": {
+							"sharedInbox": "https://0.0.0.0/inbox/nobody"
+						}
+					}`))),
+			},
+		},
+	}
+
+	cfg.MaxRequestBodySize = 438
+
+	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	assert.NoError(err)
+	assert.Empty(client)
+
+	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 }
 
@@ -1607,7 +1869,7 @@ func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	actor, err := resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
@@ -1644,14 +1906,14 @@ func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	actor, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -1731,7 +1993,7 @@ func TestResolve_FederatedActorOldCacheWebFingerError(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	actor, err := resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
@@ -1747,14 +2009,14 @@ func TestResolve_FederatedActorOldCacheWebFingerError(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	actor, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -1834,7 +2096,7 @@ func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	actor, err := resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
@@ -1874,14 +2136,14 @@ func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	actor, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -1959,9 +2221,29 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 	nobody, err := user.CreateNobody(context.Background(), "localhost.localdomain", db)
 	assert.NoError(err)
 
+	tx, err := db.BeginTx(context.Background(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
+	assert.NoError(
+		note.Insert(
+			context.Background(),
+			slog.Default(),
+			tx,
+			&ap.Object{
+				ID:           "https://0.0.0.0/note/1",
+				Type:         ap.NoteObject,
+				AttributedTo: "https://0.0.0.0/user/dan",
+				Content:      "hello",
+			},
+		),
+	)
+
+	assert.NoError(tx.Commit())
+
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	actor, err := resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
@@ -1998,9 +2280,13 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 		},
 	}
 
-	_, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.True(errors.Is(err, ErrActorGone))
 	assert.Empty(client)
+
+	var ok int
+	assert.NoError(db.QueryRow(`select not exists (select 1 from notes where author = 'https://0.0.0.0/user/dan') and not exists (select 1 from persons where id = 'https://0.0.0.0/user/dan')`).Scan(&ok))
+	assert.Equal(1, ok)
 }
 
 func TestResolve_FederatedActorFirstTimeWrongID(t *testing.T) {
@@ -2076,12 +2362,93 @@ func TestResolve_FederatedActorFirstTimeWrongID(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	actor, err := resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
 	assert.Equal("https://0.0.0.0/users/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
+}
+
+func TestResolve_FederatedActorFirstTimeDeleted(t *testing.T) {
+	assert := assert.New(t)
+
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	assert.NoError(err)
+	f.Close()
+
+	path := f.Name()
+	defer os.Remove(path)
+
+	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	assert.NoError(err)
+
+	blockList := BlockList{}
+
+	var cfg cfg.Config
+	cfg.FillDefaults()
+
+	client := testClient{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+			Response: &http.Response{
+				StatusCode: http.StatusGone,
+				Body: io.NopCloser(bytes.NewReader([]byte(
+					`{
+						"aliases": [
+							"https://0.0.0.0/user/dan"
+						],
+						"links": [
+							{
+								"href": "https://0.0.0.0/user/dan",
+								"rel": "self",
+								"type": "application/activity+json"
+							},
+							{
+								"href": "https://0.0.0.0/user/dan",
+								"rel": "self",
+								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+							}
+						],
+						"subject": "acct:dan@0.0.0.0"
+					}`))),
+			},
+		},
+	}
+
+	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
+
+	nobody, err := user.CreateNobody(context.Background(), "localhost.localdomain", db)
+	assert.NoError(err)
+
+	tx, err := db.BeginTx(context.Background(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
+	assert.NoError(
+		note.Insert(
+			context.Background(),
+			slog.Default(),
+			tx,
+			&ap.Object{
+				ID:           "https://0.0.0.0/note/1",
+				Type:         ap.NoteObject,
+				AttributedTo: "https://0.0.0.0/user/dan",
+				Content:      "hello",
+			},
+		),
+	)
+
+	assert.NoError(tx.Commit())
+
+	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
+
+	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	assert.True(errors.Is(err, ErrActorGone))
+	assert.Empty(client)
+
+	var ok int
+	assert.NoError(db.QueryRow(`select exists (select 1 from notes where author = 'https://0.0.0.0/user/dan') and not exists (select 1 from persons where id = 'https://0.0.0.0/user/dan')`).Scan(&ok))
+	assert.Equal(1, ok)
 }
 
 func TestResolve_FederatedActorWrongIDCached(t *testing.T) {
@@ -2157,14 +2524,14 @@ func TestResolve_FederatedActorWrongIDCached(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	actor, err := resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/users/dan", false)
+	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/users/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
 	assert.Equal("https://0.0.0.0/users/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	actor, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/users/dan", actor.ID)
@@ -2244,7 +2611,7 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	actor, err := resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/users/dan", false)
+	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/users/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
@@ -2290,7 +2657,7 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 						],
 						"id": "https://0.0.0.0/users/dan",
 						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
+						"inbox": "https://0.0.0.0/inbox/dan123",
 						"outbox": "https://0.0.0.0/outbox/dan",
 						"preferredUsername": "dan",
 						"followers": "https://0.0.0.0/followers/dan",
@@ -2302,12 +2669,12 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
 	assert.Equal("https://0.0.0.0/users/dan", actor.ID)
-	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
+	assert.Equal("https://0.0.0.0/inbox/dan123", actor.Inbox)
 }
 
 func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
@@ -2383,7 +2750,7 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
 
-	actor, err := resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
@@ -2429,7 +2796,7 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 						],
 						"id": "https://0.0.0.0/users/dan",
 						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
+						"inbox": "https://0.0.0.0/inbox/dan123",
 						"outbox": "https://0.0.0.0/outbox/dan",
 						"preferredUsername": "dan",
 						"followers": "https://0.0.0.0/followers/dan",
@@ -2441,18 +2808,18 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 	assert.Empty(client)
 
 	assert.Equal("https://0.0.0.0/users/dan", actor.ID)
-	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
+	assert.Equal("https://0.0.0.0/inbox/dan123", actor.Inbox)
 
-	actor, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/users/dan", actor.ID)
-	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
+	assert.Equal("https://0.0.0.0/inbox/dan123", actor.Inbox)
 
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/users/dan'`)
 	assert.NoError(err)
@@ -2493,7 +2860,7 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 						],
 						"id": "https://0.0.0.0/users/dan",
 						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
+						"inbox": "https://0.0.0.0/inbox/dan456",
 						"outbox": "https://0.0.0.0/outbox/dan",
 						"preferredUsername": "dan",
 						"followers": "https://0.0.0.0/followers/dan",
@@ -2505,9 +2872,9 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.Resolve(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/users/dan", false)
+	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/users/dan", false)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/users/dan", actor.ID)
-	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
+	assert.Equal("https://0.0.0.0/inbox/dan456", actor.Inbox)
 }

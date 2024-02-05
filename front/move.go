@@ -17,7 +17,6 @@ limitations under the License.
 package front
 
 import (
-	"fmt"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/outbox"
 	"net/url"
@@ -64,7 +63,7 @@ func (h *Handler) move(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	actor, err := r.Resolve(fmt.Sprintf("https://%s/user/%s", tokens[1], tokens[0]), false)
+	actor, err := r.Resolve(tokens[1], tokens[0], false)
 	if err != nil {
 		r.Log.Warn("Failed to resolve target", "target", target, "error", err)
 		w.Status(40, "Failed to resolve "+target)

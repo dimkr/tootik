@@ -42,7 +42,7 @@ func verify(ctx context.Context, domain string, log *slog.Logger, r *http.Reques
 
 	keyID := verifier.KeyId()
 
-	actor, err := resolver.Resolve(r.Context(), log, db, from, keyID, offline)
+	actor, err := resolver.ResolveID(r.Context(), log, db, from, keyID, offline)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get key %s to verify message: %w", keyID, err)
 	}

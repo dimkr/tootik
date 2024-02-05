@@ -17,7 +17,6 @@ limitations under the License.
 package front
 
 import (
-	"fmt"
 	"github.com/dimkr/tootik/front/text"
 	"net/url"
 	"strings"
@@ -56,13 +55,11 @@ func (h *Handler) resolve(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	actorID := fmt.Sprintf("https://%s/user/%s", host, name)
+	r.Log.Info("Resolving user ID", "host", host, "name", name)
 
-	r.Log.Info("Resolving user ID", "id", actorID)
-
-	person, err := r.Resolve(actorID, false)
+	person, err := r.Resolve(host, name, false)
 	if err != nil {
-		r.Log.Warn("Failed to resolve user ID", "id", actorID, "error", err)
+		r.Log.Warn("Failed to resolve user ID", "host", host, "name", name, "error", err)
 		w.Statusf(40, "Failed to resolve %s@%s", name, host)
 		return
 	}

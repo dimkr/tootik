@@ -33,7 +33,6 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"strings"
 	"time"
 )
 
@@ -81,28 +80,32 @@ func NewResolver(blockedDomains *BlockList, domain string, cfg *cfg.Config, clie
 	return &r
 }
 
-// Resolve retrieves an actor object.
-func (r *Resolver) Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, to string, offline bool) (*ap.Actor, error) {
-	u, err := url.Parse(to)
+// ResolveID retrieves an actor object by its ID.
+func (r *Resolver) ResolveID(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, id string, offline bool) (*ap.Actor, error) {
+	u, err := url.Parse(id)
 	if err != nil {
-		return nil, fmt.Errorf("cannot resolve %s: %w", to, err)
+		return nil, fmt.Errorf("cannot resolve %s: %w", id, err)
 	}
 
 	if u.Scheme != "https" {
 		return nil, ErrInvalidScheme
 	}
 
-	if r.BlockedDomains != nil {
-		if blocked := r.BlockedDomains.Contains(u.Host); blocked {
-			return nil, ErrBlockedDomain
-		}
+	name := path.Base(u.Path)
+
+	// strip the leading @ if URL follows the form https://a.b/@c
+	if name[0] == '@' {
+		name = name[1:]
 	}
 
-	u.Fragment = ""
+	return r.Resolve(ctx, log, db, from, u.Host, name, offline)
+}
 
-	actor, cachedActor, err := r.resolve(ctx, log, db, from, u.String(), u, offline)
+// Resolve retrieves an actor object by host and name.
+func (r *Resolver) Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, host, name string, offline bool) (*ap.Actor, error) {
+	actor, cachedActor, err := r.resolve(ctx, log, db, from, host, name, offline)
 	if err != nil && cachedActor != nil {
-		log.Warn("Using old cache entry for actor", "to", to, "error", err)
+		log.Warn("Using old cache entry for actor", "host", host, "name", name, "error", err)
 		return cachedActor, nil
 	} else if actor == nil {
 		return cachedActor, err
@@ -132,28 +135,25 @@ func deleteActor(ctx context.Context, log *slog.Logger, db *sql.DB, id string) {
 	}
 }
 
-func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, to string, u *url.URL, offline bool) (*ap.Actor, *ap.Actor, error) {
+func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, host, name string, offline bool) (*ap.Actor, *ap.Actor, error) {
 	if from == nil {
-		log.Debug("Resolving actor", "to", to)
+		log.Debug("Resolving actor", "host", host, "name", name)
 	} else {
-		log.Debug("Resolving actor", "from", from.ID, "to", to)
+		log.Debug("Resolving actor", "from", from.ID, "host", host, "name", name)
 	}
 
-	name := path.Base(u.Path)
-
-	// strip the leading @ if URL follows the form https://a.b/@c
-	if name[0] == '@' {
-		name = name[1:]
+	if r.BlockedDomains != nil && r.BlockedDomains.Contains(host) {
+		return nil, nil, ErrBlockedDomain
 	}
 
 	if name == "" {
-		return nil, nil, fmt.Errorf("cannot resolve %s: empty name", to)
+		return nil, nil, fmt.Errorf("cannot resolve %s%s: empty name", name, host)
 	}
 
-	isLocal := strings.HasPrefix(to, fmt.Sprintf("https://%s/", r.Domain))
+	isLocal := host == r.Domain
 
 	if !isLocal && !offline {
-		lock := r.locks[crc32.ChecksumIEEE([]byte(to))%uint32(len(r.locks))]
+		lock := r.locks[crc32.ChecksumIEEE([]byte(host+name))%uint32(len(r.locks))]
 		if err := lock.Acquire(ctx, 1); err != nil {
 			return nil, nil, err
 		}
@@ -167,26 +167,26 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	var updated int64
 	var fetched sql.NullInt64
 	var sinceLastUpdate time.Duration
-	if err := db.QueryRowContext(ctx, `select actor, updated, fetched from persons where actor->>'preferredUsername' = $1 and host = $2`, name, u.Host).Scan(&tmp, &updated, &fetched); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return nil, nil, fmt.Errorf("failed to fetch %s cache: %w", to, err)
+	if err := db.QueryRowContext(ctx, `select actor, updated, fetched from persons where actor->>'preferredUsername' = $1 and host = $2`, name, host).Scan(&tmp, &updated, &fetched); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, nil, fmt.Errorf("failed to fetch %s%s cache: %w", name, host, err)
 	} else if err == nil {
 		cachedActor = &tmp
 		sinceLastUpdate = time.Since(time.Unix(updated, 0))
 		if !isLocal && !offline && sinceLastUpdate > r.Config.ResolverCacheTTL && (!fetched.Valid || time.Since(time.Unix(fetched.Int64, 0)) >= r.Config.ResolverRetryInterval) {
-			log.Info("Updating old cache entry for actor", "to", to)
+			log.Info("Updating old cache entry for actor", "id", cachedActor.ID)
 			update = true
 		} else {
-			log.Debug("Resolved actor using cache", "to", to)
+			log.Debug("Resolved actor using cache", "id", cachedActor.ID)
 			return nil, cachedActor, nil
 		}
 	}
 
 	if isLocal {
-		return nil, nil, fmt.Errorf("cannot resolve %s: %w", to, ErrNoLocalActor)
+		return nil, nil, fmt.Errorf("cannot resolve %s@%s: %w", name, host, ErrNoLocalActor)
 	}
 
 	if offline {
-		return nil, nil, fmt.Errorf("cannot resolve %s: %w", to, ErrActorNotCached)
+		return nil, nil, fmt.Errorf("cannot resolve %s@%s: %w", name, host, ErrActorNotCached)
 	}
 
 	if cachedActor != nil {
@@ -199,7 +199,7 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 		}
 	}
 
-	finger := fmt.Sprintf("%s://%s/.well-known/webfinger?resource=acct:%s@%s", u.Scheme, u.Host, name, u.Host)
+	finger := fmt.Sprintf("https://%s/.well-known/webfinger?resource=acct:%s@%s", host, name, host)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, finger, nil)
 	if err != nil {
@@ -210,8 +210,10 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	resp, err := r.send(log, db, from, req)
 	if err != nil {
 		if resp != nil && (resp.StatusCode == http.StatusGone || resp.StatusCode == http.StatusNotFound) {
-			log.Warn("Actor is gone, deleting associated objects", "to", to)
-			deleteActor(ctx, log, db, to)
+			if cachedActor != nil {
+				log.Warn("Actor is gone, deleting associated objects", "id", cachedActor.ID)
+				deleteActor(ctx, log, db, cachedActor.ID)
+			}
 			return nil, nil, fmt.Errorf("failed to fetch %s: %w", finger, ErrActorGone)
 		}
 
@@ -222,8 +224,10 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 		)
 		// if it's been a while since the last update and the server's domain is expired (NXDOMAIN), actor is gone
 		if sinceLastUpdate > r.Config.MaxInstanceRecoveryTime && errors.As(err, &urlError) && errors.As(urlError.Err, &opError) && errors.As(opError.Err, &dnsError) && dnsError.IsNotFound {
-			log.Warn("Server is probably gone, deleting associated objects", "to", to)
-			deleteActor(ctx, log, db, to)
+			if cachedActor != nil {
+				log.Warn("Server is probably gone, deleting associated objects", "id", cachedActor.ID)
+				deleteActor(ctx, log, db, cachedActor.ID)
+			}
 			return nil, nil, fmt.Errorf("failed to fetch %s: %w", finger, err)
 		}
 
@@ -232,7 +236,7 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	defer resp.Body.Close()
 
 	var webFingerResponse webFingerResponse
-	if err := json.NewDecoder(resp.Body).Decode(&webFingerResponse); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, r.Config.MaxRequestBodySize)).Decode(&webFingerResponse); err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to decode %s response: %w", finger, err)
 	}
 
