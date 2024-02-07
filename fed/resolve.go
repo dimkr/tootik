@@ -33,6 +33,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"strings"
 	"time"
 )
 
@@ -61,6 +62,7 @@ var (
 	ErrActorNotCached = errors.New("actor is not cached")
 	ErrBlockedDomain  = errors.New("domain is blocked")
 	ErrInvalidScheme  = errors.New("invalid scheme")
+	ErrInvalidHost    = errors.New("invalid host")
 	ErrInvalidID      = errors.New("invalid actor ID")
 )
 
@@ -264,6 +266,10 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	req, err = http.NewRequestWithContext(ctx, http.MethodGet, profile, nil)
 	if err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to send request to %s: %w", profile, err)
+	}
+
+	if req.URL.Host != host && !strings.HasSuffix(req.URL.Host, "."+host) {
+		return nil, nil, fmt.Errorf("actor link host is %s: %w", profile, ErrInvalidHost)
 	}
 
 	if !data.IsIDValid(req.URL) {
