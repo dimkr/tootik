@@ -31,7 +31,7 @@ func (l *Listener) handleUser(w http.ResponseWriter, r *http.Request) {
 
 	var actorID, actorString string
 	if err := l.DB.QueryRowContext(r.Context(), `select id, actor from persons where actor->>'preferredUsername' = ? and host = ?`, name, l.Domain).Scan(&actorID, &actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
-		l.Log.Info("Notifying about deleted user", "id", actorID)
+		l.Log.Info("Notifying about deleted user", "name", name)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
