@@ -173,15 +173,6 @@ func main() {
 		panic(err)
 	}
 
-	gc := data.GarbageCollector{
-		Domain: *domain,
-		Config: &cfg,
-		DB:     db,
-	}
-	if err := gc.Run(ctx); err != nil {
-		panic(err)
-	}
-
 	nobody, err := user.CreateNobody(ctx, *domain, db)
 	if err != nil {
 		panic(err)
@@ -342,7 +333,11 @@ func main() {
 		{
 			"gc",
 			garbageCollectionInterval,
-			&gc,
+			&data.GarbageCollector{
+				Domain: *domain,
+				Config: &cfg,
+				DB:     db,
+			},
 		},
 	} {
 		name := job.Name
