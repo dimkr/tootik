@@ -30,7 +30,7 @@ import (
 	"io"
 	"log/slog"
 	"math"
-	"math/rand"
+	"math/rand/v2"
 	"net"
 	"net/url"
 	"sync"
@@ -80,7 +80,7 @@ func (gl *Listener) handle(ctx context.Context, wg *sync.WaitGroup, from net.Add
 		return
 	}
 
-	seq := 6 + rand.Intn(math.MaxInt16/2)
+	seq := 6 + rand.IntN(math.MaxInt16/2)
 
 	var buf bytes.Buffer
 	w := guppy.Wrap(&buf, seq)

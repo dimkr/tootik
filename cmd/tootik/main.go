@@ -251,12 +251,10 @@ func main() {
 			},
 		},
 	} {
-		l := svc.Listener
-		name := svc.Name
 		wg.Add(1)
 		go func() {
-			if err := l.ListenAndServe(ctx); err != nil {
-				log.Error("Listener has failed", "name", name, "error", err)
+			if err := svc.Listener.ListenAndServe(ctx); err != nil {
+				log.Error("Listener has failed", "name", svc.Name, "error", err)
 			}
 			cancel()
 			wg.Done()
@@ -291,12 +289,10 @@ func main() {
 			},
 		},
 	} {
-		q := queue.Queue
-		name := queue.Name
 		wg.Add(1)
 		go func() {
-			if err := q.Process(ctx); err != nil {
-				log.Error("Failed to process queue", "name", name, "error", err)
+			if err := queue.Queue.Process(ctx); err != nil {
+				log.Error("Failed to process queue", "name", queue.Name, "error", err)
 			}
 			cancel()
 			wg.Done()
@@ -340,21 +336,18 @@ func main() {
 			},
 		},
 	} {
-		name := job.Name
-		interval := job.Interval
-		runner := job.Runner
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			defer cancel()
 
-			t := time.NewTicker(interval)
+			t := time.NewTicker(job.Interval)
 			defer t.Stop()
 
 			for {
-				log.Info("Running periodic job", "name", name)
-				if err := runner.Run(ctx); err != nil {
-					log.Error("Periodic job has failed", "name", name, "error", err)
+				log.Info("Running periodic job", "name", job.Name)
+				if err := job.Runner.Run(ctx); err != nil {
+					log.Error("Periodic job has failed", "name", job.Name, "error", err)
 					break
 				}
 

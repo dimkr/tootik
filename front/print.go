@@ -33,8 +33,8 @@ import (
 
 type noteMetadata struct {
 	Note   ap.Object
-	Author ap.NullActor
-	Sharer ap.NullActor
+	Author sql.Null[ap.Actor]
+	Sharer sql.Null[ap.Actor]
 }
 
 var verifiedRegex = regexp.MustCompile(`(\s*:[a-zA-Z0-9_]+:\s*)+`)
@@ -226,7 +226,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 		title += " ┃ edited"
 	}
 
-	var parentAuthor ap.NullActor
+	var parentAuthor sql.Null[ap.Actor]
 	if note.InReplyTo != "" {
 		if err := r.QueryRow(`select persons.actor from notes join persons on persons.id = notes.author where notes.id = ?`, note.InReplyTo).Scan(&parentAuthor); err != nil && errors.Is(err, sql.ErrNoRows) {
 			r.Log.Info("Parent post or author is missing", "id", note.InReplyTo)
@@ -249,11 +249,11 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 			meta += fmt.Sprintf(" %d#️", len(hashtags))
 		}
 
-		if len(mentionedUsers.OrderedMap) == 1 && (!parentAuthor.Valid || !mentionedUsers.Contains(parentAuthor.ID)) {
+		if len(mentionedUsers.OrderedMap) == 1 && (!parentAuthor.Valid || !mentionedUsers.Contains(parentAuthor.V.ID)) {
 			meta += " 1👤"
-		} else if len(mentionedUsers.OrderedMap) > 1 && (!parentAuthor.Valid || !mentionedUsers.Contains(parentAuthor.ID)) {
+		} else if len(mentionedUsers.OrderedMap) > 1 && (!parentAuthor.Valid || !mentionedUsers.Contains(parentAuthor.V.ID)) {
 			meta += fmt.Sprintf(" %d👤", len(mentionedUsers.OrderedMap))
-		} else if len(mentionedUsers.OrderedMap) > 1 && parentAuthor.Valid && mentionedUsers.Contains(parentAuthor.ID) {
+		} else if len(mentionedUsers.OrderedMap) > 1 && parentAuthor.Valid && mentionedUsers.Contains(parentAuthor.V.ID) {
 			meta += fmt.Sprintf(" %d👤", len(mentionedUsers.OrderedMap)-1)
 		}
 
@@ -266,9 +266,9 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 		}
 	}
 
-	if printParentAuthor && parentAuthor.Valid && parentAuthor.PreferredUsername != "" {
-		title += fmt.Sprintf(" ┃ RE: %s", parentAuthor.PreferredUsername)
-	} else if printParentAuthor && note.InReplyTo != "" && (!parentAuthor.Valid || parentAuthor.PreferredUsername == "") {
+	if printParentAuthor && parentAuthor.Valid && parentAuthor.V.PreferredUsername != "" {
+		title += fmt.Sprintf(" ┃ RE: %s", parentAuthor.V.PreferredUsername)
+	} else if printParentAuthor && note.InReplyTo != "" && (!parentAuthor.Valid || parentAuthor.V.PreferredUsername == "") {
 		title += " ┃ RE: ?"
 	}
 
@@ -464,9 +464,9 @@ func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, noteMet
 		}
 
 		if meta.Sharer.Valid {
-			r.PrintNote(w, &meta.Note, &meta.Author.Actor, &meta.Sharer.Actor, true, true, printParentAuthor, true)
+			r.PrintNote(w, &meta.Note, &meta.Author.V, &meta.Sharer.V, true, true, printParentAuthor, true)
 		} else {
-			r.PrintNote(w, &meta.Note, &meta.Author.Actor, nil, true, true, printParentAuthor, true)
+			r.PrintNote(w, &meta.Note, &meta.Author.V, nil, true, true, printParentAuthor, true)
 		}
 
 		lastDay = currentDay

@@ -41,7 +41,7 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 
 	var note ap.Object
 	var author ap.Actor
-	var group ap.NullActor
+	var group sql.Null[ap.Actor]
 
 	if r.User == nil {
 		err = r.QueryRow(`select notes.object, persons.actor, groups.actor from notes join persons on persons.id = notes.author left join (select id, actor from persons where actor->>'type' = 'Group') groups on groups.id = notes.object->>'audience' where notes.id = ? and notes.public = 1`, postID).Scan(&note, &author, &group)
@@ -121,7 +121,7 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 		}
 
 		if group.Valid {
-			r.PrintNote(w, &note, &author, &group.Actor, false, false, true, false)
+			r.PrintNote(w, &note, &author, &group.V, false, false, true, false)
 		} else {
 			r.PrintNote(w, &note, &author, nil, false, false, true, false)
 		}

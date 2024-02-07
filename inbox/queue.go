@@ -481,7 +481,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 		var id int64
 		var activityString string
-		var sender ap.NullActor
+		var sender sql.Null[ap.Actor]
 		if err := rows.Scan(&id, &sender, &activityString); err != nil {
 			q.Log.Error("Failed to scan activity", "error", err)
 			continue
@@ -494,7 +494,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			continue
 		}
 
-		activities.Store(activityString, &sender.Actor)
+		activities.Store(activityString, &sender.V)
 	}
 	rows.Close()
 
