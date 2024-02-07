@@ -22,42 +22,31 @@ import (
 	"errors"
 	"github.com/dimkr/tootik/ap"
 	"io"
-	"log/slog"
 	"net/http"
-	"path/filepath"
 )
 
-type inboxHandler struct {
-	*Listener
-	Log *slog.Logger
-}
+func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
+	receiver := r.PathValue("username")
 
-func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	receiver := filepath.Base(r.URL.Path)
 	var registered int
-	if err := h.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where actor->>'preferredUsername' = ? and host = ?)`, receiver, h.Domain).Scan(&registered); err != nil {
-		h.Log.Warn("Failed to check if receiving user exists", "receiver", receiver, "error", err)
+	if err := l.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where actor->>'preferredUsername' = ? and host = ?)`, receiver, l.Domain).Scan(&registered); err != nil {
+		l.Log.Warn("Failed to check if receiving user exists", "receiver", receiver, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	} else if registered == 0 {
-		h.Log.Debug("Receiving user does not exist", "receiver", receiver)
+		l.Log.Debug("Receiving user does not exist", "receiver", receiver)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	body, err := io.ReadAll(io.LimitReader(r.Body, h.Config.MaxRequestBodySize))
+	body, err := io.ReadAll(io.LimitReader(r.Body, l.Config.MaxRequestBodySize))
 	if err != nil {
 		return
 	}
 
 	var activity ap.Activity
 	if err := json.Unmarshal(body, &activity); err != nil {
-		h.Log.Warn("Failed to unmarshal activity", "body", string(body), "error", err)
+		l.Log.Warn("Failed to unmarshal activity", "body", string(body), "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -70,27 +59,27 @@ func (h *inboxHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		offline = true
 	}
 
-	sender, err := verify(r.Context(), h.Domain, h.Log, r, h.DB, h.Resolver, h.Actor, offline)
+	sender, err := verify(r.Context(), l.Domain, l.Log, r, l.DB, l.Resolver, l.Actor, offline)
 	if err != nil {
 		if errors.Is(err, ErrActorGone) {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
 		if errors.Is(err, ErrActorNotCached) {
-			h.Log.Debug("Ignoring Delete activity for unknown actor", "error", err)
+			l.Log.Debug("Ignoring Delete activity for unknown actor", "error", err)
 		} else {
 			w.WriteHeader(http.StatusUnauthorized)
 		}
 		return
 	}
 
-	if _, err = h.DB.ExecContext(
+	if _, err = l.DB.ExecContext(
 		r.Context(),
 		`INSERT OR IGNORE INTO inbox (sender, activity) VALUES(?,?)`,
 		sender.ID,
 		string(body),
 	); err != nil {
-		h.Log.Error("Failed to insert activity", "sender", sender.ID, "error", err)
+		l.Log.Error("Failed to insert activity", "sender", sender.ID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

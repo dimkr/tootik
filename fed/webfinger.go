@@ -20,24 +20,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"path/filepath"
 	"strings"
 )
 
-type webFingerHandler struct {
-	*Listener
-	Log *slog.Logger
-}
-
-func (h *webFingerHandler) Handle(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
+func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	if len(query) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
@@ -47,7 +36,7 @@ func (h *webFingerHandler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	resource, err := url.QueryUnescape(query.Get("resource"))
 	if err != nil {
-		h.Log.Info("Failed to decode query", "resource", resource, "error", err)
+		l.Log.Info("Failed to decode query", "resource", r.URL.RawQuery, "error", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -56,45 +45,45 @@ func (h *webFingerHandler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	var username string
 
-	prefix := fmt.Sprintf("https://%s/", h.Domain)
+	prefix := fmt.Sprintf("https://%s/", l.Domain)
 	if strings.HasPrefix(resource, prefix) {
 		username = filepath.Base(resource)
 	} else {
 		var fields = strings.Split(resource, "@")
 
 		if len(fields) > 2 {
-			h.Log.Info("Received invalid resource", "resource", resource)
+			l.Log.Info("Received invalid resource", "resource", resource)
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte("Resource must contain zero or one @"))
 			return
 		}
 
-		if len(fields) == 2 && fields[1] != h.Domain {
-			h.Log.Info("Received invalid resource", "resource", resource, "domain", fields[1])
+		if len(fields) == 2 && fields[1] != l.Domain {
+			l.Log.Info("Received invalid resource", "resource", resource, "domain", fields[1])
 			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, "Resource must end with @%s", h.Domain)
+			fmt.Fprintf(w, "Resource must end with @%s", l.Domain)
 			return
 		}
 
 		username = fields[0]
 	}
 
-	h.Log.Info("Looking up resource", "resource", resource, "user", username)
+	l.Log.Info("Looking up resource", "resource", resource, "user", username)
 
 	var actorID sql.NullString
-	if err := h.DB.QueryRowContext(r.Context(), `select id from persons where actor->>'preferredUsername' = ? and host = ?`, username, h.Domain).Scan(&actorID); err != nil {
+	if err := l.DB.QueryRowContext(r.Context(), `select id from persons where actor->>'preferredUsername' = ? and host = ?`, username, l.Domain).Scan(&actorID); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	if !actorID.Valid {
-		h.Log.Info("Notifying that user does not exist", "user", username)
+		l.Log.Info("Notifying that user does not exist", "user", username)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
 	j, err := json.Marshal(map[string]any{
-		"subject": fmt.Sprintf("acct:%s@%s", username, h.Domain),
+		"subject": fmt.Sprintf("acct:%s@%s", username, l.Domain),
 		"aliases": []string{actorID.String},
 		"links": []map[string]any{
 			{

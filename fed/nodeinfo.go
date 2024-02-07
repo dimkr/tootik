@@ -32,7 +32,7 @@ func addNodeInfo(mux *http.ServeMux, domain string) error {
 	}); err != nil {
 		return err
 	} else {
-		mux.HandleFunc("/.well-known/nodeinfo", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("GET /.well-known/nodeinfo", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.Write(body)
 		})
@@ -64,7 +64,7 @@ func addNodeInfo(mux *http.ServeMux, domain string) error {
 	}); err != nil {
 		return err
 	} else {
-		mux.HandleFunc("/nodeinfo/2.0", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("GET /nodeinfo/2.0", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.Write(body)
 		})

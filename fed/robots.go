@@ -16,20 +16,10 @@ limitations under the License.
 
 package fed
 
-import (
-	"fmt"
-	"net/http"
-)
+import "net/http"
 
-func addHostMeta(mux *http.ServeMux, domain string) {
-	xml := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<XRD xmlns="http://docs.oasis-open.org/ns/xri/xrd-1.0">
-  <Link rel="lrdd" template="https://%s/.well-known/webfinger?resource={uri}"/>
-</XRD>
-`, domain)
-
-	mux.HandleFunc("GET /.well-known/host-meta", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/xrd+xml; charset=utf-8")
-		w.Write([]byte(xml))
-	})
+func robots(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write([]byte("User-agent: *\n"))
+	w.Write([]byte("Disallow: /\n"))
 }

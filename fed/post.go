@@ -22,39 +22,28 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
-	"log/slog"
 	"net/http"
 )
 
-type postHandler struct {
-	*Listener
-	Log *slog.Logger
-}
-
-func (h *postHandler) Handle(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	postID := fmt.Sprintf("https://%s%s", h.Domain, r.URL.Path)
+func (l *Listener) handlePost(w http.ResponseWriter, r *http.Request) {
+	postID := fmt.Sprintf("https://%s/post/%s", l.Domain, r.PathValue("hash"))
 
 	if shouldRedirect(r) {
-		url := fmt.Sprintf("gemini://%s/view/%s%s", h.Domain, h.Domain, r.URL.Path)
-		h.Log.Info("Redirecting to post over Gemini", "url", url)
+		url := fmt.Sprintf("gemini://%s/view/%s%s", l.Domain, l.Domain, r.URL.Path)
+		l.Log.Info("Redirecting to post over Gemini", "url", url)
 		w.Header().Set("Location", url)
 		w.WriteHeader(http.StatusMovedPermanently)
 		return
 	}
 
-	h.Log.Info("Fetching post", "post", postID)
+	l.Log.Info("Fetching post", "post", postID)
 
 	var note ap.Object
-	if err := h.DB.QueryRowContext(r.Context(), `select object from notes where id = ? and public = 1`, postID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := l.DB.QueryRowContext(r.Context(), `select object from notes where id = ? and public = 1`, postID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
-		h.Log.Warn("Failed to fetch post", "post", postID, "error", err)
+		l.Log.Warn("Failed to fetch post", "post", postID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -63,7 +52,7 @@ func (h *postHandler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	j, err := json.Marshal(note)
 	if err != nil {
-		h.Log.Warn("Failed to marshal post", "post", postID, "error", err)
+		l.Log.Warn("Failed to marshal post", "post", postID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

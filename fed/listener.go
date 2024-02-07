@@ -21,7 +21,6 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"errors"
-	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/fsnotify/fsnotify"
@@ -50,48 +49,21 @@ type Listener struct {
 
 const certReloadDelay = time.Second * 5
 
-func robots(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte("User-agent: *\n"))
-	w.Write([]byte("Disallow: /\n"))
-}
-
 // ListenAndServe handles HTTP requests from other servers.
 func (l *Listener) ListenAndServe(ctx context.Context) error {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/robots.txt", robots)
-	mux.HandleFunc("/.well-known/webfinger", func(w http.ResponseWriter, r *http.Request) {
-		handler := webFingerHandler{Listener: l, Log: l.Log.With("query", r.URL.RawQuery)}
-		handler.Handle(w, r)
-	})
-	mux.HandleFunc("/user/", func(w http.ResponseWriter, r *http.Request) {
-		handler := userHandler{Listener: l, Log: l.Log.With(slog.String("path", r.URL.Path))}
-		handler.Handle(w, r)
-	})
-	mux.HandleFunc("/icon/", func(w http.ResponseWriter, r *http.Request) {
-		handler := iconHandler{Listener: l, Log: l.Log.With(slog.String("path", r.URL.Path))}
-		handler.Handle(w, r)
-	})
-	mux.HandleFunc("/inbox/", func(w http.ResponseWriter, r *http.Request) {
-		handler := inboxHandler{Listener: l, Log: l.Log.With(slog.String("path", r.URL.Path))}
-		handler.Handle(w, r)
-	})
-	mux.HandleFunc("/outbox/", func(w http.ResponseWriter, r *http.Request) {
-		handler := outboxHandler{Listener: l, Log: l.Log.With(slog.String("path", r.URL.Path))}
-		handler.Handle(w, r)
-	})
-	mux.HandleFunc("/post/", func(w http.ResponseWriter, r *http.Request) {
-		handler := postHandler{Listener: l, Log: l.Log.With(slog.String("path", r.URL.Path))}
-		handler.Handle(w, r)
-	})
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/" {
-			w.Header().Set("Location", fmt.Sprintf("gemini://%s", l.Domain))
-			w.WriteHeader(http.StatusMovedPermanently)
-		} else {
-			l.Log.Debug("Received request to non-existing path", "path", r.URL.Path)
-			w.WriteHeader(http.StatusNotFound)
-		}
+	mux.HandleFunc("GET /robots.txt", robots)
+	mux.HandleFunc("GET /.well-known/webfinger", l.handleWebFinger)
+	mux.HandleFunc("GET /user/{username}", l.handleUser)
+	mux.HandleFunc("GET /icon/{username}", l.handleIcon)
+	mux.HandleFunc("POST /inbox/{username}", l.handleInbox)
+	mux.HandleFunc("GET /outbox/{username}", l.handleOutbox)
+	mux.HandleFunc("GET /post/{hash}", l.handlePost)
+	mux.HandleFunc("GET /{$}", l.handleIndex)
+
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		l.Log.Debug("Received request to non-existing path", "path", r.URL.Path)
+		w.WriteHeader(http.StatusNotFound)
 	})
 
 	if err := addNodeInfo(mux, l.Domain); err != nil {

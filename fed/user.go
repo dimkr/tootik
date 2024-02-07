@@ -20,30 +20,18 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
-	"path/filepath"
 	"strings"
 )
 
-type userHandler struct {
-	*Listener
-	Log *slog.Logger
-}
+func (l *Listener) handleUser(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("username")
 
-func (h *userHandler) Handle(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	name := filepath.Base(r.URL.Path)
-
-	h.Log.Info("Looking up user", "name", name)
+	l.Log.Info("Looking up user", "name", name)
 
 	var actorID, actorString string
-	if err := h.DB.QueryRowContext(r.Context(), `select id, actor from persons where actor->>'preferredUsername' = ? and host = ?`, name, h.Domain).Scan(&actorID, &actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
-		h.Log.Info("Notifying about deleted user", "id", actorID)
+	if err := l.DB.QueryRowContext(r.Context(), `select id, actor from persons where actor->>'preferredUsername' = ? and host = ?`, name, l.Domain).Scan(&actorID, &actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
+		l.Log.Info("Notifying about deleted user", "id", actorID)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
@@ -53,8 +41,8 @@ func (h *userHandler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	// redirect browsers to the outbox page over Gemini
 	if shouldRedirect(r) {
-		outbox := fmt.Sprintf("gemini://%s/outbox/%s", h.Domain, strings.TrimPrefix(actorID, "https://"))
-		h.Log.Info("Redirecting to outbox over Gemini", "outbox", outbox)
+		outbox := fmt.Sprintf("gemini://%s/outbox/%s", l.Domain, strings.TrimPrefix(actorID, "https://"))
+		l.Log.Info("Redirecting to outbox over Gemini", "outbox", outbox)
 		w.Header().Set("Location", outbox)
 		w.WriteHeader(http.StatusMovedPermanently)
 		return
