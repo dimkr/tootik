@@ -261,14 +261,15 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 		return nil, cachedActor, fmt.Errorf("no profile link in %s response", finger)
 	}
 
-	if !data.IsIDValid(profile) {
-		return nil, nil, fmt.Errorf("cannot resolve %s: %w", profile, ErrInvalidID)
-	}
-
 	req, err = http.NewRequestWithContext(ctx, http.MethodGet, profile, nil)
 	if err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to send request to %s: %w", profile, err)
 	}
+
+	if !data.IsIDValid(req.URL) {
+		return nil, nil, fmt.Errorf("cannot resolve %s: %w", profile, ErrInvalidID)
+	}
+
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Add("Accept", "application/activity+json")
 

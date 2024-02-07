@@ -29,6 +29,7 @@ import (
 	"github.com/dimkr/tootik/inbox/note"
 	"github.com/dimkr/tootik/outbox"
 	"log/slog"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -101,7 +102,12 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 		return fmt.Errorf("received invalid Create for %s by %s from %s", post.ID, post.AttributedTo, req.Actor)
 	}
 
-	if !data.IsIDValid(post.ID) {
+	u, err := url.Parse(post.ID)
+	if err != nil {
+		return fmt.Errorf("failed to parse post ID %s: %w", post.ID, err)
+	}
+
+	if !data.IsIDValid(u) {
 		return fmt.Errorf("received invalid post ID: %s", post.ID)
 	}
 

@@ -21,17 +21,8 @@ import (
 	"strings"
 )
 
-// IsIDValid determines whether or not a string can be a valid actor, object or activity ID.
-func IsIDValid(id string) bool {
-	if id == "" {
-		return false
-	}
-
-	u, err := url.Parse(id)
-	if err != nil {
-		return false
-	}
-
+// IsIDValid determines whether or not a URL can be a valid actor, object or activity ID.
+func IsIDValid(u *url.URL) bool {
 	if u.Scheme != "https" {
 		return false
 	}
