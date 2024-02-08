@@ -164,7 +164,6 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 
 	var tmp ap.Actor
 	var cachedActor *ap.Actor
-	update := false
 
 	var updated int64
 	var fetched sql.NullInt64
@@ -176,7 +175,6 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 		sinceLastUpdate = time.Since(time.Unix(updated, 0))
 		if !isLocal && !offline && sinceLastUpdate > r.Config.ResolverCacheTTL && (!fetched.Valid || time.Since(time.Unix(fetched.Int64, 0)) >= r.Config.ResolverRetryInterval) {
 			log.Info("Updating old cache entry for actor", "id", cachedActor.ID)
-			update = true
 		} else {
 			log.Debug("Resolved actor using cache", "id", cachedActor.ID)
 			return nil, cachedActor, nil
@@ -299,18 +297,9 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 		return nil, cachedActor, fmt.Errorf("%s does not match %s", actor.ID, profile)
 	}
 
-	if update {
-		if _, err := db.ExecContext(
-			ctx,
-			`UPDATE persons SET actor = ?, updated = UNIXEPOCH() WHERE id = ?`,
-			string(body),
-			actor.ID,
-		); err != nil {
-			return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
-		}
-	} else if _, err := db.ExecContext(
+	if _, err := db.ExecContext(
 		ctx,
-		`INSERT INTO persons(id, actor, fetched) VALUES(?,?,UNIXEPOCH())`,
+		`INSERT INTO persons(id, actor, fetched) VALUES($1, $2, UNIXEPOCH()) ON CONFLICT(host, actor->>'preferredUsername') DO UPDATE SET actor = $2, updated = UNIXEPOCH()`,
 		actor.ID,
 		string(body),
 	); err != nil {
