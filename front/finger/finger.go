@@ -22,6 +22,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"strings"
 	"sync"
@@ -52,7 +53,10 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 	total := 0
 	for {
 		n, err := conn.Read(req[total:])
-		if err != nil {
+		if err != nil && total == 0 && errors.Is(err, io.EOF) {
+			fl.Log.Debug("Failed to receive request", "error", err)
+			return
+		} else if err != nil {
 			fl.Log.Warn("Failed to receive request", "error", err)
 			return
 		}

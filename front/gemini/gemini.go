@@ -29,6 +29,7 @@ import (
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/front/text/gmi"
+	"io"
 	"log/slog"
 	"net"
 	"net/url"
@@ -93,7 +94,10 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 	total := 0
 	for {
 		n, err := conn.Read(req[total:])
-		if err != nil {
+		if err != nil && total == 0 && errors.Is(err, io.EOF) {
+			gl.Log.Debug("Failed to receive request", "error", err)
+			return
+		} else if err != nil {
 			gl.Log.Warn("Failed to receive request", "error", err)
 			return
 		}
