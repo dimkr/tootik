@@ -36,7 +36,7 @@ func (h *Handler) local(w text.Writer, r *request, args ...string) {
 						on notes.author = persons.id
 						where notes.public = 1 and persons.host = $1
 						union
-						select notes.id, notes.author, notes.object, notes.inserted, persons.actor, sharers.actor as sharer from persons sharers
+						select notes.id, notes.author, notes.object, shares.inserted, persons.actor, sharers.actor as sharer from persons sharers
 						join shares
 						on shares.by = sharers.id
 						join notes
