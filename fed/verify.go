@@ -21,7 +21,6 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/go-fed/httpsig"
@@ -30,11 +29,6 @@ import (
 )
 
 func verify(ctx context.Context, domain string, log *slog.Logger, r *http.Request, db *sql.DB, resolver *Resolver, from *ap.Actor, offline bool) (*ap.Actor, error) {
-	sig := r.Header.Get("Signature")
-	if sig == "" {
-		return nil, errors.New("failed to verify message: no signature")
-	}
-
 	verifier, err := httpsig.NewVerifier(r)
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify message: %w", err)

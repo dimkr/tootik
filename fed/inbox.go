@@ -67,9 +67,15 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		}
 		if errors.Is(err, ErrActorNotCached) {
 			l.Log.Debug("Ignoring Delete activity for unknown actor", "error", err)
-		} else {
-			w.WriteHeader(http.StatusUnauthorized)
+			w.WriteHeader(http.StatusOK)
+			return
 		}
+		if errors.Is(err, ErrBlockedDomain) {
+			l.Log.Debug("Failed to verify activity", "activity", activity.ID, "type", activity.Type, "error", err)
+		} else {
+			l.Log.Warn("Failed to verify activity", "activity", activity.ID, "type", activity.Type, "error", err)
+		}
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
