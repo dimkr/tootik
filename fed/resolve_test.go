@@ -805,38 +805,17 @@ func TestResolve_FederatedActorCachedInvalidActorHost(t *testing.T) {
 						],
 						"links": [
 							{
-								"href": "https://0.0.0.0/user/dan",
+								"href": "https://169.254.0.1/user/dan",
 								"rel": "self",
 								"type": "application/activity+json"
 							},
 							{
-								"href": "https://0.0.0.0/user/dan",
+								"href": "https://169.254.0.1/user/dan",
 								"rel": "self",
 								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
 							}
 						],
 						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
-		},
-		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
 					}`))),
 			},
 		},
@@ -848,43 +827,6 @@ func TestResolve_FederatedActorCachedInvalidActorHost(t *testing.T) {
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
-
-	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
-	assert.NoError(err)
-	assert.Empty(client)
-
-	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
-	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
-
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
-	assert.NoError(err)
-
-	client = testClient{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://169.254.0.1/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
-		},
-	}
 
 	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.True(errors.Is(err, ErrInvalidHost))
@@ -920,38 +862,17 @@ func TestResolve_FederatedActorCachedActorHostWithPort(t *testing.T) {
 						],
 						"links": [
 							{
-								"href": "https://0.0.0.0/user/dan",
+								"href": "https://0.0.0.0:443/user/dan",
 								"rel": "self",
 								"type": "application/activity+json"
 							},
 							{
-								"href": "https://0.0.0.0/user/dan",
+								"href": "https://0.0.0.0:443/user/dan",
 								"rel": "self",
 								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
 							}
 						],
 						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
-		},
-		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
 					}`))),
 			},
 		},
@@ -963,43 +884,6 @@ func TestResolve_FederatedActorCachedActorHostWithPort(t *testing.T) {
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
-
-	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
-	assert.NoError(err)
-	assert.Empty(client)
-
-	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
-	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
-
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
-	assert.NoError(err)
-
-	client = testClient{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0:443/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
-		},
-	}
 
 	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.True(errors.Is(err, ErrInvalidHost))
@@ -1035,12 +919,12 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 						],
 						"links": [
 							{
-								"href": "https://0.0.0.0/user/dan",
+								"href": "https://tootik.0.0.0.0/user/dan",
 								"rel": "self",
 								"type": "application/activity+json"
 							},
 							{
-								"href": "https://0.0.0.0/user/dan",
+								"href": "https://tootik.0.0.0.0/user/dan",
 								"rel": "self",
 								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
 							}
@@ -1049,7 +933,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 					}`))),
 			},
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://tootik.0.0.0.0/user/dan": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body: io.NopCloser(bytes.NewReader([]byte(
@@ -1058,7 +942,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 							"https://www.w3.org/ns/activitystreams",
 							"https://w3id.org/security/v1"
 						],
-						"id": "https://0.0.0.0/user/dan",
+						"id": "https://tootik.0.0.0.0/user/dan",
 						"type": "Person",
 						"inbox": "https://0.0.0.0/inbox/dan",
 						"outbox": "https://0.0.0.0/outbox/dan",
@@ -1083,7 +967,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 	assert.NoError(err)
 	assert.Empty(client)
 
-	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
+	assert.Equal("https://tootik.0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
@@ -1142,6 +1026,124 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 	assert.Empty(client)
 
 	assert.Equal("https://tootik.0.0.0.0/user/dan", actor.ID)
+	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
+}
+
+func TestResolve_FederatedActorCachedActorIDChanged(t *testing.T) {
+	assert := assert.New(t)
+
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	assert.NoError(err)
+	f.Close()
+
+	path := f.Name()
+	defer os.Remove(path)
+
+	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	assert.NoError(err)
+
+	blockList := BlockList{}
+
+	var cfg cfg.Config
+	cfg.FillDefaults()
+
+	client := testClient{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+			Response: &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader([]byte(
+					`{
+						"aliases": [
+							"https://0.0.0.0/user/dan"
+						],
+						"links": [
+							{
+								"href": "https://0.0.0.0/user/dan",
+								"rel": "self",
+								"type": "application/activity+json"
+							},
+							{
+								"href": "https://0.0.0.0/user/dan",
+								"rel": "self",
+								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+							}
+						],
+						"subject": "acct:dan@0.0.0.0"
+					}`))),
+			},
+		},
+		"https://0.0.0.0/user/dan": testResponse{
+			Response: &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader([]byte(
+					`{
+						"@context": [
+							"https://www.w3.org/ns/activitystreams",
+							"https://w3id.org/security/v1"
+						],
+						"id": "https://0.0.0.0/user/dan",
+						"type": "Person",
+						"inbox": "https://0.0.0.0/inbox/dan",
+						"outbox": "https://0.0.0.0/outbox/dan",
+						"preferredUsername": "dan",
+						"followers": "https://0.0.0.0/followers/dan",
+						"endpoints": {
+							"sharedInbox": "https://0.0.0.0/inbox/nobody"
+						}
+					}`))),
+			},
+		},
+	}
+
+	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
+
+	nobody, err := user.CreateNobody(context.Background(), "localhost.localdomain", db)
+	assert.NoError(err)
+
+	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
+
+	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	assert.NoError(err)
+	assert.Empty(client)
+
+	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
+	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
+
+	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
+	assert.NoError(err)
+
+	client = testClient{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+			Response: &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader([]byte(
+					`{
+						"aliases": [
+							"https://0.0.0.0/user/erin"
+						],
+						"links": [
+							{
+								"href": "https://0.0.0.0/user/erin",
+								"rel": "self",
+								"type": "application/activity+json"
+							},
+							{
+								"href": "https://0.0.0.0/user/erin",
+								"rel": "self",
+								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+							}
+						],
+						"subject": "acct:erin@0.0.0.0"
+					}`))),
+			},
+		},
+	}
+
+	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
+	assert.NoError(err)
+	assert.Empty(client)
+
+	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 }
 
@@ -1593,38 +1595,17 @@ func TestResolve_FederatedActorOldCacheInvalidID(t *testing.T) {
 						],
 						"links": [
 							{
-								"href": "https://0.0.0.0/user/dan",
+								"href": "http://0.0.0.0/user/dan",
 								"rel": "self",
 								"type": "application/activity+json"
 							},
 							{
-								"href": "https://0.0.0.0/user/dan",
+								"href": "http://0.0.0.0/user/dan",
 								"rel": "self",
 								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
 							}
 						],
 						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
-		},
-		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
 					}`))),
 			},
 		},
@@ -1636,43 +1617,6 @@ func TestResolve_FederatedActorOldCacheInvalidID(t *testing.T) {
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
-
-	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
-	assert.NoError(err)
-	assert.Empty(client)
-
-	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
-	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
-
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
-	assert.NoError(err)
-
-	client = testClient{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "http://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "http://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
-		},
-	}
 
 	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, nobody, "https://0.0.0.0/user/dan", false)
 	assert.True(errors.Is(err, ErrInvalidID))

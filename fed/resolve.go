@@ -261,13 +261,17 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 		return nil, cachedActor, fmt.Errorf("no profile link in %s response", finger)
 	}
 
+	if cachedActor != nil && profile != cachedActor.ID {
+		return nil, cachedActor, fmt.Errorf("%s does not match %s", profile, cachedActor.ID)
+	}
+
 	req, err = http.NewRequestWithContext(ctx, http.MethodGet, profile, nil)
 	if err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to send request to %s: %w", profile, err)
 	}
 
 	if req.URL.Host != host && !strings.HasSuffix(req.URL.Host, "."+host) {
-		return nil, nil, fmt.Errorf("actor link host is %s: %w", profile, ErrInvalidHost)
+		return nil, nil, fmt.Errorf("actor link host is %s: %w", req.URL.Host, ErrInvalidHost)
 	}
 
 	if !data.IsIDValid(req.URL) {
@@ -299,7 +303,7 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 
 	if _, err := db.ExecContext(
 		ctx,
-		`INSERT INTO persons(id, actor, fetched) VALUES($1, $2, UNIXEPOCH()) ON CONFLICT(host, actor->>'preferredUsername') DO UPDATE SET actor = $2, updated = UNIXEPOCH()`,
+		`INSERT INTO persons(id, actor, fetched) VALUES($1, $2, UNIXEPOCH()) ON CONFLICT(id) DO UPDATE SET actor = $2, updated = UNIXEPOCH()`,
 		actor.ID,
 		string(body),
 	); err != nil {
