@@ -22,7 +22,7 @@ COPY migrations /src/migrations
 RUN go generate ./migrations
 COPY . /src
 RUN go vet ./...
-RUN go test ./... -failfast -vet off
+RUN go test ./... -failfast -vet off -tags fts5
 ARG TOOTIK_VERSION=?
 RUN go build -ldflags "-X github.com/dimkr/tootik/buildinfo.Version=$TOOTIK_VERSION" -tags fts5 ./cmd/tootik
 
