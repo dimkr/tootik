@@ -49,11 +49,9 @@ type webFingerResponse struct {
 // Resolver retrieves actor objects given their ID.
 // Actors are cached, updated periodically and deleted if gone from the remote server.
 type Resolver struct {
+	sender
 	BlockedDomains *BlockList
-	Domain         string
-	Config         *cfg.Config
 	locks          []*semaphore.Weighted
-	client         Client
 }
 
 var (
@@ -69,11 +67,13 @@ var (
 // NewResolver returns a new [Resolver].
 func NewResolver(blockedDomains *BlockList, domain string, cfg *cfg.Config, client Client) *Resolver {
 	r := Resolver{
+		sender: sender{
+			Domain: domain,
+			Config: cfg,
+			client: client,
+		},
 		BlockedDomains: blockedDomains,
-		Domain:         domain,
-		Config:         cfg,
 		locks:          make([]*semaphore.Weighted, cfg.MaxResolverRequests),
-		client:         client,
 	}
 	for i := 0; i < len(r.locks); i++ {
 		r.locks[i] = semaphore.NewWeighted(1)
@@ -105,7 +105,8 @@ func (r *Resolver) ResolveID(ctx context.Context, log *slog.Logger, db *sql.DB, 
 
 // Resolve retrieves an actor object by host and name.
 func (r *Resolver) Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, host, name string, offline bool) (*ap.Actor, error) {
-	actor, cachedActor, err := r.resolve(ctx, log, db, from, host, name, offline)
+	var key key
+	actor, cachedActor, err := r.resolve(ctx, log, db, from, &key, host, name, offline)
 	if err != nil && cachedActor != nil {
 		log.Warn("Using old cache entry for actor", "host", host, "name", name, "error", err)
 		return cachedActor, nil
@@ -137,12 +138,8 @@ func deleteActor(ctx context.Context, log *slog.Logger, db *sql.DB, id string) {
 	}
 }
 
-func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, host, name string, offline bool) (*ap.Actor, *ap.Actor, error) {
-	if from == nil {
-		log.Debug("Resolving actor", "host", host, "name", name)
-	} else {
-		log.Debug("Resolving actor", "from", from.ID, "host", host, "name", name)
-	}
+func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, key *key, host, name string, offline bool) (*ap.Actor, *ap.Actor, error) {
+	log.Debug("Resolving actor", "host", host, "name", name)
 
 	if r.BlockedDomains != nil && r.BlockedDomains.Contains(host) {
 		return nil, nil, ErrBlockedDomain
@@ -207,7 +204,7 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	}
 	req.Header.Set("User-Agent", userAgent)
 
-	resp, err := r.send(log, db, from, req)
+	resp, err := r.send(log, db, from, key, req)
 	if err != nil {
 		if resp != nil && (resp.StatusCode == http.StatusGone || resp.StatusCode == http.StatusNotFound) {
 			if cachedActor != nil {
@@ -281,7 +278,7 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Add("Accept", "application/activity+json")
 
-	resp, err = r.send(log, db, from, req)
+	resp, err = r.send(log, db, from, key, req)
 	if err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", profile, err)
 	}
