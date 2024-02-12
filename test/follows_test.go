@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestFollows_NoFollows(t *testing.T) {
@@ -42,16 +43,16 @@ func TestFollows_TwoInactive(t *testing.T) {
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	follows := server.Handle("/users/follows", server.Alice)
-	assert.Contains(follows, server.Bob.PreferredUsername)
-	assert.NotContains(follows, server.Carol.PreferredUsername)
+	follows := strings.Split(server.Handle("/users/follows", server.Alice), "\n")
+	assert.Contains(follows, "=> /users/outbox/localhost.localdomain:8443/user/bob 😈 bob (bob@localhost.localdomain:8443)")
+	assert.NotContains(follows, "=> /users/outbox/localhost.localdomain:8443/user/carol 😈 carol (carol@localhost.localdomain:8443)")
 
 	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Carol.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Carol.ID, "https://")), follow)
 
-	follows = server.Handle("/users/follows", server.Alice)
-	assert.Contains(follows, server.Bob.PreferredUsername)
-	assert.Contains(follows, server.Carol.PreferredUsername)
+	follows = strings.Split(server.Handle("/users/follows", server.Alice), "\n")
+	assert.Contains(follows, "=> /users/outbox/localhost.localdomain:8443/user/bob 😈 bob (bob@localhost.localdomain:8443)")
+	assert.Contains(follows, "=> /users/outbox/localhost.localdomain:8443/user/carol 😈 carol (carol@localhost.localdomain:8443)")
 }
 
 func TestFollows_OneActiveOneInactive(t *testing.T) {
@@ -67,17 +68,15 @@ func TestFollows_OneActiveOneInactive(t *testing.T) {
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Carol.ID, "https://")), follow)
 
 	follows := server.Handle("/users/follows", server.Alice)
-	assert.Contains(follows, server.Bob.PreferredUsername)
-	assert.NotContains(follows, "1 post")
-	assert.Contains(follows, server.Carol.PreferredUsername)
+	assert.Contains(follows, "=> /users/outbox/localhost.localdomain:8443/user/bob 😈 bob (bob@localhost.localdomain:8443)")
+	assert.Contains(follows, "=> /users/outbox/localhost.localdomain:8443/user/carol 😈 carol (carol@localhost.localdomain:8443)")
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	follows = server.Handle("/users/follows", server.Alice)
-	assert.Contains(follows, server.Bob.PreferredUsername)
-	assert.Contains(follows, "1 post")
-	assert.Contains(follows, server.Carol.PreferredUsername)
+	assert.Contains(follows, fmt.Sprintf("=> /users/outbox/localhost.localdomain:8443/user/bob %s 😈 bob (bob@localhost.localdomain:8443)", time.Now().Format(time.DateOnly)))
+	assert.Contains(follows, "=> /users/outbox/localhost.localdomain:8443/user/carol 😈 carol (carol@localhost.localdomain:8443)")
 }
 
 func TestFollows_UnauthenticatedUser(t *testing.T) {

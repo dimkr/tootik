@@ -27,7 +27,6 @@ import (
 type followedUserActivity struct {
 	Actor ap.Actor
 	Last  sql.NullInt64
-	Count sql.NullInt64
 }
 
 func (h *Handler) follows(w text.Writer, r *request, args ...string) {
@@ -37,9 +36,9 @@ func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 	}
 
 	rows, err := r.Query(`
-		select u.actor, max(u.ninserted), count(distinct u.id) from
+		select u.actor, max(u.ninserted)/(24*60*60) from
 		(
-			select persons.actor, notes.inserted as ninserted, follows.inserted as finserted, notes.id from
+			select persons.actor, notes.inserted as ninserted, follows.inserted as finserted from
 			follows
 			join persons
 			on
@@ -53,7 +52,7 @@ func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 				notes.object->'inReplyTo' is null and
 				notes.inserted >= unixepoch() - 7*24*60*60
 			union
-			select persons.actor, notes.inserted as ninserted, follows.inserted as finserted, notes.id from
+			select persons.actor, notes.inserted as ninserted, follows.inserted as finserted from
 			follows
 			join persons
 			on
@@ -66,7 +65,7 @@ func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 				persons.actor->>'type' != 'Group' and
 				notes.inserted >= unixepoch() - 7*24*60*60
 			union
-			select persons.actor, shares.inserted as ninserted, follows.inserted as finserted, notes.id from
+			select persons.actor, shares.inserted as ninserted, follows.inserted as finserted from
 			follows
 			join shares
 			on
@@ -82,7 +81,7 @@ func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 				notes.public = 1 and
 				follows.follower = $1
 			union
-			select persons.actor, null as ninserted, follows.inserted as finserted, null as id from
+			select persons.actor, null as ninserted, follows.inserted as finserted from
 			follows
 			join persons
 			on
@@ -93,7 +92,7 @@ func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 		group by
 			u.actor
 		order by
-			max(u.ninserted) desc,
+			max(u.ninserted)/(24*60*60) desc,
 			u.finserted desc
 		`,
 		r.User.ID,
@@ -104,58 +103,40 @@ func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	var active []followedUserActivity
-	var inactive []followedUserActivity
+	var followedUsers []followedUserActivity
 
 	for rows.Next() {
 		var row followedUserActivity
-		if err := rows.Scan(&row.Actor, &row.Last, &row.Count); err != nil {
+		if err := rows.Scan(&row.Actor, &row.Last); err != nil {
 			r.Log.Warn("Failed to list a followed user", "error", err)
 			continue
 		}
 
-		if row.Last.Valid {
-			active = append(active, row)
-		} else {
-			inactive = append(inactive, row)
-		}
+		followedUsers = append(followedUsers, row)
 	}
 	rows.Close()
 
 	w.OK()
 	w.Title("⚡ Followed Users")
 
-	if len(active) == 0 && len(inactive) == 0 {
+	if len(followedUsers) == 0 {
 		w.Text("No followed users.")
 		return
 	}
 
-	if len(active) > 0 {
-		w.Text("Followed users who posted in the last week:")
-		w.Empty()
-
-		for _, row := range active {
-			displayName := h.getActorDisplayName(&row.Actor, r.Log)
-
-			if row.Count.Valid && row.Count.Int64 > 1 {
-				w.Linkf("/users/outbox/"+strings.TrimPrefix(row.Actor.ID, "https://"), "%s %s: %d posts", time.Unix(row.Last.Int64, 0).Format(time.DateOnly), displayName, row.Count.Int64)
-			} else if row.Count.Valid {
-				w.Linkf("/users/outbox/"+strings.TrimPrefix(row.Actor.ID, "https://"), "%s %s: 1 post", time.Unix(row.Last.Int64, 0).Format(time.DateOnly), displayName)
-			} else {
-				w.Link("/users/outbox/"+strings.TrimPrefix(row.Actor.ID, "https://"), displayName)
-			}
+	var lastDay sql.NullInt64
+	for i, row := range followedUsers {
+		if i > 0 && row.Last != lastDay {
+			w.Separator()
 		}
-	}
+		lastDay = row.Last
 
-	if len(inactive) > 0 {
-		if len(active) > 0 {
-			w.Empty()
-		}
-		w.Text("Followed users who haven't posted in the last week:")
-		w.Empty()
+		displayName := h.getActorDisplayName(&row.Actor, r.Log)
 
-		for _, row := range inactive {
-			w.Link("/users/outbox/"+strings.TrimPrefix(row.Actor.ID, "https://"), h.getActorDisplayName(&row.Actor, r.Log))
+		if row.Last.Valid {
+			w.Linkf("/users/outbox/"+strings.TrimPrefix(row.Actor.ID, "https://"), "%s %s", time.Unix(row.Last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
+		} else {
+			w.Link("/users/outbox/"+strings.TrimPrefix(row.Actor.ID, "https://"), displayName)
 		}
 	}
 }
