@@ -55,7 +55,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 
 	// if actor is deleted, ignore this activity if we don't know this actor
 	offline := false
-	if activity.Type == ap.DeleteActivity {
+	if activity.Type == ap.Delete {
 		offline = true
 	}
 

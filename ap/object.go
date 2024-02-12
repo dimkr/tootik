@@ -25,10 +25,10 @@ import (
 type ObjectType string
 
 const (
-	NoteObject     ObjectType = "Note"
-	PageObject     ObjectType = "Page"
-	ArticleObject  ObjectType = "Article"
-	QuestionObject ObjectType = "Question"
+	Note     ObjectType = "Note"
+	Page     ObjectType = "Page"
+	Article  ObjectType = "Article"
+	Question ObjectType = "Question"
 )
 
 // Object represents most ActivityPub objects.
@@ -46,7 +46,7 @@ type Object struct {
 	To           Audience     `json:"to,omitempty"`
 	CC           Audience     `json:"cc,omitempty"`
 	Audience     string       `json:"audience,omitempty"`
-	Tag          []Mention    `json:"tag,omitempty"`
+	Tag          []Tag        `json:"tag,omitempty"`
 	Attachment   []Attachment `json:"attachment,omitempty"`
 	URL          string       `json:"url,omitempty"`
 

@@ -33,7 +33,7 @@ func UpdateNote(ctx context.Context, domain string, db *sql.DB, note *ap.Object)
 	update := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      updateID,
-		Type:    ap.UpdateActivity,
+		Type:    ap.Update,
 		Actor:   note.AttributedTo,
 		Object:  note,
 		To:      note.To,
@@ -78,7 +78,7 @@ func UpdateNote(ctx context.Context, domain string, db *sql.DB, note *ap.Object)
 	}
 
 	for _, hashtag := range note.Tag {
-		if hashtag.Type != ap.HashtagMention || len(hashtag.Name) <= 1 || hashtag.Name[0] != '#' {
+		if hashtag.Type != ap.Hashtag || len(hashtag.Name) <= 1 || hashtag.Name[0] != '#' {
 			continue
 		}
 		if _, err = tx.ExecContext(ctx, `insert into hashtags (note, hashtag) values(?,?)`, note.ID, hashtag.Name[1:]); err != nil {
@@ -103,7 +103,7 @@ func UpdateActor(ctx context.Context, domain string, tx *sql.Tx, actorID string)
 	update := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      updateID,
-		Type:    ap.UpdateActivity,
+		Type:    ap.Update,
 		Actor:   actorID,
 		Object:  actorID,
 		To:      to,

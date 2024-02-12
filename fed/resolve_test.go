@@ -2554,7 +2554,7 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://0.0.0.0/note/1",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: "https://0.0.0.0/user/dan",
 				Content:      "hello",
 			},
@@ -2753,7 +2753,7 @@ func TestResolve_FederatedActorFirstTimeDeleted(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://0.0.0.0/note/1",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: "https://0.0.0.0/user/dan",
 				Content:      "hello",
 			},

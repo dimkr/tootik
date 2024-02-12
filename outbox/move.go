@@ -137,7 +137,7 @@ func Move(ctx context.Context, db *sql.DB, domain string, from *ap.Actor, to str
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      fmt.Sprintf("https://%s/move/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", from.ID, to, now.UnixNano())))),
 		Actor:   from.ID,
-		Type:    ap.MoveActivity,
+		Type:    ap.Move,
 		Object:  from.ID,
 		Target:  to,
 		To:      aud,

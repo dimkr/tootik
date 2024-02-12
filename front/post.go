@@ -99,10 +99,10 @@ func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo 
 		postID = oldNote.ID
 	}
 
-	var tags []ap.Mention
+	var tags []ap.Tag
 
 	for _, hashtag := range hashtagRegex.FindAllString(content, -1) {
-		tags = append(tags, ap.Mention{Type: ap.HashtagMention, Name: hashtag, Href: fmt.Sprintf("gemini://%s/hashtag/%s", h.Domain, hashtag[1:])})
+		tags = append(tags, ap.Tag{Type: ap.Hashtag, Name: hashtag, Href: fmt.Sprintf("gemini://%s/hashtag/%s", h.Domain, hashtag[1:])})
 	}
 
 	for _, mention := range mentionRegex.FindAllStringSubmatch(content, -1) {
@@ -129,12 +129,12 @@ func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo 
 		}
 
 		r.Log.Info("Adding mention", "name", mention[0], "actor", actorID)
-		tags = append(tags, ap.Mention{Type: ap.MentionMention, Name: mention[0], Href: actorID})
+		tags = append(tags, ap.Tag{Type: ap.Mention, Name: mention[0], Href: actorID})
 		cc.Add(actorID)
 	}
 
 	note := ap.Object{
-		Type:         ap.NoteObject,
+		Type:         ap.Note,
 		ID:           postID,
 		AttributedTo: r.User.ID,
 		Content:      content,
@@ -148,7 +148,7 @@ func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo 
 	if inReplyTo != nil {
 		note.InReplyTo = inReplyTo.ID
 
-		if inReplyTo.Type == ap.QuestionObject {
+		if inReplyTo.Type == ap.Question {
 			options := inReplyTo.OneOf
 			if len(options) == 0 {
 				options = inReplyTo.AnyOf
@@ -213,13 +213,13 @@ func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo 
 			}
 		}
 
-		note.Type = ap.QuestionObject
+		note.Type = ap.Question
 		note.Content = note.Content[m[2]:m[3]]
 		endTime := ap.Time{Time: time.Now().Add(h.Config.PollDuration)}
 		note.EndTime = &endTime
 	}
 
-	if inReplyTo == nil || inReplyTo.Type != ap.QuestionObject {
+	if inReplyTo == nil || inReplyTo.Type != ap.Question {
 		note.Content = plain.ToHTML(note.Content, note.Tag)
 	}
 

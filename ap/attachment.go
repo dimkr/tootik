@@ -19,7 +19,7 @@ package ap
 type AttachmentType string
 
 const (
-	ImageAttachment AttachmentType = "Image"
+	Image AttachmentType = "Image"
 )
 
 type Attachment struct {

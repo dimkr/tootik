@@ -126,7 +126,7 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 			r.PrintNote(w, &note, &author, nil, false, false, true, false)
 		}
 
-		if note.Type == ap.QuestionObject && note.VotersCount > 0 && offset == 0 {
+		if note.Type == ap.Question && note.VotersCount > 0 && offset == 0 {
 			options := note.OneOf
 			if len(options) == 0 {
 				options = note.AnyOf

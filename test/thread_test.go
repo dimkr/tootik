@@ -253,7 +253,7 @@ func TestThread_Tree(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/6",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Carol.ID,
 				Content:      "hello",
 				To:           to,
@@ -269,7 +269,7 @@ func TestThread_Tree(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Alice.ID,
 				Content:      "hello",
 				To:           to,
@@ -284,7 +284,7 @@ func TestThread_Tree(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/4",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Alice.ID,
 				Content:      "hello",
 				To:           to,
@@ -300,7 +300,7 @@ func TestThread_Tree(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/2",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Bob.ID,
 				Content:      "hello",
 				To:           to,
@@ -316,7 +316,7 @@ func TestThread_Tree(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/3",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Carol.ID,
 				Content:      "hello",
 				To:           to,
@@ -332,7 +332,7 @@ func TestThread_Tree(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/5",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Bob.ID,
 				Content:      "hello",
 				To:           to,
@@ -373,7 +373,7 @@ func TestThread_SubTree(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/6",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Carol.ID,
 				Content:      "hello",
 				To:           to,
@@ -389,7 +389,7 @@ func TestThread_SubTree(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Alice.ID,
 				Content:      "hello",
 				To:           to,
@@ -404,7 +404,7 @@ func TestThread_SubTree(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/4",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Alice.ID,
 				Content:      "hello",
 				To:           to,
@@ -420,7 +420,7 @@ func TestThread_SubTree(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/2",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Bob.ID,
 				Content:      "hello",
 				To:           to,
@@ -436,7 +436,7 @@ func TestThread_SubTree(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/3",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Carol.ID,
 				Content:      "hello",
 				To:           to,
@@ -452,7 +452,7 @@ func TestThread_SubTree(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/5",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Bob.ID,
 				Content:      "hello",
 				To:           to,

@@ -40,7 +40,7 @@ func Announce(ctx context.Context, domain string, db *sql.DB, actor *ap.Actor, n
 	announce := ap.Activity{
 		Context:   "https://www.w3.org/ns/activitystreams",
 		ID:        announceID,
-		Type:      ap.AnnounceActivity,
+		Type:      ap.Announce,
 		Actor:     actor.ID,
 		Published: ap.Time{Time: now},
 		To:        to,

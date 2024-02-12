@@ -119,7 +119,7 @@ func FromHTML(text string) (string, data.OrderedMap[string, string]) {
 }
 
 // ToHTML converts plain text to HTML.
-func ToHTML(text string, mentions []ap.Mention) string {
+func ToHTML(text string, tags []ap.Tag) string {
 	if text == "" {
 		return ""
 	}
@@ -142,11 +142,11 @@ func ToHTML(text string, mentions []ap.Mention) string {
 		text = b.String()
 	}
 
-	if len(mentions) > 0 {
+	if len(tags) > 0 {
 		b.Reset()
 	mentions:
-		for _, mention := range mentions {
-			if mention.Type != ap.MentionMention {
+		for _, tag := range tags {
+			if tag.Type != ap.Mention {
 				continue
 			}
 			for {
@@ -155,8 +155,8 @@ func ToHTML(text string, mentions []ap.Mention) string {
 					break mentions
 				}
 				b.WriteString(text[:loc[0]])
-				if text[loc[0]:loc[1]] == mention.Name {
-					b.WriteString(fmt.Sprintf(`<a href="%s" rel="nofollow noopener noreferrer">%s</a>`, mention.Href, text[loc[0]:loc[1]]))
+				if text[loc[0]:loc[1]] == tag.Name {
+					b.WriteString(fmt.Sprintf(`<a href="%s" rel="nofollow noopener noreferrer">%s</a>`, tag.Href, text[loc[0]:loc[1]]))
 					text = text[loc[1]:]
 					break
 				}

@@ -46,7 +46,7 @@ func Create(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 
 	create := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
-		Type:    ap.CreateActivity,
+		Type:    ap.Create,
 		ID:      fmt.Sprintf("https://%s/create/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", post.ID, time.Now().Unix())))),
 		Actor:   author.ID,
 		Object:  post,

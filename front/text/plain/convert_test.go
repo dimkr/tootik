@@ -362,14 +362,14 @@ func TestToHTML_TitleSubtitleAndParagraphs(t *testing.T) {
 func TestToHTML_Mentions(t *testing.T) {
 	post := "hi @alice, @bob, @alice@localhost.localdomain:8443 and @alice, how are you?"
 	expected := `<p>hi <a href="https://localhost.localdomain:8443/user/alice" rel="nofollow noopener noreferrer">@alice</a>, @bob, <a href="https://localhost.localdomain:8443/user/alice" rel="nofollow noopener noreferrer">@alice@localhost.localdomain:8443</a> and @alice, how are you?</p>`
-	mentions := []ap.Mention{
+	mentions := []ap.Tag{
 		{
-			Type: ap.MentionMention,
+			Type: ap.Mention,
 			Name: "@alice",
 			Href: "https://localhost.localdomain:8443/user/alice",
 		},
 		{
-			Type: ap.MentionMention,
+			Type: ap.Mention,
 			Name: "@alice@localhost.localdomain:8443",
 			Href: "https://localhost.localdomain:8443/user/alice",
 		},
@@ -382,9 +382,9 @@ func TestToHTML_Mentions(t *testing.T) {
 func TestToHTML_MissingMentions(t *testing.T) {
 	post := "hi alice, bob, alice@localhost.localdomain:8443 and @alice, how are you?"
 	expected := `<p>hi alice, bob, alice@localhost.localdomain:8443 and <a href="https://localhost.localdomain:8443/user/alice" rel="nofollow noopener noreferrer">@alice</a>, how are you?</p>`
-	mentions := []ap.Mention{
+	mentions := []ap.Tag{
 		{
-			Type: ap.MentionMention,
+			Type: ap.Mention,
 			Name: "@alice",
 			Href: "https://localhost.localdomain:8443/user/alice",
 		},
@@ -397,14 +397,14 @@ func TestToHTML_MissingMentions(t *testing.T) {
 func TestToHTML_NoMentions(t *testing.T) {
 	post := "hi alice, bob, alice@localhost.localdomain:8443 and alice, how are you?"
 	expected := `<p>hi alice, bob, alice@localhost.localdomain:8443 and alice, how are you?</p>`
-	mentions := []ap.Mention{
+	mentions := []ap.Tag{
 		{
-			Type: ap.MentionMention,
+			Type: ap.Mention,
 			Name: "@alice",
 			Href: "https://localhost.localdomain:8443/user/alice",
 		},
 		{
-			Type: ap.MentionMention,
+			Type: ap.Mention,
 			Name: "@alice@localhost.localdomain:8443",
 			Href: "https://localhost.localdomain:8443/user/alice",
 		},
@@ -417,19 +417,19 @@ func TestToHTML_NoMentions(t *testing.T) {
 func TestToHTML_EmojiMention(t *testing.T) {
 	post := "hi @alice, @bob, @alice@localhost.localdomain:8443 and @alice, how are you?"
 	expected := `<p>hi <a href="https://localhost.localdomain:8443/user/alice" rel="nofollow noopener noreferrer">@alice</a>, @bob, <a href="https://localhost.localdomain:8443/user/alice" rel="nofollow noopener noreferrer">@alice@localhost.localdomain:8443</a> and @alice, how are you?</p>`
-	mentions := []ap.Mention{
+	mentions := []ap.Tag{
 		{
-			Type: ap.MentionMention,
+			Type: ap.Mention,
 			Name: "@alice",
 			Href: "https://localhost.localdomain:8443/user/alice",
 		},
 		{
-			Type: ap.EmojiMention,
+			Type: ap.Emoji,
 			Name: "@bob",
 			Href: "https://localhost.localdomain:8443/user/bob",
 		},
 		{
-			Type: ap.MentionMention,
+			Type: ap.Mention,
 			Name: "@alice@localhost.localdomain:8443",
 			Href: "https://localhost.localdomain:8443/user/alice",
 		},

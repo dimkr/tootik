@@ -192,13 +192,13 @@ func TestFTS_SearchByMentionUserName(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Alice.ID,
 				Content:      "Hello @abc",
 				To:           to,
-				Tag: []ap.Mention{
-					ap.Mention{
-						Type: ap.MentionMention,
+				Tag: []ap.Tag{
+					ap.Tag{
+						Type: ap.Mention,
 						Name: "@abc@localhost.localdomain:8443",
 						Href: server.Bob.ID,
 					},
@@ -233,13 +233,13 @@ func TestFTS_SearchByMentionID(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Alice.ID,
 				Content:      "Hello @abc",
 				To:           to,
-				Tag: []ap.Mention{
-					ap.Mention{
-						Type: ap.MentionMention,
+				Tag: []ap.Tag{
+					ap.Tag{
+						Type: ap.Mention,
 						Name: "@abc@localhost.localdomain:8443",
 						Href: server.Bob.ID,
 					},

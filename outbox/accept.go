@@ -38,12 +38,12 @@ func Accept(ctx context.Context, domain string, followed, follower, followID str
 
 	accept := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
-		Type:    ap.AcceptActivity,
+		Type:    ap.Accept,
 		ID:      fmt.Sprintf("https://%s/accept/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", followed, follower, time.Now().UnixNano())))),
 		Actor:   followed,
 		To:      recipients,
 		Object: &ap.Activity{
-			Type: ap.FollowActivity,
+			Type: ap.Follow,
 			ID:   followID,
 		},
 	}

@@ -32,7 +32,7 @@ import (
 func Flatten(note *ap.Object) string {
 	content, links := plain.FromHTML(note.Content)
 	for _, mention := range note.Tag {
-		if mention.Type == ap.MentionMention {
+		if mention.Type == ap.Mention {
 			links.Store(mention.Href, mention.Href)
 		}
 	}
@@ -63,7 +63,7 @@ func Insert(ctx context.Context, log *slog.Logger, tx *sql.Tx, note *ap.Object) 
 	hashtags := map[string]string{}
 
 	for _, tag := range note.Tag {
-		if tag.Type != ap.HashtagMention {
+		if tag.Type != ap.Hashtag {
 			continue
 		}
 

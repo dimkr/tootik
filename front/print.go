@@ -166,7 +166,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 
 	for _, tag := range note.Tag {
 		switch tag.Type {
-		case ap.HashtagMention:
+		case ap.Hashtag:
 			if tag.Name == "" {
 				continue
 			}
@@ -176,10 +176,10 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 				hashtags.Store(strings.ToLower(tag.Name), tag.Name)
 			}
 
-		case ap.MentionMention:
+		case ap.Mention:
 			mentionedUsers.Add(tag.Href)
 
-		case ap.EmojiMention:
+		case ap.Emoji:
 			if tag.Icon != nil && tag.Name != "" && tag.Icon.URL != "" {
 				links.Store(tag.Icon.URL, tag.Name)
 			}
@@ -408,13 +408,13 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 			return true
 		})
 
-		if r.User != nil && note.AttributedTo == r.User.ID && note.Type != ap.QuestionObject && note.Name == "" { // polls and votes cannot be edited
+		if r.User != nil && note.AttributedTo == r.User.ID && note.Type != ap.Question && note.Name == "" { // polls and votes cannot be edited
 			w.Link("/users/edit/"+strings.TrimPrefix(note.ID, "https://"), "🩹 Edit")
 		}
 		if r.User != nil && note.AttributedTo == r.User.ID {
 			w.Link("/users/delete/"+strings.TrimPrefix(note.ID, "https://"), "💣 Delete")
 		}
-		if r.User != nil && note.Type == ap.QuestionObject && note.Closed == nil && (note.EndTime == nil || time.Now().Before(note.EndTime.Time)) {
+		if r.User != nil && note.Type == ap.Question && note.Closed == nil && (note.EndTime == nil || time.Now().Before(note.EndTime.Time)) {
 			options := note.OneOf
 			if len(options) == 0 {
 				options = note.AnyOf
@@ -445,7 +445,7 @@ func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, noteMet
 	var lastDay int64
 	first := true
 	rows.Range(func(_ string, meta noteMetadata) bool {
-		if meta.Note.Type != ap.NoteObject && meta.Note.Type != ap.PageObject && meta.Note.Type != ap.ArticleObject && meta.Note.Type != ap.QuestionObject {
+		if meta.Note.Type != ap.Note && meta.Note.Type != ap.Page && meta.Note.Type != ap.Article && meta.Note.Type != ap.Question {
 			r.Log.Warn("Post type is unsupported", "type", meta.Note.Type)
 			return true
 		}

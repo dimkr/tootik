@@ -146,7 +146,7 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 	mentionedUsers := ap.Audience{}
 
 	for _, tag := range post.Tag {
-		if tag.Type == ap.MentionMention && tag.Href != post.AttributedTo {
+		if tag.Type == ap.Mention && tag.Href != post.AttributedTo {
 			mentionedUsers.Add(tag.Href)
 		}
 	}
@@ -166,7 +166,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 	log.Debug("Processing activity")
 
 	switch req.Type {
-	case ap.DeleteActivity:
+	case ap.Delete:
 		deleted := ""
 		if _, ok := req.Object.(*ap.Object); ok {
 			deleted = req.Object.(*ap.Object).ID
@@ -195,7 +195,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			}
 		}
 
-	case ap.FollowActivity:
+	case ap.Follow:
 		if sender.ID != req.Actor {
 			return errors.New("received unauthorized follow request")
 		}
@@ -224,7 +224,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return fmt.Errorf("failed to marshal accept response: %w", err)
 		}
 
-	case ap.AcceptActivity:
+	case ap.Accept:
 		if sender.ID != req.Actor {
 			return fmt.Errorf("received an invalid follow request for %s by %s", req.Actor, sender.ID)
 		}
@@ -232,7 +232,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		followID, ok := req.Object.(string)
 		if ok && followID != "" {
 			log.Info("Follow is accepted", "follow", followID)
-		} else if followActivity, ok := req.Object.(*ap.Activity); ok && followActivity.Type == ap.FollowActivity && followActivity.ID != "" {
+		} else if followActivity, ok := req.Object.(*ap.Activity); ok && followActivity.Type == ap.Follow && followActivity.ID != "" {
 			log.Info("Follow is accepted", "follow", followActivity.ID)
 			followID = followActivity.ID
 		} else {
@@ -243,7 +243,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return fmt.Errorf("failed to accept follow %s: %w", followID, err)
 		}
 
-	case ap.UndoActivity:
+	case ap.Undo:
 		if sender.ID != req.Actor {
 			return fmt.Errorf("received an invalid undo request for %s by %s", req.Actor, sender.ID)
 		}
@@ -253,7 +253,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return errors.New("received a request to undo a non-activity object")
 		}
 
-		if inner.Type == ap.AnnounceActivity {
+		if inner.Type == ap.Announce {
 			noteID, ok := inner.Object.(string)
 			if !ok {
 				return errors.New("cannot undo Announce")
@@ -269,7 +269,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return nil
 		}
 
-		if inner.Type != ap.FollowActivity {
+		if inner.Type != ap.Follow {
 			log.Debug("Ignoring request to undo a non-Follow activity")
 			return nil
 		}
@@ -302,7 +302,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 		log.Info("Removed a Follow", "follower", follower, "followed", followed)
 
-	case ap.CreateActivity:
+	case ap.Create:
 		post, ok := req.Object.(*ap.Object)
 		if !ok {
 			return errors.New("received invalid Create")
@@ -310,7 +310,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 		return q.processCreateActivity(ctx, log, sender, req, rawActivity, post)
 
-	case ap.AnnounceActivity:
+	case ap.Announce:
 		create, ok := req.Object.(*ap.Activity)
 		if !ok {
 			if postID, ok := req.Object.(string); ok && postID != "" {
@@ -327,7 +327,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			}
 			return nil
 		}
-		if create.Type != ap.CreateActivity {
+		if create.Type != ap.Create {
 			log.Debug("Ignoring unsupported Announce type", "type", create.Type)
 			return nil
 		}
@@ -350,7 +350,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, sender.ID, err)
 		}
 
-	case ap.UpdateActivity:
+	case ap.Update:
 		post, ok := req.Object.(*ap.Object)
 		if !ok || post.ID == sender.ID {
 			log.Debug("Ignoring unsupported Update object")
@@ -377,13 +377,13 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 		body := post
 		var err error
-		if (post.Type == ap.QuestionObject && post.Updated != nil && lastUpdate >= post.Updated.Unix()) || (post.Type != ap.QuestionObject && (post.Updated == nil || lastUpdate >= post.Updated.Unix())) {
+		if (post.Type == ap.Question && post.Updated != nil && lastUpdate >= post.Updated.Unix()) || (post.Type != ap.Question && (post.Updated == nil || lastUpdate >= post.Updated.Unix())) {
 			log.Debug("Received old update request for new post")
 			return nil
-		} else if post.Type == ap.QuestionObject && oldPost.Closed != nil {
+		} else if post.Type == ap.Question && oldPost.Closed != nil {
 			log.Debug("Received update request for closed poll")
 			return nil
-		} else if post.Type == ap.QuestionObject && post.Updated == nil {
+		} else if post.Type == ap.Question && post.Updated == nil {
 			oldPost.VotersCount = post.VotersCount
 			oldPost.OneOf = post.OneOf
 			oldPost.AnyOf = post.AnyOf
@@ -433,10 +433,10 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 		log.Info("Updated post")
 
-	case ap.MoveActivity:
+	case ap.Move:
 		log.Debug("Ignoring Move activity")
 
-	case ap.LikeActivity:
+	case ap.Like:
 		log.Debug("Ignoring Like activity")
 
 	default:

@@ -40,7 +40,7 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 	follow := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      followID,
-		Type:    ap.FollowActivity,
+		Type:    ap.Follow,
 		Actor:   follower.ID,
 		Object:  followed,
 		To:      to,

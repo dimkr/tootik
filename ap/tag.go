@@ -16,16 +16,16 @@ limitations under the License.
 
 package ap
 
-type MentionType string
+type TagType string
 
 const (
-	MentionMention MentionType = "Mention"
-	HashtagMention MentionType = "Hashtag"
-	EmojiMention   MentionType = "Emoji"
+	Mention TagType = "Mention"
+	Hashtag TagType = "Hashtag"
+	Emoji   TagType = "Emoji"
 )
 
-type Mention struct {
-	Type MentionType `json:"type,omitempty"`
+type Tag struct {
+	Type TagType     `json:"type,omitempty"`
 	Name string      `json:"name,omitempty"`
 	Href string      `json:"href,omitempty"`
 	Icon *Attachment `json:"icon,omitempty"`

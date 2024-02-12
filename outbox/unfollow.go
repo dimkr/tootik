@@ -41,11 +41,11 @@ func Unfollow(ctx context.Context, domain string, log *slog.Logger, db *sql.DB, 
 	unfollow := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      undoID,
-		Type:    ap.UndoActivity,
+		Type:    ap.Undo,
 		Actor:   follower.ID,
 		Object: &ap.Activity{
 			ID:     followID,
-			Type:   ap.FollowActivity,
+			Type:   ap.Follow,
 			Actor:  follower.ID,
 			Object: followed,
 		},

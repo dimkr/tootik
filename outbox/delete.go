@@ -28,7 +28,7 @@ func Delete(ctx context.Context, db *sql.DB, note *ap.Object) error {
 	delete := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      note.ID + "#delete",
-		Type:    ap.DeleteActivity,
+		Type:    ap.Delete,
 		Actor:   note.AttributedTo,
 		Object: ap.Object{
 			Type: note.Type,

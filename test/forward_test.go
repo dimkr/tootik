@@ -60,7 +60,7 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Alice.ID,
 				Content:      "hello",
 				To:           to,
@@ -137,7 +137,7 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Alice.ID,
 				Content:      "hello",
 				To:           to,
@@ -212,7 +212,7 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Alice.ID,
 				Content:      "hello",
 				To:           to,
@@ -227,7 +227,7 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/2",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Bob.ID,
 				InReplyTo:    "https://localhost.localdomain:8443/note/1",
 				Content:      "hola",
@@ -302,7 +302,7 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Alice.ID,
 				Content:      "hello",
 				To:           to,
@@ -376,7 +376,7 @@ func TestForward_ReplyToDM(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Alice.ID,
 				Content:      "hello",
 				To:           to,
@@ -439,7 +439,7 @@ func TestForward_NotFollowingAuthor(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Alice.ID,
 				Content:      "hello",
 				To:           to,
@@ -513,7 +513,7 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Alice.ID,
 				Content:      "hello",
 				To:           to,
@@ -576,7 +576,7 @@ func TestForward_ReplyToFederatedPost(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://127.0.0.1/note/1",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: "https://127.0.0.1/user/erin",
 				Content:      "hello",
 				To:           to,
@@ -650,7 +650,7 @@ func TestForward_MaxDepth(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Alice.ID,
 				Content:      "hello",
 				To:           to,
@@ -665,7 +665,7 @@ func TestForward_MaxDepth(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/2",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Bob.ID,
 				InReplyTo:    "https://localhost.localdomain:8443/note/1",
 				Content:      "hola",
@@ -681,7 +681,7 @@ func TestForward_MaxDepth(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/3",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Alice.ID,
 				InReplyTo:    "https://localhost.localdomain:8443/note/2",
 				Content:      "hi",
@@ -697,7 +697,7 @@ func TestForward_MaxDepth(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/4",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Bob.ID,
 				InReplyTo:    "https://localhost.localdomain:8443/note/3",
 				Content:      "hiii",
@@ -772,7 +772,7 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Alice.ID,
 				Content:      "hello",
 				To:           to,
@@ -787,7 +787,7 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/2",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Bob.ID,
 				InReplyTo:    "https://localhost.localdomain:8443/note/1",
 				Content:      "hola",
@@ -803,7 +803,7 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/3",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Alice.ID,
 				InReplyTo:    "https://localhost.localdomain:8443/note/2",
 				Content:      "hi",
@@ -819,7 +819,7 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/4",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Bob.ID,
 				InReplyTo:    "https://localhost.localdomain:8443/note/3",
 				Content:      "hiii",
@@ -835,7 +835,7 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/5",
-				Type:         ap.NoteObject,
+				Type:         ap.Note,
 				AttributedTo: server.Alice.ID,
 				InReplyTo:    "https://localhost.localdomain:8443/note/4",
 				Content:      "byeee",

@@ -26,15 +26,15 @@ import (
 type ActivityType string
 
 const (
-	CreateActivity   ActivityType = "Create"
-	FollowActivity   ActivityType = "Follow"
-	AcceptActivity   ActivityType = "Accept"
-	UndoActivity     ActivityType = "Undo"
-	DeleteActivity   ActivityType = "Delete"
-	AnnounceActivity ActivityType = "Announce"
-	UpdateActivity   ActivityType = "Update"
-	LikeActivity     ActivityType = "Like"
-	MoveActivity     ActivityType = "Move"
+	Create   ActivityType = "Create"
+	Follow   ActivityType = "Follow"
+	Accept   ActivityType = "Accept"
+	Undo     ActivityType = "Undo"
+	Delete   ActivityType = "Delete"
+	Announce ActivityType = "Announce"
+	Update   ActivityType = "Update"
+	Like     ActivityType = "Like"
+	Move     ActivityType = "Move"
 )
 
 type anyActivity struct {

@@ -78,7 +78,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, name, certHash strin
 		Type:              ap.Person,
 		PreferredUsername: name,
 		Icon: ap.Attachment{
-			Type:      ap.ImageAttachment,
+			Type:      ap.Image,
 			MediaType: icon.MediaType,
 			URL:       fmt.Sprintf("https://%s/icon/%s%s", domain, name, icon.FileNameExtension),
 		},
