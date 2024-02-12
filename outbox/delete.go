@@ -23,6 +23,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 )
 
+// Delete queues a Delete activity for delivery.
 func Delete(ctx context.Context, db *sql.DB, note *ap.Object) error {
 	delete := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",

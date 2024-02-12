@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package icon generates tiny, pseudo-random user avatars
+// Package icon generates tiny, pseudo-random user avatars.
 package icon
 
 import (

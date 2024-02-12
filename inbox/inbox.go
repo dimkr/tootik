@@ -14,5 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package inbox processes activities received from other servers
+// Package inbox processes activities received from other servers.
+//
+// Incoming activites are received and queued by [fed.Listener].
 package inbox

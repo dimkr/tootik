@@ -25,6 +25,7 @@ import (
 	"time"
 )
 
+// Accept queues an Accept activity for delivery.
 func Accept(ctx context.Context, domain string, followed, follower, followID string, db *sql.DB) error {
 	recipients := ap.Audience{}
 	recipients.Add(follower)

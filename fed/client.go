@@ -20,7 +20,7 @@ import (
 	"net/http"
 )
 
-// Client is a HTTP client
+// Client is a HTTP client.
 type Client interface {
 	Do(*http.Request) (*http.Response, error)
 }

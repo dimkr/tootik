@@ -26,6 +26,7 @@ import (
 	"time"
 )
 
+// Undo queues an Undo activity for delivery.
 func Undo(ctx context.Context, domain string, db *sql.DB, activity *ap.Activity) error {
 	noteID, ok := activity.Object.(string)
 	if !ok {

@@ -36,7 +36,7 @@ type Queue struct {
 	Resolver *Resolver
 }
 
-// ProcessQueue polls the queue of outgoing activities and delivers them to other servers with timeout and retries.
+// Process polls the queue of outgoing activities and delivers them to other servers with timeout and retries.
 func (q *Queue) Process(ctx context.Context) error {
 	t := time.NewTicker(q.Config.OutboxPollingInterval)
 	defer t.Stop()

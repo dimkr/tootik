@@ -14,5 +14,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package front implements a UI and exposes it over text-based protocols
+// Package front implements a UI and exposes it over text-based protocols.
 package front

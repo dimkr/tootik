@@ -63,6 +63,8 @@ func (m *Mover) updatedMoveTargets(ctx context.Context, prefix string) error {
 	return nil
 }
 
+// Run makes users who follow a moved account follow the target account instead.
+// It queues two activites for delivery: an Unfollow activity for the old account and a Follow activity for the new one.
 func (m *Mover) Run(ctx context.Context) error {
 	prefix := fmt.Sprintf("https://%s/%%", m.Domain)
 
@@ -124,6 +126,7 @@ func (m *Mover) Run(ctx context.Context) error {
 	return nil
 }
 
+// Move queues a Move activity for delivery.
 func Move(ctx context.Context, db *sql.DB, domain string, from *ap.Actor, to string) error {
 	now := time.Now()
 

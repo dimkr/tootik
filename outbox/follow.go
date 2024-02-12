@@ -26,6 +26,7 @@ import (
 	"time"
 )
 
+// Follow queues a Follow activity for delivery.
 func Follow(ctx context.Context, domain string, follower *ap.Actor, followed string, db *sql.DB) error {
 	if followed == follower.ID {
 		return fmt.Errorf("%s cannot follow %s", follower.ID, followed)

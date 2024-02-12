@@ -14,5 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package ap implements types that represent the ActivityPub vocabulary
+// Package ap implements types that represent the ActivityPub vocabulary.
+//
+// These types implement [database/sql.Scanner] and [database/sql/driver.Valuer], allowing them to be stored in a SQL database as a JSON column.
 package ap

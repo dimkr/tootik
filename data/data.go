@@ -14,5 +14,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package data implements generic data structures and deletion of old data
+// Package data implements generic data structures and deletion of old data.
 package data

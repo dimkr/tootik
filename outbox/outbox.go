@@ -14,5 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package outbox handles user actions and translates them into outgoing activities
+// Package outbox handles user actions and translates them into outgoing activities.
+//
+// Outgoing activities are queued and delivered by [fed.Queue].
 package outbox

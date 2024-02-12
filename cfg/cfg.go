@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package cfg defines the tootik configuration file format and defaults
+// Package cfg defines the tootik configuration file format and defaults.
 package cfg
 
 import "time"

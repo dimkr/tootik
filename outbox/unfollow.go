@@ -27,6 +27,7 @@ import (
 	"time"
 )
 
+// Unfollow queues an Unfollow activity for delivery.
 func Unfollow(ctx context.Context, domain string, log *slog.Logger, db *sql.DB, follower *ap.Actor, followed, followID string) error {
 	if followed == follower.ID {
 		return fmt.Errorf("%s cannot unfollow %s", follower.ID, followed)

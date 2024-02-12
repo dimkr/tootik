@@ -32,7 +32,7 @@ const (
 )
 
 // Object represents most ActivityPub objects.
-// Actors are represented by Actor.
+// Actors are represented by [Actor].
 type Object struct {
 	Context      any          `json:"@context,omitempty"`
 	ID           string       `json:"id"`
