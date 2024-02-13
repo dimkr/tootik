@@ -454,15 +454,7 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Ac
 	ctx, cancel := context.WithTimeout(parent, q.Config.ActivityProcessingTimeout)
 	defer cancel()
 
-	log := q.Log
-	if o, ok := activity.Object.(*ap.Object); ok {
-		log = q.Log.With(slog.Group("activity", "id", activity.ID, "sender", sender.ID, "type", activity.Type, "actor", activity.Actor, slog.Group("object", "kind", "object", "id", o.ID, "type", o.Type, "attributed_to", o.AttributedTo)))
-	} else if a, ok := activity.Object.(*ap.Activity); ok {
-		log = q.Log.With(slog.Group("activity", "id", activity.ID, "sender", sender.ID, "type", activity.Type, "actor", activity.Actor, slog.Group("object", "kind", "activity", "id", a.ID, "type", a.Type, "actor", a.Actor)))
-	} else if s, ok := activity.Object.(string); ok {
-		log = q.Log.With(slog.Group("activity", "id", activity.ID, "sender", sender.ID, "type", activity.Type, "actor", activity.Actor, slog.Group("object", "kind", "string", "id", s)))
-	}
-
+	log := q.Log.With("activity", activity, "sender", sender.ID)
 	if err := q.processActivity(ctx, log, sender, activity, rawActivity); err != nil {
 		log.Warn("Failed to process activity", "error", err)
 	}

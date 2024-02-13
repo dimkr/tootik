@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 )
 
 type ActivityType string
@@ -107,4 +108,16 @@ func (a *Activity) Scan(src any) error {
 func (a *Activity) Value() (driver.Value, error) {
 	buf, err := json.Marshal(a)
 	return string(buf), err
+}
+
+func (a *Activity) LogValue() slog.Value {
+	if o, ok := a.Object.(*Object); ok {
+		return slog.GroupValue(slog.String("id", a.ID), slog.String("type", string(a.Type)), slog.String("actor", a.Actor), slog.Group("object", "kind", "object", "id", o.ID, "type", o.Type, "attributed_to", o.AttributedTo))
+	} else if a, ok := a.Object.(*Activity); ok {
+		return slog.GroupValue(slog.String("id", a.ID), slog.String("type", string(a.Type)), slog.String("actor", a.Actor), slog.Group("object", "kind", "activity", "id", a.ID, "type", a.Type, "actor", a.Actor))
+	} else if s, ok := a.Object.(string); ok {
+		return slog.GroupValue(slog.String("id", a.ID), slog.String("type", string(a.Type)), slog.String("actor", a.Actor), slog.Group("object", "kind", "string", "id", s))
+	} else {
+		return slog.GroupValue(slog.String("id", a.ID), slog.String("type", string(a.Type)), slog.String("actor", a.Actor))
+	}
 }

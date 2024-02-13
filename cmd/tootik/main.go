@@ -195,7 +195,7 @@ func main() {
 				DB:       db,
 				Resolver: resolver,
 				Actor:    nobody,
-				Log:      log,
+				Log:      log.With("listener", "https"),
 				Addr:     *addr,
 				Cert:     *cert,
 				Key:      *key,
@@ -207,7 +207,7 @@ func main() {
 			&gemini.Listener{
 				Domain:   *domain,
 				Config:   &cfg,
-				Log:      log,
+				Log:      log.With("listener", "gemini"),
 				DB:       db,
 				Handler:  handler,
 				Resolver: resolver,
@@ -221,7 +221,7 @@ func main() {
 			&gopher.Listener{
 				Domain:   *domain,
 				Config:   &cfg,
-				Log:      log,
+				Log:      log.With("listener", "gopher"),
 				Handler:  handler,
 				DB:       db,
 				Resolver: resolver,
@@ -233,7 +233,7 @@ func main() {
 			&finger.Listener{
 				Domain: *domain,
 				Config: &cfg,
-				Log:    log,
+				Log:    log.With("listener", "finger"),
 				DB:     db,
 				Addr:   *fingerAddr,
 			},
@@ -243,7 +243,7 @@ func main() {
 			&guppy.Listener{
 				Domain:   *domain,
 				Config:   &cfg,
-				Log:      log,
+				Log:      log.With("listener", "guppy"),
 				DB:       db,
 				Handler:  handler,
 				Resolver: resolver,
@@ -254,7 +254,7 @@ func main() {
 		wg.Add(1)
 		go func() {
 			if err := svc.Listener.ListenAndServe(ctx); err != nil {
-				log.Error("Listener has failed", "name", svc.Name, "error", err)
+				log.Error("Listener has failed", "listener", svc.Name, "error", err)
 			}
 			cancel()
 			wg.Done()
@@ -272,7 +272,7 @@ func main() {
 			&inbox.Queue{
 				Domain:   *domain,
 				Config:   &cfg,
-				Log:      log,
+				Log:      log.With("queue", "inbox"),
 				DB:       db,
 				Resolver: resolver,
 				Actor:    nobody,
@@ -283,7 +283,7 @@ func main() {
 			&fed.Queue{
 				Domain:   *domain,
 				Config:   &cfg,
-				Log:      log,
+				Log:      log.With("queue", "outbox"),
 				DB:       db,
 				Resolver: resolver,
 			},
@@ -292,7 +292,7 @@ func main() {
 		wg.Add(1)
 		go func() {
 			if err := queue.Queue.Process(ctx); err != nil {
-				log.Error("Failed to process queue", "name", queue.Name, "error", err)
+				log.Error("Failed to process queue", "queue", queue.Name, "error", err)
 			}
 			cancel()
 			wg.Done()
@@ -311,7 +311,7 @@ func main() {
 			pollResultsUpdateInterval,
 			&outbox.Poller{
 				Domain: *domain,
-				Log:    log,
+				Log:    log.With("job", "poller"),
 				DB:     db,
 			},
 		},
@@ -320,7 +320,7 @@ func main() {
 			followMoveInterval,
 			&outbox.Mover{
 				Domain:   *domain,
-				Log:      log,
+				Log:      log.With("job", "mover"),
 				DB:       db,
 				Resolver: resolver,
 				Actor:    nobody,
@@ -345,9 +345,9 @@ func main() {
 			defer t.Stop()
 
 			for {
-				log.Info("Running periodic job", "name", job.Name)
+				log.Info("Running periodic job", "job", job.Name)
 				if err := job.Runner.Run(ctx); err != nil {
-					log.Error("Periodic job has failed", "name", job.Name, "error", err)
+					log.Error("Periodic job has failed", "job", job.Name, "error", err)
 					break
 				}
 
