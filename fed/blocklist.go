@@ -24,6 +24,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -134,10 +135,21 @@ func NewBlockList(log *slog.Logger, path string) (*BlockList, error) {
 
 // Contains determines if a domain is blocked.
 func (b *BlockList) Contains(domain string) bool {
+	domain = strings.Trim(domain, ".")
+
 	b.lock.Lock()
-	_, contains := b.domains[domain]
-	b.lock.Unlock()
-	return contains
+	defer b.lock.Unlock()
+
+	for {
+		if _, contains := b.domains[domain]; contains {
+			return true
+		}
+		if i := strings.IndexRune(domain, '.'); i == -1 {
+			return false
+		} else {
+			domain = domain[i+1:]
+		}
+	}
 }
 
 // Close frees resources.
