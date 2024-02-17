@@ -309,6 +309,10 @@ func (j *syncJob) Run(ctx context.Context, domain string, cfg *cfg.Config, log *
 }
 
 func (s *Syncer) processBatch(ctx context.Context) (int, error) {
+	if _, err := s.DB.ExecContext(ctx, `DELETE FROM follows_sync WHERE NOT EXISTS (SELECT 1 FROM persons WHERE id = actor)`); err != nil {
+		return 0, err
+	}
+
 	rows, err := s.DB.QueryContext(
 		ctx,
 		`SELECT actor, url, digest FROM follows_sync WHERE synced < $1 ORDER BY synced LIMIT $2`,
