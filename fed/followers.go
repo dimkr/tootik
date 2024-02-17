@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/outbox"
 	"io"
 	"log/slog"
 	"net/http"
@@ -60,20 +61,21 @@ type syncJob struct {
 
 var followersSyncRegex = regexp.MustCompile(`\b([^"=]+)="([^"]+)"`)
 
-func fetchFollowers(ctx context.Context, db *sql.DB, followed, host string) ([]string, error) {
+func fetchFollowers(ctx context.Context, db *sql.DB, followed, host string) (ap.Audience, error) {
+	var followers ap.Audience
+
 	rows, err := db.QueryContext(ctx, `select follower from follows where followed = ? and follower like 'https://' || ? || '/' || '%' and accepted = 1`, followed, host)
 	if err != nil {
-		return nil, err
+		return followers, err
 	}
 	defer rows.Close()
 
-	var followers []string
 	for rows.Next() {
 		var follower string
 		if err := rows.Scan(&follower); err != nil {
-			return nil, err
+			return followers, err
 		}
-		followers = append(followers, follower)
+		followers.Add(follower)
 	}
 
 	return followers, nil
@@ -219,7 +221,7 @@ func (l *Listener) saveFollowersDigest(ctx context.Context, sender *ap.Actor, he
 
 	if _, err := l.DB.ExecContext(
 		ctx,
-		`INSERT INTO follows_sync(actor, url, digest) VALUES($1, $2, $3) ON CONFLICT(actor) DO UPDATE SET url = $2, digest = $3, updated = UNIXEPOCH()`,
+		`INSERT INTO follows_sync(actor, url, digest) VALUES($1, $2, $3) ON CONFLICT(actor) DO UPDATE SET url = $2, digest = $3, changed = CASE WHEN digest = $3 THEN changed ELSE UNIXEPOCH() END`,
 		sender.ID,
 		partial,
 		digest,
@@ -231,17 +233,10 @@ func (l *Listener) saveFollowersDigest(ctx context.Context, sender *ap.Actor, he
 }
 
 func (j *syncJob) Run(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, resolver *Resolver, from *ap.Actor) error {
-	if _, err := db.ExecContext(
-		ctx,
-		`UPDATE follows_sync SET fetched = UNIXEPOCH() WHERE actor = ?`,
-		j.ActorID,
-	); err != nil {
-		return fmt.Errorf("failed to update last fetch time for %s: %w", j.URL, err)
-	}
-
 	if digest, err := digestFollowers(ctx, db, j.ActorID, domain); err != nil {
 		return err
 	} else if err == nil && digest == j.Digest {
+		log.Info("Followers are synchronized", "followed", j.ActorID)
 		return nil
 	}
 
@@ -249,6 +244,8 @@ func (j *syncJob) Run(ctx context.Context, domain string, cfg *cfg.Config, log *
 	if err != nil {
 		return err
 	}
+
+	log.Info("Synchronizing followers", "followed", j.ActorID)
 
 	var key key
 	resp, err := resolver.get(ctx, log, db, from, &key, j.URL)
@@ -262,22 +259,51 @@ func (j *syncJob) Run(ctx context.Context, domain string, cfg *cfg.Config, log *
 		return err
 	}
 
-	for _, follower := range local {
+	log.Info("Comparing lists", "followed", j.ActorID, "local", local, "remote", remote.OrderedItems)
+
+	local.Range(func(follower string, _ struct{}) bool {
 		if remote.OrderedItems.Contains(follower) {
-			continue
+			return true
 		}
-		log.Info("Removing unknown follow", "followed", j.ActorID, "follower", follower)
-		/*
-			if _, err := db.ExecContext(
-				ctx,
-				`DELETE FROM follows WHERE follower = ? AND followed = ? AND accepted = 1`,
-				follower,
-				j.ActorID,
-			); err != nil {
-				log.Warn("Failed to remove follow", "followed", j.ActorID, "follower", follower, "error", err)
-			}
-		*/
-	}
+		log.Info("Found unknown local follow", "followed", j.ActorID, "follower", follower)
+		if _, err := db.ExecContext(
+			ctx,
+			`UPDATE follows SET accepted = 0 WHERE follower = ? AND followed = ?`,
+			follower,
+			j.ActorID,
+		); err != nil {
+			log.Warn("Failed to remove follow", "followed", j.ActorID, "follower", follower, "error", err)
+		}
+		return true
+	})
+
+	prefix := fmt.Sprintf("https://%s/", domain)
+
+	remote.OrderedItems.Range(func(follower string, _ struct{}) bool {
+		if local.Contains(follower) {
+			return true
+		}
+		log.Info("Found unknown remote follow", "followed", j.ActorID, "follower", follower)
+
+		if !strings.HasPrefix(follower, prefix) {
+			return true
+		}
+
+		var followID string
+		if err := db.QueryRowContext(ctx, `select id from follows where follower = ? and followed = ?`, follower, j.ActorID).Scan(&followID); err != nil && errors.Is(err, sql.ErrNoRows) {
+			followID = fmt.Sprintf("https://%s/follow/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s", follower, j.ActorID))))
+			log.Warn("Using fake follow ID to remove unknown remote follow", "followed", j.ActorID, "follower", follower, "id", followID)
+		} else if err != nil {
+			log.Warn("Failed to fetch follow ID of unknown remote follow", "followed", j.ActorID, "follower", follower, "error", err)
+			return true
+		}
+
+		if err := outbox.Unfollow(ctx, domain, log, db, follower, j.ActorID, followID); err != nil {
+			log.Warn("Failed to remove unknown remote follow", "followed", j.ActorID, "follower", follower, "error", err)
+		}
+
+		return true
+	})
 
 	return nil
 }
@@ -286,7 +312,7 @@ func (s *Syncer) processBatch(ctx context.Context) (int, error) {
 	rows, err := s.DB.QueryContext(
 		ctx,
 		`
-			select actor, url, digest from follows_sync where fetched < $1 order by fetched limit $2
+			select actor, url, digest from follows_sync where synced < $1 order by synced limit $2
 		`,
 		time.Now().Add(-s.Config.FollowersSyncRetryInterval).Unix(),
 		s.Config.FollowersSyncBatchSize,
@@ -307,16 +333,17 @@ func (s *Syncer) processBatch(ctx context.Context) (int, error) {
 	}
 	rows.Close()
 
-	succeeded := 0
 	for _, job := range jobs {
 		if err := job.Run(ctx, s.Domain, s.Config, s.Log, s.DB, s.Resolver, s.Actor); err != nil {
 			s.Log.Warn("Failed to sync followers", "actor", job.ActorID, "error", err)
-		} else {
-			succeeded += 1
+		}
+
+		if _, err := s.DB.ExecContext(ctx, `UPDATE follows_sync SET synced = UNIXEPOCH() WHERE actor = ?`, job.ActorID); err != nil {
+			s.Log.Warn("Failed to update last sync time", "actor", job.ActorID, "error", err)
 		}
 	}
 
-	return succeeded, nil
+	return len(jobs), nil
 }
 
 func (s *Syncer) Run(ctx context.Context) error {

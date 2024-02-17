@@ -28,12 +28,12 @@ import (
 )
 
 // Unfollow queues an Unfollow activity for delivery.
-func Unfollow(ctx context.Context, domain string, log *slog.Logger, db *sql.DB, follower *ap.Actor, followed, followID string) error {
-	if followed == follower.ID {
-		return fmt.Errorf("%s cannot unfollow %s", follower.ID, followed)
+func Unfollow(ctx context.Context, domain string, log *slog.Logger, db *sql.DB, follower, followed, followID string) error {
+	if followed == follower {
+		return fmt.Errorf("%s cannot unfollow %s", follower, followed)
 	}
 
-	undoID := fmt.Sprintf("https://%s/undo/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", follower.ID, followed, time.Now().UnixNano()))))
+	undoID := fmt.Sprintf("https://%s/undo/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", follower, followed, time.Now().UnixNano()))))
 
 	to := ap.Audience{}
 	to.Add(followed)
@@ -42,11 +42,11 @@ func Unfollow(ctx context.Context, domain string, log *slog.Logger, db *sql.DB, 
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      undoID,
 		Type:    ap.Undo,
-		Actor:   follower.ID,
+		Actor:   follower,
 		Object: &ap.Activity{
 			ID:     followID,
 			Type:   ap.Follow,
-			Actor:  follower.ID,
+			Actor:  follower,
 			Object: followed,
 		},
 		To: to,
@@ -71,7 +71,7 @@ func Unfollow(ctx context.Context, domain string, log *slog.Logger, db *sql.DB, 
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
 		&unfollow,
-		follower.ID,
+		follower,
 	); err != nil {
 		return fmt.Errorf("failed to insert undo for %s: %w", followID, err)
 	}
@@ -81,7 +81,7 @@ func Unfollow(ctx context.Context, domain string, log *slog.Logger, db *sql.DB, 
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("%s failed to unfollow %s: %w", follower.ID, followed, err)
+		return fmt.Errorf("%s failed to unfollow %s: %w", follower, followed, err)
 	}
 
 	return nil

@@ -22,16 +22,19 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/fed"
 	"log/slog"
 	"time"
 )
+
+type Resolver interface {
+	ResolveID(context.Context, *slog.Logger, *sql.DB, *ap.Actor, string, bool) (*ap.Actor, error)
+}
 
 type Mover struct {
 	Domain   string
 	Log      *slog.Logger
 	DB       *sql.DB
-	Resolver *fed.Resolver
+	Resolver Resolver
 	Actor    *ap.Actor
 }
 
@@ -118,7 +121,7 @@ func (m *Mover) Run(ctx context.Context) error {
 				continue
 			}
 		}
-		if err := Unfollow(ctx, m.Domain, m.Log, m.DB, &actor, oldID, oldFollowID); err != nil {
+		if err := Unfollow(ctx, m.Domain, m.Log, m.DB, actor.ID, oldID, oldFollowID); err != nil {
 			m.Log.Warn("Failed to unfollow old actor", "follow", oldFollowID, "old", oldID, "new", newID, "error", err)
 		}
 	}
