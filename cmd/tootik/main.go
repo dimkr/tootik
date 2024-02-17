@@ -51,7 +51,7 @@ const (
 	pollResultsUpdateInterval = time.Hour / 2
 	garbageCollectionInterval = time.Hour * 12
 	followMoveInterval        = time.Hour * 6
-	followSyncInterval        = time.Hour * 24
+	followSyncInterval        = time.Hour * 6
 )
 
 var (

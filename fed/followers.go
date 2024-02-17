@@ -316,7 +316,7 @@ func (s *Syncer) processBatch(ctx context.Context) (int, error) {
 	rows, err := s.DB.QueryContext(
 		ctx,
 		`SELECT actor, url, digest FROM follows_sync WHERE synced < $1 ORDER BY synced LIMIT $2`,
-		time.Now().Add(-s.Config.FollowersSyncRetryInterval).Unix(),
+		time.Now().Add(-s.Config.FollowersSyncInterval).Unix(),
 		s.Config.FollowersSyncBatchSize,
 	)
 	if err != nil {
