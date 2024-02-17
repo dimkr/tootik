@@ -311,9 +311,7 @@ func (j *syncJob) Run(ctx context.Context, domain string, cfg *cfg.Config, log *
 func (s *Syncer) processBatch(ctx context.Context) (int, error) {
 	rows, err := s.DB.QueryContext(
 		ctx,
-		`
-			select actor, url, digest from follows_sync where synced < $1 order by synced limit $2
-		`,
+		`SELECT actor, url, digest FROM follows_sync WHERE synced < $1 ORDER BY synced LIMIT $2`,
 		time.Now().Add(-s.Config.FollowersSyncRetryInterval).Unix(),
 		s.Config.FollowersSyncBatchSize,
 	)
