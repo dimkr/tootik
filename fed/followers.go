@@ -163,7 +163,6 @@ func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: remove
 	w.WriteHeader(http.StatusInternalServerError)
-	return
 
 	w.Header().Set("Content-Type", `application/activity+json; charset=utf-8`)
 	w.Write([]byte(collection))
