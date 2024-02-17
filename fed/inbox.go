@@ -41,7 +41,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(io.LimitReader(r.Body, l.Config.MaxRequestBodySize))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
 		return
 	}
 
@@ -89,13 +89,6 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		l.Log.Error("Failed to insert activity", "sender", sender.ID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
-	}
-
-	followersSync := r.Header.Get("Collection-Synchronization")
-	if followersSync != "" {
-		if err := l.saveFollowersDigest(r.Context(), sender, followersSync); err != nil {
-			l.Log.Warn("Failed to save followers sync header", "sender", sender.ID, "header", followersSync, "error", err)
-		}
 	}
 
 	w.WriteHeader(http.StatusOK)

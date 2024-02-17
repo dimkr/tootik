@@ -34,7 +34,7 @@ import (
 	"time"
 )
 
-type followers map[string]string
+type partialFollowers map[string]string
 
 type orderedCollection struct {
 	Context      string      `json:"@context"`
@@ -60,51 +60,59 @@ type syncJob struct {
 
 var followersSyncRegex = regexp.MustCompile(`\b([^"=]+)="([^"]+)"`)
 
-func fetchFollowers(ctx context.Context, db *sql.DB, actorID, host string) (*ap.Audience, error) {
-	rows, err := db.QueryContext(ctx, `select follower from follows where followed = ? and follower like 'https://' || ? || '/' || '%' and accepted = 1`, actorID, host)
+func fetchFollowers(ctx context.Context, db *sql.DB, followed, host string) ([]string, error) {
+	rows, err := db.QueryContext(ctx, `select follower from follows where followed = ? and follower like 'https://' || ? || '/' || '%' and accepted = 1`, followed, host)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var followers ap.Audience
+	var followers []string
 	for rows.Next() {
 		var follower string
 		if err := rows.Scan(&follower); err != nil {
 			return nil, err
 		}
-		followers.Add(follower)
+		followers = append(followers, follower)
 	}
 
-	return &followers, nil
+	return followers, nil
 }
 
-func digestFollowers(followers *ap.Audience) string {
-	var digest [sha256.Size]byte
+func digestFollowers(ctx context.Context, db *sql.DB, followed, host string) (string, error) {
+	rows, err := db.QueryContext(ctx, `select follower from follows where followed = ? and follower like 'https://' || ? || '/' || '%' and accepted = 1`, followed, host)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
 
-	followers.Range(func(follower string, _ struct{}) bool {
+	var digest [sha256.Size]byte
+	for rows.Next() {
+		var follower string
+		if err := rows.Scan(&follower); err != nil {
+			return "", err
+		}
 		hash := sha256.Sum256([]byte(follower))
 		for i := range sha256.Size {
 			digest[i] ^= hash[i]
 		}
-		return true
-	})
+	}
 
-	return fmt.Sprintf("%x", digest)
+	return fmt.Sprintf("%x", digest), nil
 }
 
-func (f followers) Digest(ctx context.Context, db *sql.DB, domain string, actor *ap.Actor, req *http.Request) error {
+func (f partialFollowers) Digest(ctx context.Context, db *sql.DB, domain string, actor *ap.Actor, req *http.Request) error {
 	if header, ok := f[req.URL.Host]; ok && header != "" {
 		req.Header.Set("Collection-Synchronization", header)
 		return nil
 	}
 
-	followers, err := fetchFollowers(ctx, db, actor.ID, req.URL.Host)
+	digest, err := digestFollowers(ctx, db, actor.ID, req.URL.Host)
 	if err != nil {
 		return err
 	}
 
-	header := fmt.Sprintf(`collectionId="%s", url="https://%s/followers_synchronization/%s", digest="%s"`, actor.Followers, domain, actor.PreferredUsername, digestFollowers(followers))
+	header := fmt.Sprintf(`collectionId="%s", url="https://%s/followers_synchronization/%s", digest="%s"`, actor.Followers, domain, actor.PreferredUsername, digest)
 	f[req.URL.Host] = header
 	req.Header.Set("Collection-Synchronization", header)
 	return nil
@@ -145,11 +153,11 @@ func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 	}
 	rows.Close()
 
-	collection, err := json.Marshal(orderedCollection{
-		Context:      "https://www.w3.org/ns/activitystreams",
-		ID:           fmt.Sprintf("https://%s/followers/%s?domain=%s", l.Domain, name, u.Host),
-		Type:         "OrderedCollection",
-		OrderedItems: items,
+	collection, err := json.Marshal(map[string]any{
+		"@context":     "https://www.w3.org/ns/activitystreams",
+		"id":           fmt.Sprintf("https://%s/followers/%s?domain=%s", l.Domain, name, u.Host),
+		"type":         "OrderedCollection",
+		"orderedItems": items,
 	})
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -231,13 +239,15 @@ func (j *syncJob) Run(ctx context.Context, domain string, cfg *cfg.Config, log *
 		return fmt.Errorf("failed to update last fetch time for %s: %w", j.URL, err)
 	}
 
+	if digest, err := digestFollowers(ctx, db, j.ActorID, domain); err != nil {
+		return err
+	} else if err == nil && digest == j.Digest {
+		return nil
+	}
+
 	local, err := fetchFollowers(ctx, db, j.ActorID, domain)
 	if err != nil {
 		return err
-	}
-
-	if digestFollowers(local) == j.Digest {
-		return nil
 	}
 
 	var key key
@@ -252,21 +262,22 @@ func (j *syncJob) Run(ctx context.Context, domain string, cfg *cfg.Config, log *
 		return err
 	}
 
-	local.Range(func(follower string, _ struct{}) bool {
-		if !remote.OrderedItems.Contains(follower) {
+	for _, follower := range local {
+		if remote.OrderedItems.Contains(follower) {
+			continue
+		}
+		log.Info("Removing unknown follow", "followed", j.ActorID, "follower", follower)
+		/*
 			if _, err := db.ExecContext(
 				ctx,
-				`DELETE FROM follows WHERE follower = ? AND followed = ?`,
+				`DELETE FROM follows WHERE follower = ? AND followed = ? AND accepted = 1`,
 				follower,
 				j.ActorID,
 			); err != nil {
-				log.Info("Got followers collection", "actor", j.ActorID, "followeres", remote.OrderedItems, "error", err)
+				log.Warn("Failed to remove follow", "followed", j.ActorID, "follower", follower, "error", err)
 			}
-		}
-		return true
-	})
-
-	log.Info("Got followers collection", "actor", j.ActorID, "followeres", remote.OrderedItems)
+		*/
+	}
 
 	return nil
 }

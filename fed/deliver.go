@@ -82,6 +82,12 @@ func (q *Queue) process(ctx context.Context) error {
 
 		if err := q.deliverWithTimeout(ctx, &activity, []byte(rawActivity), &actor, time.Unix(inserted, 0), &recipients); err != nil {
 			q.Log.Warn("Failed to deliver activity", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
+
+			if _, err := q.DB.ExecContext(ctx, `update outbox set received = ? where activity->>'id' = ?`, &recipients, activity.ID); err != nil {
+				q.Log.Error("Failed to update delivery progress", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
+				continue
+			}
+
 			continue
 		}
 
@@ -162,9 +168,9 @@ func (q *Queue) deliver(ctx context.Context, activity *ap.Activity, rawActivity 
 	sent := map[string]struct{}{}
 
 	var key key
-	var sync followers
+	var followers partialFollowers
 	if recipients.Contains(actor.Followers) {
-		sync = followers{}
+		followers = partialFollowers{}
 	}
 
 	actorIDs.Range(func(actorID string, _ struct{}) bool {
@@ -205,7 +211,7 @@ func (q *Queue) deliver(ctx context.Context, activity *ap.Activity, rawActivity 
 
 		q.Log.Info("Delivering activity to recipient", "to", actorID, "inbox", inbox, "activity", activity.ID)
 
-		if err := q.Resolver.post(ctx, q.Log, q.DB, actor, &key, sync, inbox, rawActivity); err != nil {
+		if err := q.Resolver.post(ctx, q.Log, q.DB, actor, &key, followers, inbox, rawActivity); err != nil {
 			q.Log.Warn("Failed to send an activity", "from", actor.ID, "to", actorID, "activity", activity.ID, "error", err)
 			if !errors.Is(err, ErrBlockedDomain) {
 				anyFailed = true
