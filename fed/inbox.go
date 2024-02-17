@@ -91,5 +91,12 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	followersSync := r.Header.Get("Collection-Synchronization")
+	if followersSync != "" {
+		if err := l.saveFollowersDigest(r.Context(), sender, followersSync); err != nil {
+			l.Log.Warn("Failed to save followers sync header", "sender", sender.ID, "header", followersSync, "error", err)
+		}
+	}
+
 	w.WriteHeader(http.StatusOK)
 }
