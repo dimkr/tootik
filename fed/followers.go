@@ -339,7 +339,7 @@ func (s *Syncer) processBatch(ctx context.Context) (int, error) {
 		}
 
 		if _, err := s.DB.ExecContext(ctx, `UPDATE follows_sync SET synced = UNIXEPOCH() WHERE actor = ?`, job.ActorID); err != nil {
-			return fmt.Errorf("failed to update last sync time for %s: %w", job.ActorID, err)
+			return 0, fmt.Errorf("failed to update last sync time for %s: %w", job.ActorID, err)
 		}
 	}
 
