@@ -82,6 +82,12 @@ func (q *Queue) process(ctx context.Context) error {
 
 		if err := q.deliverWithTimeout(ctx, &activity, []byte(rawActivity), &actor, time.Unix(inserted, 0), &recipients); err != nil {
 			q.Log.Warn("Failed to deliver activity", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
+
+			if _, err := q.DB.ExecContext(ctx, `update outbox set received = ? where activity->>'id' = ?`, &recipients, activity.ID); err != nil {
+				q.Log.Error("Failed to update delivery progress", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
+				continue
+			}
+
 			continue
 		}
 
