@@ -37,13 +37,6 @@ import (
 
 type partialFollowers map[string]string
 
-type orderedCollection struct {
-	Context      string      `json:"@context"`
-	ID           string      `json:"id"`
-	Type         string      `json:"type"`
-	OrderedItems ap.Audience `json:"orderedItems"`
-}
-
 type Syncer struct {
 	Domain   string
 	Config   *cfg.Config
@@ -254,7 +247,9 @@ func (j *syncJob) Run(ctx context.Context, domain string, cfg *cfg.Config, log *
 	}
 	defer resp.Body.Close()
 
-	var remote orderedCollection
+	var remote struct {
+		OrderedItems ap.Audience `json:"orderedItems"`
+	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, cfg.MaxRequestBodySize)).Decode(&remote); err != nil {
 		return err
 	}
