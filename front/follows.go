@@ -93,6 +93,7 @@ func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 			u.actor
 		order by
 			max(u.ninserted)/(24*60*60) desc,
+			max(u.ninserted) desc,
 			u.finserted desc
 		`,
 		r.User.ID,
