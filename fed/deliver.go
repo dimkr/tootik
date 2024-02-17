@@ -162,6 +162,10 @@ func (q *Queue) deliver(ctx context.Context, activity *ap.Activity, rawActivity 
 	sent := map[string]struct{}{}
 
 	var key key
+	var sync followers
+	if recipients.Contains(actor.Followers) {
+		sync = followers{}
+	}
 
 	actorIDs.Range(func(actorID string, _ struct{}) bool {
 		if actorID == author || actorID == ap.Public {
@@ -201,7 +205,7 @@ func (q *Queue) deliver(ctx context.Context, activity *ap.Activity, rawActivity 
 
 		q.Log.Info("Delivering activity to recipient", "to", actorID, "inbox", inbox, "activity", activity.ID)
 
-		if err := q.Resolver.post(ctx, q.Log, q.DB, actor, &key, inbox, rawActivity); err != nil {
+		if err := q.Resolver.post(ctx, q.Log, q.DB, actor, &key, sync, inbox, rawActivity); err != nil {
 			q.Log.Warn("Failed to send an activity", "from", actor.ID, "to", actorID, "activity", activity.ID, "error", err)
 			if !errors.Is(err, ErrBlockedDomain) {
 				anyFailed = true
