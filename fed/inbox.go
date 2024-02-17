@@ -41,6 +41,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(io.LimitReader(r.Body, l.Config.MaxRequestBodySize))
 	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 

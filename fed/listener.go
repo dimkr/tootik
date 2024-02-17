@@ -59,6 +59,7 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 	mux.HandleFunc("POST /inbox/{username}", l.handleInbox)
 	mux.HandleFunc("GET /outbox/{username}", l.handleOutbox)
 	mux.HandleFunc("GET /post/{hash}", l.handlePost)
+	mux.HandleFunc("GET /followers_synchronization/{username}", l.handleFollowers)
 	mux.HandleFunc("GET /{$}", l.handleIndex)
 
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
