@@ -159,7 +159,7 @@ func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	l.Log.Info("Received followers request", "username", name, "host", u.Host, "response", collection)
+	l.Log.Info("Received followers request", "username", name, "host", u.Host)
 
 	w.Header().Set("Content-Type", `application/activity+json; charset=utf-8`)
 	w.Write([]byte(collection))
