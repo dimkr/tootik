@@ -161,9 +161,6 @@ func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 
 	l.Log.Info("Received followers request", "username", name, "host", u.Host, "response", collection)
 
-	// TODO: remove
-	w.WriteHeader(http.StatusInternalServerError)
-
 	w.Header().Set("Content-Type", `application/activity+json; charset=utf-8`)
 	w.Write([]byte(collection))
 }
