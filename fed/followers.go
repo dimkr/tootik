@@ -308,7 +308,7 @@ func (s *Syncer) processBatch(ctx context.Context) (int, error) {
 
 	rows, err := s.DB.QueryContext(
 		ctx,
-		`SELECT actor, url, digest FROM follows_sync WHERE synced < $1 AND changed > synced ORDER BY synced LIMIT $2`,
+		`SELECT actor, url, digest FROM follows_sync WHERE changed < $1 ORDER BY changed LIMIT $2`,
 		time.Now().Add(-s.Config.FollowersSyncInterval).Unix(),
 		s.Config.FollowersSyncBatchSize,
 	)
@@ -333,7 +333,7 @@ func (s *Syncer) processBatch(ctx context.Context) (int, error) {
 			s.Log.Warn("Failed to sync followers", "actor", job.Followed, "error", err)
 		}
 
-		if _, err := s.DB.ExecContext(ctx, `UPDATE follows_sync SET synced = UNIXEPOCH() WHERE actor = ?`, job.Followed); err != nil {
+		if _, err := s.DB.ExecContext(ctx, `UPDATE follows_sync SET changed = UNIXEPOCH() WHERE actor = ?`, job.Followed); err != nil {
 			return 0, fmt.Errorf("failed to update last sync time for %s: %w", job.Followed, err)
 		}
 	}
