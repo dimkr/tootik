@@ -26,7 +26,6 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/front/text/gmi"
 	"io"
@@ -43,7 +42,7 @@ type Listener struct {
 	Log      *slog.Logger
 	DB       *sql.DB
 	Handler  front.Handler
-	Resolver *fed.Resolver
+	Resolver ap.Resolver
 	Addr     string
 	CertPath string
 	KeyPath  string

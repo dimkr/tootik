@@ -21,8 +21,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/front/text/gmap"
 	"io"
@@ -39,7 +39,7 @@ type Listener struct {
 	Log      *slog.Logger
 	Handler  front.Handler
 	DB       *sql.DB
-	Resolver *fed.Resolver
+	Resolver ap.Resolver
 	Addr     string
 }
 

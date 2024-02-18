@@ -26,15 +26,11 @@ import (
 	"time"
 )
 
-type Resolver interface {
-	ResolveID(context.Context, *slog.Logger, *sql.DB, *ap.Actor, string, bool) (*ap.Actor, error)
-}
-
 type Mover struct {
 	Domain   string
 	Log      *slog.Logger
 	DB       *sql.DB
-	Resolver Resolver
+	Resolver ap.Resolver
 	Actor    *ap.Actor
 }
 

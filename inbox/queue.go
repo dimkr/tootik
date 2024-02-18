@@ -25,7 +25,6 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
-	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/inbox/note"
 	"github.com/dimkr/tootik/outbox"
 	"log/slog"
@@ -39,7 +38,7 @@ type Queue struct {
 	Config   *cfg.Config
 	Log      *slog.Logger
 	DB       *sql.DB
-	Resolver *fed.Resolver
+	Resolver ap.Resolver
 	Actor    *ap.Actor
 }
 

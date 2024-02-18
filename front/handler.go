@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/front/static"
 	"github.com/dimkr/tootik/front/text"
 	"log/slog"
@@ -142,7 +141,7 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) Handler {
 }
 
 // Handle handles a request and writes a response.
-func (h *Handler) Handle(ctx context.Context, log *slog.Logger, w text.Writer, reqUrl *url.URL, user *ap.Actor, db *sql.DB, resolver *fed.Resolver, wg *sync.WaitGroup) {
+func (h *Handler) Handle(ctx context.Context, log *slog.Logger, w text.Writer, reqUrl *url.URL, user *ap.Actor, db *sql.DB, resolver ap.Resolver, wg *sync.WaitGroup) {
 	for re, handler := range h.handlers {
 		m := re.FindStringSubmatch(reqUrl.Path)
 		if m != nil {
