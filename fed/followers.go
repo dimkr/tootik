@@ -194,9 +194,9 @@ func (l *Listener) saveFollowersDigest(ctx context.Context, sender *ap.Actor, he
 		return errors.New("invalid digest length")
 	}
 
-	u, err := url.Parse(sender.Followers)
+	u, err := url.Parse(sender.ID)
 	if err != nil {
-		return fmt.Errorf("invalid followers collection %s: %w", sender.Followers, err)
+		return fmt.Errorf("invalid actor ID: %w", err)
 	}
 	host := u.Host
 
@@ -205,7 +205,7 @@ func (l *Listener) saveFollowersDigest(ctx context.Context, sender *ap.Actor, he
 		return fmt.Errorf("invalid partial followers collection: %w", err)
 	}
 	if u.Host != host {
-		return errors.New("partial collection does not match collection host")
+		return errors.New("partial collection host does not match actor")
 	}
 
 	if _, err := l.DB.ExecContext(
