@@ -178,7 +178,7 @@ func (l *Listener) saveFollowersDigest(ctx context.Context, sender *ap.Actor, he
 		}
 	}
 
-	if collection == "" && digest == "" && partial == "" {
+	if collection == "" || digest == "" || partial == "" {
 		return errors.New("at least one required attribute is empty")
 	}
 
