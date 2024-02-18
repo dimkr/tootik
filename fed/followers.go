@@ -221,23 +221,23 @@ func (l *Listener) saveFollowersDigest(ctx context.Context, sender *ap.Actor, he
 	return nil
 }
 
-func (j *followersDigest) Run(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, resolver *Resolver, from *ap.Actor) error {
-	if digest, err := digestFollowers(ctx, db, j.Followed, domain); err != nil {
+func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, resolver *Resolver, from *ap.Actor) error {
+	if digest, err := digestFollowers(ctx, db, d.Followed, domain); err != nil {
 		return err
-	} else if err == nil && digest == j.Digest {
-		log.Debug("Follower collections are synchronized", "followed", j.Followed)
+	} else if err == nil && digest == d.Digest {
+		log.Debug("Follower collections are synchronized", "followed", d.Followed)
 		return nil
 	}
 
-	local, err := fetchFollowers(ctx, db, j.Followed, domain)
+	local, err := fetchFollowers(ctx, db, d.Followed, domain)
 	if err != nil {
 		return err
 	}
 
-	log.Info("Synchronizing followers", "followed", j.Followed)
+	log.Info("Synchronizing followers", "followed", d.Followed)
 
 	var key key
-	resp, err := resolver.get(ctx, log, db, from, &key, j.URL)
+	resp, err := resolver.get(ctx, log, db, from, &key, d.URL)
 	if err != nil {
 		return err
 	}
@@ -255,15 +255,15 @@ func (j *followersDigest) Run(ctx context.Context, domain string, cfg *cfg.Confi
 			return true
 		}
 
-		log.Info("Found unknown local follow", "followed", j.Followed, "follower", follower)
+		log.Info("Found unknown local follow", "followed", d.Followed, "follower", follower)
 
 		if _, err := db.ExecContext(
 			ctx,
 			`UPDATE follows SET accepted = 0 WHERE follower = ? AND followed = ?`,
 			follower,
-			j.Followed,
+			d.Followed,
 		); err != nil {
-			log.Warn("Failed to remove local follow", "followed", j.Followed, "follower", follower, "error", err)
+			log.Warn("Failed to remove local follow", "followed", d.Followed, "follower", follower, "error", err)
 		}
 
 		return true
@@ -280,19 +280,19 @@ func (j *followersDigest) Run(ctx context.Context, domain string, cfg *cfg.Confi
 			return true
 		}
 
-		log.Info("Found unknown remote follow", "followed", j.Followed, "follower", follower)
+		log.Info("Found unknown remote follow", "followed", d.Followed, "follower", follower)
 
 		var followID string
-		if err := db.QueryRowContext(ctx, `SELECT id FROM follows WHERE follower = ? AND followed = ?`, follower, j.Followed).Scan(&followID); err != nil && errors.Is(err, sql.ErrNoRows) {
-			followID = fmt.Sprintf("https://%s/follow/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", follower, j.Followed, time.Now().UnixNano()))))
-			log.Warn("Using fake follow ID to remove unknown remote follow", "followed", j.Followed, "follower", follower, "id", followID)
+		if err := db.QueryRowContext(ctx, `SELECT id FROM follows WHERE follower = ? AND followed = ?`, follower, d.Followed).Scan(&followID); err != nil && errors.Is(err, sql.ErrNoRows) {
+			followID = fmt.Sprintf("https://%s/follow/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", follower, d.Followed, time.Now().UnixNano()))))
+			log.Warn("Using fake follow ID to remove unknown remote follow", "followed", d.Followed, "follower", follower, "id", followID)
 		} else if err != nil {
-			log.Warn("Failed to fetch follow ID of unknown remote follow", "followed", j.Followed, "follower", follower, "error", err)
+			log.Warn("Failed to fetch follow ID of unknown remote follow", "followed", d.Followed, "follower", follower, "error", err)
 			return true
 		}
 
-		if err := outbox.Unfollow(ctx, domain, log, db, follower, j.Followed, followID); err != nil {
-			log.Warn("Failed to remove remote follow", "followed", j.Followed, "follower", follower, "error", err)
+		if err := outbox.Unfollow(ctx, domain, log, db, follower, d.Followed, followID); err != nil {
+			log.Warn("Failed to remove remote follow", "followed", d.Followed, "follower", follower, "error", err)
 		}
 
 		return true
@@ -329,7 +329,7 @@ func (s *Syncer) processBatch(ctx context.Context) (int, error) {
 	rows.Close()
 
 	for _, job := range jobs {
-		if err := job.Run(ctx, s.Domain, s.Config, s.Log, s.DB, s.Resolver, s.Actor); err != nil {
+		if err := job.Sync(ctx, s.Domain, s.Config, s.Log, s.DB, s.Resolver, s.Actor); err != nil {
 			s.Log.Warn("Failed to sync followers", "actor", job.Followed, "error", err)
 		}
 
