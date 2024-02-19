@@ -36,8 +36,8 @@ type request struct {
 	Log       *slog.Logger
 }
 
-func (r *request) Resolve(host, name string, offline bool) (*ap.Actor, error) {
-	return r.Resolver.Resolve(r.Context, r.Log, r.DB, r.User, host, name, offline)
+func (r *request) Resolve(host, name string, flags ap.ResolverFlag) (*ap.Actor, error) {
+	return r.Resolver.Resolve(r.Context, r.Log, r.DB, r.User, host, name, flags)
 }
 
 func (r *request) Exec(query string, args ...any) (sql.Result, error) {

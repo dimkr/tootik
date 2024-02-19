@@ -48,7 +48,7 @@ func (m *Mover) updatedMoveTargets(ctx context.Context, prefix string) error {
 			continue
 		}
 
-		actor, err := m.Resolver.ResolveID(ctx, m.Log, m.DB, m.Actor, newID, false)
+		actor, err := m.Resolver.ResolveID(ctx, m.Log, m.DB, m.Actor, newID, 0)
 		if err != nil {
 			m.Log.Warn("Failed to resolve move target", "old", oldID, "new", newID, "error", err)
 			continue

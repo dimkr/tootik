@@ -83,7 +83,7 @@ func NewResolver(blockedDomains *BlockList, domain string, cfg *cfg.Config, clie
 }
 
 // ResolveID retrieves an actor object by its ID.
-func (r *Resolver) ResolveID(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, id string, offline bool) (*ap.Actor, error) {
+func (r *Resolver) ResolveID(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, id string, flags ap.ResolverFlag) (*ap.Actor, error) {
 	u, err := url.Parse(id)
 	if err != nil {
 		return nil, fmt.Errorf("cannot resolve %s: %w", id, err)
@@ -93,20 +93,26 @@ func (r *Resolver) ResolveID(ctx context.Context, log *slog.Logger, db *sql.DB, 
 		return nil, ErrInvalidScheme
 	}
 
-	name := path.Base(u.Path)
+	var name string
+	if flags&ap.InstanceActor == 0 {
+		name = path.Base(u.Path)
 
-	// strip the leading @ if URL follows the form https://a.b/@c
-	if name[0] == '@' {
-		name = name[1:]
+		// strip the leading @ if URL follows the form https://a.b/@c
+		if name[0] == '@' {
+			name = name[1:]
+		}
+	} else {
+		// in Mastodon, domain@domain leads to the "instance actor" (domain/actor) and it's discoverable through domain@domain
+		name = u.Host
 	}
 
-	return r.Resolve(ctx, log, db, from, u.Host, name, offline)
+	return r.Resolve(ctx, log, db, from, u.Host, name, flags)
 }
 
 // Resolve retrieves an actor object by host and name.
-func (r *Resolver) Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, host, name string, offline bool) (*ap.Actor, error) {
+func (r *Resolver) Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, host, name string, flags ap.ResolverFlag) (*ap.Actor, error) {
 	var key key
-	actor, cachedActor, err := r.resolve(ctx, log, db, from, &key, host, name, offline)
+	actor, cachedActor, err := r.resolve(ctx, log, db, from, &key, host, name, flags)
 	if err != nil && cachedActor != nil {
 		log.Warn("Using old cache entry for actor", "host", host, "name", name, "error", err)
 		return cachedActor, nil
@@ -138,7 +144,7 @@ func deleteActor(ctx context.Context, log *slog.Logger, db *sql.DB, id string) {
 	}
 }
 
-func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, key *key, host, name string, offline bool) (*ap.Actor, *ap.Actor, error) {
+func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, key *key, host, name string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
 	log.Debug("Resolving actor", "host", host, "name", name)
 
 	if r.BlockedDomains != nil && r.BlockedDomains.Contains(host) {
@@ -151,7 +157,7 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 
 	isLocal := host == r.Domain
 
-	if !isLocal && !offline {
+	if !isLocal && flags&ap.Offline == 0 {
 		lock := r.locks[crc32.ChecksumIEEE([]byte(host+name))%uint32(len(r.locks))]
 		if err := lock.Acquire(ctx, 1); err != nil {
 			return nil, nil, err
@@ -170,7 +176,7 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	} else if err == nil {
 		cachedActor = &tmp
 		sinceLastUpdate = time.Since(time.Unix(updated, 0))
-		if !isLocal && !offline && sinceLastUpdate > r.Config.ResolverCacheTTL && (!fetched.Valid || time.Since(time.Unix(fetched.Int64, 0)) >= r.Config.ResolverRetryInterval) {
+		if !isLocal && flags&ap.Offline == 0 && sinceLastUpdate > r.Config.ResolverCacheTTL && (!fetched.Valid || time.Since(time.Unix(fetched.Int64, 0)) >= r.Config.ResolverRetryInterval) {
 			log.Info("Updating old cache entry for actor", "id", cachedActor.ID)
 		} else {
 			log.Debug("Resolved actor using cache", "id", cachedActor.ID)
@@ -182,7 +188,7 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 		return nil, nil, fmt.Errorf("cannot resolve %s@%s: %w", name, host, ErrNoLocalActor)
 	}
 
-	if offline {
+	if flags&ap.Offline != 0 {
 		return nil, nil, fmt.Errorf("cannot resolve %s@%s: %w", name, host, ErrActorNotCached)
 	}
 

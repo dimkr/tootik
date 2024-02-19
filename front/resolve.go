@@ -57,7 +57,7 @@ func (h *Handler) resolve(w text.Writer, r *request, args ...string) {
 
 	r.Log.Info("Resolving user ID", "host", host, "name", name)
 
-	person, err := r.Resolve(host, name, false)
+	person, err := r.Resolve(host, name, 0)
 	if err != nil {
 		r.Log.Warn("Failed to resolve user ID", "host", host, "name", name, "error", err)
 		w.Statusf(40, "Failed to resolve %s@%s", name, host)

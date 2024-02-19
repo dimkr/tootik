@@ -116,7 +116,7 @@ func (f partialFollowers) Digest(ctx context.Context, db *sql.DB, domain string,
 func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("username")
 
-	sender, err := verify(r.Context(), l.Domain, l.Log, r, l.DB, l.Resolver, l.Actor, true)
+	sender, err := verify(r.Context(), l.Domain, l.Log, r, l.DB, l.Resolver, l.Actor, ap.InstanceActor)
 	if err != nil {
 		l.Log.Warn("Failed to verify followers request", "error", err)
 		w.WriteHeader(http.StatusUnauthorized)
@@ -159,7 +159,7 @@ func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	l.Log.Info("Received followers request", "username", name, "host", u.Host)
+	l.Log.Info("Received followers request", "sender", sender.ID, "username", name, "host", u.Host, "count", len(items.OrderedMap))
 
 	w.Header().Set("Content-Type", `application/activity+json; charset=utf-8`)
 	w.Write([]byte(collection))

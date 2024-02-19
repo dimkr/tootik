@@ -118,7 +118,7 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 		return nil
 	}
 
-	if _, err := q.Resolver.ResolveID(ctx, log, q.DB, q.Actor, post.AttributedTo, false); err != nil {
+	if _, err := q.Resolver.ResolveID(ctx, log, q.DB, q.Actor, post.AttributedTo, 0); err != nil {
 		return fmt.Errorf("failed to resolve %s: %w", post.AttributedTo, err)
 	}
 
@@ -151,7 +151,7 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 	}
 
 	mentionedUsers.Range(func(id string, _ struct{}) bool {
-		if _, err := q.Resolver.ResolveID(ctx, log, q.DB, q.Actor, id, false); err != nil {
+		if _, err := q.Resolver.ResolveID(ctx, log, q.DB, q.Actor, id, 0); err != nil {
 			log.Warn("Failed to resolve mention", "mention", id, "error", err)
 		}
 

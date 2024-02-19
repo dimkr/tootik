@@ -55,12 +55,12 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 	r.Body = io.NopCloser(bytes.NewReader(body))
 
 	// if actor is deleted, ignore this activity if we don't know this actor
-	offline := false
+	var flags ap.ResolverFlag
 	if activity.Type == ap.Delete {
-		offline = true
+		flags |= ap.Offline
 	}
 
-	sender, err := verify(r.Context(), l.Domain, l.Log, r, l.DB, l.Resolver, l.Actor, offline)
+	sender, err := verify(r.Context(), l.Domain, l.Log, r, l.DB, l.Resolver, l.Actor, flags)
 	if err != nil {
 		if errors.Is(err, ErrActorGone) {
 			w.WriteHeader(http.StatusOK)

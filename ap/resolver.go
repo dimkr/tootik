@@ -22,8 +22,18 @@ import (
 	"log/slog"
 )
 
+type ResolverFlag uint
+
+const (
+	// Offline disables fetching of remote actors and forces use of local or cached actors.
+	Offline ResolverFlag = 1
+
+	// InstanceActor enables discovery of the "instance actor" instead of the regular actor discovery flow.
+	InstanceActor = 2
+)
+
 // Resolver retrieves [Actor] objects given their ID.
 type Resolver interface {
-	ResolveID(ctx context.Context, log *slog.Logger, db *sql.DB, from *Actor, id string, offline bool) (*Actor, error)
-	Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *Actor, host, name string, offline bool) (*Actor, error)
+	ResolveID(ctx context.Context, log *slog.Logger, db *sql.DB, from *Actor, id string, flags ResolverFlag) (*Actor, error)
+	Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *Actor, host, name string, flags ResolverFlag) (*Actor, error)
 }

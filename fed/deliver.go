@@ -179,7 +179,7 @@ func (q *Queue) deliver(ctx context.Context, activity *ap.Activity, rawActivity 
 			return true
 		}
 
-		to, err := q.Resolver.ResolveID(ctx, q.Log, q.DB, actor, actorID, false)
+		to, err := q.Resolver.ResolveID(ctx, q.Log, q.DB, actor, actorID, 0)
 		if err != nil {
 			q.Log.Warn("Failed to resolve a recipient", "to", actorID, "activity", activity.ID, "error", err)
 			if !errors.Is(err, ErrActorGone) && !errors.Is(err, ErrBlockedDomain) {
