@@ -27,11 +27,6 @@ import (
 func (l *Listener) handleUser(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("username")
 
-	// nobody is our equivalent of the Mastodon "instance actor"
-	if name == l.Domain {
-		name = "nobody"
-	}
-
 	l.Log.Info("Looking up user", "name", name)
 
 	var actorID, actorString string
