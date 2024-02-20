@@ -168,6 +168,10 @@ func (q *Queue) deliver(ctx context.Context, activity *ap.Activity, rawActivity 
 	sent := map[string]struct{}{}
 
 	var key key
+	var followers partialFollowers
+	if recipients.Contains(actor.Followers) {
+		followers = partialFollowers{}
+	}
 
 	actorIDs.Range(func(actorID string, _ struct{}) bool {
 		if actorID == author || actorID == ap.Public {
@@ -175,7 +179,7 @@ func (q *Queue) deliver(ctx context.Context, activity *ap.Activity, rawActivity 
 			return true
 		}
 
-		to, err := q.Resolver.ResolveID(ctx, q.Log, q.DB, actor, actorID, false)
+		to, err := q.Resolver.ResolveID(ctx, q.Log, q.DB, actor, actorID, 0)
 		if err != nil {
 			q.Log.Warn("Failed to resolve a recipient", "to", actorID, "activity", activity.ID, "error", err)
 			if !errors.Is(err, ErrActorGone) && !errors.Is(err, ErrBlockedDomain) {
@@ -207,7 +211,7 @@ func (q *Queue) deliver(ctx context.Context, activity *ap.Activity, rawActivity 
 
 		q.Log.Info("Delivering activity to recipient", "to", actorID, "inbox", inbox, "activity", activity.ID)
 
-		if err := q.Resolver.post(ctx, q.Log, q.DB, actor, &key, inbox, rawActivity); err != nil {
+		if err := q.Resolver.post(ctx, q.Log, q.DB, actor, &key, followers, inbox, rawActivity); err != nil {
 			q.Log.Warn("Failed to send an activity", "from", actor.ID, "to", actorID, "activity", activity.ID, "error", err)
 			if !errors.Is(err, ErrBlockedDomain) {
 				anyFailed = true

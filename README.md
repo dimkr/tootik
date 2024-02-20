@@ -27,6 +27,7 @@ Welcome, fedinaut! localhost.localdomain:8443 is an instance of tootik, a federa
 ────
 
 📻 My radio
+📞 Mentions
 ⚡️ Followed users
 📡 This planet
 ✨ FOMO from outer space
@@ -96,6 +97,7 @@ tootik is lightweight, private and accessible social network:
   * To mentioned users
 * Sharing of public posts
 * Users can follow each other to see non-public posts
+  * With support for [Mastodon's follower synchronization mechanism](https://docs.joinmastodon.org/spec/activitypub/#follower-synchronization-mechanism), aka [FEP-8fcf](https://codeberg.org/fediverse/fep/src/branch/main/fep/8fcf/fep-8fcf.md)
 * Multi-choice polls
 * Full-text search within posts
 * Account migration, in both directions

@@ -92,6 +92,9 @@ type Config struct {
 	MaxInstanceRecoveryTime time.Duration
 	MaxResolverRequests     int
 
+	FollowersSyncBatchSize int
+	FollowersSyncInterval  time.Duration
+
 	NotesTTL    time.Duration
 	DeliveryTTL time.Duration
 	SharesTTL   time.Duration
@@ -301,6 +304,14 @@ func (c *Config) FillDefaults() {
 
 	if c.MaxResolverRequests <= 0 {
 		c.MaxResolverRequests = 16
+	}
+
+	if c.FollowersSyncBatchSize <= 0 {
+		c.FollowersSyncBatchSize = 64
+	}
+
+	if c.FollowersSyncInterval <= 0 {
+		c.FollowersSyncInterval = time.Hour * 24 * 3
 	}
 
 	if c.NotesTTL <= 0 {

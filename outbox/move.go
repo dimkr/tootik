@@ -22,7 +22,6 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/fed"
 	"log/slog"
 	"time"
 )
@@ -31,7 +30,7 @@ type Mover struct {
 	Domain   string
 	Log      *slog.Logger
 	DB       *sql.DB
-	Resolver *fed.Resolver
+	Resolver ap.Resolver
 	Actor    *ap.Actor
 }
 
@@ -49,7 +48,7 @@ func (m *Mover) updatedMoveTargets(ctx context.Context, prefix string) error {
 			continue
 		}
 
-		actor, err := m.Resolver.ResolveID(ctx, m.Log, m.DB, m.Actor, newID, false)
+		actor, err := m.Resolver.ResolveID(ctx, m.Log, m.DB, m.Actor, newID, 0)
 		if err != nil {
 			m.Log.Warn("Failed to resolve move target", "old", oldID, "new", newID, "error", err)
 			continue
@@ -118,7 +117,7 @@ func (m *Mover) Run(ctx context.Context) error {
 				continue
 			}
 		}
-		if err := Unfollow(ctx, m.Domain, m.Log, m.DB, &actor, oldID, oldFollowID); err != nil {
+		if err := Unfollow(ctx, m.Domain, m.Log, m.DB, actor.ID, oldID, oldFollowID); err != nil {
 			m.Log.Warn("Failed to unfollow old actor", "follow", oldFollowID, "old", oldID, "new", newID, "error", err)
 		}
 	}

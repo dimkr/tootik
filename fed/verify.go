@@ -28,7 +28,7 @@ import (
 	"net/http"
 )
 
-func verify(ctx context.Context, domain string, log *slog.Logger, r *http.Request, db *sql.DB, resolver *Resolver, from *ap.Actor, offline bool) (*ap.Actor, error) {
+func verify(ctx context.Context, domain string, log *slog.Logger, r *http.Request, db *sql.DB, resolver *Resolver, from *ap.Actor, flags ap.ResolverFlag) (*ap.Actor, error) {
 	verifier, err := httpsig.NewVerifier(r)
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify message: %w", err)
@@ -36,7 +36,7 @@ func verify(ctx context.Context, domain string, log *slog.Logger, r *http.Reques
 
 	keyID := verifier.KeyId()
 
-	actor, err := resolver.ResolveID(r.Context(), log, db, from, keyID, offline)
+	actor, err := resolver.ResolveID(r.Context(), log, db, from, keyID, flags)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get key %s to verify message: %w", keyID, err)
 	}

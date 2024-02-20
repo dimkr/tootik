@@ -51,6 +51,7 @@ const (
 	pollResultsUpdateInterval = time.Hour / 2
 	garbageCollectionInterval = time.Hour * 12
 	followMoveInterval        = time.Hour * 6
+	followSyncInterval        = time.Hour * 6
 )
 
 var (
@@ -321,6 +322,18 @@ func main() {
 			&outbox.Mover{
 				Domain:   *domain,
 				Log:      log.With("job", "mover"),
+				DB:       db,
+				Resolver: resolver,
+				Actor:    nobody,
+			},
+		},
+		{
+			"sync",
+			followSyncInterval,
+			&fed.Syncer{
+				Domain:   *domain,
+				Config:   &cfg,
+				Log:      log.With("job", "sync"),
 				DB:       db,
 				Resolver: resolver,
 				Actor:    nobody,

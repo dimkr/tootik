@@ -68,6 +68,11 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 		username = fields[0]
 	}
 
+	// nobody is our equivalent of the Mastodon "instance actor"
+	if username == l.Domain {
+		username = "nobody"
+	}
+
 	l.Log.Info("Looking up resource", "resource", resource, "user", username)
 
 	var actorID sql.NullString

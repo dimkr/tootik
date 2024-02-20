@@ -20,7 +20,6 @@ import (
 	"context"
 	"database/sql"
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/fed"
 	"log/slog"
 	"net/url"
 	"sync"
@@ -32,13 +31,13 @@ type request struct {
 	URL       *url.URL
 	User      *ap.Actor
 	DB        *sql.DB
-	Resolver  *fed.Resolver
+	Resolver  ap.Resolver
 	WaitGroup *sync.WaitGroup
 	Log       *slog.Logger
 }
 
-func (r *request) Resolve(host, name string, offline bool) (*ap.Actor, error) {
-	return r.Resolver.Resolve(r.Context, r.Log, r.DB, r.User, host, name, offline)
+func (r *request) Resolve(host, name string, flags ap.ResolverFlag) (*ap.Actor, error) {
+	return r.Resolver.Resolve(r.Context, r.Log, r.DB, r.User, host, name, flags)
 }
 
 func (r *request) Exec(query string, args ...any) (sql.Result, error) {

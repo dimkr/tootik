@@ -57,7 +57,7 @@ func (h *Handler) alias(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	actor, err := r.Resolve(tokens[1], tokens[0], false)
+	actor, err := r.Resolve(tokens[1], tokens[0], 0)
 	if err != nil {
 		r.Log.Warn("Failed to resolve alias", "alias", alias, "error", err)
 		w.Status(40, "Failed to resolve "+alias)
