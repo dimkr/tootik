@@ -50,4 +50,4 @@ Registered users can:
 * Vote on polls
 * Follow users
 * View private posts
-* View a prioritized feed of posts by followed users
+* View a feed of posts by followed users

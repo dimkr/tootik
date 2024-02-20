@@ -83,6 +83,7 @@ type Config struct {
 	ActivitiesBatchDelay      time.Duration
 	ActivityProcessingTimeout time.Duration
 	MaxForwardingDepth        int
+	MaxRecipients             int
 
 	ResolverCacheTTL        time.Duration
 	ResolverRetryInterval   time.Duration
@@ -275,6 +276,10 @@ func (c *Config) FillDefaults() {
 
 	if c.MaxForwardingDepth <= 0 {
 		c.MaxForwardingDepth = 5
+	}
+
+	if c.MaxRecipients <= 0 {
+		c.MaxRecipients = 10
 	}
 
 	if c.ResolverCacheTTL <= 0 {

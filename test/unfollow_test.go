@@ -35,14 +35,14 @@ func TestUnfollow_HappyFlow(t *testing.T) {
 	say := server.Handle("/users/whisper?Hello%20followers", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello followers")
+	users := server.Handle("/users", server.Alice)
+	assert.Contains(users, "Hello followers")
 
 	unfollow := server.Handle("/users/unfollow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), unfollow)
 
-	today = server.Handle("/users/inbox/today", server.Alice)
-	assert.NotContains(today, "Hello followers")
+	users = server.Handle("/users", server.Alice)
+	assert.NotContains(users, "Hello followers")
 }
 
 func TestUnfollow_FollowAgain(t *testing.T) {
@@ -57,20 +57,20 @@ func TestUnfollow_FollowAgain(t *testing.T) {
 	say := server.Handle("/users/whisper?Hello%20followers", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello followers")
+	users := server.Handle("/users", server.Alice)
+	assert.Contains(users, "Hello followers")
 
 	unfollow := server.Handle("/users/unfollow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), unfollow)
 
-	today = server.Handle("/users/inbox/today", server.Alice)
-	assert.NotContains(today, "Hello followers")
+	users = server.Handle("/users", server.Alice)
+	assert.NotContains(users, "Hello followers")
 
 	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	today = server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello followers")
+	users = server.Handle("/users", server.Alice)
+	assert.Contains(users, "Hello followers")
 }
 
 func TestUnfollow_NotFollowing(t *testing.T) {

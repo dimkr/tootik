@@ -60,7 +60,7 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) Handler {
 
 	h.handlers[regexp.MustCompile(`^/$`)] = withUserMenu(h.home)
 
-	h.handlers[regexp.MustCompile(`^/users$`)] = withUserMenu(users)
+	h.handlers[regexp.MustCompile(`^/users$`)] = withUserMenu(h.users)
 	if closed {
 		h.handlers[regexp.MustCompile(`^/users/register$`)] = func(w text.Writer, r *request, args ...string) {
 			w.Status(40, "Registration is closed")
@@ -69,10 +69,7 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) Handler {
 		h.handlers[regexp.MustCompile(`^/users/register$`)] = h.register
 	}
 
-	h.handlers[regexp.MustCompile(`^/users/inbox/([0-9]{4}-[0-9]{2}-[0-9]{2})$`)] = withUserMenu(h.byDate)
-	h.handlers[regexp.MustCompile(`^/users/inbox/today$`)] = withUserMenu(h.today)
-	h.handlers[regexp.MustCompile(`^/users/inbox/yesterday$`)] = withUserMenu(h.yesterday)
-	h.handlers[regexp.MustCompile(`^/users/firehose$`)] = withUserMenu(h.firehose)
+	h.handlers[regexp.MustCompile(`^/users/mentions$`)] = withUserMenu(h.mentions)
 
 	h.handlers[regexp.MustCompile(`^/local$`)] = withCache(withUserMenu(h.local), time.Minute*15, &cache, cfg)
 	h.handlers[regexp.MustCompile(`^/users/local$`)] = withCache(withUserMenu(h.local), time.Minute*15, &cache, cfg)

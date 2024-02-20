@@ -45,7 +45,7 @@ func TestReply_AuthorNotFollowed(t *testing.T) {
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
-	users := server.Handle("/users/inbox/today", server.Bob)
+	users := server.Handle("/users", server.Bob)
 	assert.Contains(users, "Welcome Bob")
 
 	local := server.Handle("/local", nil)
@@ -78,7 +78,7 @@ func TestReply_AuthorFollowed(t *testing.T) {
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
-	users := server.Handle("/users/inbox/today", server.Bob)
+	users := server.Handle("/users", server.Bob)
 	assert.Contains(users, "Welcome Bob")
 
 	local := server.Handle("/local", nil)
@@ -111,8 +111,8 @@ func TestReply_PostToFollowers(t *testing.T) {
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
-	today := server.Handle("/users/inbox/today", server.Bob)
-	assert.Contains(today, "Welcome Bob")
+	users := server.Handle("/users", server.Bob)
+	assert.Contains(users, "Welcome Bob")
 
 	local := server.Handle("/local", nil)
 	assert.NotContains(local, "Hello world")
@@ -140,8 +140,8 @@ func TestReply_PostToFollowersNotFollowing(t *testing.T) {
 	view = server.Handle("/users/view/"+id, server.Alice)
 	assert.Equal("40 Post not found\r\n", view)
 
-	today := server.Handle("/users/inbox/today", server.Bob)
-	assert.NotContains(today, "Welcome Bob")
+	users := server.Handle("/users", server.Bob)
+	assert.NotContains(users, "Welcome Bob")
 
 	local := server.Handle("/local", nil)
 	assert.NotContains(local, "Hello world")
@@ -176,8 +176,8 @@ func TestReply_PostToFollowersUnfollowedBeforeReply(t *testing.T) {
 	assert.NotContains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
-	today := server.Handle("/users/inbox/today", server.Bob)
-	assert.NotContains(today, "Welcome Bob")
+	users := server.Handle("/users", server.Bob)
+	assert.NotContains(users, "Welcome Bob")
 
 	local := server.Handle("/local", nil)
 	assert.NotContains(local, "Hello world")
@@ -211,8 +211,8 @@ func TestReply_PostToFollowersUnfollowedAfterReply(t *testing.T) {
 	view = server.Handle("/users/view/"+id, server.Alice)
 	assert.Equal("40 Post not found\r\n", view)
 
-	today := server.Handle("/users/inbox/today", server.Bob)
-	assert.Contains(today, "Welcome Bob")
+	users := server.Handle("/users", server.Bob)
+	assert.Contains(users, "Welcome Bob")
 
 	local := server.Handle("/local", nil)
 	assert.NotContains(local, "Hello world")
@@ -247,8 +247,8 @@ func TestReply_SelfReply(t *testing.T) {
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome me")
 
-	today := server.Handle("/users/inbox/today", server.Bob)
-	assert.NotContains(today, "Welcome me")
+	users := server.Handle("/users", server.Bob)
+	assert.NotContains(users, "Welcome me")
 
 	local := server.Handle("/local", nil)
 	assert.NotContains(local, "Hello world")
@@ -280,7 +280,7 @@ func TestReply_ReplyToPublicPostByFollowedUser(t *testing.T) {
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
-	users := server.Handle("/users/inbox/today", server.Alice)
+	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello world")
 	assert.NotContains(users, "Welcome Bob")
 
@@ -311,7 +311,7 @@ func TestReply_ReplyToPublicPostByNotFollowedUser(t *testing.T) {
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
-	users := server.Handle("/users/inbox/today", server.Alice)
+	users := server.Handle("/users", server.Alice)
 	assert.NotContains(users, "Hello world")
 	assert.NotContains(users, "Welcome Bob")
 
@@ -332,13 +332,13 @@ func TestReply_DM(t *testing.T) {
 	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
-	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello @alice@localhost.localdomain:8443")
-	assert.NotContains(today, "Hello Bob")
+	users := server.Handle("/users", server.Alice)
+	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.NotContains(users, "Hello Bob")
 
-	today = server.Handle("/users/inbox/today", server.Bob)
-	assert.NotContains(today, "Hello @alice@localhost.localdomain:8443")
-	assert.NotContains(today, "Hello Bob")
+	users = server.Handle("/users", server.Bob)
+	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.NotContains(users, "Hello Bob")
 
 	id := dm[15 : len(dm)-2]
 
@@ -348,13 +348,13 @@ func TestReply_DM(t *testing.T) {
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hello%%20Bob", id), server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
-	today = server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello @alice@localhost.localdomain:8443")
-	assert.NotContains(today, "Hello Bob")
+	users = server.Handle("/users", server.Alice)
+	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.NotContains(users, "Hello Bob")
 
-	today = server.Handle("/users/inbox/today", server.Bob)
-	assert.NotContains(today, "Hello @alice@localhost.localdomain:8443")
-	assert.Contains(today, "Hello Bob")
+	users = server.Handle("/users", server.Bob)
+	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.Contains(users, "Hello Bob")
 }
 
 func TestReply_DMUnfollowed(t *testing.T) {
@@ -369,13 +369,13 @@ func TestReply_DMUnfollowed(t *testing.T) {
 	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
-	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello @alice@localhost.localdomain:8443")
-	assert.NotContains(today, "Hello Bob")
+	users := server.Handle("/users", server.Alice)
+	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.NotContains(users, "Hello Bob")
 
-	today = server.Handle("/users/inbox/today", server.Bob)
-	assert.NotContains(today, "Hello @alice@localhost.localdomain:8443")
-	assert.NotContains(today, "Hello Bob")
+	users = server.Handle("/users", server.Bob)
+	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.NotContains(users, "Hello Bob")
 
 	id := dm[15 : len(dm)-2]
 
@@ -388,13 +388,13 @@ func TestReply_DMUnfollowed(t *testing.T) {
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hello%%20Bob", id), server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
-	today = server.Handle("/users/inbox/today", server.Alice)
-	assert.NotContains(today, "Hello @alice@localhost.localdomain:8443")
-	assert.NotContains(today, "Hello Bob")
+	users = server.Handle("/users", server.Alice)
+	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.NotContains(users, "Hello Bob")
 
-	today = server.Handle("/users/inbox/today", server.Bob)
-	assert.NotContains(today, "Hello @alice@localhost.localdomain:8443")
-	assert.Contains(today, "Hello Bob")
+	users = server.Handle("/users", server.Bob)
+	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.Contains(users, "Hello Bob")
 }
 
 func TestReply_DMToAnotherUser(t *testing.T) {
@@ -409,13 +409,13 @@ func TestReply_DMToAnotherUser(t *testing.T) {
 	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
-	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello @alice@localhost.localdomain:8443")
-	assert.NotContains(today, "Hello Bob")
+	users := server.Handle("/users", server.Alice)
+	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.NotContains(users, "Hello Bob")
 
-	today = server.Handle("/users/inbox/today", server.Bob)
-	assert.NotContains(today, "Hello @alice@localhost.localdomain:8443")
-	assert.NotContains(today, "Hello Bob")
+	users = server.Handle("/users", server.Bob)
+	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.NotContains(users, "Hello Bob")
 
 	id := dm[15 : len(dm)-2]
 
@@ -425,13 +425,13 @@ func TestReply_DMToAnotherUser(t *testing.T) {
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hello%%20Bob", id), server.Carol)
 	assert.Equal("40 Post not found\r\n", reply)
 
-	today = server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello @alice@localhost.localdomain:8443")
-	assert.NotContains(today, "Hello Bob")
+	users = server.Handle("/users", server.Alice)
+	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.NotContains(users, "Hello Bob")
 
-	today = server.Handle("/users/inbox/today", server.Bob)
-	assert.NotContains(today, "Hello @alice@localhost.localdomain:8443")
-	assert.NotContains(today, "Hello Bob")
+	users = server.Handle("/users", server.Bob)
+	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.NotContains(users, "Hello Bob")
 }
 
 func TestReply_NoSuchPost(t *testing.T) {
