@@ -191,6 +191,7 @@ func main() {
 			"HTTPS",
 			&fed.Listener{
 				Domain:   *domain,
+				Closed:   *closed,
 				LogLevel: slog.Level(*logLevel),
 				Config:   &cfg,
 				DB:       db,

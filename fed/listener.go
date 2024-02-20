@@ -35,6 +35,7 @@ import (
 
 type Listener struct {
 	Domain   string
+	Closed   bool
 	LogLevel slog.Level
 	Config   *cfg.Config
 	DB       *sql.DB
@@ -67,7 +68,7 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 		w.WriteHeader(http.StatusNotFound)
 	})
 
-	if err := addNodeInfo(mux, l.Domain); err != nil {
+	if err := addNodeInfo(mux, l.Domain, l.Closed); err != nil {
 		return err
 	}
 

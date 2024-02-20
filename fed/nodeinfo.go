@@ -23,7 +23,7 @@ import (
 	"net/http"
 )
 
-func addNodeInfo(mux *http.ServeMux, domain string) error {
+func addNodeInfo(mux *http.ServeMux, domain string, closed bool) error {
 	if body, err := json.Marshal(map[string]any{
 		"links": map[string]any{
 			"rel":  "http://nodeinfo.diaspora.software/ns/schema/2.0",
@@ -59,7 +59,7 @@ func addNodeInfo(mux *http.ServeMux, domain string) error {
 			},
 			"localPosts": 0,
 		},
-		"openRegistrations": true,
+		"openRegistrations": !closed,
 		"metadata":          map[string]any{},
 	}); err != nil {
 		return err
