@@ -9,18 +9,11 @@ This is an instance of tootik, a "slow", "boring" and non-addictive social netwo
 
 > 📻 My radio
 
-This page shows posts by followed users and posts sent to you, grouped by day.
+This page shows posts by followed users.
 
-Posts are sorted by:
-* Audience: direct messages to you, then posts that mention you, then everything else
-* Relevance and popularity: the number of followed reply authors, or the total number of reply authors
-* Noise: the number of posts by this author
-* Recency: the time the post was published
-* Artificiality: posts by users or groups, then posts by bots
+> 📞 Mentions
 
-The first two links (posts from today or yesterday) are stable and don't change every day, so you can bookmark them or add them to your feed reader.
-
-"Firehose" shows posts published in the last 24 hours, sorted by time only.
+This page shows posts by followed users that mention you.
 
 > ⚡️ Followed users
 

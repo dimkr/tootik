@@ -23,7 +23,7 @@ import (
 	"github.com/dimkr/tootik/front/text"
 )
 
-func (h *Handler) firehose(w text.Writer, r *request, args ...string) {
+func (h *Handler) mentions(w text.Writer, r *request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -32,7 +32,7 @@ func (h *Handler) firehose(w text.Writer, r *request, args ...string) {
 	h.showFeedPage(
 		w,
 		r,
-		"🚿 Firehose",
+		"📞 Mentions",
 		func(offset int) (*sql.Rows, error) {
 			return r.Query(`
 				select object, actor, sharer from
@@ -48,11 +48,9 @@ func (h *Handler) firehose(w text.Writer, r *request, args ...string) {
 					on
 						notes.author = follows.followed and
 						(
-							notes.public = 1 or
-							persons.actor->>'followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
 							$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = persons.actor->>'followers' or value = $1)) or
-							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = persons.actor->>'followers' or value = $1))
+							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $1)) or
+							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $1))
 						)
 					where
 						follows.follower = $1 and
@@ -67,7 +65,12 @@ func (h *Handler) firehose(w text.Writer, r *request, args ...string) {
 					join
 					notes
 					on
-						notes.id = shares.note
+						notes.id = shares.note and
+						(
+							$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $1)) or
+							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $1))
+						)
 					join
 					persons authors
 					on
@@ -78,23 +81,7 @@ func (h *Handler) firehose(w text.Writer, r *request, args ...string) {
 						sharers.id = follows.followed
 					where
 						follows.follower = $1 and
-						shares.inserted >= $2 and
-						notes.public = 1
-					union
-					select notes.id, notes.object, persons.actor, notes.inserted, null as sharer from
-					notes myposts
-					join
-					notes
-					on
-						notes.object->>'inReplyTo' = myposts.id
-					join
-					persons
-					on
-						persons.id = $1
-					where
-						myposts.author = $1 and
-						notes.author != $1 and
-						notes.inserted >= $2
+						shares.inserted >= $2
 				)
 				group by
 					id
@@ -103,7 +90,7 @@ func (h *Handler) firehose(w text.Writer, r *request, args ...string) {
 				limit $3
 				offset $4`,
 				r.User.ID,
-				time.Now().Add(-time.Hour*24).Unix(),
+				time.Now().Add(-time.Hour*24*7).Unix(),
 				h.Config.PostsPerPage,
 				offset,
 			)

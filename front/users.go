@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,134 +17,97 @@ limitations under the License.
 package front
 
 import (
+	"database/sql"
 	"time"
 
-	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
 )
 
-func users(w text.Writer, r *request, args ...string) {
+func (h *Handler) users(w text.Writer, r *request, args ...string) {
 	if r.User == nil {
-		w.Status(61, "Peer certificate is required")
+		w.Redirect("/oops")
 		return
 	}
 
-	rows, err := r.Query(
-		`
-			select day*86400, count(*) from
-			(
-				select id, max(day) as day from
+	h.showFeedPage(
+		w,
+		r,
+		"📻 My Radio",
+		func(offset int) (*sql.Rows, error) {
+			return r.Query(`
+				select object, actor, sharer from
 				(
-					select notes.id, notes.inserted/86400 as day from
+					select notes.id, notes.object, persons.actor, notes.inserted, null as sharer from
 					follows
-					join persons
+					join
+					persons
 					on
 						persons.id = follows.followed
-					join notes
+					join
+					notes
 					on
-						notes.author = persons.id and
+						notes.author = follows.followed and
 						(
-							notes.public = 1 or persons.actor->>'followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+							notes.public = 1 or
+							persons.actor->>'followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
 							$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
 							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = persons.actor->>'followers' or value = $1)) or
 							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = persons.actor->>'followers' or value = $1))
 						)
 					where
-						notes.inserted > unixepoch() - 60*60*24*7 and
-						follows.follower = $1
+						follows.follower = $1 and
+						notes.inserted >= $2
 					union
-					select notes.id, shares.inserted/86400 as day from
+					select notes.id, notes.object, authors.actor, shares.inserted, sharers.actor as sharer from
 					follows
-					join
-					persons followed
-					on
-						followed.id = follows.followed
 					join
 					shares
 					on
-						shares.by = followed.id
+						shares.by = follows.followed
 					join
 					notes
 					on
 						notes.id = shares.note
+					join
+					persons authors
+					on
+						authors.id = notes.author
+					join
+					persons sharers
+					on
+						sharers.id = follows.followed
 					where
 						follows.follower = $1 and
-						shares.inserted > unixepoch() - 60*60*24*7 and
+						shares.inserted >= $2 and
 						notes.public = 1
 					union
-					select notes.id, notes.inserted/86400 as day from
-					notes
+					select notes.id, notes.object, persons.actor, notes.inserted, null as sharer from
+					notes myposts
 					join
-					(
-						select id from notes where author = $1
-					) myposts
+					notes
 					on
-						myposts.id = notes.object->>'inReplyTo'
+						notes.object->>'inReplyTo' = myposts.id
+					join
+					persons
+					on
+						persons.id = $1
 					where
+						myposts.author = $1 and
 						notes.author != $1 and
-						notes.inserted > unixepoch() - 60*60*24*7
+						notes.inserted >= $2
 				)
 				group by
 					id
+				order by
+					max(inserted) desc
+				limit $3
+				offset $4`,
+				r.User.ID,
+				time.Now().Add(-time.Hour*24).Unix(),
+				h.Config.PostsPerPage,
+				offset,
 			)
-			group by
-				day
-			order by
-				day desc
-		`,
-		r.User.ID,
+		},
+		false,
 	)
-	if err != nil {
-		r.Log.Warn("Failed to count posts", "error", err)
-		w.Error()
-		return
-	}
-	defer rows.Close()
-
-	days := data.OrderedMap[int64, int64]{}
-
-	for rows.Next() {
-		var t, posts int64
-		if err := rows.Scan(&t, &posts); err != nil {
-			r.Log.Warn("Failed to scan row", "error", err)
-			continue
-		}
-
-		days.Store(t, posts)
-	}
-	rows.Close()
-
-	w.OK()
-
-	w.Titlef("📻 My Radio")
-
-	if len(days) == 0 {
-		w.Text("Nothing to see! Are you following anyone?")
-		return
-	}
-
-	today := time.Now().Unix() / 86400 * 86400
-	yesterday := today - 86400
-
-	days.Range(func(t, posts int64) bool {
-		u := time.Unix(t, 0)
-		s := u.Format(time.DateOnly)
-		if t == today && posts > 1 {
-			w.Linkf("/users/inbox/today", "%s Today, %s: %d posts", s, u.Weekday().String(), posts)
-		} else if t == today {
-			w.Linkf("/users/inbox/today", "%s Today, %s: 1 post", s, u.Weekday().String())
-		} else if t == yesterday && posts > 1 {
-			w.Linkf("/users/inbox/yesterday", "%s Yesterday, %s: %d posts", s, u.Weekday().String(), posts)
-		} else if t == yesterday {
-			w.Linkf("/users/inbox/yesterday", "%s Yesterday, %s: post", s, u.Weekday().String())
-		} else if posts > 1 {
-			w.Linkf("/users/inbox/"+s, "%s %s: %d posts", s, u.Weekday().String(), posts)
-		} else {
-			w.Linkf("/users/inbox/"+s, "%s %s: 1 post", s, u.Weekday().String())
-		}
-		return true
-	})
-
-	w.Empty()
-	w.Link("/users/firehose", "🚿 Firehose")
 }

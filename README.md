@@ -133,9 +133,8 @@ or, to build a static executable:
 
 Users are authenticated using TLS client certificates; see [Gemini protocol specification](https://gemini.circumlunar.space/docs/specification.html) for more details. The following pages require authentication:
 
-* /users shows the number of incoming posts by date.
-* /users/inbox shows a list of posts by followed users and posts sent to the authenticated user.
-* /users/firehose is like /users/inbox but sorted chronologically.
+* /users shows posts by followed users, sorted chronologically.
+* /users/mentions is like /users but shows only posts that mention the user.
 * /users/register creates a new user.
 * /users/follows shows a list of followed users, ordered by activity.
 * /users/resolve looks up federated user *user@domain* or local user *user*.
@@ -170,7 +169,7 @@ This way, users who prefer not to provide a client certificate when browsing to 
 
 To make the transition to authenticated pages more seamless, links in the user menu at the bottom of each page point to /users/x rather than /x, if the user is authenticated.
 
-All pages follow the [subscription convention](https://gemini.circumlunar.space/docs/companion/subscription.gmi), so users can "subscribe" to a user, a hashtag, posts by followed users or other activity. This way, tootik can act as a personal, curated and prioritized fediverse aggregator. In addition, /users/inbox always shows posts received within a given day, to interrupt the endless stream of incoming content, make the content consumption more intentional and prevent doomscrolling.
+All pages follow the [subscription convention](https://gemini.circumlunar.space/docs/companion/subscription.gmi), so users can "subscribe" to a user, a hashtag, posts by followed users or other activity. This way, tootik can act as a personal, curated and prioritized fediverse aggregator. In addition, feeds like /users have separators between days, to interrupt the endless stream of incoming content, make the content consumption more intentional and prevent doomscrolling.
 
 ## Authentication
 

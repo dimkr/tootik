@@ -37,8 +37,8 @@ func TestEdit_Throttling(t *testing.T) {
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	users := server.Handle("/users", server.Alice)
-	assert.Contains(users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(users, "1 post")
+	assert.Contains(users, "No posts.")
+	assert.NotContains(users, "Hello world")
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
@@ -49,11 +49,8 @@ func TestEdit_Throttling(t *testing.T) {
 	assert.Equal("40 Please try again later\r\n", edit)
 
 	users = server.Handle("/users", server.Alice)
-	assert.NotContains(users, "Nothing to see! Are you following anyone?")
-	assert.Contains(users, "1 post")
-
-	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello world")
+	assert.NotContains(users, "No posts.")
+	assert.Contains(users, "Hello world")
 }
 
 func TestEdit_HappyFlow(t *testing.T) {
@@ -66,8 +63,8 @@ func TestEdit_HappyFlow(t *testing.T) {
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	users := server.Handle("/users", server.Alice)
-	assert.Contains(users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(users, "1 post")
+	assert.Contains(users, "No posts.")
+	assert.NotContains(users, "Hello followers")
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
@@ -81,21 +78,19 @@ func TestEdit_HappyFlow(t *testing.T) {
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), edit)
 
 	users = server.Handle("/users", server.Alice)
-	assert.NotContains(users, "Nothing to see! Are you following anyone?")
-	assert.Contains(users, "1 post")
-
-	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello followers")
+	assert.NotContains(users, "No posts.")
+	assert.Contains(users, "Hello followers")
 
 	edit = server.Handle(fmt.Sprintf("/users/edit/%s?Hello,%%20followers", id), server.Bob)
 	assert.Equal("40 Please try again later\r\n", edit)
 
 	users = server.Handle("/users", server.Alice)
-	assert.NotContains(users, "Nothing to see! Are you following anyone?")
-	assert.Contains(users, "1 post")
+	assert.NotContains(users, "No posts.")
+	assert.Contains(users, "Hello followers")
 
-	today = server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello followers")
+	users = server.Handle("/users", server.Alice)
+	assert.NotContains(users, "No posts.")
+	assert.Contains(users, "Hello followers")
 }
 
 func TestEdit_EmptyContent(t *testing.T) {
@@ -108,8 +103,8 @@ func TestEdit_EmptyContent(t *testing.T) {
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	users := server.Handle("/users", server.Alice)
-	assert.Contains(users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(users, "1 post")
+	assert.Contains(users, "No posts.")
+	assert.NotContains(users, "Hello world")
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
@@ -123,11 +118,8 @@ func TestEdit_EmptyContent(t *testing.T) {
 	assert.Equal("10 Post content\r\n", edit)
 
 	users = server.Handle("/users", server.Alice)
-	assert.NotContains(users, "Nothing to see! Are you following anyone?")
-	assert.Contains(users, "1 post")
-
-	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello world")
+	assert.NotContains(users, "No posts.")
+	assert.Contains(users, "Hello world")
 }
 
 func TestEdit_LongContent(t *testing.T) {
@@ -140,8 +132,8 @@ func TestEdit_LongContent(t *testing.T) {
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	users := server.Handle("/users", server.Alice)
-	assert.Contains(users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(users, "1 post")
+	assert.Contains(users, "No posts.")
+	assert.NotContains(users, "Hello world")
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
@@ -155,11 +147,8 @@ func TestEdit_LongContent(t *testing.T) {
 	assert.Equal("40 Post is too long\r\n", edit)
 
 	users = server.Handle("/users", server.Alice)
-	assert.NotContains(users, "Nothing to see! Are you following anyone?")
-	assert.Contains(users, "1 post")
-
-	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello world")
+	assert.NotContains(users, "No posts.")
+	assert.Contains(users, "Hello world")
 }
 
 func TestEdit_InvalidEscapeSequence(t *testing.T) {
@@ -172,8 +161,8 @@ func TestEdit_InvalidEscapeSequence(t *testing.T) {
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	users := server.Handle("/users", server.Alice)
-	assert.Contains(users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(users, "1 post")
+	assert.Contains(users, "No posts.")
+	assert.NotContains(users, "Hello world")
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+`, whisper)
@@ -187,11 +176,8 @@ func TestEdit_InvalidEscapeSequence(t *testing.T) {
 	assert.Equal("40 Bad input\r\n", edit)
 
 	users = server.Handle("/users", server.Alice)
-	assert.NotContains(users, "Nothing to see! Are you following anyone?")
-	assert.Contains(users, "1 post")
-
-	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello world")
+	assert.NotContains(users, "No posts.")
+	assert.Contains(users, "Hello world")
 }
 
 func TestEdit_NoSuchPost(t *testing.T) {
@@ -204,8 +190,8 @@ func TestEdit_NoSuchPost(t *testing.T) {
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	users := server.Handle("/users", server.Alice)
-	assert.Contains(users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(users, "1 post")
+	assert.Contains(users, "No posts.")
+	assert.NotContains(users, "Hello world")
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+`, whisper)
@@ -214,11 +200,8 @@ func TestEdit_NoSuchPost(t *testing.T) {
 	assert.Equal("40 Error\r\n", edit)
 
 	users = server.Handle("/users", server.Alice)
-	assert.NotContains(users, "Nothing to see! Are you following anyone?")
-	assert.Contains(users, "1 post")
-
-	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello world")
+	assert.NotContains(users, "No posts.")
+	assert.Contains(users, "Hello world")
 }
 
 func TestEdit_UnauthenticatedUser(t *testing.T) {
@@ -231,8 +214,8 @@ func TestEdit_UnauthenticatedUser(t *testing.T) {
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	users := server.Handle("/users", server.Alice)
-	assert.Contains(users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(users, "1 post")
+	assert.Contains(users, "No posts.")
+	assert.NotContains(users, "Hello world")
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+`, whisper)
@@ -243,11 +226,8 @@ func TestEdit_UnauthenticatedUser(t *testing.T) {
 	assert.Equal("30 /users\r\n", edit)
 
 	users = server.Handle("/users", server.Alice)
-	assert.NotContains(users, "Nothing to see! Are you following anyone?")
-	assert.Contains(users, "1 post")
-
-	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello world")
+	assert.NotContains(users, "No posts.")
+	assert.Contains(users, "Hello world")
 }
 
 func TestEdit_AddHashtag(t *testing.T) {
@@ -346,16 +326,16 @@ func TestEdit_AddMention(t *testing.T) {
 
 	assert := assert.New(t)
 
-	users := server.Handle("/users", server.Alice)
-	assert.Contains(users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(users, "1 post")
+	lines := strings.Split(server.Handle("/users", server.Alice), "\n")
+	assert.Contains(lines, "No posts.")
+	assert.NotContains(lines, "> Hello world")
 
 	say := server.Handle("/users/say?Hello%20world", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+`, say)
 
 	id := say[15 : len(say)-2]
 
-	lines := strings.Split(server.Handle("/users/view/"+id, server.Alice), "\n")
+	lines = strings.Split(server.Handle("/users/view/"+id, server.Alice), "\n")
 	assert.Contains(lines, "> Hello world")
 	assert.NotContains(lines, "> Hello @alice")
 	assert.NotContains(lines, fmt.Sprintf("=> /users/outbox/%s alice", strings.TrimPrefix(server.Alice.ID, "https://")))
@@ -378,16 +358,16 @@ func TestEdit_RemoveMention(t *testing.T) {
 
 	assert := assert.New(t)
 
-	users := server.Handle("/users", server.Alice)
-	assert.Contains(users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(users, "1 post")
+	lines := strings.Split(server.Handle("/users", server.Alice), "\n")
+	assert.Contains(lines, "No posts.")
+	assert.NotContains(lines, "> Hello @alice")
 
 	say := server.Handle("/users/say?Hello%20%40alice", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+`, say)
 
 	id := say[15 : len(say)-2]
 
-	lines := strings.Split(server.Handle("/users/view/"+id, server.Alice), "\n")
+	lines = strings.Split(server.Handle("/users/view/"+id, server.Alice), "\n")
 	assert.NotContains(lines, "> Hello world")
 	assert.Contains(lines, "> Hello @alice")
 	assert.Contains(lines, fmt.Sprintf("=> /users/outbox/%s alice", strings.TrimPrefix(server.Alice.ID, "https://")))
@@ -410,16 +390,16 @@ func TestEdit_KeepMention(t *testing.T) {
 
 	assert := assert.New(t)
 
-	users := server.Handle("/users", server.Alice)
-	assert.Contains(users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(users, "1 post")
+	lines := strings.Split(server.Handle("/users", server.Alice), "\n")
+	assert.Contains(lines, "No posts.")
+	assert.NotContains(lines, "> Hello @alice")
 
 	say := server.Handle("/users/say?Hello%20%40alice", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+`, say)
 
 	id := say[15 : len(say)-2]
 
-	lines := strings.Split(server.Handle("/users/view/"+id, server.Alice), "\n")
+	lines = strings.Split(server.Handle("/users/view/"+id, server.Alice), "\n")
 	assert.NotContains(lines, "> Hello  @alice")
 	assert.Contains(lines, "> Hello @alice")
 	assert.Contains(lines, fmt.Sprintf("=> /users/outbox/%s alice", strings.TrimPrefix(server.Alice.ID, "https://")))

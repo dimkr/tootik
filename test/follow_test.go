@@ -33,18 +33,15 @@ func TestFollow_PostToFollowers(t *testing.T) {
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	users := server.Handle("/users", server.Alice)
-	assert.Contains(users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(users, "1 post")
+	assert.Contains(users, "No posts.")
+	assert.NotContains(users, "Hello world")
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	users = server.Handle("/users", server.Alice)
-	assert.NotContains(users, "Nothing to see! Are you following anyone?")
-	assert.Contains(users, "1 post")
-
-	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello world")
+	assert.NotContains(users, "No posts.")
+	assert.Contains(users, "Hello world")
 }
 
 func TestFollow_PostToFollowersBeforeFollow(t *testing.T) {
@@ -54,8 +51,8 @@ func TestFollow_PostToFollowersBeforeFollow(t *testing.T) {
 	assert := assert.New(t)
 
 	users := server.Handle("/users", server.Alice)
-	assert.Contains(users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(users, "1 post")
+	assert.Contains(users, "No posts.")
+	assert.NotContains(users, "Hello world")
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
@@ -64,11 +61,8 @@ func TestFollow_PostToFollowersBeforeFollow(t *testing.T) {
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	users = server.Handle("/users", server.Alice)
-	assert.NotContains(users, "Nothing to see! Are you following anyone?")
-	assert.Contains(users, "1 post")
-
-	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello world")
+	assert.NotContains(users, "No posts.")
+	assert.Contains(users, "Hello world")
 }
 
 func TestFollow_DMUnfollowFollow(t *testing.T) {
@@ -78,8 +72,8 @@ func TestFollow_DMUnfollowFollow(t *testing.T) {
 	assert := assert.New(t)
 
 	users := server.Handle("/users", server.Alice)
-	assert.Contains(users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(users, "1 post")
+	assert.Contains(users, "No posts.")
+	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
@@ -88,21 +82,15 @@ func TestFollow_DMUnfollowFollow(t *testing.T) {
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
 	users = server.Handle("/users", server.Alice)
-	assert.NotContains(users, "Nothing to see! Are you following anyone?")
-	assert.Contains(users, "1 post")
-
-	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello @alice@localhost.localdomain:8443")
+	assert.NotContains(users, "No posts.")
+	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 
 	unfollow := server.Handle("/users/unfollow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), unfollow)
 
 	users = server.Handle("/users", server.Alice)
-	assert.Contains(users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(users, "1 post")
-
-	today = server.Handle("/users/inbox/today", server.Alice)
-	assert.NotContains(today, "Hello @alice@localhost.localdomain:8443")
+	assert.Contains(users, "No posts.")
+	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
 }
 
 func TestFollow_PublicPost(t *testing.T) {
@@ -115,18 +103,15 @@ func TestFollow_PublicPost(t *testing.T) {
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	users := server.Handle("/users", server.Alice)
-	assert.Contains(users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(users, "1 post")
+	assert.Contains(users, "No posts.")
+	assert.NotContains(users, "Hello world")
 
 	whisper := server.Handle("/users/say?Hello%20world", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	users = server.Handle("/users", server.Alice)
-	assert.NotContains(users, "Nothing to see! Are you following anyone?")
-	assert.Contains(users, "1 post")
-
-	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello world")
+	assert.NotContains(users, "No posts.")
+	assert.Contains(users, "Hello world")
 }
 
 func TestFollow_Mutual(t *testing.T) {
@@ -139,12 +124,12 @@ func TestFollow_Mutual(t *testing.T) {
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	users := server.Handle("/users", server.Alice)
-	assert.Contains(users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(users, "1 post")
+	assert.Contains(users, "No posts.")
+	assert.NotContains(users, "Hello world")
 
 	users = server.Handle("/users", server.Bob)
-	assert.Contains(users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(users, "1 post")
+	assert.Contains(users, "No posts.")
+	assert.NotContains(users, "Hello world")
 
 	whisper := server.Handle("/users/say?Hello%20world", server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
@@ -155,25 +140,19 @@ func TestFollow_Mutual(t *testing.T) {
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
 	users = server.Handle("/users", server.Alice)
-	assert.NotContains(users, "Nothing to see! Are you following anyone?")
-	assert.Contains(users, "1 post")
+	assert.NotContains(users, "No posts.")
+	assert.Contains(users, "Hello Alice")
 
 	users = server.Handle("/users", server.Bob)
-	assert.Contains(users, "Nothing to see! Are you following anyone?")
-	assert.NotContains(users, "1 post")
-
-	today := server.Handle("/users/inbox/today", server.Alice)
-	assert.Contains(today, "Hello Alice")
+	assert.Contains(users, "No posts.")
+	assert.NotContains(users, "Hello world")
 
 	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
 	users = server.Handle("/users", server.Bob)
-	assert.NotContains(users, "Nothing to see! Are you following anyone?")
-	assert.Contains(users, "1 post")
-
-	today = server.Handle("/users/inbox/today", server.Bob)
-	assert.Contains(today, "Hello world")
+	assert.NotContains(users, "No posts.")
+	assert.Contains(users, "Hello world")
 }
 
 func TestFollow_AlreadyFollowing(t *testing.T) {

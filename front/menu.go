@@ -32,6 +32,7 @@ func writeUserMenu(w text.Writer, user *ap.Actor) {
 
 	if user != nil {
 		w.Link("/users", "📻 My radio")
+		w.Link("/users/mentions", "📞 Mentions")
 		w.Link("/users/follows", "⚡️ Followed users")
 	}
 
