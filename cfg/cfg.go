@@ -311,7 +311,7 @@ func (c *Config) FillDefaults() {
 	}
 
 	if c.FollowersSyncInterval <= 0 {
-		c.FollowersSyncInterval = time.Hour * 24
+		c.FollowersSyncInterval = time.Hour * 24 * 3
 	}
 
 	if c.NotesTTL <= 0 {
