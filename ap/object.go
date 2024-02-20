@@ -46,7 +46,7 @@ type Object struct {
 	To           Audience     `json:"to,omitempty"`
 	CC           Audience     `json:"cc,omitempty"`
 	Audience     string       `json:"audience,omitempty"`
-	Tag          []Tag        `json:"tag,omitempty"`
+	Tag          Array[Tag]   `json:"tag,omitempty"`
 	Attachment   []Attachment `json:"attachment,omitempty"`
 	URL          string       `json:"url,omitempty"`
 
