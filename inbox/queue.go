@@ -111,6 +111,11 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 		return fmt.Errorf("received invalid post ID: %s", post.ID)
 	}
 
+	if len(post.To.OrderedMap)+len(post.CC.OrderedMap) > q.Config.MaxRecipients {
+		log.Warn("Post has too many recipients", "to", len(post.To.OrderedMap), "cc", len(post.CC.OrderedMap))
+		return nil
+	}
+
 	var duplicate int
 	if err := q.DB.QueryRowContext(ctx, `select exists (select 1 from notes where id = ?)`, post.ID).Scan(&duplicate); err != nil {
 		return fmt.Errorf("failed to check of %s is a duplicate: %w", post.ID, err)
