@@ -62,6 +62,8 @@ var (
 	ErrInvalidScheme  = errors.New("invalid scheme")
 	ErrInvalidHost    = errors.New("invalid host")
 	ErrInvalidID      = errors.New("invalid actor ID")
+	ErrSuspendedActor = errors.New("actor is suspended")
+	ErrYoungActor     = errors.New("actor is too young")
 )
 
 // NewResolver returns a new [Resolver].
@@ -111,13 +113,28 @@ func (r *Resolver) ResolveID(ctx context.Context, log *slog.Logger, db *sql.DB, 
 
 // Resolve retrieves an actor object by host and name.
 func (r *Resolver) Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, host, name string, flags ap.ResolverFlag) (*ap.Actor, error) {
+	if actor, err := r.tryResolveOrCache(ctx, log, db, from, host, name, flags); err != nil {
+		return nil, err
+	} else if actor.Suspended {
+		return nil, ErrSuspendedActor
+	} else {
+		return actor, nil
+	}
+}
+
+func (r *Resolver) tryResolveOrCache(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, host, name string, flags ap.ResolverFlag) (*ap.Actor, error) {
 	var key key
-	actor, cachedActor, err := r.resolve(ctx, log, db, from, &key, host, name, flags)
-	if err != nil && cachedActor != nil {
+	actor, cachedActor, err := r.tryResolve(ctx, log, db, from, &key, host, name, flags)
+	if err != nil && cachedActor != nil && cachedActor.Published != nil && time.Since(cachedActor.Published.Time) < r.Config.MinActorAge {
+		log.Warn("Failed to update cached actor", "host", host, "name", name, "error", err)
+		return nil, ErrYoungActor
+	} else if err != nil && cachedActor != nil {
 		log.Warn("Using old cache entry for actor", "host", host, "name", name, "error", err)
 		return cachedActor, nil
 	} else if actor == nil {
 		return cachedActor, err
+	} else if actor.Published != nil && time.Since(actor.Published.Time) < r.Config.MinActorAge {
+		return nil, ErrYoungActor
 	}
 	return actor, err
 }
@@ -144,7 +161,7 @@ func deleteActor(ctx context.Context, log *slog.Logger, db *sql.DB, id string) {
 	}
 }
 
-func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, key *key, host, name string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
+func (r *Resolver) tryResolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, key *key, host, name string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
 	log.Debug("Resolving actor", "host", host, "name", name)
 
 	if r.BlockedDomains != nil && r.BlockedDomains.Contains(host) {
@@ -168,13 +185,19 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	var tmp ap.Actor
 	var cachedActor *ap.Actor
 
-	var updated int64
+	var updated, inserted int64
 	var fetched sql.NullInt64
 	var sinceLastUpdate time.Duration
-	if err := db.QueryRowContext(ctx, `select actor, updated, fetched from persons where actor->>'preferredUsername' = $1 and host = $2`, name, host).Scan(&tmp, &updated, &fetched); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := db.QueryRowContext(ctx, `select actor, updated, fetched, inserted from persons where actor->>'preferredUsername' = $1 and host = $2`, name, host).Scan(&tmp, &updated, &fetched, &inserted); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, fmt.Errorf("failed to fetch %s%s cache: %w", name, host, err)
 	} else if err == nil {
 		cachedActor = &tmp
+
+		// fall back to insertion time if we don't have registration time
+		if cachedActor.Published == nil {
+			cachedActor.Published = &ap.Time{Time: time.Unix(inserted, 0)}
+		}
+
 		sinceLastUpdate = time.Since(time.Unix(updated, 0))
 		if !isLocal && flags&ap.Offline == 0 && sinceLastUpdate > r.Config.ResolverCacheTTL && (!fetched.Valid || time.Since(time.Unix(fetched.Int64, 0)) >= r.Config.ResolverRetryInterval) {
 			log.Info("Updating old cache entry for actor", "id", cachedActor.ID)
@@ -311,6 +334,12 @@ func (r *Resolver) resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 		string(body),
 	); err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
+	}
+
+	if actor.Published == nil && cachedActor != nil && cachedActor.Published != nil {
+		actor.Published = cachedActor.Published
+	} else if actor.Published == nil && (cachedActor == nil || cachedActor.Published == nil) {
+		actor.Published = &ap.Time{Time: time.Now()}
 	}
 
 	return &actor, cachedActor, nil

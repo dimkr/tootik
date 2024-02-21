@@ -95,7 +95,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, name, certHash strin
 			PublicKeyPem: string(pub),
 		},
 		ManuallyApprovesFollowers: false,
-		Published:                 ap.Time{Time: time.Now()},
+		Published:                 &ap.Time{Time: time.Now()},
 	}
 
 	if _, err = db.ExecContext(

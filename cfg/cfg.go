@@ -83,7 +83,9 @@ type Config struct {
 	ActivitiesBatchDelay      time.Duration
 	ActivityProcessingTimeout time.Duration
 	MaxForwardingDepth        int
-	MaxRecipients             int
+
+	MaxRecipients int
+	MinActorAge   time.Duration
 
 	ResolverCacheTTL        time.Duration
 	ResolverRetryInterval   time.Duration
@@ -280,6 +282,10 @@ func (c *Config) FillDefaults() {
 
 	if c.MaxRecipients <= 0 {
 		c.MaxRecipients = 10
+	}
+
+	if c.MinActorAge <= 0 {
+		c.MinActorAge = time.Hour * 24
 	}
 
 	if c.ResolverCacheTTL <= 0 {

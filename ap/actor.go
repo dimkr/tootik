@@ -46,9 +46,10 @@ type Actor struct {
 	Image                     Attachment        `json:"image,omitempty"`
 	ManuallyApprovesFollowers bool              `json:"manuallyApprovesFollowers"`
 	AlsoKnownAs               Audience          `json:"alsoKnownAs,omitempty"`
-	Published                 Time              `json:"published"`
+	Published                 *Time             `json:"published"`
 	Updated                   *Time             `json:"updated,omitempty"`
 	MovedTo                   string            `json:"movedTo,omitempty"`
+	Suspended                 bool              `json:"suspended,omitempty"`
 }
 
 func (a *Actor) Scan(src any) error {
