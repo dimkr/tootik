@@ -108,6 +108,6 @@ func (h *Handler) users(w text.Writer, r *request, args ...string) {
 				offset,
 			)
 		},
-		false,
+		true,
 	)
 }

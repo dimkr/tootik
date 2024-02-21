@@ -95,6 +95,6 @@ func (h *Handler) mentions(w text.Writer, r *request, args ...string) {
 				offset,
 			)
 		},
-		false,
+		true,
 	)
 }
