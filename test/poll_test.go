@@ -52,12 +52,13 @@ func TestPoll_TwoOptions(t *testing.T) {
 	assert.NoError(err)
 
 	queue := inbox.Queue{
-		Domain:   domain,
-		Config:   server.cfg,
-		Log:      slog.Default(),
-		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:    server.Nobody,
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		Log:       slog.Default(),
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Actor:     server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -93,12 +94,13 @@ func TestPoll_TwoOptionsZeroVotes(t *testing.T) {
 	assert.NoError(err)
 
 	queue := inbox.Queue{
-		Domain:   domain,
-		Config:   server.cfg,
-		Log:      slog.Default(),
-		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:    server.Nobody,
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		Log:       slog.Default(),
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Actor:     server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -134,12 +136,13 @@ func TestPoll_TwoOptionsOnlyZeroVotes(t *testing.T) {
 	assert.NoError(err)
 
 	queue := inbox.Queue{
-		Domain:   domain,
-		Config:   server.cfg,
-		Log:      slog.Default(),
-		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:    server.Nobody,
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		Log:       slog.Default(),
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Actor:     server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -173,12 +176,13 @@ func TestPoll_OneOption(t *testing.T) {
 	assert.NoError(err)
 
 	queue := inbox.Queue{
-		Domain:   domain,
-		Config:   server.cfg,
-		Log:      slog.Default(),
-		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:    server.Nobody,
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		Log:       slog.Default(),
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Actor:     server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -213,12 +217,13 @@ func TestPoll_Vote(t *testing.T) {
 	assert.NoError(err)
 
 	queue := inbox.Queue{
-		Domain:   domain,
-		Config:   server.cfg,
-		Log:      slog.Default(),
-		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:    server.Nobody,
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		Log:       slog.Default(),
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Actor:     server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -261,12 +266,13 @@ func TestPoll_VoteClosedPoll(t *testing.T) {
 	assert.NoError(err)
 
 	queue := inbox.Queue{
-		Domain:   domain,
-		Config:   server.cfg,
-		Log:      slog.Default(),
-		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:    server.Nobody,
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		Log:       slog.Default(),
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Actor:     server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -303,12 +309,13 @@ func TestPoll_VoteEndedPoll(t *testing.T) {
 	assert.NoError(err)
 
 	queue := inbox.Queue{
-		Domain:   domain,
-		Config:   server.cfg,
-		Log:      slog.Default(),
-		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:    server.Nobody,
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		Log:       slog.Default(),
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Actor:     server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -345,12 +352,13 @@ func TestPoll_Reply(t *testing.T) {
 	assert.NoError(err)
 
 	queue := inbox.Queue{
-		Domain:   domain,
-		Config:   server.cfg,
-		Log:      slog.Default(),
-		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:    server.Nobody,
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		Log:       slog.Default(),
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Actor:     server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -393,12 +401,13 @@ func TestPoll_ReplyClosedPoll(t *testing.T) {
 	assert.NoError(err)
 
 	queue := inbox.Queue{
-		Domain:   domain,
-		Config:   server.cfg,
-		Log:      slog.Default(),
-		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:    server.Nobody,
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		Log:       slog.Default(),
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Actor:     server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -441,12 +450,13 @@ func TestPoll_EditVote(t *testing.T) {
 	assert.NoError(err)
 
 	queue := inbox.Queue{
-		Domain:   domain,
-		Config:   server.cfg,
-		Log:      slog.Default(),
-		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:    server.Nobody,
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		Log:       slog.Default(),
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Actor:     server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -492,12 +502,13 @@ func TestPoll_DeleteReply(t *testing.T) {
 	assert.NoError(err)
 
 	queue := inbox.Queue{
-		Domain:   domain,
-		Config:   server.cfg,
-		Log:      slog.Default(),
-		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:    server.Nobody,
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		Log:       slog.Default(),
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Actor:     server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -543,12 +554,13 @@ func TestPoll_Update(t *testing.T) {
 	assert.NoError(err)
 
 	queue := inbox.Queue{
-		Domain:   domain,
-		Config:   server.cfg,
-		Log:      slog.Default(),
-		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:    server.Nobody,
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		Log:       slog.Default(),
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Actor:     server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -603,12 +615,13 @@ func TestPoll_OldUpdate(t *testing.T) {
 	assert.NoError(err)
 
 	queue := inbox.Queue{
-		Domain:   domain,
-		Config:   server.cfg,
-		Log:      slog.Default(),
-		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:    server.Nobody,
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		Log:       slog.Default(),
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Actor:     server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -663,12 +676,13 @@ func TestPoll_UpdateClosed(t *testing.T) {
 	assert.NoError(err)
 
 	queue := inbox.Queue{
-		Domain:   domain,
-		Config:   server.cfg,
-		Log:      slog.Default(),
-		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:    server.Nobody,
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		Log:       slog.Default(),
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Actor:     server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)

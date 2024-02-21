@@ -176,12 +176,13 @@ func TestUsers_PublicPostShared(t *testing.T) {
 	assert.NoError(err)
 
 	queue := inbox.Queue{
-		Domain:   domain,
-		Config:   server.cfg,
-		Log:      slog.Default(),
-		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:    server.Nobody,
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		Log:       slog.Default(),
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Actor:     server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -225,12 +226,13 @@ func TestUsers_PublicPostSharedNotFollowing(t *testing.T) {
 	assert.NoError(err)
 
 	queue := inbox.Queue{
-		Domain:   domain,
-		Config:   server.cfg,
-		Log:      slog.Default(),
-		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:    server.Nobody,
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		Log:       slog.Default(),
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Actor:     server.Nobody,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)

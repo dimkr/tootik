@@ -25,6 +25,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/inbox/note"
 	"github.com/dimkr/tootik/outbox"
 	"log/slog"
@@ -34,12 +35,13 @@ import (
 )
 
 type Queue struct {
-	Domain   string
-	Config   *cfg.Config
-	Log      *slog.Logger
-	DB       *sql.DB
-	Resolver ap.Resolver
-	Actor    *ap.Actor
+	Domain    string
+	Config    *cfg.Config
+	BlockList *fed.BlockList
+	Log       *slog.Logger
+	DB        *sql.DB
+	Resolver  ap.Resolver
+	Actor     *ap.Actor
 }
 
 // a reply by B in a thread started by A is forwarded to all followers of A
@@ -108,6 +110,10 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 
 	if !data.IsIDValid(u) {
 		return fmt.Errorf("received invalid post ID: %s", post.ID)
+	}
+
+	if q.BlockList.Contains(u.Host) {
+		return fmt.Errorf("ignoring post %s: %w", post.ID, fed.ErrBlockedDomain)
 	}
 
 	if len(post.To.OrderedMap)+len(post.CC.OrderedMap) > q.Config.MaxRecipients {

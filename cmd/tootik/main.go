@@ -272,12 +272,13 @@ func main() {
 		{
 			"incoming",
 			&inbox.Queue{
-				Domain:   *domain,
-				Config:   &cfg,
-				Log:      log.With("queue", "inbox"),
-				DB:       db,
-				Resolver: resolver,
-				Actor:    nobody,
+				Domain:    *domain,
+				Config:    &cfg,
+				BlockList: blockList,
+				Log:       log.With("queue", "inbox"),
+				DB:        db,
+				Resolver:  resolver,
+				Actor:     nobody,
 			},
 		},
 		{
