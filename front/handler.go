@@ -79,6 +79,7 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) Handler {
 
 	h.handlers[regexp.MustCompile(`^/outbox/(\S+)$`)] = withUserMenu(h.userOutbox)
 	h.handlers[regexp.MustCompile(`^/users/outbox/(\S+)$`)] = withUserMenu(h.userOutbox)
+	h.handlers[regexp.MustCompile(`^/users/me$`)] = withUserMenu(me)
 
 	h.handlers[regexp.MustCompile(`^/users/bio$`)] = h.bio
 	h.handlers[regexp.MustCompile(`^/users/name$`)] = h.name

@@ -29,6 +29,7 @@ Welcome, fedinaut! localhost.localdomain:8443 is an instance of tootik, a federa
 📻 My radio
 📞 Mentions
 ⚡️ Followed users
+😈 My profile
 📡 This planet
 ✨ FOMO from outer space
 🔥 Hashtags
@@ -139,6 +140,7 @@ Users are authenticated using TLS client certificates; see [Gemini protocol spec
 * /users/mentions is like /users but shows only posts that mention the user.
 * /users/register creates a new user.
 * /users/follows shows a list of followed users, ordered by activity.
+* /users/me redirects the user to their outbox.
 * /users/resolve looks up federated user *user@domain* or local user *user*.
 * /users/dm creates a post visible to mentioned users.
 * /users/whisper creates a post visible to followers.
