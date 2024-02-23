@@ -282,6 +282,15 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 
 		log.Info("Found unknown remote follow", "followed", d.Followed, "follower", follower)
 
+		var exists int
+		if err := db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM persons WHERE id = ?)`, follower).Scan(&exists); err != nil {
+			log.Warn("Failed to check if follower exists", "followed", d.Followed, "follower", follower, "error", err)
+			return true
+		} else if exists == 0 {
+			log.Info("Follower does not exist", "followed", d.Followed, "follower", follower)
+			return true
+		}
+
 		var followID string
 		if err := db.QueryRowContext(ctx, `SELECT id FROM follows WHERE follower = ? AND followed = ?`, follower, d.Followed).Scan(&followID); err != nil && errors.Is(err, sql.ErrNoRows) {
 			followID = fmt.Sprintf("https://%s/follow/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", follower, d.Followed, time.Now().UnixNano()))))
