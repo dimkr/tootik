@@ -193,6 +193,11 @@ func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo 
 		return
 	}
 
+	if len(note.To.OrderedMap)+len(note.CC.OrderedMap) > h.Config.MaxRecipients {
+		w.Status(40, "Too many recipients")
+		return
+	}
+
 	if m := pollRegex.FindStringSubmatchIndex(note.Content); m != nil {
 		optionNames := strings.SplitN(note.Content[m[4]:], pollOptionsDelimeter, h.Config.PollMaxOptions+1)
 		if len(optionNames) < pollMinOptions || len(optionNames) > h.Config.PollMaxOptions {
