@@ -5,7 +5,7 @@ go 1.22
 require (
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/go-fed/httpsig v1.1.0
-	github.com/mattn/go-sqlite3 v1.14.19
+	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/sync v0.6.0
 )
@@ -20,5 +20,5 @@ require (
 	golang.org/x/sys v0.15.0 // indirect
 	golang.org/x/tools v0.12.1-0.20230825192346-2191a27a6dc5 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	honnef.co/go/tools v0.4.6 // indirect
+	honnef.co/go/tools v0.4.7 // indirect
 )
