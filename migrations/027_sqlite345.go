@@ -58,7 +58,7 @@ func sqlite345(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE INDEX personstypeid ON persons(actor->>'$.type', id);`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX personstypeid ON persons(actor->>'$.type', id)`); err != nil {
 		return err
 	}
 
@@ -70,11 +70,11 @@ func sqlite345(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `ALTER TABLE outbox ADD COLUMN host TEXT AS (substr(substr(activity->>'$.id', 9), 0, instr(substr(activity->>'$.id', 9), '/')));`); err != nil {
+	if _, err := tx.ExecContext(ctx, `ALTER TABLE outbox ADD COLUMN host TEXT AS (substr(substr(activity->>'$.id', 9), 0, instr(substr(activity->>'$.id', 9), '/')))`); err != nil {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE INDEX outboxhostinserted ON outbox(host, inserted);`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX outboxhostinserted ON outbox(host, inserted)`); err != nil {
 		return err
 	}
 
@@ -82,7 +82,7 @@ func sqlite345(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE UNIQUE INDEX outboxactivityid ON outbox(activity->>'$.id');`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE UNIQUE INDEX outboxactivityid ON outbox(activity->>'$.id')`); err != nil {
 		return err
 	}
 
@@ -90,7 +90,7 @@ func sqlite345(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE UNIQUE INDEX inboxid ON inbox(activity->>'$.id');`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE UNIQUE INDEX inboxid ON inbox(activity->>'$.id')`); err != nil {
 		return err
 	}
 
@@ -98,7 +98,7 @@ func sqlite345(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE INDEX outboxactor ON outbox(activity->>'$.actor');`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX outboxactor ON outbox(activity->>'$.actor')`); err != nil {
 		return err
 	}
 
@@ -106,7 +106,7 @@ func sqlite345(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE INDEX personsmovedto ON persons(actor->>'$.movedTo') WHERE actor->>'$.movedTo' IS NOT NULL;`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX personsmovedto ON persons(actor->>'$.movedTo') WHERE actor->>'$.movedTo' IS NOT NULL`); err != nil {
 		return err
 	}
 
@@ -114,7 +114,7 @@ func sqlite345(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE INDEX outboxobjectid ON outbox(activity->>'$.object.id') WHERE activity->>'$.object.id' IS NOT NULL;`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX outboxobjectid ON outbox(activity->>'$.object.id') WHERE activity->>'$.object.id' IS NOT NULL`); err != nil {
 		return err
 	}
 
@@ -122,7 +122,7 @@ func sqlite345(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE UNIQUE INDEX personspreferredusernamehost ON persons(actor->>'$.preferredUsername', host);`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE UNIQUE INDEX personspreferredusernamehost ON persons(actor->>'$.preferredUsername', host)`); err != nil {
 		return err
 	}
 
@@ -130,7 +130,7 @@ func sqlite345(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE INDEX notesidinreplytoauthorinserted ON notes(id, object->>'$.inReplyTo', author, inserted) WHERE object->>'$.inReplyTo' IS NOT NULL;`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX notesidinreplytoauthorinserted ON notes(id, object->>'$.inReplyTo', author, inserted) WHERE object->>'$.inReplyTo' IS NOT NULL`); err != nil {
 		return err
 	}
 
@@ -138,7 +138,7 @@ func sqlite345(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE INDEX notesaudience ON notes(object->>'$.audience');`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX notesaudience ON notes(object->>'$.audience')`); err != nil {
 		return err
 	}
 
