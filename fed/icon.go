@@ -47,7 +47,7 @@ func (l *Listener) handleIcon(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var exists int
-	if err := l.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where actor->>'preferredUsername' = ? and host = ?)`, name, l.Domain).Scan(&exists); err != nil {
+	if err := l.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where actor->>'$.preferredUsername' = ? and host = ?)`, name, l.Domain).Scan(&exists); err != nil {
 		l.Log.Warn("Failed to check if user exists", "name", name, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return

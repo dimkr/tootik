@@ -49,10 +49,10 @@ func (h *Handler) users(w text.Writer, r *request, args ...string) {
 						notes.author = follows.followed and
 						(
 							notes.public = 1 or
-							persons.actor->>'followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+							persons.actor->>'$.followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
 							$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = persons.actor->>'followers' or value = $1)) or
-							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = persons.actor->>'followers' or value = $1))
+							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers' or value = $1)) or
+							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers' or value = $1))
 						)
 					where
 						follows.follower = $1 and
@@ -86,7 +86,7 @@ func (h *Handler) users(w text.Writer, r *request, args ...string) {
 					join
 					notes
 					on
-						notes.object->>'inReplyTo' = myposts.id
+						notes.object->>'$.inReplyTo' = myposts.id
 					join
 					persons
 					on

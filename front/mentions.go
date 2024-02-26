@@ -49,8 +49,8 @@ func (h *Handler) mentions(w text.Writer, r *request, args ...string) {
 						notes.author = follows.followed and
 						(
 							$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $1)) or
-							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $1))
+							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $1)) or
+							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $1))
 						)
 					where
 						follows.follower = $1 and
@@ -68,8 +68,8 @@ func (h *Handler) mentions(w text.Writer, r *request, args ...string) {
 						notes.id = shares.note and
 						(
 							$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $1)) or
-							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $1))
+							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $1)) or
+							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $1))
 						)
 					join
 					persons authors

@@ -75,7 +75,7 @@ func (q *Queue) process(ctx context.Context) error {
 			continue
 		}
 
-		if _, err := q.DB.ExecContext(ctx, `update outbox set last = unixepoch(), attempts = ? where activity->>'id' = ?`, deliveryAttempts+1, activity.ID); err != nil {
+		if _, err := q.DB.ExecContext(ctx, `update outbox set last = unixepoch(), attempts = ? where activity->>'$.id' = ?`, deliveryAttempts+1, activity.ID); err != nil {
 			q.Log.Error("Failed to save last delivery attempt time", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
@@ -83,7 +83,7 @@ func (q *Queue) process(ctx context.Context) error {
 		if err := q.deliverWithTimeout(ctx, &activity, []byte(rawActivity), &actor, time.Unix(inserted, 0), &recipients); err != nil {
 			q.Log.Warn("Failed to deliver activity", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 
-			if _, err := q.DB.ExecContext(ctx, `update outbox set received = ? where activity->>'id' = ?`, &recipients, activity.ID); err != nil {
+			if _, err := q.DB.ExecContext(ctx, `update outbox set received = ? where activity->>'$.id' = ?`, &recipients, activity.ID); err != nil {
 				q.Log.Error("Failed to update delivery progress", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 				continue
 			}
@@ -91,7 +91,7 @@ func (q *Queue) process(ctx context.Context) error {
 			continue
 		}
 
-		if _, err := q.DB.ExecContext(ctx, `update outbox set sent = 1, received = ? where activity->>'id' = ?`, &recipients, activity.ID); err != nil {
+		if _, err := q.DB.ExecContext(ctx, `update outbox set sent = 1, received = ? where activity->>'$.id' = ?`, &recipients, activity.ID); err != nil {
 			q.Log.Error("Failed to mark delivery as completed", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}

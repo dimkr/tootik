@@ -57,8 +57,8 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		rows, err = r.Query(
 			`select notes.object, authors.actor, null from notes
 			join persons authors on authors.id = notes.author
-			left join notes replies on replies.object->>'inReplyTo' = notes.id
-			where notes.object->>'audience' = $1 and notes.public = 1 and notes.object->>'inReplyTo' is null and (replies.inserted is null or replies.inserted > unixepoch() - 86400)
+			left join notes replies on replies.object->>'$.inReplyTo' = notes.id
+			where notes.object->>'$.audience' = $1 and notes.public = 1 and notes.object->>'$.inReplyTo' is null and (replies.inserted is null or replies.inserted > unixepoch() - 86400)
 			group by notes.id
 			order by max(notes.inserted, coalesce(max(replies.inserted), 0)) / 86400 desc, count(replies.id) desc, notes.inserted desc limit $2 offset $3`,
 			actorID,
@@ -70,14 +70,14 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		rows, err = r.Query(
 			`select notes.object, authors.actor, null from notes
 			join persons authors on authors.id = notes.author
-			left join notes replies on replies.object->>'inReplyTo' = notes.id
+			left join notes replies on replies.object->>'$.inReplyTo' = notes.id
 			where
-				notes.object->>'audience' = $1 and
+				notes.object->>'$.audience' = $1 and
 				(
 					notes.public = 1 or
 					exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
 				) and
-				notes.object->>'inReplyTo' is null and
+				notes.object->>'$.inReplyTo' is null and
 				(replies.inserted is null or replies.inserted > unixepoch() - 86400)
 			group by notes.id
 			order by max(notes.inserted, coalesce(max(replies.inserted), 0)) / 86400 desc, count(replies.id) desc, notes.inserted desc limit $3 offset $4`,
@@ -140,16 +140,16 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 				where (
 					notes.author = $1 and (
 						$2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-						(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $2)) or
-						(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $2))
+						(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $2)) or
+						(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $2))
 					)
 				)
 				union
 				select notes.id, authors.actor, object, notes.inserted, null as sharer from notes
 				join persons on
-					persons.actor->>'followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = persons.actor->>'followers')) or
-					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = persons.actor->>'followers'))
+					persons.actor->>'$.followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers')) or
+					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers'))
 				join persons authors on authors.id = $1
 				where notes.public = 0 and
 					notes.author = $1 and

@@ -76,7 +76,7 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 	l.Log.Info("Looking up resource", "resource", resource, "user", username)
 
 	var actorID sql.NullString
-	if err := l.DB.QueryRowContext(r.Context(), `select id from persons where actor->>'preferredUsername' = ? and host = ?`, username, l.Domain).Scan(&actorID); err != nil {
+	if err := l.DB.QueryRowContext(r.Context(), `select id from persons where actor->>'$.preferredUsername' = ? and host = ?`, username, l.Domain).Scan(&actorID); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

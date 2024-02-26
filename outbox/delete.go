@@ -47,7 +47,7 @@ func Delete(ctx context.Context, db *sql.DB, note *ap.Object) error {
 	// mark this post as sent so recipients who haven't received it yet don't receive it
 	if _, err := tx.ExecContext(
 		ctx,
-		`UPDATE outbox SET sent = 1 WHERE activity->>'$.object.id' = ? and activity->>'type' = 'Create'`,
+		`UPDATE outbox SET sent = 1 WHERE activity->>'$.object.id' = ? and activity->>'$.type' = 'Create'`,
 		note.ID,
 	); err != nil {
 		return fmt.Errorf("failed to insert delete activity: %w", err)

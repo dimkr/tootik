@@ -28,7 +28,7 @@ import (
 // This user is used to sign outgoing requests not initiated by a particular user.
 func CreateNobody(ctx context.Context, domain string, db *sql.DB) (*ap.Actor, error) {
 	var actor ap.Actor
-	if err := db.QueryRowContext(ctx, `select actor from persons where actor->>'preferredUsername' = 'nobody' and host = ?`, domain).Scan(&actor); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := db.QueryRowContext(ctx, `select actor from persons where actor->>'$.preferredUsername' = 'nobody' and host = ?`, domain).Scan(&actor); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("failed to create nobody user: %w", err)
 	} else if err == nil {
 		return &actor, nil

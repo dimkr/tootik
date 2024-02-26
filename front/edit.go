@@ -69,7 +69,7 @@ func (h *Handler) edit(w text.Writer, r *request, args ...string) {
 	}
 
 	var edits int
-	if err := r.QueryRow(`select count(*) from outbox where activity->>'$.object.id' = ? and (activity->>'type' = 'Update' or activity->>'type' = 'Create')`, note.ID).Scan(&edits); err != nil {
+	if err := r.QueryRow(`select count(*) from outbox where activity->>'$.object.id' = ? and (activity->>'$.type' = 'Update' or activity->>'$.type' = 'Create')`, note.ID).Scan(&edits); err != nil {
 		r.Log.Warn("Failed to count post edits", "post", postID, "error", err)
 		w.Error()
 		return

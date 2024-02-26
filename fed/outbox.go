@@ -88,7 +88,7 @@ func (l *Listener) handleOutbox(w http.ResponseWriter, r *http.Request) {
 	username := r.PathValue("username")
 
 	var actorID sql.NullString
-	if err := l.DB.QueryRowContext(r.Context(), `select id from persons where actor->>'preferredUsername' = ? and host = ?`, username, l.Domain).Scan(&actorID); err != nil {
+	if err := l.DB.QueryRowContext(r.Context(), `select id from persons where actor->>'$.preferredUsername' = ? and host = ?`, username, l.Domain).Scan(&actorID); err != nil {
 		l.Log.Warn("Failed to check if user exists", "username", username, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return

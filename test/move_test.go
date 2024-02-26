@@ -71,7 +71,7 @@ func TestMove_FederatedToFederated(t *testing.T) {
 	assert.NoError(mover.Run(context.Background()))
 
 	var followed int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 0) and exists (select 1 from outbox where activity->>'type' = 'Follow' and activity->>'actor' = $1 and activity->>'object' = $2)`, server.Alice.ID, "https://::1/user/dan").Scan(&followed))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 0) and exists (select 1 from outbox where activity->>'$.type' = 'Follow' and activity->>'$.actor' = $1 and activity->>'$.object' = $2)`, server.Alice.ID, "https://::1/user/dan").Scan(&followed))
 	assert.Equal(1, followed)
 }
 
@@ -118,7 +118,7 @@ func TestMove_FederatedToFederatedTwoAccounts(t *testing.T) {
 	assert.NoError(mover.Run(context.Background()))
 
 	var followed int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 0) and exists (select 1 from outbox where activity->>'type' = 'Follow' and activity->>'actor' = $1 and activity->>'object' = $2)`, server.Alice.ID, "https://::1/user/dan").Scan(&followed))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 0) and exists (select 1 from outbox where activity->>'$.type' = 'Follow' and activity->>'$.actor' = $1 and activity->>'$.object' = $2)`, server.Alice.ID, "https://::1/user/dan").Scan(&followed))
 	assert.Equal(1, followed)
 }
 
@@ -165,7 +165,7 @@ func TestMove_FederatedToFederatedNotLinked(t *testing.T) {
 	assert.NoError(mover.Run(context.Background()))
 
 	var followed int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 0) or exists (select 1 from outbox where activity->>'type' = 'Follow' and activity->>'actor' = $1 and activity->>'object' = $2)`, server.Alice.ID, "https://::1/user/dan").Scan(&followed))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 0) or exists (select 1 from outbox where activity->>'$.type' = 'Follow' and activity->>'$.actor' = $1 and activity->>'$.object' = $2)`, server.Alice.ID, "https://::1/user/dan").Scan(&followed))
 	assert.Equal(0, followed)
 }
 
@@ -205,7 +205,7 @@ func TestMove_FederatedToLocal(t *testing.T) {
 	assert.NoError(mover.Run(context.Background()))
 
 	var followed int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 1) and not exists (select 1 from outbox where activity->>'type' = 'Follow' and activity->>'actor' = $1 and activity->>'object' = $2)`, server.Alice.ID, server.Bob.ID).Scan(&followed))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 1) and not exists (select 1 from outbox where activity->>'$.type' = 'Follow' and activity->>'$.actor' = $1 and activity->>'$.object' = $2)`, server.Alice.ID, server.Bob.ID).Scan(&followed))
 	assert.Equal(0, followed)
 }
 
@@ -248,7 +248,7 @@ func TestMove_FederatedToLocalLinked(t *testing.T) {
 	assert.NoError(mover.Run(context.Background()))
 
 	var followed int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 1) and not exists (select 1 from outbox where activity->>'type' = 'Follow' and activity->>'actor' = $1 and activity->>'object' = $2)`, server.Alice.ID, server.Bob.ID).Scan(&followed))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 1) and not exists (select 1 from outbox where activity->>'$.type' = 'Follow' and activity->>'$.actor' = $1 and activity->>'$.object' = $2)`, server.Alice.ID, server.Bob.ID).Scan(&followed))
 	assert.Equal(1, followed)
 }
 

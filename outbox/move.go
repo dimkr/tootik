@@ -35,7 +35,7 @@ type Mover struct {
 }
 
 func (m *Mover) updatedMoveTargets(ctx context.Context, prefix string) error {
-	rows, err := m.DB.QueryContext(ctx, `select oldid, newid from (select old.id as oldid, new.id as newid, old.updated as oldupdated from persons old join persons new on old.actor->>'movedTo' = new.id and not exists (select 1 from json_each(new.actor->'alsoKnownAs') where value = old.id) and old.updated > new.updated where old.actor->>'movedTo' is not null union select old.id, old.actor->>'movedTo', old.updated from persons old where old.actor->>'movedTo' is not null and not exists (select 1 from persons new where new.id = old.actor->>'movedTo')) where exists (select 1 from follows where followed = oldid and follower like ? and inserted < oldupdated)`, prefix)
+	rows, err := m.DB.QueryContext(ctx, `select oldid, newid from (select old.id as oldid, new.id as newid, old.updated as oldupdated from persons old join persons new on old.actor->>'$.movedTo' = new.id and not exists (select 1 from json_each(new.actor->'$.alsoKnownAs') where value = old.id) and old.updated > new.updated where old.actor->>'$.movedTo' is not null union select old.id, old.actor->>'$.movedTo', old.updated from persons old where old.actor->>'$.movedTo' is not null and not exists (select 1 from persons new where new.id = old.actor->>'$.movedTo')) where exists (select 1 from follows where followed = oldid and follower like ? and inserted < oldupdated)`, prefix)
 	if err != nil {
 		return fmt.Errorf("failed to moved actors: %w", err)
 	}
@@ -80,8 +80,8 @@ func (m *Mover) Run(ctx context.Context) error {
 			join
 			persons new
 			on
-				old.actor->>'movedTo' = new.id and
-				exists (select 1 from json_each(new.actor->'alsoKnownAs') where value = old.id)
+				old.actor->>'$.movedTo' = new.id and
+				exists (select 1 from json_each(new.actor->'$.alsoKnownAs') where value = old.id)
 			join follows
 			on
 				follows.followed = old.id
@@ -89,7 +89,7 @@ func (m *Mover) Run(ctx context.Context) error {
 			on
 				persons.id = follows.follower
 			where
-				old.actor->>'movedTo' is not null and
+				old.actor->>'$.movedTo' is not null and
 				follows.follower like ?
 		`,
 		prefix,

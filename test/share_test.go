@@ -144,7 +144,7 @@ func TestShare_Unshare(t *testing.T) {
 	outbox = strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
 	assert.Contains(outbox, "> Hello world")
 
-	_, err := server.db.Exec(`update outbox set inserted = inserted = 3600 where activity->>'type' = 'Announce'`)
+	_, err := server.db.Exec(`update outbox set inserted = inserted = 3600 where activity->>'$.type' = 'Announce'`)
 	assert.NoError(err)
 
 	unshare := server.Handle("/users/unshare/"+id, server.Bob)
@@ -174,7 +174,7 @@ func TestShare_ShareAfterUnshare(t *testing.T) {
 	outbox = strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
 	assert.Contains(outbox, "> Hello world")
 
-	_, err := server.db.Exec(`update outbox set inserted = inserted = 3600 where activity->>'type' = 'Announce'`)
+	_, err := server.db.Exec(`update outbox set inserted = inserted = 3600 where activity->>'$.type' = 'Announce'`)
 	assert.NoError(err)
 
 	unshare := server.Handle("/users/unshare/"+id, server.Bob)
@@ -183,7 +183,7 @@ func TestShare_ShareAfterUnshare(t *testing.T) {
 	outbox = strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
 	assert.NotContains(outbox, "> Hello world")
 
-	_, err = server.db.Exec(`update outbox set inserted = inserted = 3600 where activity->>'type' = 'Undo'`)
+	_, err = server.db.Exec(`update outbox set inserted = inserted = 3600 where activity->>'$.type' = 'Undo'`)
 	assert.NoError(err)
 
 	share = server.Handle("/users/share/"+id, server.Bob)

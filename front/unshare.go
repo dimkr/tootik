@@ -33,7 +33,7 @@ func (h *Handler) unshare(w text.Writer, r *request, args ...string) {
 	postID := "https://" + args[1]
 
 	var share ap.Activity
-	if err := r.QueryRow(`select activity from outbox where activity->>'actor' = $1 and activity->>'type' = 'Announce' and activity->>'object' = $2`, r.User.ID, postID).Scan(&share); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := r.QueryRow(`select activity from outbox where activity->>'$.actor' = $1 and activity->>'$.type' = 'Announce' and activity->>'$.object' = $2`, r.User.ID, postID).Scan(&share); err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Attempted to unshare non-existing share", "post", postID, "error", err)
 		w.Error()
 		return
