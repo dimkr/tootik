@@ -237,7 +237,7 @@ func TestReply_SelfReply(t *testing.T) {
 	assert.Contains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
-	_, err := server.db.Exec("update outbox set inserted = inserted - 3600 where activity->>'type' = 'Create'")
+	_, err := server.db.Exec("update outbox set inserted = inserted - 3600 where activity->>'$.type' = 'Create'")
 	assert.NoError(err)
 
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20me", id), server.Bob)

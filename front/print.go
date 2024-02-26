@@ -205,7 +205,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 	}
 
 	var replies int
-	if err := r.QueryRow(`select count(*) from notes where object->>'inReplyTo' = ?`, note.ID).Scan(&replies); err != nil {
+	if err := r.QueryRow(`select count(*) from notes where object->>'$.inReplyTo' = ?`, note.ID).Scan(&replies); err != nil {
 		r.Log.Warn("Failed to count replies", "id", note.ID, "error", err)
 	}
 
@@ -293,7 +293,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 
 		for _, mentionID := range mentionedUsers.Keys() {
 			var mentionUserName string
-			if err := r.QueryRow(`select actor->>'preferredUsername' from persons where id = ?`, mentionID).Scan(&mentionUserName); err != nil && errors.Is(err, sql.ErrNoRows) {
+			if err := r.QueryRow(`select actor->>'$.preferredUsername' from persons where id = ?`, mentionID).Scan(&mentionUserName); err != nil && errors.Is(err, sql.ErrNoRows) {
 				r.Log.Warn("Mentioned user is unknown", "mention", mentionID)
 				continue
 			} else if err != nil {
@@ -319,16 +319,16 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 				rows, err = r.Query(
 					`select id, username from
 					(
-						select persons.id, persons.actor->>'preferredUsername' as username, shares.inserted, 1 as rank from shares
+						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 1 as rank from shares
 						join notes on notes.id = shares.note
-						join persons on persons.id = shares.by and persons.id = notes.object->>'audience'
+						join persons on persons.id = shares.by and persons.id = notes.object->>'$.audience'
 						where shares.note = $1
 						union
-						select persons.id, persons.actor->>'preferredUsername' as username, shares.inserted, 2 as rank from shares
+						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 2 as rank from shares
 						join persons on persons.id = shares.by
 						where shares.note = $1 and persons.host = $2
 						union
-						select persons.id, persons.actor->>'preferredUsername' as username, shares.inserted, 3 as rank from shares
+						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 3 as rank from shares
 						join persons on persons.id = shares.by
 						where shares.note = $1 and persons.host != $2
 					)
@@ -342,21 +342,21 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 				rows, err = r.Query(
 					`select id, username from
 					(
-						select persons.id, persons.actor->>'preferredUsername' as username, shares.inserted, 1 as rank from shares
+						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 1 as rank from shares
 						join notes on notes.id = shares.note
-						join persons on persons.id = shares.by and persons.id = notes.object->>'audience'
+						join persons on persons.id = shares.by and persons.id = notes.object->>'$.audience'
 						where shares.note = $1
 						union
-						select persons.id, persons.actor->>'preferredUsername' as username, shares.inserted, 2 as rank from shares
+						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 2 as rank from shares
 						join follows on follows.followed = shares.by
 						join persons on persons.id = follows.followed
 						where shares.note = $1 and follows.follower = $2
 						union
-						select persons.id, persons.actor->>'preferredUsername' as username, shares.inserted, 3 as rank from shares
+						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 3 as rank from shares
 						join persons on persons.id = shares.by
 						where shares.note = $1 and persons.host = $3
 						union
-						select persons.id, persons.actor->>'preferredUsername' as username, shares.inserted, 4 as rank from shares
+						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 4 as rank from shares
 						join persons on persons.id = shares.by
 						where shares.note = $1 and persons.host != $3
 					)

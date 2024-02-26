@@ -46,9 +46,9 @@ func (h *Handler) local(w text.Writer, r *request, args ...string) {
 						where notes.public = 1 and notes.host != $1 and sharers.host = $1
 					) u
 					left join (
-						select object->>'inReplyTo' as id, count(*) as count from notes
+						select object->>'$.inReplyTo' as id, count(*) as count from notes
 						where host = $1 and inserted > unixepoch()-60*60*24*7
-						group by object->>'inReplyTo'
+						group by object->>'$.inReplyTo'
 					) replies
 					on
 						replies.id = u.id

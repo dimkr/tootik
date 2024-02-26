@@ -45,11 +45,11 @@ func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 				persons.id = follows.followed
 			join notes
 			on
-				notes.object->>'audience' = follows.followed
+				notes.object->>'$.audience' = follows.followed
 			where
 				follows.follower = $1 and
-				persons.actor->>'type' = 'Group' and
-				notes.object->'inReplyTo' is null and
+				persons.actor->>'$.type' = 'Group' and
+				notes.object->'$.inReplyTo' is null and
 				notes.inserted >= unixepoch() - 7*24*60*60
 			union
 			select persons.actor, notes.inserted as ninserted, follows.inserted as finserted from
@@ -62,7 +62,7 @@ func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 				notes.author = follows.followed
 			where
 				follows.follower = $1 and
-				persons.actor->>'type' != 'Group' and
+				persons.actor->>'$.type' != 'Group' and
 				notes.inserted >= unixepoch() - 7*24*60*60
 			union
 			select persons.actor, shares.inserted as ninserted, follows.inserted as finserted from

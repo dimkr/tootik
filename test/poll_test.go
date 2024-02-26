@@ -239,7 +239,7 @@ func TestPoll_Vote(t *testing.T) {
 	assert.Contains(strings.Split(view, "\n"), "6 ████████ chocolate")
 
 	var valid int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'actor' = $1 and activity->>'object.attributedTo' = $1 and activity->>'object.type' = 'Note' and activity->>'object.inReplyTo' = 'https://127.0.0.1/poll/1' and activity->>'object.name' = 'vanilla' and activity->>'object.content' is null)`, server.Alice.ID).Scan(&valid))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'$.actor' = $1 and activity->>'$.object.attributedTo' = $1 and activity->>'$.object.type' = 'Note' and activity->>'$.object.inReplyTo' = 'https://127.0.0.1/poll/1' and activity->>'$.object.name' = 'vanilla' and activity->>'$.object.content' is null)`, server.Alice.ID).Scan(&valid))
 	assert.Equal(1, valid)
 }
 
@@ -282,7 +282,7 @@ func TestPoll_VoteClosedPoll(t *testing.T) {
 	assert.Equal("40 Cannot vote in a closed poll\r\n", reply)
 
 	var valid int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'actor' = $1 and activity->>'object.attributedTo' = $1 and activity->>'object.type' = 'Note' and activity->>'object.inReplyTo' = 'https://127.0.0.1/poll/1' and activity->>'object.name' = 'vanilla' and activity->>'object.content' is null)`, server.Alice.ID).Scan(&valid))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'$.actor' = $1 and activity->>'$.object.attributedTo' = $1 and activity->>'$.object.type' = 'Note' and activity->>'$.object.inReplyTo' = 'https://127.0.0.1/poll/1' and activity->>'$.object.name' = 'vanilla' and activity->>'$.object.content' is null)`, server.Alice.ID).Scan(&valid))
 	assert.Equal(0, valid)
 }
 
@@ -325,7 +325,7 @@ func TestPoll_VoteEndedPoll(t *testing.T) {
 	assert.Equal("40 Cannot vote in a closed poll\r\n", reply)
 
 	var valid int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'actor' = $1 and activity->>'object.attributedTo' = $1 and activity->>'object.type' = 'Note' and activity->>'object.inReplyTo' = 'https://127.0.0.1/poll/1' and activity->>'object.name' = 'vanilla' and activity->>'object.content' is null)`, server.Alice.ID).Scan(&valid))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'$.actor' = $1 and activity->>'$.object.attributedTo' = $1 and activity->>'$.object.type' = 'Note' and activity->>'$.object.inReplyTo' = 'https://127.0.0.1/poll/1' and activity->>'$.object.name' = 'vanilla' and activity->>'$.object.content' is null)`, server.Alice.ID).Scan(&valid))
 	assert.Equal(0, valid)
 }
 
@@ -374,7 +374,7 @@ func TestPoll_Reply(t *testing.T) {
 	assert.Contains(strings.Split(view, "\n"), "6 ████████ chocolate")
 
 	var valid int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'actor' = $1 and activity->>'object.attributedTo' = $1 and activity->>'object.type' = 'Note' and activity->>'object.inReplyTo' = 'https://127.0.0.1/poll/1' and activity->>'object.name' is null and activity->>'object.content' = 'strawberry')`, server.Alice.ID).Scan(&valid))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'$.actor' = $1 and activity->>'$.object.attributedTo' = $1 and activity->>'$.object.type' = 'Note' and activity->>'$.object.inReplyTo' = 'https://127.0.0.1/poll/1' and activity->>'$.object.name' is null and activity->>'$.object.content' = 'strawberry')`, server.Alice.ID).Scan(&valid))
 	assert.Equal(1, valid)
 }
 
@@ -423,7 +423,7 @@ func TestPoll_ReplyClosedPoll(t *testing.T) {
 	assert.Contains(strings.Split(view, "\n"), "6 ████████ chocolate")
 
 	var valid int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'actor' = $1 and activity->>'object.attributedTo' = $1 and activity->>'object.type' = 'Note' and activity->>'object.inReplyTo' = 'https://127.0.0.1/poll/1' and activity->>'object.name' is null and activity->>'object.content' = 'strawberry')`, server.Alice.ID).Scan(&valid))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'$.actor' = $1 and activity->>'$.object.attributedTo' = $1 and activity->>'$.object.type' = 'Note' and activity->>'$.object.inReplyTo' = 'https://127.0.0.1/poll/1' and activity->>'$.object.name' is null and activity->>'$.object.content' = 'strawberry')`, server.Alice.ID).Scan(&valid))
 	assert.Equal(1, valid)
 }
 
@@ -472,7 +472,7 @@ func TestPoll_EditVote(t *testing.T) {
 	assert.Contains(strings.Split(view, "\n"), "6 ████████ chocolate")
 
 	var valid int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'actor' = $1 and activity->>'object.attributedTo' = $1 and activity->>'object.type' = 'Note' and activity->>'object.inReplyTo' = 'https://127.0.0.1/poll/1' and activity->>'object.name' = 'vanilla' and activity->>'object.content' is null)`, server.Alice.ID).Scan(&valid))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'$.actor' = $1 and activity->>'$.object.attributedTo' = $1 and activity->>'$.object.type' = 'Note' and activity->>'$.object.inReplyTo' = 'https://127.0.0.1/poll/1' and activity->>'$.object.name' = 'vanilla' and activity->>'$.object.content' is null)`, server.Alice.ID).Scan(&valid))
 	assert.Equal(1, valid)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?chocolate", reply[15:len(reply)-2]), server.Alice)
@@ -524,7 +524,7 @@ func TestPoll_DeleteReply(t *testing.T) {
 	assert.Contains(strings.Split(view, "\n"), "6 ████████ chocolate")
 
 	var valid int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'actor' = $1 and activity->>'object.attributedTo' = $1 and activity->>'object.type' = 'Note' and activity->>'object.inReplyTo' = 'https://127.0.0.1/poll/1' and activity->>'object.name' is null and activity->>'object.content' = 'strawberry')`, server.Alice.ID).Scan(&valid))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'$.actor' = $1 and activity->>'$.object.attributedTo' = $1 and activity->>'$.object.type' = 'Note' and activity->>'$.object.inReplyTo' = 'https://127.0.0.1/poll/1' and activity->>'$.object.name' is null and activity->>'$.object.content' = 'strawberry')`, server.Alice.ID).Scan(&valid))
 	assert.Equal(1, valid)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?chocolate", reply[15:len(reply)-2]), server.Alice)

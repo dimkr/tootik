@@ -53,7 +53,7 @@ func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo 
 
 	if oldNote == nil {
 		var today, last sql.NullInt64
-		if err := r.QueryRow(`select count(*), max(inserted) from outbox where activity->>'actor' = ? and activity->>'type' = 'Create' and inserted > ?`, r.User.ID, now.Add(-24*time.Hour).Unix()).Scan(&today, &last); err != nil {
+		if err := r.QueryRow(`select count(*), max(inserted) from outbox where activity->>'$.actor' = ? and activity->>'$.type' = 'Create' and inserted > ?`, r.User.ID, now.Add(-24*time.Hour).Unix()).Scan(&today, &last); err != nil {
 			r.Log.Warn("Failed to check if new post needs to be throttled", "error", err)
 			w.Error()
 			return
@@ -112,11 +112,11 @@ func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo 
 		var actorID string
 		var err error
 		if mention[2] == "" && inReplyTo != nil {
-			err = r.QueryRow(`select id from (select id, case when id = $1 then 3 when id in (select followed from follows where follower = $2 and accepted = 1) then 2 when host = $3 then 1 else 0 end as score from persons where actor->>'preferredUsername' = $4) where score > 0 order by score desc limit 1`, inReplyTo.AttributedTo, r.User.ID, h.Domain, mention[1]).Scan(&actorID)
+			err = r.QueryRow(`select id from (select id, case when id = $1 then 3 when id in (select followed from follows where follower = $2 and accepted = 1) then 2 when host = $3 then 1 else 0 end as score from persons where actor->>'$.preferredUsername' = $4) where score > 0 order by score desc limit 1`, inReplyTo.AttributedTo, r.User.ID, h.Domain, mention[1]).Scan(&actorID)
 		} else if mention[2] == "" && inReplyTo == nil {
-			err = r.QueryRow(`select id from (select id, case when host = $1 then 2 when id in (select followed from follows where follower = $2 and accepted = 1) then 1 else 0 end as score from persons where actor->>'preferredUsername' = $3) where score > 0 order by score desc limit 1`, h.Domain, r.User.ID, mention[1]).Scan(&actorID)
+			err = r.QueryRow(`select id from (select id, case when host = $1 then 2 when id in (select followed from follows where follower = $2 and accepted = 1) then 1 else 0 end as score from persons where actor->>'$.preferredUsername' = $3) where score > 0 order by score desc limit 1`, h.Domain, r.User.ID, mention[1]).Scan(&actorID)
 		} else {
-			err = r.QueryRow(`select id from persons where actor->>'preferredUsername' = $1 and host = $2`, mention[1], mention[2]).Scan(&actorID)
+			err = r.QueryRow(`select id from persons where actor->>'$.preferredUsername' = $1 and host = $2`, mention[1], mention[2]).Scan(&actorID)
 		}
 
 		if err != nil {

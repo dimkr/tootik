@@ -63,9 +63,9 @@ func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 				join notes on
 					notes.id = notesfts.id
 				join persons authors on
-					authors.id = notes.author and coalesce(authors.actor->>'discoverable', 1)
+					authors.id = notes.author and coalesce(authors.actor->>'$.discoverable', 1)
 				left join persons groups on
-					groups.actor->>'type' = 'Group' and groups.id = notes.object->>'audience'
+					groups.actor->>'$.type' = 'Group' and groups.id = notes.object->>'$.audience'
 				where
 					notes.public = 1 and
 					notesfts.content match $1
@@ -99,9 +99,9 @@ func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 					join
 					notes on
 						(
-							persons.actor->>'followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = persons.actor->>'followers')) or
-							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = persons.actor->>'followers'))
+							persons.actor->>'$.followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers')) or
+							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers'))
 						)
 					join
 					notesfts on
@@ -118,14 +118,14 @@ func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 						notesfts.content match $1 and
 						(
 							$2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'to') where value = $2)) or
-							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'cc') where value = $2))
+							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $2)) or
+							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $2))
 						)
 				) u
 				join persons authors on
-					authors.id = u.author and coalesce(authors.actor->>'discoverable', 1)
+					authors.id = u.author and coalesce(authors.actor->>'$.discoverable', 1)
 				left join persons groups on
-					groups.actor->>'type' = 'Group' and groups.id = u.object->>'audience'
+					groups.actor->>'$.type' = 'Group' and groups.id = u.object->>'$.audience'
 				group by
 					u.id
 				order by

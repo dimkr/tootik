@@ -92,7 +92,7 @@ func (h *Handler) register(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	if err := r.QueryRow(`select exists (select 1 from persons where actor->>'preferredUsername' = ? and host = ?)`, userName, h.Domain).Scan(&taken); err != nil {
+	if err := r.QueryRow(`select exists (select 1 from persons where actor->>'$.preferredUsername' = ? and host = ?)`, userName, h.Domain).Scan(&taken); err != nil {
 		r.Log.Warn("Failed to check if username is taken", "name", userName, "error", err)
 		w.Error()
 		return

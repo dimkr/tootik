@@ -188,7 +188,7 @@ func (r *Resolver) tryResolve(ctx context.Context, log *slog.Logger, db *sql.DB,
 	var updated, inserted int64
 	var fetched sql.NullInt64
 	var sinceLastUpdate time.Duration
-	if err := db.QueryRowContext(ctx, `select actor, updated, fetched, inserted from persons where actor->>'preferredUsername' = $1 and host = $2`, name, host).Scan(&tmp, &updated, &fetched, &inserted); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := db.QueryRowContext(ctx, `select actor, updated, fetched, inserted from persons where actor->>'$.preferredUsername' = $1 and host = $2`, name, host).Scan(&tmp, &updated, &fetched, &inserted); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, fmt.Errorf("failed to fetch %s%s cache: %w", name, host, err)
 	} else if err == nil {
 		cachedActor = &tmp

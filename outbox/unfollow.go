@@ -61,7 +61,7 @@ func Unfollow(ctx context.Context, domain string, log *slog.Logger, db *sql.DB, 
 	// mark the matching Follow as received
 	if _, err := tx.ExecContext(
 		ctx,
-		`UPDATE outbox SET sent = 1 WHERE activity->>'object.id' = ? and activity->>'type' = 'Follow'`,
+		`UPDATE outbox SET sent = 1 WHERE activity->>'$.object.id' = ? and activity->>'$.type' = 'Follow'`,
 		followID,
 	); err != nil {
 		return fmt.Errorf("failed to mark follow activity as received: %w", err)
