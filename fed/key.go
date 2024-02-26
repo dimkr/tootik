@@ -39,7 +39,7 @@ func (k *key) Load(ctx context.Context, db *sql.DB, actor *ap.Actor) (string, an
 	}
 
 	var publicKeyID, privateKeyPemString string
-	if err := db.QueryRowContext(ctx, `select actor->'publicKey'>>'id', privkey from persons where id = ?`, actor.ID).Scan(&publicKeyID, &privateKeyPemString); err != nil {
+	if err := db.QueryRowContext(ctx, `select actor->>'$.publicKey.id', privkey from persons where id = ?`, actor.ID).Scan(&publicKeyID, &privateKeyPemString); err != nil {
 		return "", nil, fmt.Errorf("failed to fetch key for %s: %w", actor.ID, err)
 	}
 
