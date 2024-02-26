@@ -277,9 +277,6 @@ func TestResolve_FederatedActorFirstTime(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -362,9 +359,6 @@ func TestResolve_FederatedActorFirstTimeThroughMention(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -525,9 +519,6 @@ func TestResolve_FederatedActorFirstTimeInvalidWebFingerLink(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -610,9 +601,6 @@ func TestResolve_FederatedActorFirstTimeActorIDMismatch(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -692,9 +680,6 @@ func TestResolve_FederatedActorCached(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -899,9 +884,6 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -967,9 +949,6 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -1045,9 +1024,6 @@ func TestResolve_FederatedActorCachedActorHostSubdomainFetchedRecently(t *testin
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -1139,9 +1115,6 @@ func TestResolve_FederatedActorCachedActorIDChanged(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -1261,9 +1234,6 @@ func TestResolve_FederatedActorCachedButBlocked(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -1359,9 +1329,6 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -1427,9 +1394,6 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -1510,9 +1474,6 @@ func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -1575,9 +1536,6 @@ func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						},
 						"published": "2018-08-18T00:00:00Z"
 					}`))),
@@ -1659,9 +1617,6 @@ func TestResolve_FederatedActorOldCacheStillNew(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -1724,9 +1679,6 @@ func TestResolve_FederatedActorOldCacheStillNew(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -1799,9 +1751,6 @@ func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
 						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
-						},
 						"published": "2018-08-18T00:00:00Z"
 					}`))),
 			},
@@ -1867,9 +1816,6 @@ func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						},
 						"published": "2088-08-18T00:00:00Z"
 					}`))),
@@ -1943,9 +1889,6 @@ func TestResolve_FederatedActorOldCacheWasNewNowUnknown(t *testing.T) {
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
 						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
-						},
 						"published": "2088-08-18T00:00:00Z"
 					}`))),
 			},
@@ -2008,9 +1951,6 @@ func TestResolve_FederatedActorOldCacheWasNewNowUnknown(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -2083,9 +2023,6 @@ func TestResolve_FederatedActorOldCacheFetchedRecently(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -2177,9 +2114,6 @@ func TestResolve_FederatedActorOldCacheButOffline(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -2329,9 +2263,6 @@ func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -2434,9 +2365,6 @@ func TestResolve_FederatedActorOldCacheBigWebFingerResponse(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -2558,9 +2486,6 @@ func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -2686,9 +2611,6 @@ func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -2754,9 +2676,6 @@ func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -2834,9 +2753,6 @@ func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -2962,9 +2878,6 @@ func TestResolve_FederatedActorOldCacheWebFingerError(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -3069,9 +2982,6 @@ func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -3200,9 +3110,6 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -3343,9 +3250,6 @@ func TestResolve_FederatedActorFirstTimeWrongID(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -3509,9 +3413,6 @@ func TestResolve_FederatedActorFirstTimeTooYoung(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -3591,9 +3492,6 @@ func TestResolve_FederatedActorWrongIDCached(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -3682,9 +3580,6 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -3750,9 +3645,6 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -3828,9 +3720,6 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -3896,9 +3785,6 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
@@ -3963,9 +3849,6 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 						"followers": "https://0.0.0.0/followers/dan",
 						"endpoints": {
 							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"publicKey": {
-							"id": "https://0.0.0.0/users/dan#main-key"
 						}
 					}`))),
 			},
