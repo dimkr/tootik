@@ -108,3 +108,38 @@ func TestDM_TwoMentionsOneLoopback(t *testing.T) {
 	view = server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "Hello @alice@localhost.localdomain:8443 and @bob@localhost.localdomain:8443")
 }
+
+func TestDM_TooManyRecipients(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	server.cfg.MaxRecipients = 1
+
+	assert := assert.New(t)
+
+	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443%20and%20%40carol%40localhost.localdomain%3a8443", server.Bob)
+	assert.Equal("40 Too many recipients\r\n", dm)
+}
+
+func TestDM_MaxRecipients(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	server.cfg.MaxRecipients = 2
+
+	assert := assert.New(t)
+
+	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443%20and%20%40carol%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
+
+	id := dm[15 : len(dm)-2]
+
+	view := server.Handle("/users/view/"+id, server.Alice)
+	assert.Contains(view, "Hello @alice@localhost.localdomain:8443 and @carol@localhost.localdomain:8443")
+
+	view = server.Handle("/users/view/"+id, server.Carol)
+	assert.Contains(view, "Hello @alice@localhost.localdomain:8443 and @carol@localhost.localdomain:8443")
+
+	view = server.Handle("/users/view/"+id, server.Bob)
+	assert.Contains(view, "Hello @alice@localhost.localdomain:8443 and @carol@localhost.localdomain:8443")
+}
