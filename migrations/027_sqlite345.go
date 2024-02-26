@@ -50,6 +50,17 @@ func sqlite345(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	_, err := tx.ExecContext(ctx, `ALTER TABLE notes ADD COLUMN cc2 STRING AS (object->>'$.cc[2]')`)
-	return err
+	if _, err := tx.ExecContext(ctx, `ALTER TABLE notes ADD COLUMN cc2 STRING AS (object->>'$.cc[2]')`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `DROP INDEX outboxobjectid`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX outboxobjectid ON outbox(activity->>'$.object.id') WHERE activity->>'$.object.id' IS NOT NULL`); err != nil {
+		return err
+	}
+
+	return nil
 }
