@@ -53,6 +53,7 @@ type Config struct {
 	SharesPerPost int
 
 	MaxRequestBodySize int64
+	MaxRequestAge      time.Duration
 
 	CompactViewMaxRunes int
 	CompactViewMaxLines int
@@ -191,6 +192,10 @@ func (c *Config) FillDefaults() {
 
 	if c.MaxRequestBodySize <= 0 {
 		c.MaxRequestBodySize = 1024 * 1024
+	}
+
+	if c.MaxRequestAge <= 0 {
+		c.MaxRequestAge = time.Minute * 5
 	}
 
 	if c.CompactViewMaxRunes <= 0 {

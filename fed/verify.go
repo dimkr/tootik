@@ -23,37 +23,32 @@ import (
 	"encoding/pem"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
-	"github.com/go-fed/httpsig"
+	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/httpsig"
 	"log/slog"
 	"net/http"
 )
 
-func verify(ctx context.Context, domain string, log *slog.Logger, r *http.Request, db *sql.DB, resolver *Resolver, from *ap.Actor, flags ap.ResolverFlag) (*ap.Actor, error) {
-	verifier, err := httpsig.NewVerifier(r)
+func verify(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, r *http.Request, body []byte, db *sql.DB, resolver *Resolver, from *ap.Actor, flags ap.ResolverFlag) (*ap.Actor, error) {
+	sig, err := httpsig.Extract(r, body, domain, cfg.MaxRequestAge)
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify message: %w", err)
 	}
 
-	keyID := verifier.KeyId()
-
-	actor, err := resolver.ResolveID(r.Context(), log, db, from, keyID, flags)
+	actor, err := resolver.ResolveID(r.Context(), log, db, from, sig.KeyID, flags)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get key %s to verify message: %w", keyID, err)
+		return nil, fmt.Errorf("failed to get key %s to verify message: %w", sig.KeyID, err)
 	}
 
 	publicKeyPem, _ := pem.Decode([]byte(actor.PublicKey.PublicKeyPem))
 
 	publicKey, err := x509.ParsePKIXPublicKey(publicKeyPem.Bytes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to verify message using %s: %w", keyID, err)
+		return nil, fmt.Errorf("failed to verify message using %s: %w", sig.KeyID, err)
 	}
 
-	if r.Header.Get("Host") == "" {
-		r.Header.Add("Host", domain)
-	}
-
-	if err := verifier.Verify(publicKey, httpsig.RSA_SHA256); err != nil {
-		return nil, fmt.Errorf("failed to verify message using %s: %w", keyID, err)
+	if err := sig.Verify(publicKey); err != nil {
+		return nil, fmt.Errorf("failed to verify message using %s: %w", sig.KeyID, err)
 	}
 
 	return actor, nil

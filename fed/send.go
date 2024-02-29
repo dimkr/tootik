@@ -19,18 +19,15 @@ package fed
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/base64"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/buildinfo"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/go-fed/httpsig"
+	"github.com/dimkr/tootik/httpsig"
 	"io"
 	"log/slog"
 	"net/http"
-	"time"
 )
 
 var userAgent = "tootik/" + buildinfo.Version
@@ -56,42 +53,12 @@ func (s *sender) send(log *slog.Logger, db *sql.DB, from *ap.Actor, key *key, re
 
 	log.Debug("Sending request", "url", urlString)
 
-	signer, _, err := httpsig.NewSigner(
-		[]httpsig.Algorithm{httpsig.RSA_SHA256},
-		httpsig.DigestSha256,
-		[]string{httpsig.RequestTarget, "host", "date", "digest"},
-		httpsig.Signature,
-		int64(time.Hour*12/time.Second),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to sign body for %s: %w", urlString, err)
-	}
-
-	var body []byte
-	var hash [sha256.Size]byte
-
-	if req.Body == nil {
-		hash = sha256.Sum256(nil)
-	} else {
-		body, err = io.ReadAll(req.Body)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read body for %s: %w", urlString, err)
-		}
-
-		req.Body = io.NopCloser(bytes.NewReader(body))
-		hash = sha256.Sum256(body)
-	}
-
-	req.Header.Add("Digest", "SHA-256="+base64.StdEncoding.EncodeToString(hash[:]))
-	req.Header.Add("Date", time.Now().UTC().Format(http.TimeFormat))
-	req.Header.Add("Host", req.URL.Host)
-
 	publicKeyID, privateKey, err := key.Load(req.Context(), db, from)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := signer.SignRequest(privateKey, publicKeyID, req, nil); err != nil {
+	if err := httpsig.Sign(req, publicKeyID, privateKey); err != nil {
 		return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
 	}
 
