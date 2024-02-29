@@ -91,7 +91,7 @@ tootik is lightweight, private and accessible social network:
 
 ## Features
 
-* Good compatibility with various fediverse servers
+* [Good compatibility with various fediverse servers](FEDERATION.md)
 * Text posts, with 3 privacy levels
   * Public
   * To followers
@@ -231,25 +231,11 @@ Poll results are updated every 30m and distributed to other servers if needed.
 
 ## Implementation Details
 
-### The "Nobody" User
-
-Outgoing requests, like the [WebFinger](https://www.rfc-editor.org/rfc/rfc7033) requests used to discover federated users, are usually associated with a user. For example, the key pair associated with local user A is used to digitally sign the Follow request sent to federated user B.
-
-To protect user's privacy, requests not initiated by a particular user or requests not triggered during handling of user requests (like requests made during validation of incoming public posts) are associated with a special user named "nobody".
-
 ### The Resolver
 
 The resolver is responsible for resolving a user ID (local or federated) into an Actor object that contains the user's information, like the user's display name. Actor objects for federated users are cached in the database and updated once in a while.
 
 This is an expensive but common operation that involves outgoing HTTPS requests. Therefore, to protect underpowered servers against heavy load and a big number of concurrent outgoing requests, the maximum number of outgoing requests is capped, concurrent attempts to resolve the same user are blocked and the resolver is a long-lived object that reuses connections.
-
-## Moved Accounts
-
-If a user follows a federated user with the `movedTo` attribute set and the new account's `alsoKnownAs` attribute points back to the old account, follow requests are sent to the new user and old requests are cancelled.
-
-## Notes
-
-The "notes" table holds posts and allows fast search of posts by author, replies to a post and so on.
 
 ### Outbox
 

@@ -1,5 +1,15 @@
 # Federation
 
+## Posts
+
+tootik suports `Note`, `Page`, `Article` and `Question` posts.
+
+## Actors
+
+All `tootik` users are `Person`s.
+
+However, it supports various kinds of actors and its UI treats `Group` actors differently: `/outbox/$group` hides replies and sorts posts by last activity.
+
 ## HTTP Signatures
 
 * tootik implements [draft-cavage-http-signatures-12](https://datatracker.ietf.org/doc/html/draft-cavage-http-signatures) but only partially:
@@ -11,3 +21,31 @@
   * All other incoming requests must have at least `headers="(request-target) host date"`
   * Outgoing `POST` requests have `headers="(request-target) host date content-type digest"`
   * All other outgoing requests have `headers="(request-target) host date"`
+
+## Application Actor
+
+tootik has no [Application Actor](https://codeberg.org/fediverse/fep/src/branch/main/fep/2677/fep-2677.md). It uses a special user named `nobody` to sign outgoing requests not initiated by a particular user.
+
+This user can be discovered using [WebFinger](https://www.rfc-editor.org/rfc/rfc7033), just like any other user:
+
+	https://example.org/.well-known/webfinger?resource=acct:nobody@example.org
+
+For compatibility with servers that allow discovery of the Application Actor, the domain is an alias of `nobody`:
+
+	https://example.org/.well-known/webfinger?resource=acct:example.org@example.org
+
+The `sharedInbox` of other users points to `nobody`'s inbox, to allow wide delivery of posts.
+
+## Account Migration
+
+tootik supports [Mastodon's account migration mechanism](https://docs.joinmastodon.org/spec/activitypub/#Move), but ignores `Move` activities. Account migration is handled by a periodic job. If a user follows a federated user with the `movedTo` attribute set and the new account's `alsoKnownAs` attribute points back to the old account, this job sends follow requests to the new user and cancels old ones.
+
+tootik users can set their `alsoKnownAs` field (to allow migration to tootik), or set the `movedTo` attribute and send a `Move` activity (to allow migration from tootik), through the settings page.
+
+## Followers Synchronization
+
+tootik supports [Mastodon's follower synchronization mechanism](https://docs.joinmastodon.org/spec/activitypub/#follower-synchronization-mechanism), also known as [FEP-8fcf](https://codeberg.org/fediverse/fep/src/branch/main/fep/8fcf/fep-8fcf.md).
+
+tootik attaches the `Collection-Synchronization` header to outgoing activities if `to` or `cc` includes the user's followers collection.
+
+Received `Collection-Synchronization` headers are saved in the tootik database and a periodic job (see `FollowersSyncInterval`) synchronizes the collections by sending `Undo` activities for unknown remote `Follow`s and clearing the `accepted` flag for unknown local `Follow`s (see `FollowAcceptTimeout`).
