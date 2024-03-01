@@ -2,11 +2,15 @@
 
 ## Posts
 
-tootik suports `Note`, `Page`, `Article` and `Question` posts.
+tootik posts are `Note`s and polls are [Mastodon-compatible](https://docs.joinmastodon.org/spec/activitypub/#Question) `Question`s.
+
+In addition, it supports `Page` and `Article` posts.
+
+Different servers, frontends and clients use different HTML tags and attributes or even add extra whitespace when they construct `content` from the user's raw input, so tootik's HTML to plain text converter is only a 80/20 solution. Most posts look fine and pretty much follow the way a web frontend renders them.
 
 ## Actors
 
-All `tootik` users are `Person`s.
+All tootik users are `Person`s.
 
 However, it supports various kinds of actors and its UI treats `Group` actors differently: `/outbox/$group` hides replies and sorts posts by last activity.
 
