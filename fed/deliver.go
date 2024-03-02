@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/httpsig"
 	"log/slog"
 	"net/url"
 	"time"
@@ -57,7 +59,7 @@ func (q *Queue) Process(ctx context.Context) error {
 func (q *Queue) process(ctx context.Context) error {
 	q.Log.Debug("Polling delivery queue")
 
-	rows, err := q.DB.QueryContext(ctx, `select outbox.attempts, outbox.activity, outbox.activity, outbox.inserted, outbox.received, persons.actor from outbox join persons on persons.id = outbox.sender where outbox.sent = 0 and (outbox.attempts = 0 or (outbox.attempts < ? and outbox.last <= unixepoch() - ?)) order by outbox.attempts asc, outbox.last asc limit ?`, q.Config.MaxDeliveryAttempts, q.Config.DeliveryRetryInterval, q.Config.DeliveryBatchSize)
+	rows, err := q.DB.QueryContext(ctx, `select outbox.attempts, outbox.activity, outbox.activity, outbox.inserted, outbox.received, persons.actor, persons.privkey from outbox join persons on persons.id = outbox.sender where outbox.sent = 0 and (outbox.attempts = 0 or (outbox.attempts < ? and outbox.last <= unixepoch() - ?)) order by outbox.attempts asc, outbox.last asc limit ?`, q.Config.MaxDeliveryAttempts, q.Config.DeliveryRetryInterval, q.Config.DeliveryBatchSize)
 	if err != nil {
 		return fmt.Errorf("failed to fetch posts to deliver: %w", err)
 	}
@@ -65,13 +67,19 @@ func (q *Queue) process(ctx context.Context) error {
 
 	for rows.Next() {
 		var activity ap.Activity
-		var rawActivity string
+		var rawActivity, privKeyPem string
 		var actor ap.Actor
 		var inserted int64
 		var recipients ap.Audience
 		var deliveryAttempts int
-		if err := rows.Scan(&deliveryAttempts, &activity, &rawActivity, &inserted, &recipients, &actor); err != nil {
+		if err := rows.Scan(&deliveryAttempts, &activity, &rawActivity, &inserted, &recipients, &actor, &privKeyPem); err != nil {
 			q.Log.Error("Failed to fetch post to deliver", "error", err)
+			continue
+		}
+
+		privKey, err := data.ParsePrivateKey(privKeyPem)
+		if err != nil {
+			q.Log.Error("Failed to parse private key", "error", err)
 			continue
 		}
 
@@ -80,7 +88,7 @@ func (q *Queue) process(ctx context.Context) error {
 			continue
 		}
 
-		if err := q.deliverWithTimeout(ctx, &activity, []byte(rawActivity), &actor, time.Unix(inserted, 0), &recipients); err != nil {
+		if err := q.deliverWithTimeout(ctx, &activity, []byte(rawActivity), &actor, httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, time.Unix(inserted, 0), &recipients); err != nil {
 			q.Log.Warn("Failed to deliver activity", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 
 			if _, err := q.DB.ExecContext(ctx, `update outbox set received = ? where activity->>'$.id' = ?`, &recipients, activity.ID); err != nil {
@@ -102,13 +110,13 @@ func (q *Queue) process(ctx context.Context) error {
 	return nil
 }
 
-func (q *Queue) deliverWithTimeout(parent context.Context, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, inserted time.Time, sent *ap.Audience) error {
+func (q *Queue) deliverWithTimeout(parent context.Context, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, key httpsig.Key, inserted time.Time, sent *ap.Audience) error {
 	ctx, cancel := context.WithTimeout(parent, q.Config.DeliveryTimeout)
 	defer cancel()
-	return q.deliver(ctx, activity, rawActivity, actor, inserted, sent)
+	return q.deliver(ctx, activity, rawActivity, actor, key, inserted, sent)
 }
 
-func (q *Queue) deliver(ctx context.Context, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, inserted time.Time, received *ap.Audience) error {
+func (q *Queue) deliver(ctx context.Context, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, key httpsig.Key, inserted time.Time, received *ap.Audience) error {
 	activityID, err := url.Parse(activity.ID)
 	if err != nil {
 		return err
@@ -167,7 +175,6 @@ func (q *Queue) deliver(ctx context.Context, activity *ap.Activity, rawActivity 
 
 	sent := map[string]struct{}{}
 
-	var key key
 	var followers partialFollowers
 	if recipients.Contains(actor.Followers) {
 		followers = partialFollowers{}
@@ -179,7 +186,7 @@ func (q *Queue) deliver(ctx context.Context, activity *ap.Activity, rawActivity 
 			return true
 		}
 
-		to, err := q.Resolver.ResolveID(ctx, q.Log, q.DB, actor, actorID, 0)
+		to, err := q.Resolver.ResolveID(ctx, q.Log, q.DB, key, actorID, 0)
 		if err != nil {
 			q.Log.Warn("Failed to resolve a recipient", "to", actorID, "activity", activity.ID, "error", err)
 			if !errors.Is(err, ErrActorGone) && !errors.Is(err, ErrBlockedDomain) {
@@ -211,7 +218,7 @@ func (q *Queue) deliver(ctx context.Context, activity *ap.Activity, rawActivity 
 
 		q.Log.Info("Delivering activity to recipient", "to", actorID, "inbox", inbox, "activity", activity.ID)
 
-		if err := q.Resolver.post(ctx, q.Log, q.DB, actor, &key, followers, inbox, rawActivity); err != nil {
+		if err := q.Resolver.post(ctx, q.Log, q.DB, actor, key, followers, inbox, rawActivity); err != nil {
 			q.Log.Warn("Failed to send an activity", "from", actor.ID, "to", actorID, "activity", activity.ID, "error", err)
 			if !errors.Is(err, ErrBlockedDomain) {
 				anyFailed = true

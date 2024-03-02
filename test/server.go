@@ -28,6 +28,7 @@ import (
 	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/front/text/gmi"
 	"github.com/dimkr/tootik/front/user"
+	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/migrations"
 	_ "github.com/mattn/go-sqlite3"
 	"log/slog"
@@ -39,14 +40,14 @@ import (
 const domain = "localhost.localdomain:8443"
 
 type server struct {
-	cfg     *cfg.Config
-	db      *sql.DB
-	dbPath  string
-	handler front.Handler
-	Alice   *ap.Actor
-	Bob     *ap.Actor
-	Carol   *ap.Actor
-	Nobody  *ap.Actor
+	cfg       *cfg.Config
+	db        *sql.DB
+	dbPath    string
+	handler   front.Handler
+	Alice     *ap.Actor
+	Bob       *ap.Actor
+	Carol     *ap.Actor
+	NobodyKey httpsig.Key
 }
 
 func (s *server) Shutdown() {
@@ -75,35 +76,35 @@ func newTestServer() *server {
 		panic(err)
 	}
 
-	alice, err := user.Create(context.Background(), domain, db, "alice", "a")
+	alice, _, err := user.Create(context.Background(), domain, db, "alice", "a")
 	if err != nil {
 		panic(err)
 	}
 
-	bob, err := user.Create(context.Background(), domain, db, "bob", "b")
+	bob, _, err := user.Create(context.Background(), domain, db, "bob", "b")
 	if err != nil {
 		panic(err)
 	}
 
-	carol, err := user.Create(context.Background(), domain, db, "carol", "c")
+	carol, _, err := user.Create(context.Background(), domain, db, "carol", "c")
 	if err != nil {
 		panic(err)
 	}
 
-	nobody, err := user.CreateNobody(context.Background(), domain, db)
+	_, nobodyKey, err := user.CreateNobody(context.Background(), domain, db)
 	if err != nil {
 		panic(err)
 	}
 
 	return &server{
-		cfg:     &cfg,
-		dbPath:  path,
-		db:      db,
-		handler: front.NewHandler(domain, false, &cfg),
-		Alice:   alice,
-		Bob:     bob,
-		Carol:   carol,
-		Nobody:  nobody,
+		cfg:       &cfg,
+		dbPath:    path,
+		db:        db,
+		handler:   front.NewHandler(domain, false, &cfg),
+		Alice:     alice,
+		Bob:       bob,
+		Carol:     carol,
+		NobodyKey: nobodyKey,
 	}
 }
 
@@ -115,7 +116,7 @@ func (s *server) Handle(request string, user *ap.Actor) string {
 
 	var buf bytes.Buffer
 	var wg sync.WaitGroup
-	s.handler.Handle(context.Background(), slog.Default(), gmi.Wrap(&buf), u, user, s.db, fed.NewResolver(nil, domain, s.cfg, &http.Client{}), &wg)
+	s.handler.Handle(context.Background(), slog.Default(), gmi.Wrap(&buf), u, user, httpsig.Key{}, s.db, fed.NewResolver(nil, domain, s.cfg, &http.Client{}), &wg)
 
 	return buf.String()
 }

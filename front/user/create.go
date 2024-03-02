@@ -27,13 +27,14 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/fed/icon"
+	"github.com/dimkr/tootik/httpsig"
 	"time"
 )
 
-func gen(ctx context.Context) ([]byte, []byte, error) {
+func gen(ctx context.Context) (*rsa.PrivateKey, []byte, []byte, error) {
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to generate private key: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to generate private key: %w", err)
 	}
 
 	var privPem bytes.Buffer
@@ -44,7 +45,7 @@ func gen(ctx context.Context) ([]byte, []byte, error) {
 			Bytes: x509.MarshalPKCS1PrivateKey(priv),
 		},
 	); err != nil {
-		return nil, nil, fmt.Errorf("failed to generate private key: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to generate private key: %w", err)
 	}
 
 	var pubPem bytes.Buffer
@@ -55,17 +56,17 @@ func gen(ctx context.Context) ([]byte, []byte, error) {
 			Bytes: x509.MarshalPKCS1PublicKey(&priv.PublicKey),
 		},
 	); err != nil {
-		return nil, nil, fmt.Errorf("failed to generate public key: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to generate public key: %w", err)
 	}
 
-	return privPem.Bytes(), pubPem.Bytes(), nil
+	return priv, privPem.Bytes(), pubPem.Bytes(), nil
 }
 
 // Create creates a new user.
-func Create(ctx context.Context, domain string, db *sql.DB, name, certHash string) (*ap.Actor, error) {
-	priv, pub, err := gen(ctx)
+func Create(ctx context.Context, domain string, db *sql.DB, name, certHash string) (*ap.Actor, httpsig.Key, error) {
+	priv, privPem, pubPem, err := gen(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate key pair: %w", err)
+		return nil, httpsig.Key{}, fmt.Errorf("failed to generate key pair: %w", err)
 	}
 
 	id := fmt.Sprintf("https://%s/user/%s", domain, name)
@@ -92,7 +93,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, name, certHash strin
 		PublicKey: ap.PublicKey{
 			ID:           fmt.Sprintf("https://%s/user/%s#main-key", domain, name),
 			Owner:        id,
-			PublicKeyPem: string(pub),
+			PublicKeyPem: string(pubPem),
 		},
 		ManuallyApprovesFollowers: false,
 		Published:                 &ap.Time{Time: time.Now()},
@@ -103,11 +104,11 @@ func Create(ctx context.Context, domain string, db *sql.DB, name, certHash strin
 		`INSERT INTO persons (id, actor, privkey, certhash) VALUES(?,?,?,?)`,
 		id,
 		&actor,
-		string(priv),
+		string(privPem),
 		certHash,
 	); err != nil {
-		return nil, fmt.Errorf("failed to insert %s: %w", id, err)
+		return nil, httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 	}
 
-	return &actor, nil
+	return &actor, httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: priv}, nil
 }

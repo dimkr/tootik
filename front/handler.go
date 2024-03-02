@@ -25,6 +25,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front/static"
 	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/httpsig"
 	"log/slog"
 	"net/url"
 	"regexp"
@@ -139,7 +140,7 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) Handler {
 }
 
 // Handle handles a request and writes a response.
-func (h *Handler) Handle(ctx context.Context, log *slog.Logger, w text.Writer, reqUrl *url.URL, user *ap.Actor, db *sql.DB, resolver ap.Resolver, wg *sync.WaitGroup) {
+func (h *Handler) Handle(ctx context.Context, log *slog.Logger, w text.Writer, reqUrl *url.URL, user *ap.Actor, key httpsig.Key, db *sql.DB, resolver ap.Resolver, wg *sync.WaitGroup) {
 	for re, handler := range h.handlers {
 		m := re.FindStringSubmatch(reqUrl.Path)
 		if m != nil {
@@ -157,6 +158,7 @@ func (h *Handler) Handle(ctx context.Context, log *slog.Logger, w text.Writer, r
 					Handler:   h,
 					URL:       reqUrl,
 					User:      user,
+					Key:       key,
 					DB:        db,
 					Resolver:  resolver,
 					WaitGroup: wg,

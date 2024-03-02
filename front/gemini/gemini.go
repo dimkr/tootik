@@ -26,8 +26,10 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/front/text/gmi"
+	"github.com/dimkr/tootik/httpsig"
 	"io"
 	"log/slog"
 	"net"
@@ -48,27 +50,32 @@ type Listener struct {
 	KeyPath  string
 }
 
-func (gl *Listener) getUser(ctx context.Context, conn net.Conn, tlsConn *tls.Conn) (*ap.Actor, error) {
+func (gl *Listener) getUser(ctx context.Context, conn net.Conn, tlsConn *tls.Conn) (*ap.Actor, httpsig.Key, error) {
 	state := tlsConn.ConnectionState()
 
 	if len(state.PeerCertificates) == 0 {
-		return nil, nil
+		return nil, httpsig.Key{}, nil
 	}
 
 	clientCert := state.PeerCertificates[0]
 
 	certHash := fmt.Sprintf("%x", sha256.Sum256(clientCert.Raw))
 
-	var id string
+	var id, privKeyPem string
 	var actor ap.Actor
-	if err := gl.DB.QueryRowContext(ctx, `select id, actor from persons where host = ? and certhash = ?`, gl.Domain, certHash).Scan(&id, &actor); err != nil && errors.Is(err, sql.ErrNoRows) {
-		return nil, front.ErrNotRegistered
+	if err := gl.DB.QueryRowContext(ctx, `select id, actor, privkey from persons where host = ? and certhash = ?`, gl.Domain, certHash).Scan(&id, &actor, &privKeyPem); err != nil && errors.Is(err, sql.ErrNoRows) {
+		return nil, httpsig.Key{}, front.ErrNotRegistered
 	} else if err != nil {
-		return nil, fmt.Errorf("failed to fetch user for %s: %w", certHash, err)
+		return nil, httpsig.Key{}, fmt.Errorf("failed to fetch user for %s: %w", certHash, err)
+	}
+
+	privKey, err := data.ParsePrivateKey(privKeyPem)
+	if err != nil {
+		return nil, httpsig.Key{}, fmt.Errorf("failed to parse private key for %s: %w", certHash, err)
 	}
 
 	gl.Log.Debug("Found existing user", "hash", certHash, "user", id)
-	return &actor, nil
+	return &actor, httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, nil
 }
 
 // Handle handles a Gemini request.
@@ -124,7 +131,7 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 
 	w := gmi.Wrap(conn)
 
-	user, err := gl.getUser(ctx, conn, tlsConn)
+	user, privKey, err := gl.getUser(ctx, conn, tlsConn)
 	if err != nil && errors.Is(err, front.ErrNotRegistered) && reqUrl.Path == "/users" {
 		gl.Log.Info("Redirecting new user")
 		w.Redirect("/users/register")
@@ -135,7 +142,7 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 		return
 	}
 
-	gl.Handler.Handle(ctx, gl.Log, w, reqUrl, user, gl.DB, gl.Resolver, wg)
+	gl.Handler.Handle(ctx, gl.Log, w, reqUrl, user, privKey, gl.DB, gl.Resolver, wg)
 }
 
 // ListenAndServe handles Gemini requests.

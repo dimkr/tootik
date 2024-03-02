@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/httpsig"
 	"log/slog"
 	"net/url"
 	"sync"
@@ -30,6 +31,7 @@ type request struct {
 	Handler   *Handler
 	URL       *url.URL
 	User      *ap.Actor
+	Key       httpsig.Key
 	DB        *sql.DB
 	Resolver  ap.Resolver
 	WaitGroup *sync.WaitGroup
@@ -37,7 +39,7 @@ type request struct {
 }
 
 func (r *request) Resolve(host, name string, flags ap.ResolverFlag) (*ap.Actor, error) {
-	return r.Resolver.Resolve(r.Context, r.Log, r.DB, r.User, host, name, flags)
+	return r.Resolver.Resolve(r.Context, r.Log, r.DB, r.Key, host, name, flags)
 }
 
 func (r *request) Exec(query string, args ...any) (sql.Result, error) {

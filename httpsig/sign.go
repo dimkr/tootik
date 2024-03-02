@@ -36,7 +36,11 @@ var (
 )
 
 // Sign adds a signature to an outgoing HTTP request.
-func Sign(r *http.Request, keyID string, key any) error {
+func Sign(r *http.Request, key Key) error {
+	if key.ID == "" {
+		return errors.New("empty key ID")
+	}
+
 	headers := defaultHeaders
 	if r.Method == http.MethodPost {
 		body, err := io.ReadAll(r.Body)
@@ -59,7 +63,7 @@ func Sign(r *http.Request, keyID string, key any) error {
 		return err
 	}
 
-	rsaKey, ok := key.(*rsa.PrivateKey)
+	rsaKey, ok := key.PrivateKey.(*rsa.PrivateKey)
 	if !ok {
 		return errors.New("invalid private key")
 	}
@@ -74,7 +78,7 @@ func Sign(r *http.Request, keyID string, key any) error {
 		"Signature",
 		fmt.Sprintf(
 			`keyId="%s",algorithm="hs2019",headers="%s",signature="%s"`,
-			keyID,
+			key.ID,
 			strings.Join(headers, " "),
 			base64.StdEncoding.EncodeToString(sig),
 		),

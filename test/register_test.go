@@ -413,7 +413,7 @@ func TestRegister_AlreadyRegistered(t *testing.T) {
 	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
 	assert.NoError(err)
 
-	_, err = user.Create(context.Background(), domain, db, "erin", "e")
+	_, _, err = user.Create(context.Background(), domain, db, "erin", "e")
 	assert.NoError(err)
 
 	l := gemini.Listener{

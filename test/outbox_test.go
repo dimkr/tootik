@@ -247,7 +247,7 @@ func TestOutbox_PublicPostInGroup(t *testing.T) {
 		Log:       slog.Default(),
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:     server.Nobody,
+		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -291,7 +291,7 @@ func TestOutbox_PublicPostInGroupUnauthenticatedUser(t *testing.T) {
 		Log:       slog.Default(),
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:     server.Nobody,
+		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -341,7 +341,7 @@ func TestOutbox_PostToFollowersInGroup(t *testing.T) {
 		Log:       slog.Default(),
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:     server.Nobody,
+		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -391,7 +391,7 @@ func TestOutbox_PostToFollowersInGroupNotFollowingGroup(t *testing.T) {
 		Log:       slog.Default(),
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:     server.Nobody,
+		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -438,7 +438,7 @@ func TestOutbox_PostToFollowersInGroupNotAccepted(t *testing.T) {
 		Log:       slog.Default(),
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:     server.Nobody,
+		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -488,7 +488,7 @@ func TestOutbox_PostToFollowersInGroupFollowingAuthor(t *testing.T) {
 		Log:       slog.Default(),
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:     server.Nobody,
+		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -538,7 +538,7 @@ func TestOutbox_PostToFollowersInGroupUnauthenticatedUser(t *testing.T) {
 		Log:       slog.Default(),
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:     server.Nobody,
+		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -591,7 +591,7 @@ func TestOutbox_DMInGroup(t *testing.T) {
 		Log:       slog.Default(),
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:     server.Nobody,
+		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -641,7 +641,7 @@ func TestOutbox_DMInGroupNotFollowingGroup(t *testing.T) {
 		Log:       slog.Default(),
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:     server.Nobody,
+		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -694,7 +694,7 @@ func TestOutbox_DMInGroupAnotherUser(t *testing.T) {
 		Log:       slog.Default(),
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:     server.Nobody,
+		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)

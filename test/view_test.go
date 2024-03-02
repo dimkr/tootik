@@ -332,7 +332,7 @@ func TestView_Update(t *testing.T) {
 		Log:       slog.Default(),
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:     server.Nobody,
+		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -391,7 +391,7 @@ func TestView_OldUpdate(t *testing.T) {
 		Log:       slog.Default(),
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:     server.Nobody,
+		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -557,7 +557,7 @@ func TestView_PostInGroupPublicAndGroupFollowed(t *testing.T) {
 		Log:       slog.Default(),
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:     server.Nobody,
+		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -609,7 +609,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowed(t *testing.T) {
 		Log:       slog.Default(),
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:     server.Nobody,
+		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -661,7 +661,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedButNotAccepted(t *testing.T) {
 		Log:       slog.Default(),
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:     server.Nobody,
+		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -710,7 +710,7 @@ func TestView_PostInGroupNotPublicAndAuthorFollowed(t *testing.T) {
 		Log:       slog.Default(),
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:     server.Nobody,
+		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -762,7 +762,7 @@ func TestView_PostInGroupNotPublicAndAuthorFollowedButNotAccepted(t *testing.T) 
 		Log:       slog.Default(),
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:     server.Nobody,
+		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -827,7 +827,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithReply(t *testing.T) {
 		Log:       slog.Default(),
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:     server.Nobody,
+		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -896,7 +896,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithPrivateReply(t *testing.T)
 		Log:       slog.Default(),
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:     server.Nobody,
+		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)

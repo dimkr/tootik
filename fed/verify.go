@@ -29,13 +29,13 @@ import (
 	"net/http"
 )
 
-func verify(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, r *http.Request, body []byte, db *sql.DB, resolver *Resolver, from *ap.Actor, flags ap.ResolverFlag) (*ap.Actor, error) {
+func verify(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, r *http.Request, body []byte, db *sql.DB, resolver *Resolver, key httpsig.Key, flags ap.ResolverFlag) (*ap.Actor, error) {
 	sig, err := httpsig.Extract(r, body, domain, cfg.MaxRequestAge)
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify message: %w", err)
 	}
 
-	actor, err := resolver.ResolveID(r.Context(), log, db, from, sig.KeyID, flags)
+	actor, err := resolver.ResolveID(r.Context(), log, db, key, sig.KeyID, flags)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get key %s to verify message: %w", sig.KeyID, err)
 	}

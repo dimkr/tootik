@@ -21,8 +21,8 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"errors"
-	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/httpsig"
 	"github.com/fsnotify/fsnotify"
 	"log/slog"
 	"math"
@@ -40,7 +40,7 @@ type Listener struct {
 	Config   *cfg.Config
 	DB       *sql.DB
 	Resolver *Resolver
-	Actor    *ap.Actor
+	ActorKey httpsig.Key
 	Log      *slog.Logger
 	Addr     string
 	Cert     string

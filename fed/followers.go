@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/outbox"
 	"io"
 	"log/slog"
@@ -43,7 +44,7 @@ type Syncer struct {
 	Log      *slog.Logger
 	DB       *sql.DB
 	Resolver *Resolver
-	Actor    *ap.Actor
+	Key      httpsig.Key
 }
 
 type followersDigest struct {
@@ -116,7 +117,7 @@ func (f partialFollowers) Digest(ctx context.Context, db *sql.DB, domain string,
 func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("username")
 
-	sender, err := verify(r.Context(), l.Domain, l.Config, l.Log, r, nil, l.DB, l.Resolver, l.Actor, ap.InstanceActor)
+	sender, err := verify(r.Context(), l.Domain, l.Config, l.Log, r, nil, l.DB, l.Resolver, l.ActorKey, ap.InstanceActor)
 	if err != nil {
 		l.Log.Warn("Failed to verify followers request", "error", err)
 		w.WriteHeader(http.StatusUnauthorized)
@@ -221,7 +222,7 @@ func (l *Listener) saveFollowersDigest(ctx context.Context, sender *ap.Actor, he
 	return nil
 }
 
-func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, resolver *Resolver, from *ap.Actor) error {
+func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, resolver *Resolver, key httpsig.Key) error {
 	if digest, err := digestFollowers(ctx, db, d.Followed, domain); err != nil {
 		return err
 	} else if err == nil && digest == d.Digest {
@@ -236,8 +237,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 
 	log.Info("Synchronizing followers", "followed", d.Followed)
 
-	var key key
-	resp, err := resolver.get(ctx, log, db, from, &key, d.URL)
+	resp, err := resolver.get(ctx, log, db, key, d.URL)
 	if err != nil {
 		return err
 	}
@@ -338,7 +338,7 @@ func (s *Syncer) processBatch(ctx context.Context) (int, error) {
 	rows.Close()
 
 	for _, job := range jobs {
-		if err := job.Sync(ctx, s.Domain, s.Config, s.Log, s.DB, s.Resolver, s.Actor); err != nil {
+		if err := job.Sync(ctx, s.Domain, s.Config, s.Log, s.DB, s.Resolver, s.Key); err != nil {
 			s.Log.Warn("Failed to sync followers", "actor", job.Followed, "error", err)
 		}
 

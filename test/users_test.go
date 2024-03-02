@@ -182,7 +182,7 @@ func TestUsers_PublicPostShared(t *testing.T) {
 		Log:       slog.Default(),
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:     server.Nobody,
+		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -232,7 +232,7 @@ func TestUsers_PublicPostSharedNotFollowing(t *testing.T) {
 		Log:       slog.Default(),
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:     server.Nobody,
+		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)

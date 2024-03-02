@@ -22,6 +22,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/httpsig"
 	"log/slog"
 	"time"
 )
@@ -31,7 +32,7 @@ type Mover struct {
 	Log      *slog.Logger
 	DB       *sql.DB
 	Resolver ap.Resolver
-	Actor    *ap.Actor
+	Key      httpsig.Key
 }
 
 func (m *Mover) updatedMoveTargets(ctx context.Context, prefix string) error {
@@ -48,7 +49,7 @@ func (m *Mover) updatedMoveTargets(ctx context.Context, prefix string) error {
 			continue
 		}
 
-		actor, err := m.Resolver.ResolveID(ctx, m.Log, m.DB, m.Actor, newID, 0)
+		actor, err := m.Resolver.ResolveID(ctx, m.Log, m.DB, m.Key, newID, 0)
 		if err != nil {
 			m.Log.Warn("Failed to resolve move target", "old", oldID, "new", newID, "error", err)
 			continue

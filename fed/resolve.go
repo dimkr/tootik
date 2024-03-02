@@ -25,6 +25,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/httpsig"
 	"golang.org/x/sync/semaphore"
 	"hash/crc32"
 	"io"
@@ -85,7 +86,7 @@ func NewResolver(blockedDomains *BlockList, domain string, cfg *cfg.Config, clie
 }
 
 // ResolveID retrieves an actor object by its ID.
-func (r *Resolver) ResolveID(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, id string, flags ap.ResolverFlag) (*ap.Actor, error) {
+func (r *Resolver) ResolveID(ctx context.Context, log *slog.Logger, db *sql.DB, key httpsig.Key, id string, flags ap.ResolverFlag) (*ap.Actor, error) {
 	u, err := url.Parse(id)
 	if err != nil {
 		return nil, fmt.Errorf("cannot resolve %s: %w", id, err)
@@ -108,12 +109,12 @@ func (r *Resolver) ResolveID(ctx context.Context, log *slog.Logger, db *sql.DB, 
 		name = u.Host
 	}
 
-	return r.Resolve(ctx, log, db, from, u.Host, name, flags)
+	return r.Resolve(ctx, log, db, key, u.Host, name, flags)
 }
 
 // Resolve retrieves an actor object by host and name.
-func (r *Resolver) Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, host, name string, flags ap.ResolverFlag) (*ap.Actor, error) {
-	if actor, err := r.tryResolveOrCache(ctx, log, db, from, host, name, flags); err != nil {
+func (r *Resolver) Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, key httpsig.Key, host, name string, flags ap.ResolverFlag) (*ap.Actor, error) {
+	if actor, err := r.tryResolveOrCache(ctx, log, db, key, host, name, flags); err != nil {
 		return nil, err
 	} else if actor.Suspended {
 		return nil, ErrSuspendedActor
@@ -122,9 +123,8 @@ func (r *Resolver) Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, fr
 	}
 }
 
-func (r *Resolver) tryResolveOrCache(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, host, name string, flags ap.ResolverFlag) (*ap.Actor, error) {
-	var key key
-	actor, cachedActor, err := r.tryResolve(ctx, log, db, from, &key, host, name, flags)
+func (r *Resolver) tryResolveOrCache(ctx context.Context, log *slog.Logger, db *sql.DB, key httpsig.Key, host, name string, flags ap.ResolverFlag) (*ap.Actor, error) {
+	actor, cachedActor, err := r.tryResolve(ctx, log, db, key, host, name, flags)
 	if err != nil && cachedActor != nil && cachedActor.Published != nil && time.Since(cachedActor.Published.Time) < r.Config.MinActorAge {
 		log.Warn("Failed to update cached actor", "host", host, "name", name, "error", err)
 		return nil, ErrYoungActor
@@ -161,7 +161,7 @@ func deleteActor(ctx context.Context, log *slog.Logger, db *sql.DB, id string) {
 	}
 }
 
-func (r *Resolver) tryResolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, key *key, host, name string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
+func (r *Resolver) tryResolve(ctx context.Context, log *slog.Logger, db *sql.DB, key httpsig.Key, host, name string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
 	log.Debug("Resolving actor", "host", host, "name", name)
 
 	if r.BlockedDomains != nil && r.BlockedDomains.Contains(host) {
@@ -233,7 +233,7 @@ func (r *Resolver) tryResolve(ctx context.Context, log *slog.Logger, db *sql.DB,
 	}
 	req.Header.Set("User-Agent", userAgent)
 
-	resp, err := r.send(log, db, from, key, req)
+	resp, err := r.send(log, key, req)
 	if err != nil {
 		if resp != nil && (resp.StatusCode == http.StatusGone || resp.StatusCode == http.StatusNotFound) {
 			if cachedActor != nil {
@@ -307,7 +307,7 @@ func (r *Resolver) tryResolve(ctx context.Context, log *slog.Logger, db *sql.DB,
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Add("Accept", "application/activity+json")
 
-	resp, err = r.send(log, db, from, key, req)
+	resp, err = r.send(log, key, req)
 	if err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", profile, err)
 	}

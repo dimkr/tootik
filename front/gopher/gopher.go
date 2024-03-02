@@ -25,6 +25,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/front/text/gmap"
+	"github.com/dimkr/tootik/httpsig"
 	"io"
 	"log/slog"
 	"net"
@@ -89,7 +90,7 @@ func (gl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 
 	w := gmap.Wrap(conn, gl.Domain, gl.Config)
 
-	gl.Handler.Handle(ctx, gl.Log.With(slog.Group("request", "path", reqUrl.Path)), w, reqUrl, nil, gl.DB, gl.Resolver, wg)
+	gl.Handler.Handle(ctx, gl.Log.With(slog.Group("request", "path", reqUrl.Path)), w, reqUrl, nil, httpsig.Key{}, gl.DB, gl.Resolver, wg)
 }
 
 // ListenAndServe handles Gopher requests.

@@ -38,7 +38,7 @@ type sender struct {
 	client Client
 }
 
-func (s *sender) send(log *slog.Logger, db *sql.DB, from *ap.Actor, key *key, req *http.Request) (*http.Response, error) {
+func (s *sender) send(log *slog.Logger, key httpsig.Key, req *http.Request) (*http.Response, error) {
 	urlString := req.URL.String()
 
 	if req.URL.Scheme != "https" {
@@ -53,12 +53,7 @@ func (s *sender) send(log *slog.Logger, db *sql.DB, from *ap.Actor, key *key, re
 
 	log.Debug("Sending request", "url", urlString)
 
-	publicKeyID, privateKey, err := key.Load(req.Context(), db, from)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := httpsig.Sign(req, publicKeyID, privateKey); err != nil {
+	if err := httpsig.Sign(req, key); err != nil {
 		return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
 	}
 
@@ -80,7 +75,7 @@ func (s *sender) send(log *slog.Logger, db *sql.DB, from *ap.Actor, key *key, re
 }
 
 // post sends a signed request to actor's inbox.
-func (s *sender) post(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, key *key, followers partialFollowers, inbox string, body []byte) error {
+func (s *sender) post(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, key httpsig.Key, followers partialFollowers, inbox string, body []byte) error {
 	if inbox == "" {
 		return fmt.Errorf("cannot send request to %s: empty URL", inbox)
 	}
@@ -103,7 +98,7 @@ func (s *sender) post(ctx context.Context, log *slog.Logger, db *sql.DB, from *a
 		}
 	}
 
-	resp, err := s.send(log, db, from, key, req)
+	resp, err := s.send(log, key, req)
 	if err != nil {
 		return fmt.Errorf("failed to send request to %s: %w", inbox, err)
 	}
@@ -118,7 +113,7 @@ func (s *sender) post(ctx context.Context, log *slog.Logger, db *sql.DB, from *a
 	return nil
 }
 
-func (s *sender) get(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, key *key, url string) (*http.Response, error) {
+func (s *sender) get(ctx context.Context, log *slog.Logger, db *sql.DB, key httpsig.Key, url string) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request to %s: %w", url, err)
@@ -127,5 +122,5 @@ func (s *sender) get(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
-	return s.send(log, db, from, key, req)
+	return s.send(log, key, req)
 }

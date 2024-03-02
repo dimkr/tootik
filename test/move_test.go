@@ -61,12 +61,14 @@ func TestMove_FederatedToFederated(t *testing.T) {
 	)
 	assert.NoError(err)
 
+	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{})
+
 	mover := outbox.Mover{
 		Domain:   domain,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:    server.Nobody,
+		Resolver: resolver,
+		Key:      server.NobodyKey,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
@@ -108,12 +110,14 @@ func TestMove_FederatedToFederatedTwoAccounts(t *testing.T) {
 	)
 	assert.NoError(err)
 
+	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{})
+
 	mover := outbox.Mover{
 		Domain:   domain,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:    server.Nobody,
+		Resolver: resolver,
+		Key:      server.NobodyKey,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
@@ -155,12 +159,14 @@ func TestMove_FederatedToFederatedNotLinked(t *testing.T) {
 	)
 	assert.NoError(err)
 
+	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{})
+
 	mover := outbox.Mover{
 		Domain:   domain,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:    server.Nobody,
+		Resolver: resolver,
+		Key:      server.NobodyKey,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
@@ -195,12 +201,14 @@ func TestMove_FederatedToLocal(t *testing.T) {
 	)
 	assert.NoError(err)
 
+	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{})
+
 	mover := outbox.Mover{
 		Domain:   domain,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:    server.Nobody,
+		Resolver: resolver,
+		Key:      server.NobodyKey,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
@@ -238,12 +246,14 @@ func TestMove_FederatedToLocalLinked(t *testing.T) {
 	_, err = server.db.Exec(`UPDATE persons SET actor = json_set(actor, '$.alsoKnownAs', $1) WHERE id = $2`, "https://127.0.0.1/user/dan", server.Bob.ID)
 	assert.NoError(err)
 
+	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{})
+
 	mover := outbox.Mover{
 		Domain:   domain,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:    server.Nobody,
+		Resolver: resolver,
+		Key:      server.NobodyKey,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
@@ -295,12 +305,14 @@ func TestMove_FollowingBoth(t *testing.T) {
 	)
 	assert.NoError(err)
 
+	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{})
+
 	mover := outbox.Mover{
 		Domain:   domain,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:    server.Nobody,
+		Resolver: resolver,
+		Key:      server.NobodyKey,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
@@ -348,12 +360,14 @@ func TestMove_LocalToLocal(t *testing.T) {
 	move := server.Handle("/users/move?bob%40localhost.localdomain%3a8443", server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), move)
 
+	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{})
+
 	mover := outbox.Mover{
 		Domain:   domain,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:    server.Nobody,
+		Resolver: resolver,
+		Key:      server.NobodyKey,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
@@ -381,12 +395,14 @@ func TestMove_LocalToLocalNoFollowers(t *testing.T) {
 	move := server.Handle("/users/move?bob%40localhost.localdomain%3a8443", server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), move)
 
+	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{})
+
 	mover := outbox.Mover{
 		Domain:   domain,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:    server.Nobody,
+		Resolver: resolver,
+		Key:      server.NobodyKey,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
@@ -428,12 +444,14 @@ func TestMove_LocalToFederated(t *testing.T) {
 	move := server.Handle("/users/move?alice%40127.0.0.1", server.Alice)
 	assert.Equal("30 /users/outbox/127.0.0.1/user/alice\r\n", move)
 
+	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{})
+
 	mover := outbox.Mover{
 		Domain:   domain,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:    server.Nobody,
+		Resolver: resolver,
+		Key:      server.NobodyKey,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
@@ -538,12 +556,14 @@ func TestMove_LocalToFederatedAlreadyMoved(t *testing.T) {
 	move := server.Handle("/users/move?alice%40127.0.0.1", server.Alice)
 	assert.Equal("30 /users/outbox/127.0.0.1/user/alice\r\n", move)
 
+	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{})
+
 	mover := outbox.Mover{
 		Domain:   domain,
 		Log:      slog.Default(),
 		DB:       server.db,
-		Resolver: fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Actor:    server.Nobody,
+		Resolver: resolver,
+		Key:      server.NobodyKey,
 	}
 	assert.NoError(mover.Run(context.Background()))
 

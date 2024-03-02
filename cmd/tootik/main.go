@@ -174,7 +174,7 @@ func main() {
 		panic(err)
 	}
 
-	nobody, err := user.CreateNobody(ctx, *domain, db)
+	_, nobodyKey, err := user.CreateNobody(ctx, *domain, db)
 	if err != nil {
 		panic(err)
 	}
@@ -196,7 +196,7 @@ func main() {
 				Config:   &cfg,
 				DB:       db,
 				Resolver: resolver,
-				Actor:    nobody,
+				ActorKey: nobodyKey,
 				Log:      log.With("listener", "https"),
 				Addr:     *addr,
 				Cert:     *cert,
@@ -278,7 +278,7 @@ func main() {
 				Log:       log.With("queue", "inbox"),
 				DB:        db,
 				Resolver:  resolver,
-				Actor:     nobody,
+				Key:       nobodyKey,
 			},
 		},
 		{
@@ -326,7 +326,7 @@ func main() {
 				Log:      log.With("job", "mover"),
 				DB:       db,
 				Resolver: resolver,
-				Actor:    nobody,
+				Key:      nobodyKey,
 			},
 		},
 		{
@@ -338,7 +338,7 @@ func main() {
 				Log:      log.With("job", "sync"),
 				DB:       db,
 				Resolver: resolver,
-				Actor:    nobody,
+				Key:      nobodyKey,
 			},
 		},
 		{

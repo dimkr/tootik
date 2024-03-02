@@ -19,6 +19,7 @@ package ap
 import (
 	"context"
 	"database/sql"
+	"github.com/dimkr/tootik/httpsig"
 	"log/slog"
 )
 
@@ -34,6 +35,6 @@ const (
 
 // Resolver retrieves [Actor] objects given their ID.
 type Resolver interface {
-	ResolveID(ctx context.Context, log *slog.Logger, db *sql.DB, from *Actor, id string, flags ResolverFlag) (*Actor, error)
-	Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, from *Actor, host, name string, flags ResolverFlag) (*Actor, error)
+	ResolveID(ctx context.Context, log *slog.Logger, db *sql.DB, key httpsig.Key, id string, flags ResolverFlag) (*Actor, error)
+	Resolve(ctx context.Context, log *slog.Logger, db *sql.DB, key httpsig.Key, host, name string, flags ResolverFlag) (*Actor, error)
 }
