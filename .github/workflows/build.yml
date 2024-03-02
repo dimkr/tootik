@@ -17,7 +17,8 @@ jobs:
       - run: |
           go generate ./migrations
           go vet ./...
-          go run honnef.co/go/tools/cmd/staticcheck ./...
+          (cd /tmp && go install honnef.co/go/tools/cmd/staticcheck@latest)
+          ~/go/bin/staticcheck ./...
           go test ./... -failfast -vet off -tags netgo,sqlite_omit_load_extension,fts5
       - run: go build ./cmd/tootik
       - run: go build -tags netgo,sqlite_omit_load_extension,fts5 -ldflags "-w -s -linkmode external -extldflags -static -X github.com/dimkr/tootik/buildinfo.Version=${{ inputs.version }}" ./cmd/tootik
