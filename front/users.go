@@ -35,7 +35,7 @@ func (h *Handler) users(w text.Writer, r *request, args ...string) {
 		"📻 My Radio",
 		func(offset int) (*sql.Rows, error) {
 			return r.Query(`
-				select object, actor, sharer from
+				select object, actor, sharer, max(inserted) from
 				(
 					select notes.id, notes.object, persons.actor, notes.inserted, null as sharer from
 					follows

@@ -69,7 +69,7 @@ func (h *Handler) showFeedPage(w text.Writer, r *request, title string, query fu
 
 	for rows.Next() {
 		var meta noteMetadata
-		if err := rows.Scan(&meta.Note, &meta.Author, &meta.Sharer); err != nil {
+		if err := rows.Scan(&meta.Note, &meta.Author, &meta.Sharer, &meta.Published); err != nil {
 			r.Log.Warn("Failed to scan post", "error", err)
 			continue
 		}

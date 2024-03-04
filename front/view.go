@@ -63,7 +63,7 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 	var rows *sql.Rows
 	if r.User == nil {
 		rows, err = r.Query(
-			`select replies.object, persons.actor from notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
+			`select replies.object, persons.actor, replies.inserted from notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
 			left join persons on persons.id = replies.author
 			where notes.id = $1 and replies.public = 1
 			order by replies.inserted desc limit $2 offset $3`,
@@ -73,7 +73,7 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 		)
 	} else {
 		rows, err = r.Query(
-			`select replies.object, persons.actor from
+			`select replies.object, persons.actor, replies.inserted from
 			notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
 			left join persons on persons.id = replies.author
 			left join (select id from persons where actor->>'$.type' = 'Group') groups on groups.id = replies.object->>'$.audience'
@@ -96,7 +96,7 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 
 	for rows.Next() {
 		var meta noteMetadata
-		if err := rows.Scan(&meta.Note, &meta.Author); err != nil {
+		if err := rows.Scan(&meta.Note, &meta.Author, &meta.Published); err != nil {
 			r.Log.Warn("Failed to scan reply", "error", err)
 			continue
 		}
@@ -121,9 +121,9 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 		}
 
 		if group.Valid {
-			r.PrintNote(w, &note, &author, &group.V, false, false, true, false)
+			r.PrintNote(w, &note, &author, &group.V, note.Published.Time, false, false, true, false)
 		} else {
-			r.PrintNote(w, &note, &author, nil, false, false, true, false)
+			r.PrintNote(w, &note, &author, nil, note.Published.Time, false, false, true, false)
 		}
 
 		if note.Type == ap.Question && note.VotersCount > 0 && offset == 0 {

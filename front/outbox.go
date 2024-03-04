@@ -55,7 +55,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 	if actor.Type == ap.Group && r.User == nil {
 		// unauthenticated users can only see public posts in a group
 		rows, err = r.Query(
-			`select notes.object, authors.actor, null from notes
+			`select notes.object, authors.actor, null, max(notes.inserted, coalesce(max(replies.inserted), 0)) from notes
 			join persons authors on authors.id = notes.author
 			left join notes replies on replies.object->>'$.inReplyTo' = notes.id
 			where notes.object->>'$.audience' = $1 and notes.public = 1 and notes.object->>'$.inReplyTo' is null and (replies.inserted is null or replies.inserted > unixepoch() - 86400)
@@ -68,7 +68,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 	} else if actor.Type == ap.Group && r.User != nil {
 		// users can see public posts in a group and non-public posts if they follow the group
 		rows, err = r.Query(
-			`select notes.object, authors.actor, null from notes
+			`select notes.object, authors.actor, null, max(notes.inserted, coalesce(max(replies.inserted), 0)) from notes
 			join persons authors on authors.id = notes.author
 			left join notes replies on replies.object->>'$.inReplyTo' = notes.id
 			where
@@ -89,7 +89,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 	} else if r.User == nil {
 		// unauthenticated users can only see public posts
 		rows, err = r.Query(
-			`select object, actor, sharer from (
+			`select object, actor, sharer, max(inserted) from (
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
 				join persons on persons.id = $1
 				where notes.author = $1 and notes.public = 1
@@ -110,7 +110,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 	} else if r.User.ID == actorID {
 		// users can see all their posts
 		rows, err = r.Query(
-			`select object, actor, sharer from (
+			`select object, actor, sharer, max(inserted) from (
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
 				join persons on persons.id = notes.author
 				where notes.author = $1
@@ -130,7 +130,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 	} else {
 		// users can see only public posts by others, posts to followers if following, and DMs
 		rows, err = r.Query(
-			`select object, actor, sharer from (
+			`select object, actor, sharer, max(inserted) from (
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
 				join persons on persons.id = $1
 				where notes.author = $1 and notes.public = 1
@@ -182,7 +182,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 
 	for rows.Next() {
 		var meta noteMetadata
-		if err := rows.Scan(&meta.Note, &meta.Author, &meta.Sharer); err != nil {
+		if err := rows.Scan(&meta.Note, &meta.Author, &meta.Sharer, &meta.Published); err != nil {
 			r.Log.Warn("Failed to scan post", "error", err)
 			continue
 		}

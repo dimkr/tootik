@@ -29,7 +29,7 @@ func (h *Handler) local(w text.Writer, r *request, args ...string) {
 		func(offset int) (*sql.Rows, error) {
 			return r.Query(
 				`
-					select u.object, u.actor, u.sharer from
+					select u.object, u.actor, u.sharer, u.inserted from
 					(
 						select notes.id, notes.author, notes.object, notes.inserted, persons.actor, null as sharer from persons
 						join notes

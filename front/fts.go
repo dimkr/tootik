@@ -58,7 +58,7 @@ func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 	if r.User == nil {
 		rows, err = r.Query(
 			`
-				select notes.object, authors.actor, groups.actor from
+				select notes.object, authors.actor, groups.actor, notes.inserted from
 				notesfts
 				join notes on
 					notes.id = notesfts.id
@@ -80,9 +80,9 @@ func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 	} else {
 		rows, err = r.Query(
 			`
-				select u.object, authors.actor, groups.actor from
+				select u.object, authors.actor, groups.actor, u.inserted from
 				(
-					select notes.id, notes.object, notes.author, rank, 2 as aud from
+					select notes.id, notes.object, notes.author, notes.inserted, rank, 2 as aud from
 					notesfts
 					join notes on
 						notes.id = notesfts.id
@@ -90,7 +90,7 @@ func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 						notes.public = 1 and
 						notesfts.content match $1
 					union
-					select notes.id, notes.object, notes.author, rank, 1 as aud from
+					select notes.id, notes.object, notes.author, notes.inserted, rank, 1 as aud from
 					follows
 					join
 					persons
@@ -110,7 +110,7 @@ func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 						follows.follower = $2 and
 						notesfts.content match $1
 					union
-					select notes.id, notes.object, notes.author, rank, 0 as aud from
+					select notes.id, notes.object, notes.author, notes.inserted, rank, 0 as aud from
 					notesfts
 					join notes on
 						notes.id = notesfts.id
@@ -151,7 +151,7 @@ func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 
 	for rows.Next() {
 		var meta noteMetadata
-		if err := rows.Scan(&meta.Note, &meta.Author, &meta.Sharer); err != nil {
+		if err := rows.Scan(&meta.Note, &meta.Author, &meta.Sharer, &meta.Published); err != nil {
 			r.Log.Warn("Failed to scan search result", "error", err)
 			continue
 		}

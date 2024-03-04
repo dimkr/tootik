@@ -32,9 +32,10 @@ import (
 )
 
 type noteMetadata struct {
-	Note   ap.Object
-	Author sql.Null[ap.Actor]
-	Sharer sql.Null[ap.Actor]
+	Note      ap.Object
+	Author    sql.Null[ap.Actor]
+	Sharer    sql.Null[ap.Actor]
+	Published int64
 }
 
 var verifiedRegex = regexp.MustCompile(`(\s*:[a-zA-Z0-9_]+:\s*)+`)
@@ -133,7 +134,7 @@ func (h *Handler) getActorDisplayName(actor *ap.Actor, log *slog.Logger) string 
 	return h.getDisplayName(actor.ID, userName, name, actor.Type, log)
 }
 
-func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sharer *ap.Actor, compact, printAuthor, printParentAuthor, titleIsLink bool) {
+func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sharer *ap.Actor, published time.Time, compact, printAuthor, printParentAuthor, titleIsLink bool) {
 	if note.AttributedTo == "" {
 		r.Log.Warn("Note has no author", "id", note.ID)
 		return
@@ -213,13 +214,13 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 
 	var title string
 	if printAuthor && sharer == nil {
-		title = fmt.Sprintf("%s %s", note.Published.Format(time.DateOnly), authorDisplayName)
+		title = fmt.Sprintf("%s %s", published.Format(time.DateOnly), authorDisplayName)
 	} else if printAuthor && sharer != nil {
-		title = fmt.Sprintf("%s %s ┃ 🔄 %s", note.Published.Format(time.DateOnly), authorDisplayName, sharer.PreferredUsername)
+		title = fmt.Sprintf("%s %s ┃ 🔄 %s", published.Format(time.DateOnly), authorDisplayName, sharer.PreferredUsername)
 	} else if sharer != nil {
-		title = fmt.Sprintf("%s 🔄 %s", note.Published.Format(time.DateOnly), sharer.PreferredUsername)
+		title = fmt.Sprintf("%s 🔄 %s", published.Format(time.DateOnly), sharer.PreferredUsername)
 	} else {
-		title = note.Published.Format(time.DateOnly)
+		title = published.Format(time.DateOnly)
 	}
 
 	if note.Updated != nil && *note.Updated != (ap.Time{}) {
@@ -455,7 +456,7 @@ func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, noteMet
 			return true
 		}
 
-		currentDay := meta.Note.Published.Unix() / (60 * 60 * 24)
+		currentDay := meta.Published / (60 * 60 * 24)
 
 		if !first && printDaySeparators && currentDay != lastDay {
 			w.Separator()
@@ -464,9 +465,9 @@ func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, noteMet
 		}
 
 		if meta.Sharer.Valid {
-			r.PrintNote(w, &meta.Note, &meta.Author.V, &meta.Sharer.V, true, true, printParentAuthor, true)
+			r.PrintNote(w, &meta.Note, &meta.Author.V, &meta.Sharer.V, time.Unix(meta.Published, 0), true, true, printParentAuthor, true)
 		} else {
-			r.PrintNote(w, &meta.Note, &meta.Author.V, nil, true, true, printParentAuthor, true)
+			r.PrintNote(w, &meta.Note, &meta.Author.V, nil, time.Unix(meta.Published, 0), true, true, printParentAuthor, true)
 		}
 
 		lastDay = currentDay
