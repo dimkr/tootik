@@ -316,8 +316,8 @@ Once inserted into `inbox`, [inbox.Queue](https://pkg.go.dev/github.com/dimkr/to
 * Adds new posts received in `Create` activities to `notes`
 * Edits post in `notes` according to `Update` activities
 * Records `Announce` activities in `shares`
-* Marks follower-followed relationships in `follow` as accepted, when the followed user sends an `Accept` activity
-* Adds a new row to `follow` when a remote user sends a `Follow` activity to a local user
+* Marks a follower-followed relationship in `follows` as accepted, when the followed user sends an `Accept` activity
+* Adds a new row to `follows` when a remote user sends a `Follow` activity to a local user
 * ...
 
 ```
@@ -345,7 +345,7 @@ Once inserted into `inbox`, [inbox.Queue](https://pkg.go.dev/github.com/dimkr/to
                           └──────────────────────────────────────────────────┘
 ```
 
-When a user replies in a thread started by a local user, the received [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) is inserted into `outbox`, so all followers of the local user can see this reply.
+When a remote user replies in a thread started by a local user, the received [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) is inserted into `outbox`, so all followers of the local user can see this reply.
 
 ```
                                             ┌───────────────┐
@@ -373,7 +373,7 @@ When a user replies in a thread started by a local user, the received [Activity]
                              ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
-To display details like the user's name and speed up the verification of incoming replies, [inbox.Queue](https://pkg.go.dev/github.com/dimkr/tootik/inbox#Queue) uses [Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) to fetch the [Actor](https://pkg.go.dev/github.com/dimkr/tootik/ap#Actor) objects of mentioned users (if needed).
+To display details like the user's name and speed up the verification of future incoming replies, [inbox.Queue](https://pkg.go.dev/github.com/dimkr/tootik/inbox#Queue) uses [Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) to fetch the [Actor](https://pkg.go.dev/github.com/dimkr/tootik/ap#Actor) objects of mentioned users (if needed).
 
 ## More Documentation
 
