@@ -81,6 +81,7 @@ tootik is a federated nanoblogging service for the small internet. With tootik, 
 tootik is lightweight, private and accessible social network:
 * Its UI is served over [Gemini](https://geminiprotocol.net/), Gopher, Finger and [Guppy](https://github.com/dimkr/guppy-protocol): there's a wide variety of clients to choose from and some work great on old devices.
 * Rich content is reduced to plain text and links: it's a fast, low-bandwidth UI suitable for screen readers.
+* Anonymity: you authenticate using a TLS client certificate and don't have to share your email address or real name.
 * No promoted content, tracking or analytics: social networking, with the slow and non-commercial vibe of the small internet.
 * It's a single static executable, making it easy to [set up your own instance](https://github.com/dimkr/tootik/wiki/Quick-setup-guide) instead of joining an existing one.
 * All instance data is stored in a single file, a [sqlite](https://sqlite.org/) database that is easy to backup and restore.
@@ -119,142 +120,266 @@ or, to build a static executable:
 
 	go build -tags netgo,sqlite_omit_load_extension,fts5 -ldflags "-linkmode external -extldflags -static" ./cmd/tootik
 
-## Gemini Frontend
+## Architecture
 
-* /local shows a compact list of local posts; each entry contains a link to /view.
-* / is the homepage: it shows an ASCII art logo, a short description of this server and a list of local posts.
-* /federated shows a compact list of federated posts.
-* /hashtag shows a compact list of posts with a given hashtag.
-* /search shows an input prompt and redirects to /hashtag.
-* /hashtags shows a list of popular hashtags.
-* /fts shows an input prompt and performs full-text search in posts.
-* /stats shows statistics and server health metrics.
+```
+┌───────┐ ┌────────┐ ┌─────────┐ ┌─────────┐
+│ notes │ │ shares │ │ persons │ │ follows │
+├───────┤ ├────────┤ ├─────────┤ ├─────────┤
+│object │ │note    │ │actor    │ │follower │
+│author │ │by      │ │...      │ │followed │
+│...    │ │...     │ │         │ │...      │
+└───────┘ └────────┘ └─────────┘ └─────────┘
+```
 
-* /view shows a complete post with extra details like links in the post, a list mentioned users, a list of hashtags, a link to the author's outbox, a list of replies and a link to the parent post (if found).
-* /thread displays a tree of replies in a thread.
-* /outbox shows list of posts by a user.
+Most user-visible data is stored in 4 tables in tootik's database:
+1. `notes`, which contains [Object](https://pkg.go.dev/github.com/dimkr/tootik/ap#Object) objects that represent posts
+2. `shares`, which records "user A shared post B" relationships
+3. `persons`, which contains [Actor](https://pkg.go.dev/github.com/dimkr/tootik/ap#Actor) objects that represent users
+4. `follows`, which records "user A follows user B" relationships
 
-Users are authenticated using TLS client certificates; see [Gemini protocol specification](https://gemini.circumlunar.space/docs/specification.html) for more details. The following pages require authentication:
+`notes.author`, `shares.by`, `follows.follower` and `follows.followed` point to rows in `persons`.
 
-* /users shows posts by followed users, sorted chronologically.
-* /users/mentions is like /users but shows only posts that mention the user.
-* /users/register creates a new user.
-* /users/follows shows a list of followed users, ordered by activity.
-* /users/me redirects the user to their outbox.
-* /users/resolve looks up federated user *user@domain* or local user *user*.
-* /users/dm creates a post visible to mentioned users.
-* /users/whisper creates a post visible to followers.
-* /users/say creates a public post.
-* /users/reply replies to a post.
-* /users/edit edits a post.
-* /users/delete deletes a post.
-* /users/share shares a post.
-* /users/unshare removes a shared post.
-* /users/follow sends a follow request to a user.
-* /users/unfollow deletes a follow request.
-* /users/outbox is equivalent to /outbox but also includes a link to /users/follow or /users/unfollow.
-* /users/bio allows users to edit their bio.
-* /users/name allows users to set their display name.
-* /users/alias allows users to set an account alias, to allow migration of accounts to tootik.
-* /users/move allows users to notify followers of account migration from tootik.
+`shares.note` points to a row in `notes`.
 
-Some clients generate a certificate for / (all pages of this capsule) when /foo requests a client certificate, while others use the certificate requested by /foo only for /foo and /foo/bar. Therefore, pages that don't require authentication are also mirrored under /users:
+```
+┌───────┐ ┌────────┐ ┌─────────┐ ┌─────────┐ ┏━━━━━━━━━┓ ┏━━━━━━━━━┓
+│ notes │ │ shares │ │ persons │ │ follows │ ┃ outbox  ┃ ┃  inbox  ┃
+├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ┣━━━━━━━━━┫ ┣━━━━━━━━━┫
+│object │ │note    │ │actor    │ │follower │ ┃activity ┃ ┃activity ┃
+│author │ │by      │ │...      │ │followed │ ┃sender   ┃ ┃sender   ┃
+│...    │ │...     │ │         │ │...      │ ┃...      ┃ ┃...      ┃
+└───────┘ └────────┘ └─────────┘ └─────────┘ ┗━━━━━━━━━┛ ┗━━━━━━━━━┛
+```
 
-* /users/local
-* /users/federated
-* /users/hashtag
-* /users/hashtags
-* /users/fts
-* /users/stats
-* /users/view
-* /users/thread
+Federation happens through two tables, `inbox` and `outbox`. Both contain [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) objects that represent actions performed by the users in `persons`.
 
-This way, users who prefer not to provide a client certificate when browsing to /x can reply to public posts by using /users/x instead.
+`inbox` contains activities received from other servers, while `outbox` contains activities that need to be sent to users on other servers.
 
-To make the transition to authenticated pages more seamless, links in the user menu at the bottom of each page point to /users/x rather than /x, if the user is authenticated.
+```
+                    ┏━━━━━━━━━━━━━━━━━┓
+                    ┃ gemini.Listener ┃
+                    ┗━━━━━━━━┳━━━━━━━━┛
+                    ┏━━━━━━━━┻━━━━━━━━┓
+                    ┃  front.Handler  ┃
+                    ┗━━━━━┳━━━━━━━━━━━┛
+┌───────┐ ┌────────┐ ┌────┸────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
+│ notes │ │ shares │ │ persons │ │ follows │ │ outbox  │ │  inbox  │
+├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├─────────┤ ├─────────┤
+│object │ │note    │ │actor    │ │follower │ │activity │ │activity │
+│author │ │by      │ │...      │ │followed │ │sender   │ │sender   │
+│...    │ │...     │ │         │ │...      │ │...      │ │...      │
+└───────┘ └────────┘ └────┰────┘ └─────────┘ └─────────┘ └─────────┘
+                  ┏━━━━━━━┻━━━━━━┓
+                  ┃ fed.Resolver ┃
+                  ┗━━━━━━━━━━━━━━┛
+```
 
-All pages follow the [subscription convention](https://gemini.circumlunar.space/docs/companion/subscription.gmi), so users can "subscribe" to a user, a hashtag, posts by followed users or other activity. This way, tootik can act as a personal, curated and prioritized fediverse aggregator. In addition, feeds like /users have separators between days, to interrupt the endless stream of incoming content, make the content consumption more intentional and prevent doomscrolling.
+[gemini.Listener](https://pkg.go.dev/github.com/dimkr/tootik/front/gemini#Listener) is a Gemini server that handles requests through [Handler](https://pkg.go.dev/github.com/dimkr/tootik/front#Handler). It adds rows to `persons` during new user registration and changes rows when users change properties like their display name.
 
-## Authentication
+[Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) is responsible for fetching [Actor](https://pkg.go.dev/github.com/dimkr/tootik/ap#Actor)s that represents users of other servers. The fetched objects are cached in `persons`.
 
-If no client certificate is provided, all pages under /users redirect the client to /users.
+```
+                ┌─────────────────┐
+                │ gemini.Listener │
+                └────────┬────────┘
+                ┌────────┴─────────┐
+    ┏━━━━━━━━━━━┥  front.Handler   │
+    ┃           └┰────────┬───────┰┘
+┌───┸───┐ ┌──────┸─┐ ┌────┴────┐ ┌┸────────┐ ┌─────────┐ ┌─────────┐
+│ notes │ │ shares │ │ persons │ │ follows │ │ outbox  │ │  inbox  │
+├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├─────────┤ ├─────────┤
+│object │ │note    │ │actor    │ │follower │ │activity │ │activity │
+│author │ │by      │ │...      │ │followed │ │sender   │ │sender   │
+│...    │ │...     │ │         │ │...      │ │...      │ │...      │
+└───────┘ └────────┘ └────┬────┘ └─────────┘ └─────────┘ └─────────┘
+                  ┌───────┴──────┐
+                  │ fed.Resolver │
+                  └──────────────┘
+```
 
-/users asks the client to provide a certificate. Well-behaved clients should generate a certificate, re-request /users, then reuse this certificate in future requests of /users and pages under it.
+In addition, Gemini requests can:
+* Add rows to `notes` (new post)
+* Change rows in `notes` (post editing)
+* Add rows to `shares` (user shares a post)
+* Remove rows from `shares` (user no longer shares a post)
+* Add rows to `follows` (user A followed user B)
+* Remove rows from `follows` (user A unfollowed user B)
+* ...
 
-If a certificate is provided but does not belong to any user, the client is redirected to /users/register.
+```
+                ┌─────────────────┐
+                │ gemini.Listener │
+                └────────┬────────┘
+                ┌────────┴─────────┐
+    ┌───────────┤  front.Handler   ┝━━━━━━━━━━━┓
+    │           └┬────────┬───────┬┘           ┃
+┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴────────┐ ┌─┸───────┐ ┌─────────┐
+│ notes │ │ shares │ │ persons │ │ follows │ │ outbox  │ │  inbox  │
+├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├─────────┤ ├─────────┤
+│object │ │note    │ │actor    │ │follower │ │activity │ │activity │
+│author │ │by      │ │...      │ │followed │ │sender   │ │sender   │
+│...    │ │...     │ │         │ │...      │ │...      │ │...      │
+└───────┘ └────────┘ └────┬────┘ └───────┰─┘ └┰────────┘ └─────────┘
+                  ┌───────┴──────┐      ┏┻━━━━┻━━━━━┓
+                  │ fed.Resolver │      ┃ fed.Queue ┃
+                  └──────────────┘      ┗━━━━━━━━━━━┛
+```
 
-By default, the username associated with a client certificate is the common name specified in the certificate. If invalid or already in use by another user, /users/register asks the user to provide a different username. Once the user is registered, the client is redirected back to /users.
+Each user's activity (post creation, post deletion, ...) is recorded as an [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) object written to `outbox`.
 
-Once the client certificate is associated with a user, all pages under /users look up the authenticated user's data using the certificate hash.
+[fed.Queue](https://pkg.go.dev/github.com/dimkr/tootik/fed#Queue) is responsible for sending activities to followers from other servers, if needed.
 
-## Posts
+```
+                                            ┏━━━━━━━━━━━━━━━┓
+                                            ┃ outbox.Mover  ┃
+                ┌─────────────────┐       ┏━┫ outbox.Poller ┃
+                │ gemini.Listener │       ┃ ┃ fed.Syncer    ┃
+                └────────┬────────┘       ┃ ┗━━━┳━━━━━━━━━━━┛
+                ┌────────┴─────────┐      ┃     ┃
+    ┌───────────┤  front.Handler   ├──────╂────┐┃
+    │           └┬────────┬───────┬┘      ┃    │┃
+┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┸┐ ┌─┴┸──────┐ ┌─────────┐
+│ notes │ │ shares │ │ persons │ │ follows │ │ outbox  │ │  inbox  │
+├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├─────────┤ ├─────────┤
+│object │ │note    │ │actor    │ │follower │ │activity │ │activity │
+│author │ │by      │ │...      │ │followed │ │sender   │ │sender   │
+│...    │ │...     │ │         │ │...      │ │...      │ │...      │
+└───────┘ └────────┘ └────┬────┘ └───────┬─┘ └┬────────┘ └─────────┘
+                  ┌───────┴──────┐      ┌┴────┴─────┐
+                  │ fed.Resolver │      │ fed.Queue │
+                  └──────────────┘      └───────────┘
+```
 
-tootik has three kinds of posts:
-* Messages: posts visible to their author and a single recipient
-* Posts: posts visible to followers of a user
-* Public posts: posts visible to anyone
+tootik may perform automatic actions in the name of the user:
+1. Follow the new account and unfollow the old one, if a followed user moved their account
+2. Update poll results for polls published by the user, and send the new results to followers
+3. Handle disagreement between `follows` rows for this user and what other servers know
 
-User A is allowed to send a message to user B only if B follows A.
+```
+                                            ┌───────────────┐
+                                            │ outbox.Mover  │
+                ┌─────────────────┐       ┌─┤ outbox.Poller │
+                │ gemini.Listener │       │ │ fed.Syncer    │
+                └────────┬────────┘       │ └───┬───────────┘
+                ┌────────┴─────────┐      │     │         ┏━━━━━━━━━━━━━━┓
+    ┌───────────┤  front.Handler   ├──────┼────┐│    ┏━━━━┫ fed.Listener ┣━━━┓
+    │           └┬────────┬───────┬┘      │    ││    ┃    ┗━━━┳━━━━━━━━━━┛   ┃
+┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┴┐ ┌─┴┴────┸─┐ ┌────┸────┐         ┃
+│ notes │ │ shares │ │ persons │ │ follows │ │ outbox  │ │  inbox  │         ┃
+├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├─────────┤ ├─────────┤         ┃
+│object │ │note    │ │actor    │ │follower │ │activity │ │activity │         ┃
+│author │ │by      │ │...      │ │followed │ │sender   │ │sender   │         ┃
+│...    │ │...     │ │         │ │...      │ │...      │ │...      │         ┃
+└───────┘ └────────┘ └────┬────┘ └───────┬─┘ └┬────────┘ └─────────┘         ┃
+                  ┌───────┴──────┐      ┌┴────┴─────┐                        ┃
+                  │ fed.Resolver │      │ fed.Queue │                        ┃
+                  └───────┰──────┘      └───────────┘                        ┃
+                          ┃                                                  ┃
+                          ┃                                                  ┃
+                          ┃                                                  ┃
+                          ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+```
 
-### Post Visibility
+Requests from other servers are handled by [fed.Listener](https://pkg.go.dev/github.com/dimkr/tootik/fed#Listener), a HTTP server.
 
-| Post type          | To                 | CC                              |
-|--------------------|--------------------|---------------------------------|
-| To mentioned users | -                  | Mentions                        |
-| To followers       | Author's followers | Mentions                        |
-| To public          | Public             | Mentions and author's followers |
+It uses [Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) to fetch public keys and validate requests, then inserts the received [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) objects into `inbox`.
 
-### Reply Visibility
+In addition, it allows other servers to fetch public activity (like public posts) from `outbox`, so they can fetch some past activity by a newly-followed user.
 
-| Post type       | To          | CC                                   |
-|-----------------|-------------|--------------------------------------|
-| To public       | Post author | Followers of reply author and Public |
-| Everything else | Post author | Post audience                        |
+```
+                                            ┌───────────────┐
+                                            │ outbox.Mover  │
+                ┌─────────────────┐       ┌─┤ outbox.Poller │
+                │ gemini.Listener │       │ │ fed.Syncer    │
+                └────────┬────────┘       │ └───┬───────────┘
+                ┌────────┴─────────┐      │     │         ┌──────────────┐
+    ┌───────────┤  front.Handler   ├──────┼────┐│    ┌────┤ fed.Listener ├───┐
+    │           └┬────────┬───────┬┘      │    ││    │    └───┬──────────┘   │
+┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┴┐ ┌─┴┴────┴─┐ ┌────┴────┐         │
+│ notes │ │ shares │ │ persons │ │ follows │ │ outbox  │ │  inbox  │         │
+├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├─────────┤ ├─────────┤         │
+│object │ │note    │ │actor    │ │follower │ │activity │ │activity │         │
+│author │ │by      │ │...      │ │followed │ │sender   │ │sender   │         │
+│...    │ │...     │ │         │ │...      │ │...      │ │...      │         │
+└───┰───┘ └───┰────┘ └────┬────┘ └────┰──┬─┘ └┬────────┘ └──────┰──┘         │
+    ┃         ┃   ┌───────┴──────┐    ┃ ┌┴────┴─────┐     ┏━━━━━┻━━━━━━━┓    │
+    ┃         ┃   │ fed.Resolver │    ┃ │ fed.Queue │     ┃ inbox.Queue ┃    │
+    ┃         ┃   └───────┬──────┘    ┃ └───────────┘     ┗━┳━┳━┳━━━━━━━┛    │
+    ┃         ┃           │           ┗━━━━━━━━━━━━━━━━━━━━━┛ ┃ ┃            │
+    ┃         ┗━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ ┃            │                                         │
+    ┗━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛            │
+                          └──────────────────────────────────────────────────┘
+```
 
-### Post Editing
+Once inserted into `inbox`, [inbox.Queue](https://pkg.go.dev/github.com/dimkr/tootik/inbox#Queue) processes the received activities:
+* Adds new posts received in `Create` activities to `notes`
+* Edits post in `notes` according to `Update` activities
+* Records `Announce` activities in `shares`
+* Marks follower-followed relationships in `follow` as accepted, when the followed user sends an `Accept` activity
+* Adds a new row to `follow` when a remote user sends a `Follow` activity to a local user
+* ...
 
-/users/edit cannot remove recipients from the post audience, only add more. If a post that mentions only `@a` is edited to mention only `@b`, both `a` and `b` will receive the updated post.
+```
+                                            ┌───────────────┐
+                                            │ outbox.Mover  │
+                ┌─────────────────┐       ┌─┤ outbox.Poller │
+                │ gemini.Listener │       │ │ fed.Syncer    │
+                └────────┬────────┘       │ └───┬───────────┘
+                ┌────────┴─────────┐      │     │         ┌──────────────┐
+    ┌───────────┤  front.Handler   ├──────┼────┐│    ┌────┤ fed.Listener ├───┐
+    │           └┬────────┬───────┬┘      │    ││    │    └───┬──────────┘   │
+┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┴┐ ┌─┴┴────┴─┐ ┌────┴────┐         │
+│ notes │ │ shares │ │ persons │ │ follows │ │ outbox  │ │  inbox  │         │
+├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├─────────┤ ├─────────┤         │
+│object │ │note    │ │actor    │ │follower │ │activity │ │activity │         │
+│author │ │by      │ │...      │ │followed │ │sender   │ │sender   │         │
+│...    │ │...     │ │         │ │...      │ │...      │ │...      │         │
+└───┬───┘ └───┬────┘ └────┬────┘ └────┬──┬─┘ └┬───────┰┘ └──────┬──┘         │
+    │         │   ┌───────┴──────┐    │ ┌┴────┴─────┐ ┃   ┌─────┴───────┐    │
+    │         │   │ fed.Resolver │    │ │ fed.Queue │ ┗━━━┥ inbox.Queue │    │
+    │         │   └───────┬──────┘    │ └───────────┘     └─┬─┬─┬───────┘    │
+    │         │           │           └─────────────────────┘ │ │            │
+    │         └───────────┼───────────────────────────────────┘ │            │                                         │
+    └─────────────────────┼─────────────────────────────────────┘            │
+                          └──────────────────────────────────────────────────┘
+```
 
-### Polls
+When a user replies in a thread started by a local user, the received [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) is inserted into `outbox`, so all followers of the local user can see this reply.
 
-tootik supports [Station](gemini://station.martinrue.com)-style polls. To publish a poll, publish a post in the form:
+```
+                                            ┌───────────────┐
+                                            │ outbox.Mover  │
+                ┌─────────────────┐       ┌─┤ outbox.Poller │
+                │ gemini.Listener │       │ │ fed.Syncer    │
+                └────────┬────────┘       │ └───┬───────────┘
+                ┌────────┴─────────┐      │     │         ┌──────────────┐
+    ┌───────────┤  front.Handler   ├──────┼────┐│    ┌────┤ fed.Listener ├───┐
+    │           └┬────────┬───────┬┘      │    ││    │    └───┬──────────┘   │
+┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┴┐ ┌─┴┴────┴─┐ ┌────┴────┐         │
+│ notes │ │ shares │ │ persons │ │ follows │ │ outbox  │ │  inbox  │         │
+├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├─────────┤ ├─────────┤         │
+│object │ │note    │ │actor    │ │follower │ │activity │ │activity │         │
+│author │ │by      │ │...      │ │followed │ │sender   │ │sender   │         │
+│...    │ │...     │ │         │ │...      │ │...      │ │...      │         │
+└───┬───┘ └───┬────┘ └────┬────┘ └────┬──┬─┘ └┬───────┬┘ └──────┬──┘         │
+    │         │   ┌───────┴──────┐    │ ┌┴────┴─────┐ │   ┌─────┴───────┐    │
+    │         │   │ fed.Resolver │    │ │ fed.Queue │ └───┤ inbox.Queue │    │
+    │         │   └───────┬──┰───┘    │ └───────────┘     └─┬─┬─┬──┰────┘    │
+    │         │           │  ┃        └─────────────────────┘ │ │  ┃         │
+    │         └───────────┼──╂────────────────────────────────┘ │  ┃         │                                         │
+    └─────────────────────┼──╂──────────────────────────────────┘  ┃         │
+                          └──╂─────────────────────────────────────╂─────────┘
+                             ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+```
 
-	[POLL post content] option 1 | option 2 | ...
+To display details like the user's name and speed up the verification of incoming replies, [inbox.Queue](https://pkg.go.dev/github.com/dimkr/tootik/inbox#Queue) uses [Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) to fetch the [Actor](https://pkg.go.dev/github.com/dimkr/tootik/ap#Actor) objects of mentioned users (if needed).
 
-For example:
+## More Documentation
 
-	[POLL Does #tootik support polls now?] Yes | No | I don't know
-
-Polls are multi-choice, allowed to have 2 to 5 options and end after a month.
-
-Poll results are updated every 30m and distributed to other servers if needed.
-
-## Implementation Details
-
-### The Resolver
-
-The resolver is responsible for resolving a user ID (local or federated) into an Actor object that contains the user's information, like the user's display name. Actor objects for federated users are cached in the database and updated once in a while.
-
-This is an expensive but common operation that involves outgoing HTTPS requests. Therefore, to protect underpowered servers against heavy load and a big number of concurrent outgoing requests, the maximum number of outgoing requests is capped, concurrent attempts to resolve the same user are blocked and the resolver is a long-lived object that reuses connections.
-
-### Outbox
-
-Once saved to the "notes" table, new posts can be viewed by local users. However, delivery to federated followers can take time and generate many outgoing requests.
-
-Therefore, user actions are represented as an activity saved to the "outbox" table, accompanied by a delivery attempts counter, creation time and last attempt time. For example, a local post saved to the "notes" table is also accompanied with a Create activity in the "outbox" table. A single worker thread polls the table, prioritizes activities by the number of delivery attempts and the interval between attempts, then tries to deliver each activity to its federated recipients.
-
-### Inbox
-
-The server verifies HTTP signatures of requests to /inbox/%s, using the sender's key. They key is cached to reduce the amount of outgoing requests.
-
-The server must resolve unknown users to display their preferred username, summary text and so on, and a user may send an activity that cannot be displayed unless other users associated with it are resolved, too. Therefore, processing of incoming requests can generate outgoing requests. For example, the server must resolve C when A, who follows B and receives replies to B's posts, receives a reply by C, or a post by B which mentions C. B is guaranteed to be cached because A follow B, but C isn't. Therefore, incoming activities are saved to the "inbox" table and a worker thread processes these queued activities.
-
-## Migrations
-
-To add a migration named `x` and add it to the list of migrations:
-
-	./migrations/add.sh x
-	go generate ./migrations
+* [Frontend](front/README.md)
+* [Migrations](migrations/README.md)
+* [Compatibility](FEDERATION.md)
 
 ## Credits and Legal Information
 
