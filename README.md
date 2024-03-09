@@ -283,9 +283,9 @@ tootik may perform automatic actions in the name of the user:
 
 Requests from other servers are handled by [fed.Listener](https://pkg.go.dev/github.com/dimkr/tootik/fed#Listener), a HTTP server.
 
-It uses [Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) to fetch public keys and validate requests, then inserts the received [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) objects into `inbox`.
+It extracts the signature and key ID from a request using [httpsig.Extract](https://pkg.go.dev/github.com/dimkr/tootik/httpsig#Extract), uses [Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) to fetch the public key if needed, validates the request using [Verify](https://pkg.go.dev/github.com/dimkr/tootik/httpsig#Signature.Verify) and inserts the received [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) object into `inbox`.
 
-In addition, it allows other servers to fetch public activity (like public posts) from `outbox`, so they can fetch some past activity by a newly-followed user.
+In addition, [fed.Listener](https://pkg.go.dev/github.com/dimkr/tootik/fed#Listener) allows other servers to fetch public activity (like public posts) from `outbox`, so they can fetch some past activity by a newly-followed user.
 
 ```
                                             ┌───────────────┐
@@ -307,7 +307,7 @@ In addition, it allows other servers to fetch public activity (like public posts
     ┃         ┃   │ fed.Resolver │    ┃ │ fed.Queue │     ┃ inbox.Queue ┃    │
     ┃         ┃   └───────┬──────┘    ┃ └───────────┘     ┗━┳━┳━┳━━━━━━━┛    │
     ┃         ┃           │           ┗━━━━━━━━━━━━━━━━━━━━━┛ ┃ ┃            │
-    ┃         ┗━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ ┃            │                                         │
+    ┃         ┗━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ ┃            │
     ┗━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛            │
                           └──────────────────────────────────────────────────┘
 ```
@@ -340,7 +340,7 @@ Once inserted into `inbox`, [inbox.Queue](https://pkg.go.dev/github.com/dimkr/to
     │         │   │ fed.Resolver │    │ │ fed.Queue │ ┗━━━┥ inbox.Queue │    │
     │         │   └───────┬──────┘    │ └───────────┘     └─┬─┬─┬───────┘    │
     │         │           │           └─────────────────────┘ │ │            │
-    │         └───────────┼───────────────────────────────────┘ │            │                                         │
+    │         └───────────┼───────────────────────────────────┘ │            │
     └─────────────────────┼─────────────────────────────────────┘            │
                           └──────────────────────────────────────────────────┘
 ```
@@ -367,7 +367,7 @@ When a remote user replies in a thread started by a local user, the received [Ac
     │         │   │ fed.Resolver │    │ │ fed.Queue │ └───┤ inbox.Queue │    │
     │         │   └───────┬──┰───┘    │ └───────────┘     └─┬─┬─┬──┰────┘    │
     │         │           │  ┃        └─────────────────────┘ │ │  ┃         │
-    │         └───────────┼──╂────────────────────────────────┘ │  ┃         │                                         │
+    │         └───────────┼──╂────────────────────────────────┘ │  ┃         │
     └─────────────────────┼──╂──────────────────────────────────┘  ┃         │
                           └──╂─────────────────────────────────────╂─────────┘
                              ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
