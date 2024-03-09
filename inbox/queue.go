@@ -341,10 +341,6 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return errors.New("received invalid Update")
 		}
 
-		if post.Updated != nil && post.Updated.After(time.Now()) {
-			return errors.New("received invalid update time")
-		}
-
 		prefix := fmt.Sprintf("https://%s/", q.Domain)
 		if strings.HasPrefix(post.ID, prefix) {
 			return fmt.Errorf("%s cannot update posts by %s", sender.ID, post.AttributedTo)
