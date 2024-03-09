@@ -203,7 +203,7 @@ func (q *Queue) deliver(ctx context.Context, activity *ap.Activity, rawActivity 
 		}
 
 		var delivered int
-		if err := q.DB.QueryRowContext(ctx, `select exists (select 1 from deliveries where activity = ? and inbox = ?`, activity.ID, inbox).Scan(&delivered); err != nil {
+		if err := q.DB.QueryRowContext(ctx, `select exists (select 1 from deliveries where activity = ? and inbox = ?)`, activity.ID, inbox).Scan(&delivered); err != nil {
 			q.Log.Error("Failed to check if delivered already", "to", actorID, "activity", activity.ID, "inbox", inbox, "error", err)
 			anyFailed = true
 			return false
