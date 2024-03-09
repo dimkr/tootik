@@ -153,20 +153,20 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 				log.Debug("Received delete request for non-existing post", "deleted", deleted)
 				return nil
 			} else if err != nil {
-				return err
+				return fmt.Errorf("failed to delete %s: %w", deleted, err)
 			}
 
 			if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, log, tx, &note, rawActivity); err != nil {
 				return fmt.Errorf("failed to delete %s: %w", deleted, err)
 			}
 
-			if _, err := tx.ExecContext(ctx, `delete from notesfts where id = $1 and exists (select 1 from notes where id = $1 and author = $2)`, deleted, sender.ID); err != nil {
+			if _, err := tx.ExecContext(ctx, `delete from notesfts where id = ?`, deleted); err != nil {
 				return fmt.Errorf("cannot delete %s: %w", deleted, err)
 			}
-			if _, err := tx.ExecContext(ctx, `delete from notes where id = ? and author = ?`, deleted, sender.ID); err != nil {
+			if _, err := tx.ExecContext(ctx, `delete from notes where id = ?`, deleted); err != nil {
 				return fmt.Errorf("cannot delete %s: %w", deleted, err)
 			}
-			if _, err := tx.ExecContext(ctx, `delete from shares where note = $1 and exists (select 1 from notes where id = $1 and author = $2)`, deleted, sender.ID); err != nil {
+			if _, err := tx.ExecContext(ctx, `delete from shares where note = ?`, deleted); err != nil {
 				return fmt.Errorf("cannot delete %s: %w", deleted, err)
 			}
 

@@ -27,22 +27,23 @@ import (
 	"strings"
 )
 
-// a reply by B in a thread started by A is forwarded to all followers of A
-func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, tx *sql.Tx, obj *ap.Object, rawActivity []byte) error {
+// ForwardActivity forwards an activity if needed.
+// A reply by B in a thread started by A is forwarded to all followers of A.
+func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, tx *sql.Tx, note *ap.Object, rawActivity []byte) error {
 	// only replies need to be forwarded
-	if obj.InReplyTo == "" {
+	if note.InReplyTo == "" {
 		return nil
 	}
 
 	// poll votes don't need to be forwarded
-	if obj.Name != "" && obj.Content == "" {
+	if note.Name != "" && note.Content == "" {
 		return nil
 	}
 
 	var firstPostID, threadStarterID string
 	var depth int
-	if err := tx.QueryRowContext(ctx, `with recursive thread(id, author, parent, depth) as (select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, 1 as depth from notes where id = $1 union select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent where t.depth <= $2) select id, author, depth from thread order by depth desc limit 1`, obj.ID, cfg.MaxForwardingDepth+1).Scan(&firstPostID, &threadStarterID, &depth); err != nil && errors.Is(err, sql.ErrNoRows) {
-		log.Debug("Failed to find thread for post", "post", obj.ID)
+	if err := tx.QueryRowContext(ctx, `with recursive thread(id, author, parent, depth) as (select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, 1 as depth from notes where id = $1 union select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent where t.depth <= $2) select id, author, depth from thread order by depth desc limit 1`, note.ID, cfg.MaxForwardingDepth+1).Scan(&firstPostID, &threadStarterID, &depth); err != nil && errors.Is(err, sql.ErrNoRows) {
+		log.Debug("Failed to find thread for post", "note", note.ID)
 		return nil
 	} else if err != nil {
 		return fmt.Errorf("failed to fetch first post in thread: %w", err)
