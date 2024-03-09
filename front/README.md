@@ -85,10 +85,11 @@ tootik has three kinds of posts:
 
 ### Reply Visibility
 
-| Post type       | To          | CC                                   |
-|-----------------|-------------|--------------------------------------|
-| To public       | Post author | Followers of reply author and Public |
-| Everything else | Post author | Post audience                        |
+| Post type       | To                     | CC                                   |
+|-----------------|------------------------|--------------------------------------|
+| Public in To    | Post author and Public | Followers of reply author            |
+| Public in CC    | Post author            | Followers of reply author and Public |
+| Everything else | Post author            | Post audience                        |
 
 ## Post Editing
 
