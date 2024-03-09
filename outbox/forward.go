@@ -69,7 +69,7 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
+		`INSERT OR IGNORE INTO outbox (activity, sender) VALUES(?,?)`,
 		string(rawActivity),
 		threadStarterID,
 	); err != nil {

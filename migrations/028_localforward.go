@@ -10,7 +10,7 @@ func localforward(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE INDEX outboxactivityid ON outbox(activity->>'$.id')`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE UNIQUE INDEX outboxactivityidsender ON outbox(activity->>'$.id', sender)`); err != nil {
 		return err
 	}
 

@@ -18,6 +18,8 @@ package test
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/inbox"
@@ -26,7 +28,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"log/slog"
 	"net/http"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestForward_ReplyToPostByFollower(t *testing.T) {
@@ -887,4 +891,541 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 	var forwarded int
 	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, reply, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(0, forwarded)
+}
+
+func TestForward_ReplyToLocalPostByLocalFollower(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	assert.NoError(
+		outbox.Accept(
+			context.Background(),
+			domain,
+			server.Alice.ID,
+			"https://127.0.0.1/user/dan",
+			"https://localhost.localdomain:8443/follow/1",
+			server.db,
+		),
+	)
+
+	whisper := server.Handle("/users/say?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+
+	_, err := server.db.Exec(
+		`insert into persons (id, actor) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"type":"Person","preferredUsername":"dan"}`,
+	)
+	assert.NoError(err)
+
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Alice", whisper[15:len(whisper)-2]), server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
+
+	var forwarded int
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity->>'type' = 'Create' and activity->>'$.object.id' = 'https://' || ? and sender = ?)`, reply[15:len(reply)-2], server.Alice.ID).Scan(&forwarded))
+	assert.Equal(1, forwarded)
+}
+
+func TestForward_EditedReplyToLocalPostByLocalFollower(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	assert.NoError(
+		outbox.Accept(
+			context.Background(),
+			domain,
+			server.Alice.ID,
+			"https://127.0.0.1/user/dan",
+			"https://localhost.localdomain:8443/follow/1",
+			server.db,
+		),
+	)
+
+	whisper := server.Handle("/users/say?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+
+	_, err := server.db.Exec(
+		`insert into persons (id, actor) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"type":"Person","preferredUsername":"dan"}`,
+	)
+	assert.NoError(err)
+
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Alice", whisper[15:len(whisper)-2]), server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
+
+	id := reply[15 : len(reply)-2]
+
+	server.cfg.EditThrottleUnit = 0
+
+	edit := server.Handle(fmt.Sprintf("/users/edit/%s?Welcome%%20%%40alice", id), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), edit)
+
+	var forwarded int
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity->>'type' = 'Update' and activity->>'$.object.id' = 'https://' || ? and sender = ?)`, id, server.Alice.ID).Scan(&forwarded))
+	assert.Equal(1, forwarded)
+}
+
+func TestForward_DeletedReplyToLocalPostByLocalFollower(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	assert.NoError(
+		outbox.Accept(
+			context.Background(),
+			domain,
+			server.Alice.ID,
+			"https://127.0.0.1/user/dan",
+			"https://localhost.localdomain:8443/follow/1",
+			server.db,
+		),
+	)
+
+	whisper := server.Handle("/users/say?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+
+	_, err := server.db.Exec(
+		`insert into persons (id, actor) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"type":"Person","preferredUsername":"dan"}`,
+	)
+	assert.NoError(err)
+
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Alice", whisper[15:len(whisper)-2]), server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
+
+	id := reply[15 : len(reply)-2]
+
+	server.cfg.EditThrottleUnit = 0
+
+	delete := server.Handle(fmt.Sprintf("/users/delete/%s?Welcome%%20%%40alice", id), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), delete)
+
+	var forwarded int
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity->>'$.type' = 'Delete' and activity->>'$.object.id' = 'https://' || ? and sender = ?)`, id, server.Alice.ID).Scan(&forwarded))
+	assert.Equal(1, forwarded)
+}
+
+func TestForward_EditedReplyToPublicPost(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	assert.NoError(
+		outbox.Accept(
+			context.Background(),
+			domain,
+			server.Alice.ID,
+			"https://127.0.0.1/user/dan",
+			"https://localhost.localdomain:8443/follow/1",
+			server.db,
+		),
+	)
+
+	to := ap.Audience{}
+	to.Add(ap.Public)
+
+	cc := ap.Audience{}
+	cc.Add(server.Alice.Followers)
+
+	tx, err := server.db.BeginTx(context.Background(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
+	assert.NoError(
+		note.Insert(
+			context.Background(),
+			slog.Default(),
+			tx,
+			&ap.Object{
+				ID:           "https://localhost.localdomain:8443/note/1",
+				Type:         ap.Note,
+				AttributedTo: server.Alice.ID,
+				Content:      "hello",
+				To:           to,
+				CC:           cc,
+			},
+		),
+	)
+
+	assert.NoError(tx.Commit())
+
+	_, err = server.db.Exec(
+		`insert into persons (id, actor) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"type":"Person","id":"https://127.0.0.1/user/dan","preferredUsername":"dan"}`,
+	)
+	assert.NoError(err)
+
+	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/1","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
+
+	_, err = server.db.Exec(
+		`insert into inbox (sender, activity) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		reply,
+	)
+	assert.NoError(err)
+
+	queue := inbox.Queue{
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		Log:       slog.Default(),
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Key:       server.NobodyKey,
+	}
+	n, err := queue.ProcessBatch(context.Background())
+	assert.NoError(err)
+	assert.Equal(1, n)
+
+	update, err := json.Marshal(ap.Activity{
+		Context: "https://www.w3.org/ns/activitystreams",
+		ID:      "https://127.0.0.1/update/1",
+		Type:    ap.Update,
+		Actor:   "https://127.0.0.1/user/dan",
+		Object: &ap.Object{
+			ID:           "https://127.0.0.1/note/1",
+			Type:         ap.Note,
+			AttributedTo: "https://127.0.0.1/user/dan",
+			InReplyTo:    "https://localhost.localdomain:8443/note/1",
+			Content:      "bye",
+			Updated:      &ap.Time{Time: time.Now().Add(time.Second)},
+			To:           to,
+			CC:           cc,
+		},
+		To: to,
+		CC: cc,
+	})
+	assert.NoError(err)
+
+	_, err = server.db.Exec(
+		`insert into inbox (sender, activity) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		string(update),
+	)
+	assert.NoError(err)
+
+	n, err = queue.ProcessBatch(context.Background())
+	assert.NoError(err)
+	assert.Equal(1, n)
+
+	var forwarded int
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, string(update), server.Alice.ID).Scan(&forwarded))
+	assert.Equal(1, forwarded)
+}
+
+func TestForward_ResentEditedReplyToPublicPost(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	assert.NoError(
+		outbox.Accept(
+			context.Background(),
+			domain,
+			server.Alice.ID,
+			"https://127.0.0.1/user/dan",
+			"https://localhost.localdomain:8443/follow/1",
+			server.db,
+		),
+	)
+
+	to := ap.Audience{}
+	to.Add(ap.Public)
+
+	cc := ap.Audience{}
+	cc.Add(server.Alice.Followers)
+
+	tx, err := server.db.BeginTx(context.Background(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
+	assert.NoError(
+		note.Insert(
+			context.Background(),
+			slog.Default(),
+			tx,
+			&ap.Object{
+				ID:           "https://localhost.localdomain:8443/note/1",
+				Type:         ap.Note,
+				AttributedTo: server.Alice.ID,
+				Content:      "hello",
+				To:           to,
+				CC:           cc,
+			},
+		),
+	)
+
+	assert.NoError(tx.Commit())
+
+	_, err = server.db.Exec(
+		`insert into persons (id, actor) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"type":"Person","id":"https://127.0.0.1/user/dan","preferredUsername":"dan"}`,
+	)
+	assert.NoError(err)
+
+	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/1","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
+
+	_, err = server.db.Exec(
+		`insert into inbox (sender, activity) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		reply,
+	)
+	assert.NoError(err)
+
+	queue := inbox.Queue{
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		Log:       slog.Default(),
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Key:       server.NobodyKey,
+	}
+	n, err := queue.ProcessBatch(context.Background())
+	assert.NoError(err)
+	assert.Equal(1, n)
+
+	update, err := json.Marshal(ap.Activity{
+		Context: "https://www.w3.org/ns/activitystreams",
+		ID:      "https://127.0.0.1/update/1",
+		Type:    ap.Update,
+		Actor:   "https://127.0.0.1/user/dan",
+		Object: &ap.Object{
+			ID:           "https://127.0.0.1/note/1",
+			Type:         ap.Note,
+			AttributedTo: "https://127.0.0.1/user/dan",
+			InReplyTo:    "https://localhost.localdomain:8443/note/1",
+			Content:      "bye",
+			Updated:      &ap.Time{Time: time.Now().Add(time.Second)},
+			To:           to,
+			CC:           cc,
+		},
+		To: to,
+		CC: cc,
+	})
+	assert.NoError(err)
+
+	_, err = server.db.Exec(
+		`insert into inbox (sender, activity) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		string(update),
+	)
+	assert.NoError(err)
+
+	n, err = queue.ProcessBatch(context.Background())
+	assert.NoError(err)
+	assert.Equal(1, n)
+
+	_, err = server.db.Exec(
+		`insert into inbox (sender, activity) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		string(update),
+	)
+	assert.NoError(err)
+
+	n, err = queue.ProcessBatch(context.Background())
+	assert.NoError(err)
+	assert.Equal(1, n)
+
+	var forwarded int
+	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity = ? and sender = ?`, string(update), server.Alice.ID).Scan(&forwarded))
+	assert.Equal(1, forwarded)
+}
+
+func TestForward_DeletedReplyToPublicPost(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	assert.NoError(
+		outbox.Accept(
+			context.Background(),
+			domain,
+			server.Alice.ID,
+			"https://127.0.0.1/user/dan",
+			"https://localhost.localdomain:8443/follow/1",
+			server.db,
+		),
+	)
+
+	to := ap.Audience{}
+	to.Add(ap.Public)
+
+	cc := ap.Audience{}
+	cc.Add(server.Alice.Followers)
+
+	tx, err := server.db.BeginTx(context.Background(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
+	assert.NoError(
+		note.Insert(
+			context.Background(),
+			slog.Default(),
+			tx,
+			&ap.Object{
+				ID:           "https://localhost.localdomain:8443/note/1",
+				Type:         ap.Note,
+				AttributedTo: server.Alice.ID,
+				Content:      "hello",
+				To:           to,
+				CC:           cc,
+			},
+		),
+	)
+
+	assert.NoError(tx.Commit())
+
+	_, err = server.db.Exec(
+		`insert into persons (id, actor) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"type":"Person","id":"https://127.0.0.1/user/dan","preferredUsername":"dan"}`,
+	)
+	assert.NoError(err)
+
+	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/1","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
+
+	_, err = server.db.Exec(
+		`insert into inbox (sender, activity) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		reply,
+	)
+	assert.NoError(err)
+
+	delete := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/delete/1","type":"Delete","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note"},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
+
+	_, err = server.db.Exec(
+		`insert into inbox (sender, activity) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		delete,
+	)
+	assert.NoError(err)
+
+	queue := inbox.Queue{
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		Log:       slog.Default(),
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Key:       server.NobodyKey,
+	}
+	n, err := queue.ProcessBatch(context.Background())
+	assert.NoError(err)
+	assert.Equal(2, n)
+
+	var forwarded int
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, delete, server.Alice.ID).Scan(&forwarded))
+	assert.Equal(1, forwarded)
+}
+
+func TestForward_DeletedDeletedReplyToPublicPost(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	assert.NoError(
+		outbox.Accept(
+			context.Background(),
+			domain,
+			server.Alice.ID,
+			"https://127.0.0.1/user/dan",
+			"https://localhost.localdomain:8443/follow/1",
+			server.db,
+		),
+	)
+
+	to := ap.Audience{}
+	to.Add(ap.Public)
+
+	cc := ap.Audience{}
+	cc.Add(server.Alice.Followers)
+
+	tx, err := server.db.BeginTx(context.Background(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
+	assert.NoError(
+		note.Insert(
+			context.Background(),
+			slog.Default(),
+			tx,
+			&ap.Object{
+				ID:           "https://localhost.localdomain:8443/note/1",
+				Type:         ap.Note,
+				AttributedTo: server.Alice.ID,
+				Content:      "hello",
+				To:           to,
+				CC:           cc,
+			},
+		),
+	)
+
+	assert.NoError(tx.Commit())
+
+	_, err = server.db.Exec(
+		`insert into persons (id, actor) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"type":"Person","id":"https://127.0.0.1/user/dan","preferredUsername":"dan"}`,
+	)
+	assert.NoError(err)
+
+	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/1","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
+
+	_, err = server.db.Exec(
+		`insert into inbox (sender, activity) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		reply,
+	)
+	assert.NoError(err)
+
+	delete := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/delete/1","type":"Delete","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note"},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
+
+	_, err = server.db.Exec(
+		`insert into inbox (sender, activity) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		delete,
+	)
+	assert.NoError(err)
+
+	queue := inbox.Queue{
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		Log:       slog.Default(),
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Key:       server.NobodyKey,
+	}
+	n, err := queue.ProcessBatch(context.Background())
+	assert.NoError(err)
+	assert.Equal(2, n)
+
+	_, err = server.db.Exec(
+		`insert into inbox (sender, activity) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		delete,
+	)
+	assert.NoError(err)
+
+	n, err = queue.ProcessBatch(context.Background())
+	assert.NoError(err)
+	assert.Equal(1, n)
+
+	var forwarded int
+	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity = ? and sender = ?`, delete, server.Alice.ID).Scan(&forwarded))
+	assert.Equal(1, forwarded)
 }
