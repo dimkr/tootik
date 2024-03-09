@@ -314,6 +314,7 @@ func main() {
 			pollResultsUpdateInterval,
 			&outbox.Poller{
 				Domain: *domain,
+				Config: &cfg,
 				Log:    log.With("job", "poller"),
 				DB:     db,
 			},

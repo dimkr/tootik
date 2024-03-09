@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
@@ -44,7 +45,7 @@ func Create(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 		return ErrDeliveryQueueFull
 	}
 
-	create := ap.Activity{
+	create, err := json.Marshal(ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		Type:    ap.Create,
 		ID:      fmt.Sprintf("https://%s/create/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", post.ID, time.Now().Unix())))),
@@ -52,6 +53,9 @@ func Create(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 		Object:  post,
 		To:      post.To,
 		CC:      post.CC,
+	})
+	if err != nil {
+		return err
 	}
 
 	tx, err := db.BeginTx(ctx, nil)
@@ -64,8 +68,12 @@ func Create(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 		return fmt.Errorf("failed to insert note: %w", err)
 	}
 
-	if _, err = tx.ExecContext(ctx, `insert into outbox (activity, sender) values(?,?)`, &create, author.ID); err != nil {
+	if _, err = tx.ExecContext(ctx, `insert into outbox (activity, sender) values(?,?)`, string(create), author.ID); err != nil {
 		return fmt.Errorf("failed to insert Create: %w", err)
+	}
+
+	if err := ForwardActivity(ctx, domain, cfg, log, tx, post, create); err != nil {
+		return err
 	}
 
 	if err := tx.Commit(); err != nil {

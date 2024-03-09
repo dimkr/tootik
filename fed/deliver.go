@@ -59,7 +59,7 @@ func (q *Queue) Process(ctx context.Context) error {
 func (q *Queue) process(ctx context.Context) error {
 	q.Log.Debug("Polling delivery queue")
 
-	rows, err := q.DB.QueryContext(ctx, `select outbox.attempts, outbox.activity, outbox.activity, outbox.inserted, outbox.received, persons.actor, persons.privkey from outbox join persons on persons.id = outbox.sender where outbox.sent = 0 and (outbox.attempts = 0 or (outbox.attempts < ? and outbox.last <= unixepoch() - ?)) order by outbox.attempts asc, outbox.last asc limit ?`, q.Config.MaxDeliveryAttempts, q.Config.DeliveryRetryInterval, q.Config.DeliveryBatchSize)
+	rows, err := q.DB.QueryContext(ctx, `select outbox.attempts, outbox.activity, outbox.activity, outbox.inserted, persons.actor, persons.privkey from outbox join persons on persons.id = outbox.sender where outbox.sent = 0 and (outbox.attempts = 0 or (outbox.attempts < ? and outbox.last <= unixepoch() - ?)) order by outbox.attempts asc, outbox.last asc limit ?`, q.Config.MaxDeliveryAttempts, q.Config.DeliveryRetryInterval, q.Config.DeliveryBatchSize)
 	if err != nil {
 		return fmt.Errorf("failed to fetch posts to deliver: %w", err)
 	}
@@ -70,9 +70,8 @@ func (q *Queue) process(ctx context.Context) error {
 		var rawActivity, privKeyPem string
 		var actor ap.Actor
 		var inserted int64
-		var recipients ap.Audience
 		var deliveryAttempts int
-		if err := rows.Scan(&deliveryAttempts, &activity, &rawActivity, &inserted, &recipients, &actor, &privKeyPem); err != nil {
+		if err := rows.Scan(&deliveryAttempts, &activity, &rawActivity, &inserted, &actor, &privKeyPem); err != nil {
 			q.Log.Error("Failed to fetch post to deliver", "error", err)
 			continue
 		}
@@ -83,23 +82,17 @@ func (q *Queue) process(ctx context.Context) error {
 			continue
 		}
 
-		if _, err := q.DB.ExecContext(ctx, `update outbox set last = unixepoch(), attempts = ? where activity->>'$.id' = ?`, deliveryAttempts+1, activity.ID); err != nil {
+		if _, err := q.DB.ExecContext(ctx, `update outbox set last = unixepoch(), attempts = ? where activity->>'$.id' = ? and sender = ?`, deliveryAttempts+1, activity.ID, actor.ID); err != nil {
 			q.Log.Error("Failed to save last delivery attempt time", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
 
-		if err := q.deliverWithTimeout(ctx, &activity, []byte(rawActivity), &actor, httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, time.Unix(inserted, 0), &recipients); err != nil {
+		if err := q.deliverWithTimeout(ctx, &activity, []byte(rawActivity), &actor, httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, time.Unix(inserted, 0)); err != nil {
 			q.Log.Warn("Failed to deliver activity", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
-
-			if _, err := q.DB.ExecContext(ctx, `update outbox set received = ? where activity->>'$.id' = ?`, &recipients, activity.ID); err != nil {
-				q.Log.Error("Failed to update delivery progress", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
-				continue
-			}
-
 			continue
 		}
 
-		if _, err := q.DB.ExecContext(ctx, `update outbox set sent = 1, received = ? where activity->>'$.id' = ?`, &recipients, activity.ID); err != nil {
+		if _, err := q.DB.ExecContext(ctx, `update outbox set sent = 1 where activity->>'$.id' = ? and sender = ?`, activity.ID, actor.ID); err != nil {
 			q.Log.Error("Failed to mark delivery as completed", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
@@ -110,13 +103,13 @@ func (q *Queue) process(ctx context.Context) error {
 	return nil
 }
 
-func (q *Queue) deliverWithTimeout(parent context.Context, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, key httpsig.Key, inserted time.Time, sent *ap.Audience) error {
+func (q *Queue) deliverWithTimeout(parent context.Context, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, key httpsig.Key, inserted time.Time) error {
 	ctx, cancel := context.WithTimeout(parent, q.Config.DeliveryTimeout)
 	defer cancel()
-	return q.deliver(ctx, activity, rawActivity, actor, key, inserted, sent)
+	return q.deliver(ctx, activity, rawActivity, actor, key, inserted)
 }
 
-func (q *Queue) deliver(ctx context.Context, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, key httpsig.Key, inserted time.Time, received *ap.Audience) error {
+func (q *Queue) deliver(ctx context.Context, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, key httpsig.Key, inserted time.Time) error {
 	activityID, err := url.Parse(activity.ID)
 	if err != nil {
 		return err
@@ -204,17 +197,24 @@ func (q *Queue) deliver(ctx context.Context, activity *ap.Activity, rawActivity 
 			}
 		}
 
-		if received.Contains(inbox) {
+		if _, ok := sent[inbox]; ok {
 			q.Log.Info("Skipping recipient", "to", actorID, "activity", activity.ID, "inbox", inbox)
 			return true
 		}
 
-		if _, ok := sent[inbox]; ok {
-			q.Log.Info("Skipping recipient with shared inbox", "to", actorID, "activity", activity.ID, "inbox", inbox)
-			return true
+		var delivered int
+		if err := q.DB.QueryRowContext(ctx, `select exists (select 1 from deliveries where activity = ? and inbox = ?`, activity.ID, inbox).Scan(&delivered); err != nil {
+			q.Log.Error("Failed to check if delivered already", "to", actorID, "activity", activity.ID, "inbox", inbox, "error", err)
+			anyFailed = true
+			return false
 		}
 
 		sent[inbox] = struct{}{}
+
+		if delivered == 1 {
+			q.Log.Info("Skipping recipient", "to", actorID, "activity", activity.ID, "inbox", inbox)
+			return true
+		}
 
 		q.Log.Info("Delivering activity to recipient", "to", actorID, "inbox", inbox, "activity", activity.ID)
 
@@ -226,7 +226,12 @@ func (q *Queue) deliver(ctx context.Context, activity *ap.Activity, rawActivity 
 			return true
 		}
 
-		received.Add(inbox)
+		if _, err := q.DB.ExecContext(ctx, `insert into deliveries(activity, inbox) values (?, ?)`, activity.ID, inbox); err != nil {
+			q.Log.Error("Failed to record delivery", "activity", activity.ID, "inbox", inbox, "error", err)
+			anyFailed = true
+			return false
+		}
+
 		return true
 	})
 

@@ -21,12 +21,14 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/cfg"
 	"log/slog"
 	"time"
 )
 
 type Poller struct {
 	Domain string
+	Config *cfg.Config
 	Log    *slog.Logger
 	DB     *sql.DB
 }
@@ -100,7 +102,7 @@ func (p *Poller) Run(ctx context.Context) error {
 
 		p.Log.Info("Updating poll results", "poll", poll.ID)
 
-		if err := UpdateNote(ctx, p.Domain, p.DB, poll); err != nil {
+		if err := UpdateNote(ctx, p.Domain, p.Config, p.Log, p.DB, poll); err != nil {
 			p.Log.Warn("Failed to update poll results", "poll", poll.ID, "error", err)
 		}
 	}

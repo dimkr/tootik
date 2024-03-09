@@ -45,59 +45,6 @@ type Queue struct {
 	Key       httpsig.Key
 }
 
-// a reply by B in a thread started by A is forwarded to all followers of A
-func (q *Queue) forwardActivity(ctx context.Context, log *slog.Logger, tx *sql.Tx, activity *ap.Activity, rawActivity []byte) error {
-	obj, ok := activity.Object.(*ap.Object)
-	if !ok {
-		return nil
-	}
-
-	// poll votes don't need to be forwarded
-	if obj.Name != "" && obj.Content == "" {
-		return nil
-	}
-
-	var firstPostID, threadStarterID string
-	var depth int
-	if err := tx.QueryRowContext(ctx, `with recursive thread(id, author, parent, depth) as (select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, 1 as depth from notes where id = $1 union select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent where t.depth <= $2) select id, author, depth from thread order by depth desc limit 1`, obj.ID, q.Config.MaxForwardingDepth+1).Scan(&firstPostID, &threadStarterID, &depth); err != nil && errors.Is(err, sql.ErrNoRows) {
-		log.Debug("Failed to find thread for post", "post", obj.ID)
-		return nil
-	} else if err != nil {
-		return fmt.Errorf("failed to fetch first post in thread: %w", err)
-	}
-	if depth > q.Config.MaxForwardingDepth {
-		log.Debug("Thread exceeds depth limit for forwarding")
-		return nil
-	}
-
-	prefix := fmt.Sprintf("https://%s/", q.Domain)
-	if !strings.HasPrefix(threadStarterID, prefix) {
-		log.Debug("Thread starter is federated")
-		return nil
-	}
-
-	var shouldForward int
-	if err := tx.QueryRowContext(ctx, `select exists (select 1 from notes join persons on persons.id = notes.author and (notes.public = 1 or exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers') or exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers')) where notes.id = ?)`, firstPostID).Scan(&shouldForward); err != nil {
-		return err
-	}
-	if shouldForward == 0 {
-		log.Debug("Activity does not need to be forwarded")
-		return nil
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
-		string(rawActivity),
-		threadStarterID,
-	); err != nil {
-		return err
-	}
-
-	log.Info("Forwarding activity to followers of thread starter", "thread", firstPostID, "starter", threadStarterID)
-	return nil
-}
-
 func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, req *ap.Activity, rawActivity []byte, post *ap.Object) error {
 	prefix := fmt.Sprintf("https://%s/", q.Domain)
 	if strings.HasPrefix(sender.ID, prefix) || strings.HasPrefix(post.ID, prefix) || strings.HasPrefix(post.AttributedTo, prefix) || strings.HasPrefix(req.Actor, prefix) {
@@ -144,7 +91,7 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 		return fmt.Errorf("cannot insert %s: %w", post.ID, err)
 	}
 
-	if err := q.forwardActivity(ctx, log, tx, req, rawActivity); err != nil {
+	if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, log, tx, post, rawActivity); err != nil {
 		return fmt.Errorf("cannot forward %s: %w", post.ID, err)
 	}
 
@@ -195,14 +142,36 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 				return fmt.Errorf("failed to delete person %s: %w", req.ID, err)
 			}
 		} else {
-			if _, err := q.DB.ExecContext(ctx, `delete from notesfts where id = $1 and exists (select 1 from notes where id = $1 and author = $2)`, deleted, sender.ID); err != nil {
-				return fmt.Errorf("failed to delete posts by %s", req.ID)
+			tx, err := q.DB.BeginTx(ctx, nil)
+			if err != nil {
+				return fmt.Errorf("cannot delete %s: %w", deleted, err)
 			}
-			if _, err := q.DB.ExecContext(ctx, `delete from notes where id = ? and author = ?`, deleted, sender.ID); err != nil {
-				return fmt.Errorf("failed to delete posts by %s", req.ID)
+			defer tx.Rollback()
+
+			var note ap.Object
+			if err := q.DB.QueryRowContext(ctx, `select object from notes where id = ? and author = ?`, deleted, sender.ID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
+				log.Debug("Received delete request for non-existing post", "deleted", deleted)
+				return nil
+			} else if err != nil {
+				return err
 			}
-			if _, err := q.DB.ExecContext(ctx, `delete from shares where note = $1 and exists (select 1 from notes where id = $1 and author = $2)`, deleted, sender.ID); err != nil {
-				return fmt.Errorf("failed to delete posts by %s", req.ID)
+
+			if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, log, tx, &note, rawActivity); err != nil {
+				return fmt.Errorf("failed to delete %s: %w", deleted, err)
+			}
+
+			if _, err := tx.ExecContext(ctx, `delete from notesfts where id = $1 and exists (select 1 from notes where id = $1 and author = $2)`, deleted, sender.ID); err != nil {
+				return fmt.Errorf("cannot delete %s: %w", deleted, err)
+			}
+			if _, err := tx.ExecContext(ctx, `delete from notes where id = ? and author = ?`, deleted, sender.ID); err != nil {
+				return fmt.Errorf("cannot delete %s: %w", deleted, err)
+			}
+			if _, err := tx.ExecContext(ctx, `delete from shares where note = $1 and exists (select 1 from notes where id = $1 and author = $2)`, deleted, sender.ID); err != nil {
+				return fmt.Errorf("cannot delete %s: %w", deleted, err)
+			}
+
+			if err := tx.Commit(); err != nil {
+				return fmt.Errorf("failed to delete %s: %w", deleted, err)
 			}
 		}
 
@@ -372,6 +341,10 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return errors.New("received invalid Update")
 		}
 
+		if post.Updated != nil && post.Updated.After(time.Now()) {
+			return errors.New("received invalid update time")
+		}
+
 		prefix := fmt.Sprintf("https://%s/", q.Domain)
 		if strings.HasPrefix(post.ID, prefix) {
 			return fmt.Errorf("%s cannot update posts by %s", sender.ID, post.AttributedTo)
@@ -434,8 +407,8 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			}
 		}
 
-		if err := q.forwardActivity(ctx, log, tx, req, rawActivity); err != nil {
-			return fmt.Errorf("failed to forward update pos %s: %w", post.ID, err)
+		if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, log, tx, post, rawActivity); err != nil {
+			return fmt.Errorf("failed to forward update post %s: %w", post.ID, err)
 		}
 
 		if err := tx.Commit(); err != nil {
