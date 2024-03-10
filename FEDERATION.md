@@ -46,6 +46,10 @@ tootik [forwards](https://www.w3.org/TR/activitypub/#inbox-forwarding) replies (
 
 tootik does not fetch missing posts to complete threads with "ghost replies".
 
+## Outbox
+
+tootik sets the `outbox` attribute for users, so servers that don't rely on reply forwarding can fetch missing replies. However, this collection only lists public activities.
+
 ## Account Migration
 
 tootik supports [Mastodon's account migration mechanism](https://docs.joinmastodon.org/spec/activitypub/#Move), but ignores `Move` activities. Account migration is handled by a periodic job. If a user follows a federated user with the `movedTo` attribute set and the new account's `alsoKnownAs` attribute points back to the old account, this job sends follow requests to the new user and cancels old ones.
