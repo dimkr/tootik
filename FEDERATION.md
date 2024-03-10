@@ -40,6 +40,12 @@ For compatibility with servers that allow discovery of the Application Actor, th
 
 The `sharedInbox` of other users points to `nobody`'s inbox, to allow wide delivery of posts.
 
+## Forwarding
+
+tootik [forwards](https://www.w3.org/TR/activitypub/#inbox-forwarding) replies (and replies to replies [...], until `MaxForwardingDepth`) to followers of the user who started the thread.
+
+tootik does not fetch missing posts to complete threads with "ghost replies".
+
 ## Account Migration
 
 tootik supports [Mastodon's account migration mechanism](https://docs.joinmastodon.org/spec/activitypub/#Move), but ignores `Move` activities. Account migration is handled by a periodic job. If a user follows a federated user with the `movedTo` attribute set and the new account's `alsoKnownAs` attribute points back to the old account, this job sends follow requests to the new user and cancels old ones.
