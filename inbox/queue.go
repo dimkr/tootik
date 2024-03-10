@@ -113,7 +113,7 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 		return fmt.Errorf("received invalid post ID: %s", post.ID)
 	}
 
-	if q.BlockList.Contains(u.Host) {
+	if q.BlockList != nil && q.BlockList.Contains(u.Host) {
 		return fmt.Errorf("ignoring post %s: %w", post.ID, fed.ErrBlockedDomain)
 	}
 
