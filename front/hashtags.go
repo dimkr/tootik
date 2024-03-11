@@ -53,7 +53,38 @@ func printHashtags(w text.Writer, r *request, title string, tags []string) {
 }
 
 func (h *Handler) hashtags(w text.Writer, r *request, args ...string) {
-	rows, err := r.Query(`select hashtag from (select hashtag, max(inserted)/86400 as last, count(distinct author) as users, count(*) as posts from (select hashtags.hashtag, notes.author, notes.inserted from hashtags join notes on notes.id = hashtags.note join follows on follows.followed = notes.author where follows.accepted = 1 and follows.follower like ? and notes.inserted > unixepoch()-60*60*24*7) group by hashtag) where users > 1 order by users desc, posts desc, last desc limit 30`, fmt.Sprintf("https://%s/%%", h.Domain))
+	rows, err := r.Query(
+		`
+			select hashtag from (
+				select hashtag, max(inserted)/86400 as last, count(distinct author) as authors, count(distinct follower) as followers, count(distinct id) as posts from (
+					select hashtags.hashtag, notes.id, notes.author, notes.inserted, follows.follower from
+					hashtags
+					join notes
+					on
+						notes.id = hashtags.note
+					join follows
+					on
+						follows.followed = notes.author
+					where
+						follows.accepted = 1 and
+						follows.follower like ? and
+						notes.inserted > unixepoch()-60*60*24*7
+				)
+				group by
+					hashtag
+			)
+			where
+				authors > 1 and
+				followers > 1
+			order by
+				followers desc,
+				authors desc,
+				posts desc,
+				last desc
+			limit 30
+		`,
+		fmt.Sprintf("https://%s/%%", h.Domain),
+	)
 	if err != nil {
 		r.Log.Warn("Failed to list hashtags", "error", err)
 		w.Error()
@@ -63,7 +94,28 @@ func (h *Handler) hashtags(w text.Writer, r *request, args ...string) {
 	followed := scanHashtags(r, rows)
 	rows.Close()
 
-	rows, err = r.Query(`select hashtag from (select hashtag, max(inserted)/86400 as last, count(distinct author) as users, count(*) as posts from (select hashtags.hashtag, notes.author, notes.inserted from hashtags join notes on notes.id = hashtags.note where inserted > unixepoch()-60*60*24*7) group by hashtag) where users > 1 order by users desc, posts desc, last desc limit 30`)
+	rows, err = r.Query(
+		`
+			select hashtag from (
+				select hashtag, max(inserted)/86400 as last, count(distinct author) as authors, count(*) as posts from (
+					select hashtags.hashtag, notes.author, notes.inserted from
+					hashtags
+					join notes
+					on
+						notes.id = hashtags.note
+					where
+						inserted > unixepoch()-60*60*24*7
+				)
+				group by
+					hashtag
+			)
+			where
+				authors > 1
+			order by
+				authors desc,
+				posts desc,
+				last desc limit 30
+		`)
 	if err != nil {
 		r.Log.Warn("Failed to list hashtags", "error", err)
 		w.Error()
@@ -73,7 +125,28 @@ func (h *Handler) hashtags(w text.Writer, r *request, args ...string) {
 	all := scanHashtags(r, rows)
 	rows.Close()
 
-	rows, err = r.Query(`select strftime('%Y-%m-%d', datetime(day*86400, 'unixepoch')) || ' #' || hashtag, authors from (select notes.inserted/86400 as day, hashtags.hashtag, count(distinct notes.author) authors from hashtags join notes on notes.id = hashtags.note where inserted > (unixepoch()/86400-6)*86400 group by day, hashtag order by day, authors desc) group by day order by day desc`)
+	rows, err = r.Query(
+		`
+			select strftime('%Y-%m-%d', datetime(day*86400, 'unixepoch')) || ' #' || hashtag, authors from (
+				select notes.inserted/86400 as day, hashtags.hashtag, count(distinct notes.author) authors from
+				hashtags
+				join notes
+				on
+					notes.id = hashtags.note
+				where
+					inserted > (unixepoch()/86400-6)*86400
+				group by
+					day,
+					hashtag
+				order by
+					day,
+					authors desc
+			)
+			group by
+				day
+			order by
+				day desc
+		`)
 	if err != nil {
 		r.Log.Warn("Failed to list hashtags", "error", err)
 		w.Error()
@@ -99,7 +172,7 @@ func (h *Handler) hashtags(w text.Writer, r *request, args ...string) {
 	w.Title("🔥 Hashtags")
 
 	if len(followed) > 0 {
-		printHashtags(w, r, "Most popular hashtags used by users with local followers in the last week:", followed)
+		printHashtags(w, r, "Most popular hashtags used by users with at least 2 local followers, in the last week:", followed)
 	}
 
 	if len(labels) > 0 {
