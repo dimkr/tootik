@@ -219,6 +219,11 @@ func (q *Queue) deliver(ctx context.Context, activity *ap.Activity, rawActivity 
 		q.Log.Info("Delivering activity to recipient", "to", actorID, "inbox", inbox, "activity", activity.ID)
 
 		if err := q.Resolver.post(ctx, q.Log, q.DB, actor, key, followers, inbox, rawActivity); err != nil {
+			if errors.Is(err, ErrLocalInbox) {
+				q.Log.Info("Skipping local recipient", "from", actor.ID, "to", actorID, "activity", activity.ID, "error", err)
+				return true
+			}
+
 			q.Log.Warn("Failed to send an activity", "from", actor.ID, "to", actorID, "activity", activity.ID, "error", err)
 			if !errors.Is(err, ErrBlockedDomain) {
 				anyFailed = true
