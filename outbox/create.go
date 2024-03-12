@@ -37,7 +37,7 @@ var ErrDeliveryQueueFull = errors.New("delivery queue is full")
 // Create queues a Create activity for delivery.
 func Create(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, post *ap.Object, author *ap.Actor) error {
 	var queueSize int
-	if err := db.QueryRowContext(ctx, `select count(*) from outbox where sent = 0 and attempts < ?`, cfg.MaxDeliveryAttempts).Scan(&queueSize); err != nil {
+	if err := db.QueryRowContext(ctx, `select count(distinct activity->'$.id') from outbox where sent = 0 and attempts < ?`, cfg.MaxDeliveryAttempts).Scan(&queueSize); err != nil {
 		return fmt.Errorf("failed to query delivery queue size: %w", err)
 	}
 
