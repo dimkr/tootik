@@ -19,13 +19,16 @@ package outbox
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/cfg"
+	"log/slog"
 )
 
 // Delete queues a Delete activity for delivery.
-func Delete(ctx context.Context, db *sql.DB, note *ap.Object) error {
-	delete := ap.Activity{
+func Delete(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, note *ap.Object) error {
+	delete, err := json.Marshal(ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      note.ID + "#delete",
 		Type:    ap.Delete,
@@ -36,6 +39,9 @@ func Delete(ctx context.Context, db *sql.DB, note *ap.Object) error {
 		},
 		To: note.To,
 		CC: note.CC,
+	})
+	if err != nil {
+		return err
 	}
 
 	tx, err := db.BeginTx(ctx, nil)
@@ -44,10 +50,14 @@ func Delete(ctx context.Context, db *sql.DB, note *ap.Object) error {
 	}
 	defer tx.Rollback()
 
+	if err := ForwardActivity(ctx, domain, cfg, log, tx, note, delete); err != nil {
+		return err
+	}
+
 	// mark this post as sent so recipients who haven't received it yet don't receive it
 	if _, err := tx.ExecContext(
 		ctx,
-		`UPDATE outbox SET sent = 1 WHERE activity->>'$.object.id' = ? and activity->>'$.type' = 'Create'`,
+		`UPDATE outbox SET sent = 1 WHERE activity->>'$.object.id' = ? AND activity->>'$.type' = 'Create'`,
 		note.ID,
 	); err != nil {
 		return fmt.Errorf("failed to insert delete activity: %w", err)
@@ -79,16 +89,8 @@ func Delete(ctx context.Context, db *sql.DB, note *ap.Object) error {
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`DELETE FROM outbox WHERE activity->>'$.object.id' = ?`,
-		note.ID,
-	); err != nil {
-		return fmt.Errorf("failed to delete activities: %w", err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
-		&delete,
+		string(delete),
 		note.AttributedTo,
 	); err != nil {
 		return fmt.Errorf("failed to insert delete activity: %w", err)

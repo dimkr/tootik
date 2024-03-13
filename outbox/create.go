@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
@@ -36,7 +37,7 @@ var ErrDeliveryQueueFull = errors.New("delivery queue is full")
 // Create queues a Create activity for delivery.
 func Create(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, post *ap.Object, author *ap.Actor) error {
 	var queueSize int
-	if err := db.QueryRowContext(ctx, `select count(*) from outbox where sent = 0 and attempts < ?`, cfg.MaxDeliveryAttempts).Scan(&queueSize); err != nil {
+	if err := db.QueryRowContext(ctx, `select count(distinct activity->'$.id') from outbox where sent = 0 and attempts < ?`, cfg.MaxDeliveryAttempts).Scan(&queueSize); err != nil {
 		return fmt.Errorf("failed to query delivery queue size: %w", err)
 	}
 
@@ -44,7 +45,7 @@ func Create(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 		return ErrDeliveryQueueFull
 	}
 
-	create := ap.Activity{
+	create, err := json.Marshal(ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		Type:    ap.Create,
 		ID:      fmt.Sprintf("https://%s/create/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", post.ID, time.Now().Unix())))),
@@ -52,6 +53,9 @@ func Create(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 		Object:  post,
 		To:      post.To,
 		CC:      post.CC,
+	})
+	if err != nil {
+		return err
 	}
 
 	tx, err := db.BeginTx(ctx, nil)
@@ -64,8 +68,12 @@ func Create(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 		return fmt.Errorf("failed to insert note: %w", err)
 	}
 
-	if _, err = tx.ExecContext(ctx, `insert into outbox (activity, sender) values(?,?)`, &create, author.ID); err != nil {
+	if _, err = tx.ExecContext(ctx, `insert into outbox (activity, sender) values(?,?)`, string(create), author.ID); err != nil {
 		return fmt.Errorf("failed to insert Create: %w", err)
+	}
+
+	if err := ForwardActivity(ctx, domain, cfg, log, tx, post, create); err != nil {
+		return err
 	}
 
 	if err := tx.Commit(); err != nil {

@@ -20,17 +20,20 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/cfg"
 	inote "github.com/dimkr/tootik/inbox/note"
+	"log/slog"
 	"time"
 )
 
 // UpdateNote queues an Update activity for delivery.
-func UpdateNote(ctx context.Context, domain string, db *sql.DB, note *ap.Object) error {
+func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, note *ap.Object) error {
 	updateID := fmt.Sprintf("https://%s/update/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", note.ID, time.Now().UnixNano()))))
 
-	update := ap.Activity{
+	update, err := json.Marshal(ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      updateID,
 		Type:    ap.Update,
@@ -38,6 +41,9 @@ func UpdateNote(ctx context.Context, domain string, db *sql.DB, note *ap.Object)
 		Object:  note,
 		To:      note.To,
 		CC:      note.CC,
+	})
+	if err != nil {
+		return err
 	}
 
 	tx, err := db.BeginTx(ctx, nil)
@@ -67,7 +73,7 @@ func UpdateNote(ctx context.Context, domain string, db *sql.DB, note *ap.Object)
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
-		&update,
+		string(update),
 		note.AttributedTo,
 	); err != nil {
 		return fmt.Errorf("failed to insert update activity: %w", err)
@@ -84,6 +90,10 @@ func UpdateNote(ctx context.Context, domain string, db *sql.DB, note *ap.Object)
 		if _, err = tx.ExecContext(ctx, `insert into hashtags (note, hashtag) values(?,?)`, note.ID, hashtag.Name[1:]); err != nil {
 			return fmt.Errorf("failed to insert hashtag: %w", err)
 		}
+	}
+
+	if err := ForwardActivity(ctx, domain, cfg, log, tx, note, update); err != nil {
+		return err
 	}
 
 	if err := tx.Commit(); err != nil {

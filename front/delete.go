@@ -44,7 +44,7 @@ func delete(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	if err := outbox.Delete(r.Context, r.DB, &note); err != nil {
+	if err := outbox.Delete(r.Context, r.Handler.Domain, r.Handler.Config, r.Log, r.DB, &note); err != nil {
 		r.Log.Error("Failed to delete post", "note", note.ID, "error", err)
 		w.Error()
 		return
