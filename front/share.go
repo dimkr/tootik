@@ -29,7 +29,7 @@ func (h *Handler) shouldThrottleShare(r *request) (bool, error) {
 	now := time.Now()
 
 	var today, last sql.NullInt64
-	if err := r.QueryRow(`select count(*), max(inserted) from outbox where activity->>'$.actor' = ? and (activity->>'$.type' = 'Announce' or activity->>'$.type' = 'Undo') and inserted > ?`, r.User.ID, now.Add(-24*time.Hour).Unix()).Scan(&today, &last); err != nil {
+	if err := r.QueryRow(`select count(*), max(inserted) from outbox where activity->>'$.actor' = $1 and sender = $1 and (activity->>'$.type' = 'Announce' or activity->>'$.type' = 'Undo') and inserted > $2`, r.User.ID, now.Add(-24*time.Hour).Unix()).Scan(&today, &last); err != nil {
 		return false, err
 	}
 

@@ -209,8 +209,8 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		w.Title(displayName)
 	}
 
-	if offset == 0 && actor.Icon.URL != "" {
-		w.Link(actor.Icon.URL, "Avatar")
+	if offset == 0 && len(actor.Icon) > 0 && actor.Icon[0].URL != "" {
+		w.Link(actor.Icon[0].URL, "Avatar")
 	}
 
 	if offset == 0 && actor.Image.URL != "" {
@@ -222,7 +222,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 	}
 
 	if len(summary) > 0 {
-		if actor.Icon.URL != "" || actor.Image.URL != "" || actor.MovedTo != "" {
+		if (len(actor.Icon) > 0 && actor.Icon[0].URL != "") || actor.Image.URL != "" || actor.MovedTo != "" {
 			w.Empty()
 		}
 
@@ -239,7 +239,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		})
 	}
 
-	if (offset == 0 && (actor.Icon.URL != "" || actor.Image.URL != "")) || len(summary) > 0 {
+	if (offset == 0 && ((len(actor.Icon) > 0 && actor.Icon[0].URL != "") || actor.Image.URL != "")) || len(summary) > 0 {
 		w.Separator()
 	}
 

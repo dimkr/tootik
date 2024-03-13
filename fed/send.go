@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/buildinfo"
@@ -30,13 +31,16 @@ import (
 	"net/http"
 )
 
-var userAgent = "tootik/" + buildinfo.Version
-
 type sender struct {
 	Domain string
 	Config *cfg.Config
 	client Client
 }
+
+var (
+	userAgent     = "tootik/" + buildinfo.Version
+	ErrLocalInbox = errors.New("local inbox")
+)
 
 func (s *sender) send(log *slog.Logger, key httpsig.Key, req *http.Request) (*http.Response, error) {
 	urlString := req.URL.String()
@@ -86,8 +90,7 @@ func (s *sender) post(ctx context.Context, log *slog.Logger, db *sql.DB, from *a
 	}
 
 	if req.URL.Host == s.Domain {
-		log.Info("Skipping request", "inbox", inbox, "from", from.ID)
-		return nil
+		return ErrLocalInbox
 	}
 
 	req.Header.Set("User-Agent", userAgent)
