@@ -45,7 +45,11 @@ func (h *Handler) reply(w text.Writer, r *request, args ...string) {
 	if note.AttributedTo == r.User.ID {
 		to = note.To
 		cc = note.CC
-	} else if note.IsPublic() {
+	} else if note.To.Contains(ap.Public) {
+		to.Add(note.AttributedTo)
+		to.Add(ap.Public)
+		cc.Add(r.User.Followers)
+	} else if note.CC.Contains(ap.Public) {
 		to.Add(note.AttributedTo)
 		cc.Add(r.User.Followers)
 		cc.Add(ap.Public)
