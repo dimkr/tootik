@@ -138,7 +138,7 @@ Most user-visible data is stored in 4 tables in tootik's database:
 3. `persons`, which contains [Actor](https://pkg.go.dev/github.com/dimkr/tootik/ap#Actor) objects that represent users
 4. `follows`, which records "user A follows user B" relationships
 
-`notes.author`, `shares.by`, `follows.follower` and `follows.followed` point to rows in `persons`.
+`notes.author`, `shares.by`, `follows.follower` and `follows.followed` point to a row in `persons`.
 
 `shares.note` points to a row in `notes`.
 
@@ -154,7 +154,7 @@ Most user-visible data is stored in 4 tables in tootik's database:
 
 Federation happens through two tables, `inbox` and `outbox`. Both contain [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) objects that represent actions performed by the users in `persons`.
 
-`inbox` contains activities received from other servers, while `outbox` contains activities that need to be sent to users on other servers.
+`inbox` contains activities by users on other servers, while `outbox` contains activities of local users.
 
 ```
                     ┏━━━━━━━━━━━━━━━━━┓
@@ -226,7 +226,7 @@ In addition, Gemini requests can:
                   └──────────────┘      ┗━━━━━━━━━━━┛
 ```
 
-Each user's activity (post creation, post deletion, ...) is recorded as an [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) object written to `outbox`.
+Each user action (post creation, post deletion, ...) is recorded as an [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) object written to `outbox`.
 
 [fed.Queue](https://pkg.go.dev/github.com/dimkr/tootik/fed#Queue) is responsible for sending activities to followers from other servers, if needed.
 
