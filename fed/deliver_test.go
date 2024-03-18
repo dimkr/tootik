@@ -541,7 +541,7 @@ func TestDeliver_MaxAttempts(t *testing.T) {
 	assert.NoError(q.process(context.Background()))
 	assert.Empty(client)
 
-	assert.NoError(q.process(context.Background()))
+	assert.Equal(errEmptyBatch, q.process(context.Background()))
 }
 
 func TestDeliver_SharedInbox(t *testing.T) {
