@@ -54,49 +54,55 @@ func (q *Queue) Process(ctx context.Context) error {
 	t := time.NewTicker(q.Config.OutboxPollingInterval)
 	defer t.Stop()
 
-	workerCtx, stopWorkers := context.WithCancel(ctx)
-	var wg sync.WaitGroup
-	defer func() {
-		stopWorkers()
-		wg.Wait()
-	}()
-
-	chs := make([]chan *delivery, 0)
-
-	for i := range q.Config.DeliveryWorkers {
-		ch := make(chan *delivery, q.Config.DeliveryBatchSize)
-
-		wg.Add(1)
-		go func() {
-			q.consume(workerCtx, i, ch)
-			wg.Done()
-		}()
-
-		chs = append(chs, ch)
-	}
-
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 
 		case <-t.C:
-			if err := q.produce(ctx, chs); err != nil {
-				q.Log.Error("Failed to deliver posts", "error", err)
+			for {
+				if n, err := q.process(ctx); err != nil {
+					q.Log.Error("Failed to deliver posts", "error", err)
+					break
+				} else if n == 0 {
+					q.Log.Debug("Nothing to deliver")
+					break
+				}
 			}
 		}
 	}
 }
 
-func (q *Queue) produce(ctx context.Context, chs []chan *delivery) error {
-	q.Log.Debug("Polling delivery queue")
+func (q *Queue) process(ctx context.Context) (int, error) {
+	chs := make([]chan *delivery, 0, q.Config.DeliveryBatchSize)
+	var wg sync.WaitGroup
+
+	defer func() {
+		for _, ch := range chs {
+			close(ch)
+		}
+		wg.Wait()
+	}()
+
+	for i := range q.Config.DeliveryWorkers {
+		ch := make(chan *delivery)
+
+		wg.Add(1)
+		go func() {
+			q.worker(ctx, i, ch)
+			wg.Done()
+		}()
+
+		chs = append(chs, ch)
+	}
 
 	rows, err := q.DB.QueryContext(ctx, `select outbox.attempts, outbox.activity, outbox.activity, outbox.inserted, persons.actor, persons.privkey from outbox join persons on persons.id = outbox.sender where outbox.sent = 0 and (outbox.attempts = 0 or (outbox.attempts < ? and outbox.last <= unixepoch() - ?)) order by outbox.attempts asc, outbox.last asc limit ?`, q.Config.MaxDeliveryAttempts, q.Config.DeliveryRetryInterval, q.Config.DeliveryBatchSize)
 	if err != nil {
-		return fmt.Errorf("failed to fetch posts to deliver: %w", err)
+		return 0, fmt.Errorf("failed to fetch posts to deliver: %w", err)
 	}
 	defer rows.Close()
 
+	n := 0
 	for rows.Next() {
 		var d delivery
 		if err := rows.Scan(&d.Attempts, &d.Activity, &d.RawActivity, &d.Inserted, &d.Actor, &d.PrivKeyPem); err != nil {
@@ -105,18 +111,23 @@ func (q *Queue) produce(ctx context.Context, chs []chan *delivery) error {
 		}
 
 		chs[crc32.ChecksumIEEE([]byte(d.Activity.ID))%uint32(len(chs))] <- &d
+		n++
 	}
 
-	return nil
+	return n, nil
 }
 
-func (q *Queue) consume(ctx context.Context, id int, ch <-chan *delivery) {
+func (q *Queue) worker(ctx context.Context, id int, ch <-chan *delivery) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 
-		case d := <-ch:
+		case d, ok := <-ch:
+			if !ok {
+				return
+			}
+
 			privKey, err := data.ParsePrivateKey(d.PrivKeyPem)
 			if err != nil {
 				q.Log.Error("Failed to parse private key", "worker", id, "error", err)
