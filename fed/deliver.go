@@ -84,8 +84,7 @@ func (q *Queue) process(ctx context.Context) error {
 	chs := make([]chan *delivery, 0, q.Config.DeliveryWorkers)
 
 	for range q.Config.DeliveryWorkers {
-		ch := make(chan *delivery, q.Config.DeliveryBatchSize)
-		chs = append(chs, ch)
+		chs = append(chs, make(chan *delivery, q.Config.DeliveryBatchSize))
 	}
 
 	empty := true
