@@ -49,6 +49,8 @@ type delivery struct {
 	Attempts    int
 }
 
+var errEmptyBatch = errors.New("nothing to deliver")
+
 // Process polls the queue of outgoing activities and delivers them to other servers with timeout and retries.
 func (q *Queue) Process(ctx context.Context) error {
 	t := time.NewTicker(q.Config.OutboxPollingInterval)
@@ -61,11 +63,11 @@ func (q *Queue) Process(ctx context.Context) error {
 
 		case <-t.C:
 			for {
-				if n, err := q.process(ctx); err != nil {
-					q.Log.Error("Failed to deliver posts", "error", err)
-					break
-				} else if n == 0 {
+				if err := q.process(ctx); err == errEmptyBatch {
 					q.Log.Debug("Nothing to deliver")
+					break
+				} else if err != nil {
+					q.Log.Error("Failed to deliver posts", "error", err)
 					break
 				}
 			}
@@ -73,36 +75,20 @@ func (q *Queue) Process(ctx context.Context) error {
 	}
 }
 
-func (q *Queue) process(ctx context.Context) (int, error) {
-	chs := make([]chan *delivery, 0, q.Config.DeliveryBatchSize)
-	var wg sync.WaitGroup
+func (q *Queue) process(ctx context.Context) error {
+	rows, err := q.DB.QueryContext(ctx, `select outbox.attempts, outbox.activity, outbox.activity, outbox.inserted, persons.actor, persons.privkey from outbox join persons on persons.id = outbox.sender where outbox.sent = 0 and (outbox.attempts = 0 or (outbox.attempts < ? and outbox.last <= unixepoch() - ?)) order by outbox.attempts asc, outbox.last asc limit ?`, q.Config.MaxDeliveryAttempts, q.Config.DeliveryRetryInterval, q.Config.DeliveryBatchSize)
+	if err != nil {
+		return fmt.Errorf("failed to fetch posts to deliver: %w", err)
+	}
 
-	defer func() {
-		for _, ch := range chs {
-			close(ch)
-		}
-		wg.Wait()
-	}()
+	chs := make([]chan *delivery, 0, q.Config.DeliveryWorkers)
 
-	for i := range q.Config.DeliveryWorkers {
-		ch := make(chan *delivery)
-
-		wg.Add(1)
-		go func() {
-			q.worker(ctx, i, ch)
-			wg.Done()
-		}()
-
+	for _ = range q.Config.DeliveryWorkers {
+		ch := make(chan *delivery, q.Config.DeliveryBatchSize)
 		chs = append(chs, ch)
 	}
 
-	rows, err := q.DB.QueryContext(ctx, `select outbox.attempts, outbox.activity, outbox.activity, outbox.inserted, persons.actor, persons.privkey from outbox join persons on persons.id = outbox.sender where outbox.sent = 0 and (outbox.attempts = 0 or (outbox.attempts < ? and outbox.last <= unixepoch() - ?)) order by outbox.attempts asc, outbox.last asc limit ?`, q.Config.MaxDeliveryAttempts, q.Config.DeliveryRetryInterval, q.Config.DeliveryBatchSize)
-	if err != nil {
-		return 0, fmt.Errorf("failed to fetch posts to deliver: %w", err)
-	}
-	defer rows.Close()
-
-	n := 0
+	empty := true
 	for rows.Next() {
 		var d delivery
 		if err := rows.Scan(&d.Attempts, &d.Activity, &d.RawActivity, &d.Inserted, &d.Actor, &d.PrivKeyPem); err != nil {
@@ -111,10 +97,29 @@ func (q *Queue) process(ctx context.Context) (int, error) {
 		}
 
 		chs[crc32.ChecksumIEEE([]byte(d.Activity.ID))%uint32(len(chs))] <- &d
-		n++
+		empty = false
 	}
 
-	return n, nil
+	rows.Close()
+
+	if empty {
+		return errEmptyBatch
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(len(chs))
+
+	for i, ch := range chs {
+		close(ch)
+
+		go func() {
+			q.worker(ctx, i, ch)
+			wg.Done()
+		}()
+	}
+
+	wg.Wait()
+	return nil
 }
 
 func (q *Queue) worker(ctx context.Context, id int, ch <-chan *delivery) {
