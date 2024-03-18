@@ -25,8 +25,10 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
+	"hash/crc32"
 	"log/slog"
 	"net/url"
+	"sync"
 	"time"
 )
 
@@ -38,10 +40,40 @@ type Queue struct {
 	Resolver *Resolver
 }
 
+type delivery struct {
+	Activity    ap.Activity
+	RawActivity string
+	PrivKeyPem  string
+	Actor       ap.Actor
+	Inserted    int64
+	Attempts    int
+}
+
 // Process polls the queue of outgoing activities and delivers them to other servers with timeout and retries.
 func (q *Queue) Process(ctx context.Context) error {
 	t := time.NewTicker(q.Config.OutboxPollingInterval)
 	defer t.Stop()
+
+	workerCtx, stopWorkers := context.WithCancel(ctx)
+	var wg sync.WaitGroup
+	defer func() {
+		stopWorkers()
+		wg.Wait()
+	}()
+
+	chs := make([]chan *delivery, 0)
+
+	for i := range q.Config.DeliveryWorkers {
+		ch := make(chan *delivery, q.Config.DeliveryBatchSize)
+
+		wg.Add(1)
+		go func() {
+			q.consume(workerCtx, i, ch)
+			wg.Done()
+		}()
+
+		chs = append(chs, ch)
+	}
 
 	for {
 		select {
@@ -49,14 +81,14 @@ func (q *Queue) Process(ctx context.Context) error {
 			return nil
 
 		case <-t.C:
-			if err := q.process(ctx); err != nil {
+			if err := q.produce(ctx, chs); err != nil {
 				q.Log.Error("Failed to deliver posts", "error", err)
 			}
 		}
 	}
 }
 
-func (q *Queue) process(ctx context.Context) error {
+func (q *Queue) produce(ctx context.Context, chs []chan *delivery) error {
 	q.Log.Debug("Polling delivery queue")
 
 	rows, err := q.DB.QueryContext(ctx, `select outbox.attempts, outbox.activity, outbox.activity, outbox.inserted, persons.actor, persons.privkey from outbox join persons on persons.id = outbox.sender where outbox.sent = 0 and (outbox.attempts = 0 or (outbox.attempts < ? and outbox.last <= unixepoch() - ?)) order by outbox.attempts asc, outbox.last asc limit ?`, q.Config.MaxDeliveryAttempts, q.Config.DeliveryRetryInterval, q.Config.DeliveryBatchSize)
@@ -66,41 +98,49 @@ func (q *Queue) process(ctx context.Context) error {
 	defer rows.Close()
 
 	for rows.Next() {
-		var activity ap.Activity
-		var rawActivity, privKeyPem string
-		var actor ap.Actor
-		var inserted int64
-		var deliveryAttempts int
-		if err := rows.Scan(&deliveryAttempts, &activity, &rawActivity, &inserted, &actor, &privKeyPem); err != nil {
+		var d delivery
+		if err := rows.Scan(&d.Attempts, &d.Activity, &d.RawActivity, &d.Inserted, &d.Actor, &d.PrivKeyPem); err != nil {
 			q.Log.Error("Failed to fetch post to deliver", "error", err)
 			continue
 		}
 
-		privKey, err := data.ParsePrivateKey(privKeyPem)
-		if err != nil {
-			q.Log.Error("Failed to parse private key", "error", err)
-			continue
-		}
-
-		if _, err := q.DB.ExecContext(ctx, `update outbox set last = unixepoch(), attempts = ? where activity->>'$.id' = ? and sender = ?`, deliveryAttempts+1, activity.ID, actor.ID); err != nil {
-			q.Log.Error("Failed to save last delivery attempt time", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
-			continue
-		}
-
-		if err := q.deliverWithTimeout(ctx, &activity, []byte(rawActivity), &actor, httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, time.Unix(inserted, 0)); err != nil {
-			q.Log.Warn("Failed to deliver activity", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
-			continue
-		}
-
-		if _, err := q.DB.ExecContext(ctx, `update outbox set sent = 1 where activity->>'$.id' = ? and sender = ?`, activity.ID, actor.ID); err != nil {
-			q.Log.Error("Failed to mark delivery as completed", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
-			continue
-		}
-
-		q.Log.Info("Successfully delivered an activity", "id", activity.ID, "attempts", deliveryAttempts)
+		chs[crc32.ChecksumIEEE([]byte(d.Activity.ID))%uint32(len(chs))] <- &d
 	}
 
 	return nil
+}
+
+func (q *Queue) consume(ctx context.Context, id int, ch <-chan *delivery) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		case d := <-ch:
+			privKey, err := data.ParsePrivateKey(d.PrivKeyPem)
+			if err != nil {
+				q.Log.Error("Failed to parse private key", "worker", id, "error", err)
+				continue
+			}
+
+			if _, err := q.DB.ExecContext(ctx, `update outbox set last = unixepoch(), attempts = ? where activity->>'$.id' = ? and sender = ?`, d.Attempts+1, d.Activity.ID, d.Actor.ID); err != nil {
+				q.Log.Error("Failed to save last delivery attempt time", "worker", id, "id", d.Activity.ID, "attempts", d.Attempts, "error", err)
+				continue
+			}
+
+			if err := q.deliverWithTimeout(ctx, &d.Activity, []byte(d.RawActivity), &d.Actor, httpsig.Key{ID: d.Actor.PublicKey.ID, PrivateKey: privKey}, time.Unix(d.Inserted, 0)); err != nil {
+				q.Log.Warn("Failed to deliver activity", "worker", id, "id", d.Activity.ID, "attempts", d.Attempts, "error", err)
+				continue
+			}
+
+			if _, err := q.DB.ExecContext(ctx, `update outbox set sent = 1 where activity->>'$.id' = ? and sender = ?`, d.Activity.ID, d.Actor.ID); err != nil {
+				q.Log.Error("Failed to mark delivery as completed", "worker", id, "id", d.Activity.ID, "attempts", d.Attempts, "error", err)
+				continue
+			}
+
+			q.Log.Info("Successfully delivered an activity", "worker", id, "id", d.Activity.ID, "attempts", d.Attempts)
+		}
+	}
 }
 
 func (q *Queue) deliverWithTimeout(parent context.Context, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, key httpsig.Key, inserted time.Time) error {
