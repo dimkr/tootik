@@ -31,7 +31,7 @@ import (
 
 // BlockList is a list of blocked domains.
 type BlockList struct {
-	lock    sync.Mutex
+	lock    sync.RWMutex
 	wg      sync.WaitGroup
 	w       *fsnotify.Watcher
 	domains map[string]struct{}
@@ -137,11 +137,12 @@ func NewBlockList(log *slog.Logger, path string) (*BlockList, error) {
 func (b *BlockList) Contains(domain string) bool {
 	domain = strings.Trim(domain, ".")
 
-	b.lock.Lock()
-	defer b.lock.Unlock()
+	b.lock.RLock()
+	domains := b.domains
+	defer b.lock.RUnlock()
 
 	for {
-		if _, contains := b.domains[domain]; contains {
+		if _, contains := domains[domain]; contains {
 			return true
 		}
 		if i := strings.IndexRune(domain, '.'); i == -1 {

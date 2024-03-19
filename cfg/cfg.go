@@ -17,7 +17,10 @@ limitations under the License.
 // Package cfg defines the tootik configuration file format and defaults.
 package cfg
 
-import "time"
+import (
+	"math"
+	"time"
+)
 
 // Config represents a tootik configuration file.
 type Config struct {
@@ -75,6 +78,7 @@ type Config struct {
 	DeliveryRetryInterval int64
 	MaxDeliveryAttempts   int
 	DeliveryTimeout       time.Duration
+	DeliveryWorkers       int
 
 	OutboxPollingInterval time.Duration
 
@@ -255,6 +259,10 @@ func (c *Config) FillDefaults() {
 
 	if c.DeliveryTimeout <= 0 {
 		c.DeliveryTimeout = time.Minute * 5
+	}
+
+	if c.DeliveryWorkers <= 0 || c.DeliveryWorkers > math.MaxUint32 {
+		c.DeliveryWorkers = 4
 	}
 
 	if c.OutboxPollingInterval <= 0 {
