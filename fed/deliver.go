@@ -82,9 +82,18 @@ func (q *Queue) process(ctx context.Context) error {
 	}
 
 	chs := make([]chan *delivery, 0, q.Config.DeliveryWorkers)
+	var wg sync.WaitGroup
 
-	for range q.Config.DeliveryWorkers {
-		chs = append(chs, make(chan *delivery, q.Config.DeliveryBatchSize))
+	for i := range q.Config.DeliveryWorkers {
+		ch := make(chan *delivery, q.Config.DeliveryBatchSize)
+
+		wg.Add(1)
+		go func() {
+			q.worker(ctx, i, ch)
+			wg.Done()
+		}()
+
+		chs = append(chs, ch)
 	}
 
 	empty := true
@@ -101,23 +110,16 @@ func (q *Queue) process(ctx context.Context) error {
 
 	rows.Close()
 
+	for _, ch := range chs {
+		close(ch)
+	}
+
+	wg.Wait()
+
 	if empty {
 		return errEmptyBatch
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(len(chs))
-
-	for i, ch := range chs {
-		close(ch)
-
-		go func() {
-			q.worker(ctx, i, ch)
-			wg.Done()
-		}()
-	}
-
-	wg.Wait()
 	return nil
 }
 
