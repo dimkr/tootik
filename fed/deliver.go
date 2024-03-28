@@ -277,7 +277,6 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 	var followers *partialFollowers
 	if recipients.Contains(job.Sender.Followers) {
 		followers = &partialFollowers{
-			lock:  semaphore.NewWeighted(1),
 			cache: map[string]string{},
 		}
 	}
