@@ -110,28 +110,14 @@ func (q *Queue) process(ctx context.Context) error {
 					break loop
 				}
 
-				if _, ok := results[job]; ok {
-					continue
-				}
-
 				results[job] = true
 
 			// mark jobs as failed
 			case job := <-failures:
-				if _, ok := results[job]; !ok {
-					continue
-				}
-
-				q.Log.Info("Failed to deliver an activity to at least one recipient", "id", job.Activity.ID)
 				results[job] = false
 			}
 
 			for job := range failures {
-				if _, ok := results[job]; !ok {
-					continue
-				}
-
-				q.Log.Info("Failed to deliver an activity to at least one recipient", "id", job.Activity.ID)
 				results[job] = false
 			}
 		}
@@ -139,6 +125,7 @@ func (q *Queue) process(ctx context.Context) error {
 		// mark successful jobs
 		for job, ok := range results {
 			if !ok {
+				q.Log.Info("Failed to deliver an activity to at least one recipient", "id", job.Activity.ID)
 				continue
 			}
 
