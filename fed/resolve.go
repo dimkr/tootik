@@ -174,7 +174,7 @@ func (r *Resolver) tryResolve(ctx context.Context, log *slog.Logger, db *sql.DB,
 	if !isLocal && flags&ap.Offline == 0 {
 		locked := make(chan struct{}, 1)
 		unlock := make(chan struct{}, 1)
-		unlocked := make(chan struct{})
+		unlocked := make(chan struct{}, 1)
 
 		lock := &r.locks[crc32.ChecksumIEEE([]byte(host+name))%uint32(len(r.locks))]
 		go func() {
