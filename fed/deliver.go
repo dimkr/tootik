@@ -81,21 +81,21 @@ func (q *Queue) process(ctx context.Context) error {
 	defer rows.Close()
 
 	status := make(map[deliveryJob]bool, q.Config.DeliveryBatchSize)
-
 	tasks := make([]chan deliveryTask, 0, q.Config.DeliveryWorkers)
-	for range q.Config.DeliveryWorkers {
-		tasks = append(tasks, make(chan deliveryTask))
-	}
 	failures := make(chan deliveryJob)
-
 	var workers sync.WaitGroup
+	done := make(chan struct{})
 
 	workers.Add(q.Config.DeliveryWorkers)
-	for i := range q.Config.DeliveryWorkers {
+	for range q.Config.DeliveryWorkers {
+		ch := make(chan deliveryTask)
+
 		go func() {
-			q.worker(ctx, tasks[i], failures)
+			q.worker(ctx, ch, failures)
 			workers.Done()
 		}()
+
+		tasks = append(tasks, ch)
 	}
 
 	for rows.Next() {
@@ -134,8 +134,6 @@ func (q *Queue) process(ctx context.Context) error {
 	for _, ch := range tasks {
 		close(ch)
 	}
-
-	done := make(chan struct{})
 
 	go func() {
 		for job := range failures {
