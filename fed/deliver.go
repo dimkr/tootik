@@ -80,7 +80,7 @@ func (q *Queue) process(ctx context.Context) error {
 	}
 	defer rows.Close()
 
-	status := make(map[deliveryJob]bool, q.Config.DeliveryBatchSize)
+	jobs := make(chan deliveryJob)
 	tasks := make([]chan deliveryTask, 0, q.Config.DeliveryWorkers)
 	failures := make(chan deliveryJob)
 	var workers sync.WaitGroup
@@ -99,6 +99,12 @@ func (q *Queue) process(ctx context.Context) error {
 	}
 
 	go func() {
+		status := make(map[deliveryJob]bool, q.Config.DeliveryBatchSize)
+
+		for job := range jobs {
+			status[job] = true
+		}
+
 		for job := range failures {
 			status[job] = false
 		}
@@ -146,13 +152,15 @@ func (q *Queue) process(ctx context.Context) error {
 			Sender:   &actor,
 		}
 
-		status[job] = true
+		jobs <- job
 
 		if err := q.queueTasks(ctx, job, []byte(rawActivity), httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, time.Unix(inserted, 0), tasks, failures); err != nil {
 			q.Log.Warn("Failed to queue activity for delivery", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
 	}
+
+	close(jobs)
 
 	for _, ch := range tasks {
 		close(ch)
