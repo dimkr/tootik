@@ -87,16 +87,16 @@ func (q *Queue) process(ctx context.Context) error {
 
 	events := make(chan deliveryEvent)
 	tasks := make([]chan deliveryTask, 0, q.Config.DeliveryWorkers)
-	var wg sync.WaitGroup
+	var producers, consumers sync.WaitGroup
 	done := make(chan map[deliveryJob]bool)
 
-	wg.Add(q.Config.DeliveryWorkers)
+	consumers.Add(q.Config.DeliveryWorkers)
 	for range q.Config.DeliveryWorkers {
 		ch := make(chan deliveryTask)
 
 		go func() {
-			q.worker(ctx, ch, events)
-			wg.Done()
+			q.consume(ctx, ch, events)
+			consumers.Done()
 		}()
 
 		tasks = append(tasks, ch)
@@ -143,16 +143,23 @@ func (q *Queue) process(ctx context.Context) error {
 		events <- deliveryEvent{job, false}
 
 		// queue tasks for all outgoing requests
-		if err := q.queueTasks(ctx, job, []byte(rawActivity), httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, time.Unix(inserted, 0), tasks, events); err != nil {
-			q.Log.Warn("Failed to queue activity for delivery", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
-		}
+		producers.Add(1)
+		go func() {
+			if err := q.queueTasks(ctx, job, []byte(rawActivity), httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, time.Unix(inserted, 0), tasks, events); err != nil {
+				q.Log.Warn("Failed to queue activity for delivery", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
+			}
+			producers.Done()
+		}()
 	}
+
+	// wait for all tasks to be queued
+	producers.Wait()
 
 	// wait for all tasks to finish
 	for _, ch := range tasks {
 		close(ch)
 	}
-	wg.Wait()
+	consumers.Wait()
 
 	// receive all job results
 	close(events)
@@ -180,7 +187,7 @@ func (q *Queue) deliverWithTimeout(parent context.Context, d deliveryTask) error
 	return q.Resolver.post(ctx, q.Log, q.DB, d.Job.Sender, d.Key, d.Followers, d.Inbox, d.Body)
 }
 
-func (q *Queue) worker(ctx context.Context, requests <-chan deliveryTask, events chan<- deliveryEvent) {
+func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, events chan<- deliveryEvent) {
 	for task := range requests {
 		var delivered int
 		if err := q.DB.QueryRowContext(ctx, `select exists (select 1 from deliveries where activity = ? and inbox = ?)`, task.Job.Activity.ID, task.Inbox).Scan(&delivered); err != nil {
