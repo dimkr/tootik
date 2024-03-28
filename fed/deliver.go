@@ -101,14 +101,40 @@ func (q *Queue) process(ctx context.Context) error {
 	go func() {
 		results := make(map[deliveryJob]bool, q.Config.DeliveryBatchSize)
 
-		// list all jobs
-		for job := range jobs {
-			results[job] = true
-		}
+	loop:
+		for {
+			select {
+			// register unknown jobs
+			case job, ok := <-jobs:
+				if !ok {
+					break loop
+				}
 
-		// mark failed jobs and log failures
-		for job := range failures {
-			if results[job] {
+				if _, ok := results[job]; ok {
+					continue
+				}
+
+				results[job] = true
+
+			// mark jobs as failed
+			case job, ok := <-failures:
+				if !ok {
+					continue
+				}
+
+				if _, ok := results[job]; !ok {
+					continue
+				}
+
+				q.Log.Info("Failed to deliver an activity to at least one recipient", "id", job.Activity.ID)
+				results[job] = false
+			}
+
+			for job := range failures {
+				if _, ok := results[job]; !ok {
+					continue
+				}
+
 				q.Log.Info("Failed to deliver an activity to at least one recipient", "id", job.Activity.ID)
 				results[job] = false
 			}
@@ -161,13 +187,9 @@ func (q *Queue) process(ctx context.Context) error {
 		jobs <- job
 
 		// queue tasks for all outgoing requests
-		wg.Add(1)
-		go func() {
-			if err := q.queueTasks(ctx, job, []byte(rawActivity), httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, time.Unix(inserted, 0), tasks, failures); err != nil {
-				q.Log.Warn("Failed to queue activity for delivery", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
-			}
-			wg.Done()
-		}()
+		if err := q.queueTasks(ctx, job, []byte(rawActivity), httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, time.Unix(inserted, 0), tasks, failures); err != nil {
+			q.Log.Warn("Failed to queue activity for delivery", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
+		}
 	}
 
 	// stop waiting for more jobs
