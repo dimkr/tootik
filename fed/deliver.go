@@ -88,7 +88,7 @@ func (q *Queue) process(ctx context.Context) error {
 	events := make(chan deliveryEvent)
 	tasks := make([]chan deliveryTask, 0, q.Config.DeliveryWorkers)
 	var wg sync.WaitGroup
-	done := make(chan struct{})
+	done := make(chan map[deliveryJob]bool)
 
 	wg.Add(q.Config.DeliveryWorkers)
 	for range q.Config.DeliveryWorkers {
@@ -109,20 +109,7 @@ func (q *Queue) process(ctx context.Context) error {
 			results[event.Job] = event.Done
 		}
 
-		for job, done := range results {
-			if !done {
-				q.Log.Info("Failed to deliver an activity to at least one recipient", "id", job.Activity.ID)
-				continue
-			}
-
-			if _, err := q.DB.ExecContext(ctx, `update outbox set sent = 1 where activity->>'$.id' = ? and sender = ?`, job.Activity.ID, job.Sender.ID); err != nil {
-				q.Log.Error("Failed to mark delivery as completed", "id", job.Activity.ID, "error", err)
-			} else {
-				q.Log.Info("Successfully delivered an activity", "id", job.Activity.ID)
-			}
-		}
-
-		done <- struct{}{}
+		done <- results
 	}()
 
 	for rows.Next() {
@@ -161,17 +148,28 @@ func (q *Queue) process(ctx context.Context) error {
 		}
 	}
 
-	// stop workers once task queues are empty
+	// wait for all tasks to finish
 	for _, ch := range tasks {
 		close(ch)
 	}
-
-	// wait for the workers to empty the queues
 	wg.Wait()
 
-	// wait until job results are handled
+	// receive all job results
 	close(events)
-	<-done
+	results := <-done
+
+	for job, done := range results {
+		if !done {
+			q.Log.Info("Failed to deliver an activity to at least one recipient", "id", job.Activity.ID)
+			continue
+		}
+
+		if _, err := q.DB.ExecContext(ctx, `update outbox set sent = 1 where activity->>'$.id' = ? and sender = ?`, job.Activity.ID, job.Sender.ID); err != nil {
+			q.Log.Error("Failed to mark delivery as completed", "id", job.Activity.ID, "error", err)
+		} else {
+			q.Log.Info("Successfully delivered an activity", "id", job.Activity.ID)
+		}
+	}
 
 	return nil
 }
