@@ -98,6 +98,27 @@ func (q *Queue) process(ctx context.Context) error {
 		tasks = append(tasks, ch)
 	}
 
+	go func() {
+		for job := range failures {
+			status[job] = false
+		}
+
+		for job, ok := range status {
+			if !ok {
+				q.Log.Info("Failed to deliver an activity to at least one recipient", "id", job.Activity.ID)
+				continue
+			}
+
+			if _, err := q.DB.ExecContext(ctx, `update outbox set sent = 1 where activity->>'$.id' = ? and sender = ?`, job.Activity.ID, job.Sender.ID); err != nil {
+				q.Log.Error("Failed to mark delivery as completed", "id", job.Activity.ID, "error", err)
+			} else {
+				q.Log.Info("Successfully delivered an activity", "id", job.Activity.ID)
+			}
+		}
+
+		done <- struct{}{}
+	}()
+
 	for rows.Next() {
 		var activity ap.Activity
 		var rawActivity, privKeyPem string
@@ -136,27 +157,6 @@ func (q *Queue) process(ctx context.Context) error {
 	for _, ch := range tasks {
 		close(ch)
 	}
-
-	go func() {
-		for job := range failures {
-			status[job] = false
-		}
-
-		for job, ok := range status {
-			if !ok {
-				q.Log.Info("Failed to deliver an activity to at least one recipient", "id", job.Activity.ID)
-				continue
-			}
-
-			if _, err := q.DB.ExecContext(ctx, `update outbox set sent = 1 where activity->>'$.id' = ? and sender = ?`, job.Activity.ID, job.Sender.ID); err != nil {
-				q.Log.Error("Failed to mark delivery as completed", "id", job.Activity.ID, "error", err)
-			} else {
-				q.Log.Info("Successfully delivered an activity", "id", job.Activity.ID)
-			}
-		}
-
-		done <- struct{}{}
-	}()
 
 	workers.Wait()
 	close(failures)
