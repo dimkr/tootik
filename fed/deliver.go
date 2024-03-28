@@ -53,6 +53,11 @@ type deliveryTask struct {
 	Body      []byte
 }
 
+type deliveryEvent struct {
+	Job  deliveryJob
+	Done bool
+}
+
 // Process polls the queue of outgoing activities and delivers them to other servers with timeout and retries.
 func (q *Queue) Process(ctx context.Context) error {
 	t := time.NewTicker(q.Config.OutboxPollingInterval)
@@ -80,9 +85,8 @@ func (q *Queue) process(ctx context.Context) error {
 	}
 	defer rows.Close()
 
-	jobs := make(chan deliveryJob)
+	events := make(chan deliveryEvent)
 	tasks := make([]chan deliveryTask, 0, q.Config.DeliveryWorkers)
-	failures := make(chan deliveryJob)
 	var wg sync.WaitGroup
 	done := make(chan struct{})
 
@@ -91,7 +95,7 @@ func (q *Queue) process(ctx context.Context) error {
 		ch := make(chan deliveryTask)
 
 		go func() {
-			q.worker(ctx, ch, failures)
+			q.worker(ctx, ch, events)
 			wg.Done()
 		}()
 
@@ -101,30 +105,12 @@ func (q *Queue) process(ctx context.Context) error {
 	go func() {
 		results := make(map[deliveryJob]bool, q.Config.DeliveryBatchSize)
 
-	loop:
-		for {
-			select {
-			// register unknown jobs
-			case job, ok := <-jobs:
-				if !ok {
-					break loop
-				}
-
-				results[job] = true
-
-			// mark jobs as failed
-			case job := <-failures:
-				results[job] = false
-			}
+		for event := range events {
+			results[event.Job] = event.Done
 		}
 
-		for job := range failures {
-			results[job] = false
-		}
-
-		// mark successful jobs
-		for job, ok := range results {
-			if !ok {
+		for job, done := range results {
+			if !done {
 				q.Log.Info("Failed to deliver an activity to at least one recipient", "id", job.Activity.ID)
 				continue
 			}
@@ -167,16 +153,13 @@ func (q *Queue) process(ctx context.Context) error {
 		}
 
 		// notify about the new job
-		jobs <- job
+		events <- deliveryEvent{job, false}
 
 		// queue tasks for all outgoing requests
-		if err := q.queueTasks(ctx, job, []byte(rawActivity), httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, time.Unix(inserted, 0), tasks, failures); err != nil {
+		if err := q.queueTasks(ctx, job, []byte(rawActivity), httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, time.Unix(inserted, 0), tasks, events); err != nil {
 			q.Log.Warn("Failed to queue activity for delivery", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 		}
 	}
-
-	// stop waiting for more jobs
-	close(jobs)
 
 	// stop workers once task queues are empty
 	for _, ch := range tasks {
@@ -187,7 +170,7 @@ func (q *Queue) process(ctx context.Context) error {
 	wg.Wait()
 
 	// wait until job results are handled
-	close(failures)
+	close(events)
 	<-done
 
 	return nil
@@ -199,12 +182,12 @@ func (q *Queue) deliverWithTimeout(parent context.Context, d deliveryTask) error
 	return q.Resolver.post(ctx, q.Log, q.DB, d.Job.Sender, d.Key, d.Followers, d.Inbox, d.Body)
 }
 
-func (q *Queue) worker(ctx context.Context, requests <-chan deliveryTask, failures chan<- deliveryJob) {
+func (q *Queue) worker(ctx context.Context, requests <-chan deliveryTask, events chan<- deliveryEvent) {
 	for task := range requests {
 		var delivered int
 		if err := q.DB.QueryRowContext(ctx, `select exists (select 1 from deliveries where activity = ? and inbox = ?)`, task.Job.Activity.ID, task.Inbox).Scan(&delivered); err != nil {
 			q.Log.Error("Failed to check if delivered already", "to", task.Inbox, "activity", task.Job.Activity.ID, "error", err)
-			failures <- task.Job
+			events <- deliveryEvent{task.Job, false}
 			continue
 		}
 
@@ -221,7 +204,7 @@ func (q *Queue) worker(ctx context.Context, requests <-chan deliveryTask, failur
 			} else {
 				q.Log.Warn("Failed to send an activity", "from", task.Job.Sender.ID, "to", task.Inbox, "activity", task.Job.Activity.ID, "error", err)
 				if !errors.Is(err, ErrBlockedDomain) {
-					failures <- task.Job
+					events <- deliveryEvent{task.Job, false}
 				}
 			}
 
@@ -230,12 +213,12 @@ func (q *Queue) worker(ctx context.Context, requests <-chan deliveryTask, failur
 
 		if _, err := q.DB.ExecContext(ctx, `insert into deliveries(activity, inbox) values (?, ?)`, task.Job.Activity.ID, task.Inbox); err != nil {
 			q.Log.Error("Failed to record delivery", "activity", task.Job.Activity.ID, "inbox", task.Inbox, "error", err)
-			failures <- task.Job
+			events <- deliveryEvent{task.Job, false}
 		}
 	}
 }
 
-func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []byte, key httpsig.Key, inserted time.Time, tasks []chan deliveryTask, failures chan<- deliveryJob) error {
+func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []byte, key httpsig.Key, inserted time.Time, tasks []chan deliveryTask, events chan<- deliveryEvent) error {
 	activityID, err := url.Parse(job.Activity.ID)
 	if err != nil {
 		return err
@@ -307,7 +290,7 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 		if err != nil {
 			q.Log.Warn("Failed to resolve a recipient", "to", actorID, "activity", job.Activity.ID, "error", err)
 			if !errors.Is(err, ErrActorGone) && !errors.Is(err, ErrBlockedDomain) {
-				failures <- job
+				events <- deliveryEvent{job, false}
 			}
 			return true
 		}
