@@ -116,10 +116,10 @@ func (q *Queue) process(ctx context.Context) error {
 			case job := <-failures:
 				results[job] = false
 			}
+		}
 
-			for job := range failures {
-				results[job] = false
-			}
+		for job := range failures {
+			results[job] = false
 		}
 
 		// mark successful jobs
