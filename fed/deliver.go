@@ -117,11 +117,7 @@ func (q *Queue) process(ctx context.Context) error {
 				results[job] = true
 
 			// mark jobs as failed
-			case job, ok := <-failures:
-				if !ok {
-					continue
-				}
-
+			case job := <-failures:
 				if _, ok := results[job]; !ok {
 					continue
 				}
