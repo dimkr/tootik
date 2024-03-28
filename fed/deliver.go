@@ -83,35 +83,40 @@ func (q *Queue) process(ctx context.Context) error {
 	jobs := make(chan deliveryJob)
 	tasks := make([]chan deliveryTask, 0, q.Config.DeliveryWorkers)
 	failures := make(chan deliveryJob)
-	var workers sync.WaitGroup
+	var wg sync.WaitGroup
 	done := make(chan struct{})
 
-	workers.Add(q.Config.DeliveryWorkers)
+	wg.Add(q.Config.DeliveryWorkers)
 	for range q.Config.DeliveryWorkers {
 		ch := make(chan deliveryTask)
 
 		go func() {
 			q.worker(ctx, ch, failures)
-			workers.Done()
+			wg.Done()
 		}()
 
 		tasks = append(tasks, ch)
 	}
 
 	go func() {
-		status := make(map[deliveryJob]bool, q.Config.DeliveryBatchSize)
+		results := make(map[deliveryJob]bool, q.Config.DeliveryBatchSize)
 
+		// list all jobs
 		for job := range jobs {
-			status[job] = true
+			results[job] = true
 		}
 
+		// mark failed jobs and log failures
 		for job := range failures {
-			status[job] = false
+			if results[job] {
+				q.Log.Info("Failed to deliver an activity to at least one recipient", "id", job.Activity.ID)
+				results[job] = false
+			}
 		}
 
-		for job, ok := range status {
+		// mark successful jobs
+		for job, ok := range results {
 			if !ok {
-				q.Log.Info("Failed to deliver an activity to at least one recipient", "id", job.Activity.ID)
 				continue
 			}
 
@@ -152,21 +157,31 @@ func (q *Queue) process(ctx context.Context) error {
 			Sender:   &actor,
 		}
 
+		// notify about the new job
 		jobs <- job
 
-		if err := q.queueTasks(ctx, job, []byte(rawActivity), httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, time.Unix(inserted, 0), tasks, failures); err != nil {
-			q.Log.Warn("Failed to queue activity for delivery", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
-			continue
-		}
+		// queue tasks for all outgoing requests
+		wg.Add(1)
+		go func() {
+			if err := q.queueTasks(ctx, job, []byte(rawActivity), httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, time.Unix(inserted, 0), tasks, failures); err != nil {
+				q.Log.Warn("Failed to queue activity for delivery", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
+			}
+			wg.Done()
+		}()
 	}
 
+	// stop waiting for more jobs
 	close(jobs)
 
+	// stop workers once task queues are empty
 	for _, ch := range tasks {
 		close(ch)
 	}
 
-	workers.Wait()
+	// wait for the workers to empty the queues
+	wg.Wait()
+
+	// wait until job results are handled
 	close(failures)
 	<-done
 
