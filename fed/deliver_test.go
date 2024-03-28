@@ -49,6 +49,7 @@ func TestDeliver_TwoUsersTwoPosts(t *testing.T) {
 	var cfg cfg.Config
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
+	cfg.DeliveryWorkers = 1
 
 	client := testClient{
 		"https://ip6-allnodes/inbox/dan": testResponse{
@@ -158,6 +159,7 @@ func TestDeliver_ForwardedPost(t *testing.T) {
 	var cfg cfg.Config
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
+	cfg.DeliveryWorkers = 1
 
 	client := testClient{
 		"https://ip6-allnodes/inbox/dan": testResponse{
@@ -256,6 +258,7 @@ func TestDeliver_OneFailed(t *testing.T) {
 	var cfg cfg.Config
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
+	cfg.DeliveryWorkers = 1
 
 	client := testClient{
 		"https://ip6-allnodes/inbox/dan": testResponse{
@@ -365,6 +368,7 @@ func TestDeliver_OneFailedRetry(t *testing.T) {
 	var cfg cfg.Config
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
+	cfg.DeliveryWorkers = 1
 
 	client := testClient{
 		"https://ip6-allnodes/inbox/dan": testResponse{
@@ -463,6 +467,7 @@ func TestDeliver_MaxAttempts(t *testing.T) {
 	var cfg cfg.Config
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
+	cfg.DeliveryWorkers = 1
 
 	client := testClient{
 		"https://ip6-allnodes/inbox/dan": testResponse{
@@ -562,6 +567,7 @@ func TestDeliver_SharedInbox(t *testing.T) {
 	var cfg cfg.Config
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
+	cfg.DeliveryWorkers = 1
 
 	client := testClient{
 		"https://ip6-allnodes/inbox/nobody": testResponse{
@@ -654,6 +660,7 @@ func TestDeliver_SharedInboxRetry(t *testing.T) {
 	var cfg cfg.Config
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
+	cfg.DeliveryWorkers = 1
 
 	client := testClient{
 		"https://ip6-allnodes/inbox/nobody": testResponse{
@@ -760,6 +767,7 @@ func TestDeliver_SharedInboxFailedToResolveRetry(t *testing.T) {
 	var cfg cfg.Config
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
+	cfg.DeliveryWorkers = 1
 
 	client := testClient{
 		"https://ip6-allnodes/inbox/nobody": testResponse{
