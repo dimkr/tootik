@@ -33,11 +33,12 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 )
 
 type partialFollowers struct {
-	lock  sync.Mutex
+	sync.Mutex
 	cache map[string]string
 }
 

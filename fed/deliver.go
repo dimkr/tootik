@@ -25,7 +25,6 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
-	"golang.org/x/sync/semaphore"
 	"hash/crc32"
 	"log/slog"
 	"net/url"
