@@ -25,6 +25,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
+	"golang.org/x/sync/semaphore"
 	"hash/crc32"
 	"log/slog"
 	"net/url"
@@ -48,7 +49,7 @@ type deliveryJob struct {
 type deliveryTask struct {
 	Job       deliveryJob
 	Key       httpsig.Key
-	Followers partialFollowers
+	Followers *partialFollowers
 	Inbox     string
 	Body      []byte
 }
@@ -273,9 +274,12 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 
 	queued := map[string]struct{}{}
 
-	var followers partialFollowers
+	var followers *partialFollowers
 	if recipients.Contains(job.Sender.Followers) {
-		followers = partialFollowers{}
+		followers = &partialFollowers{
+			lock:  semaphore.NewWeighted(1),
+			cache: map[string]string{},
+		}
 	}
 
 	actorIDs.Range(func(actorID string, _ struct{}) bool {

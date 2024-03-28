@@ -49,9 +49,8 @@ func TestDeliver_TwoUsersTwoPosts(t *testing.T) {
 	var cfg cfg.Config
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
-	cfg.DeliveryWorkers = 1
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://ip6-allnodes/inbox/dan": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -64,7 +63,7 @@ func TestDeliver_TwoUsersTwoPosts(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -117,7 +116,7 @@ func TestDeliver_TwoUsersTwoPosts(t *testing.T) {
 	assert.NoError(err)
 
 	assert.NoError(q.process(context.Background()))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/2","type":"Create","actor":"https://localhost.localdomain/user/bob","object":{"id":"https://localhost.localdomain/note/2","type":"Note","attributedTo":"https://localhost.localdomain/user/bob","content":"bye","inReplyTo":"https://localhost.localdomain/note/1","to":["https://localhost.localdomain/user/alice","https://localhost.localdomain/followers/bob"],"cc":[]},"to":["https://localhost.localdomain/user/alice","https://localhost.localdomain/followers/bob"],"cc":[]}`
 
@@ -128,7 +127,7 @@ func TestDeliver_TwoUsersTwoPosts(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	client = testClient{
+	client.Data = map[string]testResponse{
 		"https://ip6-allnodes/inbox/erin": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -138,7 +137,7 @@ func TestDeliver_TwoUsersTwoPosts(t *testing.T) {
 	}
 
 	assert.NoError(q.process(context.Background()))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 }
 
 func TestDeliver_ForwardedPost(t *testing.T) {
@@ -159,9 +158,8 @@ func TestDeliver_ForwardedPost(t *testing.T) {
 	var cfg cfg.Config
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
-	cfg.DeliveryWorkers = 1
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://ip6-allnodes/inbox/dan": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -174,7 +172,7 @@ func TestDeliver_ForwardedPost(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -227,7 +225,7 @@ func TestDeliver_ForwardedPost(t *testing.T) {
 	assert.NoError(err)
 
 	assert.NoError(q.process(context.Background()))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	_, err = db.Exec(
 		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
@@ -237,7 +235,7 @@ func TestDeliver_ForwardedPost(t *testing.T) {
 	assert.NoError(err)
 
 	assert.NoError(q.process(context.Background()))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 }
 
 func TestDeliver_OneFailed(t *testing.T) {
@@ -258,9 +256,8 @@ func TestDeliver_OneFailed(t *testing.T) {
 	var cfg cfg.Config
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
-	cfg.DeliveryWorkers = 1
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://ip6-allnodes/inbox/dan": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusInternalServerError,
@@ -273,7 +270,7 @@ func TestDeliver_OneFailed(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -326,7 +323,7 @@ func TestDeliver_OneFailed(t *testing.T) {
 	assert.NoError(err)
 
 	assert.NoError(q.process(context.Background()))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/2","type":"Create","actor":"https://localhost.localdomain/user/bob","object":{"id":"https://localhost.localdomain/note/2","type":"Note","attributedTo":"https://localhost.localdomain/user/bob","content":"bye","inReplyTo":"https://localhost.localdomain/note/1","to":["https://localhost.localdomain/user/alice","https://localhost.localdomain/followers/bob"],"cc":[]},"to":["https://localhost.localdomain/user/alice","https://localhost.localdomain/followers/bob"],"cc":[]}`
 
@@ -337,7 +334,7 @@ func TestDeliver_OneFailed(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	client = testClient{
+	client.Data = map[string]testResponse{
 		"https://ip6-allnodes/inbox/erin": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -347,7 +344,7 @@ func TestDeliver_OneFailed(t *testing.T) {
 	}
 
 	assert.NoError(q.process(context.Background()))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 }
 
 func TestDeliver_OneFailedRetry(t *testing.T) {
@@ -368,9 +365,8 @@ func TestDeliver_OneFailedRetry(t *testing.T) {
 	var cfg cfg.Config
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
-	cfg.DeliveryWorkers = 1
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://ip6-allnodes/inbox/dan": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusInternalServerError,
@@ -383,7 +379,7 @@ func TestDeliver_OneFailedRetry(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -430,11 +426,11 @@ func TestDeliver_OneFailedRetry(t *testing.T) {
 	assert.NoError(err)
 
 	assert.NoError(q.process(context.Background()))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	cfg.DeliveryRetryInterval = 0
 
-	client = testClient{
+	client.Data = map[string]testResponse{
 		"https://ip6-allnodes/inbox/dan": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -444,7 +440,7 @@ func TestDeliver_OneFailedRetry(t *testing.T) {
 	}
 
 	assert.NoError(q.process(context.Background()))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.NoError(q.process(context.Background()))
 }
@@ -467,9 +463,8 @@ func TestDeliver_MaxAttempts(t *testing.T) {
 	var cfg cfg.Config
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
-	cfg.DeliveryWorkers = 1
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://ip6-allnodes/inbox/dan": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusInternalServerError,
@@ -482,7 +477,7 @@ func TestDeliver_MaxAttempts(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -529,12 +524,12 @@ func TestDeliver_MaxAttempts(t *testing.T) {
 	assert.NoError(err)
 
 	assert.NoError(q.process(context.Background()))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	cfg.DeliveryRetryInterval = 0
 	cfg.MaxDeliveryAttempts = 2
 
-	client = testClient{
+	client.Data = map[string]testResponse{
 		"https://ip6-allnodes/inbox/dan": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusInternalServerError,
@@ -544,7 +539,7 @@ func TestDeliver_MaxAttempts(t *testing.T) {
 	}
 
 	assert.NoError(q.process(context.Background()))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.NoError(q.process(context.Background()))
 }
@@ -567,9 +562,8 @@ func TestDeliver_SharedInbox(t *testing.T) {
 	var cfg cfg.Config
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
-	cfg.DeliveryWorkers = 1
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://ip6-allnodes/inbox/nobody": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -582,7 +576,7 @@ func TestDeliver_SharedInbox(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -639,7 +633,7 @@ func TestDeliver_SharedInbox(t *testing.T) {
 	assert.NoError(err)
 
 	assert.NoError(q.process(context.Background()))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 }
 
 func TestDeliver_SharedInboxRetry(t *testing.T) {
@@ -660,9 +654,8 @@ func TestDeliver_SharedInboxRetry(t *testing.T) {
 	var cfg cfg.Config
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
-	cfg.DeliveryWorkers = 1
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://ip6-allnodes/inbox/nobody": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusInternalServerError,
@@ -675,7 +668,7 @@ func TestDeliver_SharedInboxRetry(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -732,11 +725,11 @@ func TestDeliver_SharedInboxRetry(t *testing.T) {
 	assert.NoError(err)
 
 	assert.NoError(q.process(context.Background()))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	cfg.DeliveryRetryInterval = 0
 
-	client = testClient{
+	client.Data = map[string]testResponse{
 		"https://ip6-allnodes/inbox/nobody": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusInternalServerError,
@@ -746,7 +739,7 @@ func TestDeliver_SharedInboxRetry(t *testing.T) {
 	}
 
 	assert.NoError(q.process(context.Background()))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 }
 
 func TestDeliver_SharedInboxFailedToResolveRetry(t *testing.T) {
@@ -767,9 +760,8 @@ func TestDeliver_SharedInboxFailedToResolveRetry(t *testing.T) {
 	var cfg cfg.Config
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
-	cfg.DeliveryWorkers = 1
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://ip6-allnodes/inbox/nobody": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -788,7 +780,7 @@ func TestDeliver_SharedInboxFailedToResolveRetry(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -838,11 +830,11 @@ func TestDeliver_SharedInboxFailedToResolveRetry(t *testing.T) {
 	assert.NoError(err)
 
 	assert.NoError(q.process(context.Background()))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	cfg.DeliveryRetryInterval = 0
 
-	client = testClient{
+	client.Data = map[string]testResponse{
 		"https://ip6-allnodes/.well-known/webfinger?resource=acct:erin@ip6-allnodes": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -876,5 +868,5 @@ func TestDeliver_SharedInboxFailedToResolveRetry(t *testing.T) {
 	}
 
 	assert.NoError(q.process(context.Background()))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 }

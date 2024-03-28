@@ -27,6 +27,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/outbox"
+	"golang.org/x/sync/semaphore"
 	"io"
 	"log/slog"
 	"net/http"
@@ -36,7 +37,10 @@ import (
 	"time"
 )
 
-type partialFollowers map[string]string
+type partialFollowers struct {
+	lock  *semaphore.Weighted
+	cache map[string]string
+}
 
 type Syncer struct {
 	Domain   string
@@ -98,7 +102,12 @@ func digestFollowers(ctx context.Context, db *sql.DB, followed, host string) (st
 }
 
 func (f partialFollowers) Digest(ctx context.Context, db *sql.DB, domain string, actor *ap.Actor, req *http.Request) error {
-	if header, ok := f[req.URL.Host]; ok && header != "" {
+	if err := f.lock.Acquire(ctx, 1); err != nil {
+		return err
+	}
+	defer f.lock.Release(1)
+
+	if header, ok := f.cache[req.URL.Host]; ok && header != "" {
 		req.Header.Set("Collection-Synchronization", header)
 		return nil
 	}
@@ -109,7 +118,7 @@ func (f partialFollowers) Digest(ctx context.Context, db *sql.DB, domain string,
 	}
 
 	header := fmt.Sprintf(`collectionId="%s", url="https://%s/followers_synchronization/%s", digest="%s"`, actor.Followers, domain, actor.PreferredUsername, digest)
-	f[req.URL.Host] = header
+	f.cache[req.URL.Host] = header
 	req.Header.Set("Collection-Synchronization", header)
 	return nil
 }

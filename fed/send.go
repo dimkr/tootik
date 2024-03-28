@@ -79,7 +79,7 @@ func (s *sender) send(log *slog.Logger, key httpsig.Key, req *http.Request) (*ht
 }
 
 // post sends a signed request to actor's inbox.
-func (s *sender) post(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, key httpsig.Key, followers partialFollowers, inbox string, body []byte) error {
+func (s *sender) post(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, key httpsig.Key, followers *partialFollowers, inbox string, body []byte) error {
 	if inbox == "" {
 		return fmt.Errorf("cannot send request to %s: empty URL", inbox)
 	}
