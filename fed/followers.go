@@ -101,7 +101,7 @@ func digestFollowers(ctx context.Context, db *sql.DB, followed, host string) (st
 	return fmt.Sprintf("%x", digest), nil
 }
 
-func (f partialFollowers) Digest(ctx context.Context, db *sql.DB, domain string, actor *ap.Actor, req *http.Request) error {
+func (f *partialFollowers) Digest(ctx context.Context, db *sql.DB, domain string, actor *ap.Actor, req *http.Request) error {
 	f.Lock()
 	defer f.Unlock()
 
