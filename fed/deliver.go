@@ -120,12 +120,14 @@ func (q *Queue) process(ctx context.Context) error {
 			continue
 		}
 
-		status[deliveryJob{
+		job := deliveryJob{
 			Activity: &activity,
 			Sender:   &actor,
-		}] = true
+		}
 
-		if err := q.queueDeliveries(ctx, &activity, []byte(rawActivity), &actor, httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, time.Unix(inserted, 0), tasks, failures); err != nil {
+		status[job] = true
+
+		if err := q.queueTasks(ctx, job, []byte(rawActivity), httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, time.Unix(inserted, 0), tasks, failures); err != nil {
 			q.Log.Warn("Failed to queue activity for delivery", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
@@ -205,8 +207,8 @@ func (q *Queue) worker(ctx context.Context, requests <-chan deliveryTask, failur
 	}
 }
 
-func (q *Queue) queueDeliveries(ctx context.Context, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, key httpsig.Key, inserted time.Time, tasks []chan deliveryTask, failures chan<- deliveryJob) error {
-	activityID, err := url.Parse(activity.ID)
+func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []byte, key httpsig.Key, inserted time.Time, tasks []chan deliveryTask, failures chan<- deliveryJob) error {
+	activityID, err := url.Parse(job.Activity.ID)
 	if err != nil {
 		return err
 	}
@@ -214,31 +216,31 @@ func (q *Queue) queueDeliveries(ctx context.Context, activity *ap.Activity, rawA
 	recipients := ap.Audience{}
 
 	// deduplicate recipients or skip if we're forwarding an activity
-	if activity.Actor == actor.ID {
-		activity.To.Range(func(id string, _ struct{}) bool {
+	if job.Activity.Actor == job.Sender.ID {
+		job.Activity.To.Range(func(id string, _ struct{}) bool {
 			recipients.Add(id)
 			return true
 		})
 
-		activity.CC.Range(func(id string, _ struct{}) bool {
+		job.Activity.CC.Range(func(id string, _ struct{}) bool {
 			recipients.Add(id)
 			return true
 		})
 	}
 
 	actorIDs := ap.Audience{}
-	wideDelivery := activity.Actor != actor.ID || activity.IsPublic() || recipients.Contains(actor.Followers)
+	wideDelivery := job.Activity.Actor != job.Sender.ID || job.Activity.IsPublic() || recipients.Contains(job.Sender.Followers)
 
 	// list the actor's federated followers if we're forwarding an activity by another actor, or if addressed by actor
 	if wideDelivery {
-		followers, err := q.DB.QueryContext(ctx, `select distinct follower from follows where followed = ? and follower not like ? and follower not like ? and accepted = 1 and inserted < ?`, actor.ID, fmt.Sprintf("https://%s/%%", q.Domain), fmt.Sprintf("https://%s/%%", activityID.Host), inserted.Unix())
+		followers, err := q.DB.QueryContext(ctx, `select distinct follower from follows where followed = ? and follower not like ? and follower not like ? and accepted = 1 and inserted < ?`, job.Sender.ID, fmt.Sprintf("https://%s/%%", q.Domain), fmt.Sprintf("https://%s/%%", activityID.Host), inserted.Unix())
 		if err != nil {
-			q.Log.Warn("Failed to list followers", "activity", activity.ID, "error", err)
+			q.Log.Warn("Failed to list followers", "activity", job.Activity.ID, "error", err)
 		} else {
 			for followers.Next() {
 				var follower string
 				if err := followers.Scan(&follower); err != nil {
-					q.Log.Warn("Skipped a follower", "activity", activity.ID, "error", err)
+					q.Log.Warn("Skipped a follower", "activity", job.Activity.ID, "error", err)
 					continue
 				}
 
@@ -256,31 +258,26 @@ func (q *Queue) queueDeliveries(ctx context.Context, activity *ap.Activity, rawA
 	})
 
 	var author string
-	if obj, ok := activity.Object.(*ap.Object); ok {
+	if obj, ok := job.Activity.Object.(*ap.Object); ok {
 		author = obj.AttributedTo
 	}
 
 	queued := map[string]struct{}{}
 
 	var followers partialFollowers
-	if recipients.Contains(actor.Followers) {
+	if recipients.Contains(job.Sender.Followers) {
 		followers = partialFollowers{}
-	}
-
-	job := deliveryJob{
-		Activity: activity,
-		Sender:   actor,
 	}
 
 	actorIDs.Range(func(actorID string, _ struct{}) bool {
 		if actorID == author || actorID == ap.Public {
-			q.Log.Debug("Skipping recipient", "to", actorID, "activity", activity.ID)
+			q.Log.Debug("Skipping recipient", "to", actorID, "activity", job.Activity.ID)
 			return true
 		}
 
 		to, err := q.Resolver.ResolveID(ctx, q.Log, q.DB, key, actorID, 0)
 		if err != nil {
-			q.Log.Warn("Failed to resolve a recipient", "to", actorID, "activity", activity.ID, "error", err)
+			q.Log.Warn("Failed to resolve a recipient", "to", actorID, "activity", job.Activity.ID, "error", err)
 			if !errors.Is(err, ErrActorGone) && !errors.Is(err, ErrBlockedDomain) {
 				failures <- job
 			}
@@ -291,7 +288,7 @@ func (q *Queue) queueDeliveries(ctx context.Context, activity *ap.Activity, rawA
 		inbox := to.Inbox
 		if wideDelivery {
 			if sharedInbox, ok := to.Endpoints["sharedInbox"]; ok && sharedInbox != "" {
-				q.Log.Debug("Using shared inbox inbox", "to", actorID, "activity", activity.ID, "shared_inbox", inbox)
+				q.Log.Debug("Using shared inbox inbox", "to", actorID, "activity", job.Activity.ID, "shared_inbox", inbox)
 				inbox = sharedInbox
 			}
 		}
@@ -300,7 +297,7 @@ func (q *Queue) queueDeliveries(ctx context.Context, activity *ap.Activity, rawA
 			return true
 		}
 
-		q.Log.Info("Queueing activity for delivery", "inbox", inbox, "activity", activity.ID)
+		q.Log.Info("Queueing activity for delivery", "inbox", inbox, "activity", job.Activity.ID)
 
 		tasks[crc32.ChecksumIEEE([]byte(inbox))%uint32(len(tasks))] <- deliveryTask{
 			deliveryJob: job,
