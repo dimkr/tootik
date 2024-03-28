@@ -25,8 +25,10 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
+	"hash/crc32"
 	"log/slog"
 	"net/url"
+	"sync"
 	"time"
 )
 
@@ -36,6 +38,19 @@ type Queue struct {
 	Log      *slog.Logger
 	DB       *sql.DB
 	Resolver *Resolver
+}
+
+type deliveryJob struct {
+	Activity *ap.Activity
+	Sender   *ap.Actor
+}
+
+type deliveryTask struct {
+	deliveryJob
+	Key       httpsig.Key
+	Followers partialFollowers
+	Inbox     string
+	Body      []byte
 }
 
 // Process polls the queue of outgoing activities and delivers them to other servers with timeout and retries.
@@ -65,6 +80,24 @@ func (q *Queue) process(ctx context.Context) error {
 	}
 	defer rows.Close()
 
+	status := make(map[deliveryJob]bool, q.Config.DeliveryBatchSize)
+
+	tasks := make([]chan deliveryTask, 0, q.Config.DeliveryWorkers)
+	for range q.Config.DeliveryWorkers {
+		tasks = append(tasks, make(chan deliveryTask))
+	}
+	failures := make(chan deliveryJob)
+
+	var workers sync.WaitGroup
+
+	workers.Add(q.Config.DeliveryWorkers)
+	for i := range q.Config.DeliveryWorkers {
+		go func() {
+			q.worker(ctx, tasks[i], failures)
+			workers.Done()
+		}()
+	}
+
 	for rows.Next() {
 		var activity ap.Activity
 		var rawActivity, privKeyPem string
@@ -87,29 +120,94 @@ func (q *Queue) process(ctx context.Context) error {
 			continue
 		}
 
-		if err := q.deliverWithTimeout(ctx, &activity, []byte(rawActivity), &actor, httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, time.Unix(inserted, 0)); err != nil {
-			q.Log.Warn("Failed to deliver activity", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
+		status[deliveryJob{
+			Activity: &activity,
+			Sender:   &actor,
+		}] = true
+
+		if err := q.queueDeliveries(ctx, &activity, []byte(rawActivity), &actor, httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, time.Unix(inserted, 0), tasks, failures); err != nil {
+			q.Log.Warn("Failed to queue activity for delivery", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
-
-		if _, err := q.DB.ExecContext(ctx, `update outbox set sent = 1 where activity->>'$.id' = ? and sender = ?`, activity.ID, actor.ID); err != nil {
-			q.Log.Error("Failed to mark delivery as completed", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
-			continue
-		}
-
-		q.Log.Info("Successfully delivered an activity", "id", activity.ID, "attempts", deliveryAttempts)
 	}
+
+	for _, ch := range tasks {
+		close(ch)
+	}
+
+	done := make(chan struct{})
+
+	go func() {
+		for job := range failures {
+			status[job] = false
+		}
+
+		for job, ok := range status {
+			if !ok {
+				q.Log.Info("Failed to deliver an activity to at least one recipient", "id", job.Activity.ID)
+				continue
+			}
+
+			if _, err := q.DB.ExecContext(ctx, `update outbox set sent = 1 where activity->>'$.id' = ? and sender = ?`, job.Activity.ID, job.Sender.ID); err != nil {
+				q.Log.Error("Failed to mark delivery as completed", "id", job.Activity.ID, "error", err)
+			} else {
+				q.Log.Info("Successfully delivered an activity", "id", job.Activity.ID)
+			}
+		}
+
+		done <- struct{}{}
+	}()
+
+	workers.Wait()
+	close(failures)
+	<-done
 
 	return nil
 }
 
-func (q *Queue) deliverWithTimeout(parent context.Context, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, key httpsig.Key, inserted time.Time) error {
+func (q *Queue) deliverWithTimeout(parent context.Context, d deliveryTask) error {
 	ctx, cancel := context.WithTimeout(parent, q.Config.DeliveryTimeout)
 	defer cancel()
-	return q.deliver(ctx, activity, rawActivity, actor, key, inserted)
+	return q.Resolver.post(ctx, q.Log, q.DB, d.Sender, d.Key, d.Followers, d.Inbox, d.Body)
 }
 
-func (q *Queue) deliver(ctx context.Context, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, key httpsig.Key, inserted time.Time) error {
+func (q *Queue) worker(ctx context.Context, requests <-chan deliveryTask, failures chan<- deliveryJob) {
+	for task := range requests {
+		var delivered int
+		if err := q.DB.QueryRowContext(ctx, `select exists (select 1 from deliveries where activity = ? and inbox = ?)`, task.Activity.ID, task.Inbox).Scan(&delivered); err != nil {
+			q.Log.Error("Failed to check if delivered already", "to", task.Inbox, "activity", task.Activity.ID, "error", err)
+			failures <- task.deliveryJob
+			continue
+		}
+
+		if delivered == 1 {
+			q.Log.Info("Skipping recipient", "to", task.Inbox, "activity", task.Activity.ID)
+			continue
+		}
+
+		q.Log.Info("Delivering activity to recipient", "inbox", task.Inbox, "activity", task.Activity.ID)
+
+		if err := q.deliverWithTimeout(ctx, task); err != nil {
+			if errors.Is(err, ErrLocalInbox) {
+				q.Log.Info("Skipping local recipient", "from", task.Sender.ID, "to", task.Inbox, "activity", task.Activity.ID)
+			} else {
+				q.Log.Warn("Failed to send an activity", "from", task.Sender.ID, "to", task.Inbox, "activity", task.Activity.ID, "error", err)
+				if !errors.Is(err, ErrBlockedDomain) {
+					failures <- task.deliveryJob
+				}
+			}
+
+			continue
+		}
+
+		if _, err := q.DB.ExecContext(ctx, `insert into deliveries(activity, inbox) values (?, ?)`, task.Activity.ID, task.Inbox); err != nil {
+			q.Log.Error("Failed to record delivery", "activity", task.Activity.ID, "inbox", task.Inbox, "error", err)
+			failures <- task.deliveryJob
+		}
+	}
+}
+
+func (q *Queue) queueDeliveries(ctx context.Context, activity *ap.Activity, rawActivity []byte, actor *ap.Actor, key httpsig.Key, inserted time.Time, tasks []chan deliveryTask, failures chan<- deliveryJob) error {
 	activityID, err := url.Parse(activity.ID)
 	if err != nil {
 		return err
@@ -159,18 +257,21 @@ func (q *Queue) deliver(ctx context.Context, activity *ap.Activity, rawActivity 
 		return true
 	})
 
-	anyFailed := false
-
 	var author string
 	if obj, ok := activity.Object.(*ap.Object); ok {
 		author = obj.AttributedTo
 	}
 
-	sent := map[string]struct{}{}
+	queued := map[string]struct{}{}
 
 	var followers partialFollowers
 	if recipients.Contains(actor.Followers) {
 		followers = partialFollowers{}
+	}
+
+	job := deliveryJob{
+		Activity: activity,
+		Sender:   actor,
 	}
 
 	actorIDs.Range(func(actorID string, _ struct{}) bool {
@@ -183,7 +284,7 @@ func (q *Queue) deliver(ctx context.Context, activity *ap.Activity, rawActivity 
 		if err != nil {
 			q.Log.Warn("Failed to resolve a recipient", "to", actorID, "activity", activity.ID, "error", err)
 			if !errors.Is(err, ErrActorGone) && !errors.Is(err, ErrBlockedDomain) {
-				anyFailed = true
+				failures <- job
 			}
 			return true
 		}
@@ -197,52 +298,23 @@ func (q *Queue) deliver(ctx context.Context, activity *ap.Activity, rawActivity 
 			}
 		}
 
-		if _, ok := sent[inbox]; ok {
-			q.Log.Info("Skipping recipient", "to", actorID, "activity", activity.ID, "inbox", inbox)
+		if _, ok := queued[inbox]; ok {
 			return true
 		}
 
-		var delivered int
-		if err := q.DB.QueryRowContext(ctx, `select exists (select 1 from deliveries where activity = ? and inbox = ?)`, activity.ID, inbox).Scan(&delivered); err != nil {
-			q.Log.Error("Failed to check if delivered already", "to", actorID, "activity", activity.ID, "inbox", inbox, "error", err)
-			anyFailed = true
-			return false
+		q.Log.Info("Queueing activity for delivery", "inbox", inbox, "activity", activity.ID)
+
+		tasks[crc32.ChecksumIEEE([]byte(inbox))%uint32(len(tasks))] <- deliveryTask{
+			deliveryJob: job,
+			Key:         key,
+			Followers:   followers,
+			Inbox:       inbox,
+			Body:        rawActivity,
 		}
 
-		sent[inbox] = struct{}{}
-
-		if delivered == 1 {
-			q.Log.Info("Skipping recipient", "to", actorID, "activity", activity.ID, "inbox", inbox)
-			return true
-		}
-
-		q.Log.Info("Delivering activity to recipient", "to", actorID, "inbox", inbox, "activity", activity.ID)
-
-		if err := q.Resolver.post(ctx, q.Log, q.DB, actor, key, followers, inbox, rawActivity); err != nil {
-			if errors.Is(err, ErrLocalInbox) {
-				q.Log.Info("Skipping local recipient", "from", actor.ID, "to", actorID, "activity", activity.ID, "error", err)
-				return true
-			}
-
-			q.Log.Warn("Failed to send an activity", "from", actor.ID, "to", actorID, "activity", activity.ID, "error", err)
-			if !errors.Is(err, ErrBlockedDomain) {
-				anyFailed = true
-			}
-			return true
-		}
-
-		if _, err := q.DB.ExecContext(ctx, `insert into deliveries(activity, inbox) values (?, ?)`, activity.ID, inbox); err != nil {
-			q.Log.Error("Failed to record delivery", "activity", activity.ID, "inbox", inbox, "error", err)
-			anyFailed = true
-			return false
-		}
-
+		queued[inbox] = struct{}{}
 		return true
 	})
-
-	if anyFailed {
-		return fmt.Errorf("failed to deliver activity %s to at least one recipient", activity.ID)
-	}
 
 	return nil
 }
