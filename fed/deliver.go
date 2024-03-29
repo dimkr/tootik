@@ -87,16 +87,16 @@ func (q *Queue) process(ctx context.Context) error {
 
 	events := make(chan deliveryEvent)
 	tasks := make([]chan deliveryTask, 0, q.Config.DeliveryWorkers)
-	var producers, consumers sync.WaitGroup
+	var wg sync.WaitGroup
 	done := make(chan map[deliveryJob]bool)
 
-	consumers.Add(q.Config.DeliveryWorkers)
+	wg.Add(q.Config.DeliveryWorkers)
 	for range q.Config.DeliveryWorkers {
 		ch := make(chan deliveryTask, q.Config.DeliveryWorkerBuffer)
 
 		go func() {
 			q.consume(ctx, ch, events)
-			consumers.Done()
+			wg.Done()
 		}()
 
 		tasks = append(tasks, ch)
@@ -142,24 +142,17 @@ func (q *Queue) process(ctx context.Context) error {
 		// notify about the new job
 		events <- deliveryEvent{job, true}
 
-		producers.Add(1)
-		go func() {
-			// queue tasks for all outgoing requests
-			if err := q.queueTasks(ctx, job, []byte(rawActivity), httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, time.Unix(inserted, 0), tasks, events); err != nil {
-				q.Log.Warn("Failed to queue activity for delivery", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
-			}
-			producers.Done()
-		}()
+		// queue tasks for all outgoing requests
+		if err := q.queueTasks(ctx, job, []byte(rawActivity), httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, time.Unix(inserted, 0), tasks, events); err != nil {
+			q.Log.Warn("Failed to queue activity for delivery", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
+		}
 	}
-
-	// wait for all tasks to be queued
-	producers.Wait()
 
 	// wait for all tasks to finish
 	for _, ch := range tasks {
 		close(ch)
 	}
-	consumers.Wait()
+	wg.Wait()
 
 	// receive all job results
 	close(events)
