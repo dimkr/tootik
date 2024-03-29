@@ -273,8 +273,6 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 		author = obj.AttributedTo
 	}
 
-	queued := map[string]struct{}{}
-
 	actorIDs.Range(func(actorID string, _ struct{}) bool {
 		if actorID == author || actorID == ap.Public {
 			q.Log.Debug("Skipping recipient", "to", actorID, "activity", job.Activity.ID)
@@ -294,27 +292,21 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 		inbox := to.Inbox
 		if wideDelivery {
 			if sharedInbox, ok := to.Endpoints["sharedInbox"]; ok && sharedInbox != "" {
-				q.Log.Debug("Using shared inbox inbox", "to", actorID, "activity", job.Activity.ID, "shared_inbox", inbox)
+				q.Log.Debug("Using shared inbox", "to", actorID, "activity", job.Activity.ID, "shared_inbox", inbox)
 				inbox = sharedInbox
 			}
 		}
 
-		if _, ok := queued[inbox]; ok {
-			return true
-		}
-
-		u, err := url.Parse(inbox)
-		if err != nil {
-			queued[inbox] = struct{}{}
-			return true
-		}
-
 		digest := ""
 		if recipients.Contains(job.Sender.Followers) {
-			if d, err := followers.Digest(ctx, q.DB, q.Domain, job.Sender, u.Host); err != nil {
-				q.Log.Warn("Failed to digest followers", "to", actorID, "activity", job.Activity.ID, "inbox", inbox)
+			if u, err := url.Parse(inbox); err != nil {
+				q.Log.Warn("Cannot digest followers", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
 			} else {
-				digest = d
+				if d, err := followers.Digest(ctx, q.DB, q.Domain, job.Sender, u.Host); err != nil {
+					q.Log.Warn("Failed to digest followers", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
+				} else {
+					digest = d
+				}
 			}
 		}
 
@@ -328,7 +320,6 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 			Body:            rawActivity,
 		}
 
-		queued[inbox] = struct{}{}
 		return true
 	})
 
