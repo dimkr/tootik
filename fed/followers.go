@@ -39,7 +39,7 @@ import (
 
 type partialFollowers struct {
 	sync.Mutex
-	cache map[string]string
+	cache map[string]map[string]string
 }
 
 type Syncer struct {
@@ -105,9 +105,14 @@ func (f *partialFollowers) Digest(ctx context.Context, db *sql.DB, domain string
 	f.Lock()
 	defer f.Unlock()
 
-	if header, ok := f.cache[req.URL.Host]; ok && header != "" {
-		req.Header.Set("Collection-Synchronization", header)
-		return nil
+	byActor, ok := f.cache[actor.ID]
+	if ok {
+		if header, ok := byActor[req.URL.Host]; ok && header != "" {
+			req.Header.Set("Collection-Synchronization", header)
+			return nil
+		}
+	} else {
+		byActor = map[string]string{}
 	}
 
 	digest, err := digestFollowers(ctx, db, actor.ID, req.URL.Host)
@@ -116,7 +121,8 @@ func (f *partialFollowers) Digest(ctx context.Context, db *sql.DB, domain string
 	}
 
 	header := fmt.Sprintf(`collectionId="%s", url="https://%s/followers_synchronization/%s", digest="%s"`, actor.Followers, domain, actor.PreferredUsername, digest)
-	f.cache[req.URL.Host] = header
+	byActor[req.URL.Host] = header
+	f.cache[actor.ID] = byActor
 	req.Header.Set("Collection-Synchronization", header)
 	return nil
 }

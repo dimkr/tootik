@@ -112,6 +112,10 @@ func (q *Queue) process(ctx context.Context) error {
 		done <- results
 	}()
 
+	followers := partialFollowers{
+		cache: map[string]map[string]string{},
+	}
+
 	for rows.Next() {
 		var activity ap.Activity
 		var rawActivity, privKeyPem string
@@ -143,7 +147,7 @@ func (q *Queue) process(ctx context.Context) error {
 		events <- deliveryEvent{job, true}
 
 		// queue tasks for all outgoing requests
-		if err := q.queueTasks(ctx, job, []byte(rawActivity), httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, time.Unix(inserted, 0), tasks, events); err != nil {
+		if err := q.queueTasks(ctx, job, []byte(rawActivity), httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, time.Unix(inserted, 0), &followers, tasks, events); err != nil {
 			q.Log.Warn("Failed to queue activity for delivery", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 		}
 	}
@@ -216,7 +220,7 @@ func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, event
 	}
 }
 
-func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []byte, key httpsig.Key, inserted time.Time, tasks []chan deliveryTask, events chan<- deliveryEvent) error {
+func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []byte, key httpsig.Key, inserted time.Time, followers *partialFollowers, tasks []chan deliveryTask, events chan<- deliveryEvent) error {
 	activityID, err := url.Parse(job.Activity.ID)
 	if err != nil {
 		return err
@@ -273,11 +277,8 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 
 	queued := map[string]struct{}{}
 
-	var followers *partialFollowers
-	if recipients.Contains(job.Sender.Followers) {
-		followers = &partialFollowers{
-			cache: map[string]string{},
-		}
+	if !recipients.Contains(job.Sender.Followers) {
+		followers = nil
 	}
 
 	actorIDs.Range(func(actorID string, _ struct{}) bool {
