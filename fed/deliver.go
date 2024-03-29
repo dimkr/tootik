@@ -92,7 +92,7 @@ func (q *Queue) process(ctx context.Context) error {
 
 	consumers.Add(q.Config.DeliveryWorkers)
 	for range q.Config.DeliveryWorkers {
-		ch := make(chan deliveryTask)
+		ch := make(chan deliveryTask, q.Config.DeliveryWorkerBuffer)
 
 		go func() {
 			q.consume(ctx, ch, events)

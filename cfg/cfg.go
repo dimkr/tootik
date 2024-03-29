@@ -79,6 +79,7 @@ type Config struct {
 	MaxDeliveryAttempts   int
 	DeliveryTimeout       time.Duration
 	DeliveryWorkers       int
+	DeliveryWorkerBuffer  int
 
 	OutboxPollingInterval time.Duration
 
@@ -263,6 +264,10 @@ func (c *Config) FillDefaults() {
 
 	if c.DeliveryWorkers <= 0 || c.DeliveryWorkers > math.MaxUint32 {
 		c.DeliveryWorkers = 4
+	}
+
+	if c.DeliveryWorkerBuffer <= 0 {
+		c.DeliveryWorkerBuffer = 16
 	}
 
 	if c.OutboxPollingInterval <= 0 {
