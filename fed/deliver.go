@@ -183,7 +183,18 @@ func (q *Queue) deliverWithTimeout(parent context.Context, task deliveryTask) er
 }
 
 func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, events chan<- deliveryEvent) {
+	tried := map[string]map[string]struct{}{}
+
 	for task := range requests {
+		if m, ok := tried[task.Job.Activity.ID]; ok {
+			if _, ok := m[task.Inbox]; ok {
+				continue
+			}
+			m[task.Inbox] = struct{}{}
+		} else {
+			tried[task.Job.Activity.ID] = map[string]struct{}{task.Inbox: struct{}{}}
+		}
+
 		var delivered int
 		if err := q.DB.QueryRowContext(ctx, `select exists (select 1 from deliveries where activity = ? and inbox = ?)`, task.Job.Activity.ID, task.Inbox).Scan(&delivered); err != nil {
 			q.Log.Error("Failed to check if delivered already", "to", task.Inbox, "activity", task.Job.Activity.ID, "error", err)
