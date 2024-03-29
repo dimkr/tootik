@@ -33,14 +33,10 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
 )
 
-type partialFollowers struct {
-	sync.Mutex
-	cache map[string]map[string]string
-}
+type partialFollowers map[string]map[string]string
 
 type Syncer struct {
 	Domain   string
@@ -101,30 +97,25 @@ func digestFollowers(ctx context.Context, db *sql.DB, followed, host string) (st
 	return fmt.Sprintf("%x", digest), nil
 }
 
-func (f *partialFollowers) Digest(ctx context.Context, db *sql.DB, domain string, actor *ap.Actor, req *http.Request) error {
-	f.Lock()
-	defer f.Unlock()
-
-	byActor, ok := f.cache[actor.ID]
+func (f partialFollowers) Digest(ctx context.Context, db *sql.DB, domain string, actor *ap.Actor, host string) (string, error) {
+	byActor, ok := f[actor.ID]
 	if ok {
-		if header, ok := byActor[req.URL.Host]; ok && header != "" {
-			req.Header.Set("Collection-Synchronization", header)
-			return nil
+		if header, ok := byActor[host]; ok && header != "" {
+			return header, nil
 		}
 	} else {
 		byActor = map[string]string{}
 	}
 
-	digest, err := digestFollowers(ctx, db, actor.ID, req.URL.Host)
+	digest, err := digestFollowers(ctx, db, actor.ID, host)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	header := fmt.Sprintf(`collectionId="%s", url="https://%s/followers_synchronization/%s", digest="%s"`, actor.Followers, domain, actor.PreferredUsername, digest)
-	byActor[req.URL.Host] = header
-	f.cache[actor.ID] = byActor
-	req.Header.Set("Collection-Synchronization", header)
-	return nil
+	byActor[host] = header
+	f[actor.ID] = byActor
+	return header, nil
 }
 
 func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {

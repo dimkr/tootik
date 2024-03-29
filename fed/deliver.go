@@ -46,11 +46,11 @@ type deliveryJob struct {
 }
 
 type deliveryTask struct {
-	Job       deliveryJob
-	Key       httpsig.Key
-	Followers *partialFollowers
-	Inbox     string
-	Body      []byte
+	Job             deliveryJob
+	Key             httpsig.Key
+	FollowersDigest string
+	Inbox           string
+	Body            []byte
 }
 
 type deliveryEvent struct {
@@ -112,9 +112,7 @@ func (q *Queue) process(ctx context.Context) error {
 		done <- results
 	}()
 
-	followers := partialFollowers{
-		cache: map[string]map[string]string{},
-	}
+	followers := partialFollowers{}
 
 	for rows.Next() {
 		var activity ap.Activity
@@ -178,10 +176,10 @@ func (q *Queue) process(ctx context.Context) error {
 	return nil
 }
 
-func (q *Queue) deliverWithTimeout(parent context.Context, d deliveryTask) error {
+func (q *Queue) deliverWithTimeout(parent context.Context, task deliveryTask) error {
 	ctx, cancel := context.WithTimeout(parent, q.Config.DeliveryTimeout)
 	defer cancel()
-	return q.Resolver.post(ctx, q.Log, q.DB, d.Job.Sender, d.Key, d.Followers, d.Inbox, d.Body)
+	return q.Resolver.post(ctx, q.Log, q.DB, task.Job.Sender, task.Key, task.FollowersDigest, task.Inbox, task.Body)
 }
 
 func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, events chan<- deliveryEvent) {
@@ -277,10 +275,6 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 
 	queued := map[string]struct{}{}
 
-	if !recipients.Contains(job.Sender.Followers) {
-		followers = nil
-	}
-
 	actorIDs.Range(func(actorID string, _ struct{}) bool {
 		if actorID == author || actorID == ap.Public {
 			q.Log.Debug("Skipping recipient", "to", actorID, "activity", job.Activity.ID)
@@ -309,14 +303,29 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 			return true
 		}
 
+		u, err := url.Parse(inbox)
+		if err != nil {
+			queued[inbox] = struct{}{}
+			return true
+		}
+
+		digest := ""
+		if recipients.Contains(job.Sender.Followers) {
+			if d, err := followers.Digest(ctx, q.DB, q.Domain, job.Sender, u.Host); err != nil {
+				q.Log.Warn("Failed to digest followers", "to", actorID, "activity", job.Activity.ID, "inbox", inbox)
+			} else {
+				digest = d
+			}
+		}
+
 		q.Log.Info("Queueing activity for delivery", "inbox", inbox, "activity", job.Activity.ID)
 
 		tasks[crc32.ChecksumIEEE([]byte(inbox))%uint32(len(tasks))] <- deliveryTask{
-			Job:       job,
-			Key:       key,
-			Followers: followers,
-			Inbox:     inbox,
-			Body:      rawActivity,
+			Job:             job,
+			Key:             key,
+			FollowersDigest: digest,
+			Inbox:           inbox,
+			Body:            rawActivity,
 		}
 
 		queued[inbox] = struct{}{}

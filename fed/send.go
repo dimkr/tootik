@@ -79,7 +79,7 @@ func (s *sender) send(log *slog.Logger, key httpsig.Key, req *http.Request) (*ht
 }
 
 // post sends a signed request to actor's inbox.
-func (s *sender) post(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, key httpsig.Key, followers *partialFollowers, inbox string, body []byte) error {
+func (s *sender) post(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, key httpsig.Key, followersDigest, inbox string, body []byte) error {
 	if inbox == "" {
 		return fmt.Errorf("cannot send request to %s: empty URL", inbox)
 	}
@@ -95,10 +95,8 @@ func (s *sender) post(ctx context.Context, log *slog.Logger, db *sql.DB, from *a
 
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
-	if followers != nil {
-		if err := followers.Digest(ctx, db, s.Domain, from, req); err != nil {
-			log.Warn("Failed to add Collection-Synchronization header", "from", from.ID, "inbox", inbox, "error", err)
-		}
+	if followersDigest != "" {
+		req.Header.Set("Collection-Synchronization", followersDigest)
 	}
 
 	resp, err := s.send(log, key, req)
