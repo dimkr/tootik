@@ -140,7 +140,7 @@ func (q *Queue) process(ctx context.Context) error {
 		}
 
 		// notify about the new job
-		events <- deliveryEvent{job, false}
+		events <- deliveryEvent{job, true}
 
 		producers.Add(1)
 		go func() {
