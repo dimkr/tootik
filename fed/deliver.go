@@ -142,9 +142,9 @@ func (q *Queue) process(ctx context.Context) error {
 		// notify about the new job
 		events <- deliveryEvent{job, false}
 
-		// queue tasks for all outgoing requests
 		producers.Add(1)
 		go func() {
+			// queue tasks for all outgoing requests
 			if err := q.queueTasks(ctx, job, []byte(rawActivity), httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, time.Unix(inserted, 0), tasks, events); err != nil {
 				q.Log.Warn("Failed to queue activity for delivery", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 			}
