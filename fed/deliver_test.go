@@ -742,7 +742,7 @@ func TestDeliver_SharedInboxRetry(t *testing.T) {
 	assert.Empty(client.Data)
 }
 
-func TestDeliver_SharedInboxFailedToResolveRetry(t *testing.T) {
+func TestDeliver_SharedInboxUnknownActor(t *testing.T) {
 	assert := assert.New(t)
 
 	f, err := os.CreateTemp("", "tootik-*.sqlite3")
@@ -765,12 +765,6 @@ func TestDeliver_SharedInboxFailedToResolveRetry(t *testing.T) {
 		"https://ip6-allnodes/inbox/nobody": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
-			},
-		},
-		"https://ip6-allnodes/.well-known/webfinger?resource=acct:erin@ip6-allnodes": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusInternalServerError,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
@@ -834,38 +828,7 @@ func TestDeliver_SharedInboxFailedToResolveRetry(t *testing.T) {
 
 	cfg.DeliveryRetryInterval = 0
 
-	client.Data = map[string]testResponse{
-		"https://ip6-allnodes/.well-known/webfinger?resource=acct:erin@ip6-allnodes": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://ip6-allnodes/user/erin"
-						],
-						"links": [
-							{
-								"href": "https://ip6-allnodes/user/erin",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://ip6-allnodes/user/erin",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:erin@ip6-allnodes"
-					}`))),
-			},
-		},
-		"https://ip6-allnodes/user/erin": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{"type":"Person","id":"https://ip6-allnodes/user/erin","preferredUsername":"erin","inbox":"https://ip6-allnodes/inbox/erin","endpoints":{"sharedInbox":"https://ip6-allnodes/inbox/nobody"}}`))),
-			},
-		},
-	}
+	client.Data = map[string]testResponse{}
 
 	assert.NoError(q.process(context.Background()))
 	assert.Empty(client.Data)
