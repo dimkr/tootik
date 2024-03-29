@@ -286,7 +286,7 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 			return true
 		}
 
-		to, err := q.Resolver.ResolveID(ctx, q.Log, q.DB, key, actorID, 0)
+		to, err := q.Resolver.ResolveID(ctx, q.Log, q.DB, key, actorID, ap.Offline)
 		if err != nil {
 			q.Log.Warn("Failed to resolve a recipient", "to", actorID, "activity", job.Activity.ID, "error", err)
 			if !errors.Is(err, ErrActorGone) && !errors.Is(err, ErrBlockedDomain) {
