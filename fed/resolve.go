@@ -26,6 +26,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
+	"golang.org/x/sync/semaphore"
 	"hash/crc32"
 	"io"
 	"log/slog"
@@ -34,7 +35,6 @@ import (
 	"net/url"
 	"path"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -52,7 +52,7 @@ type webFingerResponse struct {
 type Resolver struct {
 	sender
 	BlockedDomains *BlockList
-	locks          []sync.Mutex
+	locks          []*semaphore.Weighted
 }
 
 var (
@@ -76,7 +76,10 @@ func NewResolver(blockedDomains *BlockList, domain string, cfg *cfg.Config, clie
 			client: client,
 		},
 		BlockedDomains: blockedDomains,
-		locks:          make([]sync.Mutex, cfg.MaxResolverRequests),
+		locks:          make([]*semaphore.Weighted, cfg.MaxResolverRequests),
+	}
+	for i := 0; i < len(r.locks); i++ {
+		r.locks[i] = semaphore.NewWeighted(1)
 	}
 
 	return &r
@@ -172,30 +175,11 @@ func (r *Resolver) tryResolve(ctx context.Context, log *slog.Logger, db *sql.DB,
 	isLocal := host == r.Domain
 
 	if !isLocal && flags&ap.Offline == 0 {
-		locked := make(chan struct{}, 1)
-		unlock := make(chan struct{}, 1)
-		unlocked := make(chan struct{}, 1)
-
-		lock := &r.locks[crc32.ChecksumIEEE([]byte(host+name))%uint32(len(r.locks))]
-		go func() {
-			lock.Lock()
-			locked <- struct{}{}
-			<-unlock
-			lock.Unlock()
-			unlocked <- struct{}{}
-		}()
-
-		defer func() {
-			unlock <- struct{}{}
-			<-unlocked
-		}()
-
-		select {
-		case <-ctx.Done():
-			return nil, nil, ctx.Err()
-
-		case <-locked:
+		lock := r.locks[crc32.ChecksumIEEE([]byte(host+name))%uint32(len(r.locks))]
+		if err := lock.Acquire(ctx, 1); err != nil {
+			return nil, nil, err
 		}
+		defer lock.Release(1)
 	}
 
 	var tmp ap.Actor
