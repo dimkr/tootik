@@ -184,12 +184,10 @@ func (q *Queue) deliverWithTimeout(parent context.Context, task deliveryTask) er
 	req := task.Request.WithContext(ctx)
 
 	resp, err := q.Resolver.send(q.Log, task.Key, req)
-	if err != nil {
-		return nil
+	if err == nil {
+		resp.Body.Close()
 	}
-
-	resp.Body.Close()
-	return nil
+	return err
 }
 
 func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, events chan<- deliveryEvent) {
