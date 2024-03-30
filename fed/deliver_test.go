@@ -445,6 +445,91 @@ func TestDeliver_OneFailedRetry(t *testing.T) {
 	assert.NoError(q.process(context.Background()))
 }
 
+func TestDeliver_OneInvalidURLRetry(t *testing.T) {
+	assert := assert.New(t)
+
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	assert.NoError(err)
+	f.Close()
+
+	path := f.Name()
+	defer os.Remove(path)
+
+	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	assert.NoError(err)
+
+	blockList := BlockList{}
+
+	var cfg cfg.Config
+	cfg.FillDefaults()
+	cfg.MinActorAge = 0
+
+	client := newTestClient(map[string]testResponse{
+		"https://ip6-allnodes/inbox/erin": testResponse{
+			Response: &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
+			},
+		},
+	})
+
+	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
+
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, "alice", "a")
+	assert.NoError(err)
+
+	_, err = db.Exec(
+		`insert into persons (id, actor) values(?,?)`,
+		"https://ip6-allnodes/user/dan",
+		`{"type":"Person","id":"https://ip6-allnodes/user/dan","preferredUsername":"dan","inbox":"https://ip6-allnodes:inbox/dan"}`,
+	)
+	assert.NoError(err)
+
+	_, err = db.Exec(
+		`insert into persons (id, actor) values(?,?)`,
+		"https://ip6-allnodes/user/erin",
+		`{"type":"Person","id":"https://ip6-allnodes/user/erin","preferredUsername":"erin","inbox":"https://ip6-allnodes/inbox/erin"}`,
+	)
+	assert.NoError(err)
+
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	assert.NoError(err)
+
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	assert.NoError(err)
+
+	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
+
+	q := Queue{
+		Domain:   "localhost.localdomain",
+		Config:   &cfg,
+		Log:      slog.Default(),
+		DB:       db,
+		Resolver: resolver,
+	}
+
+	post := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/1","type":"Create","actor":"https://localhost.localdomain/user/alice","object":{"id":"https://localhost.localdomain/note/1","type":"Note","attributedTo":"https://localhost.localdomain/user/alice","content":"hello","to":["https://localhost.localdomain/followers/alice"],"cc":[]},"to":["https://localhost.localdomain/followers/alice"],"cc":[]}`
+
+	_, err = db.Exec(
+		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
+		post,
+		alice.ID,
+	)
+	assert.NoError(err)
+
+	assert.NoError(q.process(context.Background()))
+	assert.Empty(client.Data)
+
+	cfg.DeliveryRetryInterval = 0
+
+	client.Data = map[string]testResponse{}
+
+	assert.NoError(q.process(context.Background()))
+	assert.Empty(client.Data)
+
+	assert.NoError(q.process(context.Background()))
+}
+
 func TestDeliver_MaxAttempts(t *testing.T) {
 	assert := assert.New(t)
 

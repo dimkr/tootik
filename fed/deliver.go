@@ -316,7 +316,7 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 
 		req, err := http.NewRequest(http.MethodPost, inbox, bytes.NewReader(rawActivity))
 		if err != nil {
-			q.Log.Warn("Failed to create new request", "to", actorID, "activity", job.Activity.ID, "inbox", inbox)
+			q.Log.Warn("Failed to create new request", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
 			events <- deliveryEvent{job, false}
 			return true
 		}
