@@ -20,13 +20,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"log/slog"
-	"net/http"
-
 	"github.com/dimkr/tootik/buildinfo"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/httpsig"
+	"io"
+	"log/slog"
+	"net/http"
 )
 
 type sender struct {
