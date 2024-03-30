@@ -32,6 +32,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"sync"
 	"testing"
 )
 
@@ -40,15 +41,24 @@ type testResponse struct {
 	Error    error
 }
 
-type testClient map[string]testResponse
+type testClient struct {
+	sync.Mutex
+	Data map[string]testResponse
+}
 
-func (c testClient) Do(r *http.Request) (*http.Response, error) {
+func newTestClient(data map[string]testResponse) testClient {
+	return testClient{Data: data}
+}
+
+func (c *testClient) Do(r *http.Request) (*http.Response, error) {
 	url := r.URL.String()
-	resp, ok := c[url]
+	c.Lock()
+	resp, ok := c.Data[url]
 	if !ok {
 		panic("No response for " + url)
 	}
-	delete(c, url)
+	delete(c.Data, url)
+	c.Unlock()
 	return resp.Response, resp.Error
 }
 
@@ -71,7 +81,7 @@ func TestResolve_LocalActor(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{}
+	client := newTestClient(map[string]testResponse{})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -82,7 +92,7 @@ func TestResolve_LocalActor(t *testing.T) {
 
 	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, key, nobody.ID, 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal(nobody.ID, actor.ID)
 	assert.Equal(nobody.Inbox, actor.Inbox)
@@ -107,7 +117,7 @@ func TestResolve_LocalActorDoesNotExist(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{}
+	client := newTestClient(map[string]testResponse{})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -139,7 +149,7 @@ func TestResolve_FederatedActorInvalidURL(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{}
+	client := newTestClient(map[string]testResponse{})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -171,7 +181,7 @@ func TestResolve_FederatedActorInvalidScheme(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{}
+	client := newTestClient(map[string]testResponse{})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -203,7 +213,7 @@ func TestResolve_FederatedActorEmptyName(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{}
+	client := newTestClient(map[string]testResponse{})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -235,7 +245,7 @@ func TestResolve_FederatedActorFirstTime(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -281,7 +291,7 @@ func TestResolve_FederatedActorFirstTime(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -292,7 +302,7 @@ func TestResolve_FederatedActorFirstTime(t *testing.T) {
 
 	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -317,7 +327,7 @@ func TestResolve_FederatedActorFirstTimeThroughMention(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -363,7 +373,7 @@ func TestResolve_FederatedActorFirstTimeThroughMention(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -374,7 +384,7 @@ func TestResolve_FederatedActorFirstTimeThroughMention(t *testing.T) {
 
 	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/@dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -399,7 +409,7 @@ func TestResolve_FederatedActorFirstTimeOffline(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{}
+	client := newTestClient(map[string]testResponse{})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -410,7 +420,7 @@ func TestResolve_FederatedActorFirstTimeOffline(t *testing.T) {
 
 	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", ap.Offline)
 	assert.True(errors.Is(err, ErrActorNotCached))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 }
 
 func TestResolve_FederatedActorFirstTimeCancelled(t *testing.T) {
@@ -432,7 +442,7 @@ func TestResolve_FederatedActorFirstTimeCancelled(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{}
+	client := newTestClient(map[string]testResponse{})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -450,7 +460,7 @@ func TestResolve_FederatedActorFirstTimeCancelled(t *testing.T) {
 
 	_, err = resolver.ResolveID(ctx, slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.True(errors.Is(err, context.Canceled))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 }
 
 func TestResolve_FederatedActorFirstTimeInvalidWebFingerLink(t *testing.T) {
@@ -472,7 +482,7 @@ func TestResolve_FederatedActorFirstTimeInvalidWebFingerLink(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -523,7 +533,7 @@ func TestResolve_FederatedActorFirstTimeInvalidWebFingerLink(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -534,7 +544,7 @@ func TestResolve_FederatedActorFirstTimeInvalidWebFingerLink(t *testing.T) {
 
 	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -559,7 +569,7 @@ func TestResolve_FederatedActorFirstTimeActorIDMismatch(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -605,7 +615,7 @@ func TestResolve_FederatedActorFirstTimeActorIDMismatch(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -616,7 +626,7 @@ func TestResolve_FederatedActorFirstTimeActorIDMismatch(t *testing.T) {
 
 	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.Error(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 }
 
 func TestResolve_FederatedActorCached(t *testing.T) {
@@ -638,7 +648,7 @@ func TestResolve_FederatedActorCached(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -684,7 +694,7 @@ func TestResolve_FederatedActorCached(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -695,7 +705,7 @@ func TestResolve_FederatedActorCached(t *testing.T) {
 
 	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -726,7 +736,7 @@ func TestResolve_FederatedActorCachedInvalidActorHost(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -751,7 +761,7 @@ func TestResolve_FederatedActorCachedInvalidActorHost(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -762,7 +772,7 @@ func TestResolve_FederatedActorCachedInvalidActorHost(t *testing.T) {
 
 	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.True(errors.Is(err, ErrInvalidHost))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 }
 
 func TestResolve_FederatedActorCachedActorHostWithPort(t *testing.T) {
@@ -784,7 +794,7 @@ func TestResolve_FederatedActorCachedActorHostWithPort(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -809,7 +819,7 @@ func TestResolve_FederatedActorCachedActorHostWithPort(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -820,7 +830,7 @@ func TestResolve_FederatedActorCachedActorHostWithPort(t *testing.T) {
 
 	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.True(errors.Is(err, ErrInvalidHost))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 }
 
 func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
@@ -842,7 +852,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -888,7 +898,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -899,7 +909,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 
 	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://tootik.0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -907,7 +917,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
-	client = testClient{
+	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -957,7 +967,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 
 	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://tootik.0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -982,7 +992,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomainFetchedRecently(t *testin
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -1028,7 +1038,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomainFetchedRecently(t *testin
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -1039,16 +1049,16 @@ func TestResolve_FederatedActorCachedActorHostSubdomainFetchedRecently(t *testin
 
 	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://tootik.0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	client = testClient{}
+	client.Data = map[string]testResponse{}
 
 	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://tootik.0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://tootik.0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -1073,7 +1083,7 @@ func TestResolve_FederatedActorCachedActorIDChanged(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -1119,7 +1129,7 @@ func TestResolve_FederatedActorCachedActorIDChanged(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -1130,7 +1140,7 @@ func TestResolve_FederatedActorCachedActorIDChanged(t *testing.T) {
 
 	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -1138,7 +1148,7 @@ func TestResolve_FederatedActorCachedActorIDChanged(t *testing.T) {
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
-	client = testClient{
+	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -1167,7 +1177,7 @@ func TestResolve_FederatedActorCachedActorIDChanged(t *testing.T) {
 
 	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -1192,7 +1202,7 @@ func TestResolve_FederatedActorCachedButBlocked(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -1238,7 +1248,7 @@ func TestResolve_FederatedActorCachedButBlocked(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -1249,7 +1259,7 @@ func TestResolve_FederatedActorCachedButBlocked(t *testing.T) {
 
 	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -1287,7 +1297,7 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -1333,7 +1343,7 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -1344,7 +1354,7 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 
 	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -1352,7 +1362,7 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
-	client = testClient{
+	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -1402,7 +1412,7 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 
 	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan123", actor.Inbox)
@@ -1432,7 +1442,7 @@ func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 	var cfg cfg.Config
 	cfg.FillDefaults()
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -1478,7 +1488,7 @@ func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -1489,12 +1499,12 @@ func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 
 	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.True(errors.Is(err, ErrYoungActor))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
-	client = testClient{
+	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -1545,7 +1555,7 @@ func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 
 	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan123", actor.Inbox)
@@ -1575,7 +1585,7 @@ func TestResolve_FederatedActorOldCacheStillNew(t *testing.T) {
 	var cfg cfg.Config
 	cfg.FillDefaults()
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -1621,7 +1631,7 @@ func TestResolve_FederatedActorOldCacheStillNew(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -1632,12 +1642,12 @@ func TestResolve_FederatedActorOldCacheStillNew(t *testing.T) {
 
 	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.True(errors.Is(err, ErrYoungActor))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
-	client = testClient{
+	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -1687,7 +1697,7 @@ func TestResolve_FederatedActorOldCacheStillNew(t *testing.T) {
 
 	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.True(errors.Is(err, ErrYoungActor))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 }
 
 func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
@@ -1708,7 +1718,7 @@ func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
 	var cfg cfg.Config
 	cfg.FillDefaults()
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -1755,7 +1765,7 @@ func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -1766,7 +1776,7 @@ func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
 
 	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -1774,7 +1784,7 @@ func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
-	client = testClient{
+	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -1825,7 +1835,7 @@ func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
 
 	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.True(errors.Is(err, ErrYoungActor))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 }
 
 func TestResolve_FederatedActorOldCacheWasNewNowUnknown(t *testing.T) {
@@ -1846,7 +1856,7 @@ func TestResolve_FederatedActorOldCacheWasNewNowUnknown(t *testing.T) {
 	var cfg cfg.Config
 	cfg.FillDefaults()
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -1893,7 +1903,7 @@ func TestResolve_FederatedActorOldCacheWasNewNowUnknown(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -1904,12 +1914,12 @@ func TestResolve_FederatedActorOldCacheWasNewNowUnknown(t *testing.T) {
 
 	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.True(errors.Is(err, ErrYoungActor))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
-	client = testClient{
+	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -1959,7 +1969,7 @@ func TestResolve_FederatedActorOldCacheWasNewNowUnknown(t *testing.T) {
 
 	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.True(errors.Is(err, ErrYoungActor))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 }
 
 func TestResolve_FederatedActorOldCacheFetchedRecently(t *testing.T) {
@@ -1981,7 +1991,7 @@ func TestResolve_FederatedActorOldCacheFetchedRecently(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -2027,7 +2037,7 @@ func TestResolve_FederatedActorOldCacheFetchedRecently(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -2038,7 +2048,7 @@ func TestResolve_FederatedActorOldCacheFetchedRecently(t *testing.T) {
 
 	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -2072,7 +2082,7 @@ func TestResolve_FederatedActorOldCacheButOffline(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -2118,7 +2128,7 @@ func TestResolve_FederatedActorOldCacheButOffline(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -2129,7 +2139,7 @@ func TestResolve_FederatedActorOldCacheButOffline(t *testing.T) {
 
 	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -2163,7 +2173,7 @@ func TestResolve_FederatedActorOldCacheInvalidID(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -2188,7 +2198,7 @@ func TestResolve_FederatedActorOldCacheInvalidID(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -2199,7 +2209,7 @@ func TestResolve_FederatedActorOldCacheInvalidID(t *testing.T) {
 
 	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.True(errors.Is(err, ErrInvalidID))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 }
 
 func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
@@ -2221,7 +2231,7 @@ func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -2267,7 +2277,7 @@ func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -2278,7 +2288,7 @@ func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
 
 	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -2286,7 +2296,7 @@ func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
-	client = testClient{
+	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -2297,7 +2307,7 @@ func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
 
 	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -2323,7 +2333,7 @@ func TestResolve_FederatedActorOldCacheBigWebFingerResponse(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -2369,7 +2379,7 @@ func TestResolve_FederatedActorOldCacheBigWebFingerResponse(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -2380,7 +2390,7 @@ func TestResolve_FederatedActorOldCacheBigWebFingerResponse(t *testing.T) {
 
 	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -2388,7 +2398,7 @@ func TestResolve_FederatedActorOldCacheBigWebFingerResponse(t *testing.T) {
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
-	client = testClient{
+	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -2419,7 +2429,7 @@ func TestResolve_FederatedActorOldCacheBigWebFingerResponse(t *testing.T) {
 
 	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -2444,7 +2454,7 @@ func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -2490,7 +2500,7 @@ func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -2501,7 +2511,7 @@ func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 
 	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -2509,7 +2519,7 @@ func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
-	client = testClient{
+	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -2544,7 +2554,7 @@ func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 
 	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -2569,7 +2579,7 @@ func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -2615,7 +2625,7 @@ func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -2626,7 +2636,7 @@ func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 
 	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -2634,7 +2644,7 @@ func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
-	client = testClient{
+	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -2686,7 +2696,7 @@ func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 
 	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -2711,7 +2721,7 @@ func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -2757,7 +2767,7 @@ func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -2768,7 +2778,7 @@ func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 
 	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -2776,7 +2786,7 @@ func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
-	client = testClient{
+	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -2805,7 +2815,7 @@ func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 
 	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -2836,7 +2846,7 @@ func TestResolve_FederatedActorOldCacheWebFingerError(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -2882,7 +2892,7 @@ func TestResolve_FederatedActorOldCacheWebFingerError(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -2893,7 +2903,7 @@ func TestResolve_FederatedActorOldCacheWebFingerError(t *testing.T) {
 
 	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -2901,7 +2911,7 @@ func TestResolve_FederatedActorOldCacheWebFingerError(t *testing.T) {
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
-	client = testClient{
+	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Error: errors.New("a"),
 		},
@@ -2909,7 +2919,7 @@ func TestResolve_FederatedActorOldCacheWebFingerError(t *testing.T) {
 
 	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -2940,7 +2950,7 @@ func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -2986,7 +2996,7 @@ func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -2997,7 +3007,7 @@ func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 
 	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -3005,7 +3015,7 @@ func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
-	client = testClient{
+	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -3037,7 +3047,7 @@ func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 
 	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -3068,7 +3078,7 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -3114,7 +3124,7 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -3145,7 +3155,7 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 
 	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -3153,7 +3163,7 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
-	client = testClient{
+	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusGone,
@@ -3182,7 +3192,7 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 
 	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.True(errors.Is(err, ErrActorGone))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	var ok int
 	assert.NoError(db.QueryRow(`select not exists (select 1 from notes where author = 'https://0.0.0.0/user/dan') and not exists (select 1 from persons where id = 'https://0.0.0.0/user/dan')`).Scan(&ok))
@@ -3208,7 +3218,7 @@ func TestResolve_FederatedActorFirstTimeWrongID(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -3254,7 +3264,7 @@ func TestResolve_FederatedActorFirstTimeWrongID(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -3265,7 +3275,7 @@ func TestResolve_FederatedActorFirstTimeWrongID(t *testing.T) {
 
 	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/users/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -3290,7 +3300,7 @@ func TestResolve_FederatedActorFirstTimeDeleted(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusGone,
@@ -3315,7 +3325,7 @@ func TestResolve_FederatedActorFirstTimeDeleted(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -3346,7 +3356,7 @@ func TestResolve_FederatedActorFirstTimeDeleted(t *testing.T) {
 
 	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.True(errors.Is(err, ErrActorGone))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	var ok int
 	assert.NoError(db.QueryRow(`select exists (select 1 from notes where author = 'https://0.0.0.0/user/dan') and not exists (select 1 from persons where id = 'https://0.0.0.0/user/dan')`).Scan(&ok))
@@ -3371,7 +3381,7 @@ func TestResolve_FederatedActorFirstTimeTooYoung(t *testing.T) {
 	var cfg cfg.Config
 	cfg.FillDefaults()
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -3417,7 +3427,7 @@ func TestResolve_FederatedActorFirstTimeTooYoung(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -3428,7 +3438,7 @@ func TestResolve_FederatedActorFirstTimeTooYoung(t *testing.T) {
 
 	_, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.True(errors.Is(err, ErrYoungActor))
-	assert.Empty(client)
+	assert.Empty(client.Data)
 }
 
 func TestResolve_FederatedActorWrongIDCached(t *testing.T) {
@@ -3450,7 +3460,7 @@ func TestResolve_FederatedActorWrongIDCached(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -3496,7 +3506,7 @@ func TestResolve_FederatedActorWrongIDCached(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -3507,7 +3517,7 @@ func TestResolve_FederatedActorWrongIDCached(t *testing.T) {
 
 	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/users/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/users/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -3538,7 +3548,7 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -3584,7 +3594,7 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -3595,7 +3605,7 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 
 	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/users/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/users/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -3603,7 +3613,7 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 `)
 	assert.NoError(err)
 
-	client = testClient{
+	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -3653,7 +3663,7 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 
 	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/users/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan123", actor.Inbox)
@@ -3678,7 +3688,7 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 
-	client := testClient{
+	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -3724,7 +3734,7 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 					}`))),
 			},
 		},
-	}
+	})
 
 	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
 
@@ -3735,7 +3745,7 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 
 	actor, err := resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/users/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
@@ -3743,7 +3753,7 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/users/dan'`)
 	assert.NoError(err)
 
-	client = testClient{
+	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
@@ -3793,7 +3803,7 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 
 	actor, err = resolver.ResolveID(context.Background(), slog.Default(), db, key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
-	assert.Empty(client)
+	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/users/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan123", actor.Inbox)
@@ -3807,7 +3817,7 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/users/dan'`)
 	assert.NoError(err)
 
-	client = testClient{
+	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
 			Response: &http.Response{
 				StatusCode: http.StatusOK,

@@ -19,7 +19,7 @@ jobs:
           go vet ./...
           (cd /tmp && go install honnef.co/go/tools/cmd/staticcheck@latest)
           ~/go/bin/staticcheck ./...
-          go test ./... -failfast -vet off -tags netgo,sqlite_omit_load_extension,fts5
+          go test ./... -failfast -vet off -tags netgo,sqlite_omit_load_extension,fts5 -race
       - run: go build -tags netgo,sqlite_omit_load_extension,fts5 -ldflags "-w -s -linkmode external -extldflags -static -X github.com/dimkr/tootik/buildinfo.Version=${{ inputs.version }}" -trimpath ./cmd/tootik
       - uses: actions/upload-artifact@v4
         with:
