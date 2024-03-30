@@ -105,6 +105,7 @@ func (f partialFollowers) Digest(ctx context.Context, db *sql.DB, domain string,
 		}
 	} else {
 		byActor = map[string]string{}
+		f[actor.ID] = byActor
 	}
 
 	digest, err := digestFollowers(ctx, db, actor.ID, host)
@@ -114,7 +115,6 @@ func (f partialFollowers) Digest(ctx context.Context, db *sql.DB, domain string,
 
 	header := fmt.Sprintf(`collectionId="%s", url="https://%s/followers_synchronization/%s", digest="%s"`, actor.Followers, domain, actor.PreferredUsername, digest)
 	byActor[host] = header
-	f[actor.ID] = byActor
 	return header, nil
 }
 
