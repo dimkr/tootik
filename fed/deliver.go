@@ -17,6 +17,7 @@ limitations under the License.
 package fed
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -27,6 +28,7 @@ import (
 	"github.com/dimkr/tootik/httpsig"
 	"hash/crc32"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"sync"
 	"time"
@@ -46,11 +48,10 @@ type deliveryJob struct {
 }
 
 type deliveryTask struct {
-	Job             deliveryJob
-	Key             httpsig.Key
-	FollowersDigest string
-	Inbox           string
-	Body            []byte
+	Job     deliveryJob
+	Key     httpsig.Key
+	Request *http.Request
+	Inbox   string
 }
 
 type deliveryEvent struct {
@@ -169,7 +170,7 @@ func (q *Queue) process(ctx context.Context) error {
 		if _, err := q.DB.ExecContext(ctx, `update outbox set sent = 1 where activity->>'$.id' = ? and sender = ?`, job.Activity.ID, job.Sender.ID); err != nil {
 			q.Log.Error("Failed to mark delivery as completed", "id", job.Activity.ID, "error", err)
 		} else {
-			q.Log.Info("Successfully delivered an activity", "id", job.Activity.ID)
+			q.Log.Info("Successfully delivered an activity to all recipients", "id", job.Activity.ID)
 		}
 	}
 
@@ -179,7 +180,16 @@ func (q *Queue) process(ctx context.Context) error {
 func (q *Queue) deliverWithTimeout(parent context.Context, task deliveryTask) error {
 	ctx, cancel := context.WithTimeout(parent, q.Config.DeliveryTimeout)
 	defer cancel()
-	return q.Resolver.post(ctx, q.Log, q.DB, task.Job.Sender, task.Key, task.FollowersDigest, task.Inbox, task.Body)
+
+	req := task.Request.WithContext(ctx)
+
+	resp, err := q.Resolver.send(q.Log, task.Key, req)
+	if err != nil {
+		return nil
+	}
+
+	resp.Body.Close()
+	return nil
 }
 
 func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, events chan<- deliveryEvent) {
@@ -192,7 +202,7 @@ func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, event
 			}
 			m[task.Inbox] = struct{}{}
 		} else {
-			tried[task.Job.Activity.ID] = map[string]struct{}{task.Inbox: struct{}{}}
+			tried[task.Job.Activity.ID] = map[string]struct{}{task.Inbox: {}}
 		}
 
 		var delivered int
@@ -209,14 +219,12 @@ func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, event
 
 		q.Log.Info("Delivering activity to recipient", "inbox", task.Inbox, "activity", task.Job.Activity.ID)
 
-		if err := q.deliverWithTimeout(ctx, task); err != nil {
-			if errors.Is(err, ErrLocalInbox) {
-				q.Log.Info("Skipping local recipient", "from", task.Job.Sender.ID, "to", task.Inbox, "activity", task.Job.Activity.ID)
-			} else {
-				q.Log.Warn("Failed to send an activity", "from", task.Job.Sender.ID, "to", task.Inbox, "activity", task.Job.Activity.ID, "error", err)
-				if !errors.Is(err, ErrBlockedDomain) {
-					events <- deliveryEvent{task.Job, false}
-				}
+		if err := q.deliverWithTimeout(ctx, task); err == nil {
+			q.Log.Info("Successfully sent an activity", "from", task.Job.Sender.ID, "to", task.Inbox, "activity", task.Job.Activity.ID)
+		} else {
+			q.Log.Warn("Failed to send an activity", "from", task.Job.Sender.ID, "to", task.Inbox, "activity", task.Job.Activity.ID, "error", err)
+			if !errors.Is(err, ErrBlockedDomain) {
+				events <- deliveryEvent{task.Job, false}
 			}
 
 			continue
@@ -308,27 +316,36 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 			}
 		}
 
-		digest := ""
+		req, err := http.NewRequest(http.MethodPost, inbox, bytes.NewReader(rawActivity))
+		if err != nil {
+			q.Log.Warn("Failed to create new request", "to", actorID, "activity", job.Activity.ID, "inbox", inbox)
+			events <- deliveryEvent{job, false}
+			return true
+		}
+
+		if req.URL.Host == q.Domain {
+			q.Log.Debug("Skipping local recipient inbox", "to", actorID, "activity", job.Activity.ID, "inbox", inbox)
+			return true
+		}
+
+		req.Header.Set("User-Agent", userAgent)
+		req.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
+
 		if recipients.Contains(job.Sender.Followers) {
-			if u, err := url.Parse(inbox); err != nil {
-				q.Log.Warn("Cannot digest followers", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
+			if digest, err := followers.Digest(ctx, q.DB, q.Domain, job.Sender, req.URL.Host); err != nil {
+				q.Log.Warn("Failed to digest followers", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
 			} else {
-				if d, err := followers.Digest(ctx, q.DB, q.Domain, job.Sender, u.Host); err != nil {
-					q.Log.Warn("Failed to digest followers", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
-				} else {
-					digest = d
-				}
+				req.Header.Set("Collection-Synchronization", digest)
 			}
 		}
 
 		q.Log.Info("Queueing activity for delivery", "inbox", inbox, "activity", job.Activity.ID)
 
 		tasks[crc32.ChecksumIEEE([]byte(inbox))%uint32(len(tasks))] <- deliveryTask{
-			Job:             job,
-			Key:             key,
-			FollowersDigest: digest,
-			Inbox:           inbox,
-			Body:            rawActivity,
+			Job:     job,
+			Key:     key,
+			Request: req,
+			Inbox:   inbox,
 		}
 
 		return true

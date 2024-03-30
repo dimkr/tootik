@@ -17,18 +17,16 @@ limitations under the License.
 package fed
 
 import (
-	"bytes"
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/buildinfo"
-	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/httpsig"
 	"io"
 	"log/slog"
 	"net/http"
+
+	"github.com/dimkr/tootik/buildinfo"
+	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/httpsig"
 )
 
 type sender struct {
@@ -78,43 +76,7 @@ func (s *sender) send(log *slog.Logger, key httpsig.Key, req *http.Request) (*ht
 	return resp, nil
 }
 
-// post sends a signed request to actor's inbox.
-func (s *sender) post(ctx context.Context, log *slog.Logger, db *sql.DB, from *ap.Actor, key httpsig.Key, followersDigest, inbox string, body []byte) error {
-	if inbox == "" {
-		return fmt.Errorf("cannot send request to %s: empty URL", inbox)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, inbox, bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("failed to send request to %s: %w", inbox, err)
-	}
-
-	if req.URL.Host == s.Domain {
-		return ErrLocalInbox
-	}
-
-	req.Header.Set("User-Agent", userAgent)
-	req.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
-	if followersDigest != "" {
-		req.Header.Set("Collection-Synchronization", followersDigest)
-	}
-
-	resp, err := s.send(log, key, req)
-	if err != nil {
-		return fmt.Errorf("failed to send request to %s: %w", inbox, err)
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to send request to %s: %w", inbox, err)
-	}
-
-	log.Info("Successfully sent message", "inbox", inbox, "body", string(respBody))
-	return nil
-}
-
-func (s *sender) get(ctx context.Context, log *slog.Logger, db *sql.DB, key httpsig.Key, url string) (*http.Response, error) {
+func (s *sender) get(ctx context.Context, log *slog.Logger, key httpsig.Key, url string) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request to %s: %w", url, err)

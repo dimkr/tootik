@@ -241,7 +241,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 
 	log.Info("Synchronizing followers", "followed", d.Followed)
 
-	resp, err := resolver.get(ctx, log, db, key, d.URL)
+	resp, err := resolver.get(ctx, log, key, d.URL)
 	if err != nil {
 		return err
 	}
