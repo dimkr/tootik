@@ -262,7 +262,7 @@ func (c *Config) FillDefaults() {
 		c.DeliveryTimeout = time.Minute * 5
 	}
 
-	if c.DeliveryWorkers <= 0 || c.DeliveryWorkers > math.MaxUint32 {
+	if c.DeliveryWorkers <= 0 || c.DeliveryWorkers > math.MaxInt {
 		c.DeliveryWorkers = 4
 	}
 
