@@ -26,6 +26,7 @@ import (
 	"github.com/dimkr/tootik/front/static"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/httpsig"
+	"io"
 	"log/slog"
 	"net/url"
 	"regexp"
@@ -82,6 +83,7 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) Handler {
 	h.handlers[regexp.MustCompile(`^/users/outbox/(\S+)$`)] = withUserMenu(h.userOutbox)
 	h.handlers[regexp.MustCompile(`^/users/me$`)] = withUserMenu(me)
 
+	h.handlers[regexp.MustCompile(`^/users/avatar/;mime=image/([a-z]+);size=(\d+)`)] = h.avatar
 	h.handlers[regexp.MustCompile(`^/users/bio$`)] = h.bio
 	h.handlers[regexp.MustCompile(`^/users/name$`)] = h.name
 	h.handlers[regexp.MustCompile(`^/users/alias$`)] = h.alias
@@ -140,7 +142,7 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) Handler {
 }
 
 // Handle handles a request and writes a response.
-func (h *Handler) Handle(ctx context.Context, log *slog.Logger, w text.Writer, reqUrl *url.URL, user *ap.Actor, key httpsig.Key, db *sql.DB, resolver ap.Resolver, wg *sync.WaitGroup) {
+func (h *Handler) Handle(ctx context.Context, log *slog.Logger, r io.Reader, w text.Writer, reqUrl *url.URL, user *ap.Actor, key httpsig.Key, db *sql.DB, resolver ap.Resolver, wg *sync.WaitGroup) {
 	for re, handler := range h.handlers {
 		m := re.FindStringSubmatch(reqUrl.Path)
 		if m != nil {
@@ -157,6 +159,7 @@ func (h *Handler) Handle(ctx context.Context, log *slog.Logger, w text.Writer, r
 					Context:   ctx,
 					Handler:   h,
 					URL:       reqUrl,
+					Body:      r,
 					User:      user,
 					Key:       key,
 					DB:        db,

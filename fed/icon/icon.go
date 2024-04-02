@@ -20,16 +20,25 @@ package icon
 import (
 	"bytes"
 	"crypto/sha256"
+	"errors"
+	xdraw "golang.org/x/image/draw"
 	"image"
 	"image/color"
 	"image/draw"
 	"image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 )
 
 const (
 	MediaType         = "image/gif"
 	FileNameExtension = ".gif"
+
+	maxWidth  = 1024
+	maxHeight = 1024
 )
+
+var target = image.Rectangle{Min: image.Point{0, 0}, Max: image.Point{200, 200}}
 
 // Generate generates a tiny pseudo-random image by user name
 func Generate(s string) ([]byte, error) {
@@ -68,4 +77,33 @@ func Generate(s string) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+func Normalize(data []byte) ([]byte, error) {
+	dim, _, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+
+	if dim.Height > maxHeight || dim.Width > maxWidth {
+		return nil, errors.New("too big")
+	}
+
+	im, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+
+	if dim.Height > target.Dy() || dim.Width > target.Dy() {
+		scaled := image.NewRGBA(target)
+		xdraw.NearestNeighbor.Scale(scaled, scaled.Bounds(), im, im.Bounds(), draw.Over, nil)
+		im = scaled
+	}
+
+	var b bytes.Buffer
+	if err := gif.Encode(&b, im, &gif.Options{NumColors: 256}); err != nil {
+		return nil, err
+	}
+
+	return b.Bytes(), nil
 }

@@ -75,6 +75,7 @@ This page allows you to:
 * Set the short (up to 500 characters long) description that appears at the top of your profile
 * Set an account alias, to allow account migration to this instance
 * Notify followers about account migration from this instance
+* Set your avatar
 
 > 📊 Statistics
 
