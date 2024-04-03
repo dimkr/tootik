@@ -39,7 +39,7 @@ func (h *Handler) avatar(w text.Writer, r *request, args ...string) {
 	}
 
 	if r.Body == nil {
-		w.Redirect("/users")
+		w.Redirect("/users/oops")
 		return
 	}
 
