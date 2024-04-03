@@ -26,8 +26,6 @@ import (
 	"time"
 )
 
-const maxIconSize = 1024 * 1024
-
 var supportedImageTypes = map[string]struct{}{
 	"png":  {},
 	"jpeg": {},
@@ -50,7 +48,7 @@ func (h *Handler) avatar(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	if size > maxIconSize {
+	if size > r.Handler.Config.MaxAvatarSize {
 		r.Log.Warn("Image is too big", "size", size)
 		w.Status(40, "Image is too big")
 		return
@@ -78,7 +76,7 @@ func (h *Handler) avatar(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	resized, err := icon.Normalize(buf)
+	resized, err := icon.Scale(r.Handler.Config, buf)
 	if err != nil {
 		r.Log.Warn("Failed to read icon", "error", err)
 		w.Error()

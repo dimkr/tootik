@@ -18,19 +18,46 @@ limitations under the License.
 package static
 
 import (
+	"bytes"
 	"embed"
 	"fmt"
+	"github.com/dimkr/tootik/cfg"
 	"strings"
+	"text/template"
 )
 
-//go:embed *.gmi */*.gmi
-var rawFiles embed.FS
+type data struct {
+	Domain string
+	Config *cfg.Config
+}
 
-// Files maps relative paths to static content.
-var Files = map[string][]string{}
+//go:embed *.gmi */*.gmi
+var vfs embed.FS
+
+var templates = map[string]*template.Template{}
+
+func Format(domain string, cfg *cfg.Config) map[string][]string {
+	formatted := make(map[string][]string, len(templates))
+
+	data := data{
+		Domain: domain,
+		Config: cfg,
+	}
+
+	for path, tmpl := range templates {
+		var b bytes.Buffer
+		if err := tmpl.Execute(&b, &data); err != nil {
+			panic(err)
+		}
+
+		formatted[path] = strings.Split(strings.TrimRight(b.String(), "\r\n\t "), "\n")
+	}
+
+	return formatted
+}
 
 func readDirectory(dir string) {
-	files, err := rawFiles.ReadDir(dir)
+	files, err := vfs.ReadDir(dir)
 	if err != nil {
 		panic(err)
 	}
@@ -48,7 +75,7 @@ func readDirectory(dir string) {
 			path = fmt.Sprintf("%s/%s", dir, path)
 		}
 
-		content, err := rawFiles.ReadFile(path)
+		content, err := vfs.ReadFile(path)
 		if err != nil {
 			panic(err)
 		}
@@ -59,10 +86,17 @@ func readDirectory(dir string) {
 		}
 
 		if dir == "." {
-			Files[fmt.Sprintf("/%s", base)] = strings.Split(strings.TrimRight(string(content), "\r\n\t "), "\n")
+			path = fmt.Sprintf("/%s", base)
 		} else {
-			Files[fmt.Sprintf("/%s/%s", dir, base)] = strings.Split(strings.TrimRight(string(content), "\r\n\t "), "\n")
+			path = fmt.Sprintf("/%s/%s", dir, base)
 		}
+
+		tmpl, err := template.New(path).Parse(string(content))
+		if err != nil {
+			panic(err)
+		}
+
+		templates[path] = tmpl
 	}
 }
 

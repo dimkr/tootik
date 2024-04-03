@@ -116,7 +116,7 @@ func (s *server) Handle(request string, user *ap.Actor) string {
 
 	var buf bytes.Buffer
 	var wg sync.WaitGroup
-	s.handler.Handle(context.Background(), slog.Default(), gmi.Wrap(&buf), u, user, httpsig.Key{}, s.db, fed.NewResolver(nil, domain, s.cfg, &http.Client{}), &wg)
+	s.handler.Handle(context.Background(), slog.Default(), nil, gmi.Wrap(&buf), u, user, httpsig.Key{}, s.db, fed.NewResolver(nil, domain, s.cfg, &http.Client{}), &wg)
 
 	return buf.String()
 }

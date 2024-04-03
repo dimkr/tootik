@@ -43,10 +43,10 @@ type Handler struct {
 
 var ErrNotRegistered = errors.New("user is not registered")
 
-func serveStaticFile(w text.Writer, r *request, args ...string) {
+func serveStaticFile(lines []string, w text.Writer, r *request, args ...string) {
 	w.OK()
 
-	for _, line := range static.Files[r.URL.Path] {
+	for _, line := range lines {
 		w.Text(line)
 	}
 }
@@ -134,8 +134,10 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) Handler {
 
 	h.handlers[regexp.MustCompile(`^/robots.txt$`)] = robots
 
-	for path := range static.Files {
-		h.handlers[regexp.MustCompile(fmt.Sprintf(`^%s$`, path))] = withUserMenu(serveStaticFile)
+	for path, lines := range static.Format(domain, cfg) {
+		h.handlers[regexp.MustCompile(fmt.Sprintf(`^%s$`, path))] = withUserMenu(func(w text.Writer, r *request, args ...string) {
+			serveStaticFile(lines, w, r, args...)
+		})
 	}
 
 	return h

@@ -1,6 +1,6 @@
 # 🛟 Help
 
-## About this server
+## About {{.Domain}}
 
 This is an instance of tootik, a "slow", "boring" and non-addictive social network in the small internet that is also connected to the fediverse.
 => https://github.com/dimkr/tootik The tootik project
@@ -71,11 +71,11 @@ Follow this link to publish a public post visible to anyone.
 > ⚙️ Settings
 
 This page allows you to:
-* Set your display name (up to 30 characters long)
-* Set the short (up to 500 characters long) description that appears at the top of your profile
+* Set your display name (up to {{.Config.MaxDisplayNameLength}} characters long)
+* Set the short (up to {{.Config.MaxBioLength}} characters long) description that appears at the top of your profile
 * Set an account alias, to allow account migration to this instance
 * Notify followers about account migration from this instance
-* Set your avatar
+* Set your avatar to a .png, .jpg or .gif image (over Titan; use your client certificate for authentication)
 
 > 📊 Statistics
 
@@ -83,7 +83,7 @@ This page shows various statistics about this server and the parts of the fedive
 
 ## Posts
 
-Posts should be up to 500 characters long.
+Posts should be up to {{.Config.MaxPostsLength}} characters long.
 
 ### Links, Mentions and Hashtags
 
@@ -109,7 +109,7 @@ For example:
 	[POLL Does #tootik support polls now?] Yes | No | I don't know
 ```
 
-Polls must have between 2 and 5 multi-choice options, and end after a month.
+Polls must have between 2 and {{.Config.PollMaxOptions}} multi-choice options, and end after {{printf "%s" .Config.PollDuration}}.
 
 ## Account Migration
 
