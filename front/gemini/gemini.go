@@ -142,7 +142,7 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 		return
 	}
 
-	gl.Handler.Handle(ctx, gl.Log.With("raddr", conn.RemoteAddr()), conn, w, reqUrl, user, privKey, gl.DB, gl.Resolver, wg)
+	gl.Handler.Handle(ctx, gl.Log, conn, w, reqUrl, user, privKey, gl.DB, gl.Resolver, wg)
 }
 
 // ListenAndServe handles Gemini requests.
