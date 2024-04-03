@@ -38,6 +38,11 @@ func (h *Handler) avatar(w text.Writer, r *request, args ...string) {
 		return
 	}
 
+	if r.Body == nil {
+		w.Redirect("/users")
+		return
+	}
+
 	mimeType := args[1]
 	sizeStr := args[2]
 
