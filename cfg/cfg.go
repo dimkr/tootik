@@ -185,11 +185,11 @@ func (c *Config) FillDefaults() {
 	}
 
 	if c.AvatarWidth <= 0 {
-		c.MaxAvatarWidth = 400
+		c.AvatarWidth = 400
 	}
 
 	if c.AvatarHeight <= 0 {
-		c.MaxAvatarHeight = 400
+		c.AvatarHeight = 400
 	}
 
 	if c.MinActorEditInterval <= 0 {
