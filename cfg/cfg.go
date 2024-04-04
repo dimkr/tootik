@@ -173,7 +173,7 @@ func (c *Config) FillDefaults() {
 	}
 
 	if c.MaxAvatarSize <= 0 {
-		c.MaxAvatarSize = 1024 * 1024
+		c.MaxAvatarSize = 2 * 1024 * 1024
 	}
 
 	if c.MaxAvatarWidth <= 0 {
