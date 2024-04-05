@@ -19,7 +19,7 @@ package fed
 import (
 	"database/sql"
 	"errors"
-	"github.com/dimkr/tootik/fed/icon"
+	"github.com/dimkr/tootik/icon"
 	"net/http"
 	"strings"
 )
