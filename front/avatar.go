@@ -18,8 +18,8 @@ package front
 
 import (
 	"fmt"
-	"github.com/dimkr/tootik/icon"
 	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/icon"
 	"github.com/dimkr/tootik/outbox"
 	"io"
 	"strconv"
