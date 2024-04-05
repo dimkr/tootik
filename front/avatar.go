@@ -27,9 +27,9 @@ import (
 )
 
 var supportedImageTypes = map[string]struct{}{
-	"png":  {},
-	"jpeg": {},
-	"gif":  {},
+	"image/png":  {},
+	"image/jpeg": {},
+	"image/gif":  {},
 }
 
 func (h *Handler) avatar(w text.Writer, r *request, args ...string) {
@@ -43,8 +43,18 @@ func (h *Handler) avatar(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	mimeType := args[1]
-	sizeStr := args[2]
+	var sizeStr, mimeType string
+	if args[1] == "size" && args[3] == "mime" {
+		sizeStr = args[2]
+		mimeType = args[4]
+	} else if args[1] == "mime" && args[3] == "size" {
+		sizeStr = args[4]
+		mimeType = args[2]
+	} else {
+		r.Log.Warn("Invalid parameters")
+		w.Error()
+		return
+	}
 
 	size, err := strconv.ParseInt(sizeStr, 10, 64)
 	if err != nil {
