@@ -43,12 +43,11 @@ func Scale(cfg *cfg.Config, data []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	if dim.Height > cfg.AvatarHeight || dim.Width > cfg.AvatarWidth {
-		bounds := image.Rectangle{Min: image.Point{0, 0}, Max: image.Point{cfg.AvatarWidth, cfg.AvatarHeight}}
-		scaled := image.NewRGBA(bounds)
-		xdraw.NearestNeighbor.Scale(scaled, bounds, im, im.Bounds(), draw.Over, nil)
-		im = scaled
-	}
+	bounds := image.Rectangle{Min: image.Point{0, 0}, Max: image.Point{cfg.AvatarWidth, cfg.AvatarHeight}}
+	scaled := image.NewRGBA(bounds)
+	xdraw.Draw(scaled, bounds, image.White, image.Point{}, draw.Src)
+	xdraw.NearestNeighbor.Scale(scaled, bounds, im, im.Bounds(), draw.Over, nil)
+	im = scaled
 
 	var b bytes.Buffer
 	if err := gif.Encode(&b, im, &gif.Options{NumColors: 256}); err != nil {
