@@ -36,7 +36,7 @@ var vfs embed.FS
 
 var templates = map[string]*template.Template{}
 
-func Format(domain string, cfg *cfg.Config) map[string][]string {
+func Format(domain string, cfg *cfg.Config) (map[string][]string, error) {
 	formatted := make(map[string][]string, len(templates))
 
 	data := data{
@@ -47,13 +47,13 @@ func Format(domain string, cfg *cfg.Config) map[string][]string {
 	for path, tmpl := range templates {
 		var b bytes.Buffer
 		if err := tmpl.Execute(&b, &data); err != nil {
-			panic(err)
+			return nil, err
 		}
 
 		formatted[path] = strings.Split(strings.TrimRight(b.String(), "\r\n\t "), "\n")
 	}
 
-	return formatted
+	return formatted, nil
 }
 
 func readDirectory(dir string) {

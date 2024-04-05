@@ -52,7 +52,7 @@ func serveStaticFile(lines []string, w text.Writer, r *request, args ...string) 
 }
 
 // NewHandler returns a new [Handler].
-func NewHandler(domain string, closed bool, cfg *cfg.Config) Handler {
+func NewHandler(domain string, closed bool, cfg *cfg.Config) (Handler, error) {
 	h := Handler{
 		handlers: map[*regexp.Regexp]func(text.Writer, *request, ...string){},
 		Domain:   domain,
@@ -134,13 +134,18 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) Handler {
 
 	h.handlers[regexp.MustCompile(`^/robots.txt$`)] = robots
 
-	for path, lines := range static.Format(domain, cfg) {
+	files, err := static.Format(domain, cfg)
+	if err != nil {
+		return h, err
+	}
+
+	for path, lines := range files {
 		h.handlers[regexp.MustCompile(fmt.Sprintf(`^%s$`, path))] = withUserMenu(func(w text.Writer, r *request, args ...string) {
 			serveStaticFile(lines, w, r, args...)
 		})
 	}
 
-	return h
+	return h, nil
 }
 
 // Handle handles a request and writes a response.

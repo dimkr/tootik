@@ -96,11 +96,16 @@ func newTestServer() *server {
 		panic(err)
 	}
 
+	handler, err := front.NewHandler(domain, false, &cfg)
+	if err != nil {
+		panic(err)
+	}
+
 	return &server{
 		cfg:       &cfg,
 		dbPath:    path,
 		db:        db,
-		handler:   front.NewHandler(domain, false, &cfg),
+		handler:   handler,
 		Alice:     alice,
 		Bob:       bob,
 		Carol:     carol,
