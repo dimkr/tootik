@@ -17,6 +17,7 @@ limitations under the License.
 package front
 
 import (
+	"fmt"
 	"github.com/dimkr/tootik/fed/icon"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/outbox"
@@ -98,7 +99,9 @@ func (h *Handler) avatar(w text.Writer, r *request, args ...string) {
 
 	if _, err := tx.ExecContext(
 		r.Context,
-		"update persons set actor = json_set(actor, '$.updated', $1) where id = $2",
+		"update persons set actor = json_set(actor, '$.icon.url', $1, '$.updated', $2) where id = $3",
+		// we add fragment because some servers cache the image until the URL changes
+		fmt.Sprintf("https://%s/icon/%s%s#%d", r.Handler.Domain, r.User.PreferredUsername, icon.FileNameExtension, now.UnixNano()),
 		now.Format(time.RFC3339Nano),
 		r.User.ID,
 	); err != nil {
