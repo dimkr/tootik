@@ -58,7 +58,7 @@ func (h *Handler) avatar(w text.Writer, r *request, args ...string) {
 
 	size, err := strconv.ParseInt(sizeStr, 10, 64)
 	if err != nil {
-		r.Log.Warn("Failed to parse icon size", "error", err)
+		r.Log.Warn("Failed to parse avatar size", "error", err)
 		w.Status(40, "Invalid size")
 		return
 	}
@@ -84,23 +84,29 @@ func (h *Handler) avatar(w text.Writer, r *request, args ...string) {
 	}
 
 	buf := make([]byte, size)
-	_, err = io.ReadFull(r.Body, buf)
+	n, err := io.ReadFull(r.Body, buf)
 	if err != nil {
-		r.Log.Warn("Failed to read icon", "error", err)
+		r.Log.Warn("Failed to read avatar", "error", err)
+		w.Error()
+		return
+	}
+
+	if int64(n) != size {
+		r.Log.Warn("Avatar is truncated")
 		w.Error()
 		return
 	}
 
 	resized, err := icon.Scale(r.Handler.Config, buf)
 	if err != nil {
-		r.Log.Warn("Failed to read icon", "error", err)
+		r.Log.Warn("Failed to read avatar", "error", err)
 		w.Error()
 		return
 	}
 
 	tx, err := r.DB.BeginTx(r.Context, nil)
 	if err != nil {
-		r.Log.Warn("Failed to set icon", "error", err)
+		r.Log.Warn("Failed to set avatar", "error", err)
 		w.Error()
 		return
 	}
@@ -114,7 +120,7 @@ func (h *Handler) avatar(w text.Writer, r *request, args ...string) {
 		now.Format(time.RFC3339Nano),
 		r.User.ID,
 	); err != nil {
-		r.Log.Error("Failed to set icon", "error", err)
+		r.Log.Error("Failed to set avatar", "error", err)
 		w.Error()
 		return
 	}
@@ -125,19 +131,19 @@ func (h *Handler) avatar(w text.Writer, r *request, args ...string) {
 		r.User.PreferredUsername,
 		string(resized),
 	); err != nil {
-		r.Log.Error("Failed to set icon", "error", err)
+		r.Log.Error("Failed to set avatar", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := outbox.UpdateActor(r.Context, h.Domain, tx, r.User.ID); err != nil {
-		r.Log.Error("Failed to set icon", "error", err)
+		r.Log.Error("Failed to set avatar", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := tx.Commit(); err != nil {
-		r.Log.Error("Failed to set icon", "error", err)
+		r.Log.Error("Failed to set avatar", "error", err)
 		w.Error()
 		return
 	}

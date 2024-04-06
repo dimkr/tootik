@@ -125,3 +125,16 @@ func (s *server) Handle(request string, user *ap.Actor) string {
 
 	return buf.String()
 }
+
+func (s *server) Upload(request string, user *ap.Actor, body []byte) string {
+	u, err := url.Parse(request)
+	if err != nil {
+		panic(err)
+	}
+
+	var buf bytes.Buffer
+	var wg sync.WaitGroup
+	s.handler.Handle(context.Background(), slog.Default(), bytes.NewBuffer(body), gmi.Wrap(&buf), u, user, httpsig.Key{}, s.db, fed.NewResolver(nil, domain, s.cfg, &http.Client{}), &wg)
+
+	return buf.String()
+}
