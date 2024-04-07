@@ -149,5 +149,5 @@ func (h *Handler) avatar(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	w.Redirect("/users/outbox/" + strings.TrimPrefix(r.User.ID, "https://"))
+	w.Redirectf("gemini://%s/users/outbox/%s", r.Handler.Domain, strings.TrimPrefix(r.User.ID, "https://"))
 }
