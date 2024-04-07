@@ -23,6 +23,7 @@ import (
 	"github.com/dimkr/tootik/outbox"
 	"io"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -148,5 +149,5 @@ func (h *Handler) avatar(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	w.OK()
+	w.Redirect("/users/outbox/" + strings.TrimPrefix(r.User.ID, "https://"))
 }
