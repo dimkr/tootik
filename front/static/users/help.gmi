@@ -63,6 +63,8 @@ Follow this link to publish a post visible to:
 * Your followers and mentioned users, or
 * Anyone
 
+You can upload a plain text file over Titan, instead of typing your post in the input prompt (use your client certificate for authentication).
+
 > ⚙️ Settings
 
 This page allows you to:
