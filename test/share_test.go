@@ -29,10 +29,10 @@ func TestShare_PublicPost(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	postPublic := server.Handle("/users/post/public?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
 
-	id := say[15 : len(say)-2]
+	id := postPublic[15 : len(postPublic)-2]
 
 	share := server.Handle("/users/share/"+id, server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), share)
@@ -50,18 +50,18 @@ func TestShare_Throttling(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	postPublic := server.Handle("/users/post/public?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
 
-	id := say[15 : len(say)-2]
+	id := postPublic[15 : len(postPublic)-2]
 
 	share := server.Handle("/users/share/"+id, server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), share)
 
-	say = server.Handle("/users/say?Hello%20world", server.Carol)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	postPublic = server.Handle("/users/post/public?Hello%20world", server.Carol)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
 
-	id = say[15 : len(say)-2]
+	id = postPublic[15 : len(postPublic)-2]
 
 	share = server.Handle("/users/share/"+id, server.Bob)
 	assert.Equal("40 Please wait before sharing\r\n", share)
@@ -73,10 +73,10 @@ func TestShare_UnshareThrottling(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	postPublic := server.Handle("/users/post/public?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
 
-	id := say[15 : len(say)-2]
+	id := postPublic[15 : len(postPublic)-2]
 
 	share := server.Handle("/users/share/"+id, server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), share)
@@ -91,10 +91,10 @@ func TestShare_PostToFollowers(t *testing.T) {
 
 	assert := assert.New(t)
 
-	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+	postFollowers := server.Handle("/users/post/followers?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, postFollowers)
 
-	id := whisper[15 : len(whisper)-2]
+	id := postFollowers[15 : len(postFollowers)-2]
 
 	share := server.Handle("/users/share/"+id, server.Bob)
 	assert.Equal("40 Error\r\n", share)
@@ -106,10 +106,10 @@ func TestShare_Twice(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	postPublic := server.Handle("/users/post/public?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
 
-	id := say[15 : len(say)-2]
+	id := postPublic[15 : len(postPublic)-2]
 
 	share := server.Handle("/users/share/"+id, server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), share)
@@ -130,10 +130,10 @@ func TestShare_Unshare(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	postPublic := server.Handle("/users/post/public?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
 
-	id := say[15 : len(say)-2]
+	id := postPublic[15 : len(postPublic)-2]
 
 	share := server.Handle("/users/share/"+id, server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), share)
@@ -160,10 +160,10 @@ func TestShare_ShareAfterUnshare(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	postPublic := server.Handle("/users/post/public?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
 
-	id := say[15 : len(say)-2]
+	id := postPublic[15 : len(postPublic)-2]
 
 	share := server.Handle("/users/share/"+id, server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), share)

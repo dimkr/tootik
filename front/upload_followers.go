@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,12 +21,11 @@ import (
 	"github.com/dimkr/tootik/front/text"
 )
 
-func (h *Handler) say(w text.Writer, r *request, args ...string) {
+func (h *Handler) uploadFollowers(w text.Writer, r *request, args ...string) {
 	to := ap.Audience{}
 	cc := ap.Audience{}
 
-	to.Add(ap.Public)
-	cc.Add(r.User.Followers)
+	to.Add(r.User.Followers)
 
-	h.post(w, r, nil, nil, to, cc, "", "Post content")
+	h.post(w, r, args, nil, nil, to, cc, "", "", readUpload)
 }

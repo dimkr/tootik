@@ -95,9 +95,9 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) (Handler, error) {
 	h.handlers[regexp.MustCompile(`^/thread/(\S+)$`)] = withUserMenu(h.thread)
 	h.handlers[regexp.MustCompile(`^/users/thread/(\S+)$`)] = withUserMenu(h.thread)
 
-	h.handlers[regexp.MustCompile(`^/users/dm$`)] = h.dm
-	h.handlers[regexp.MustCompile(`^/users/whisper$`)] = h.whisper
-	h.handlers[regexp.MustCompile(`^/users/say$`)] = h.say
+	h.handlers[regexp.MustCompile(`^/users/post/private$`)] = h.postPrivate
+	h.handlers[regexp.MustCompile(`^/users/post/followers$`)] = h.postFollowers
+	h.handlers[regexp.MustCompile(`^/users/post/public$`)] = h.postPublic
 
 	h.handlers[regexp.MustCompile(`^/users/reply/(\S+)`)] = h.reply
 
@@ -106,6 +106,11 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) (Handler, error) {
 
 	h.handlers[regexp.MustCompile(`^/users/edit/(\S+)`)] = h.edit
 	h.handlers[regexp.MustCompile(`^/users/delete/(\S+)`)] = delete
+
+	h.handlers[regexp.MustCompile(`^/users/upload/private/;([a-z]+)=([^;]+);([a-z]+)=([^;]+)`)] = h.uploadPrivate
+	h.handlers[regexp.MustCompile(`^/users/upload/followers/;([a-z]+)=([^;]+);([a-z]+)=([^;]+)`)] = h.uploadFollowers
+	h.handlers[regexp.MustCompile(`^/users/upload/public/;([a-z]+)=([^;]+);([a-z]+)=([^;]+)`)] = h.uploadPublic
+	h.handlers[regexp.MustCompile(`^/users/upload/edit/([^;]+);([a-z]+)=([^;]+);([a-z]+)=([^;]+)`)] = h.editUpload
 
 	h.handlers[regexp.MustCompile(`^/users/resolve$`)] = withUserMenu(h.resolve)
 

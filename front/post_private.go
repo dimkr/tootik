@@ -21,11 +21,9 @@ import (
 	"github.com/dimkr/tootik/front/text"
 )
 
-func (h *Handler) whisper(w text.Writer, r *request, args ...string) {
+func (h *Handler) postPrivate(w text.Writer, r *request, args ...string) {
 	to := ap.Audience{}
 	cc := ap.Audience{}
 
-	to.Add(r.User.Followers)
-
-	h.post(w, r, nil, nil, to, cc, "", "Post content")
+	h.post(w, r, args, nil, nil, to, cc, "", "Post content", readQuery)
 }

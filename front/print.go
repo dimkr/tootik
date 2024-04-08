@@ -411,6 +411,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 
 		if r.User != nil && note.AttributedTo == r.User.ID && note.Type != ap.Question && note.Name == "" { // polls and votes cannot be edited
 			w.Link("/users/edit/"+strings.TrimPrefix(note.ID, "https://"), "🩹 Edit")
+			w.Link(fmt.Sprintf("titan://%s/users/upload/edit/%s", r.Handler.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload edited post")
 		}
 		if r.User != nil && note.AttributedTo == r.User.ID {
 			w.Link("/users/delete/"+strings.TrimPrefix(note.ID, "https://"), "💣 Delete")

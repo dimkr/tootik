@@ -65,5 +65,5 @@ func (h *Handler) reply(w text.Writer, r *request, args ...string) {
 		})
 	}
 
-	h.post(w, r, nil, &note, to, cc, note.Audience, "Reply content")
+	h.post(w, r, args, nil, &note, to, cc, note.Audience, "Reply content", readQuery)
 }

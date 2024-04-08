@@ -29,10 +29,10 @@ func TestDelete_HappyFlow(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(`30 /users/view/\S+\r\n$`, say)
+	postPublic := server.Handle("/users/post/public?Hello%20world", server.Alice)
+	assert.Regexp(`30 /users/view/\S+\r\n$`, postPublic)
 
-	id := say[15 : len(say)-2]
+	id := postPublic[15 : len(postPublic)-2]
 
 	view := server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
@@ -50,10 +50,10 @@ func TestDelete_NotAuthor(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(`30 /users/view/\S+\r\n$`, say)
+	postPublic := server.Handle("/users/post/public?Hello%20world", server.Alice)
+	assert.Regexp(`30 /users/view/\S+\r\n$`, postPublic)
 
-	id := say[15 : len(say)-2]
+	id := postPublic[15 : len(postPublic)-2]
 
 	view := server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
@@ -81,10 +81,10 @@ func TestDelete_UnauthenticatedUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(`30 /users/view/\S+\r\n$`, say)
+	postPublic := server.Handle("/users/post/public?Hello%20world", server.Alice)
+	assert.Regexp(`30 /users/view/\S+\r\n$`, postPublic)
 
-	id := say[15 : len(say)-2]
+	id := postPublic[15 : len(postPublic)-2]
 
 	view := server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")

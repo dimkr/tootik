@@ -21,9 +21,11 @@ import (
 	"github.com/dimkr/tootik/front/text"
 )
 
-func (h *Handler) dm(w text.Writer, r *request, args ...string) {
+func (h *Handler) postFollowers(w text.Writer, r *request, args ...string) {
 	to := ap.Audience{}
 	cc := ap.Audience{}
 
-	h.post(w, r, nil, nil, to, cc, "", "Post content")
+	to.Add(r.User.Followers)
+
+	h.post(w, r, args, nil, nil, to, cc, "", "Post content", readQuery)
 }

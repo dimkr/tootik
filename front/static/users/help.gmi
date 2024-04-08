@@ -56,17 +56,12 @@ Use this tool to locate a user in the fediverse and see the posts published by t
 
 This is a full-text search tool that lists posts containing keyword(s), ordered by relevance.
 
-> 💌 Post to mentioned users
+> 📣 New post
 
-Follow this link to publish a post and send it to mentioned users only.
-
-> 🔔 Post to followers
-
-Follow this link to publish a post and send it to your followers and mentioned users.
-
-> 📣 Post to public
-
-Follow this link to publish a public post visible to anyone.
+Follow this link to publish a post visible to:
+* Mentioned users only, or
+* Your followers and mentioned users, or
+* Anyone
 
 > ⚙️ Settings
 

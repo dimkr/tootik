@@ -22,16 +22,16 @@ import (
 	"testing"
 )
 
-func TestSay_HappyFlow(t *testing.T) {
+func TestPostPublic_HappyFlow(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	postPublic := server.Handle("/users/post/public?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
 
-	view := server.Handle(say[3:len(say)-2], server.Bob)
+	view := server.Handle(postPublic[3:len(postPublic)-2], server.Bob)
 	assert.Contains(view, "Hello world")
 
 	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
@@ -41,23 +41,23 @@ func TestSay_HappyFlow(t *testing.T) {
 	assert.Contains(local, "Hello world")
 }
 
-func TestSay_Throttling(t *testing.T) {
+func TestPostPublic_Throttling(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	postPublic := server.Handle("/users/post/public?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
 
-	view := server.Handle(say[3:len(say)-2], server.Bob)
+	view := server.Handle(postPublic[3:len(postPublic)-2], server.Bob)
 	assert.Contains(view, "Hello world")
 
 	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Alice)
 	assert.Contains(outbox, "Hello world")
 
-	say = server.Handle("/users/say?Hello%20once%20more,%20world", server.Alice)
-	assert.Equal("40 Please wait before posting again\r\n", say)
+	postPublic = server.Handle("/users/post/public?Hello%20once%20more,%20world", server.Alice)
+	assert.Equal("40 Please wait before posting again\r\n", postPublic)
 
 	outbox = server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Contains(outbox, "Hello world")
