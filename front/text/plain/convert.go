@@ -37,7 +37,7 @@ var (
 	brTags            = regexp.MustCompile(`<br\s*\/*>`)
 	openTags          = regexp.MustCompile(`(?:<[a-zA-Z0-9]+\s*[^>]*>)+`)
 	closeTags         = regexp.MustCompile(`(?:<\/[a-zA-Z0-9]+\s*[^>]*>)+`)
-	urlRegex          = regexp.MustCompile(`\b(https|http|gemini|gopher|gophers):\/\/\S+\b`)
+	urlRegex          = regexp.MustCompile(`\b(https|http|gemini|titan|gopher|gophers):\/\/\S+\b`)
 	pDelim            = regexp.MustCompile(`([^\n])\n\n+([^\n])`)
 	mentionRegex      = regexp.MustCompile(`\B@(\w+)(?:@(?:(?:\w+\.)+\w+(?::\d{1,5}){0,1})){0,1}\b`)
 )
