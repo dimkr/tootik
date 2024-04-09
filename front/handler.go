@@ -107,9 +107,9 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) (Handler, error) {
 	h.handlers[regexp.MustCompile(`^/users/edit/(\S+)`)] = h.edit
 	h.handlers[regexp.MustCompile(`^/users/delete/(\S+)`)] = delete
 
-	h.handlers[regexp.MustCompile(`^/users/upload/private/;([a-z]+)=([^;]+);([a-z]+)=([^;]+)`)] = h.uploadPrivate
-	h.handlers[regexp.MustCompile(`^/users/upload/followers/;([a-z]+)=([^;]+);([a-z]+)=([^;]+)`)] = h.uploadFollowers
-	h.handlers[regexp.MustCompile(`^/users/upload/public/;([a-z]+)=([^;]+);([a-z]+)=([^;]+)`)] = h.uploadPublic
+	h.handlers[regexp.MustCompile(`^/users/upload/private;([a-z]+)=([^;]+);([a-z]+)=([^;]+)`)] = h.uploadPrivate
+	h.handlers[regexp.MustCompile(`^/users/upload/followers;([a-z]+)=([^;]+);([a-z]+)=([^;]+)`)] = h.uploadFollowers
+	h.handlers[regexp.MustCompile(`^/users/upload/public;([a-z]+)=([^;]+);([a-z]+)=([^;]+)`)] = h.uploadPublic
 	h.handlers[regexp.MustCompile(`^/users/upload/edit/([^;]+);([a-z]+)=([^;]+);([a-z]+)=([^;]+)`)] = h.editUpload
 
 	h.handlers[regexp.MustCompile(`^/users/resolve$`)] = withUserMenu(h.resolve)

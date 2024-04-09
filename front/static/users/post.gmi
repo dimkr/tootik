@@ -1,10 +1,10 @@
 # New Post
 
 => /users/post/private 💌 Mentioned users only
-=> titan://{{.Domain}}/users/upload/private/ Upload text file
+=> titan://{{.Domain}}/users/upload/private Upload text file
 
 => /users/post/followers 🔔 Followers and mentioned users
-=> titan://{{.Domain}}/users/upload/followers/ Upload text file
+=> titan://{{.Domain}}/users/upload/followers Upload text file
 
 => /users/post/public 📣 Public
-=> titan://{{.Domain}}/users/upload/public/ Upload text file
+=> titan://{{.Domain}}/users/upload/public Upload text file
