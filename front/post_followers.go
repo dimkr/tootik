@@ -27,7 +27,7 @@ func (h *Handler) postFollowers(w text.Writer, r *request, args ...string) {
 
 	to.Add(r.User.Followers)
 
-	h.post(w, r, nil, nil, to, cc, "", func(w text.Writer, r *request) (string, bool) {
+	h.post(w, r, nil, nil, to, cc, "", func() (string, bool) {
 		return readQuery(w, r, "Post content")
 	})
 }

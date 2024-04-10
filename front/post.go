@@ -121,7 +121,7 @@ func readUpload(w text.Writer, r *request, args []string) (string, bool) {
 	return string(buf), true
 }
 
-func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo *ap.Object, to ap.Audience, cc ap.Audience, audience string, readContent func(text.Writer, *request) (string, bool)) {
+func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo *ap.Object, to ap.Audience, cc ap.Audience, audience string, readContent func() (string, bool)) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -154,7 +154,7 @@ func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo 
 		}
 	}
 
-	content, ok := readContent(w, r)
+	content, ok := readContent()
 	if !ok {
 		return
 	}
