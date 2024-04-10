@@ -131,6 +131,7 @@ func (s *server) Upload(request string, user *ap.Actor, body []byte) string {
 	if err != nil {
 		panic(err)
 	}
+	u.Scheme = "titan"
 
 	var buf bytes.Buffer
 	var wg sync.WaitGroup

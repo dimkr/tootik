@@ -33,9 +33,9 @@ func TestUploadReply_PostToFollowers(t *testing.T) {
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	postFollowers := server.Handle("/users/post/followers?Hello%20world", server.Bob)
-	assert.Regexp(fmt.Sprintf("^30 gemini://%s/users/view/\\S+\r\n$", domain), postFollowers)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, postFollowers)
 
-	id := postFollowers[50 : len(postFollowers)-2]
+	id := postFollowers[15 : len(postFollowers)-2]
 
 	view := server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")

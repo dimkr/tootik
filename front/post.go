@@ -318,5 +318,9 @@ func (h *Handler) post(w text.Writer, r *request, args []string, oldNote *ap.Obj
 		return
 	}
 
-	w.Redirectf("gemini://%s/users/view/%s", h.Domain, strings.TrimPrefix(postID, "https://"))
+	if r.URL.Scheme == "titan" {
+		w.Redirectf("gemini://%s/users/view/%s", h.Domain, strings.TrimPrefix(postID, "https://"))
+	} else {
+		w.Redirectf("/users/view/%s", strings.TrimPrefix(postID, "https://"))
+	}
 }
