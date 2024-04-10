@@ -25,7 +25,7 @@ import (
 	"unicode/utf8"
 )
 
-func (h *Handler) doBio(w text.Writer, r *request, readContent func(text.Writer, *request, []string) (string, bool), args []string) {
+func (h *Handler) doBio(w text.Writer, r *request, readContent func(text.Writer, *request) (string, bool)) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -39,7 +39,7 @@ func (h *Handler) doBio(w text.Writer, r *request, readContent func(text.Writer,
 		return
 	}
 
-	summary, ok := readContent(w, r, args)
+	summary, ok := readContent(w, r)
 	if !ok {
 		return
 	}
@@ -88,13 +88,18 @@ func (h *Handler) bio(w text.Writer, r *request, args ...string) {
 	h.doBio(
 		w,
 		r,
-		func(text.Writer, *request, []string) (string, bool) {
-			return readQuery(w, r, args, "Bio")
+		func(w text.Writer, r *request) (string, bool) {
+			return readQuery(w, r, "Bio")
 		},
-		args,
 	)
 }
 
 func (h *Handler) bioUpload(w text.Writer, r *request, args ...string) {
-	h.doBio(w, r, readUpload, args)
+	h.doBio(
+		w,
+		r,
+		func(w text.Writer, r *request) (string, bool) {
+			return readUpload(w, r, args)
+		},
+	)
 }

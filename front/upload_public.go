@@ -28,5 +28,7 @@ func (h *Handler) uploadPublic(w text.Writer, r *request, args ...string) {
 	to.Add(ap.Public)
 	cc.Add(r.User.Followers)
 
-	h.post(w, r, args, nil, nil, to, cc, "", readUpload)
+	h.post(w, r, nil, nil, to, cc, "", func(w text.Writer, r *request) (string, bool) {
+		return readUpload(w, r, args)
+	})
 }

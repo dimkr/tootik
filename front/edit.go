@@ -25,7 +25,7 @@ import (
 	"time"
 )
 
-func (h *Handler) doEdit(w text.Writer, r *request, readContent func(text.Writer, *request, []string) (string, bool), args []string) {
+func (h *Handler) doEdit(w text.Writer, r *request, readContent func(text.Writer, *request) (string, bool), args []string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -70,7 +70,7 @@ func (h *Handler) doEdit(w text.Writer, r *request, readContent func(text.Writer
 	}
 
 	if note.InReplyTo == "" {
-		h.post(w, r, args, &note, nil, note.To, note.CC, note.Audience, readContent)
+		h.post(w, r, &note, nil, note.To, note.CC, note.Audience, readContent)
 		return
 	}
 
@@ -84,15 +84,15 @@ func (h *Handler) doEdit(w text.Writer, r *request, readContent func(text.Writer
 	}
 
 	// the starting point is the original value of to and cc: recipients can be added but not removed when editing
-	h.post(w, r, args, &note, &parent, note.To, note.CC, note.Audience, readContent)
+	h.post(w, r, &note, &parent, note.To, note.CC, note.Audience, readContent)
 }
 
 func (h *Handler) edit(w text.Writer, r *request, args ...string) {
 	h.doEdit(
 		w,
 		r,
-		func(w text.Writer, r *request, args []string) (string, bool) {
-			return readQuery(w, r, args, "Post content")
+		func(w text.Writer, r *request) (string, bool) {
+			return readQuery(w, r, "Post content")
 		},
 		args,
 	)
@@ -102,7 +102,7 @@ func (h *Handler) editUpload(w text.Writer, r *request, args ...string) {
 	h.doEdit(
 		w,
 		r,
-		func(w text.Writer, r *request, args []string) (string, bool) {
+		func(w text.Writer, r *request) (string, bool) {
 			return readUpload(w, r, args[1:])
 		},
 		args,

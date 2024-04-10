@@ -45,7 +45,7 @@ var (
 	pollRegex    = regexp.MustCompile(`^\[(?:(?i)POLL)\s+(.+)\s*\]\s*(.+)`)
 )
 
-func readQuery(w text.Writer, r *request, args []string, prompt string) (string, bool) {
+func readQuery(w text.Writer, r *request, prompt string) (string, bool) {
 	if r.URL.RawQuery == "" {
 		w.Status(10, prompt)
 		return "", false
@@ -121,7 +121,7 @@ func readUpload(w text.Writer, r *request, args []string) (string, bool) {
 	return string(buf), true
 }
 
-func (h *Handler) post(w text.Writer, r *request, args []string, oldNote *ap.Object, inReplyTo *ap.Object, to ap.Audience, cc ap.Audience, audience string, readContent func(text.Writer, *request, []string) (string, bool)) {
+func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo *ap.Object, to ap.Audience, cc ap.Audience, audience string, readContent func(text.Writer, *request) (string, bool)) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -154,7 +154,7 @@ func (h *Handler) post(w text.Writer, r *request, args []string, oldNote *ap.Obj
 		}
 	}
 
-	content, ok := readContent(w, r, args)
+	content, ok := readContent(w, r)
 	if !ok {
 		return
 	}
