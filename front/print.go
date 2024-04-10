@@ -439,6 +439,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 
 		if r.User != nil {
 			w.Link("/users/reply/"+strings.TrimPrefix(note.ID, "https://"), "💬 Reply")
+			w.Link(fmt.Sprintf("titan://%s/users/upload/reply/%s", r.Handler.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload reply")
 		}
 	}
 }

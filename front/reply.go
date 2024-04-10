@@ -23,7 +23,7 @@ import (
 	"github.com/dimkr/tootik/front/text"
 )
 
-func (h *Handler) reply(w text.Writer, r *request, args ...string) {
+func (h *Handler) doReply(w text.Writer, r *request, readContent func(text.Writer, *request, []string, string) (string, bool), args []string) {
 	postID := "https://" + args[1]
 
 	var note ap.Object
@@ -65,5 +65,20 @@ func (h *Handler) reply(w text.Writer, r *request, args ...string) {
 		})
 	}
 
-	h.post(w, r, args, nil, &note, to, cc, note.Audience, "Reply content", readQuery)
+	h.post(w, r, args, nil, &note, to, cc, note.Audience, "Reply content", readContent)
+}
+
+func (h *Handler) reply(w text.Writer, r *request, args ...string) {
+	h.doReply(w, r, readQuery, args)
+}
+
+func (h *Handler) replyUpload(w text.Writer, r *request, args ...string) {
+	h.doReply(
+		w,
+		r,
+		func(w text.Writer, r *request, args []string, prompt string) (string, bool) {
+			return readUpload(w, r, args[1:], prompt)
+		},
+		args,
+	)
 }

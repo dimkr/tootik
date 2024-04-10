@@ -25,7 +25,7 @@ import (
 	"time"
 )
 
-func (h *Handler) doEdit(w text.Writer, r *request, readContent func(text.Writer, *request, []string, string) (string, bool), args ...string) {
+func (h *Handler) doEdit(w text.Writer, r *request, readContent func(text.Writer, *request, []string, string) (string, bool), args []string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -88,7 +88,7 @@ func (h *Handler) doEdit(w text.Writer, r *request, readContent func(text.Writer
 }
 
 func (h *Handler) edit(w text.Writer, r *request, args ...string) {
-	h.doEdit(w, r, readQuery, args...)
+	h.doEdit(w, r, readQuery, args)
 }
 
 func (h *Handler) editUpload(w text.Writer, r *request, args ...string) {
@@ -98,6 +98,6 @@ func (h *Handler) editUpload(w text.Writer, r *request, args ...string) {
 		func(w text.Writer, r *request, args []string, prompt string) (string, bool) {
 			return readUpload(w, r, args[1:], prompt)
 		},
-		args...,
+		args,
 	)
 }

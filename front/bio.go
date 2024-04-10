@@ -20,13 +20,12 @@ import (
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/text/plain"
 	"github.com/dimkr/tootik/outbox"
-	"net/url"
 	"strings"
 	"time"
 	"unicode/utf8"
 )
 
-func (h *Handler) bio(w text.Writer, r *request, args ...string) {
+func (h *Handler) doBio(w text.Writer, r *request, readContent func(text.Writer, *request, []string) (string, bool), args []string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -40,14 +39,8 @@ func (h *Handler) bio(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	if r.URL.RawQuery == "" {
-		w.Status(10, "Summary")
-		return
-	}
-
-	summary, err := url.QueryUnescape(r.URL.RawQuery)
-	if err != nil {
-		w.Status(40, "Bad input")
+	summary, ok := readContent(w, r, args)
+	if !ok {
 		return
 	}
 
@@ -89,4 +82,26 @@ func (h *Handler) bio(w text.Writer, r *request, args ...string) {
 	}
 
 	w.Redirect("/users/outbox/" + strings.TrimPrefix(r.User.ID, "https://"))
+}
+
+func (h *Handler) bio(w text.Writer, r *request, args ...string) {
+	h.doBio(
+		w,
+		r,
+		func(text.Writer, *request, []string) (string, bool) {
+			return readQuery(w, r, args, "Bio")
+		},
+		args,
+	)
+}
+
+func (h *Handler) bioUpload(w text.Writer, r *request, args ...string) {
+	h.doBio(
+		w,
+		r,
+		func(text.Writer, *request, []string) (string, bool) {
+			return readUpload(w, r, args, "")
+		},
+		args,
+	)
 }
