@@ -38,9 +38,9 @@ func TestUploadEdit_HappyFlow(t *testing.T) {
 	assert.NotContains(users, "Hello followers")
 
 	postFollowers := server.Handle("/users/post/followers?Hello%20world", server.Bob)
-	assert.Regexp(fmt.Sprintf(`^30 gemini://%s/users/view/(\S+)\r\n$`, domain), postFollowers)
+	assert.Regexp(`30 /users/view/(\S+)\r\n$`, postFollowers)
 
-	id := postFollowers[50 : len(postFollowers)-2]
+	id := postFollowers[15 : len(postFollowers)-2]
 
 	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
@@ -78,9 +78,9 @@ func TestUploadEdit_Empty(t *testing.T) {
 	assert.NotContains(users, "Hello followers")
 
 	postFollowers := server.Handle("/users/post/followers?Hello%20world", server.Bob)
-	assert.Regexp(fmt.Sprintf(`^30 gemini://%s/users/view/(\S+)\r\n$`, domain), postFollowers)
+	assert.Regexp(`^30 /users/view/(\S+)\r\n$`, postFollowers)
 
-	id := postFollowers[50 : len(postFollowers)-2]
+	id := postFollowers[15 : len(postFollowers)-2]
 
 	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
@@ -103,9 +103,9 @@ func TestUploadEdit_SizeLimit(t *testing.T) {
 	assert.NotContains(users, "Hello followers")
 
 	postFollowers := server.Handle("/users/post/followers?Hello%20world", server.Bob)
-	assert.Regexp(fmt.Sprintf(`^30 gemini://%s/users/view/(\S+)\r\n$`, domain), postFollowers)
+	assert.Regexp(`^30 /users/view/(\S+)\r\n$`, postFollowers)
 
-	id := postFollowers[50 : len(postFollowers)-2]
+	id := postFollowers[15 : len(postFollowers)-2]
 
 	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
@@ -130,9 +130,9 @@ func TestUploadEdit_InvalidSize(t *testing.T) {
 	assert.NotContains(users, "Hello followers")
 
 	postFollowers := server.Handle("/users/post/followers?Hello%20world", server.Bob)
-	assert.Regexp(fmt.Sprintf(`^30 gemini://%s/users/view/(\S+)\r\n$`, domain), postFollowers)
+	assert.Regexp(`^30 /users/view/(\S+)\r\n$`, postFollowers)
 
-	id := postFollowers[50 : len(postFollowers)-2]
+	id := postFollowers[15 : len(postFollowers)-2]
 
 	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
@@ -155,9 +155,9 @@ func TestUploadEdit_InvalidType(t *testing.T) {
 	assert.NotContains(users, "Hello followers")
 
 	postFollowers := server.Handle("/users/post/followers?Hello%20world", server.Bob)
-	assert.Regexp(fmt.Sprintf(`^30 gemini://%s/users/view/(\S+)\r\n$`, domain), postFollowers)
+	assert.Regexp(`^30 /users/view/(\S+)\r\n$`, postFollowers)
 
-	id := postFollowers[50 : len(postFollowers)-2]
+	id := postFollowers[15 : len(postFollowers)-2]
 
 	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
@@ -180,9 +180,9 @@ func TestUploadEdit_NoSize(t *testing.T) {
 	assert.NotContains(users, "Hello followers")
 
 	postFollowers := server.Handle("/users/post/followers?Hello%20world", server.Bob)
-	assert.Regexp(fmt.Sprintf(`^30 gemini://%s/users/view/(\S+)\r\n$`, domain), postFollowers)
+	assert.Regexp(`^30 /users/view/(\S+)\r\n$`, postFollowers)
 
-	id := postFollowers[50 : len(postFollowers)-2]
+	id := postFollowers[15 : len(postFollowers)-2]
 
 	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
@@ -205,9 +205,9 @@ func TestUploadEdit_NoType(t *testing.T) {
 	assert.NotContains(users, "Hello followers")
 
 	postFollowers := server.Handle("/users/post/followers?Hello%20world", server.Bob)
-	assert.Regexp(fmt.Sprintf(`^30 gemini://%s/users/view/(\S+)\r\n$`, domain), postFollowers)
+	assert.Regexp(`^30 /users/view/(\S+)\r\n$`, postFollowers)
 
-	id := postFollowers[50 : len(postFollowers)-2]
+	id := postFollowers[15 : len(postFollowers)-2]
 
 	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
