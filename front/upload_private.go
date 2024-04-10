@@ -25,5 +25,7 @@ func (h *Handler) uploadPrivate(w text.Writer, r *request, args ...string) {
 	to := ap.Audience{}
 	cc := ap.Audience{}
 
-	h.post(w, r, args, nil, nil, to, cc, "", "", readUpload)
+	h.post(w, r, args, nil, nil, to, cc, "", func(w text.Writer, r *request, args []string) (string, bool) {
+		return readQuery(w, r, args, "Post content")
+	})
 }

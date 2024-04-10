@@ -60,7 +60,7 @@ func readQuery(w text.Writer, r *request, args []string, prompt string) (string,
 	return content, true
 }
 
-func readUpload(w text.Writer, r *request, args []string, prompt string) (string, bool) {
+func readUpload(w text.Writer, r *request, args []string) (string, bool) {
 	if r.Body == nil {
 		w.Redirect("/users/oops")
 		return "", false
@@ -121,7 +121,7 @@ func readUpload(w text.Writer, r *request, args []string, prompt string) (string
 	return string(buf), true
 }
 
-func (h *Handler) post(w text.Writer, r *request, args []string, oldNote *ap.Object, inReplyTo *ap.Object, to ap.Audience, cc ap.Audience, audience, prompt string, readContent func(text.Writer, *request, []string, string) (string, bool)) {
+func (h *Handler) post(w text.Writer, r *request, args []string, oldNote *ap.Object, inReplyTo *ap.Object, to ap.Audience, cc ap.Audience, audience string, readContent func(text.Writer, *request, []string) (string, bool)) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -154,7 +154,7 @@ func (h *Handler) post(w text.Writer, r *request, args []string, oldNote *ap.Obj
 		}
 	}
 
-	content, ok := readContent(w, r, args, prompt)
+	content, ok := readContent(w, r, args)
 	if !ok {
 		return
 	}

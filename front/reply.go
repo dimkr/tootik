@@ -23,7 +23,7 @@ import (
 	"github.com/dimkr/tootik/front/text"
 )
 
-func (h *Handler) doReply(w text.Writer, r *request, readContent func(text.Writer, *request, []string, string) (string, bool), args []string) {
+func (h *Handler) doReply(w text.Writer, r *request, readContent func(text.Writer, *request, []string) (string, bool), args []string) {
 	postID := "https://" + args[1]
 
 	var note ap.Object
@@ -65,19 +65,26 @@ func (h *Handler) doReply(w text.Writer, r *request, readContent func(text.Write
 		})
 	}
 
-	h.post(w, r, args, nil, &note, to, cc, note.Audience, "Reply content", readContent)
+	h.post(w, r, args, nil, &note, to, cc, note.Audience, readContent)
 }
 
 func (h *Handler) reply(w text.Writer, r *request, args ...string) {
-	h.doReply(w, r, readQuery, args)
+	h.doReply(
+		w,
+		r,
+		func(w text.Writer, r *request, args []string) (string, bool) {
+			return readQuery(w, r, args[1:], "Reply content")
+		},
+		args,
+	)
 }
 
 func (h *Handler) replyUpload(w text.Writer, r *request, args ...string) {
 	h.doReply(
 		w,
 		r,
-		func(w text.Writer, r *request, args []string, prompt string) (string, bool) {
-			return readUpload(w, r, args[1:], prompt)
+		func(w text.Writer, r *request, args []string) (string, bool) {
+			return readUpload(w, r, args[1:])
 		},
 		args,
 	)

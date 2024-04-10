@@ -28,5 +28,7 @@ func (h *Handler) postPublic(w text.Writer, r *request, args ...string) {
 	to.Add(ap.Public)
 	cc.Add(r.User.Followers)
 
-	h.post(w, r, args, nil, nil, to, cc, "", "Post content", readQuery)
+	h.post(w, r, args, nil, nil, to, cc, "", func(w text.Writer, r *request, args []string) (string, bool) {
+		return readQuery(w, r, args, "Post content")
+	})
 }
