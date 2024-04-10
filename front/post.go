@@ -53,7 +53,7 @@ func readQuery(w text.Writer, r *request, prompt string) (string, bool) {
 
 	content, err := url.QueryUnescape(r.URL.RawQuery)
 	if err != nil {
-		w.Error()
+		w.Status(40, "Bad input")
 		return "", false
 	}
 
