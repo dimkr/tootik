@@ -41,7 +41,7 @@ func readQuery(w text.Writer, r *request, prompt string) (string, bool) {
 	return content, true
 }
 
-func readUpload(w text.Writer, r *request, args []string) (string, bool) {
+func readBody(w text.Writer, r *request, args []string) (string, bool) {
 	if r.Body == nil {
 		w.Redirect("/users/oops")
 		return "", false

@@ -99,7 +99,7 @@ func (h *Handler) uploadBio(w text.Writer, r *request, args ...string) {
 		w,
 		r,
 		func(w text.Writer, r *request) (string, bool) {
-			return readUpload(w, r, args)
+			return readBody(w, r, args)
 		},
 	)
 }

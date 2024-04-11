@@ -76,6 +76,6 @@ func (h *Handler) reply(w text.Writer, r *request, args ...string) {
 
 func (h *Handler) replyUpload(w text.Writer, r *request, args ...string) {
 	h.doReply(w, r, args, func() (string, bool) {
-		return readUpload(w, r, args[1:])
+		return readBody(w, r, args[1:])
 	})
 }

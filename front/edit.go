@@ -95,6 +95,6 @@ func (h *Handler) edit(w text.Writer, r *request, args ...string) {
 
 func (h *Handler) editUpload(w text.Writer, r *request, args ...string) {
 	h.doEdit(w, r, args, func() (string, bool) {
-		return readUpload(w, r, args[1:])
+		return readBody(w, r, args[1:])
 	})
 }

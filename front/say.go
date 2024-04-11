@@ -41,6 +41,6 @@ func (h *Handler) uploadSay(w text.Writer, r *request, args ...string) {
 	cc.Add(r.User.Followers)
 
 	h.post(w, r, nil, nil, to, cc, "", func() (string, bool) {
-		return readUpload(w, r, args)
+		return readBody(w, r, args)
 	})
 }

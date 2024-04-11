@@ -35,6 +35,6 @@ func (h *Handler) uploadDM(w text.Writer, r *request, args ...string) {
 	cc := ap.Audience{}
 
 	h.post(w, r, nil, nil, to, cc, "", func() (string, bool) {
-		return readUpload(w, r, args)
+		return readBody(w, r, args)
 	})
 }

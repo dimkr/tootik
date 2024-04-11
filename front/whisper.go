@@ -39,6 +39,6 @@ func (h *Handler) uploadWhisper(w text.Writer, r *request, args ...string) {
 	to.Add(r.User.Followers)
 
 	h.post(w, r, nil, nil, to, cc, "", func() (string, bool) {
-		return readUpload(w, r, args)
+		return readBody(w, r, args)
 	})
 }
