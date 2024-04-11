@@ -23,7 +23,7 @@ import (
 	"github.com/dimkr/tootik/front/text"
 )
 
-func (h *Handler) doReply(w text.Writer, r *request, readInput inputFunc, args []string) {
+func (h *Handler) doReply(w text.Writer, r *request, args []string, readInput inputFunc) {
 	postID := "https://" + args[1]
 
 	var note ap.Object
@@ -69,23 +69,13 @@ func (h *Handler) doReply(w text.Writer, r *request, readInput inputFunc, args [
 }
 
 func (h *Handler) reply(w text.Writer, r *request, args ...string) {
-	h.doReply(
-		w,
-		r,
-		func() (string, bool) {
-			return readQuery(w, r, "Reply content")
-		},
-		args,
-	)
+	h.doReply(w, r, args, func() (string, bool) {
+		return readQuery(w, r, "Reply content")
+	})
 }
 
 func (h *Handler) replyUpload(w text.Writer, r *request, args ...string) {
-	h.doReply(
-		w,
-		r,
-		func() (string, bool) {
-			return readUpload(w, r, args[1:])
-		},
-		args,
-	)
+	h.doReply(w, r, args, func() (string, bool) {
+		return readUpload(w, r, args[1:])
+	})
 }
