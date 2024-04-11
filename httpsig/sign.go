@@ -77,7 +77,7 @@ func Sign(r *http.Request, key Key) error {
 	r.Header.Set(
 		"Signature",
 		fmt.Sprintf(
-			`keyId="%s",algorithm="hs2019",headers="%s",signature="%s"`,
+			`keyId="%s",algorithm="rsa-sha256",headers="%s",signature="%s"`,
 			key.ID,
 			strings.Join(headers, " "),
 			base64.StdEncoding.EncodeToString(sig),
