@@ -4,7 +4,7 @@
 
 => /users/name 👺 Set display name
 => /users/bio 📜 Set bio
-=> titan://{{.Domain}}/users/avatar 📷 Set avatar
+=> titan://{{.Domain}}/users/upload/avatar Set avatar
 
 ## Migration
 
