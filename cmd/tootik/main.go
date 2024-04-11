@@ -179,7 +179,10 @@ func main() {
 		panic(err)
 	}
 
-	handler := front.NewHandler(*domain, *closed, &cfg)
+	handler, err := front.NewHandler(*domain, *closed, &cfg)
+	if err != nil {
+		panic(err)
+	}
 
 	for _, svc := range []struct {
 		Name     string

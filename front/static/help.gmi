@@ -1,6 +1,6 @@
 # 🛟 Help
 
-## About this server
+## About {{.Domain}}
 
 This is an instance of tootik, a "slow", "boring" and non-addictive social network in the small internet that is also connected to the fediverse.
 => https://github.com/dimkr/tootik The tootik project
