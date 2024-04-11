@@ -99,7 +99,7 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 	req := make([]byte, 1024+2)
 	total := 0
 	for {
-		n, err := conn.Read(req[total:])
+		n, err := conn.Read(req[total : total+1])
 		if err != nil && total == 0 && errors.Is(err, io.EOF) {
 			gl.Log.Debug("Failed to receive request", "error", err)
 			return
@@ -142,7 +142,7 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 		return
 	}
 
-	gl.Handler.Handle(ctx, gl.Log, w, reqUrl, user, privKey, gl.DB, gl.Resolver, wg)
+	gl.Handler.Handle(ctx, gl.Log, conn, w, reqUrl, user, privKey, gl.DB, gl.Resolver, wg)
 }
 
 // ListenAndServe handles Gemini requests.
@@ -197,8 +197,14 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 
 			wg.Add(1)
 			go func() {
-				gl.Handle(requestCtx, conn, &wg)
+				<-requestCtx.Done()
 				conn.Close()
+				wg.Done()
+			}()
+
+			wg.Add(1)
+			go func() {
+				gl.Handle(requestCtx, conn, &wg)
 				timer.Stop()
 				cancelRequest()
 				wg.Done()

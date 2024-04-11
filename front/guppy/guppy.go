@@ -90,7 +90,7 @@ func (gl *Listener) handle(ctx context.Context, wg *sync.WaitGroup, from net.Add
 		w.Status(4, "Wrong host")
 	} else {
 		gl.Log.Info("Handling request", "path", reqUrl.Path, "url", reqUrl.String(), "from", from)
-		gl.Handler.Handle(ctx, gl.Log, w, reqUrl, nil, httpsig.Key{}, gl.DB, gl.Resolver, wg)
+		gl.Handler.Handle(ctx, gl.Log, nil, w, reqUrl, nil, httpsig.Key{}, gl.DB, gl.Resolver, wg)
 	}
 
 	if ctx.Err() != nil {

@@ -90,7 +90,7 @@ func (gl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 
 	w := gmap.Wrap(conn, gl.Domain, gl.Config)
 
-	gl.Handler.Handle(ctx, gl.Log.With(slog.Group("request", "path", reqUrl.Path)), w, reqUrl, nil, httpsig.Key{}, gl.DB, gl.Resolver, wg)
+	gl.Handler.Handle(ctx, gl.Log.With(slog.Group("request", "path", reqUrl.Path)), nil, w, reqUrl, nil, httpsig.Key{}, gl.DB, gl.Resolver, wg)
 }
 
 // ListenAndServe handles Gopher requests.

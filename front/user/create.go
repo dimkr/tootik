@@ -26,8 +26,8 @@ import (
 	"encoding/pem"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/fed/icon"
 	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/icon"
 	"time"
 )
 

@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package icon generates tiny, pseudo-random user avatars.
 package icon
 
 import (
@@ -24,11 +23,6 @@ import (
 	"image/color"
 	"image/draw"
 	"image/gif"
-)
-
-const (
-	MediaType         = "image/gif"
-	FileNameExtension = ".gif"
 )
 
 // Generate generates a tiny pseudo-random image by user name

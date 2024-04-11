@@ -44,6 +44,11 @@ type Config struct {
 
 	MaxDisplayNameLength int
 	MaxBioLength         int
+	MaxAvatarSize        int64
+	MaxAvatarWidth       int
+	MaxAvatarHeight      int
+	AvatarWidth          int
+	AvatarHeight         int
 	MinActorEditInterval time.Duration
 
 	MaxFollowsPerUser   int
@@ -165,6 +170,26 @@ func (c *Config) FillDefaults() {
 
 	if c.MaxBioLength <= 0 {
 		c.MaxBioLength = 500
+	}
+
+	if c.MaxAvatarSize <= 0 {
+		c.MaxAvatarSize = 2 * 1024 * 1024
+	}
+
+	if c.MaxAvatarWidth <= 0 {
+		c.MaxAvatarWidth = 1024
+	}
+
+	if c.MaxAvatarHeight <= 0 {
+		c.MaxAvatarHeight = 1024
+	}
+
+	if c.AvatarWidth <= 0 {
+		c.AvatarWidth = 400
+	}
+
+	if c.AvatarHeight <= 0 {
+		c.AvatarHeight = 400
 	}
 
 	if c.MinActorEditInterval <= 0 {

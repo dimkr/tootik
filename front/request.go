@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/httpsig"
+	"io"
 	"log/slog"
 	"net/url"
 	"sync"
@@ -30,6 +31,7 @@ type request struct {
 	Context   context.Context
 	Handler   *Handler
 	URL       *url.URL
+	Body      io.Reader
 	User      *ap.Actor
 	Key       httpsig.Key
 	DB        *sql.DB
