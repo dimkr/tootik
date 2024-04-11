@@ -42,16 +42,16 @@ type Handler struct {
 
 var ErrNotRegistered = errors.New("user is not registered")
 
-func serveStaticFile(w text.Writer, r *request, args ...string) {
+func serveStaticFile(lines []string, w text.Writer, r *request, args ...string) {
 	w.OK()
 
-	for _, line := range static.Files[r.URL.Path] {
+	for _, line := range lines {
 		w.Text(line)
 	}
 }
 
 // NewHandler returns a new [Handler].
-func NewHandler(domain string, closed bool, cfg *cfg.Config) Handler {
+func NewHandler(domain string, closed bool, cfg *cfg.Config) (Handler, error) {
 	h := Handler{
 		handlers: map[*regexp.Regexp]func(text.Writer, *request, ...string){},
 		Domain:   domain,
@@ -132,11 +132,18 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) Handler {
 
 	h.handlers[regexp.MustCompile(`^/robots.txt$`)] = robots
 
-	for path := range static.Files {
-		h.handlers[regexp.MustCompile(fmt.Sprintf(`^%s$`, path))] = withUserMenu(serveStaticFile)
+	files, err := static.Format(domain, cfg)
+	if err != nil {
+		return h, err
 	}
 
-	return h
+	for path, lines := range files {
+		h.handlers[regexp.MustCompile(fmt.Sprintf(`^%s$`, path))] = withUserMenu(func(w text.Writer, r *request, args ...string) {
+			serveStaticFile(lines, w, r, args...)
+		})
+	}
+
+	return h, nil
 }
 
 // Handle handles a request and writes a response.
