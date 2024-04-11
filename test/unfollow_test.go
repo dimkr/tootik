@@ -32,8 +32,8 @@ func TestUnfollow_HappyFlow(t *testing.T) {
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	postPublic := server.Handle("/users/post/followers?Hello%20followers", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/whisper?Hello%20followers", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello followers")
@@ -54,8 +54,8 @@ func TestUnfollow_FollowAgain(t *testing.T) {
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	postPublic := server.Handle("/users/post/followers?Hello%20followers", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/whisper?Hello%20followers", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello followers")

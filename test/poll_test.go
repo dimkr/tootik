@@ -720,10 +720,10 @@ func TestPoll_Local3Options(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20Hell%20yeah%21%20%7c%20I%20couldn%27t%20care%20less", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/say?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20Hell%20yeah%21%20%7c%20I%20couldn%27t%20care%20less", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	view := server.Handle(postPublic[3:len(postPublic)-2], server.Bob)
+	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
 	assert.Contains(view, "Vote Nope")
 	assert.Contains(view, "Vote Hell yeah!")
@@ -736,10 +736,10 @@ func TestPoll_Local5Options(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20Hell%20yeah%21%20%7c%20I%20couldn%27t%20care%20less%20%7c%20wut%3f%20%7c%20Maybe", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/say?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20Hell%20yeah%21%20%7c%20I%20couldn%27t%20care%20less%20%7c%20wut%3f%20%7c%20Maybe", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	view := server.Handle(postPublic[3:len(postPublic)-2], server.Bob)
+	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
 	assert.Contains(view, "Vote Nope")
 	assert.Contains(view, "Vote Hell yeah!")
@@ -754,8 +754,8 @@ func TestPoll_Local1Option(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope", server.Alice)
-	assert.Equal("40 Polls must have 2 to 5 options\r\n", postPublic)
+	say := server.Handle("/users/say?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope", server.Alice)
+	assert.Equal("40 Polls must have 2 to 5 options\r\n", say)
 }
 
 func TestPoll_Local6Options(t *testing.T) {
@@ -764,8 +764,8 @@ func TestPoll_Local6Options(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20Hell%20yeah%21%20%7c%20I%20couldn%27t%20care%20less%20%7c%20wut%3f%20%7c%20Maybe%20%7c%20kinda", server.Alice)
-	assert.Equal("40 Polls must have 2 to 5 options\r\n", postPublic)
+	say := server.Handle("/users/say?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20Hell%20yeah%21%20%7c%20I%20couldn%27t%20care%20less%20%7c%20wut%3f%20%7c%20Maybe%20%7c%20kinda", server.Alice)
+	assert.Equal("40 Polls must have 2 to 5 options\r\n", say)
 }
 
 func TestPoll_LocalEmptyOption(t *testing.T) {
@@ -774,8 +774,8 @@ func TestPoll_LocalEmptyOption(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20Hell%20yeah%21%20%7c%20%20%7c%20I%20couldn%27t%20care%20less", server.Alice)
-	assert.Equal("40 Poll option cannot be empty\r\n", postPublic)
+	say := server.Handle("/users/say?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20Hell%20yeah%21%20%7c%20%20%7c%20I%20couldn%27t%20care%20less", server.Alice)
+	assert.Equal("40 Poll option cannot be empty\r\n", say)
 }
 
 func TestPoll_LocalOptionWithLink(t *testing.T) {
@@ -784,10 +784,10 @@ func TestPoll_LocalOptionWithLink(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20I%20prefer%20https%3a%2f%2flocalhost%20%7c%20I%20couldn%27t%20care%20less", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/say?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20I%20prefer%20https%3a%2f%2flocalhost%20%7c%20I%20couldn%27t%20care%20less", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	view := server.Handle(postPublic[3:len(postPublic)-2], server.Bob)
+	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
 	assert.Contains(view, "Vote Nope")
 	assert.Contains(view, "Vote I prefer https://localhost")
@@ -800,16 +800,16 @@ func TestPoll_Local3OptionsAnd2Votes(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20Hell%20yeah%21%20%7c%20I%20couldn%27t%20care%20less", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/say?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20Hell%20yeah%21%20%7c%20I%20couldn%27t%20care%20less", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hell%%20yeah%%21", postPublic[15:len(postPublic)-2]), server.Bob)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hell%%20yeah%%21", say[15:len(say)-2]), server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
-	reply = server.Handle(fmt.Sprintf("/users/reply/%s?I%%20couldn%%27t%%20care%%20less", postPublic[15:len(postPublic)-2]), server.Carol)
+	reply = server.Handle(fmt.Sprintf("/users/reply/%s?I%%20couldn%%27t%%20care%%20less", say[15:len(say)-2]), server.Carol)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
-	view := server.Handle(postPublic[3:len(postPublic)-2], server.Bob)
+	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
 	assert.Contains(view, "Vote Nope")
 	assert.Contains(view, "Vote Hell yeah!")
@@ -824,7 +824,7 @@ func TestPoll_Local3OptionsAnd2Votes(t *testing.T) {
 	}
 	assert.NoError(poller.Run(context.Background()))
 
-	view = server.Handle(postPublic[3:len(postPublic)-2], server.Bob)
+	view = server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
 	assert.Contains(view, "Vote Nope")
 	assert.Contains(view, "Vote Hell yeah!")
@@ -839,16 +839,16 @@ func TestPoll_Local3OptionsAnd2VotesAndDeletedVote(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20Hell%20yeah%21%20%7c%20I%20couldn%27t%20care%20less", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/say?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20Hell%20yeah%21%20%7c%20I%20couldn%27t%20care%20less", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hell%%20yeah%%21", postPublic[15:len(postPublic)-2]), server.Bob)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hell%%20yeah%%21", say[15:len(say)-2]), server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
-	reply = server.Handle(fmt.Sprintf("/users/reply/%s?I%%20couldn%%27t%%20care%%20less", postPublic[15:len(postPublic)-2]), server.Carol)
+	reply = server.Handle(fmt.Sprintf("/users/reply/%s?I%%20couldn%%27t%%20care%%20less", say[15:len(say)-2]), server.Carol)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
-	view := server.Handle(postPublic[3:len(postPublic)-2], server.Bob)
+	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
 	assert.Contains(view, "Vote Nope")
 	assert.Contains(view, "Vote Hell yeah!")
@@ -866,7 +866,7 @@ func TestPoll_Local3OptionsAnd2VotesAndDeletedVote(t *testing.T) {
 	}
 	assert.NoError(poller.Run(context.Background()))
 
-	view = server.Handle(postPublic[3:len(postPublic)-2], server.Bob)
+	view = server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
 	assert.Contains(view, "Vote Nope")
 	assert.Contains(view, "Vote Hell yeah!")
@@ -887,13 +887,13 @@ func TestPoll_LocalVoteVisibilityFollowers(t *testing.T) {
 	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Carol)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	postFollowers := server.Handle("/users/post/followers?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20Hell%20yeah%21%20%7c%20I%20couldn%27t%20care%20less", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postFollowers)
+	whisper := server.Handle("/users/whisper?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20Hell%20yeah%21%20%7c%20I%20couldn%27t%20care%20less", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hell%%20yeah%%21", postFollowers[15:len(postFollowers)-2]), server.Bob)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hell%%20yeah%%21", whisper[15:len(whisper)-2]), server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
-	reply = server.Handle(fmt.Sprintf("/users/reply/%s?I%%20couldn%%27t%%20care%%20less", postFollowers[15:len(postFollowers)-2]), server.Carol)
+	reply = server.Handle(fmt.Sprintf("/users/reply/%s?I%%20couldn%%27t%%20care%%20less", whisper[15:len(whisper)-2]), server.Carol)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
 	poller := outbox.Poller{
@@ -903,7 +903,7 @@ func TestPoll_LocalVoteVisibilityFollowers(t *testing.T) {
 	}
 	assert.NoError(poller.Run(context.Background()))
 
-	view := server.Handle(postFollowers[3:len(postFollowers)-2], server.Alice)
+	view := server.Handle(whisper[3:len(whisper)-2], server.Alice)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
 	assert.Contains(view, "Vote Nope")
 	assert.Contains(view, "Vote Hell yeah!")
@@ -913,7 +913,7 @@ func TestPoll_LocalVoteVisibilityFollowers(t *testing.T) {
 	assert.Contains(view, "bob")
 	assert.Contains(view, "carol")
 
-	view = server.Handle(postFollowers[3:len(postFollowers)-2], server.Bob)
+	view = server.Handle(whisper[3:len(whisper)-2], server.Bob)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
 	assert.Contains(view, "Vote Nope")
 	assert.Contains(view, "Vote Hell yeah!")
@@ -923,7 +923,7 @@ func TestPoll_LocalVoteVisibilityFollowers(t *testing.T) {
 	assert.Contains(view, "bob")
 	assert.NotContains(view, "carol")
 
-	view = server.Handle(postFollowers[3:len(postFollowers)-2], server.Carol)
+	view = server.Handle(whisper[3:len(whisper)-2], server.Carol)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
 	assert.Contains(view, "Vote Nope")
 	assert.Contains(view, "Vote Hell yeah!")
@@ -933,7 +933,7 @@ func TestPoll_LocalVoteVisibilityFollowers(t *testing.T) {
 	assert.NotContains(view, "bob")
 	assert.Contains(view, "carol")
 
-	view = server.Handle("/view/"+postFollowers[15:len(postFollowers)-2], nil)
+	view = server.Handle("/view/"+whisper[15:len(whisper)-2], nil)
 	assert.Equal("40 Post not found\r\n", view)
 }
 
@@ -943,13 +943,13 @@ func TestPoll_LocalVoteVisibilityPublic(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20Hell%20yeah%21%20%7c%20I%20couldn%27t%20care%20less", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/say?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20Hell%20yeah%21%20%7c%20I%20couldn%27t%20care%20less", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hell%%20yeah%%21", postPublic[15:len(postPublic)-2]), server.Bob)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hell%%20yeah%%21", say[15:len(say)-2]), server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
-	reply = server.Handle(fmt.Sprintf("/users/reply/%s?I%%20couldn%%27t%%20care%%20less", postPublic[15:len(postPublic)-2]), server.Carol)
+	reply = server.Handle(fmt.Sprintf("/users/reply/%s?I%%20couldn%%27t%%20care%%20less", say[15:len(say)-2]), server.Carol)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
 	poller := outbox.Poller{
@@ -959,7 +959,7 @@ func TestPoll_LocalVoteVisibilityPublic(t *testing.T) {
 	}
 	assert.NoError(poller.Run(context.Background()))
 
-	view := server.Handle(postPublic[3:len(postPublic)-2], server.Alice)
+	view := server.Handle(say[3:len(say)-2], server.Alice)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
 	assert.Contains(view, "Vote Nope")
 	assert.Contains(view, "Vote Hell yeah!")
@@ -969,7 +969,7 @@ func TestPoll_LocalVoteVisibilityPublic(t *testing.T) {
 	assert.Contains(view, "bob")
 	assert.Contains(view, "carol")
 
-	view = server.Handle(postPublic[3:len(postPublic)-2], server.Bob)
+	view = server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
 	assert.Contains(view, "Vote Nope")
 	assert.Contains(view, "Vote Hell yeah!")
@@ -979,7 +979,7 @@ func TestPoll_LocalVoteVisibilityPublic(t *testing.T) {
 	assert.Contains(view, "bob")
 	assert.NotContains(view, "carol")
 
-	view = server.Handle(postPublic[3:len(postPublic)-2], server.Carol)
+	view = server.Handle(say[3:len(say)-2], server.Carol)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
 	assert.Contains(view, "Vote Nope")
 	assert.Contains(view, "Vote Hell yeah!")
@@ -989,7 +989,7 @@ func TestPoll_LocalVoteVisibilityPublic(t *testing.T) {
 	assert.NotContains(view, "bob")
 	assert.Contains(view, "carol")
 
-	view = server.Handle("/view/"+postPublic[15:len(postPublic)-2], nil)
+	view = server.Handle("/view/"+say[15:len(say)-2], nil)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
 	assert.NotContains(view, "Vote")
 	assert.Contains(strings.Split(view, "\n"), "1 ████████ Hell yeah!")

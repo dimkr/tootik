@@ -21,16 +21,16 @@ import (
 	"testing"
 )
 
-func TestPostPrivate_HappyFlow(t *testing.T) {
+func TestDM_HappyFlow(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
 	assert := assert.New(t)
 
-	postPrivate := server.Handle("/users/post/private?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPrivate)
+	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
-	id := postPrivate[15 : len(postPrivate)-2]
+	id := dm[15 : len(dm)-2]
 
 	view := server.Handle("/users/view/"+id, server.Alice)
 	assert.Contains(view, "Hello @alice@localhost.localdomain:8443")
@@ -42,41 +42,41 @@ func TestPostPrivate_HappyFlow(t *testing.T) {
 	assert.Contains(view, "Hello @alice@localhost.localdomain:8443")
 }
 
-func TestPostPrivate_UnauthenticatedUser(t *testing.T) {
+func TestDM_UnauthenticatedUser(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
 	assert := assert.New(t)
 
-	postPrivate := server.Handle("/users/post/private?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPrivate)
+	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
-	id := postPrivate[15 : len(postPrivate)-2]
+	id := dm[15 : len(dm)-2]
 
 	view := server.Handle("/view/"+id, nil)
 	assert.Equal(view, "40 Post not found\r\n")
 }
 
-func TestPostPrivate_Loopback(t *testing.T) {
+func TestDM_Loopback(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
 	assert := assert.New(t)
 
-	postPrivate := server.Handle("/users/post/private?Hello%20%40bob%40localhost.localdomain%3a8443", server.Bob)
-	assert.Equal("40 Post audience is empty\r\n", postPrivate)
+	dm := server.Handle("/users/dm?Hello%20%40bob%40localhost.localdomain%3a8443", server.Bob)
+	assert.Equal("40 Post audience is empty\r\n", dm)
 }
 
-func TestPostPrivate_TwoMentions(t *testing.T) {
+func TestDM_TwoMentions(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
 	assert := assert.New(t)
 
-	postPrivate := server.Handle("/users/post/private?Hello%20%40alice%40localhost.localdomain%3a8443%20and%20%40carol%40localhost.localdomain%3a8443", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPrivate)
+	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443%20and%20%40carol%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
-	id := postPrivate[15 : len(postPrivate)-2]
+	id := dm[15 : len(dm)-2]
 
 	view := server.Handle("/users/view/"+id, server.Alice)
 	assert.Contains(view, "Hello @alice@localhost.localdomain:8443 and @carol@localhost.localdomain:8443")
@@ -88,16 +88,16 @@ func TestPostPrivate_TwoMentions(t *testing.T) {
 	assert.Contains(view, "Hello @alice@localhost.localdomain:8443 and @carol@localhost.localdomain:8443")
 }
 
-func TestPostPrivate_TwoMentionsOneLoopback(t *testing.T) {
+func TestDM_TwoMentionsOneLoopback(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
 	assert := assert.New(t)
 
-	postPrivate := server.Handle("/users/post/private?Hello%20%40alice%40localhost.localdomain%3a8443%20and%20%40bob%40localhost.localdomain%3a8443", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPrivate)
+	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443%20and%20%40bob%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
-	id := postPrivate[15 : len(postPrivate)-2]
+	id := dm[15 : len(dm)-2]
 
 	view := server.Handle("/users/view/"+id, server.Alice)
 	assert.Contains(view, "Hello @alice@localhost.localdomain:8443 and @bob@localhost.localdomain:8443")
@@ -109,7 +109,7 @@ func TestPostPrivate_TwoMentionsOneLoopback(t *testing.T) {
 	assert.Contains(view, "Hello @alice@localhost.localdomain:8443 and @bob@localhost.localdomain:8443")
 }
 
-func TestPostPrivate_TooManyRecipients(t *testing.T) {
+func TestDM_TooManyRecipients(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
@@ -117,11 +117,11 @@ func TestPostPrivate_TooManyRecipients(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPrivate := server.Handle("/users/post/private?Hello%20%40alice%40localhost.localdomain%3a8443%20and%20%40carol%40localhost.localdomain%3a8443", server.Bob)
-	assert.Equal("40 Too many recipients\r\n", postPrivate)
+	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443%20and%20%40carol%40localhost.localdomain%3a8443", server.Bob)
+	assert.Equal("40 Too many recipients\r\n", dm)
 }
 
-func TestPostPrivate_MaxRecipients(t *testing.T) {
+func TestDM_MaxRecipients(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
@@ -129,10 +129,10 @@ func TestPostPrivate_MaxRecipients(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPrivate := server.Handle("/users/post/private?Hello%20%40alice%40localhost.localdomain%3a8443%20and%20%40carol%40localhost.localdomain%3a8443", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPrivate)
+	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443%20and%20%40carol%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
-	id := postPrivate[15 : len(postPrivate)-2]
+	id := dm[15 : len(dm)-2]
 
 	view := server.Handle("/users/view/"+id, server.Alice)
 	assert.Contains(view, "Hello @alice@localhost.localdomain:8443 and @carol@localhost.localdomain:8443")

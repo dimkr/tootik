@@ -71,8 +71,8 @@ func TestFollows_OneActiveOneInactive(t *testing.T) {
 	assert.Contains(follows, "=> /users/outbox/localhost.localdomain:8443/user/bob 😈 bob (bob@localhost.localdomain:8443)")
 	assert.Contains(follows, "=> /users/outbox/localhost.localdomain:8443/user/carol 😈 carol (carol@localhost.localdomain:8443)")
 
-	postFollowers := server.Handle("/users/post/followers?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postFollowers)
+	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	follows = server.Handle("/users/follows", server.Alice)
 	assert.Contains(follows, fmt.Sprintf("=> /users/outbox/localhost.localdomain:8443/user/bob %s 😈 bob (bob@localhost.localdomain:8443)", time.Now().Format(time.DateOnly)))

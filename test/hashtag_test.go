@@ -29,10 +29,10 @@ func TestHashtag_PublicPost(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?Hello%20%23world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/say?Hello%20%23world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	view := server.Handle(postPublic[3:len(postPublic)-2], server.Bob)
+	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "Hello #world")
 
 	hashtag := server.Handle("/users/hashtag/world", server.Bob)
@@ -45,10 +45,10 @@ func TestHashtag_PublicPostUnauthenticatedUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?Hello%20%23world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/say?Hello%20%23world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	view := server.Handle(postPublic[3:len(postPublic)-2], server.Bob)
+	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "Hello #world")
 
 	hashtag := server.Handle("/hashtag/world", nil)
@@ -61,10 +61,10 @@ func TestHashtag_ExclamationMark(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?Hello%20%23world%21", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/say?Hello%20%23world%21", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	view := server.Handle(postPublic[3:len(postPublic)-2], server.Bob)
+	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "Hello #world!")
 
 	hashtag := server.Handle("/users/hashtag/world", server.Bob)
@@ -77,10 +77,10 @@ func TestHashtag_Beginning(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?%23Hello%20world%21", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/say?%23Hello%20world%21", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	view := server.Handle(postPublic[3:len(postPublic)-2], server.Bob)
+	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "#Hello world!")
 
 	hashtag := server.Handle("/hashtag/Hello", server.Bob)
@@ -93,10 +93,10 @@ func TestHashtag_Multiple(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?%23Hello%20%23world%21", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/say?%23Hello%20%23world%21", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	view := server.Handle(postPublic[3:len(postPublic)-2], server.Bob)
+	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "#Hello #world!")
 
 	hashtag := server.Handle("/hashtag/Hello", server.Bob)
@@ -112,10 +112,10 @@ func TestHashtag_CaseSensitivity(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?Hello%20%23wOrLd", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/say?Hello%20%23wOrLd", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	view := server.Handle(postPublic[3:len(postPublic)-2], server.Bob)
+	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "Hello #wOrLd")
 
 	hashtag := server.Handle("/hashtag/WoRlD", server.Bob)
@@ -131,10 +131,10 @@ func TestHashtag_PostToFollowers(t *testing.T) {
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	postFollowers := server.Handle("/users/post/followers?Hello%20%23world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postFollowers)
+	whisper := server.Handle("/users/whisper?Hello%20%23world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
-	view := server.Handle(postFollowers[3:len(postFollowers)-2], server.Bob)
+	view := server.Handle(whisper[3:len(whisper)-2], server.Bob)
 	assert.Contains(view, "Hello #world")
 
 	hashtag := server.Handle("/users/hashtag/world", server.Bob)
@@ -147,10 +147,10 @@ func TestHashtag_BigOffset(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?Hello%20%23world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/say?Hello%20%23world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	view := server.Handle(postPublic[3:len(postPublic)-2], server.Bob)
+	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "Hello #world")
 
 	hashtag := server.Handle("/users/hashtag/world?123", server.Bob)
@@ -163,10 +163,10 @@ func TestHashtag_BigOffsetUnauthenticatedUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?Hello%20%23world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/say?Hello%20%23world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	view := server.Handle(postPublic[3:len(postPublic)-2], server.Bob)
+	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "Hello #world")
 
 	hashtag := server.Handle("/hashtag/world?123", nil)
@@ -179,10 +179,10 @@ func TestHashtag_InvalidOffset(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?Hello%20%23world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/say?Hello%20%23world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	view := server.Handle(postPublic[3:len(postPublic)-2], server.Bob)
+	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "Hello #world")
 
 	hashtag := server.Handle("/hashtag/world?z", server.Bob)

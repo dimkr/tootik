@@ -23,7 +23,7 @@ import (
 	"testing"
 )
 
-func TestPostFollowers_HappyFlow(t *testing.T) {
+func TestWhisper_HappyFlow(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
@@ -32,10 +32,10 @@ func TestPostFollowers_HappyFlow(t *testing.T) {
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	postFollowers := server.Handle("/users/post/followers?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postFollowers)
+	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
-	view := server.Handle(postFollowers[3:len(postFollowers)-2], server.Bob)
+	view := server.Handle(whisper[3:len(whisper)-2], server.Bob)
 	assert.Contains(view, "Hello world")
 
 	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
@@ -45,22 +45,22 @@ func TestPostFollowers_HappyFlow(t *testing.T) {
 	assert.NotContains(local, "Hello world")
 }
 
-func TestPostFollowers_FollowAfterPost(t *testing.T) {
+func TestWhisper_FollowAfterPost(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
 	assert := assert.New(t)
 
-	postFollowers := server.Handle("/users/post/followers?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postFollowers)
+	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
-	view := server.Handle(postFollowers[3:len(postFollowers)-2], server.Bob)
+	view := server.Handle(whisper[3:len(whisper)-2], server.Bob)
 	assert.Equal("40 Post not found\r\n", view)
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	view = server.Handle(postFollowers[3:len(postFollowers)-2], server.Bob)
+	view = server.Handle(whisper[3:len(whisper)-2], server.Bob)
 	assert.Contains(view, "Hello world")
 
 	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
@@ -70,7 +70,7 @@ func TestPostFollowers_FollowAfterPost(t *testing.T) {
 	assert.NotContains(local, "Hello world")
 }
 
-func TestPostFollowers_Throttling(t *testing.T) {
+func TestWhisper_Throttling(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
@@ -79,17 +79,17 @@ func TestPostFollowers_Throttling(t *testing.T) {
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	postFollowers := server.Handle("/users/post/followers?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postFollowers)
+	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
-	view := server.Handle(postFollowers[3:len(postFollowers)-2], server.Bob)
+	view := server.Handle(whisper[3:len(whisper)-2], server.Bob)
 	assert.Contains(view, "Hello world")
 
 	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Alice)
 	assert.Contains(outbox, "Hello world")
 
-	postFollowers = server.Handle("/users/post/followers?Hello%20once%20more,%20world", server.Alice)
-	assert.Equal("40 Please wait before posting again\r\n", postFollowers)
+	whisper = server.Handle("/users/whisper?Hello%20once%20more,%20world", server.Alice)
+	assert.Equal("40 Please wait before posting again\r\n", whisper)
 
 	outbox = server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Contains(outbox, "Hello world")

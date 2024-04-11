@@ -37,10 +37,10 @@ func TestUploadEdit_HappyFlow(t *testing.T) {
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello followers")
 
-	postFollowers := server.Handle("/users/post/followers?Hello%20world", server.Bob)
-	assert.Regexp(`30 /users/view/(\S+)\r\n$`, postFollowers)
+	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
+	assert.Regexp(`30 /users/view/(\S+)\r\n$`, whisper)
 
-	id := postFollowers[15 : len(postFollowers)-2]
+	id := whisper[15 : len(whisper)-2]
 
 	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
@@ -77,10 +77,10 @@ func TestUploadEdit_Empty(t *testing.T) {
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello followers")
 
-	postFollowers := server.Handle("/users/post/followers?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/(\S+)\r\n$`, postFollowers)
+	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /users/view/(\S+)\r\n$`, whisper)
 
-	id := postFollowers[15 : len(postFollowers)-2]
+	id := whisper[15 : len(whisper)-2]
 
 	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
@@ -102,10 +102,10 @@ func TestUploadEdit_SizeLimit(t *testing.T) {
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello followers")
 
-	postFollowers := server.Handle("/users/post/followers?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/(\S+)\r\n$`, postFollowers)
+	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /users/view/(\S+)\r\n$`, whisper)
 
-	id := postFollowers[15 : len(postFollowers)-2]
+	id := whisper[15 : len(whisper)-2]
 
 	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
@@ -129,10 +129,10 @@ func TestUploadEdit_InvalidSize(t *testing.T) {
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello followers")
 
-	postFollowers := server.Handle("/users/post/followers?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/(\S+)\r\n$`, postFollowers)
+	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /users/view/(\S+)\r\n$`, whisper)
 
-	id := postFollowers[15 : len(postFollowers)-2]
+	id := whisper[15 : len(whisper)-2]
 
 	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
@@ -154,10 +154,10 @@ func TestUploadEdit_InvalidType(t *testing.T) {
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello followers")
 
-	postFollowers := server.Handle("/users/post/followers?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/(\S+)\r\n$`, postFollowers)
+	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /users/view/(\S+)\r\n$`, whisper)
 
-	id := postFollowers[15 : len(postFollowers)-2]
+	id := whisper[15 : len(whisper)-2]
 
 	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
@@ -179,10 +179,10 @@ func TestUploadEdit_NoSize(t *testing.T) {
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello followers")
 
-	postFollowers := server.Handle("/users/post/followers?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/(\S+)\r\n$`, postFollowers)
+	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /users/view/(\S+)\r\n$`, whisper)
 
-	id := postFollowers[15 : len(postFollowers)-2]
+	id := whisper[15 : len(whisper)-2]
 
 	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
@@ -204,10 +204,10 @@ func TestUploadEdit_NoType(t *testing.T) {
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello followers")
 
-	postFollowers := server.Handle("/users/post/followers?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/(\S+)\r\n$`, postFollowers)
+	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /users/view/(\S+)\r\n$`, whisper)
 
-	id := postFollowers[15 : len(postFollowers)-2]
+	id := whisper[15 : len(whisper)-2]
 
 	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)

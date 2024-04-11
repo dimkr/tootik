@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2023, 2024 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,9 +21,24 @@ import (
 	"github.com/dimkr/tootik/front/text"
 )
 
-func (h *Handler) uploadPrivate(w text.Writer, r *request, args ...string) {
+func (h *Handler) say(w text.Writer, r *request, args ...string) {
 	to := ap.Audience{}
 	cc := ap.Audience{}
+
+	to.Add(ap.Public)
+	cc.Add(r.User.Followers)
+
+	h.post(w, r, nil, nil, to, cc, "", func() (string, bool) {
+		return readQuery(w, r, "Post content")
+	})
+}
+
+func (h *Handler) uploadSay(w text.Writer, r *request, args ...string) {
+	to := ap.Audience{}
+	cc := ap.Audience{}
+
+	to.Add(ap.Public)
+	cc.Add(r.User.Followers)
 
 	h.post(w, r, nil, nil, to, cc, "", func() (string, bool) {
 		return readUpload(w, r, args)

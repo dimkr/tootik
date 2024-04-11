@@ -21,11 +21,20 @@ import (
 	"github.com/dimkr/tootik/front/text"
 )
 
-func (h *Handler) postPrivate(w text.Writer, r *request, args ...string) {
+func (h *Handler) dm(w text.Writer, r *request, args ...string) {
 	to := ap.Audience{}
 	cc := ap.Audience{}
 
 	h.post(w, r, nil, nil, to, cc, "", func() (string, bool) {
 		return readQuery(w, r, "Post content")
+	})
+}
+
+func (h *Handler) uploadDM(w text.Writer, r *request, args ...string) {
+	to := ap.Audience{}
+	cc := ap.Audience{}
+
+	h.post(w, r, nil, nil, to, cc, "", func() (string, bool) {
+		return readUpload(w, r, args)
 	})
 }

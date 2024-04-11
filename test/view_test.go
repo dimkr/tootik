@@ -34,10 +34,10 @@ func TestView_NoReplies(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/say?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	id := postPublic[15 : len(postPublic)-2]
+	id := say[15 : len(say)-2]
 
 	view := server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
@@ -49,10 +49,10 @@ func TestView_OneReply(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/say?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	id := postPublic[15 : len(postPublic)-2]
+	id := say[15 : len(say)-2]
 
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
@@ -68,10 +68,10 @@ func TestView_TwoReplies(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/say?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	id := postPublic[15 : len(postPublic)-2]
+	id := say[15 : len(say)-2]
 
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
@@ -91,10 +91,10 @@ func TestView_TwoRepliesBigOffset(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/say?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	id := postPublic[15 : len(postPublic)-2]
+	id := say[15 : len(say)-2]
 
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
@@ -114,10 +114,10 @@ func TestView_TwoRepliesBigOffsetUnauthenticatedUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/say?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	id := postPublic[15 : len(postPublic)-2]
+	id := say[15 : len(say)-2]
 
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
@@ -137,10 +137,10 @@ func TestView_TwoRepliesUnauthenticatedUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/say?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	id := postPublic[15 : len(postPublic)-2]
+	id := say[15 : len(say)-2]
 
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
@@ -160,10 +160,10 @@ func TestView_OneReplyPostDeleted(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/say?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	id := postPublic[15 : len(postPublic)-2]
+	id := say[15 : len(say)-2]
 
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
@@ -187,10 +187,10 @@ func TestView_OneReplyPostNotDeleted(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/say?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	id := postPublic[15 : len(postPublic)-2]
+	id := say[15 : len(say)-2]
 
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
@@ -211,10 +211,10 @@ func TestView_OneReplyPostNotDeletedUnauthenticatedUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/say?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	id := postPublic[15 : len(postPublic)-2]
+	id := say[15 : len(say)-2]
 
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
@@ -235,10 +235,10 @@ func TestView_OneReplyPostDeletedUnauthenticatedUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/say?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	id := postPublic[15 : len(postPublic)-2]
+	id := say[15 : len(say)-2]
 
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
@@ -262,10 +262,10 @@ func TestView_OneReplyReplyDeleted(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/say?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	id := postPublic[15 : len(postPublic)-2]
+	id := say[15 : len(say)-2]
 
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
@@ -430,10 +430,10 @@ func TestView_PostToFollowers(t *testing.T) {
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	postPublic := server.Handle("/users/post/followers?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/whisper?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	id := postPublic[15 : len(postPublic)-2]
+	id := say[15 : len(say)-2]
 
 	view := server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
@@ -445,13 +445,13 @@ func TestView_PostToFollowersPostBeforeFollow(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/followers?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/whisper?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	id := postPublic[15 : len(postPublic)-2]
+	id := say[15 : len(say)-2]
 
 	view := server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
@@ -466,10 +466,10 @@ func TestView_PostToFollowersUnfollow(t *testing.T) {
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	postPublic := server.Handle("/users/post/followers?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/whisper?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	id := postPublic[15 : len(postPublic)-2]
+	id := say[15 : len(say)-2]
 
 	view := server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
@@ -487,10 +487,10 @@ func TestView_PostToFollowersNotFollowing(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/followers?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/whisper?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	id := postPublic[15 : len(postPublic)-2]
+	id := say[15 : len(say)-2]
 
 	view := server.Handle("/users/view/"+id, server.Bob)
 	assert.Equal("40 Post not found\r\n", view)
@@ -508,10 +508,10 @@ func TestView_PostToFollowersWithReply(t *testing.T) {
 	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Carol)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	postPublic := server.Handle("/users/post/followers?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postPublic)
+	say := server.Handle("/users/whisper?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	id := postPublic[15 : len(postPublic)-2]
+	id := say[15 : len(say)-2]
 
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Alice", id), server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)

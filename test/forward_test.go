@@ -910,8 +910,8 @@ func TestForward_ReplyToLocalPostByLocalFollower(t *testing.T) {
 		),
 	)
 
-	postFollowers := server.Handle("/users/post/public?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postFollowers)
+	whisper := server.Handle("/users/say?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
@@ -920,7 +920,7 @@ func TestForward_ReplyToLocalPostByLocalFollower(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Alice", postFollowers[15:len(postFollowers)-2]), server.Bob)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Alice", whisper[15:len(whisper)-2]), server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
 	var forwarded int
@@ -945,8 +945,8 @@ func TestForward_EditedReplyToLocalPostByLocalFollower(t *testing.T) {
 		),
 	)
 
-	postFollowers := server.Handle("/users/post/public?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postFollowers)
+	whisper := server.Handle("/users/say?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
@@ -955,7 +955,7 @@ func TestForward_EditedReplyToLocalPostByLocalFollower(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Alice", postFollowers[15:len(postFollowers)-2]), server.Bob)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Alice", whisper[15:len(whisper)-2]), server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
 	id := reply[15 : len(reply)-2]
@@ -987,8 +987,8 @@ func TestForward_DeletedReplyToLocalPostByLocalFollower(t *testing.T) {
 		),
 	)
 
-	postFollowers := server.Handle("/users/post/public?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, postFollowers)
+	whisper := server.Handle("/users/say?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
@@ -997,7 +997,7 @@ func TestForward_DeletedReplyToLocalPostByLocalFollower(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Alice", postFollowers[15:len(postFollowers)-2]), server.Bob)
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Alice", whisper[15:len(whisper)-2]), server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
 	id := reply[15 : len(reply)-2]

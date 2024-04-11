@@ -23,9 +23,9 @@ Users are authenticated using TLS client certificates; see [Gemini protocol spec
 * /users/follows shows a list of followed users, ordered by activity.
 * /users/me redirects the user to their outbox.
 * /users/resolve looks up federated user *user@domain* or local user *user*.
-* /users/post/private creates a post visible to mentioned users.
-* /users/post/followers creates a post visible to followers.
-* /users/post/public creates a public post.
+* /users/dm creates a post visible to mentioned users.
+* /users/whisper creates a post visible to followers.
+* /users/say creates a public post.
 * /users/reply replies to a post.
 * /users/edit edits a post.
 * /users/delete deletes a post.

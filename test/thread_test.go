@@ -33,10 +33,10 @@ func TestThread_TwoReplies(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n`, postPublic)
+	say := server.Handle("/users/say?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n`, say)
 
-	id := postPublic[15 : len(postPublic)-2]
+	id := say[15 : len(say)-2]
 
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n`, reply)
@@ -62,10 +62,10 @@ func TestThread_NestedReplies(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n`, postPublic)
+	say := server.Handle("/users/say?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n`, say)
 
-	id := postPublic[15 : len(postPublic)-2]
+	id := say[15 : len(say)-2]
 
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n`, reply)
@@ -91,10 +91,10 @@ func TestThread_NestedReply(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n`, postPublic)
+	say := server.Handle("/users/say?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n`, say)
 
-	id := postPublic[15 : len(postPublic)-2]
+	id := say[15 : len(say)-2]
 
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n`, reply)
@@ -117,10 +117,10 @@ func TestThread_NoReplies(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n`, postPublic)
+	say := server.Handle("/users/say?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n`, say)
 
-	id := postPublic[15 : len(postPublic)-2]
+	id := say[15 : len(say)-2]
 
 	view := server.Handle("/users/view/"+id, server.Alice)
 	assert.NotContains(view, "View parent post")
@@ -140,10 +140,10 @@ func TestThread_NestedRepliesFromBottom(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n`, postPublic)
+	say := server.Handle("/users/say?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n`, say)
 
-	id := postPublic[15 : len(postPublic)-2]
+	id := say[15 : len(say)-2]
 
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n`, reply)
@@ -171,10 +171,10 @@ func TestThread_NestedRepliesFromBottomMissingNode(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n`, postPublic)
+	say := server.Handle("/users/say?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n`, say)
 
-	id := postPublic[15 : len(postPublic)-2]
+	id := say[15 : len(say)-2]
 
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n`, reply)
@@ -205,10 +205,10 @@ func TestThread_NestedRepliesFromBottomMissingFirstNode(t *testing.T) {
 
 	assert := assert.New(t)
 
-	postPublic := server.Handle("/users/post/public?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n`, postPublic)
+	say := server.Handle("/users/say?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n`, say)
 
-	id := postPublic[15 : len(postPublic)-2]
+	id := say[15 : len(say)-2]
 
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n`, reply)
