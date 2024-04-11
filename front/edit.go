@@ -25,7 +25,7 @@ import (
 	"time"
 )
 
-func (h *Handler) doEdit(w text.Writer, r *request, readContent func() (string, bool), args []string) {
+func (h *Handler) doEdit(w text.Writer, r *request, readInput inputFunc, args []string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -70,7 +70,7 @@ func (h *Handler) doEdit(w text.Writer, r *request, readContent func() (string, 
 	}
 
 	if note.InReplyTo == "" {
-		h.post(w, r, &note, nil, note.To, note.CC, note.Audience, readContent)
+		h.post(w, r, &note, nil, note.To, note.CC, note.Audience, readInput)
 		return
 	}
 
@@ -84,7 +84,7 @@ func (h *Handler) doEdit(w text.Writer, r *request, readContent func() (string, 
 	}
 
 	// the starting point is the original value of to and cc: recipients can be added but not removed when editing
-	h.post(w, r, &note, &parent, note.To, note.CC, note.Audience, readContent)
+	h.post(w, r, &note, &parent, note.To, note.CC, note.Audience, readInput)
 }
 
 func (h *Handler) edit(w text.Writer, r *request, args ...string) {

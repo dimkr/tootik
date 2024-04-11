@@ -25,7 +25,7 @@ import (
 	"unicode/utf8"
 )
 
-func (h *Handler) doBio(w text.Writer, r *request, readContent func(text.Writer, *request) (string, bool)) {
+func (h *Handler) doBio(w text.Writer, r *request, readInput func(text.Writer, *request) (string, bool)) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -39,7 +39,7 @@ func (h *Handler) doBio(w text.Writer, r *request, readContent func(text.Writer,
 		return
 	}
 
-	summary, ok := readContent(w, r)
+	summary, ok := readInput(w, r)
 	if !ok {
 		return
 	}
