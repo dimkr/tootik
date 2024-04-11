@@ -94,7 +94,7 @@ func (h *Handler) bio(w text.Writer, r *request, args ...string) {
 	)
 }
 
-func (h *Handler) bioUpload(w text.Writer, r *request, args ...string) {
+func (h *Handler) uploadBio(w text.Writer, r *request, args ...string) {
 	h.doBio(
 		w,
 		r,

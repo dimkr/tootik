@@ -33,7 +33,7 @@ var supportedImageTypes = map[string]struct{}{
 	"image/gif":  {},
 }
 
-func (h *Handler) avatar(w text.Writer, r *request, args ...string) {
+func (h *Handler) uploadAvatar(w text.Writer, r *request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
