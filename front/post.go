@@ -25,7 +25,6 @@ import (
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/text/plain"
 	"github.com/dimkr/tootik/outbox"
-	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -43,7 +42,7 @@ var (
 	pollRegex    = regexp.MustCompile(`^\[(?:(?i)POLL)\s+(.+)\s*\]\s*(.+)`)
 )
 
-func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo *ap.Object, to ap.Audience, cc ap.Audience, audience, prompt string) {
+func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo *ap.Object, to ap.Audience, cc ap.Audience, audience string, readInput inputFunc) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -76,14 +75,8 @@ func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo 
 		}
 	}
 
-	if r.URL.RawQuery == "" {
-		w.Status(10, prompt)
-		return
-	}
-
-	content, err := url.QueryUnescape(r.URL.RawQuery)
-	if err != nil {
-		w.Error()
+	content, ok := readInput()
+	if !ok {
 		return
 	}
 
@@ -228,6 +221,7 @@ func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo 
 		note.Content = plain.ToHTML(note.Content, note.Tag)
 	}
 
+	var err error
 	if oldNote != nil {
 		note.Published = oldNote.Published
 		note.Updated = &now
@@ -245,5 +239,9 @@ func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo 
 		return
 	}
 
-	w.Redirectf("/users/view/%s", strings.TrimPrefix(postID, "https://"))
+	if r.URL.Scheme == "titan" {
+		w.Redirectf("gemini://%s/users/view/%s", h.Domain, strings.TrimPrefix(postID, "https://"))
+	} else {
+		w.Redirectf("/users/view/%s", strings.TrimPrefix(postID, "https://"))
+	}
 }

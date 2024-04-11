@@ -52,9 +52,7 @@ func writeUserMenu(w text.Writer, user *ap.Actor) {
 	if user == nil {
 		w.Link("/users", "🔑 Sign in")
 	} else {
-		w.Link("/users/dm", "💌 Post to mentioned users")
-		w.Link("/users/whisper", "🔔 Post to followers")
-		w.Link("/users/say", "📣 Post to public")
+		w.Link("/users/post", "📣 New post")
 		w.Link("/users/settings", "⚙️ Settings")
 	}
 

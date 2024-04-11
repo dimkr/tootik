@@ -35,9 +35,7 @@ Welcome, fedinaut! localhost.localdomain:8443 is an instance of tootik, a federa
 🔥 Hashtags
 🔭 Find user
 🔎 Search posts
-💌 Post to mentioned users
-🔔 Post to followers
-📣 Post to public
+📣 New post
 ⚙️ Settings
 📊 Statistics
 🛟 Help
@@ -102,7 +100,7 @@ tootik is lightweight, private and accessible social network:
   * With support for [Mastodon's follower synchronization mechanism](https://docs.joinmastodon.org/spec/activitypub/#follower-synchronization-mechanism), aka [FEP-8fcf](https://codeberg.org/fediverse/fep/src/branch/main/fep/8fcf/fep-8fcf.md)
 * Multi-choice polls
 * Full-text search within posts
-* Upload of user avatars, over [Titan](gemini://transjovian.org/titan)
+* Upload of posts and user avatars, over [Titan](gemini://transjovian.org/titan)
 * Account migration, in both directions
 
 ## Using tootik

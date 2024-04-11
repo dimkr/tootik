@@ -25,5 +25,16 @@ func (h *Handler) dm(w text.Writer, r *request, args ...string) {
 	to := ap.Audience{}
 	cc := ap.Audience{}
 
-	h.post(w, r, nil, nil, to, cc, "", "Post content")
+	h.post(w, r, nil, nil, to, cc, "", func() (string, bool) {
+		return readQuery(w, r, "Post content")
+	})
+}
+
+func (h *Handler) uploadDM(w text.Writer, r *request, args ...string) {
+	to := ap.Audience{}
+	cc := ap.Audience{}
+
+	h.post(w, r, nil, nil, to, cc, "", func() (string, bool) {
+		return readBody(w, r, args)
+	})
 }

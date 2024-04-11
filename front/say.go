@@ -28,5 +28,19 @@ func (h *Handler) say(w text.Writer, r *request, args ...string) {
 	to.Add(ap.Public)
 	cc.Add(r.User.Followers)
 
-	h.post(w, r, nil, nil, to, cc, "", "Post content")
+	h.post(w, r, nil, nil, to, cc, "", func() (string, bool) {
+		return readQuery(w, r, "Post content")
+	})
+}
+
+func (h *Handler) uploadSay(w text.Writer, r *request, args ...string) {
+	to := ap.Audience{}
+	cc := ap.Audience{}
+
+	to.Add(ap.Public)
+	cc.Add(r.User.Followers)
+
+	h.post(w, r, nil, nil, to, cc, "", func() (string, bool) {
+		return readBody(w, r, args)
+	})
 }

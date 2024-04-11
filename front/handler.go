@@ -85,6 +85,7 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) (Handler, error) {
 
 	h.handlers[regexp.MustCompile(`^/users/upload/avatar;([a-z]+)=([^;]+);([a-z]+)=([^;]+)`)] = h.uploadAvatar
 	h.handlers[regexp.MustCompile(`^/users/bio$`)] = h.bio
+	h.handlers[regexp.MustCompile(`^/users/upload/bio;([a-z]+)=([^;]+);([a-z]+)=([^;]+)`)] = h.uploadBio
 	h.handlers[regexp.MustCompile(`^/users/name$`)] = h.name
 	h.handlers[regexp.MustCompile(`^/users/alias$`)] = h.alias
 	h.handlers[regexp.MustCompile(`^/users/move$`)] = h.move
@@ -106,6 +107,12 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) (Handler, error) {
 
 	h.handlers[regexp.MustCompile(`^/users/edit/(\S+)`)] = h.edit
 	h.handlers[regexp.MustCompile(`^/users/delete/(\S+)`)] = delete
+
+	h.handlers[regexp.MustCompile(`^/users/upload/dm;([a-z]+)=([^;]+);([a-z]+)=([^;]+)`)] = h.uploadDM
+	h.handlers[regexp.MustCompile(`^/users/upload/whisper;([a-z]+)=([^;]+);([a-z]+)=([^;]+)`)] = h.uploadWhisper
+	h.handlers[regexp.MustCompile(`^/users/upload/say;([a-z]+)=([^;]+);([a-z]+)=([^;]+)`)] = h.uploadSay
+	h.handlers[regexp.MustCompile(`^/users/upload/edit/([^;]+);([a-z]+)=([^;]+);([a-z]+)=([^;]+)`)] = h.editUpload
+	h.handlers[regexp.MustCompile(`^/users/upload/reply/([^;]+);([a-z]+)=([^;]+);([a-z]+)=([^;]+)`)] = h.replyUpload
 
 	h.handlers[regexp.MustCompile(`^/users/resolve$`)] = withUserMenu(h.resolve)
 

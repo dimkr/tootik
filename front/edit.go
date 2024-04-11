@@ -22,30 +22,12 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 	"math"
-	"net/url"
 	"time"
-	"unicode/utf8"
 )
 
-func (h *Handler) edit(w text.Writer, r *request, args ...string) {
+func (h *Handler) doEdit(w text.Writer, r *request, args []string, readInput inputFunc) {
 	if r.User == nil {
 		w.Redirect("/users")
-		return
-	}
-
-	if r.URL.RawQuery == "" {
-		w.Status(10, "Post content")
-		return
-	}
-
-	content, err := url.QueryUnescape(r.URL.RawQuery)
-	if err != nil {
-		w.Status(40, "Bad input")
-		return
-	}
-
-	if utf8.RuneCountInString(content) > h.Config.MaxPostsLength {
-		w.Status(40, "Post is too long")
 		return
 	}
 
@@ -88,7 +70,7 @@ func (h *Handler) edit(w text.Writer, r *request, args ...string) {
 	}
 
 	if note.InReplyTo == "" {
-		h.post(w, r, &note, nil, note.To, note.CC, note.Audience, "Post content")
+		h.post(w, r, &note, nil, note.To, note.CC, note.Audience, readInput)
 		return
 	}
 
@@ -102,5 +84,17 @@ func (h *Handler) edit(w text.Writer, r *request, args ...string) {
 	}
 
 	// the starting point is the original value of to and cc: recipients can be added but not removed when editing
-	h.post(w, r, &note, &parent, note.To, note.CC, note.Audience, "Post content")
+	h.post(w, r, &note, &parent, note.To, note.CC, note.Audience, readInput)
+}
+
+func (h *Handler) edit(w text.Writer, r *request, args ...string) {
+	h.doEdit(w, r, args, func() (string, bool) {
+		return readQuery(w, r, "Post content")
+	})
+}
+
+func (h *Handler) editUpload(w text.Writer, r *request, args ...string) {
+	h.doEdit(w, r, args, func() (string, bool) {
+		return readBody(w, r, args[1:])
+	})
 }
