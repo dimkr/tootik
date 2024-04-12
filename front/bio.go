@@ -27,7 +27,11 @@ import (
 
 func (h *Handler) doBio(w text.Writer, r *request, readInput func(text.Writer, *request) (string, bool)) {
 	if r.User == nil {
-		w.Redirect("/users")
+		if r.URL.Scheme == "titan" {
+			w.Redirectf("gemini://%s/users", h.Domain)
+		} else {
+			w.Redirect("/users")
+		}
 		return
 	}
 

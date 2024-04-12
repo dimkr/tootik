@@ -27,7 +27,11 @@ import (
 
 func (h *Handler) doEdit(w text.Writer, r *request, args []string, readInput inputFunc) {
 	if r.User == nil {
-		w.Redirect("/users")
+		if r.URL.Scheme == "titan" {
+			w.Redirectf("gemini://%s/users", h.Domain)
+		} else {
+			w.Redirect("/users")
+		}
 		return
 	}
 

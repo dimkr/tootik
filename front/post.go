@@ -44,7 +44,11 @@ var (
 
 func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo *ap.Object, to ap.Audience, cc ap.Audience, audience string, readInput inputFunc) {
 	if r.User == nil {
-		w.Redirect("/users")
+		if r.URL.Scheme == "titan" {
+			w.Redirectf("gemini://%s/users", h.Domain)
+		} else {
+			w.Redirect("/users")
+		}
 		return
 	}
 

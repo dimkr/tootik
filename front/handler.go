@@ -189,7 +189,11 @@ func (h *Handler) Handle(ctx context.Context, log *slog.Logger, r io.Reader, w t
 
 	log.Warn("Received an invalid request", "path", reqUrl.Path)
 
-	if user == nil {
+	if user == nil && reqUrl.Scheme == "titan" {
+		w.Redirectf("gemini://%s/oops", h.Domain)
+	} else if reqUrl.Scheme == "titan" {
+		w.Redirectf("gemini://%s/users/oops", h.Domain)
+	} else if user == nil {
 		w.Redirect("/oops")
 	} else {
 		w.Redirect("/users/oops")
