@@ -76,9 +76,6 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) (Handler, error) {
 	h.handlers[regexp.MustCompile(`^/local$`)] = withCache(withUserMenu(h.local), time.Minute*15, &cache, cfg)
 	h.handlers[regexp.MustCompile(`^/users/local$`)] = withCache(withUserMenu(h.local), time.Minute*15, &cache, cfg)
 
-	h.handlers[regexp.MustCompile(`^/federated$`)] = withCache(withUserMenu(h.federated), time.Minute*10, &cache, cfg)
-	h.handlers[regexp.MustCompile(`^/users/federated$`)] = withCache(withUserMenu(h.federated), time.Minute*10, &cache, cfg)
-
 	h.handlers[regexp.MustCompile(`^/outbox/(\S+)$`)] = withUserMenu(h.userOutbox)
 	h.handlers[regexp.MustCompile(`^/users/outbox/(\S+)$`)] = withUserMenu(h.userOutbox)
 	h.handlers[regexp.MustCompile(`^/users/me$`)] = withUserMenu(me)

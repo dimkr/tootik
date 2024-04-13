@@ -38,7 +38,6 @@ func writeUserMenu(w text.Writer, user *ap.Actor) {
 	}
 
 	w.Link(prefix+"/local", "📡 This planet")
-	w.Link(prefix+"/federated", "✨ FOMO from outer space")
 
 	if user == nil {
 		w.Link("/hashtags", "🔥 Hashtags")

@@ -29,44 +29,23 @@ func (h *Handler) local(w text.Writer, r *request, args ...string) {
 		func(offset int) (*sql.Rows, error) {
 			return r.Query(
 				`
-					select u.object, u.actor, u.sharer, u.inserted from
+					select object, actor, sharer, inserted from
 					(
-						select notes.id, notes.author, notes.object, notes.inserted, persons.actor, null as sharer from persons
+						select notes.object, persons.actor, null as sharer, notes.inserted from persons
 						join notes
 						on notes.author = persons.id
 						where notes.public = 1 and persons.host = $1
-						union
-						select notes.id, notes.author, notes.object, shares.inserted, persons.actor, sharers.actor as sharer from persons sharers
+						union all
+						select notes.object, persons.actor, sharers.actor as sharer, shares.inserted from persons sharers
 						join shares
 						on shares.by = sharers.id
 						join notes
 						on notes.id = shares.note
 						join persons
 						on persons.id = notes.author
-						where notes.public = 1 and notes.host != $1 and sharers.host = $1
-					) u
-					left join (
-						select object->>'$.inReplyTo' as id, count(*) as count from notes
-						where host = $1 and inserted > unixepoch()-60*60*24*7
-						group by object->>'$.inReplyTo'
-					) replies
-					on
-						replies.id = u.id
-					left join (
-						select author, max(inserted) as last, round(count(*)/7.0, 1) as avg from notes
-						where host = $1 and inserted > unixepoch()-60*60*24*7
-						group by author
-					) stats
-					on
-						stats.author = u.author
-					group by
-						u.id
-					order by
-						u.inserted / 86400 desc,
-						replies.count desc,
-						stats.avg asc,
-						stats.last asc,
-						u.inserted desc
+						where notes.public = 1 and sharers.host = $1
+					)
+					order by inserted desc
 					limit $2
 					offset $3
 				`,

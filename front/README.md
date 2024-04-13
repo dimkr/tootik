@@ -4,7 +4,6 @@
 
 * /local shows a compact list of local posts; each entry contains a link to /view.
 * / is the homepage: it shows an ASCII art logo, a short description of this server and a list of local posts.
-* /federated shows a compact list of federated posts.
 * /hashtag shows a compact list of posts with a given hashtag.
 * /search shows an input prompt and redirects to /hashtag.
 * /hashtags shows a list of popular hashtags.
@@ -42,7 +41,6 @@ Users are authenticated using TLS client certificates; see [Gemini protocol spec
 Some clients generate a certificate for / (all pages of this capsule) when /foo requests a client certificate, while others use the certificate requested by /foo only for /foo and /foo/bar. Therefore, pages that don't require authentication are also mirrored under /users:
 
 * /users/local
-* /users/federated
 * /users/hashtag
 * /users/hashtags
 * /users/fts
