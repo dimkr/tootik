@@ -19,7 +19,8 @@ package ap
 type AttachmentType string
 
 const (
-	Image AttachmentType = "Image"
+	Image         AttachmentType = "Image"
+	PropertyValue AttachmentType = "PropertyValue"
 )
 
 type Attachment struct {
@@ -27,4 +28,6 @@ type Attachment struct {
 	MediaType string         `json:"mediaType,omitempty"`
 	URL       string         `json:"url,omitempty"`
 	Href      string         `json:"href,omitempty"`
+	Name      string         `json:"name,omitempty"`
+	Value     string         `json:"value,omitempty"`
 }

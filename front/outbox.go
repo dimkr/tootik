@@ -23,7 +23,9 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/front/text/plain"
 	"strings"
+	"time"
 )
 
 func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
@@ -209,20 +211,25 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		w.Title(displayName)
 	}
 
+	showSeparator := false
+
 	if offset == 0 && len(actor.Icon) > 0 && actor.Icon[0].URL != "" {
 		w.Link(actor.Icon[0].URL, "Avatar")
+		showSeparator = true
 	}
 
 	if offset == 0 && actor.Image.URL != "" {
 		w.Link(actor.Image.URL, "Header")
+		showSeparator = true
 	}
 
 	if offset == 0 && actor.MovedTo != "" {
 		w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.MovedTo, "https://"), "Moved to %s", actor.MovedTo)
+		showSeparator = true
 	}
 
 	if len(summary) > 0 {
-		if (len(actor.Icon) > 0 && actor.Icon[0].URL != "") || actor.Image.URL != "" || actor.MovedTo != "" {
+		if showSeparator {
 			w.Empty()
 		}
 
@@ -239,7 +246,49 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		})
 	}
 
-	if (offset == 0 && ((len(actor.Icon) > 0 && actor.Icon[0].URL != "") || actor.Image.URL != "")) || len(summary) > 0 {
+	if offset == 0 {
+		firstProperty := true
+
+		if actor.Published != nil {
+			if len(summary) > 0 {
+				w.Empty()
+			}
+
+			w.Textf("Joined: %s", actor.Published.Format(time.DateOnly))
+
+			firstProperty = false
+			showSeparator = true
+		}
+
+		for _, prop := range actor.Attachment {
+			if prop.Type != ap.PropertyValue || prop.Name == "" || prop.Value == "" {
+				continue
+			}
+
+			raw, links := plain.FromHTML(prop.Value)
+			if len(links) > 1 {
+				continue
+			}
+
+			if len(summary) > 0 && firstProperty {
+				w.Empty()
+			}
+
+			if len(links) == 0 {
+				w.Textf("%s: %s", prop.Name, raw)
+			} else {
+				links.Range(func(link string, _ string) bool {
+					w.Linkf(link, prop.Name)
+					return false
+				})
+			}
+
+			firstProperty = false
+			showSeparator = true
+		}
+	}
+
+	if showSeparator {
 		w.Separator()
 	}
 

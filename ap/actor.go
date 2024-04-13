@@ -50,6 +50,7 @@ type Actor struct {
 	Updated                   *Time             `json:"updated,omitempty"`
 	MovedTo                   string            `json:"movedTo,omitempty"`
 	Suspended                 bool              `json:"suspended,omitempty"`
+	Attachment                []Attachment      `json:"attachment,omitempty"`
 }
 
 func (a *Actor) Scan(src any) error {
