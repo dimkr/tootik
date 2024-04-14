@@ -250,7 +250,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		firstProperty := true
 
 		if actor.Published != nil {
-			if len(summary) > 0 {
+			if showSeparator {
 				w.Empty()
 			}
 
