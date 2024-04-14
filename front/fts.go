@@ -89,7 +89,7 @@ func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 					where
 						notes.public = 1 and
 						notesfts.content match $1
-					union
+					union all
 					select notes.id, notes.object, notes.author, notes.inserted, rank, 1 as aud from
 					follows
 					join
@@ -109,7 +109,7 @@ func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 					where
 						follows.follower = $2 and
 						notesfts.content match $1
-					union
+					union all
 					select notes.id, notes.object, notes.author, notes.inserted, rank, 0 as aud from
 					notesfts
 					join notes on

@@ -55,7 +55,7 @@ func (h *Handler) mentions(w text.Writer, r *request, args ...string) {
 					where
 						follows.follower = $1 and
 						notes.inserted >= $2
-					union
+					union all
 					select notes.id, notes.object, authors.actor, shares.inserted, sharers.actor as sharer from
 					follows
 					join
@@ -83,10 +83,8 @@ func (h *Handler) mentions(w text.Writer, r *request, args ...string) {
 						follows.follower = $1 and
 						shares.inserted >= $2
 				)
-				group by
-					id
 				order by
-					max(inserted) desc
+					inserted desc
 				limit $3
 				offset $4`,
 				r.User.ID,

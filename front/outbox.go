@@ -95,7 +95,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
 				join persons on persons.id = $1
 				where notes.author = $1 and notes.public = 1
-				union
+				union all
 				select notes.id, authors.actor, notes.object, shares.inserted, sharers.actor as by from
 				shares
 				join notes on notes.id = shares.note
@@ -116,7 +116,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
 				join persons on persons.id = notes.author
 				where notes.author = $1
-				union
+				union all
 				select notes.id, authors.actor, notes.object, shares.inserted, sharers.actor as by from shares
 				join notes on notes.id = shares.note
 				join persons authors on authors.id = notes.author
@@ -157,7 +157,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 					notes.author = $1 and
 					persons.id = $1 and
 					exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
-				union
+				union all
 				select notes.id, authors.actor, notes.object, shares.inserted, sharers.actor as by from
 				shares
 				join notes on notes.id = shares.note

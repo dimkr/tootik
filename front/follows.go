@@ -51,7 +51,7 @@ func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 				persons.actor->>'$.type' = 'Group' and
 				notes.object->'$.inReplyTo' is null and
 				notes.inserted >= unixepoch() - 7*24*60*60
-			union
+			union all
 			select persons.actor, notes.inserted as ninserted, follows.inserted as finserted from
 			follows
 			join persons
@@ -64,7 +64,7 @@ func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 				follows.follower = $1 and
 				persons.actor->>'$.type' != 'Group' and
 				notes.inserted >= unixepoch() - 7*24*60*60
-			union
+			union all
 			select persons.actor, shares.inserted as ninserted, follows.inserted as finserted from
 			follows
 			join shares
@@ -80,7 +80,7 @@ func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 				shares.inserted >= unixepoch() - 7*24*60*60 and
 				notes.public = 1 and
 				follows.follower = $1
-			union
+			union all
 			select persons.actor, null as ninserted, follows.inserted as finserted from
 			follows
 			join persons

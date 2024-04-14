@@ -35,29 +35,47 @@ func (h *Handler) users(w text.Writer, r *request, args ...string) {
 		"📻 My Radio",
 		func(offset int) (*sql.Rows, error) {
 			return r.Query(`
-				select object, actor, sharer, max(inserted) from
+				select object, actor, sharer, inserted from
 				(
-					select notes.id, notes.object, persons.actor, notes.inserted, null as sharer from
-					follows
-					join
-					persons
-					on
-						persons.id = follows.followed
-					join
-					notes
-					on
-						notes.author = follows.followed and
-						(
-							notes.public = 1 or
-							persons.actor->>'$.followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-							$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers' or value = $1)) or
-							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers' or value = $1))
-						)
-					where
-						follows.follower = $1 and
-						notes.inserted >= $2
-					union
+					select id, object, actor, inserted, null as sharer from
+					(
+						select notes.id, notes.object, persons.actor, notes.inserted from
+						follows
+						join
+						persons
+						on
+							persons.id = follows.followed
+						join
+						notes
+						on
+							notes.author = follows.followed and
+							(
+								notes.public = 1 or
+								persons.actor->>'$.followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+								$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+								(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers' or value = $1)) or
+								(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers' or value = $1))
+							)
+						where
+							follows.follower = $1 and
+							notes.inserted >= $2
+						union
+						select notes.id, notes.object, authors.actor, notes.inserted from
+						notes myposts
+						join
+						notes
+						on
+							notes.object->>'$.inReplyTo' = myposts.id
+						join
+						persons authors
+						on
+							authors.id = notes.author
+						where
+							myposts.author = $1 and
+							notes.author != $1 and
+							notes.inserted >= $2
+					)
+					union all
 					select notes.id, notes.object, authors.actor, shares.inserted, sharers.actor as sharer from
 					follows
 					join
@@ -80,26 +98,9 @@ func (h *Handler) users(w text.Writer, r *request, args ...string) {
 						follows.follower = $1 and
 						shares.inserted >= $2 and
 						notes.public = 1
-					union
-					select notes.id, notes.object, authors.actor, notes.inserted, null as sharer from
-					notes myposts
-					join
-					notes
-					on
-						notes.object->>'$.inReplyTo' = myposts.id
-					join
-					persons authors
-					on
-						authors.id = notes.author
-					where
-						myposts.author = $1 and
-						notes.author != $1 and
-						notes.inserted >= $2
 				)
-				group by
-					id
 				order by
-					max(inserted) desc
+					inserted desc
 				limit $3
 				offset $4`,
 				r.User.ID,

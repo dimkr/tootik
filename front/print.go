@@ -324,11 +324,11 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 						join notes on notes.id = shares.note
 						join persons on persons.id = shares.by and persons.id = notes.object->>'$.audience'
 						where shares.note = $1
-						union
+						union all
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 2 as rank from shares
 						join persons on persons.id = shares.by
 						where shares.note = $1 and persons.host = $2
-						union
+						union all
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 3 as rank from shares
 						join persons on persons.id = shares.by
 						where shares.note = $1 and persons.host != $2
@@ -347,16 +347,16 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 						join notes on notes.id = shares.note
 						join persons on persons.id = shares.by and persons.id = notes.object->>'$.audience'
 						where shares.note = $1
-						union
+						union all
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 2 as rank from shares
 						join follows on follows.followed = shares.by
 						join persons on persons.id = follows.followed
 						where shares.note = $1 and follows.follower = $2
-						union
+						union all
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 3 as rank from shares
 						join persons on persons.id = shares.by
 						where shares.note = $1 and persons.host = $3
-						union
+						union all
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 4 as rank from shares
 						join persons on persons.id = shares.by
 						where shares.note = $1 and persons.host != $3
