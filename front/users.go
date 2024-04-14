@@ -81,16 +81,16 @@ func (h *Handler) users(w text.Writer, r *request, args ...string) {
 						shares.inserted >= $2 and
 						notes.public = 1
 					union
-					select notes.id, notes.object, persons.actor, notes.inserted, null as sharer from
+					select notes.id, notes.object, authors.actor, notes.inserted, null as sharer from
 					notes myposts
 					join
 					notes
 					on
 						notes.object->>'$.inReplyTo' = myposts.id
 					join
-					persons
+					persons authors
 					on
-						persons.id = $1
+						authors.id = notes.author
 					where
 						myposts.author = $1 and
 						notes.author != $1 and
