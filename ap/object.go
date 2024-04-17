@@ -40,6 +40,8 @@ type Object struct {
 	AttributedTo string       `json:"attributedTo,omitempty"`
 	InReplyTo    string       `json:"inReplyTo,omitempty"`
 	Content      string       `json:"content,omitempty"`
+	Summary      string       `json:"summary,omitempty"`
+	Sensitive    bool         `json:"sensitive,omitempty"`
 	Name         string       `json:"name,omitempty"`
 	Published    Time         `json:"published"`
 	Updated      *Time        `json:"updated,omitempty"`

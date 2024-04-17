@@ -148,10 +148,26 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 	}
 
 	noteBody := note.Content
-	if note.Name != "" && note.Content != "" { // Page has a title
-		noteBody = fmt.Sprintf("%s<br>%s", note.Name, note.Content)
-	} else if note.Name != "" && note.Content == "" { // this Note is a poll vote
-		noteBody = note.Name
+	if compact {
+		if note.Sensitive && note.Summary != "" {
+			noteBody = fmt.Sprintf("[%s]", note.Summary)
+		} else if note.Sensitive {
+			noteBody = "[Content warning]"
+		} else if note.Name != "" { // Page has a title, or this Note is a poll vote
+			noteBody = note.Name
+		} else if note.Summary != "" {
+			noteBody = note.Summary
+		}
+	} else {
+		if note.Sensitive && note.Summary != "" {
+			noteBody = fmt.Sprintf("[%s]<br>%s", note.Summary, note.Content)
+		} else if note.Sensitive {
+			noteBody = "[Content warning]<br>" + note.Content
+		} else if note.Name != "" && note.Content != "" {
+			noteBody = fmt.Sprintf("%s<br>%s", note.Name, note.Content)
+		} else if note.Name != "" {
+			noteBody = note.Name
+		}
 	}
 
 	contentLines, inlineLinks := getTextAndLinks(noteBody, maxRunes, maxLines)
