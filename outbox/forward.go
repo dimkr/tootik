@@ -18,13 +18,17 @@ package outbox
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
 	"log/slog"
 	"strings"
+	"time"
+
+	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/cfg"
 )
 
 // ForwardActivity forwards an activity if needed.
@@ -50,6 +54,78 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 	}
 	if depth > cfg.MaxForwardingDepth {
 		log.Debug("Thread exceeds depth limit for forwarding")
+		return nil
+	}
+
+	fmt.Println(firstPostID)
+	fmt.Println(threadStarterID)
+
+	var group ap.Actor
+	if err := tx.QueryRowContext(
+		ctx,
+		`
+			select persons.actor
+			from persons
+			join notes
+			on
+				notes.object->>'$.audience' = persons.id or
+				exists (select 1 from json_each(notes.object->'$.to') where value = persons.id) or
+				exists (select 1 from json_each(notes.object->'$.cc') where value = persons.id)
+			where
+				notes.id = $1 and
+				persons.host = $2 and
+				persons.actor->>'$.type' = 'Group'
+			limit 1
+		`,
+		firstPostID,
+		domain,
+	).Scan(&group); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	} else if err == nil {
+		// set the audience property on the inner object
+		var activity map[string]any
+		if err := json.Unmarshal(rawActivity, &activity); err != nil {
+			return err
+		}
+
+		object, ok := activity["object"]
+		if !ok {
+			return errors.New("no object")
+		}
+
+		m, ok := object.(map[string]any)
+		if !ok {
+			return errors.New("invalid object")
+		}
+
+		m["audience"] = group.ID
+
+		now := time.Now()
+
+		to := ap.Audience{}
+		to.Add(group.Followers)
+
+		announce := ap.Activity{
+			Context:   "https://www.w3.org/ns/activitystreams",
+			ID:        fmt.Sprintf("https://%s/announce/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", group.ID, now.UnixNano())))),
+			Type:      ap.Announce,
+			Actor:     group.ID,
+			Published: ap.Time{Time: now},
+			To:        to,
+			Object:    &activity,
+		}
+
+		log.Info("Forwarding activity to group followers", "group", group.ID, "announce", announce.ID)
+
+		if _, err := tx.ExecContext(
+			ctx,
+			`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
+			&announce,
+			group.ID,
+		); err != nil {
+			return err
+		}
+
 		return nil
 	}
 
