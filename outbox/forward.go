@@ -56,18 +56,40 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 	if err := tx.QueryRowContext(
 		ctx,
 		`
-			select persons.actor
-			from persons
-			join notes
-			on
-				notes.object->>'$.audience' = persons.id or
-				exists (select 1 from json_each(notes.object->'$.to') where value = persons.id) or
-				exists (select 1 from json_each(notes.object->'$.cc') where value = persons.id)
-			where
-				notes.id = $1 and
-				persons.host = $2 and
-				persons.actor->>'$.type' = 'Group'
-			limit 1
+			select actor from
+			(
+				select persons.actor, 1 as rank
+				from persons
+				join notes
+				on
+					notes.object->>'$.audience' = persons.id
+				where
+					notes.id = $1 and
+					persons.host = $2 and
+					persons.actor->>'$.type' = 'Group'
+				union all
+				select persons.actor, 2 as rank
+				from persons
+				join notes
+				on
+					exists (select 1 from json_each(notes.object->'$.to') where value = persons.id)
+				where
+					notes.id = $1 and
+					persons.host = $2 and
+					persons.actor->>'$.type' = 'Group'
+				union all
+				select persons.actor, 3 as rank
+				from persons
+				join notes
+				on
+					exists (select 1 from json_each(notes.object->'$.cc') where value = persons.id)
+				where
+					notes.id = $1 and
+					persons.host = $2 and
+					persons.actor->>'$.type' = 'Group'
+				order by rank
+				limit 1
+			)
 		`,
 		firstPostID,
 		domain,
@@ -111,7 +133,7 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 
 		if _, err := tx.ExecContext(
 			ctx,
-			`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
+			`insert into outbox(activity, sender) values(?, ?)`,
 			&announce,
 			group.ID,
 		); err != nil {

@@ -143,6 +143,6 @@ func TestGroup_ReplyInThread(t *testing.T) {
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity->>'$.type' = 'Announce' and activity->>'$.object.type' = 'Create' and activity->>'$.object.object.id' = $1 and activity->>'$.object.object.audience' = $2 and sender = $2)`, "https://127.0.0.1/create/1", server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity->>'$.type' = 'Announce' and activity->>'$.object.type' = 'Create' and activity->>'$.object.object.id' = 'https://127.0.0.1/note/1' and activity->>'$.object.object.audience' = $1 and sender = $1)`, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 }
