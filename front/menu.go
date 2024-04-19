@@ -18,6 +18,7 @@ package front
 
 import (
 	"bytes"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 )
@@ -40,9 +41,11 @@ func writeUserMenu(w text.Writer, user *ap.Actor) {
 	w.Link(prefix+"/local", "📡 This planet")
 
 	if user == nil {
+		w.Link("/hubs", "🏛️ Hubs")
 		w.Link("/hashtags", "🔥 Hashtags")
 		w.Link("/fts", "🔎 Search posts")
 	} else {
+		w.Link("/users/hubs", "🏛️ Hubs")
 		w.Link("/users/hashtags", "🔥 Hashtags")
 		w.Link("/users/resolve", "🔭 Find user")
 		w.Link("/users/fts", "🔎 Search posts")

@@ -31,6 +31,7 @@ Welcome, fedinaut! localhost.localdomain:8443 is an instance of tootik, a federa
 ⚡️ Followed users
 😈 My profile
 📡 This planet
+🏛️ Hubs
 🔥 Hashtags
 🔭 Find user
 🔎 Search posts

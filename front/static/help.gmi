@@ -11,6 +11,10 @@ This is an instance of tootik, a "slow", "boring" and non-addictive social netwo
 
 This page shows public posts published on this server.
 
+> 🏛️ Hubs
+
+This page shows groups on this server.
+
 > 🔥 Hashtags
 
 This page shows popular hashtags, allowing you to discover trends and shared interests.
