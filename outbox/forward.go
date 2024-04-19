@@ -34,11 +34,6 @@ import (
 // ForwardActivity forwards an activity if needed.
 // A reply by B in a thread started by A is forwarded to all followers of A.
 func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, tx *sql.Tx, note *ap.Object, rawActivity []byte) error {
-	// only replies need to be forwarded
-	if note.InReplyTo == "" {
-		return nil
-	}
-
 	// poll votes don't need to be forwarded
 	if note.Name != "" && note.Content == "" {
 		return nil
@@ -56,9 +51,6 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 		log.Debug("Thread exceeds depth limit for forwarding")
 		return nil
 	}
-
-	fmt.Println(firstPostID)
-	fmt.Println(threadStarterID)
 
 	var group ap.Actor
 	if err := tx.QueryRowContext(
@@ -82,7 +74,6 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 	).Scan(&group); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return err
 	} else if err == nil {
-		// set the audience property on the inner object
 		var activity map[string]any
 		if err := json.Unmarshal(rawActivity, &activity); err != nil {
 			return err
@@ -98,6 +89,7 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 			return errors.New("invalid object")
 		}
 
+		// set the audience property on the inner object
 		m["audience"] = group.ID
 
 		now := time.Now()
@@ -107,7 +99,7 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 
 		announce := ap.Activity{
 			Context:   "https://www.w3.org/ns/activitystreams",
-			ID:        fmt.Sprintf("https://%s/announce/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", group.ID, now.UnixNano())))),
+			ID:        fmt.Sprintf("https://%s/announce/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", group.ID, note.ID, now.UnixNano())))),
 			Type:      ap.Announce,
 			Actor:     group.ID,
 			Published: ap.Time{Time: now},
@@ -126,6 +118,11 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 			return err
 		}
 
+		return nil
+	}
+
+	// only replies need to be forwarded
+	if note.InReplyTo == "" {
 		return nil
 	}
 
