@@ -8,11 +8,17 @@ In addition, it supports `Page` and `Article` posts.
 
 Different servers, frontends and clients use different HTML tags and attributes or even add extra whitespace when they construct `content` from the user's raw input, so tootik's HTML to plain text converter is only a 80/20 solution. Most posts look fine and pretty much follow the way a web frontend renders them.
 
-## Actors
+## Users
 
-All tootik users are `Person`s.
+tootik users are `Person`s.
 
-However, it supports various kinds of actors and its UI treats `Group` actors differently: `/outbox/$group` hides replies and sorts posts by last activity.
+## Groups
+
+tootik communities are `Group`s.
+
+tootik automatically wrap activities with a community in `audience`, `to` or `cc` with an `Announce` activity, set the `audience` property of the inner object and send the activity to followers of the community actor.
+
+tootik's UI treats `Group` actors differently: `/outbox/$group` hides replies and sorts threads by last activity.
 
 ## HTTP Signatures
 
