@@ -21,13 +21,6 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"fmt"
-	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/fed"
-	"github.com/dimkr/tootik/front"
-	"github.com/dimkr/tootik/front/gemini"
-	"github.com/dimkr/tootik/front/user"
-	"github.com/dimkr/tootik/migrations"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"log/slog"
 	"net"
@@ -35,6 +28,15 @@ import (
 	"os"
 	"sync"
 	"testing"
+
+	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/fed"
+	"github.com/dimkr/tootik/front"
+	"github.com/dimkr/tootik/front/gemini"
+	"github.com/dimkr/tootik/front/user"
+	"github.com/dimkr/tootik/migrations"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -422,7 +424,7 @@ func TestRegister_AlreadyRegistered(t *testing.T) {
 	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
 	assert.NoError(err)
 
-	_, _, err = user.Create(context.Background(), domain, db, "erin", "e")
+	_, _, err = user.Create(context.Background(), domain, db, "erin", ap.Person, "e")
 	assert.NoError(err)
 
 	handler, err := front.NewHandler(domain, false, &cfg)

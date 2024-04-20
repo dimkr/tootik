@@ -21,11 +21,13 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"fmt"
-	"github.com/dimkr/tootik/front/text"
-	"github.com/dimkr/tootik/front/user"
 	"net/url"
 	"regexp"
 	"time"
+
+	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/front/user"
 )
 
 var userNameRegex = regexp.MustCompile(`^[a-zA-Z0-9-_]{4,32}$`)
@@ -121,7 +123,7 @@ func (h *Handler) register(w text.Writer, r *request, args ...string) {
 
 	r.Log.Info("Creating new user", "name", userName)
 
-	if _, _, err := user.Create(r.Context, r.Handler.Domain, r.DB, userName, certHash); err != nil {
+	if _, _, err := user.Create(r.Context, r.Handler.Domain, r.DB, userName, ap.Person, certHash); err != nil {
 		r.Log.Warn("Failed to create new user", "name", userName, "error", err)
 		w.Status(40, "Failed to create new user")
 		return

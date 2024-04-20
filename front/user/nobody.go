@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
@@ -38,5 +39,5 @@ func CreateNobody(ctx context.Context, domain string, db *sql.DB) (*ap.Actor, ht
 		return &actor, httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, err
 	}
 
-	return Create(ctx, domain, db, "nobody", "")
+	return Create(ctx, domain, db, "nobody", ap.Person, "")
 }

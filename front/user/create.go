@@ -25,10 +25,11 @@ import (
 	"database/sql"
 	"encoding/pem"
 	"fmt"
+	"time"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/icon"
-	"time"
 )
 
 func gen(ctx context.Context) (*rsa.PrivateKey, []byte, []byte, error) {
@@ -63,7 +64,7 @@ func gen(ctx context.Context) (*rsa.PrivateKey, []byte, []byte, error) {
 }
 
 // Create creates a new user.
-func Create(ctx context.Context, domain string, db *sql.DB, name, certHash string) (*ap.Actor, httpsig.Key, error) {
+func Create(ctx context.Context, domain string, db *sql.DB, name string, actorType ap.ActorType, certHash string) (*ap.Actor, httpsig.Key, error) {
 	priv, privPem, pubPem, err := gen(ctx)
 	if err != nil {
 		return nil, httpsig.Key{}, fmt.Errorf("failed to generate key pair: %w", err)
@@ -76,7 +77,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, name, certHash strin
 			"https://w3id.org/security/v1",
 		},
 		ID:                id,
-		Type:              ap.Person,
+		Type:              actorType,
 		PreferredUsername: name,
 		Icon: []ap.Attachment{
 			ap.Attachment{

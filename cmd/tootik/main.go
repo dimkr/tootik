@@ -18,6 +18,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
@@ -27,6 +29,12 @@ import (
 	"net/http"
 	"os"
 
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
+
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/buildinfo"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
@@ -41,10 +49,6 @@ import (
 	"github.com/dimkr/tootik/migrations"
 	"github.com/dimkr/tootik/outbox"
 	_ "github.com/mattn/go-sqlite3"
-	"os/signal"
-	"sync"
-	"syscall"
-	"time"
 )
 
 const (
@@ -76,11 +80,25 @@ var (
 )
 
 func main() {
+	flag.Usage = func() {
+		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [flag]... [arg...]\n", os.Args[0])
+		flag.PrintDefaults()
+
+		fmt.Fprintf(flag.CommandLine.Output(), "\n%s [flag]...\n\tRun tootik\n", os.Args[0])
+		fmt.Fprintf(flag.CommandLine.Output(), "\n%s [flag]... add-community [name]\n\tAdd a community\n", os.Args[0])
+
+		os.Exit(2)
+	}
 	flag.Parse()
 
 	if *version {
 		fmt.Println(buildinfo.Version)
 		return
+	}
+
+	cmd := flag.Arg(0)
+	if !((cmd == "" && flag.NArg() == 0) || (cmd == "add-community" && flag.Arg(1) != "")) {
+		flag.Usage()
 	}
 
 	var cfg cfg.Config
@@ -177,6 +195,16 @@ func main() {
 	_, nobodyKey, err := user.CreateNobody(ctx, *domain, db)
 	if err != nil {
 		panic(err)
+	}
+
+	if cmd == "add-community" {
+		buf := make([]byte, 1024)
+		rand.Read(buf)
+		_, _, err := user.Create(ctx, *domain, db, flag.Arg(1), ap.Group, fmt.Sprintf("%x", sha256.Sum256(buf)))
+		if err != nil {
+			panic(err)
+		}
+		return
 	}
 
 	handler, err := front.NewHandler(*domain, *closed, &cfg)
