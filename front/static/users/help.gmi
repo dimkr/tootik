@@ -27,9 +27,9 @@ This page shows your profile.
 
 This page shows public posts published on this server.
 
-> 🏛️ Hubs
+> 🏕️ Communities
 
-This page shows groups on this server.
+This page shows communities on this server.
 
 > 🔥 Hashtags
 

@@ -21,17 +21,18 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/front/static"
-	"github.com/dimkr/tootik/front/text"
-	"github.com/dimkr/tootik/httpsig"
 	"io"
 	"log/slog"
 	"net/url"
 	"regexp"
 	"sync"
 	"time"
+
+	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/front/static"
+	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/httpsig"
 )
 
 // Handler handles frontend (client-to-server) requests.
@@ -117,6 +118,9 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) (Handler, error) {
 	h.handlers[regexp.MustCompile(`^/users/unfollow/(\S+)$`)] = withUserMenu(h.unfollow)
 
 	h.handlers[regexp.MustCompile(`^/users/follows$`)] = withUserMenu(h.follows)
+
+	h.handlers[regexp.MustCompile(`^/communities$`)] = withUserMenu(h.communities)
+	h.handlers[regexp.MustCompile(`^/users/communities$`)] = withUserMenu(h.communities)
 
 	h.handlers[regexp.MustCompile(`^/hashtag/([a-zA-Z0-9]+)$`)] = withCache(withUserMenu(h.hashtag), time.Minute*5, &cache, cfg)
 	h.handlers[regexp.MustCompile(`^/users/hashtag/([a-zA-Z0-9]+)$`)] = withCache(withUserMenu(h.hashtag), time.Minute*5, &cache, cfg)

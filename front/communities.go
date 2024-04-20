@@ -22,39 +22,55 @@ import (
 	"github.com/dimkr/tootik/front/text"
 )
 
-func (h *Handler) hubs(w text.Writer, r *request, args ...string) {
+func (h *Handler) communities(w text.Writer, r *request, args ...string) {
 	rows, err := r.Query(
 		`
-			select id, actor->>'preferredUsername' from persons
+			select persons.id, persons.actor->>'preferredUsername', count(follows.followed) as followers from persons
+			left join follows
+			on
+				follows.followed = persons.id
 			where
-				host = $1 and
-				actor->>'$.type' = 'Group'
+				persons.host = $1 and
+				persons.actor->>'$.type' = 'Group'
+			group by
+				persons.id
+			order by
+				followers
 		`,
 		h.Domain,
 	)
 	if err != nil {
-		r.Log.Warn("Failed to list hubs", "error", err)
+		r.Log.Error("Failed to list communities", "error", err)
 		w.Error()
 		return
 	}
 
 	w.OK()
 
-	w.Title("🏛️ Hubs")
+	w.Title("🏕️ Communities")
+
+	empty := true
 
 	for rows.Next() {
 		var id, username string
-		if err := rows.Scan(&id, &username); err != nil {
-			r.Log.Warn("Failed to scan hub", "error", err)
+		var followers int64
+		if err := rows.Scan(&id, &username, &followers); err != nil {
+			r.Log.Warn("Failed to scan community", "error", err)
 			continue
 		}
 
 		if r.User == nil {
-			w.Link("/outbox/"+strings.TrimPrefix(id, "https://"), username)
+			w.Linkf("/outbox/"+strings.TrimPrefix(id, "https://"), "%s (%d)", username, followers)
 		} else {
-			w.Link("/users/outbox/"+strings.TrimPrefix(id, "https://"), username)
+			w.Linkf("/users/outbox/"+strings.TrimPrefix(id, "https://"), "%s (%d)", username, followers)
 		}
+
+		empty = false
 	}
 
 	rows.Close()
+
+	if empty {
+		w.Text("No communities.")
+	}
 }

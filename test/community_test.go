@@ -29,7 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestGroup_NewThread(t *testing.T) {
+func TestCommunity_NewThread(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
@@ -69,7 +69,7 @@ func TestGroup_NewThread(t *testing.T) {
 	assert.Equal(1, forwarded)
 }
 
-func TestGroup_ReplyInThread(t *testing.T) {
+func TestCommunity_ReplyInThread(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
