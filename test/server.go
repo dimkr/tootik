@@ -22,6 +22,11 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"log/slog"
+	"net/http"
+	"net/url"
+	"os"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/fed"
@@ -31,10 +36,6 @@ import (
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/migrations"
 	_ "github.com/mattn/go-sqlite3"
-	"log/slog"
-	"net/http"
-	"net/url"
-	"os"
 )
 
 const domain = "localhost.localdomain:8443"
@@ -76,17 +77,17 @@ func newTestServer() *server {
 		panic(err)
 	}
 
-	alice, _, err := user.Create(context.Background(), domain, db, "alice", "a")
+	alice, _, err := user.Create(context.Background(), domain, db, "alice", ap.Person, "a")
 	if err != nil {
 		panic(err)
 	}
 
-	bob, _, err := user.Create(context.Background(), domain, db, "bob", "b")
+	bob, _, err := user.Create(context.Background(), domain, db, "bob", ap.Person, "b")
 	if err != nil {
 		panic(err)
 	}
 
-	carol, _, err := user.Create(context.Background(), domain, db, "carol", "c")
+	carol, _, err := user.Create(context.Background(), domain, db, "carol", ap.Person, "c")
 	if err != nil {
 		panic(err)
 	}
