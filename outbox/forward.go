@@ -101,6 +101,11 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 			return err
 		}
 
+		activityType, ok := activity["type"]
+		if !ok {
+			return errors.New("invalid activity")
+		}
+
 		object, ok := activity["object"]
 		if !ok {
 			return errors.New("no object")
@@ -109,6 +114,17 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 		m, ok := object.(map[string]any)
 		if !ok {
 			return errors.New("invalid object")
+		}
+
+		if s, ok := activityType.(string); ok && s == "Create" && m["audience"] == nil {
+			if _, err := tx.ExecContext(
+				ctx,
+				`update notes set object = json_set(object, '$.audience', $1) where id = $2`,
+				group.ID,
+				note.ID,
+			); err != nil {
+				return err
+			}
 		}
 
 		// set the audience property on the inner object

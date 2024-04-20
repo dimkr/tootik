@@ -18,6 +18,7 @@ package front
 
 import (
 	"strings"
+	"time"
 
 	"github.com/dimkr/tootik/front/text"
 )
@@ -25,17 +26,17 @@ import (
 func (h *Handler) communities(w text.Writer, r *request, args ...string) {
 	rows, err := r.Query(
 		`
-			select persons.id, persons.actor->>'preferredUsername', count(follows.followed) as followers from persons
-			left join follows
+			select persons.id, persons.actor->>'preferredUsername', max(notes.inserted) from notes
+			join persons
 			on
-				follows.followed = persons.id
+				persons.id = notes.object->>'$.audience'
 			where
 				persons.host = $1 and
 				persons.actor->>'$.type' = 'Group'
 			group by
 				persons.id
 			order by
-				followers
+				max(notes.inserted) desc
 		`,
 		h.Domain,
 	)
@@ -53,16 +54,16 @@ func (h *Handler) communities(w text.Writer, r *request, args ...string) {
 
 	for rows.Next() {
 		var id, username string
-		var followers int64
-		if err := rows.Scan(&id, &username, &followers); err != nil {
+		var last int64
+		if err := rows.Scan(&id, &username, &last); err != nil {
 			r.Log.Warn("Failed to scan community", "error", err)
 			continue
 		}
 
 		if r.User == nil {
-			w.Linkf("/outbox/"+strings.TrimPrefix(id, "https://"), "%s (%d)", username, followers)
+			w.Linkf("/outbox/"+strings.TrimPrefix(id, "https://"), "%s %s", time.Unix(last, 0).Format(time.DateOnly), username)
 		} else {
-			w.Linkf("/users/outbox/"+strings.TrimPrefix(id, "https://"), "%s (%d)", username, followers)
+			w.Linkf("/users/outbox/"+strings.TrimPrefix(id, "https://"), "%s %s", time.Unix(last, 0).Format(time.DateOnly), username)
 		}
 
 		empty = false

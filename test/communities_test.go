@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -36,6 +37,9 @@ func TestCommunities_OneCommunity(t *testing.T) {
 	)
 	assert.NoError(err)
 
+	say := server.Handle("/users/say?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+
 	communities := server.Handle("/users/communities", server.Bob)
-	assert.Contains(strings.Split(communities, "\n"), fmt.Sprintf("=> /users/outbox/%s/user/alice alice (0)", domain))
+	assert.Contains(strings.Split(communities, "\n"), fmt.Sprintf("=> /users/outbox/%s/user/alice %s alice", domain, time.Now().Format(time.DateOnly)))
 }
