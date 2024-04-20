@@ -22,6 +22,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+	"net/url"
+	"strings"
+	"time"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
@@ -29,10 +34,6 @@ import (
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/inbox/note"
 	"github.com/dimkr/tootik/outbox"
-	"log/slog"
-	"net/url"
-	"strings"
-	"time"
 )
 
 type Queue struct {
@@ -149,7 +150,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			defer tx.Rollback()
 
 			var note ap.Object
-			if err := q.DB.QueryRowContext(ctx, `select object from notes where id = ? and author = ?`, deleted, sender.ID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
+			if err := q.DB.QueryRowContext(ctx, `select object from notes where id = $1 and (author = $2 or object->>'$.audience' = $2)`, deleted, sender.ID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
 				log.Debug("Received delete request for non-existing post", "deleted", deleted)
 				return nil
 			} else if err != nil {
