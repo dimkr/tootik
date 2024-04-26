@@ -141,6 +141,11 @@ func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo 
 	if inReplyTo != nil {
 		note.InReplyTo = inReplyTo.ID
 
+		if inReplyTo.Sensitive {
+			note.Sensitive = true
+			note.Summary = inReplyTo.Summary
+		}
+
 		if inReplyTo.Type == ap.Question {
 			options := inReplyTo.OneOf
 			if len(options) == 0 {
