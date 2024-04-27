@@ -23,12 +23,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/cfg"
 	"log/slog"
 	"strings"
 	"time"
-
-	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
 )
 
 // ForwardActivity forwards an activity if needed.

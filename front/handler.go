@@ -21,18 +21,17 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/front/static"
+	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/httpsig"
 	"io"
 	"log/slog"
 	"net/url"
 	"regexp"
 	"sync"
 	"time"
-
-	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/front/static"
-	"github.com/dimkr/tootik/front/text"
-	"github.com/dimkr/tootik/httpsig"
 )
 
 // Handler handles frontend (client-to-server) requests.

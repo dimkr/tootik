@@ -18,7 +18,6 @@ package front
 
 import (
 	"bytes"
-
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 )

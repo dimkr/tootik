@@ -25,11 +25,10 @@ import (
 	"database/sql"
 	"encoding/pem"
 	"fmt"
-	"time"
-
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/icon"
+	"time"
 )
 
 func gen(ctx context.Context) (*rsa.PrivateKey, []byte, []byte, error) {

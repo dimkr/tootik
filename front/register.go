@@ -21,13 +21,12 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"fmt"
-	"net/url"
-	"regexp"
-	"time"
-
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/user"
+	"net/url"
+	"regexp"
+	"time"
 )
 
 var userNameRegex = regexp.MustCompile(`^[a-zA-Z0-9-_]{4,32}$`)

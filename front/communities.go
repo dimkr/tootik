@@ -17,10 +17,9 @@ limitations under the License.
 package front
 
 import (
+	"github.com/dimkr/tootik/front/text"
 	"strings"
 	"time"
-
-	"github.com/dimkr/tootik/front/text"
 )
 
 func (h *Handler) communities(w text.Writer, r *request, args ...string) {

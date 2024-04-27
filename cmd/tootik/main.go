@@ -25,15 +25,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"log/slog"
-	"net/http"
-	"os"
-
-	"os/signal"
-	"sync"
-	"syscall"
-	"time"
-
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/buildinfo"
 	"github.com/dimkr/tootik/cfg"
@@ -49,6 +40,13 @@ import (
 	"github.com/dimkr/tootik/migrations"
 	"github.com/dimkr/tootik/outbox"
 	_ "github.com/mattn/go-sqlite3"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
 )
 
 const (
