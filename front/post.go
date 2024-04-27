@@ -141,6 +141,11 @@ func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo 
 	if inReplyTo != nil {
 		note.InReplyTo = inReplyTo.ID
 
+		if inReplyTo.Sensitive {
+			note.Sensitive = true
+			note.Summary = inReplyTo.Summary
+		}
+
 		if inReplyTo.Type == ap.Question {
 			options := inReplyTo.OneOf
 			if len(options) == 0 {
@@ -224,7 +229,14 @@ func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo 
 	var err error
 	if oldNote != nil {
 		note.Published = oldNote.Published
+
+		if !note.Sensitive && oldNote.Sensitive {
+			note.Sensitive = true
+			note.Summary = oldNote.Summary
+		}
+
 		note.Updated = &now
+
 		err = outbox.UpdateNote(r.Context, h.Domain, h.Config, r.Log, r.DB, &note)
 	} else {
 		err = outbox.Create(r.Context, h.Domain, h.Config, r.Log, r.DB, &note, r.User)
