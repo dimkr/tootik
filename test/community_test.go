@@ -18,15 +18,14 @@ package test
 
 import (
 	"context"
-	"log/slog"
-	"net/http"
-	"testing"
-
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/outbox"
 	"github.com/stretchr/testify/assert"
+	"log/slog"
+	"net/http"
+	"testing"
 )
 
 func TestCommunity_NewThread(t *testing.T) {
