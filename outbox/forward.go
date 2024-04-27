@@ -30,7 +30,7 @@ import (
 	"time"
 )
 
-func forwardToGroup(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, tx *sql.Tx, note *ap.Object, rawActivity []byte, firstPostID string) (bool, error) {
+func forwardToGroup(ctx context.Context, domain string, log *slog.Logger, tx *sql.Tx, note *ap.Object, rawActivity []byte, firstPostID string) (bool, error) {
 	var group ap.Actor
 	if err := tx.QueryRowContext(
 		ctx,
@@ -181,7 +181,7 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 		return nil
 	}
 
-	forwarded, err := forwardToGroup(ctx, domain, cfg, log, tx, note, rawActivity, firstPostID)
+	forwarded, err := forwardToGroup(ctx, domain, log, tx, note, rawActivity, firstPostID)
 	if err != nil {
 		return err
 	} else if forwarded {
