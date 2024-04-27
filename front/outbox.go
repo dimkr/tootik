@@ -205,7 +205,11 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		summary, links = getTextAndLinks(actor.Summary, -1, -1)
 	}
 
-	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
+	if actor.Type != ap.Person && (offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage) {
+		w.Titlef("%s [%s] (%d-%d)", displayName, actor.Type, offset, offset+h.Config.PostsPerPage)
+	} else if actor.Type != ap.Person {
+		w.Titlef("%s [%s]", displayName, actor.Type)
+	} else if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
 		w.Titlef("%s (%d-%d)", displayName, offset, offset+h.Config.PostsPerPage)
 	} else {
 		w.Title(displayName)
