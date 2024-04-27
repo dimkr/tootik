@@ -24,6 +24,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/fsnotify/fsnotify"
+	"net/http/pprof"
 	"log/slog"
 	"math"
 	"net"
@@ -62,6 +63,7 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 	mux.HandleFunc("GET /post/{hash}", l.handlePost)
 	mux.HandleFunc("GET /followers_synchronization/{username}", l.handleFollowers)
 	mux.HandleFunc("GET /{$}", l.handleIndex)
+	mux.HandleFunc("GET /debug/pprof/profile", pprof.Profile)
 
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		l.Log.Debug("Received request to non-existing path", "path", r.URL.Path)
