@@ -30,27 +30,7 @@ import (
 	"time"
 )
 
-// ForwardActivity forwards an activity if needed.
-// A reply by B in a thread started by A is forwarded to all followers of A.
-func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, tx *sql.Tx, note *ap.Object, rawActivity []byte) error {
-	// poll votes don't need to be forwarded
-	if note.Name != "" && note.Content == "" {
-		return nil
-	}
-
-	var firstPostID, threadStarterID string
-	var depth int
-	if err := tx.QueryRowContext(ctx, `with recursive thread(id, author, parent, depth) as (select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, 1 as depth from notes where id = $1 union all select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent where t.depth <= $2) select id, author, depth from thread order by depth desc limit 1`, note.ID, cfg.MaxForwardingDepth+1).Scan(&firstPostID, &threadStarterID, &depth); err != nil && errors.Is(err, sql.ErrNoRows) {
-		log.Debug("Failed to find thread for post", "note", note.ID)
-		return nil
-	} else if err != nil {
-		return fmt.Errorf("failed to fetch first post in thread: %w", err)
-	}
-	if depth > cfg.MaxForwardingDepth {
-		log.Debug("Thread exceeds depth limit for forwarding")
-		return nil
-	}
-
+func forwardToGroup(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, tx *sql.Tx, note *ap.Object, rawActivity []byte, firstPostID string) (bool, error) {
 	var group ap.Actor
 	if err := tx.QueryRowContext(
 		ctx,
@@ -92,69 +72,119 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 		`,
 		firstPostID,
 		domain,
-	).Scan(&group); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return err
-	} else if err == nil {
-		var activity map[string]any
-		if err := json.Unmarshal(rawActivity, &activity); err != nil {
-			return err
-		}
+	).Scan(&group); err != nil && errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	} else if err != nil {
+		return false, err
+	}
 
-		activityType, ok := activity["type"]
-		if !ok {
-			return errors.New("invalid activity")
-		}
+	var activity map[string]any
+	if err := json.Unmarshal(rawActivity, &activity); err != nil {
+		return false, err
+	}
 
-		object, ok := activity["object"]
-		if !ok {
-			return errors.New("no object")
-		}
+	actor, ok := activity["actor"]
+	if !ok {
+		return false, errors.New("invalid actor")
+	}
 
-		m, ok := object.(map[string]any)
-		if !ok {
-			return errors.New("invalid object")
-		}
+	actorID, ok := actor.(string)
+	if !ok {
+		return false, errors.New("invalid actor")
+	}
 
-		if s, ok := activityType.(string); ok && s == "Create" && m["audience"] == nil {
-			if _, err := tx.ExecContext(
-				ctx,
-				`update notes set object = json_set(object, '$.audience', $1) where id = $2`,
-				group.ID,
-				note.ID,
-			); err != nil {
-				return err
-			}
-		}
+	activityType, ok := activity["type"]
+	if !ok {
+		return false, errors.New("invalid activity")
+	}
 
-		// set the audience property on the inner object
-		m["audience"] = group.ID
+	object, ok := activity["object"]
+	if !ok {
+		return false, errors.New("no object")
+	}
 
-		now := time.Now()
+	m, ok := object.(map[string]any)
+	if !ok {
+		return false, errors.New("invalid object")
+	}
 
-		to := ap.Audience{}
-		to.Add(group.Followers)
+	var following int
+	if err := tx.QueryRowContext(ctx, `select exists (select 1 from follows where follower = ? and followed = ? and accepted = 1)`, actorID, group.ID).Scan(&following); err != nil {
+		return false, err
+	}
 
-		announce := ap.Activity{
-			Context:   "https://www.w3.org/ns/activitystreams",
-			ID:        fmt.Sprintf("https://%s/announce/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", group.ID, note.ID, now.UnixNano())))),
-			Type:      ap.Announce,
-			Actor:     group.ID,
-			Published: ap.Time{Time: now},
-			To:        to,
-			Object:    &activity,
-		}
+	if following == 0 {
+		return false, nil
+	}
 
-		log.Info("Forwarding activity to group followers", "group", group.ID, "announce", announce.ID)
-
+	if s, ok := activityType.(string); ok && s == "Create" && m["audience"] == nil {
 		if _, err := tx.ExecContext(
 			ctx,
-			`insert into outbox(activity, sender) values(?, ?)`,
-			&announce,
+			`update notes set object = json_set(object, '$.audience', $1) where id = $2`,
 			group.ID,
+			note.ID,
 		); err != nil {
-			return err
+			return false, err
 		}
+	}
 
+	// set the audience property on the inner object
+	m["audience"] = group.ID
+
+	now := time.Now()
+
+	to := ap.Audience{}
+	to.Add(group.Followers)
+
+	announce := ap.Activity{
+		Context:   "https://www.w3.org/ns/activitystreams",
+		ID:        fmt.Sprintf("https://%s/announce/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", group.ID, note.ID, now.UnixNano())))),
+		Type:      ap.Announce,
+		Actor:     group.ID,
+		Published: ap.Time{Time: now},
+		To:        to,
+		Object:    &activity,
+	}
+
+	log.Info("Forwarding activity to group followers", "group", group.ID, "announce", announce.ID)
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`insert into outbox(activity, sender) values(?, ?)`,
+		&announce,
+		group.ID,
+	); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+// ForwardActivity forwards an activity if needed.
+// A reply by B in a thread started by A is forwarded to all followers of A.
+func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, tx *sql.Tx, note *ap.Object, rawActivity []byte) error {
+	// poll votes don't need to be forwarded
+	if note.Name != "" && note.Content == "" {
+		return nil
+	}
+
+	var firstPostID, threadStarterID string
+	var depth int
+	if err := tx.QueryRowContext(ctx, `with recursive thread(id, author, parent, depth) as (select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, 1 as depth from notes where id = $1 union all select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent where t.depth <= $2) select id, author, depth from thread order by depth desc limit 1`, note.ID, cfg.MaxForwardingDepth+1).Scan(&firstPostID, &threadStarterID, &depth); err != nil && errors.Is(err, sql.ErrNoRows) {
+		log.Debug("Failed to find thread for post", "note", note.ID)
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("failed to fetch first post in thread: %w", err)
+	}
+	if depth > cfg.MaxForwardingDepth {
+		log.Debug("Thread exceeds depth limit for forwarding")
+		return nil
+	}
+
+	forwarded, err := forwardToGroup(ctx, domain, cfg, log, tx, note, rawActivity, firstPostID)
+	if err != nil {
+		return err
+	} else if forwarded {
 		return nil
 	}
 

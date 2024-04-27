@@ -18,6 +18,7 @@ package test
 
 import (
 	"context"
+	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/inbox"
@@ -25,6 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"log/slog"
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -57,6 +59,9 @@ func TestCommunity_NewThread(t *testing.T) {
 			server.db,
 		),
 	)
+
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
 	say := server.Handle("/users/say?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
@@ -97,6 +102,9 @@ func TestCommunity_ReplyInThread(t *testing.T) {
 			server.db,
 		),
 	)
+
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
 	say := server.Handle("/users/say?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
