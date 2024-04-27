@@ -77,7 +77,7 @@ Mentioned users should be preceded by @, i.e. @user or @user@host. If the host p
 * The parent post author (if this is a reply)
 * Followed users
 
-To start a new thread in a community, mention the community in your post and the community will send the post and its replies to all followers of the community.
+To start a new thread in a community, follow the community and mention the community in your post. The community will send the post and its replies to all other followers of the community.
 
 Tags should be preceded by #, i.e. #topic.
 
