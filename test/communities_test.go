@@ -18,11 +18,10 @@ package test
 
 import (
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestCommunities_OneCommunity(t *testing.T) {

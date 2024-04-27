@@ -17,16 +17,9 @@ limitations under the License.
 package test
 
 import (
-	"sync"
-
 	"bytes"
 	"context"
 	"database/sql"
-	"log/slog"
-	"net/http"
-	"net/url"
-	"os"
-
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/fed"
@@ -36,6 +29,11 @@ import (
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/migrations"
 	_ "github.com/mattn/go-sqlite3"
+	"log/slog"
+	"net/http"
+	"net/url"
+	"os"
+	"sync"
 )
 
 const domain = "localhost.localdomain:8443"

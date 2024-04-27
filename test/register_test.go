@@ -21,14 +21,6 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"fmt"
-	"io"
-	"log/slog"
-	"net"
-	"net/http"
-	"os"
-	"sync"
-	"testing"
-
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/fed"
@@ -37,6 +29,13 @@ import (
 	"github.com/dimkr/tootik/front/user"
 	"github.com/dimkr/tootik/migrations"
 	"github.com/stretchr/testify/assert"
+	"io"
+	"log/slog"
+	"net"
+	"net/http"
+	"os"
+	"sync"
+	"testing"
 )
 
 var (
