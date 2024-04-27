@@ -12,7 +12,7 @@ Different servers, frontends and clients use different HTML tags and attributes 
 
 tootik users are `Person`s.
 
-## Groups
+## Communities
 
 tootik communities are `Group`s.
 
