@@ -17,6 +17,8 @@ limitations under the License.
 package test
 
 import (
+	"sync"
+
 	"bytes"
 	"context"
 	"database/sql"
@@ -33,7 +35,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"sync"
 )
 
 const domain = "localhost.localdomain:8443"
