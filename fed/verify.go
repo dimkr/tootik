@@ -44,7 +44,10 @@ func verify(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 
 	publicKey, err := x509.ParsePKIXPublicKey(publicKeyPem.Bytes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to verify message using %s: %w", sig.KeyID, err)
+		publicKey, err = x509.ParsePKCS1PublicKey(publicKeyPem.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to verify message using %s: %w", sig.KeyID, err)
+		}
 	}
 
 	if err := sig.Verify(publicKey); err != nil {
