@@ -99,6 +99,10 @@ tootik is lightweight, private and accessible social network:
 * Users can follow each other to see non-public posts
   * With support for [Mastodon's follower synchronization mechanism](https://docs.joinmastodon.org/spec/activitypub/#follower-synchronization-mechanism), aka [FEP-8fcf](https://codeberg.org/fediverse/fep/src/branch/main/fep/8fcf/fep-8fcf.md)
 * Multi-choice polls
+* [Lemmy](https://join-lemmy.org/)-style communities
+  * Follow to join
+  * Mention community to start thread
+  * Community sends posts and replies to all members
 * Full-text search within posts
 * Upload of posts and user avatars, over [Titan](gemini://transjovian.org/titan)
 * Account migration, in both directions
