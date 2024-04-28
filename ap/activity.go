@@ -59,7 +59,7 @@ type Activity struct {
 	Target    string       `json:"target,omitempty"`
 	To        Audience     `json:"to,omitempty"`
 	CC        Audience     `json:"cc,omitempty"`
-	Published Time         `json:"published,omitempty"`
+	Published *Time        `json:"published,omitempty"`
 }
 
 var ErrInvalidActivity = errors.New("invalid activity")

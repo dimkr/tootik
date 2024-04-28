@@ -128,21 +128,29 @@ func forwardToGroup(ctx context.Context, domain string, log *slog.Logger, tx *sq
 		}
 	}
 
-	// set the audience property on the inner object
+	// remove @context from the activity
+	delete(activity, "@context")
+
+	// set the audience property on the activity and the inner object
+	activity["audience"] = group.ID
 	m["audience"] = group.ID
 
 	now := time.Now()
 
 	to := ap.Audience{}
-	to.Add(group.Followers)
+	to.Add(ap.Public)
+
+	cc := ap.Audience{}
+	cc.Add(group.Followers)
 
 	announce := ap.Activity{
 		Context:   "https://www.w3.org/ns/activitystreams",
 		ID:        fmt.Sprintf("https://%s/announce/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", group.ID, note.ID, now.UnixNano())))),
 		Type:      ap.Announce,
 		Actor:     group.ID,
-		Published: ap.Time{Time: now},
+		Published: &ap.Time{Time: now},
 		To:        to,
+		CC:        cc,
 		Object:    &activity,
 	}
 
@@ -185,11 +193,13 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 		}
 	}
 
-	forwarded, err := forwardToGroup(ctx, domain, log, tx, note, rawActivity, firstPostID)
-	if err != nil {
-		return err
-	} else if forwarded {
-		return nil
+	if note.IsPublic() {
+		forwarded, err := forwardToGroup(ctx, domain, log, tx, note, rawActivity, firstPostID)
+		if err != nil {
+			return err
+		} else if forwarded {
+			return nil
+		}
 	}
 
 	// only replies need to be forwarded
