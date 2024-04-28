@@ -140,6 +140,9 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 		gl.Log.Warn("Failed to get user", "error", err)
 		w.Error()
 		return
+	} else if err == nil && user == nil && reqUrl.Path == "/users" {
+		w.Status(60, "Client certificate required")
+		return
 	}
 
 	gl.Handler.Handle(ctx, gl.Log, conn, w, reqUrl, user, privKey, gl.DB, gl.Resolver, wg)

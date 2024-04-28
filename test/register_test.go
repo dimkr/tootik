@@ -103,6 +103,88 @@ f7Kgs5SdkJkcanCS3Ibes8Tsm+ChRANCAASHeVcvjBZvyo7QoERqFtJWHE+KtxAJ
 -----END PRIVATE KEY-----`
 )
 
+func TestRegister_RedirectNoCertificate(t *testing.T) {
+	assert := assert.New(t)
+
+	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_journal_mode=WAL", t.Name())
+	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
+	db, err := sql.Open("sqlite3", dbPath)
+	assert.NoError(err)
+
+	var cfg cfg.Config
+	cfg.FillDefaults()
+
+	assert.NoError(migrations.Run(context.Background(), slog.Default(), domain, db))
+
+	serverKeyPair, err := tls.X509KeyPair([]byte(serverCert), []byte(serverKey))
+	assert.NoError(err)
+
+	serverCfg := tls.Config{
+		Certificates: []tls.Certificate{serverKeyPair},
+		MinVersion:   tls.VersionTLS12,
+		ClientAuth:   tls.RequestClientCert,
+	}
+
+	clientCfg := tls.Config{
+		Certificates:       []tls.Certificate{},
+		InsecureSkipVerify: true,
+	}
+
+	socketPath := fmt.Sprintf("/tmp/%s.socket", t.Name())
+
+	localListener, err := net.Listen("unix", socketPath)
+	assert.NoError(err)
+	defer os.Remove(socketPath)
+
+	tlsListener := tls.NewListener(localListener, &serverCfg)
+	defer tlsListener.Close()
+
+	unixReader, err := net.Dial("unix", socketPath)
+	assert.NoError(err)
+	defer unixReader.Close()
+
+	tlsWriter, err := tlsListener.Accept()
+	assert.NoError(err)
+
+	tlsReader := tls.Client(unixReader, &clientCfg)
+	defer tlsReader.Close()
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		assert.NoError(tlsReader.Handshake())
+		wg.Done()
+	}()
+	go func() {
+		assert.NoError(tlsWriter.(*tls.Conn).Handshake())
+		wg.Done()
+	}()
+	wg.Wait()
+
+	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users\r\n"))
+	assert.NoError(err)
+
+	handler, err := front.NewHandler(domain, false, &cfg)
+	assert.NoError(err)
+
+	l := gemini.Listener{
+		Domain:   domain,
+		Config:   &cfg,
+		Handler:  handler,
+		DB:       db,
+		Resolver: fed.NewResolver(nil, domain, &cfg, &http.Client{}),
+		Log:      slog.Default(),
+	}
+	l.Handle(context.Background(), tlsWriter, &wg)
+
+	tlsWriter.Close()
+
+	resp, err := io.ReadAll(tlsReader)
+	assert.NoError(err)
+
+	assert.Equal("60 Client certificate required\r\n", string(resp))
+}
+
 func TestRegister_Redirect(t *testing.T) {
 	assert := assert.New(t)
 
@@ -186,6 +268,88 @@ func TestRegister_Redirect(t *testing.T) {
 	assert.NoError(err)
 
 	assert.Equal("30 /users/register\r\n", string(resp))
+}
+
+func TestRegister_NoCertificate(t *testing.T) {
+	assert := assert.New(t)
+
+	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_journal_mode=WAL", t.Name())
+	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
+	db, err := sql.Open("sqlite3", dbPath)
+	assert.NoError(err)
+
+	var cfg cfg.Config
+	cfg.FillDefaults()
+
+	assert.NoError(migrations.Run(context.Background(), slog.Default(), domain, db))
+
+	serverKeyPair, err := tls.X509KeyPair([]byte(serverCert), []byte(serverKey))
+	assert.NoError(err)
+
+	serverCfg := tls.Config{
+		Certificates: []tls.Certificate{serverKeyPair},
+		MinVersion:   tls.VersionTLS12,
+		ClientAuth:   tls.RequestClientCert,
+	}
+
+	clientCfg := tls.Config{
+		Certificates:       []tls.Certificate{},
+		InsecureSkipVerify: true,
+	}
+
+	socketPath := fmt.Sprintf("/tmp/%s.socket", t.Name())
+
+	localListener, err := net.Listen("unix", socketPath)
+	assert.NoError(err)
+	defer os.Remove(socketPath)
+
+	tlsListener := tls.NewListener(localListener, &serverCfg)
+	defer tlsListener.Close()
+
+	unixReader, err := net.Dial("unix", socketPath)
+	assert.NoError(err)
+	defer unixReader.Close()
+
+	tlsWriter, err := tlsListener.Accept()
+	assert.NoError(err)
+
+	tlsReader := tls.Client(unixReader, &clientCfg)
+	defer tlsReader.Close()
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		assert.NoError(tlsReader.Handshake())
+		wg.Done()
+	}()
+	go func() {
+		assert.NoError(tlsWriter.(*tls.Conn).Handshake())
+		wg.Done()
+	}()
+	wg.Wait()
+
+	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
+	assert.NoError(err)
+
+	handler, err := front.NewHandler(domain, false, &cfg)
+	assert.NoError(err)
+
+	l := gemini.Listener{
+		Domain:   domain,
+		Config:   &cfg,
+		Handler:  handler,
+		DB:       db,
+		Resolver: fed.NewResolver(nil, domain, &cfg, &http.Client{}),
+		Log:      slog.Default(),
+	}
+	l.Handle(context.Background(), tlsWriter, &wg)
+
+	tlsWriter.Close()
+
+	resp, err := io.ReadAll(tlsReader)
+	assert.NoError(err)
+
+	assert.Equal("30 /users\r\n", string(resp))
 }
 
 func TestRegister_HappyFlow(t *testing.T) {
