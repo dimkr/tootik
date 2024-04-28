@@ -101,7 +101,7 @@ tootik is lightweight, private and accessible social network:
 * Multi-choice polls
 * [Lemmy](https://join-lemmy.org/)-style communities
   * Follow to join
-  * Mention community to start thread
+  * Mention community in a public post to start thread
   * Community sends posts and replies to all members
 * Full-text search within posts
 * Upload of posts and user avatars, over [Titan](gemini://transjovian.org/titan)
