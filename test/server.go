@@ -76,17 +76,17 @@ func newTestServer() *server {
 		panic(err)
 	}
 
-	alice, _, err := user.Create(context.Background(), domain, db, "alice", ap.Person, "a")
+	alice, _, err := user.Create(context.Background(), domain, db, "alice", ap.Person, nil)
 	if err != nil {
 		panic(err)
 	}
 
-	bob, _, err := user.Create(context.Background(), domain, db, "bob", ap.Person, "b")
+	bob, _, err := user.Create(context.Background(), domain, db, "bob", ap.Person, nil)
 	if err != nil {
 		panic(err)
 	}
 
-	carol, _, err := user.Create(context.Background(), domain, db, "carol", ap.Person, "c")
+	carol, _, err := user.Create(context.Background(), domain, db, "carol", ap.Person, nil)
 	if err != nil {
 		panic(err)
 	}
