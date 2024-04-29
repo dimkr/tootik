@@ -64,20 +64,18 @@ func (h *Handler) showFeedPage(w text.Writer, r *request, title string, query fu
 	}
 	defer rows.Close()
 
-	notes := make([]noteMetadata, h.Config.PostsPerPage)
+	notes := make([]feedRow, h.Config.PostsPerPage)
+	count := 0
 
 	for rows.Next() {
-		var meta noteMetadata
-		if err := rows.Scan(&meta.Note, &meta.Author, &meta.Sharer, &meta.Published); err != nil {
+		if err := rows.Scan(&notes[count].Note, &notes[count].Author, &notes[count].Sharer, &notes[count].Published); err != nil {
 			r.Log.Warn("Failed to scan post", "error", err)
 			continue
 		}
 
-		notes = append(notes, meta)
+		count++
 	}
 	rows.Close()
-
-	count := len(notes)
 
 	w.OK()
 
@@ -90,7 +88,7 @@ func (h *Handler) showFeedPage(w text.Writer, r *request, title string, query fu
 	if count == 0 {
 		w.Text("No posts.")
 	} else {
-		r.PrintNotes(w, notes, true, printDaySeparators)
+		r.PrintNotes(w, notes[:count], true, printDaySeparators)
 	}
 
 	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {

@@ -91,20 +91,18 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 	}
 	defer rows.Close()
 
-	replies := make([]noteMetadata, h.Config.RepliesPerPage)
+	replies := make([]feedRow, h.Config.RepliesPerPage)
+	count := 0
 
 	for rows.Next() {
-		var meta noteMetadata
-		if err := rows.Scan(&meta.Note, &meta.Author, &meta.Published); err != nil {
+		if err := rows.Scan(&replies[count].Note, &replies[count].Author, &replies[count].Published); err != nil {
 			r.Log.Warn("Failed to scan reply", "error", err)
 			continue
 		}
 
-		replies = append(replies, meta)
+		count++
 	}
 	rows.Close()
-
-	count := len(replies)
 
 	w.OK()
 
@@ -161,7 +159,7 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 		}
 	}
 
-	r.PrintNotes(w, replies, false, false)
+	r.PrintNotes(w, replies[:count], false, false)
 
 	var originalPostExists int
 	var threadHead sql.NullString

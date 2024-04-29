@@ -31,7 +31,7 @@ import (
 	"time"
 )
 
-type noteMetadata struct {
+type feedRow struct {
 	Note      ap.Object
 	Author    sql.Null[ap.Actor]
 	Sharer    sql.Null[ap.Actor]
@@ -460,21 +460,21 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 	}
 }
 
-func (r *request) PrintNotes(w text.Writer, rows []noteMetadata, printParentAuthor, printDaySeparators bool) {
+func (r *request) PrintNotes(w text.Writer, rows []feedRow, printParentAuthor, printDaySeparators bool) {
 	var lastDay int64
 	first := true
-	for _, meta := range rows {
-		if meta.Note.Type != ap.Note && meta.Note.Type != ap.Page && meta.Note.Type != ap.Article && meta.Note.Type != ap.Question {
-			r.Log.Warn("Post type is unsupported", "type", meta.Note.Type)
+	for _, row := range rows {
+		if row.Note.Type != ap.Note && row.Note.Type != ap.Page && row.Note.Type != ap.Article && row.Note.Type != ap.Question {
+			r.Log.Warn("Post type is unsupported", "type", row.Note.Type)
 			continue
 		}
 
-		if !meta.Author.Valid {
-			r.Log.Warn("Post author is unknown", "note", meta.Note.ID, "author", meta.Note.AttributedTo)
+		if !row.Author.Valid {
+			r.Log.Warn("Post author is unknown", "note", row.Note.ID, "author", row.Note.AttributedTo)
 			continue
 		}
 
-		currentDay := meta.Published / (60 * 60 * 24)
+		currentDay := row.Published / (60 * 60 * 24)
 
 		if !first && printDaySeparators && currentDay != lastDay {
 			w.Separator()
@@ -482,10 +482,10 @@ func (r *request) PrintNotes(w text.Writer, rows []noteMetadata, printParentAuth
 			w.Empty()
 		}
 
-		if meta.Sharer.Valid {
-			r.PrintNote(w, &meta.Note, &meta.Author.V, &meta.Sharer.V, time.Unix(meta.Published, 0), true, true, printParentAuthor, true)
+		if row.Sharer.Valid {
+			r.PrintNote(w, &row.Note, &row.Author.V, &row.Sharer.V, time.Unix(row.Published, 0), true, true, printParentAuthor, true)
 		} else {
-			r.PrintNote(w, &meta.Note, &meta.Author.V, nil, time.Unix(meta.Published, 0), true, true, printParentAuthor, true)
+			r.PrintNote(w, &row.Note, &row.Author.V, nil, time.Unix(row.Published, 0), true, true, printParentAuthor, true)
 		}
 
 		lastDay = currentDay
