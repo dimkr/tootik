@@ -98,7 +98,7 @@ func main() {
 	}
 
 	cmd := flag.Arg(0)
-	if !((cmd == "" && flag.NArg() == 0) || (cmd == "add-community" && flag.Arg(1) != "") || (cmd == "set-bio" && flag.Arg(1) != "" && flag.Arg(2) != "")) {
+	if !((cmd == "" && flag.NArg() == 0) || (cmd == "add-community" && flag.NArg() == 2 && flag.Arg(1) != "") || (cmd == "set-bio" && flag.NArg() == 3 && flag.Arg(1) != "" && flag.Arg(2) != "")) {
 		flag.Usage()
 	}
 
