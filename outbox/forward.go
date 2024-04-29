@@ -98,16 +98,6 @@ func forwardToGroup(ctx context.Context, domain string, log *slog.Logger, tx *sq
 		return false, errors.New("invalid activity")
 	}
 
-	object, ok := activity["object"]
-	if !ok {
-		return false, errors.New("no object")
-	}
-
-	m, ok := object.(map[string]any)
-	if !ok {
-		return false, errors.New("invalid object")
-	}
-
 	var following int
 	if err := tx.QueryRowContext(ctx, `select exists (select 1 from follows where follower = ? and followed = ? and accepted = 1)`, actorID, group.ID).Scan(&following); err != nil {
 		return false, err
