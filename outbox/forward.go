@@ -151,7 +151,7 @@ func forwardToGroup(ctx context.Context, domain string, log *slog.Logger, tx *sq
 		Published: &ap.Time{Time: now},
 		To:        to,
 		CC:        cc,
-		Object:    &activity,
+		Object:    activity,
 	}
 
 	log.Info("Forwarding activity to group followers", "group", group.ID, "announce", announce.ID)
