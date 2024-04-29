@@ -167,6 +167,15 @@ func forwardToGroup(ctx context.Context, domain string, log *slog.Logger, tx *sq
 		}
 
 		// if this is a new post and we're passing the Create activity to followers, also share the post
+		if _, err := tx.ExecContext(
+			ctx,
+			`insert into shares(note, by) values(?, ?)`,
+			note.ID,
+			group.ID,
+		); err != nil {
+			return false, err
+		}
+
 		announce.ID += "#share"
 		announce.Object = note.ID
 		if _, err := tx.ExecContext(
