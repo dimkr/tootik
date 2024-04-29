@@ -291,7 +291,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		return q.processCreateActivity(ctx, log, sender, req, rawActivity, post)
 
 	case ap.Announce:
-		create, ok := req.Object.(*ap.Activity)
+		inner, ok := req.Object.(*ap.Activity)
 		if !ok {
 			if postID, ok := req.Object.(string); ok && postID != "" {
 				if _, err := q.DB.ExecContext(
@@ -307,17 +307,63 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			}
 			return nil
 		}
-		if create.Type != ap.Create {
-			log.Debug("Ignoring unsupported Announce type", "type", create.Type)
+
+		if inner.Type == ap.Delete {
+			var deleted string
+			if post, ok := inner.Object.(*ap.Object); ok {
+				deleted = post.ID
+			} else if s, ok := inner.Object.(string); ok {
+				deleted = s
+			}
+
+			if deleted == "" {
+				return errors.New("received invalid Delete")
+			}
+
+			var exists int
+			if err := q.DB.QueryRowContext(ctx, `select exists (select 1 from notes where id = $1 and (author = $2 or object->>'$.audience' = $2))`, deleted, sender.ID).Scan(&exists); err != nil {
+				return fmt.Errorf("failed to delete %s: %w", deleted, err)
+			}
+
+			if exists == 0 {
+				log.Debug("Received delete request for non-existing post", "deleted", deleted)
+				return nil
+			}
+
+			tx, err := q.DB.BeginTx(ctx, nil)
+			if err != nil {
+				return fmt.Errorf("cannot delete %s: %w", deleted, err)
+			}
+			defer tx.Rollback()
+
+			if _, err := tx.ExecContext(ctx, `delete from notesfts where id = ?`, deleted); err != nil {
+				return fmt.Errorf("cannot delete %s: %w", deleted, err)
+			}
+			if _, err := tx.ExecContext(ctx, `delete from notes where id = ?`, deleted); err != nil {
+				return fmt.Errorf("cannot delete %s: %w", deleted, err)
+			}
+			if _, err := tx.ExecContext(ctx, `delete from shares where note = ?`, deleted); err != nil {
+				return fmt.Errorf("cannot delete %s: %w", deleted, err)
+			}
+
+			if err := tx.Commit(); err != nil {
+				return fmt.Errorf("failed to delete %s: %w", deleted, err)
+			}
+
 			return nil
 		}
 
-		post, ok := create.Object.(*ap.Object)
+		if inner.Type != ap.Create {
+			log.Debug("Ignoring unsupported Announce type", "type", inner.Type)
+			return nil
+		}
+
+		post, ok := inner.Object.(*ap.Object)
 		if !ok {
 			return errors.New("received invalid Create")
 		}
 
-		if err := q.processCreateActivity(ctx, log, sender, create, rawActivity, post); err != nil {
+		if err := q.processCreateActivity(ctx, log, sender, inner, rawActivity, post); err != nil {
 			return err
 		}
 
