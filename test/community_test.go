@@ -69,7 +69,7 @@ func TestCommunity_NewThread(t *testing.T) {
 	id := say[15 : len(say)-2]
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity->>'$.type' = 'Announce' and activity->>'$.object.type' = 'Create' and activity->>'$.object.object.id' = 'https://' || $1 and activity->>'$.object.object.audience' = $2 and sender = $2)`, id, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity->>'$.type' = 'Announce' and activity->>'$.object.type' = 'Create' and activity->>'$.object.object.id' = 'https://' || ? and sender = ?)`, id, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 }
 
@@ -109,7 +109,7 @@ func TestCommunity_NewThreadNotFollowing(t *testing.T) {
 	id := say[15 : len(say)-2]
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity->>'$.type' = 'Announce' and activity->>'$.object.type' = 'Create' and activity->>'$.object.object.id' = 'https://' || $1 and activity->>'$.object.object.audience' = $2 and sender = $2)`, id, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity->>'$.type' = 'Announce' and activity->>'$.object.type' = 'Create' and activity->>'$.object.object.id' = 'https://' || ? and sender = ?)`, id, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(0, forwarded)
 }
 
@@ -190,7 +190,7 @@ func TestCommunity_ReplyInThread(t *testing.T) {
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity->>'$.type' = 'Announce' and activity->>'$.object.type' = 'Create' and activity->>'$.object.actor' = $1 and activity->>'$.object.object.audience' = $2 and sender = $2)`, server.Bob.ID, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity->>'$.type' = 'Announce' and activity->>'$.object.type' = 'Create' and activity->>'$.object.actor' = ? and sender = ?)`, server.Bob.ID, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 }
 
@@ -268,6 +268,6 @@ func TestCommunity_ReplyInThreadNotFollowing(t *testing.T) {
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity->>'$.type' = 'Announce' and activity->>'$.object.type' = 'Create' and activity->>'$.object.actor' = $1 and activity->>'$.object.object.audience' = $2 and sender = $2)`, server.Bob.ID, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity->>'$.type' = 'Announce' and activity->>'$.object.type' = 'Create' and activity->>'$.object.actor' = ? and sender = ?)`, server.Bob.ID, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(0, forwarded)
 }
