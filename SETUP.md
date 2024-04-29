@@ -200,6 +200,14 @@ curl -L https://github.com/dimkr/tootik/releases/latest/download/tootik-$(case `
 systemctl start tootik
 ```
 
+To add a community and set its bio:
+
+```
+tootik -domain $domain -db /tootik-data/db.sqlite3 add-community fountainpens
+# put bio in /tmp/bio
+tootik -domain $domain -db /tootik-data/db.sqlite3 set-bio fountainpens /tmp/bio
+````
+
 ## Running behind a reverse proxy
 
 * Run tootik with `-plain`, so it speaks HTTP and the reverse proxy handles TLS.
