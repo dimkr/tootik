@@ -87,6 +87,8 @@ func forwardToGroup(ctx context.Context, domain string, log *slog.Logger, tx *sq
 		return false, nil
 	}
 
+	log.Info("Forwarding activity to group followers", "group", group.ID, "activity", activity.ID)
+
 	now := time.Now()
 
 	to := ap.Audience{}
@@ -105,8 +107,6 @@ func forwardToGroup(ctx context.Context, domain string, log *slog.Logger, tx *sq
 		CC:        cc,
 		Object:    rawActivity,
 	}
-
-	log.Info("Forwarding activity to group followers", "group", group.ID, "announce", announce.ID)
 
 	if _, err := tx.ExecContext(
 		ctx,
@@ -154,6 +154,7 @@ func forwardToGroup(ctx context.Context, domain string, log *slog.Logger, tx *sq
 
 // ForwardActivity forwards an activity if needed.
 // A reply by B in a thread started by A is forwarded to all followers of A.
+// A post by a follower of a local group, which mentions the group or replies to a post in the group, is forwarded to followers of the group.
 func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity json.RawMessage) error {
 	// poll votes don't need to be forwarded
 	if note.Name != "" && note.Content == "" {
