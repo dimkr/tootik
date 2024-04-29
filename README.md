@@ -81,7 +81,7 @@ tootik is lightweight, private and accessible social network:
 * Rich content is reduced to plain text and links: it's a fast, low-bandwidth UI suitable for screen readers.
 * Anonymity: you authenticate using a TLS client certificate and don't have to share your email address or real name.
 * No promoted content, tracking or analytics: social networking, with the slow and non-commercial vibe of the small internet.
-* It's a single static executable, making it easy to [set up your own instance](https://github.com/dimkr/tootik/wiki/Quick-setup-guide) instead of joining an existing one.
+* It's a single static executable, making it easy to [set up your own instance](SETUP.md) instead of joining an existing one.
 * All instance data is stored in a single file, a [sqlite](https://sqlite.org/) database that is easy to backup and restore.
 * It's lightweight: a <=$5/mo VPS or a SBC is more than enough for a small instance.
 * It implements the subset of ActivityPub required for its feature set but not more, to stay small, reliable and maintainable.
@@ -109,7 +109,7 @@ tootik is lightweight, private and accessible social network:
 
 ## Using tootik
 
-You can join an [existing instance](gemini://hd.206267.xyz) or [set up your own](https://github.com/dimkr/tootik/wiki/Quick-setup-guide).
+You can join an [existing instance](gemini://hd.206267.xyz) or [set up your own](SETUP.md).
 
 ## Building
 
@@ -377,6 +377,7 @@ To display details like the user's name and speed up the verification of future 
 
 ## More Documentation
 
+* [Setup guide](SETUP.md)
 * [Frontend](front/README.md)
 * [Migrations](migrations/README.md)
 * [Compatibility](FEDERATION.md)
