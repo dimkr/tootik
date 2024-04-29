@@ -18,8 +18,6 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
@@ -200,9 +198,7 @@ func main() {
 
 	switch cmd {
 	case "add-community":
-		buf := make([]byte, 1024)
-		rand.Read(buf)
-		_, _, err := user.Create(ctx, *domain, db, flag.Arg(1), ap.Group, fmt.Sprintf("%x", sha256.Sum256(buf)))
+		_, _, err := user.Create(ctx, *domain, db, flag.Arg(1), ap.Group, nil)
 		if err != nil {
 			panic(err)
 		}

@@ -63,7 +63,7 @@ func gen(ctx context.Context) (*rsa.PrivateKey, []byte, []byte, error) {
 }
 
 // Create creates a new user.
-func Create(ctx context.Context, domain string, db *sql.DB, name string, actorType ap.ActorType, certHash string) (*ap.Actor, httpsig.Key, error) {
+func Create(ctx context.Context, domain string, db *sql.DB, name string, actorType ap.ActorType, certHash *string) (*ap.Actor, httpsig.Key, error) {
 	priv, privPem, pubPem, err := gen(ctx)
 	if err != nil {
 		return nil, httpsig.Key{}, fmt.Errorf("failed to generate key pair: %w", err)
