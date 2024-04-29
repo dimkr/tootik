@@ -30,7 +30,7 @@ import (
 	"time"
 )
 
-func forwardToGroup(ctx context.Context, domain string, log *slog.Logger, tx *sql.Tx, note *ap.Object, rawActivity []byte, firstPostID string) (bool, error) {
+func forwardToGroup(ctx context.Context, domain string, log *slog.Logger, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity json.RawMessage, firstPostID string) (bool, error) {
 	var group ap.Actor
 	if err := tx.QueryRowContext(
 		ctx,
@@ -78,28 +78,8 @@ func forwardToGroup(ctx context.Context, domain string, log *slog.Logger, tx *sq
 		return false, err
 	}
 
-	var activity map[string]any
-	if err := json.Unmarshal(rawActivity, &activity); err != nil {
-		return false, err
-	}
-
-	actor, ok := activity["actor"]
-	if !ok {
-		return false, errors.New("invalid actor")
-	}
-
-	actorID, ok := actor.(string)
-	if !ok {
-		return false, errors.New("invalid actor")
-	}
-
-	activityType, ok := activity["type"]
-	if !ok {
-		return false, errors.New("invalid activity")
-	}
-
 	var following int
-	if err := tx.QueryRowContext(ctx, `select exists (select 1 from follows where follower = ? and followed = ? and accepted = 1)`, actorID, group.ID).Scan(&following); err != nil {
+	if err := tx.QueryRowContext(ctx, `select exists (select 1 from follows where follower = ? and followed = ? and accepted = 1)`, activity.Actor, group.ID).Scan(&following); err != nil {
 		return false, err
 	}
 
@@ -123,7 +103,7 @@ func forwardToGroup(ctx context.Context, domain string, log *slog.Logger, tx *sq
 		Published: &ap.Time{Time: now},
 		To:        to,
 		CC:        cc,
-		Object:    activity,
+		Object:    rawActivity,
 	}
 
 	log.Info("Forwarding activity to group followers", "group", group.ID, "announce", announce.ID)
@@ -138,7 +118,7 @@ func forwardToGroup(ctx context.Context, domain string, log *slog.Logger, tx *sq
 	}
 
 	// if this is a new post and we're passing the Create activity to followers, also share the post
-	if s, ok := activityType.(string); ok && s == "Create" {
+	if activity.Type == ap.Create {
 		announce.ID += "#share"
 		announce.Object = note.ID
 		if _, err := tx.ExecContext(
@@ -174,7 +154,7 @@ func forwardToGroup(ctx context.Context, domain string, log *slog.Logger, tx *sq
 
 // ForwardActivity forwards an activity if needed.
 // A reply by B in a thread started by A is forwarded to all followers of A.
-func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, tx *sql.Tx, note *ap.Object, rawActivity []byte) error {
+func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity json.RawMessage) error {
 	// poll votes don't need to be forwarded
 	if note.Name != "" && note.Content == "" {
 		return nil
@@ -198,7 +178,7 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 	}
 
 	if note.IsPublic() {
-		forwarded, err := forwardToGroup(ctx, domain, log, tx, note, rawActivity, firstPostID)
+		forwarded, err := forwardToGroup(ctx, domain, log, tx, note, activity, rawActivity, firstPostID)
 		if err != nil {
 			return err
 		} else if forwarded {

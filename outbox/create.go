@@ -45,7 +45,7 @@ func Create(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 		return ErrDeliveryQueueFull
 	}
 
-	create, err := json.Marshal(ap.Activity{
+	create := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		Type:    ap.Create,
 		ID:      fmt.Sprintf("https://%s/create/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", post.ID, time.Now().Unix())))),
@@ -53,7 +53,9 @@ func Create(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 		Object:  post,
 		To:      post.To,
 		CC:      post.CC,
-	})
+	}
+
+	j, err := json.Marshal(create)
 	if err != nil {
 		return err
 	}
@@ -68,11 +70,11 @@ func Create(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 		return fmt.Errorf("failed to insert note: %w", err)
 	}
 
-	if _, err = tx.ExecContext(ctx, `insert into outbox (activity, sender) values(?,?)`, string(create), author.ID); err != nil {
+	if _, err = tx.ExecContext(ctx, `insert into outbox (activity, sender) values(?,?)`, string(j), author.ID); err != nil {
 		return fmt.Errorf("failed to insert Create: %w", err)
 	}
 
-	if err := ForwardActivity(ctx, domain, cfg, log, tx, post, create); err != nil {
+	if err := ForwardActivity(ctx, domain, cfg, log, tx, post, &create, j); err != nil {
 		return err
 	}
 

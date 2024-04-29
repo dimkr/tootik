@@ -28,7 +28,7 @@ import (
 
 // Delete queues a Delete activity for delivery.
 func Delete(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, note *ap.Object) error {
-	delete, err := json.Marshal(ap.Activity{
+	delete := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      note.ID + "#delete",
 		Type:    ap.Delete,
@@ -39,7 +39,9 @@ func Delete(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 		},
 		To: note.To,
 		CC: note.CC,
-	})
+	}
+
+	j, err := json.Marshal(delete)
 	if err != nil {
 		return err
 	}
@@ -50,7 +52,7 @@ func Delete(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 	}
 	defer tx.Rollback()
 
-	if err := ForwardActivity(ctx, domain, cfg, log, tx, note, delete); err != nil {
+	if err := ForwardActivity(ctx, domain, cfg, log, tx, note, &delete, j); err != nil {
 		return err
 	}
 
@@ -90,7 +92,7 @@ func Delete(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
-		string(delete),
+		string(j),
 		note.AttributedTo,
 	); err != nil {
 		return fmt.Errorf("failed to insert delete activity: %w", err)
