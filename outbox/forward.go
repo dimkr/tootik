@@ -117,13 +117,6 @@ func forwardToGroup(ctx context.Context, domain string, log *slog.Logger, tx *sq
 		return false, nil
 	}
 
-	// set the audience property on the activity and the inner object
-	activity["audience"] = group.ID
-	m["audience"] = group.ID
-
-	// remove the signature, because we just invalidated it
-	delete(activity, "signature")
-
 	now := time.Now()
 
 	to := ap.Audience{}
@@ -154,19 +147,19 @@ func forwardToGroup(ctx context.Context, domain string, log *slog.Logger, tx *sq
 		return false, err
 	}
 
+	// if this is a new post and we're passing the Create activity to followers, also share the post
 	if s, ok := activityType.(string); ok && s == "Create" {
-		if m["audience"] == nil {
-			if _, err := tx.ExecContext(
-				ctx,
-				`update notes set object = json_set(object, '$.audience', $1) where id = $2`,
-				group.ID,
-				note.ID,
-			); err != nil {
-				return false, err
-			}
+		announce.ID += "#share"
+		announce.Object = note.ID
+		if _, err := tx.ExecContext(
+			ctx,
+			`insert into outbox(activity, sender) values(?, ?)`,
+			&announce,
+			group.ID,
+		); err != nil {
+			return false, err
 		}
 
-		// if this is a new post and we're passing the Create activity to followers, also share the post
 		if _, err := tx.ExecContext(
 			ctx,
 			`insert into shares(note, by) values(?, ?)`,
@@ -176,13 +169,11 @@ func forwardToGroup(ctx context.Context, domain string, log *slog.Logger, tx *sq
 			return false, err
 		}
 
-		announce.ID += "#share"
-		announce.Object = note.ID
 		if _, err := tx.ExecContext(
 			ctx,
-			`insert into outbox(activity, sender) values(?, ?)`,
-			&announce,
+			`update notes set object = json_set(object, '$.audience', $1) where id = $2`,
 			group.ID,
+			note.ID,
 		); err != nil {
 			return false, err
 		}
