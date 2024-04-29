@@ -180,7 +180,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 	}
 	defer rows.Close()
 
-	notes := data.OrderedMap[string, noteMetadata]{}
+	notes := make([]noteMetadata, h.Config.PostsPerPage)
 
 	for rows.Next() {
 		var meta noteMetadata
@@ -189,7 +189,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 			continue
 		}
 
-		notes.Store(meta.Note.ID, meta)
+		notes = append(notes, meta)
 	}
 	rows.Close()
 

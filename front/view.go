@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/graph"
 	"github.com/dimkr/tootik/front/text"
 	"strings"
@@ -92,7 +91,7 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 	}
 	defer rows.Close()
 
-	replies := data.OrderedMap[string, noteMetadata]{}
+	replies := make([]noteMetadata, h.Config.RepliesPerPage)
 
 	for rows.Next() {
 		var meta noteMetadata
@@ -101,7 +100,7 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 			continue
 		}
 
-		replies.Store(meta.Note.ID, meta)
+		replies = append(replies, meta)
 	}
 	rows.Close()
 

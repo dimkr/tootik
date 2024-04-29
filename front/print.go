@@ -460,18 +460,18 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 	}
 }
 
-func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, noteMetadata], printParentAuthor, printDaySeparators bool) {
+func (r *request) PrintNotes(w text.Writer, rows []noteMetadata, printParentAuthor, printDaySeparators bool) {
 	var lastDay int64
 	first := true
-	rows.Range(func(_ string, meta noteMetadata) bool {
+	for _, meta := range rows {
 		if meta.Note.Type != ap.Note && meta.Note.Type != ap.Page && meta.Note.Type != ap.Article && meta.Note.Type != ap.Question {
 			r.Log.Warn("Post type is unsupported", "type", meta.Note.Type)
-			return true
+			continue
 		}
 
 		if !meta.Author.Valid {
 			r.Log.Warn("Post author is unknown", "note", meta.Note.ID, "author", meta.Note.AttributedTo)
-			return true
+			continue
 		}
 
 		currentDay := meta.Published / (60 * 60 * 24)
@@ -490,6 +490,5 @@ func (r *request) PrintNotes(w text.Writer, rows data.OrderedMap[string, noteMet
 
 		lastDay = currentDay
 		first = false
-		return true
-	})
+	}
 }

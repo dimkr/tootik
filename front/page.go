@@ -19,7 +19,6 @@ package front
 import (
 	"database/sql"
 	"fmt"
-	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
 	"net/url"
 	"strconv"
@@ -65,7 +64,7 @@ func (h *Handler) showFeedPage(w text.Writer, r *request, title string, query fu
 	}
 	defer rows.Close()
 
-	notes := data.OrderedMap[string, noteMetadata]{}
+	notes := make([]noteMetadata, h.Config.PostsPerPage)
 
 	for rows.Next() {
 		var meta noteMetadata
@@ -74,7 +73,7 @@ func (h *Handler) showFeedPage(w text.Writer, r *request, title string, query fu
 			continue
 		}
 
-		notes.Store(meta.Note.ID, meta)
+		notes = append(notes, meta)
 	}
 	rows.Close()
 

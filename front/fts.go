@@ -19,7 +19,6 @@ package front
 import (
 	"database/sql"
 	"fmt"
-	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
 	"net/url"
 	"regexp"
@@ -147,7 +146,7 @@ func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	notes := data.OrderedMap[string, noteMetadata]{}
+	notes := make([]noteMetadata, h.Config.PostsPerPage)
 
 	for rows.Next() {
 		var meta noteMetadata
@@ -155,7 +154,7 @@ func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 			r.Log.Warn("Failed to scan search result", "error", err)
 			continue
 		}
-		notes.Store(meta.Note.ID, meta)
+		notes = append(notes, meta)
 	}
 	rows.Close()
 
