@@ -128,12 +128,12 @@ func forwardToGroup(ctx context.Context, domain string, log *slog.Logger, tx *sq
 		}
 	}
 
-	// remove @context from the activity
-	delete(activity, "@context")
-
 	// set the audience property on the activity and the inner object
 	activity["audience"] = group.ID
 	m["audience"] = group.ID
+
+	// remove the signature, because we just invalidated it
+	delete(activity, "signature")
 
 	now := time.Now()
 
