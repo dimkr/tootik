@@ -487,7 +487,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			return true
 		}
 
-		q.processActivityWithTimeout(ctx, sender, &activity, []byte(activityString))
+		q.processActivityWithTimeout(ctx, sender, &activity, json.RawMessage(activityString))
 		return true
 	})
 

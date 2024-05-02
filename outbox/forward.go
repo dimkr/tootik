@@ -19,6 +19,7 @@ package outbox
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
@@ -29,7 +30,7 @@ import (
 
 // ForwardActivity forwards an activity if needed.
 // A reply by B in a thread started by A is forwarded to all followers of A.
-func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, tx *sql.Tx, note *ap.Object, rawActivity []byte) error {
+func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, tx *sql.Tx, note *ap.Object, rawActivity json.RawMessage) error {
 	// only replies need to be forwarded
 	if note.InReplyTo == "" {
 		return nil
