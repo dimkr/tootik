@@ -42,7 +42,7 @@ func Announce(ctx context.Context, domain string, db *sql.DB, actor *ap.Actor, n
 		ID:        announceID,
 		Type:      ap.Announce,
 		Actor:     actor.ID,
-		Published: ap.Time{Time: now},
+		Published: &ap.Time{Time: now},
 		To:        to,
 		CC:        cc,
 		Object:    note.ID,
