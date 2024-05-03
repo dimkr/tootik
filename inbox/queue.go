@@ -328,7 +328,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		}
 
 		depth++
-		return q.processActivity(ctx, log.With("activity", activity, "depth", depth), sender, inner, inner, depth)
+		return q.processActivity(ctx, log.With("activity", inner, "depth", depth), sender, inner, inner, depth)
 
 	case ap.Update:
 		post, ok := activity.Object.(*ap.Object)

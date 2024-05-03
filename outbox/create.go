@@ -74,7 +74,7 @@ func Create(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 		return fmt.Errorf("failed to insert Create: %w", err)
 	}
 
-	if err := ForwardActivity(ctx, domain, cfg, log, tx, post, &create, j); err != nil {
+	if err := ForwardActivity(ctx, domain, cfg, log, tx, post, &create, json.RawMessage(j)); err != nil {
 		return err
 	}
 
