@@ -431,9 +431,6 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		log.Debug("Ignoring Dislike activity")
 
 	case ap.Dislike:
-		log.Debug("Ignoring Like activity")
-
-	case ap.Dislike:
 		log.Debug("Ignoring Dislike activity")
 
 	default:
