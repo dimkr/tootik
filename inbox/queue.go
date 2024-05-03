@@ -280,6 +280,10 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return nil
 		}
 
+		if sender.ID != activity.Actor {
+			return fmt.Errorf("received an invalid undo request for %s by %s", activity.Actor, sender.ID)
+		}
+
 		follower := activity.Actor
 
 		var followed string
