@@ -20,7 +20,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
@@ -30,7 +29,7 @@ import (
 	"time"
 )
 
-func forwardToGroup(ctx context.Context, domain string, log *slog.Logger, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity json.RawMessage, firstPostID string) (bool, error) {
+func forwardToGroup(ctx context.Context, domain string, log *slog.Logger, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity any, firstPostID string) (bool, error) {
 	var group ap.Actor
 	if err := tx.QueryRowContext(
 		ctx,
@@ -157,7 +156,7 @@ func forwardToGroup(ctx context.Context, domain string, log *slog.Logger, tx *sq
 // ForwardActivity forwards an activity if needed.
 // A reply by B in a thread started by A is forwarded to all followers of A.
 // A post by a follower of a local group, which mentions the group or replies to a post in the group, is forwarded to followers of the group.
-func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity json.RawMessage) error {
+func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity any) error {
 	// poll votes don't need to be forwarded
 	if note.Name != "" && note.Content == "" {
 		return nil
@@ -212,7 +211,7 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT OR IGNORE INTO outbox (activity, sender) VALUES(?,?)`,
-		string(rawActivity),
+		rawActivity,
 		threadStarterID,
 	); err != nil {
 		return err
