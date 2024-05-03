@@ -413,7 +413,6 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		}
 
 		body := post
-		var err error
 		if (post.Type == ap.Question && post.Updated != nil && lastUpdate >= post.Updated.Unix()) || (post.Type != ap.Question && (post.Updated == nil || lastUpdate >= post.Updated.Unix())) {
 			log.Debug("Received old update request for new post")
 			return nil
@@ -430,8 +429,9 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			body = &oldPost
 		}
 
-		if err != nil {
-			return fmt.Errorf("failed to marshal updated post %s: %w", post.ID, err)
+		// only the group can decide if audience has changed
+		if sender.ID != oldPost.Audience {
+			body.Audience = oldPost.Audience
 		}
 
 		tx, err := q.DB.BeginTx(ctx, nil)
