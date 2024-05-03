@@ -49,7 +49,7 @@ const maxActivityDepth = 3
 
 var ErrActivityTooNested = errors.New("exceeded activity depth limit")
 
-func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity any, post *ap.Object) error {
+func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity any, post *ap.Object, shared bool) error {
 	prefix := fmt.Sprintf("https://%s/", q.Domain)
 	if strings.HasPrefix(sender.ID, prefix) || strings.HasPrefix(post.ID, prefix) || strings.HasPrefix(post.AttributedTo, prefix) || strings.HasPrefix(activity.Actor, prefix) {
 		return fmt.Errorf("received invalid Create for %s by %s from %s", post.ID, post.AttributedTo, activity.Actor)
@@ -106,7 +106,7 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 		return fmt.Errorf("cannot insert %s: %w", post.ID, err)
 	}
 
-	if post.AttributedTo != sender.ID {
+	if shared {
 		if _, err := tx.ExecContext(
 			ctx,
 			`INSERT INTO shares (note, by) VALUES(?,?)`,
@@ -146,7 +146,7 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 	return nil
 }
 
-func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity any, depth int) error {
+func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity any, depth int, shared bool) error {
 	if depth == maxActivityDepth {
 		return ErrActivityTooNested
 	}
@@ -318,7 +318,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return errors.New("received invalid Create")
 		}
 
-		return q.processCreateActivity(ctx, log, sender, activity, rawActivity, post)
+		return q.processCreateActivity(ctx, log, sender, activity, rawActivity, post, shared)
 
 	case ap.Announce:
 		inner, ok := activity.Object.(*ap.Activity)
@@ -339,7 +339,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		}
 
 		depth++
-		return q.processActivity(ctx, log.With("activity", inner, "depth", depth), sender, inner, inner, depth)
+		return q.processActivity(ctx, log.With("activity", inner, "depth", depth), sender, inner, inner, depth, true)
 
 	case ap.Update:
 		post, ok := activity.Object.(*ap.Object)
@@ -361,7 +361,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		var lastUpdate int64
 		if err := q.DB.QueryRowContext(ctx, `select max(inserted, updated), object from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastUpdate, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
 			log.Debug("Received Update for non-existing post")
-			return q.processCreateActivity(ctx, log, sender, activity, rawActivity, post)
+			return q.processCreateActivity(ctx, log, sender, activity, rawActivity, post, shared)
 		} else if err != nil {
 			return fmt.Errorf("failed to get last update time for %s: %w", post.ID, err)
 		}
@@ -449,7 +449,7 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Ac
 	defer cancel()
 
 	log := q.Log.With("activity", activity, "sender", sender.ID)
-	if err := q.processActivity(ctx, log, sender, activity, rawActivity, 1); err != nil {
+	if err := q.processActivity(ctx, log, sender, activity, rawActivity, 1, false); err != nil {
 		log.Warn("Failed to process activity", "error", err)
 	}
 }
