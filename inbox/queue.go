@@ -109,7 +109,7 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 	if post.AttributedTo != sender.ID {
 		if _, err := tx.ExecContext(
 			ctx,
-			`INSERT shares (note, by) VALUES(?,?)`,
+			`INSERT INTO shares (note, by) VALUES(?,?)`,
 			post.ID,
 			sender.ID,
 		); err != nil {
