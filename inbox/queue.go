@@ -433,6 +433,9 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 	case ap.Dislike:
 		log.Debug("Ignoring Like activity")
 
+	case ap.Dislike:
+		log.Debug("Ignoring Dislike activity")
+
 	default:
 		if sender.ID == activity.Actor {
 			log.Warn("Received unknown request")
