@@ -16,7 +16,7 @@ tootik users are `Person`s.
 
 tootik communities are `Group`s.
 
-tootik automatically wrap activities with a community in `audience`, `to` or `cc` with an `Announce` activity, set the `audience` property of the inner object and send the activity to followers of the community actor.
+tootik automatically wrap activities with a community in `to` or `cc` with an `Announce` activity and sends the activity to followers of the community actor.
 
 tootik's UI treats `Group` actors differently: `/outbox/$group` hides replies and sorts threads by last activity.
 
