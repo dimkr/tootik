@@ -106,6 +106,17 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 		return fmt.Errorf("cannot insert %s: %w", post.ID, err)
 	}
 
+	if post.AttributedTo != sender.ID {
+		if _, err := tx.ExecContext(
+			ctx,
+			`INSERT shares (note, by) VALUES(?,?)`,
+			post.ID,
+			sender.ID,
+		); err != nil {
+			return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, sender.ID, err)
+		}
+	}
+
 	if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, log, tx, post, activity, rawActivity); err != nil {
 		return fmt.Errorf("cannot forward %s: %w", post.ID, err)
 	}
@@ -315,7 +326,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			if postID, ok := activity.Object.(string); ok && postID != "" {
 				if _, err := q.DB.ExecContext(
 					ctx,
-					`INSERT OR IGNORE INTO shares (note, by) VALUES(?,?)`,
+					`INSERT INTO shares (note, by) VALUES(?,?)`,
 					postID,
 					sender.ID,
 				); err != nil {
