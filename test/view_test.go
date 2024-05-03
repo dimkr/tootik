@@ -582,7 +582,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowed(t *testing.T) {
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/group/people",
-		`{"type":"Group","preferredUsername":"people"}`,
+		`{"id":"https://127.0.0.1/group/people","type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
@@ -597,7 +597,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowed(t *testing.T) {
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
-		"https://127.0.0.1/user/dan",
+		"https://127.0.0.1/group/people",
 		create,
 	)
 	assert.NoError(err)
@@ -784,7 +784,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithReply(t *testing.T) {
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/group/people",
-		`{"type":"Group","preferredUsername":"people"}`,
+		`{"id":"https://127.0.0.1/group/people","type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
@@ -806,7 +806,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithReply(t *testing.T) {
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
-		"https://127.0.0.1/user/dan",
+		"https://127.0.0.1/group/people",
 		create,
 	)
 	assert.NoError(err)
@@ -815,7 +815,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithReply(t *testing.T) {
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
-		"https://127.0.0.1/user/dan",
+		"https://127.0.0.1/group/people",
 		create,
 	)
 	assert.NoError(err)
@@ -853,7 +853,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithPrivateReply(t *testing.T)
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/group/people",
-		`{"type":"Group","preferredUsername":"people"}`,
+		`{"id":"https://127.0.0.1/group/people","type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
@@ -875,7 +875,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithPrivateReply(t *testing.T)
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity) values(?,?)`,
-		"https://127.0.0.1/user/dan",
+		"https://127.0.0.1/group/people",
 		create,
 	)
 	assert.NoError(err)
