@@ -44,7 +44,6 @@ func forwardToGroup(ctx context.Context, domain string, log *slog.Logger, tx *sq
 					notes.object->>'$.audience' = persons.id
 				where
 					notes.id = $1 and
-					notes.object->>'$.audience' is null and
 					persons.host = $2 and
 					persons.actor->>'$.type' = 'Group'
 				union all
