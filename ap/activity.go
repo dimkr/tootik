@@ -35,6 +35,7 @@ const (
 	Announce ActivityType = "Announce"
 	Update   ActivityType = "Update"
 	Like     ActivityType = "Like"
+	Dislike  ActivityType = "Dislike"
 	Move     ActivityType = "Move"
 )
 
