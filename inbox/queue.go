@@ -69,10 +69,16 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 		return nil
 	}
 
-	var duplicate int
-	if err := q.DB.QueryRowContext(ctx, `select exists (select 1 from notes where id = ?)`, post.ID).Scan(&duplicate); err != nil {
+	var audience sql.NullString
+	if err := q.DB.QueryRowContext(ctx, `select object->>'$.audience' from notes where id = ?`, post.ID).Scan(&audience); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("failed to check of %s is a duplicate: %w", post.ID, err)
-	} else if duplicate == 1 {
+	} else if err == nil {
+		if sender.ID == post.Audience && !audience.Valid {
+			if _, err := q.DB.ExecContext(ctx, `update notes set object = json_set(object, '$.audience', ?) where id = ? and object->>'$.audience' is null`, post.Audience, post.ID); err != nil {
+				return fmt.Errorf("failed to set %s audience to %s: %w", post.ID, audience.String, err)
+			}
+		}
+
 		log.Debug("Post is a duplicate")
 		return nil
 	}
@@ -86,6 +92,11 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 		return fmt.Errorf("cannot insert %s: %w", post.ID, err)
 	}
 	defer tx.Rollback()
+
+	// only the group itself has the authority to decide which posts belong to it
+	if post.Audience != sender.ID {
+		post.Audience = ""
+	}
 
 	if err := note.Insert(ctx, log, tx, post); err != nil {
 		return fmt.Errorf("cannot insert %s: %w", post.ID, err)
