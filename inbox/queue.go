@@ -254,10 +254,6 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		}
 
 	case ap.Undo:
-		if sender.ID != activity.Actor {
-			return fmt.Errorf("received an invalid undo request for %s by %s", activity.Actor, sender.ID)
-		}
-
 		inner, ok := activity.Object.(*ap.Activity)
 		if !ok {
 			return errors.New("received a request to undo a non-activity object")
