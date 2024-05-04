@@ -200,13 +200,13 @@ curl -L https://github.com/dimkr/tootik/releases/latest/download/tootik-$(case `
 systemctl start tootik
 ```
 
-To add a community and set its bio:
+To add a community, then set its bio and avatar:
 
 ```
 tootik -domain $domain -db /tootik-data/db.sqlite3 add-community fountainpens
-# put bio in /tmp/bio
-tootik -domain $domain -db /tootik-data/db.sqlite3 set-bio fountainpens /tmp/bio
-# put bio in /tmp/avatar.png
+# put bio in /tmp/bio.txt
+tootik -domain $domain -db /tootik-data/db.sqlite3 set-bio fountainpens /tmp/bio.txt
+# put avatar in /tmp/avatar.png
 tootik -domain $domain -db /tootik-data/db.sqlite3 set-avatar fountainpens /tmp/avatar.png
 ````
 
