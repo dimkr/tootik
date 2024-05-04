@@ -428,7 +428,7 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 		log.Debug("Ignoring Move activity")
 
 	case ap.Like:
-		log.Debug("Ignoring Dislike activity")
+		log.Debug("Ignoring Like activity")
 
 	case ap.Dislike:
 		log.Debug("Ignoring Dislike activity")
