@@ -54,14 +54,16 @@ type Actor struct {
 }
 
 func (a *Actor) Scan(src any) error {
-	s, ok := src.(string)
+	b, ok := src.([]byte)
 	if !ok {
+		if s, ok := src.(string); ok {
+			return json.Unmarshal([]byte(s), a)
+		}
 		return fmt.Errorf("unsupported conversion from %T to %T", src, a)
 	}
-	return json.Unmarshal([]byte(s), a)
+	return json.Unmarshal(b, a)
 }
 
 func (a *Actor) Value() (driver.Value, error) {
-	buf, err := json.Marshal(a)
-	return string(buf), err
+	return json.Marshal(a)
 }

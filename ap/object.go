@@ -65,14 +65,16 @@ func (o *Object) IsPublic() bool {
 }
 
 func (o *Object) Scan(src any) error {
-	s, ok := src.(string)
+	b, ok := src.([]byte)
 	if !ok {
+		if s, ok := src.(string); ok {
+			return json.Unmarshal([]byte(s), o)
+		}
 		return fmt.Errorf("unsupported conversion from %T to %T", src, o)
 	}
-	return json.Unmarshal([]byte(s), o)
+	return json.Unmarshal(b, o)
 }
 
 func (o *Object) Value() (driver.Value, error) {
-	buf, err := json.Marshal(o)
-	return string(buf), err
+	return json.Marshal(o)
 }

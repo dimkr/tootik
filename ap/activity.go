@@ -104,19 +104,18 @@ func (a *Activity) UnmarshalJSON(b []byte) error {
 }
 
 func (a *Activity) Scan(src any) error {
-	s, ok := src.(string)
+	b, ok := src.([]byte)
 	if !ok {
-		if b, ok := src.([]byte); ok {
-			return json.Unmarshal(b, a)
+		if s, ok := src.(string); ok {
+			return a.UnmarshalJSON([]byte(s))
 		}
 		return fmt.Errorf("unsupported conversion from %T to %T", src, a)
 	}
-	return json.Unmarshal([]byte(s), a)
+	return a.UnmarshalJSON(b)
 }
 
 func (a *Activity) Value() (driver.Value, error) {
-	buf, err := json.Marshal(a)
-	return string(buf), err
+	return json.Marshal(a)
 }
 
 func (a *Activity) LogValue() slog.Value {
