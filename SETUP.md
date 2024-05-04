@@ -206,6 +206,8 @@ To add a community and set its bio:
 tootik -domain $domain -db /tootik-data/db.sqlite3 add-community fountainpens
 # put bio in /tmp/bio
 tootik -domain $domain -db /tootik-data/db.sqlite3 set-bio fountainpens /tmp/bio
+# put bio in /tmp/avatar.png
+tootik -domain $domain -db /tootik-data/db.sqlite3 set-avatar fountainpens /tmp/avatar.png
 ````
 
 ## Running behind a reverse proxy
