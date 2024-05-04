@@ -115,7 +115,7 @@ func (h *Handler) uploadAvatar(w text.Writer, r *request, args ...string) {
 
 	if _, err := tx.ExecContext(
 		r.Context,
-		"update persons set actor = json_set(actor, '$.icon.url', $1, '$.updated', $2) where id = $3",
+		"update persons set actor = json_set(actor, '$.icon.url', $1, '$.icon[0].url', $1, '$.updated', $2) where id = $3",
 		// we add fragment because some servers cache the image until the URL changes
 		fmt.Sprintf("https://%s/icon/%s%s#%d", r.Handler.Domain, r.User.PreferredUsername, icon.FileNameExtension, now.UnixNano()),
 		now.Format(time.RFC3339Nano),
