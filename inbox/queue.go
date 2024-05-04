@@ -45,10 +45,14 @@ type Queue struct {
 	Key       httpsig.Key
 }
 
-func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, req *ap.Activity, rawActivity []byte, post *ap.Object) error {
+const maxActivityDepth = 3
+
+var ErrActivityTooNested = errors.New("exceeded activity depth limit")
+
+func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity T, post *ap.Object, shared bool) error {
 	prefix := fmt.Sprintf("https://%s/", q.Domain)
-	if strings.HasPrefix(sender.ID, prefix) || strings.HasPrefix(post.ID, prefix) || strings.HasPrefix(post.AttributedTo, prefix) || strings.HasPrefix(req.Actor, prefix) {
-		return fmt.Errorf("received invalid Create for %s by %s from %s", post.ID, post.AttributedTo, req.Actor)
+	if strings.HasPrefix(sender.ID, prefix) || strings.HasPrefix(post.ID, prefix) || strings.HasPrefix(post.AttributedTo, prefix) || strings.HasPrefix(activity.Actor, prefix) {
+		return fmt.Errorf("received invalid Create for %s by %s from %s", post.ID, post.AttributedTo, activity.Actor)
 	}
 
 	u, err := url.Parse(post.ID)
@@ -102,7 +106,18 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 		return fmt.Errorf("cannot insert %s: %w", post.ID, err)
 	}
 
-	if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, log, tx, post, rawActivity); err != nil {
+	if shared {
+		if _, err := tx.ExecContext(
+			ctx,
+			`INSERT INTO shares (note, by) VALUES(?,?)`,
+			post.ID,
+			sender.ID,
+		); err != nil {
+			return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, sender.ID, err)
+		}
+	}
+
+	if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, log, tx, post, activity, rawActivity); err != nil {
 		return fmt.Errorf("cannot forward %s: %w", post.ID, err)
 	}
 
@@ -131,26 +146,30 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 	return nil
 }
 
-func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, req *ap.Activity, rawActivity []byte) error {
+func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity T, depth int, shared bool) error {
+	if depth == maxActivityDepth {
+		return ErrActivityTooNested
+	}
+
 	log.Debug("Processing activity")
 
-	switch req.Type {
+	switch activity.Type {
 	case ap.Delete:
 		deleted := ""
-		if _, ok := req.Object.(*ap.Object); ok {
-			deleted = req.Object.(*ap.Object).ID
-		} else if s, ok := req.Object.(string); ok {
+		if _, ok := activity.Object.(*ap.Object); ok {
+			deleted = activity.Object.(*ap.Object).ID
+		} else if s, ok := activity.Object.(string); ok {
 			deleted = s
 		}
 		if deleted == "" {
-			return errors.New("received an invalid delete request")
+			return errors.New("received an invalid delete activity")
 		}
 
 		log.Info("Received delete request", "deleted", deleted)
 
 		if deleted == sender.ID {
 			if _, err := q.DB.ExecContext(ctx, `delete from persons where id = ?`, deleted); err != nil {
-				return fmt.Errorf("failed to delete person %s: %w", req.ID, err)
+				return fmt.Errorf("failed to delete person %s: %w", deleted, err)
 			}
 		} else {
 			tx, err := q.DB.BeginTx(ctx, nil)
@@ -167,7 +186,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 				return fmt.Errorf("failed to delete %s: %w", deleted, err)
 			}
 
-			if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, log, tx, &note, rawActivity); err != nil {
+			if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, log, tx, &note, activity, rawActivity); err != nil {
 				return fmt.Errorf("failed to delete %s: %w", deleted, err)
 			}
 
@@ -187,11 +206,11 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		}
 
 	case ap.Follow:
-		if sender.ID != req.Actor {
+		if sender.ID != activity.Actor {
 			return errors.New("received unauthorized follow request")
 		}
 
-		followed, ok := req.Object.(string)
+		followed, ok := activity.Object.(string)
 		if !ok {
 			return errors.New("received a request to follow a non-link object")
 		}
@@ -200,8 +219,8 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		}
 
 		prefix := fmt.Sprintf("https://%s/", q.Domain)
-		if strings.HasPrefix(req.Actor, prefix) || !strings.HasPrefix(followed, prefix) {
-			return fmt.Errorf("received an invalid follow request for %s by %s", followed, req.Actor)
+		if strings.HasPrefix(activity.Actor, prefix) || !strings.HasPrefix(followed, prefix) {
+			return fmt.Errorf("received an invalid follow request for %s by %s", followed, activity.Actor)
 		}
 
 		var from ap.Actor
@@ -209,21 +228,21 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return fmt.Errorf("failed to fetch %s: %w", followed, err)
 		}
 
-		log.Info("Approving follow request", "follower", req.Actor, "followed", followed)
+		log.Info("Approving follow request", "follower", activity.Actor, "followed", followed)
 
-		if err := outbox.Accept(ctx, q.Domain, followed, req.Actor, req.ID, q.DB); err != nil {
+		if err := outbox.Accept(ctx, q.Domain, followed, activity.Actor, activity.ID, q.DB); err != nil {
 			return fmt.Errorf("failed to marshal accept response: %w", err)
 		}
 
 	case ap.Accept:
-		if sender.ID != req.Actor {
-			return fmt.Errorf("received an invalid follow request for %s by %s", req.Actor, sender.ID)
+		if sender.ID != activity.Actor {
+			return fmt.Errorf("received an invalid follow request for %s by %s", activity.Actor, sender.ID)
 		}
 
-		followID, ok := req.Object.(string)
+		followID, ok := activity.Object.(string)
 		if ok && followID != "" {
 			log.Info("Follow is accepted", "follow", followID)
-		} else if followActivity, ok := req.Object.(*ap.Activity); ok && followActivity.Type == ap.Follow && followActivity.ID != "" {
+		} else if followActivity, ok := activity.Object.(*ap.Activity); ok && followActivity.Type == ap.Follow && followActivity.ID != "" {
 			log.Info("Follow is accepted", "follow", followActivity.ID)
 			followID = followActivity.ID
 		} else {
@@ -235,11 +254,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		}
 
 	case ap.Undo:
-		if sender.ID != req.Actor {
-			return fmt.Errorf("received an invalid undo request for %s by %s", req.Actor, sender.ID)
-		}
-
-		inner, ok := req.Object.(*ap.Activity)
+		inner, ok := activity.Object.(*ap.Activity)
 		if !ok {
 			return errors.New("received a request to undo a non-activity object")
 		}
@@ -253,9 +268,9 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 				ctx,
 				`delete from shares where note = ? and by = ?`,
 				noteID,
-				req.Actor,
+				activity.Actor,
 			); err != nil {
-				return fmt.Errorf("failed to remove share for %s by %s: %w", noteID, req.Actor, err)
+				return fmt.Errorf("failed to remove share for %s by %s: %w", noteID, activity.Actor, err)
 			}
 			return nil
 		}
@@ -265,7 +280,11 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return nil
 		}
 
-		follower := req.Actor
+		if sender.ID != activity.Actor {
+			return fmt.Errorf("received an invalid undo request for %s by %s", activity.Actor, sender.ID)
+		}
+
+		follower := activity.Actor
 
 		var followed string
 		if actor, ok := inner.Object.(*ap.Object); ok {
@@ -294,20 +313,20 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		log.Info("Removed a Follow", "follower", follower, "followed", followed)
 
 	case ap.Create:
-		post, ok := req.Object.(*ap.Object)
+		post, ok := activity.Object.(*ap.Object)
 		if !ok {
 			return errors.New("received invalid Create")
 		}
 
-		return q.processCreateActivity(ctx, log, sender, req, rawActivity, post)
+		return processCreateActivity(ctx, q, log, sender, activity, rawActivity, post, shared)
 
 	case ap.Announce:
-		inner, ok := req.Object.(*ap.Activity)
+		inner, ok := activity.Object.(*ap.Activity)
 		if !ok {
-			if postID, ok := req.Object.(string); ok && postID != "" {
+			if postID, ok := activity.Object.(string); ok && postID != "" {
 				if _, err := q.DB.ExecContext(
 					ctx,
-					`INSERT OR IGNORE INTO shares (note, by) VALUES(?,?)`,
+					`INSERT INTO shares (note, by) VALUES(?,?)`,
 					postID,
 					sender.ID,
 				); err != nil {
@@ -319,76 +338,11 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return nil
 		}
 
-		if inner.Type == ap.Delete {
-			var deleted string
-			if post, ok := inner.Object.(*ap.Object); ok {
-				deleted = post.ID
-			} else if s, ok := inner.Object.(string); ok {
-				deleted = s
-			}
-
-			if deleted == "" {
-				return errors.New("received invalid Delete")
-			}
-
-			var exists int
-			if err := q.DB.QueryRowContext(ctx, `select exists (select 1 from notes where id = $1 and (author = $2 or object->>'$.audience' = $2))`, deleted, sender.ID).Scan(&exists); err != nil {
-				return fmt.Errorf("failed to delete %s: %w", deleted, err)
-			}
-
-			if exists == 0 {
-				log.Debug("Received delete request for non-existing post", "deleted", deleted)
-				return nil
-			}
-
-			tx, err := q.DB.BeginTx(ctx, nil)
-			if err != nil {
-				return fmt.Errorf("cannot delete %s: %w", deleted, err)
-			}
-			defer tx.Rollback()
-
-			if _, err := tx.ExecContext(ctx, `delete from notesfts where id = ?`, deleted); err != nil {
-				return fmt.Errorf("cannot delete %s: %w", deleted, err)
-			}
-			if _, err := tx.ExecContext(ctx, `delete from notes where id = ?`, deleted); err != nil {
-				return fmt.Errorf("cannot delete %s: %w", deleted, err)
-			}
-			if _, err := tx.ExecContext(ctx, `delete from shares where note = ?`, deleted); err != nil {
-				return fmt.Errorf("cannot delete %s: %w", deleted, err)
-			}
-
-			if err := tx.Commit(); err != nil {
-				return fmt.Errorf("failed to delete %s: %w", deleted, err)
-			}
-
-			return nil
-		}
-
-		if inner.Type != ap.Create {
-			log.Debug("Ignoring unsupported Announce type", "type", inner.Type)
-			return nil
-		}
-
-		post, ok := inner.Object.(*ap.Object)
-		if !ok {
-			return errors.New("received invalid Create")
-		}
-
-		if err := q.processCreateActivity(ctx, log, sender, inner, rawActivity, post); err != nil {
-			return err
-		}
-
-		if _, err := q.DB.ExecContext(
-			ctx,
-			`INSERT OR IGNORE INTO shares (note, by) VALUES(?,?)`,
-			post.ID,
-			sender.ID,
-		); err != nil {
-			return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, sender.ID, err)
-		}
+		depth++
+		return processActivity(ctx, q, log.With("activity", inner, "depth", depth), sender, inner, inner, depth, true)
 
 	case ap.Update:
-		post, ok := req.Object.(*ap.Object)
+		post, ok := activity.Object.(*ap.Object)
 		if !ok || post.ID == sender.ID {
 			log.Debug("Ignoring unsupported Update object")
 			return nil
@@ -407,7 +361,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		var lastUpdate int64
 		if err := q.DB.QueryRowContext(ctx, `select max(inserted, updated), object from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastUpdate, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
 			log.Debug("Received Update for non-existing post")
-			return q.processCreateActivity(ctx, log, sender, req, rawActivity, post)
+			return processCreateActivity(ctx, q, log, sender, activity, rawActivity, post, shared)
 		} else if err != nil {
 			return fmt.Errorf("failed to get last update time for %s: %w", post.ID, err)
 		}
@@ -460,7 +414,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			}
 		}
 
-		if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, log, tx, post, rawActivity); err != nil {
+		if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, log, tx, post, activity, rawActivity); err != nil {
 			return fmt.Errorf("failed to forward update post %s: %w", post.ID, err)
 		}
 
@@ -480,7 +434,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		log.Debug("Ignoring Dislike activity")
 
 	default:
-		if sender.ID == req.Actor {
+		if sender.ID == activity.Actor {
 			log.Warn("Received unknown request")
 		} else {
 			log.Warn("Received unknown, unauthorized request")
@@ -490,12 +444,12 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 	return nil
 }
 
-func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Actor, activity *ap.Activity, rawActivity []byte) {
+func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Actor, activity *ap.Activity, rawActivity json.RawMessage) {
 	ctx, cancel := context.WithTimeout(parent, q.Config.ActivityProcessingTimeout)
 	defer cancel()
 
 	log := q.Log.With("activity", activity, "sender", sender.ID)
-	if err := q.processActivity(ctx, log, sender, activity, rawActivity); err != nil {
+	if err := processActivity(ctx, q, log, sender, activity, rawActivity, 1, false); err != nil {
 		log.Warn("Failed to process activity", "error", err)
 	}
 }
@@ -547,7 +501,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			return true
 		}
 
-		q.processActivityWithTimeout(ctx, sender, &activity, []byte(activityString))
+		q.processActivityWithTimeout(ctx, sender, &activity, json.RawMessage(activityString))
 		return true
 	})
 

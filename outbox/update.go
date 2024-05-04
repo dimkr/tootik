@@ -33,7 +33,7 @@ import (
 func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, note *ap.Object) error {
 	updateID := fmt.Sprintf("https://%s/update/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", note.ID, time.Now().UnixNano()))))
 
-	update, err := json.Marshal(ap.Activity{
+	update := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      updateID,
 		Type:    ap.Update,
@@ -41,7 +41,9 @@ func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, log *slog.L
 		Object:  note,
 		To:      note.To,
 		CC:      note.CC,
-	})
+	}
+
+	j, err := json.Marshal(update)
 	if err != nil {
 		return err
 	}
@@ -73,7 +75,7 @@ func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, log *slog.L
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
-		string(update),
+		j,
 		note.AttributedTo,
 	); err != nil {
 		return fmt.Errorf("failed to insert update activity: %w", err)
@@ -92,7 +94,7 @@ func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, log *slog.L
 		}
 	}
 
-	if err := ForwardActivity(ctx, domain, cfg, log, tx, note, update); err != nil {
+	if err := ForwardActivity(ctx, domain, cfg, log, tx, note, &update, json.RawMessage(j)); err != nil {
 		return err
 	}
 

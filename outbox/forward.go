@@ -29,7 +29,7 @@ import (
 
 // ForwardActivity forwards an activity if needed.
 // A reply by B in a thread started by A is forwarded to all followers of A.
-func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, tx *sql.Tx, note *ap.Object, rawActivity []byte) error {
+func ForwardActivity[T ap.RawActivity](ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity T) error {
 	// only replies need to be forwarded
 	if note.InReplyTo == "" {
 		return nil
@@ -71,7 +71,7 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT OR IGNORE INTO outbox (activity, sender) VALUES(?,?)`,
-		string(rawActivity),
+		rawActivity,
 		threadStarterID,
 	); err != nil {
 		return err
