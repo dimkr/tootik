@@ -81,11 +81,11 @@ func forwardToGroup(ctx context.Context, domain string, log *slog.Logger, tx *sq
 
 	var following int
 	if err := tx.QueryRowContext(ctx, `select exists (select 1 from follows where follower = ? and followed = ? and accepted = 1)`, activity.Actor, group.ID).Scan(&following); err != nil {
-		return false, err
+		return true, err
 	}
 
 	if following == 0 {
-		return false, nil
+		return true, nil
 	}
 
 	log.Info("Forwarding activity to group followers", "group", group.ID, "activity", activity.ID)
@@ -115,39 +115,51 @@ func forwardToGroup(ctx context.Context, domain string, log *slog.Logger, tx *sq
 		&announce,
 		group.ID,
 	); err != nil {
-		return false, err
+		return true, err
+	}
+
+	if activity.Type != ap.Create {
+		return true, nil
 	}
 
 	// if this is a new post and we're passing the Create activity to followers, also share the post
-	if activity.Type == ap.Create {
-		announce.ID += "#share"
-		announce.Object = note.ID
-		if _, err := tx.ExecContext(
-			ctx,
-			`insert into outbox(activity, sender) values(?, ?)`,
-			&announce,
-			group.ID,
-		); err != nil {
-			return false, err
-		}
 
-		if _, err := tx.ExecContext(
-			ctx,
-			`insert into shares(note, by) values(?, ?)`,
-			note.ID,
-			group.ID,
-		); err != nil {
-			return false, err
-		}
+	var shared int
+	if err := tx.QueryRowContext(ctx, `select exists (select 1 from shares where note = ? and by = ?)`, note.ID, group.ID).Scan(&shared); err != nil {
+		return true, err
+	}
 
-		if _, err := tx.ExecContext(
-			ctx,
-			`update notes set object = json_set(object, '$.audience', $1) where id = $2`,
-			group.ID,
-			note.ID,
-		); err != nil {
-			return false, err
-		}
+	if shared == 1 {
+		return true, nil
+	}
+
+	announce.ID += "#share"
+	announce.Object = note.ID
+	if _, err := tx.ExecContext(
+		ctx,
+		`insert into outbox(activity, sender) values(?, ?)`,
+		&announce,
+		group.ID,
+	); err != nil {
+		return true, err
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`insert into shares(note, by) values(?, ?)`,
+		note.ID,
+		group.ID,
+	); err != nil {
+		return true, err
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`update notes set object = json_set(object, '$.audience', $1) where id = $2`,
+		group.ID,
+		note.ID,
+	); err != nil {
+		return true, err
 	}
 
 	return true, nil
@@ -180,10 +192,9 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *s
 	}
 
 	if note.IsPublic() {
-		forwarded, err := forwardToGroup(ctx, domain, log, tx, note, activity, rawActivity, firstPostID)
-		if err != nil {
+		if groupThread, err := forwardToGroup(ctx, domain, log, tx, note, activity, rawActivity, firstPostID); err != nil {
 			return err
-		} else if forwarded {
+		} else if groupThread {
 			return nil
 		}
 	}
