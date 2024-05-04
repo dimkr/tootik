@@ -94,7 +94,7 @@ func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, log *slog.L
 		}
 	}
 
-	if err := ForwardActivity(ctx, domain, cfg, log, tx, note, &update, j); err != nil {
+	if err := ForwardActivity(ctx, domain, cfg, log, tx, note, &update, json.RawMessage(j)); err != nil {
 		return err
 	}
 

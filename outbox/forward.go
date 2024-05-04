@@ -29,7 +29,7 @@ import (
 	"time"
 )
 
-func forwardToGroup(ctx context.Context, domain string, log *slog.Logger, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity any, firstPostID string) (bool, error) {
+func forwardToGroup[T ap.RawActivity](ctx context.Context, domain string, log *slog.Logger, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity T, firstPostID string) (bool, error) {
 	var group ap.Actor
 	if err := tx.QueryRowContext(
 		ctx,
@@ -168,7 +168,7 @@ func forwardToGroup(ctx context.Context, domain string, log *slog.Logger, tx *sq
 // ForwardActivity forwards an activity if needed.
 // A reply by B in a thread started by A is forwarded to all followers of A.
 // A post by a follower of a local group, which mentions the group or replies to a post in the group, is forwarded to followers of the group.
-func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity any) error {
+func ForwardActivity[T ap.RawActivity](ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity T) error {
 	// poll votes don't need to be forwarded
 	if note.Name != "" && note.Content == "" {
 		return nil
