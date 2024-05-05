@@ -227,17 +227,6 @@ func TestCommunity_ReplyInThreadNotFollowing(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(
-		outbox.Accept(
-			context.Background(),
-			domain,
-			server.Alice.ID,
-			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain:8443/follow/1",
-			server.db,
-		),
-	)
-
 	say := server.Handle("/users/say?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
