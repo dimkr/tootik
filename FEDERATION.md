@@ -16,7 +16,7 @@ tootik users are `Person`s.
 
 tootik communities are `Group`s.
 
-tootik automatically wrap activities with a community in `to` or `cc` with an `Announce` activity and sends the activity to followers of the community actor.
+tootik automatically sends an `Announce` activity to followers of the community when `to` or `cc` of a post by a follower mention the community. In addition, tootik forwards the original activity but without wrapping it with an `Announce` activity like [FEP-1b12](https://codeberg.org/fediverse/fep/src/branch/main/fep/1b12/fep-1b12.md) says.
 
 tootik's UI treats `Group` actors differently: `/outbox/$group` hides replies and sorts threads by last activity.
 
