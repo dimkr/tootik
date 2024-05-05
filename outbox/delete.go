@@ -52,7 +52,7 @@ func Delete(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 	}
 	defer tx.Rollback()
 
-	if err := ForwardActivity(ctx, domain, cfg, log, tx, note, &delete, string(j)); err != nil {
+	if err := ForwardActivity(ctx, domain, cfg, log, tx, note, &delete, json.RawMessage(j)); err != nil {
 		return err
 	}
 
