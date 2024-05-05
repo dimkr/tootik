@@ -18,7 +18,6 @@ package outbox
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -26,7 +25,6 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"log/slog"
 	"strings"
-	"time"
 )
 
 func forwardToGroup[T ap.RawActivity](ctx context.Context, domain string, log *slog.Logger, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity T, firstPostID string) (bool, error) {
@@ -88,31 +86,12 @@ func forwardToGroup[T ap.RawActivity](ctx context.Context, domain string, log *s
 		return true, nil
 	}
 
-	log.Info("Forwarding activity to group followers", "group", group.ID, "activity", activity.ID)
-
-	now := time.Now()
-
-	to := ap.Audience{}
-	to.Add(ap.Public)
-
-	cc := ap.Audience{}
-	cc.Add(group.Followers)
-
-	announce := ap.Activity{
-		Context:   "https://www.w3.org/ns/activitystreams",
-		ID:        fmt.Sprintf("https://%s/announce/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", group.ID, note.ID, now.UnixNano())))),
-		Type:      ap.Announce,
-		Actor:     group.ID,
-		Published: &ap.Time{Time: now},
-		To:        to,
-		CC:        cc,
-		Object:    rawActivity,
-	}
+	log.Info("Forwarding post to group followers", "group", group.ID, "post", note.ID)
 
 	if _, err := tx.ExecContext(
 		ctx,
 		`insert into outbox(activity, sender) values(?, ?)`,
-		&announce,
+		rawActivity,
 		group.ID,
 	); err != nil {
 		return true, err
@@ -123,33 +102,7 @@ func forwardToGroup[T ap.RawActivity](ctx context.Context, domain string, log *s
 	}
 
 	// if this is a new post and we're passing the Create activity to followers, also share the post
-
-	var shared int
-	if err := tx.QueryRowContext(ctx, `select exists (select 1 from shares where note = ? and by = ?)`, note.ID, group.ID).Scan(&shared); err != nil {
-		return true, err
-	}
-
-	if shared == 1 {
-		return true, nil
-	}
-
-	announce.ID += "#share"
-	announce.Object = note.ID
-	if _, err := tx.ExecContext(
-		ctx,
-		`insert into outbox(activity, sender) values(?, ?)`,
-		&announce,
-		group.ID,
-	); err != nil {
-		return true, err
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`insert into shares(note, by) values(?, ?)`,
-		note.ID,
-		group.ID,
-	); err != nil {
+	if err := Announce(ctx, domain, tx, &group, note); err != nil {
 		return true, err
 	}
 

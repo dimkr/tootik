@@ -26,7 +26,7 @@ import (
 )
 
 // Announce queues an Announce activity for delivery.
-func Announce(ctx context.Context, domain string, db *sql.DB, actor *ap.Actor, note *ap.Object) error {
+func Announce(ctx context.Context, domain string, tx *sql.Tx, actor *ap.Actor, note *ap.Object) error {
 	now := time.Now()
 	announceID := fmt.Sprintf("https://%s/announce/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", actor.ID, note.ID, now.UnixNano()))))
 
@@ -48,12 +48,6 @@ func Announce(ctx context.Context, domain string, db *sql.DB, actor *ap.Actor, n
 		Object:    note.ID,
 	}
 
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO shares (note, by) VALUES(?,?)`,
@@ -70,10 +64,6 @@ func Announce(ctx context.Context, domain string, db *sql.DB, actor *ap.Actor, n
 		actor.ID,
 	); err != nil {
 		return fmt.Errorf("failed to insert announce activity: %w", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("%s failed to announce %s: %w", actor.ID, note.ID, err)
 	}
 
 	return nil

@@ -71,7 +71,21 @@ func (h *Handler) share(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	if err := outbox.Announce(r.Context, r.Handler.Domain, r.DB, r.User, &note); err != nil {
+	tx, err := r.DB.BeginTx(r.Context, nil)
+	if err != nil {
+		r.Log.Warn("Failed to share post", "post", postID, "error", err)
+		w.Error()
+		return
+	}
+	defer tx.Rollback()
+
+	if err := outbox.Announce(r.Context, r.Handler.Domain, tx, r.User, &note); err != nil {
+		r.Log.Warn("Failed to share post", "post", postID, "error", err)
+		w.Error()
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
 		r.Log.Warn("Failed to share post", "post", postID, "error", err)
 		w.Error()
 		return
