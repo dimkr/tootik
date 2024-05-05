@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/data"
 	inote "github.com/dimkr/tootik/inbox/note"
 	"log/slog"
 	"time"
@@ -94,7 +95,7 @@ func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, log *slog.L
 		}
 	}
 
-	if err := ForwardActivity(ctx, domain, cfg, log, tx, note, &update, json.RawMessage(j)); err != nil {
+	if err := ForwardActivity(ctx, domain, cfg, log, tx, note, &update, data.JSON(j)); err != nil {
 		return err
 	}
 

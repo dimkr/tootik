@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/dimkr/tootik/data"
 	"log/slog"
 )
 
@@ -65,7 +66,7 @@ type Activity struct {
 
 // RawActivity is a serialized or serializable [Activity]
 type RawActivity interface {
-	json.RawMessage | *Activity
+	data.JSON | *Activity
 }
 
 var ErrInvalidActivity = errors.New("invalid activity")
@@ -106,9 +107,6 @@ func (a *Activity) UnmarshalJSON(b []byte) error {
 func (a *Activity) Scan(src any) error {
 	s, ok := src.(string)
 	if !ok {
-		if b, ok := src.([]byte); ok {
-			return json.Unmarshal(b, a)
-		}
 		return fmt.Errorf("unsupported conversion from %T to %T", src, a)
 	}
 	return json.Unmarshal([]byte(s), a)
