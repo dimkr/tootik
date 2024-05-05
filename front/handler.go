@@ -118,6 +118,9 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) (Handler, error) {
 
 	h.handlers[regexp.MustCompile(`^/users/follows$`)] = withUserMenu(h.follows)
 
+	h.handlers[regexp.MustCompile(`^/communities$`)] = withUserMenu(h.communities)
+	h.handlers[regexp.MustCompile(`^/users/communities$`)] = withUserMenu(h.communities)
+
 	h.handlers[regexp.MustCompile(`^/hashtag/([a-zA-Z0-9]+)$`)] = withCache(withUserMenu(h.hashtag), time.Minute*5, &cache, cfg)
 	h.handlers[regexp.MustCompile(`^/users/hashtag/([a-zA-Z0-9]+)$`)] = withCache(withUserMenu(h.hashtag), time.Minute*5, &cache, cfg)
 

@@ -27,6 +27,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/buildinfo"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
@@ -36,7 +37,9 @@ import (
 	"github.com/dimkr/tootik/front/gemini"
 	"github.com/dimkr/tootik/front/gopher"
 	"github.com/dimkr/tootik/front/guppy"
+	tplain "github.com/dimkr/tootik/front/text/plain"
 	"github.com/dimkr/tootik/front/user"
+	"github.com/dimkr/tootik/icon"
 	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/migrations"
 	"github.com/dimkr/tootik/outbox"
@@ -76,11 +79,27 @@ var (
 )
 
 func main() {
+	flag.Usage = func() {
+		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [flag]... [arg...]\n", os.Args[0])
+		flag.PrintDefaults()
+
+		fmt.Fprintf(flag.CommandLine.Output(), "\n%s [flag]...\n\tRun tootik\n", os.Args[0])
+		fmt.Fprintf(flag.CommandLine.Output(), "\n%s [flag]... add-community NAME\n\tAdd a community\n", os.Args[0])
+		fmt.Fprintf(flag.CommandLine.Output(), "\n%s [flag]... set-bio NAME PATH\n\tSet user's bio\n", os.Args[0])
+		fmt.Fprintf(flag.CommandLine.Output(), "\n%s [flag]... set-avatar NAME PATH\n\tSet user's avatar\n", os.Args[0])
+
+		os.Exit(2)
+	}
 	flag.Parse()
 
 	if *version {
 		fmt.Println(buildinfo.Version)
 		return
+	}
+
+	cmd := flag.Arg(0)
+	if !((cmd == "" && flag.NArg() == 0) || (cmd == "add-community" && flag.NArg() == 2 && flag.Arg(1) != "") || ((cmd == "set-bio" || cmd == "set-avatar") && flag.NArg() == 3 && flag.Arg(1) != "" && flag.Arg(2) != "")) {
+		flag.Usage()
 	}
 
 	var cfg cfg.Config
@@ -177,6 +196,117 @@ func main() {
 	_, nobodyKey, err := user.CreateNobody(ctx, *domain, db)
 	if err != nil {
 		panic(err)
+	}
+
+	switch cmd {
+	case "add-community":
+		_, _, err := user.Create(ctx, *domain, db, flag.Arg(1), ap.Group, nil)
+		if err != nil {
+			panic(err)
+		}
+		return
+
+	case "set-bio":
+		summary, err := os.ReadFile(flag.Arg(2))
+		if err != nil {
+			panic(err)
+		}
+
+		tx, err := db.BeginTx(ctx, nil)
+		if err != nil {
+			panic(err)
+		}
+		defer tx.Rollback()
+
+		var actorID string
+		if err := tx.QueryRowContext(
+			ctx,
+			`select id from persons where host = ? and actor->>'$.preferredUsername' = ?`,
+			*domain,
+			flag.Arg(1),
+		).Scan(&actorID); err != nil {
+			panic(err)
+		}
+
+		if _, err := tx.ExecContext(
+			ctx,
+			`update persons set actor = json_set(actor, '$.summary', ?, '$.updated', ?) where id = ?`,
+			tplain.ToHTML(string(summary), nil),
+			time.Now().Format(time.RFC3339Nano),
+			actorID,
+		); err != nil {
+			panic(err)
+		}
+
+		if err := outbox.UpdateActor(ctx, *domain, tx, actorID); err != nil {
+			panic(err)
+		}
+
+		if err := tx.Commit(); err != nil {
+			panic(err)
+		}
+
+		return
+
+	case "set-avatar":
+		avatar, err := os.ReadFile(flag.Arg(2))
+		if err != nil {
+			panic(err)
+		}
+
+		resized, err := icon.Scale(&cfg, avatar)
+		if err != nil {
+			panic(err)
+		}
+
+		tx, err := db.BeginTx(ctx, nil)
+		if err != nil {
+			panic(err)
+		}
+		defer tx.Rollback()
+
+		userName := flag.Arg(1)
+
+		var actorID string
+		if err := tx.QueryRowContext(
+			ctx,
+			`select id from persons where host = ? and actor->>'$.preferredUsername' = ?`,
+			*domain,
+			userName,
+		).Scan(&actorID); err != nil {
+			panic(err)
+		}
+
+		now := time.Now()
+
+		if _, err := tx.ExecContext(
+			ctx,
+			"update persons set actor = json_set(actor, '$.icon.url', $1, '$.icon[0].url', $1, '$.updated', $2) where id = $3",
+			fmt.Sprintf("https://%s/icon/%s%s#%d", *domain, userName, icon.FileNameExtension, now.UnixNano()),
+			now.Format(time.RFC3339Nano),
+			actorID,
+		); err != nil {
+			panic(err)
+		}
+
+		if _, err := tx.ExecContext(
+			ctx,
+			"insert into icons(name, buf) values($1, $2) on conflict(name) do update set buf = $2",
+			userName,
+			string(resized),
+		); err != nil {
+			panic(err)
+		}
+
+		if err := outbox.UpdateActor(ctx, *domain, tx, actorID); err != nil {
+			panic(err)
+		}
+
+		if err := tx.Commit(); err != nil {
+			panic(err)
+		}
+
+		return
 	}
 
 	handler, err := front.NewHandler(*domain, *closed, &cfg)

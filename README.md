@@ -31,6 +31,7 @@ Welcome, fedinaut! localhost.localdomain:8443 is an instance of tootik, a federa
 ⚡️ Followed users
 😈 My profile
 📡 This planet
+🏕️ Communities
 🔥 Hashtags
 🔭 Find user
 🔎 Search posts
@@ -98,6 +99,10 @@ tootik is lightweight, private and accessible social network:
 * Users can follow each other to see non-public posts
   * With support for [Mastodon's follower synchronization mechanism](https://docs.joinmastodon.org/spec/activitypub/#follower-synchronization-mechanism), aka [FEP-8fcf](https://codeberg.org/fediverse/fep/src/branch/main/fep/8fcf/fep-8fcf.md)
 * Multi-choice polls
+* [Lemmy](https://join-lemmy.org/)-style communities
+  * Follow to join
+  * Mention community in a public post to start thread
+  * Community sends posts and replies to all members
 * Full-text search within posts
 * Upload of posts and user avatars, over [Titan](gemini://transjovian.org/titan)
 * Account migration, in both directions
@@ -339,7 +344,9 @@ Once inserted into `inbox`, [inbox.Queue](https://pkg.go.dev/github.com/dimkr/to
                           └───────────────────────────────────────────────┘
 ```
 
-When a remote user replies in a thread started by a local user, the received [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) is inserted into `outbox` and forwarded to all followers of the local user.
+Sometimes, a received or newly created local [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) is forwarded to the followers of a local user:
+* When a remote user replies in a thread started by a local user, the received [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) is inserted into `outbox` and forwarded to all followers of the local user.
+* When a user creates a new post, edits a post or deletes a post in a local community, the [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) is wrapped with an `Announce` activity that's inserted into `outbox` and forwarded to all community members.
 
 ```
                                       ┌───────────────┐

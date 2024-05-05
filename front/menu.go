@@ -40,9 +40,11 @@ func writeUserMenu(w text.Writer, user *ap.Actor) {
 	w.Link(prefix+"/local", "📡 This planet")
 
 	if user == nil {
+		w.Link("/communities", "🏕️ Communities")
 		w.Link("/hashtags", "🔥 Hashtags")
 		w.Link("/fts", "🔎 Search posts")
 	} else {
+		w.Link("/users/communities", "🏕️ Communities")
 		w.Link("/users/hashtags", "🔥 Hashtags")
 		w.Link("/users/resolve", "🔭 Find user")
 		w.Link("/users/fts", "🔎 Search posts")
