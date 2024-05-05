@@ -208,7 +208,7 @@ tootik -domain $domain -db /tootik-data/db.sqlite3 add-community fountainpens
 tootik -domain $domain -db /tootik-data/db.sqlite3 set-bio fountainpens /tmp/bio.txt
 # put avatar in /tmp/avatar.png
 tootik -domain $domain -db /tootik-data/db.sqlite3 set-avatar fountainpens /tmp/avatar.png
-````
+```
 
 ## Running behind a reverse proxy
 
