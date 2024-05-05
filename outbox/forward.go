@@ -78,7 +78,7 @@ func forwardToGroup[T ap.RawActivity](ctx context.Context, domain string, log *s
 	}
 
 	var following int
-	if err := tx.QueryRowContext(ctx, `select exists (select 1 from follows where follower = ? and followed = ? and accepted = 1)`, activity.Actor, group.ID).Scan(&following); err != nil {
+	if err := tx.QueryRowContext(ctx, `select exists (select 1 from follows where follower = ? and followed = ? and accepted = 1)`, note.AttributedTo, group.ID).Scan(&following); err != nil {
 		return true, err
 	}
 
