@@ -122,6 +122,53 @@ func TestCommunity_NewThreadNotFollowing(t *testing.T) {
 	assert.Equal(0, shared)
 }
 
+func TestCommunity_NewThreadNotPublic(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	_, err := server.db.Exec(
+		`update persons set actor = json_set(actor, '$.type', 'Group') where id = $1`,
+		server.Alice.ID,
+	)
+	assert.NoError(err)
+
+	_, err = server.db.Exec(
+		`insert into persons (id, actor) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"type":"Person","preferredUsername":"dan"}`,
+	)
+	assert.NoError(err)
+
+	assert.NoError(
+		outbox.Accept(
+			context.Background(),
+			domain,
+			server.Alice.ID,
+			"https://127.0.0.1/user/dan",
+			"https://localhost.localdomain:8443/follow/1",
+			server.db,
+		),
+	)
+
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
+
+	whisper := server.Handle("/users/whisper?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+
+	id := whisper[15 : len(whisper)-2]
+
+	var forwarded int
+	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity->>'$.type' = 'Create' and activity->>'$.object.id' = 'https://' || ? and activity->>'$.actor' = ? and sender = ?`, id, server.Bob.ID, server.Alice.ID).Scan(&forwarded))
+	assert.Equal(0, forwarded)
+
+	var shared int
+	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity->>'$.type' = 'Announce' and activity->>'$.actor' = $1 and activity->>'$.object' = 'https://' || $2 and sender = $1`, server.Alice.ID, id).Scan(&shared))
+	assert.Equal(0, shared)
+}
+
 func TestCommunity_ReplyInThread(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
