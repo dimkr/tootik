@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/data"
 	"log/slog"
 )
 
@@ -52,7 +53,7 @@ func Delete(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 	}
 	defer tx.Rollback()
 
-	if err := ForwardActivity(ctx, domain, cfg, log, tx, note, &delete, json.RawMessage(j)); err != nil {
+	if err := ForwardActivity(ctx, domain, cfg, log, tx, note, &delete, data.JSON(j)); err != nil {
 		return err
 	}
 

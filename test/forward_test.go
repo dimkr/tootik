@@ -104,7 +104,7 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, []byte(reply), server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, reply, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 }
 
@@ -183,7 +183,7 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, []byte(reply), server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, reply, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 }
 
@@ -274,7 +274,7 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, []byte(reply), server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, reply, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 }
 
@@ -349,7 +349,7 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ?)`, []byte(reply)).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ?)`, reply).Scan(&forwarded))
 	assert.Equal(0, forwarded)
 }
 
@@ -424,7 +424,7 @@ func TestForward_ReplyToDM(t *testing.T) {
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ?)`, []byte(reply)).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ?)`, reply).Scan(&forwarded))
 	assert.Equal(0, forwarded)
 }
 
@@ -488,7 +488,7 @@ func TestForward_NotFollowingAuthor(t *testing.T) {
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, []byte(reply), server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, reply, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 }
 
@@ -563,7 +563,7 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ?)`, []byte(reply)).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ?)`, reply).Scan(&forwarded))
 	assert.Equal(0, forwarded)
 }
 
@@ -627,7 +627,7 @@ func TestForward_ReplyToFederatedPost(t *testing.T) {
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ?)`, []byte(reply)).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ?)`, reply).Scan(&forwarded))
 	assert.Equal(0, forwarded)
 }
 
@@ -750,7 +750,7 @@ func TestForward_MaxDepth(t *testing.T) {
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, []byte(reply), server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, reply, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 }
 
@@ -889,7 +889,7 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, []byte(reply), server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, reply, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(0, forwarded)
 }
 
@@ -1118,7 +1118,7 @@ func TestForward_EditedReplyToPublicPost(t *testing.T) {
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, update, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, string(update), server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 }
 
@@ -1239,7 +1239,7 @@ func TestForward_ResentEditedReplyToPublicPost(t *testing.T) {
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity = ? and sender = ?`, update, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity = ? and sender = ?`, string(update), server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 }
 
@@ -1327,7 +1327,7 @@ func TestForward_DeletedReplyToPublicPost(t *testing.T) {
 	assert.Equal(2, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, []byte(delete), server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, delete, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 }
 
@@ -1426,6 +1426,6 @@ func TestForward_DeletedDeletedReplyToPublicPost(t *testing.T) {
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity = ? and sender = ?`, []byte(delete), server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity = ? and sender = ?`, delete, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 }
