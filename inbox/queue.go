@@ -444,7 +444,7 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 	return nil
 }
 
-func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Actor, activity *ap.Activity, rawActivity json.RawMessage) {
+func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Actor, activity *ap.Activity, rawActivity string) {
 	ctx, cancel := context.WithTimeout(parent, q.Config.ActivityProcessingTimeout)
 	defer cancel()
 
@@ -501,7 +501,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			return true
 		}
 
-		q.processActivityWithTimeout(ctx, sender, &activity, json.RawMessage(activityString))
+		q.processActivityWithTimeout(ctx, sender, &activity, activityString)
 		return true
 	})
 
