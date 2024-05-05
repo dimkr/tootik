@@ -362,6 +362,7 @@ func TestCommunity_DuplicateReplyInThread(t *testing.T) {
 		"https://127.0.0.1/user/dan",
 		&reply,
 	)
+	assert.NoError(err)
 
 	n, err = queue.ProcessBatch(context.Background())
 	assert.NoError(err)
