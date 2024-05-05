@@ -346,7 +346,7 @@ Once inserted into `inbox`, [inbox.Queue](https://pkg.go.dev/github.com/dimkr/to
 
 Sometimes, a received or newly created local [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) is forwarded to the followers of a local user:
 * When a remote user replies in a thread started by a local user, the received [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) is inserted into `outbox` and forwarded to all followers of the local user.
-* When a user creates a new post, edits a post or deletes a post in a local community, the [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) is wrapped with an `Announce` activity that's inserted into `outbox` and forwarded to all community members.
+* When a user creates a new post, edits a post or deletes a post in a local community, the [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) is inserted into `outbox` and forwarded to all community members.
 
 ```
                                       ┌───────────────┐
