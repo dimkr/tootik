@@ -93,7 +93,7 @@ func Delete(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
-		j,
+		string(j),
 		note.AttributedTo,
 	); err != nil {
 		return fmt.Errorf("failed to insert delete activity: %w", err)
