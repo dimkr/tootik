@@ -653,67 +653,6 @@ func TestPoll_OldUpdate(t *testing.T) {
 	assert.Contains(strings.Split(view, "\n"), "6 ████████ chocolate")
 }
 
-func TestPoll_UpdateClosed(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
-
-	assert := assert.New(t)
-
-	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
-	)
-	assert.NoError(err)
-
-	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":4}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":6}}],"votersCount":10,"endTime":"2099-10-01T05:35:36Z","closed":"2020-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
-
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
-		"https://127.0.0.1/user/dan",
-		poll,
-	)
-	assert.NoError(err)
-
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Key:       server.NobodyKey,
-	}
-	n, err := queue.ProcessBatch(context.Background())
-	assert.NoError(err)
-	assert.Equal(1, n)
-
-	view := server.Handle("/users/view/127.0.0.1/poll/1", server.Alice)
-	assert.Contains(strings.Split(view, "\n"), "## 📊 Results (10 voters)")
-	assert.Contains(strings.Split(view, "\n"), "```Results graph")
-	assert.Contains(strings.Split(view, "\n"), "4 █████▎   vanilla")
-	assert.Contains(strings.Split(view, "\n"), "6 ████████ chocolate")
-
-	update := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/update/1","type":"Update","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":8}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":10}}],"votersCount":18,"endTime":"2099-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
-
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
-		"https://127.0.0.1/user/dan",
-		update,
-	)
-	assert.NoError(err)
-
-	n, err = queue.ProcessBatch(context.Background())
-	assert.NoError(err)
-	assert.Equal(1, n)
-
-	view = server.Handle("/users/view/127.0.0.1/poll/1", server.Alice)
-	assert.Contains(strings.Split(view, "\n"), "## 📊 Results (10 voters)")
-	assert.Contains(strings.Split(view, "\n"), "```Results graph")
-	assert.Contains(strings.Split(view, "\n"), "4 █████▎   vanilla")
-	assert.Contains(strings.Split(view, "\n"), "6 ████████ chocolate")
-}
-
 func TestPoll_Local3Options(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()

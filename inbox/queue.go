@@ -358,34 +358,34 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 		}
 
 		var oldPost ap.Object
-		var lastUpdate int64
-		if err := q.DB.QueryRowContext(ctx, `select max(inserted, updated), object from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastUpdate, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
+		var lastChange int64
+		if err := q.DB.QueryRowContext(ctx, `select max(inserted, updated), object from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastChange, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
 			log.Debug("Received Update for non-existing post")
 			return processCreateActivity(ctx, q, log, sender, activity, rawActivity, post, shared)
 		} else if err != nil {
 			return fmt.Errorf("failed to get last update time for %s: %w", post.ID, err)
 		}
 
-		body := post
-		if (post.Type == ap.Question && post.Updated != nil && lastUpdate >= post.Updated.Unix()) || (post.Type != ap.Question && (post.Updated == nil || lastUpdate >= post.Updated.Unix())) {
+		// if specified, prefer post publication or editing time to insertion or last update time
+		var sec int64
+		if oldPost.Updated != nil {
+			sec = oldPost.Updated.Unix()
+		}
+		if sec == 0 {
+			sec = oldPost.Published.Unix()
+		}
+		if sec > 0 {
+			lastChange = sec
+		}
+
+		if (post.Type == ap.Question && post.Updated != nil && lastChange >= post.Updated.Unix()) || (post.Type != ap.Question && (post.Updated == nil || lastChange >= post.Updated.Unix())) {
 			log.Debug("Received old update request for new post")
 			return nil
-		} else if post.Type == ap.Question && oldPost.Closed != nil {
-			log.Debug("Received update request for closed poll")
-			return nil
-		} else if post.Type == ap.Question && post.Updated == nil {
-			oldPost.VotersCount = post.VotersCount
-			oldPost.OneOf = post.OneOf
-			oldPost.AnyOf = post.AnyOf
-			oldPost.EndTime = post.EndTime
-			oldPost.Closed = post.Closed
-
-			body = &oldPost
 		}
 
 		// only the group can decide if audience has changed
 		if sender.ID != oldPost.Audience {
-			body.Audience = oldPost.Audience
+			post.Audience = oldPost.Audience
 		}
 
 		tx, err := q.DB.BeginTx(ctx, nil)
@@ -397,7 +397,7 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 		if _, err := tx.ExecContext(
 			ctx,
 			`update notes set object = ?, updated = unixepoch() where id = ?`,
-			body,
+			post,
 			post.ID,
 		); err != nil {
 			return fmt.Errorf("failed to update post %s: %w", post.ID, err)
