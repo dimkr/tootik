@@ -106,7 +106,7 @@ If you have a graphical web browser and a Gemini client that configures itself a
 
 11. Register by creating a client certificate or clicking "Sign in" and use "Find user" to verify that your instance is able to "discover" users on other servers.
 
-Once a user is discovered, you can follow this user and your instance should start receiving new posts by this user. They should appear under your user's inbox ("My radio") and under the federated feed ("FOMO from outer space"; this page is cached and may not show new posts immediately, if you already viewed it).
+Once a user is discovered, you can follow this user and your instance should start receiving new posts by this user. They should appear under your user's inbox ("My feed") and in the user's profile.
 
 **If you don't see any posts, check tootik's output.**
 

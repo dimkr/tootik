@@ -32,7 +32,7 @@ func (h *Handler) users(w text.Writer, r *request, args ...string) {
 	h.showFeedPage(
 		w,
 		r,
-		"📻 My Radio",
+		"📻 My Feed",
 		func(offset int) (*sql.Rows, error) {
 			return r.Query(`
 				select object, actor, sharer, inserted from

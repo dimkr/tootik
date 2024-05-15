@@ -7,7 +7,7 @@ This is an instance of tootik, a "slow", "boring" and non-addictive social netwo
 
 ## Menu
 
-> 📡 This planet
+> 📡 Local feed
 
 This page shows public posts published on this server.
 
