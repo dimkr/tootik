@@ -8,7 +8,7 @@
 * /search shows an input prompt and redirects to /hashtag.
 * /hashtags shows a list of popular hashtags.
 * /fts shows an input prompt and performs full-text search in posts.
-* /stats shows statistics and server health metrics.
+* /status shows statistics and server health metrics.
 
 * /view shows a complete post with extra details like links in the post, a list mentioned users, a list of hashtags, a link to the author's outbox, a list of replies and a link to the parent post (if found).
 * /thread displays a tree of replies in a thread.
@@ -44,7 +44,7 @@ Some clients generate a certificate for / (all pages of this capsule) when /foo 
 * /users/hashtag
 * /users/hashtags
 * /users/fts
-* /users/stats
+* /users/status
 * /users/view
 * /users/thread
 

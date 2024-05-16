@@ -57,7 +57,7 @@ func writeUserMenu(w text.Writer, user *ap.Actor) {
 		w.Link("/users/settings", "⚙️ Settings")
 	}
 
-	w.Link(prefix+"/stats", "📊 Statistics")
+	w.Link(prefix+"/status", "📊 Status")
 	w.Link(prefix+"/help", "🛟 Help")
 }
 

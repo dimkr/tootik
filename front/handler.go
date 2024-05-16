@@ -133,8 +133,8 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) (Handler, error) {
 	h.handlers[regexp.MustCompile(`^/fts$`)] = withUserMenu(h.fts)
 	h.handlers[regexp.MustCompile(`^/users/fts$`)] = withUserMenu(h.fts)
 
-	h.handlers[regexp.MustCompile(`^/stats$`)] = withCache(withUserMenu(h.stats), time.Minute*5, &cache, cfg)
-	h.handlers[regexp.MustCompile(`^/users/stats$`)] = withCache(withUserMenu(h.stats), time.Minute*5, &cache, cfg)
+	h.handlers[regexp.MustCompile(`^/status$`)] = withCache(withUserMenu(h.status), time.Minute*5, &cache, cfg)
+	h.handlers[regexp.MustCompile(`^/users/status$`)] = withCache(withUserMenu(h.status), time.Minute*5, &cache, cfg)
 
 	h.handlers[regexp.MustCompile(`^/oops`)] = withUserMenu(oops)
 	h.handlers[regexp.MustCompile(`^/users/oops`)] = withUserMenu(oops)

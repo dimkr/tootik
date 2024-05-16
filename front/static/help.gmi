@@ -23,7 +23,7 @@ This page shows popular hashtags, allowing you to discover trends and shared int
 
 This is a full-text search tool that lists posts containing keyword(s), ordered by relevance.
 
-> 📊 Statistics
+> 📊 Status
 
 This page shows various statistics about this server and the parts of the fediverse it's connected to.
 

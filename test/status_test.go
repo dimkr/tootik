@@ -21,17 +21,17 @@ import (
 	"testing"
 )
 
-func TestStats_NewInstance(t *testing.T) {
+func TestStatus_NewInstance(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
 	assert := assert.New(t)
 
-	stats := server.Handle("/stats", server.Alice)
-	assert.Regexp("^20 text/gemini\r\n", stats)
+	status := server.Handle("/status", server.Alice)
+	assert.Regexp("^20 text/gemini\r\n", status)
 }
 
-func TestStats_WithPosts(t *testing.T) {
+func TestStatus_WithPosts(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
@@ -40,6 +40,6 @@ func TestStats_WithPosts(t *testing.T) {
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
-	stats := server.Handle("/stats", server.Alice)
-	assert.Regexp("^20 text/gemini\r\n", stats)
+	status := server.Handle("/status", server.Alice)
+	assert.Regexp("^20 text/gemini\r\n", status)
 }

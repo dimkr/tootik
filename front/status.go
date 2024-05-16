@@ -86,7 +86,7 @@ func getActiveUsersGraph(r *request) string {
 	return getGraph(r, `select strftime('%Y-%m-%d', datetime(day, 'unixepoch')), count(distinct author) from (select notes.inserted/(60*60*24)*60*60*24 as day, persons.id as author from notes join persons on persons.id = notes.author where notes.inserted>unixepoch()-60*60*24*7 and notes.inserted<unixepoch()/(60*60*24)*60*60*24) group by day`, keys, values)
 }
 
-func (h *Handler) stats(w text.Writer, r *request, args ...string) {
+func (h *Handler) status(w text.Writer, r *request, args ...string) {
 	var usersCount, postsCount, postsToday, federatedPostsCount, federatedPostsToday int64
 	var lastPost, lastFederatedPost, lastRegister, lastFederatedUser sql.NullInt64
 	var outboxSize, inboxSize int
@@ -167,7 +167,7 @@ func (h *Handler) stats(w text.Writer, r *request, args ...string) {
 
 	w.OK()
 
-	w.Title("📊 Statistics")
+	w.Title("📊 Status")
 
 	if dailyPostsGraph != "" {
 		w.Subtitle("Posts Per Hour")
