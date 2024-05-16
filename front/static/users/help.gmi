@@ -23,7 +23,7 @@ This page shows a list of users you follow, sorted by last activity.
 
 This page shows your profile.
 
-> 📡 This planet
+> 📡 Local feed
 
 This page shows public posts published on this server.
 

@@ -30,7 +30,7 @@ Welcome, fedinaut! localhost.localdomain:8443 is an instance of tootik, a federa
 📞 Mentions
 ⚡️ Followed users
 😈 My profile
-📡 This planet
+📡 Local feed
 🏕️ Communities
 🔥 Hashtags
 🔭 Find user

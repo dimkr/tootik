@@ -25,7 +25,7 @@ func (h *Handler) local(w text.Writer, r *request, args ...string) {
 	h.showFeedPage(
 		w,
 		r,
-		"📡 This Planet",
+		"📡 Local Feed",
 		func(offset int) (*sql.Rows, error) {
 			return r.Query(
 				`
