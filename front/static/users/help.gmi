@@ -7,7 +7,7 @@ This is an instance of tootik, a "slow", "boring" and non-addictive social netwo
 
 ## Menu
 
-> 📻 My radio
+> 📻 My feed
 
 This page shows posts by followed users.
 
