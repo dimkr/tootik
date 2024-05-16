@@ -104,7 +104,7 @@ If `curl` times out, check your server's firewall: port 443 is probably blocked.
 
 If you have a graphical web browser and a Gemini client that configures itself as the default handler for gemini:// URLs, opening https://$domain through the web browser should display a popup that asks you to use the Gemini client instead. Otherwise, fire up your Gemini client and navigate to gemini://$domain.
 
-11. Register by creating a client certificate or clicking "Sign in" and use "Find user" to verify that your instance is able to "discover" users on other servers.
+11. Register by creating a client certificate or clicking "Sign in" and use "View profile" to verify that your instance is able to "discover" users on other servers.
 
 Once a user is discovered, you can follow this user and your instance should start receiving new posts by this user. They should appear under your user's inbox ("My feed") and the user's profile.
 

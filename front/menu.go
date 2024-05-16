@@ -46,7 +46,7 @@ func writeUserMenu(w text.Writer, user *ap.Actor) {
 	} else {
 		w.Link("/users/communities", "🏕️ Communities")
 		w.Link("/users/hashtags", "🔥 Hashtags")
-		w.Link("/users/resolve", "🔭 Find user")
+		w.Link("/users/resolve", "🔭 View profile")
 		w.Link("/users/fts", "🔎 Search posts")
 	}
 
