@@ -187,6 +187,41 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 	assert.Equal(1, forwarded)
 }
 
+func TestForward_LocalReplyToLocalPublicPost(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	assert.NoError(
+		outbox.Accept(
+			context.Background(),
+			domain,
+			server.Alice.ID,
+			"https://127.0.0.1/user/dan",
+			"https://localhost.localdomain:8443/follow/1",
+			server.db,
+		),
+	)
+
+	_, err := server.db.Exec(
+		`insert into persons (id, actor) values(?,?)`,
+		"https://127.0.0.1/user/dan",
+		`{"type":"Person","preferredUsername":"dan"}`,
+	)
+	assert.NoError(err)
+
+	say := server.Handle("/users/say?Hello", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Alice", say[15:len(say)-2]), server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
+
+	var forwarded int
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity->>'$.type' = 'Create' and activity->>'$.object.id' = 'https://' || ? and sender = ?)`, reply[15:len(reply)-2], server.Alice.ID).Scan(&forwarded))
+	assert.Equal(1, forwarded)
+}
+
 func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
