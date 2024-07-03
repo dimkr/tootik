@@ -219,7 +219,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		showSeparator = true
 	}
 
-	if offset == 0 && actor.Image.URL != "" {
+	if offset == 0 && actor.Image != nil && actor.Image.URL != "" {
 		w.Link(actor.Image.URL, "Header")
 		showSeparator = true
 	}
