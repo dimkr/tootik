@@ -45,39 +45,39 @@ Welcome, fedinaut! localhost.localdomain:8443 is an instance of tootik, a federa
 
 ## Overview
 
-tootik is a federated nanoblogging service for the small internet. With tootik, you can interact with your friends, including those on [Mastodon](https://joinmastodon.org/), [Lemmy](https://join-lemmy.org/) and other [ActivityPub](https://www.w3.org/TR/activitypub/)-compatible servers, from the comfort of a minimalistic, text-based interface in the small internet:
+tootik is a federated, text-based social network. A tootik user can interact with others on the same instance, users on other tootik instances, [Mastodon](https://joinmastodon.org/) users, [Lemmy](https://join-lemmy.org/) users and users of other [ActivityPub](https://www.w3.org/TR/activitypub/)-compatible servers. Unlike other social networks, tootik doesn't have a browser-based interface or an app: instead, its minimalistic, text-based interface is served over [Gemini](https://geminiprotocol.net/):
 
 ```
                          Gemini           ActivityPub (HTTPS)
                            →                     ⇄
- ┌───────────────────────┐   ┌─────────────────┐   ┌─────────────────────────┐
- │  Bob's Gemini client  ├─┬─┤ tootik instance ├─┬─┤ Another tootik instance │
- ├───────────────────────┤ │ ├─────────────────┤ │ └─────────────────────────┘
- │2024-01-01 alice       │ │ │$ ./tootik ...   │ │ ┌────────────────┐
- │> Hi @bob and @carol!  │ │ └─────────────────┘ ├─┤ Something else │
- │...                    │ │                     │ └────────────────┘
- └───────────────────────┘ │                     │ ┌───────────────────┐
-               ┌───────────┴───────────┐         └─┤ Mastodon instance ├─┐
-               │ Alice's Gemini client │           └───────────────────┘ │
-               ├───────────────────────┤              ┌──────────────────┴────┐
-               │2024-01-01 bob         │              │  Carol's web browser  │
-               │> Hi @alice!           │              ├───────────────────────┤
-               │...                    │              │╔═╗ alice              │
-               └───────────────────────┘              │╚═╝             17h ago│
+ ┏━━━━━━━━━━━━━━━━━━━━━━━┓   ┏━━━━━━━━━━━━━━━━━┓   ┌─────────────────────────┐
+ ┃  Bob's Gemini client  ┣━━━┫ tootik instance ┠─┬─┤ Another tootik instance │
+ ┣━━━━━━━━━━━━━━━━━━━━━━━┫   ┣━━━━━━━━━━━━━━━━━┫ │ └─────────────────────────┘
+ ┃2024-01-01 alice       ┃   ┃$ ./tootik ...   ┃ │ ┌────────────────┐
+ ┃> Hi @bob and @carol!  ┃   ┗━┳━━━━━━━━━━━━━━━┛ ├─┤ Something else │
+ ┃...                    ┃     ┃                 │ └────────────────┘
+ ┗━━━━━━━━━━━━━━━━━━━━━━━┛     ┃                 │ ┌───────────────────┐
+               ┏━━━━━━━━━━━━━━━┻━━━━━━━┓         └─┤ Mastodon instance ├─┐
+               ┃ Alice's Gemini client ┃           └───────────────────┘ │
+               ┣━━━━━━━━━━━━━━━━━━━━━━━┫              ┌──────────────────┴────┐
+               ┃2024-01-01 bob         ┃              │  Carol's web browser  │
+               ┃> Hi @alice!           ┃              ├───────────────────────┤
+               ┃...                    ┃              │╔═╗ alice              │
+               ┗━━━━━━━━━━━━━━━━━━━━━━━┛              │╚═╝             17h ago│
                                                       │Hi @bob and @carol!    │
                                                       │                       │
                                                       │  ╔═╗ bob              │
                                                       │  ╚═╝           16h ago│
                                                       │  Hi @alice!           │
                                                       ├───────────────────────┤
-                                                      │┌────────────┐┏━━━━━━━┓│
-                                                      ││ Hola       │┃Publish┃│
-                                                      │└────────────┘┗━━━━━━━┛│
+                                                      │┌────────────┐┌───────┐│
+                                                      ││ Hola       ││Publish││
+                                                      │└────────────┘└───────┘│
                                                       └───────────────────────┘
 ```
 
-tootik is lightweight, private and accessible social network:
-* Its UI is served over [Gemini](https://geminiprotocol.net/), Gopher, Finger and [Guppy](https://github.com/dimkr/guppy-protocol): there's a wide variety of clients to choose from and some work great on old devices.
+This makes tootik lightweight, private and accessible:
+* Its UI supports [Gemini](https://geminiprotocol.net/), Gopher, Finger and [Guppy](https://github.com/dimkr/guppy-protocol): there's a wide variety of clients to choose from and some work great on old devices.
 * Rich content is reduced to plain text and links: it's a fast, low-bandwidth UI suitable for screen readers.
 * Anonymity: you authenticate using a TLS client certificate and don't have to share your email address or real name.
 * No promoted content, tracking or analytics: social networking, with the slow and non-commercial vibe of the small internet.
@@ -126,13 +126,13 @@ or, to build a static executable:
 ## Architecture
 
 ```
-┌───────┐ ┌────────┐ ┌─────────┐ ┌─────────┐
-│ notes │ │ shares │ │ persons │ │ follows │
-├───────┤ ├────────┤ ├─────────┤ ├─────────┤
-│object │ │note    │ │actor    │ │follower │
-│author │ │by      │ │...      │ │followed │
-│...    │ │...     │ │         │ │...      │
-└───────┘ └────────┘ └─────────┘ └─────────┘
+┏━━━━━━━┓ ┏━━━━━━━━┓ ┏━━━━━━━━━┓ ┏━━━━━━━━━┓
+┃ notes ┃ ┃ shares ┃ ┃ persons ┃ ┃ follows ┃
+┣━━━━━━━┫ ┣━━━━━━━━┫ ┣━━━━━━━━━┫ ┣━━━━━━━━━┫
+┃object ┃ ┃note    ┃ ┃actor    ┃ ┃follower ┃
+┃author ┃ ┃by      ┃ ┃...      ┃ ┃followed ┃
+┃...    ┃ ┃...     ┃ ┃         ┃ ┃...      ┃
+┗━━━━━━━┛ ┗━━━━━━━━┛ ┗━━━━━━━━━┛ ┗━━━━━━━━━┛
 ```
 
 Most user-visible data is stored in 4 tables in tootik's database:
