@@ -108,10 +108,11 @@ type Config struct {
 	FollowersSyncBatchSize int
 	FollowersSyncInterval  time.Duration
 
-	NotesTTL    time.Duration
-	DeliveryTTL time.Duration
-	SharesTTL   time.Duration
-	ActorTTL    time.Duration
+	NotesTTL          time.Duration
+	InvisiblePostsTTL time.Duration
+	DeliveryTTL       time.Duration
+	SharesTTL         time.Duration
+	ActorTTL          time.Duration
 }
 
 // FillDefaults replaces missing or invalid settings with defaults.
@@ -365,6 +366,10 @@ func (c *Config) FillDefaults() {
 
 	if c.NotesTTL <= 0 {
 		c.NotesTTL = time.Hour * 24 * 30
+	}
+
+	if c.InvisiblePostsTTL <= 0 {
+		c.InvisiblePostsTTL = time.Hour * 24 * 14
 	}
 
 	if c.DeliveryTTL <= 0 {

@@ -34,19 +34,19 @@ type GarbageCollector struct {
 func (gc *GarbageCollector) Run(ctx context.Context) error {
 	now := time.Now()
 
-	if _, err := gc.DB.ExecContext(ctx, `delete from notesfts where id in (select notes.id from notes left join follows on follows.followed in (notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = follows.followed)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = follows.followed)) where follows.accepted = 1 and notes.inserted < unixepoch()-60*60*24 and notes.host != ? and follows.id is null)`, gc.Domain); err != nil {
+	if _, err := gc.DB.ExecContext(ctx, `delete from notesfts where id in (select notes.id from notes left join follows on follows.followed in (notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = follows.followed)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = follows.followed)) where follows.accepted = 1 and notes.inserted < $1 and notes.host != $2 and follows.id is null)`, now.Add(-gc.Config.InvisiblePostsTTL).Unix(), gc.Domain); err != nil {
 		return fmt.Errorf("failed to remove invisible posts: %w", err)
 	}
 
-	if _, err := gc.DB.ExecContext(ctx, `delete from notes where id in (select notes.id from notes left join follows on follows.followed in (notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = follows.followed)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = follows.followed)) where follows.accepted = 1 and notes.inserted < unixepoch()-60*60*24 and notes.host != ? and follows.id is null)`, gc.Domain); err != nil {
+	if _, err := gc.DB.ExecContext(ctx, `delete from notes where id in (select notes.id from notes left join follows on follows.followed in (notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = follows.followed)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = follows.followed)) where follows.accepted = 1 and notes.inserted < $1 and notes.host != $2 and follows.id is null)`, now.Add(-gc.Config.InvisiblePostsTTL).Unix(), gc.Domain); err != nil {
 		return fmt.Errorf("failed to remove invisible posts: %w", err)
 	}
 
-	if _, err := gc.DB.ExecContext(ctx, `delete from notesfts where id in (select id from notes where inserted < unixepoch()-60*60*24*7 and author not in (select followed from follows where accepted = 1) and host != ?)`, gc.Domain); err != nil {
+	if _, err := gc.DB.ExecContext(ctx, `delete from notesfts where id in (select id from notes where inserted < $1 and author not in (select followed from follows where accepted = 1) and host != $2)`, now.Add(-gc.Config.InvisiblePostsTTL).Unix(), gc.Domain); err != nil {
 		return fmt.Errorf("failed to remove posts by authors without followers: %w", err)
 	}
 
-	if _, err := gc.DB.ExecContext(ctx, `delete from notes where inserted < unixepoch()-60*60*24*7 and author not in (select followed from follows where accepted = 1) and host != ?`, gc.Domain); err != nil {
+	if _, err := gc.DB.ExecContext(ctx, `delete from notes where inserted < $1 and author not in (select followed from follows where accepted = 1) and host != $2`, now.Add(-gc.Config.InvisiblePostsTTL).Unix(), gc.Domain); err != nil {
 		return fmt.Errorf("failed to remove posts by authors without followers: %w", err)
 	}
 
