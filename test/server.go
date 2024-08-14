@@ -116,7 +116,7 @@ func newTestServer() *server {
 
 func (s *server) Handle(request string, user *ap.Actor) string {
 	if request == "/users" {
-		err := inbox.FeedUpdater{Config: s.cfg, DB: s.db}.Run(context.Background())
+		err := inbox.FeedUpdater{Domain: domain, Config: s.cfg, DB: s.db}.Run(context.Background())
 		if err != nil {
 			panic(err)
 		}

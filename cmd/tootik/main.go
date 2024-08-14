@@ -446,6 +446,7 @@ func main() {
 			"feed",
 			cfg.FeedUpdateInterval,
 			&inbox.FeedUpdater{
+				Domain: *domain,
 				Config: &cfg,
 				DB:     db,
 			},

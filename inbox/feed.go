@@ -19,11 +19,13 @@ package inbox
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"github.com/dimkr/tootik/cfg"
 	"time"
 )
 
 type FeedUpdater struct {
+	Domain string
 	Config *cfg.Config
 	DB     *sql.DB
 }
@@ -70,6 +72,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 						)
 					where
 						notes.inserted >= $1 and
+						follows.follower like $2 and
 						not exists (select 1 from feed where feed.follower = follows.follower and feed.note = notes.id and feed.sharer is null)
 					union
 					select notes.id as note, notes.author, notes.inserted from
@@ -85,6 +88,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 					where
 						notes.author != myposts.author and
 						notes.inserted >= $1 and
+						myposts.author like $2 and
 						not exists (select 1 from feed where feed.follower = notes.author and feed.note = notes.id and feed.sharer is null)
 				)
 				union all
@@ -109,10 +113,12 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 				where
 					shares.inserted >= $1 and
 					notes.public = 1 and
+					follows.follower like $2 and
 					not exists (select 1 from feed where feed.follower = follows.follower and feed.note = notes.id and feed.sharer = sharers.id)
 			)
 		`,
 		time.Now().Add(-u.Config.FeedUpdateInterval).Unix(),
+		fmt.Sprintf("https://%s/%%", u.Domain),
 	); err != nil {
 		return err
 	}
