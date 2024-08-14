@@ -46,12 +46,12 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 	if _, err := tx.ExecContext(
 		ctx,
 		`
-			insert into feed(follower, note, sharer)
-			select follower, note, sharer from
+			insert into feed(follower, note, sharer, inserted)
+			select follower, note, sharer, inserted from
 			(
-				select follower, note, null as sharer from
+				select follower, note, null as sharer, inserted from
 				(
-					select notes.id as note, follows.follower from
+					select notes.id as note, follows.follower, notes.inserted from
 					follows
 					join
 					persons
@@ -72,7 +72,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 						notes.inserted >= $1 and
 						not exists (select 1 from feed where feed.follower = follows.follower and feed.note = notes.id and feed.sharer is null)
 					union
-					select notes.id as note, notes.author from
+					select notes.id as note, notes.author, notes.inserted from
 					notes myposts
 					join
 					notes
@@ -88,7 +88,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 						not exists (select 1 from feed where feed.follower = notes.author and feed.note = notes.id and feed.sharer is null)
 				)
 				union all
-				select follows.follower, notes.id, sharers.id from
+				select follows.follower, notes.id, sharers.id, shares.inserted from
 				follows
 				join
 				shares

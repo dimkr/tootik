@@ -6,7 +6,7 @@ import (
 )
 
 func feed(ctx context.Context, domain string, tx *sql.Tx) error {
-	if _, err := tx.ExecContext(ctx, `CREATE TABLE feed(follower STRING NOT NULL, note STRING NOT NULL, sharer STRING, inserted INTEGER NOT NULL DEFAULT (UNIXEPOCH()))`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE TABLE feed(follower STRING NOT NULL, note STRING NOT NULL, sharer STRING, inserted INTEGER NOT NULL)`); err != nil {
 		return err
 	}
 
