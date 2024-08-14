@@ -18,7 +18,6 @@ package front
 
 import (
 	"database/sql"
-	"time"
 
 	"github.com/dimkr/tootik/front/text"
 )
@@ -35,76 +34,23 @@ func (h *Handler) users(w text.Writer, r *request, args ...string) {
 		"📻 My Feed",
 		func(offset int) (*sql.Rows, error) {
 			return r.Query(`
-				select object, actor, sharer, inserted from
-				(
-					select id, object, actor, inserted, null as sharer from
-					(
-						select notes.id, notes.object, persons.actor, notes.inserted from
-						follows
-						join
-						persons
-						on
-							persons.id = follows.followed
-						join
-						notes
-						on
-							notes.author = follows.followed and
-							(
-								notes.public = 1 or
-								persons.actor->>'$.followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-								$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-								(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers' or value = $1)) or
-								(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers' or value = $1))
-							)
-						where
-							follows.follower = $1 and
-							notes.inserted >= $2
-						union
-						select notes.id, notes.object, authors.actor, notes.inserted from
-						notes myposts
-						join
-						notes
-						on
-							notes.object->>'$.inReplyTo' = myposts.id
-						join
-						persons authors
-						on
-							authors.id = notes.author
-						where
-							myposts.author = $1 and
-							notes.author != $1 and
-							notes.inserted >= $2
-					)
-					union all
-					select notes.id, notes.object, authors.actor, shares.inserted, sharers.actor as sharer from
-					follows
-					join
-					shares
-					on
-						shares.by = follows.followed
-					join
-					notes
-					on
-						notes.id = shares.note
-					join
-					persons authors
-					on
-						authors.id = notes.author
-					join
-					persons sharers
-					on
-						sharers.id = follows.followed
-					where
-						follows.follower = $1 and
-						shares.inserted >= $2 and
-						notes.public = 1
-				)
+				select notes.object, authors.actor, sharers.actor, feed.inserted from
+				feed join notes
+				on
+					notes.id = feed.note
+				join persons authors
+				on
+					authors.id = notes.author
+				left join persons sharers
+				on
+					sharers.id = feed.sharer
+				where
+					feed.follower = $1
 				order by
-					inserted desc
-				limit $3
-				offset $4`,
+					feed.inserted desc
+				limit $2
+				offset $3`,
 				r.User.ID,
-				time.Now().Add(-time.Hour*24).Unix(),
 				h.Config.PostsPerPage,
 				offset,
 			)

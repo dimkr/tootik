@@ -443,6 +443,14 @@ func main() {
 		}
 	}{
 		{
+			"feed",
+			cfg.FeedUpdateInterval,
+			&inbox.FeedUpdater{
+				Config: &cfg,
+				DB:     db,
+			},
+		},
+		{
 			"poller",
 			pollResultsUpdateInterval,
 			&outbox.Poller{
