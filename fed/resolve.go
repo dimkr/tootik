@@ -140,11 +140,15 @@ func (r *Resolver) tryResolveOrCache(ctx context.Context, log *slog.Logger, db *
 }
 
 func deleteActor(ctx context.Context, log *slog.Logger, db *sql.DB, id string) {
-	if _, err := db.ExecContext(ctx, `delete from notesfts where id in (select id from notes where author = ?)`, id); err != nil {
+	if _, err := db.ExecContext(ctx, `delete from notesfts where exists (select 1 from notes where notes.author = ? and notesfts.id = notes.id)`, id); err != nil {
 		log.Warn("Failed to delete notes by actor", "id", id, "error", err)
 	}
 
-	if _, err := db.ExecContext(ctx, `delete from shares where by = $1 or note in (select id from notes where author = $1)`, id); err != nil {
+	if _, err := db.ExecContext(ctx, `delete from shares where by = $1 or exists (select 1 from notes where notes.author = ? and notes.id = shares.note)`, id); err != nil {
+		log.Warn("Failed to delete shares by actor", "id", id, "error", err)
+	}
+
+	if _, err := db.ExecContext(ctx, `delete from feed where sharer = ? or exists (select 1 from notes where notes.author = ? and notes.id = feed.note)`, id); err != nil {
 		log.Warn("Failed to delete shares by actor", "id", id, "error", err)
 	}
 

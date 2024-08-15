@@ -18,7 +18,6 @@ package front
 
 import (
 	"database/sql"
-	"time"
 
 	"github.com/dimkr/tootik/front/text"
 )
@@ -35,60 +34,32 @@ func (h *Handler) mentions(w text.Writer, r *request, args ...string) {
 		"📞 Mentions",
 		func(offset int) (*sql.Rows, error) {
 			return r.Query(`
-				select object, actor, sharer, inserted from
-				(
-					select notes.id, notes.object, persons.actor, notes.inserted, null as sharer from
-					follows
-					join
-					persons
-					on
-						persons.id = follows.followed
-					join
-					notes
-					on
-						notes.author = follows.followed and
-						(
-							$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $1)) or
-							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $1))
-						)
-					where
-						follows.follower = $1 and
-						notes.inserted >= $2
-					union all
-					select notes.id, notes.object, authors.actor, shares.inserted, sharers.actor as sharer from
-					follows
-					join
-					shares
-					on
-						shares.by = follows.followed
-					join
-					notes
-					on
-						notes.id = shares.note and
-						(
-							$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $1)) or
-							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $1))
-						)
-					join
-					persons authors
-					on
-						authors.id = notes.author
-					join
-					persons sharers
-					on
-						sharers.id = follows.followed
-					where
-						follows.follower = $1 and
-						shares.inserted >= $2
-				)
+				select notes.object, authors.actor, sharers.actor, feed.inserted from
+				feed
+				join
+				notes
+				on
+					notes.id = feed.note
+				join
+				persons authors
+				on
+					authors.id = notes.author
+				left join
+				persons sharers
+				on
+					sharers.id = feed.sharer
+				where
+					feed.follower = $1 and
+					(
+						$1 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+						(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $1)) or
+						(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $1))
+					)
 				order by
-					inserted desc
-				limit $3
-				offset $4`,
+					feed.inserted desc
+				limit $2
+				offset $3`,
 				r.User.ID,
-				time.Now().Add(-time.Hour*24*7).Unix(),
 				h.Config.PostsPerPage,
 				offset,
 			)

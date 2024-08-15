@@ -18,5 +18,9 @@ func feed(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX feednote ON feed(note)`); err != nil {
+		return err
+	}
+
 	return nil
 }

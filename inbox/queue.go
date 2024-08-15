@@ -199,6 +199,9 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 			if _, err := tx.ExecContext(ctx, `delete from shares where note = ?`, deleted); err != nil {
 				return fmt.Errorf("cannot delete %s: %w", deleted, err)
 			}
+			if _, err := tx.ExecContext(ctx, `delete from feed where note = ?`, deleted); err != nil {
+				return fmt.Errorf("cannot delete %s: %w", deleted, err)
+			}
 
 			if err := tx.Commit(); err != nil {
 				return fmt.Errorf("failed to delete %s: %w", deleted, err)
