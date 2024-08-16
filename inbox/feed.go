@@ -71,8 +71,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers' or value = follows.follower))
 						)
 					where
-						notes.inserted >= $1 and
-						follows.follower like $2 and
+						follows.follower like $1 and
 						not exists (select 1 from feed where feed.follower = follows.follower and feed.note = notes.id and feed.sharer is null)
 					union
 					select myposts.author as follower, notes.id as note, notes.author, notes.inserted from
@@ -87,8 +86,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 						authors.id = notes.author
 					where
 						notes.author != myposts.author and
-						notes.inserted >= $1 and
-						myposts.author like $2 and
+						myposts.author like $1 and
 						not exists (select 1 from feed where feed.follower = notes.author and feed.note = notes.id and feed.sharer is null)
 				)
 				union all
@@ -111,13 +109,11 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 				on
 					sharers.id = follows.followed
 				where
-					shares.inserted >= $1 and
 					notes.public = 1 and
-					follows.follower like $2 and
+					follows.follower like $1 and
 					not exists (select 1 from feed where feed.follower = follows.follower and feed.note = notes.id and feed.sharer = sharers.id)
 			)
 		`,
-		time.Now().Add(-u.Config.FeedUpdateInterval).Unix(),
 		fmt.Sprintf("https://%s/%%", u.Domain),
 	); err != nil {
 		return err
