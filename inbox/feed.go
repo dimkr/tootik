@@ -39,12 +39,12 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 		return err
 	}
 
-	var since sql.NullInt64
-	if err := u.DB.QueryRowContext(ctx, `select max(inserted) from feed`).Scan(&since); err != nil {
+	since := int64(0)
+	var ts sql.NullInt64
+	if err := u.DB.QueryRowContext(ctx, `select max(inserted) from feed`).Scan(&ts); err != nil {
 		return err
-	}
-	if !since.Valid {
-		since.Int64 = 0
+	} else if ts.Valid {
+		since = ts.Int64
 	}
 
 	if _, err := u.DB.ExecContext(
@@ -114,7 +114,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 				not exists (select 1 from feed where feed.follower = follows.follower and feed.note = notes.id and feed.sharer = sharers.id)
 		`,
 		fmt.Sprintf("https://%s/%%", u.Domain),
-		since.Int64,
+		since,
 	); err != nil {
 		return err
 	}
