@@ -504,10 +504,12 @@ func main() {
 
 			for {
 				log.Info("Running periodic job", "job", job.Name)
+				start := time.Now()
 				if err := job.Runner.Run(ctx); err != nil {
 					log.Error("Periodic job has failed", "job", job.Name, "error", err)
 					break
 				}
+				log.Info("Done running periodic job", "job", job.Name, "duration", time.Since(start).String())
 
 				select {
 				case <-ctx.Done():
