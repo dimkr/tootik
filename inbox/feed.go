@@ -114,7 +114,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 					sharers.id = follows.followed
 				where
 					notes.public = 1 and
-					notes.inserted >= $2 and
+					shares.inserted >= $2 and
 					follows.follower like $1 and
 					not exists (select 1 from feed where feed.follower = follows.follower and feed.note = notes.id and feed.sharer = sharers.id)
 			)
