@@ -31,15 +31,9 @@ type FeedUpdater struct {
 }
 
 func (u FeedUpdater) Run(ctx context.Context) error {
-	tx, err := u.DB.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
 	deadline := time.Now().Add(-u.Config.FeedTTL).Unix()
 
-	if _, err := tx.ExecContext(
+	if _, err := u.DB.ExecContext(
 		ctx,
 		`delete from feed where inserted < ?`,
 		deadline,
@@ -47,7 +41,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(
+	if _, err := u.DB.ExecContext(
 		ctx,
 		`
 			insert into feed(follower, note, author, sharer, inserted)
@@ -125,5 +119,5 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 		return err
 	}
 
-	return tx.Commit()
+	return nil
 }
