@@ -401,10 +401,10 @@ To display details like the user's name and speed up the verification of future 
   ┃ │       ┃ └─╂─────────┼─┼───────╂─────────────────────────┘ │ │       ┃   │
   ┃ └───────╂───╂─────────┼─┼───────╂───────────────────────────┘ │       ┃   │
   ┃         ┃   ┃         └─┼───────╂─────────────────────────────┼───────╂───┘
- ┏┻━━━━━━━━━┻━━━┻━━━━┓      └───────╂─────────────────────────────┘       ┃
- ┃ inbox.FeedUpdater ┣━━━━━━━━━━━━━━┛                                     ┃
- ┗━━━━━━━━━┳━━━━━━━━━┛                                                    ┃
-           ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+┏━┻━━━━━━━━━┻━━━┻━━━┓       └───────╂─────────────────────────────┘       ┃
+┃ inbox.FeedUpdater ┣━━━━━━━━━━━━━━━┛                                     ┃
+┗━━━━━━━━━┳━━━━━━━━━┛                                                     ┃
+          ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
 To speed up each user's feed, [inbox.FeedUpdater](https://pkg.go.dev/github.com/dimkr/tootik/inbox#FeedUpdater) periodically updates the `feed` table. This table holds all information that appers in the user's feed: posts written or shared by followed users, author information and more, eliminating the need for `join` queries, slow filtering by post visibility and sorting every time a user views their feed. This table is indexed by user and time, allowing fast querying of a single feed page for a particular user.
