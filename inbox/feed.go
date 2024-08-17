@@ -21,7 +21,6 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
-	"time"
 )
 
 type FeedUpdater struct {
