@@ -31,90 +31,90 @@ type FeedUpdater struct {
 }
 
 func (u FeedUpdater) Run(ctx context.Context) error {
-	deadline := time.Now().Add(-u.Config.FeedTTL).Unix()
-
 	if _, err := u.DB.ExecContext(
 		ctx,
 		`delete from feed where inserted < ?`,
-		deadline,
+		time.Now().Add(-u.Config.FeedTTL).Unix(),
 	); err != nil {
 		return err
+	}
+
+	var since sql.NullInt64
+	if err := u.DB.QueryRowContext(ctx, `select max(inserted) from feed`).Scan(&since); err != nil {
+		return err
+	}
+	if !since.Valid {
+		since.Int64 = 0
 	}
 
 	if _, err := u.DB.ExecContext(
 		ctx,
 		`
 			insert into feed(follower, note, author, sharer, inserted)
-			select follower, note, author, sharer, inserted from
-			(
-				select follower, note, author, null as sharer, inserted from
+			select follows.follower, notes.object as note, persons.actor as author, null as sharer, notes.inserted from
+			follows
+			join
+			persons
+			on
+				persons.id = follows.followed
+			join
+			notes
+			on
+				notes.author = follows.followed and
 				(
-					select follows.follower, notes.object as note, persons.actor as author, notes.inserted from
-					follows
-					join
-					persons
-					on
-						persons.id = follows.followed
-					join
-					notes
-					on
-						notes.author = follows.followed and
-						(
-							notes.public = 1 or
-							persons.actor->>'$.followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-							follows.follower in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers' or value = follows.follower)) or
-							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers' or value = follows.follower))
-						)
-					where
-						follows.follower like $1 and
-						notes.inserted >= $2 and
-						not exists (select 1 from feed where feed.follower = follows.follower and feed.note = notes.id and feed.sharer is null)
-					union
-					select myposts.author as follower, notes.object as note, authors.actor as author, notes.inserted from
-					notes myposts
-					join
-					notes
-					on
-						notes.object->>'$.inReplyTo' = myposts.id
-					join
-					persons authors
-					on
-						authors.id = notes.author
-					where
-						notes.author != myposts.author and
-						notes.inserted >= $2 and
-						myposts.author like $1 and
-						not exists (select 1 from feed where feed.follower = notes.author and feed.note = notes.id and feed.sharer is null)
+					notes.public = 1 or
+					persons.actor->>'$.followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+					follows.follower in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers' or value = follows.follower)) or
+					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers' or value = follows.follower))
 				)
-				union
-				select follows.follower, notes.object as note, authors.actor as author, sharers.actor as sharer, shares.inserted from
-				follows
-				join
-				shares
-				on
-					shares.by = follows.followed
-				join
-				notes
-				on
-					notes.id = shares.note
-				join
-				persons authors
-				on
-					authors.id = notes.author
-				join
-				persons sharers
-				on
-					sharers.id = follows.followed
-				where
-					notes.public = 1 and
-					shares.inserted >= $2 and
-					follows.follower like $1 and
-					not exists (select 1 from feed where feed.follower = follows.follower and feed.note = notes.id and feed.sharer = sharers.id)
-			)
+			where
+				follows.follower like $1 and
+				notes.inserted >= $2 and
+				not exists (select 1 from feed where feed.follower = follows.follower and feed.note = notes.id and feed.sharer is null)
+			union
+			select myposts.author as follower, notes.object as note, authors.actor as author, null as sharer, notes.inserted from
+			notes myposts
+			join
+			notes
+			on
+				notes.object->>'$.inReplyTo' = myposts.id
+			join
+			persons authors
+			on
+				authors.id = notes.author
+			where
+				notes.author != myposts.author and
+				notes.inserted >= $2 and
+				myposts.author like $1 and
+				not exists (select 1 from feed where feed.follower = notes.author and feed.note = notes.id and feed.sharer is null)
+			union all
+			select follows.follower, notes.object as note, authors.actor as author, sharers.actor as sharer, shares.inserted from
+			follows
+			join
+			shares
+			on
+				shares.by = follows.followed
+			join
+			notes
+			on
+				notes.id = shares.note
+			join
+			persons authors
+			on
+				authors.id = notes.author
+			join
+			persons sharers
+			on
+				sharers.id = follows.followed
+			where
+				notes.public = 1 and
+				shares.inserted >= $2 and
+				follows.follower like $1 and
+				not exists (select 1 from feed where feed.follower = follows.follower and feed.note = notes.id and feed.sharer = sharers.id)
 		`,
 		fmt.Sprintf("https://%s/%%", u.Domain),
-		deadline,
+		since.Int64,
 	); err != nil {
 		return err
 	}
