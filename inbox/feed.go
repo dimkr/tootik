@@ -31,14 +31,6 @@ type FeedUpdater struct {
 }
 
 func (u FeedUpdater) Run(ctx context.Context) error {
-	if _, err := u.DB.ExecContext(
-		ctx,
-		`delete from feed where inserted < ?`,
-		time.Now().Add(-u.Config.FeedTTL).Unix(),
-	); err != nil {
-		return err
-	}
-
 	since := int64(0)
 	var ts sql.NullInt64
 	if err := u.DB.QueryRowContext(ctx, `select max(inserted) from feed`).Scan(&ts); err != nil {

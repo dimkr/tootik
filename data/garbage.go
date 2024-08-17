@@ -78,5 +78,9 @@ func (gc *GarbageCollector) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to remove idle actors: %w", err)
 	}
 
+	if _, err := gc.DB.ExecContext(ctx,`delete from feed where inserted < ?`,now.Add(-gc.Config.FeedTTL).Unix()); err != nil {
+		return fmt.Errorf("failed to tri feed: %w", err)
+	}
+
 	return nil
 }
