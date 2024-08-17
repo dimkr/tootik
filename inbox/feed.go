@@ -37,10 +37,12 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 	}
 	defer tx.Rollback()
 
+	deadline := time.Now().Add(-u.Config.FeedTTL).Unix()
+
 	if _, err := tx.ExecContext(
 		ctx,
 		`delete from feed where inserted < ?`,
-		time.Now().Add(-u.Config.FeedTTL).Unix(),
+		deadline,
 	); err != nil {
 		return err
 	}
@@ -72,6 +74,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 						)
 					where
 						follows.follower like $1 and
+						notes.inserted >= $2 and
 						not exists (select 1 from feed where feed.follower = follows.follower and feed.note = notes.id and feed.sharer is null)
 					union
 					select myposts.author as follower, notes.object as note, authors.actor as author, notes.inserted from
@@ -86,6 +89,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 						authors.id = notes.author
 					where
 						notes.author != myposts.author and
+						notes.inserted >= $2 and
 						myposts.author like $1 and
 						not exists (select 1 from feed where feed.follower = notes.author and feed.note = notes.id and feed.sharer is null)
 				)
@@ -110,11 +114,13 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 					sharers.id = follows.followed
 				where
 					notes.public = 1 and
+					notes.inserted >= $2 and
 					follows.follower like $1 and
 					not exists (select 1 from feed where feed.follower = follows.follower and feed.note = notes.id and feed.sharer = sharers.id)
 			)
 		`,
 		fmt.Sprintf("https://%s/%%", u.Domain),
+		deadline,
 	); err != nil {
 		return err
 	}

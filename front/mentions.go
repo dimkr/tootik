@@ -39,8 +39,8 @@ func (h *Handler) mentions(w text.Writer, r *request, args ...string) {
 				where
 					follower = $1 and
 					(
-						exists (select 1 from json_each(note->'$.to') where value = $1)) or
-						exists (select 1 from json_each(note->'$.cc') where value = $1))
+						exists (select 1 from json_each(note->'$.to') where value = $1) or
+						exists (select 1 from json_each(note->'$.cc') where value = $1)
 					)
 				order by
 					inserted desc
