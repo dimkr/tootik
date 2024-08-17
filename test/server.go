@@ -116,10 +116,12 @@ func newTestServer() *server {
 }
 
 func (s *server) Handle(request string, user *ap.Actor) string {
-	if request == "/users" {
-		if err := (inbox.FeedUpdater{Domain: domain, Config: s.cfg, DB: s.db}).Run(context.Background()); err != nil {
-			panic(err)
-		}
+	if _, err := s.db.Exec(`DELETE FROM feed`); err != nil {
+		panic(err)
+	}
+
+	if err := (inbox.FeedUpdater{Domain: domain, Config: s.cfg, DB: s.db}).Run(context.Background()); err != nil {
+		panic(err)
 	}
 
 	u, err := url.Parse(request)
@@ -130,16 +132,6 @@ func (s *server) Handle(request string, user *ap.Actor) string {
 	var buf bytes.Buffer
 	var wg sync.WaitGroup
 	s.handler.Handle(context.Background(), slog.Default(), nil, gmi.Wrap(&buf), u, user, httpsig.Key{}, s.db, fed.NewResolver(nil, domain, s.cfg, &http.Client{}), &wg)
-
-	if strings.HasPrefix(request, "/users/follow/") || strings.HasPrefix(request, "/users/unfollow/") {
-		if _, err := s.db.Exec(`DELETE FROM feed`); err != nil {
-			panic(err)
-		}
-
-		if err := (inbox.FeedUpdater{Domain: domain, Config: s.cfg, DB: s.db}).Run(context.Background()); err != nil {
-			panic(err)
-		}
-	}
 
 	return buf.String()
 }
