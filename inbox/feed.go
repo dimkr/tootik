@@ -74,7 +74,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 						follows.follower like $1 and
 						not exists (select 1 from feed where feed.follower = follows.follower and feed.note = notes.id and feed.sharer is null)
 					union
-					select myposts.author as follower, notes.id as note, notes.author, notes.inserted from
+					select myposts.author as follower, notes.object as note, authors.actor as author, notes.inserted from
 					notes myposts
 					join
 					notes
