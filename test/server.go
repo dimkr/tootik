@@ -34,6 +34,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"log/slog"
 	"net/http"
+
 	"net/url"
 	"os"
 )
@@ -115,12 +116,14 @@ func newTestServer() *server {
 }
 
 func (s *server) Handle(request string, user *ap.Actor) string {
-	if _, err := s.db.Exec(`DELETE FROM feed`); err != nil {
-		panic(err)
-	}
+	if request == "/users" {
+		if _, err := s.db.Exec(`DELETE FROM feed`); err != nil {
+			panic(err)
+		}
 
-	if err := (inbox.FeedUpdater{Domain: domain, Config: s.cfg, DB: s.db}).Run(context.Background()); err != nil {
-		panic(err)
+		if err := (inbox.FeedUpdater{Domain: domain, Config: s.cfg, DB: s.db}).Run(context.Background()); err != nil {
+			panic(err)
+		}
 	}
 
 	u, err := url.Parse(request)
