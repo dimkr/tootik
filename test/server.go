@@ -131,7 +131,7 @@ func (s *server) Handle(request string, user *ap.Actor) string {
 	var wg sync.WaitGroup
 	s.handler.Handle(context.Background(), slog.Default(), nil, gmi.Wrap(&buf), u, user, httpsig.Key{}, s.db, fed.NewResolver(nil, domain, s.cfg, &http.Client{}), &wg)
 
-	if strings.HasPrefix(request, "/users/unfollow/") {
+	if strings.HasPrefix(request, "/users/follow/") || strings.HasPrefix(request, "/users/unfollow/") {
 		if _, err := s.db.Exec(`DELETE FROM feed`); err != nil {
 			panic(err)
 		}
