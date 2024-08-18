@@ -62,7 +62,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 			where
 				follows.follower like $1 and
 				notes.inserted >= $2 and
-				not exists (select 1 from feed where feed.follower = follows.follower and feed.note = notes.id and feed.sharer is null)
+				not exists (select 1 from feed where feed.follower = follows.follower and feed.note->>'$.id' = notes.id and feed.sharer is null)
 			union
 			select myposts.author as follower, notes.object as note, authors.actor as author, null as sharer, notes.inserted from
 			notes myposts
@@ -78,7 +78,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 				notes.author != myposts.author and
 				notes.inserted >= $2 and
 				myposts.author like $1 and
-				not exists (select 1 from feed where feed.follower = notes.author and feed.note = notes.id and feed.sharer is null)
+				not exists (select 1 from feed where feed.follower = notes.author and feed.note->>'$.id' = notes.id and feed.sharer is null)
 			union all
 			select follows.follower, notes.object as note, authors.actor as author, sharers.actor as sharer, shares.inserted from
 			follows
@@ -102,7 +102,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 				notes.public = 1 and
 				shares.inserted >= $2 and
 				follows.follower like $1 and
-				not exists (select 1 from feed where feed.follower = follows.follower and feed.note = notes.id and feed.sharer = sharers.id)
+				not exists (select 1 from feed where feed.follower = follows.follower and feed.note->>'$.id' = notes.id and feed.sharer = sharers.id)
 		`,
 		fmt.Sprintf("https://%s/%%", u.Domain),
 		since,
