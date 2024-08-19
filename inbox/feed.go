@@ -61,8 +61,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 				)
 			where
 				follows.follower like $1 and
-				notes.inserted >= $2 and
-				not exists (select 1 from feed where feed.follower = follows.follower and feed.note->>'$.id' = notes.id and feed.sharer is null)
+				notes.inserted >= $2
 			union
 			select myposts.author as follower, notes.object as note, authors.actor as author, null as sharer, notes.inserted from
 			notes myposts
@@ -77,8 +76,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 			where
 				notes.author != myposts.author and
 				notes.inserted >= $2 and
-				myposts.author like $1 and
-				not exists (select 1 from feed where feed.follower = notes.author and feed.note->>'$.id' = notes.id and feed.sharer is null)
+				myposts.author like $1
 			union all
 			select follows.follower, notes.object as note, authors.actor as author, sharers.actor as sharer, shares.inserted from
 			follows
@@ -101,8 +99,8 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 			where
 				notes.public = 1 and
 				shares.inserted >= $2 and
-				follows.follower like $1 and
-				not exists (select 1 from feed where feed.follower = follows.follower and feed.note->>'$.id' = notes.id and feed.sharer = sharers.id)
+				follows.follower like $1
+			on conflict(note->>'$.id', sharer->>'$.id') do nothing
 		`,
 		fmt.Sprintf("https://%s/%%", u.Domain),
 		since,
