@@ -27,6 +27,7 @@ import (
 	"github.com/dimkr/tootik/data"
 	"net/http"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 )
@@ -123,7 +124,7 @@ func Extract(r *http.Request, body []byte, domain string, maxAge time.Duration) 
 		rawHeaders.Store(strings.TrimSpace(h), struct{}{})
 	}
 
-	if len(rawHeaders) == 0 {
+	if len(slices.Collect(rawHeaders.Keys())) == 0 {
 		return nil, errors.New("empty headers list")
 	}
 
@@ -168,7 +169,7 @@ func Extract(r *http.Request, body []byte, domain string, maxAge time.Duration) 
 		}
 	}
 
-	s, err := buildSignatureString(r, rawHeaders.Keys())
+	s, err := buildSignatureString(r, slices.Collect(rawHeaders.Keys()))
 	if err != nil {
 		return nil, err
 	}

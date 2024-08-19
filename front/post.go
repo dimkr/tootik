@@ -26,6 +26,7 @@ import (
 	"github.com/dimkr/tootik/front/text/plain"
 	"github.com/dimkr/tootik/outbox"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -170,28 +171,26 @@ func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo 
 	}
 
 	anyRecipient := false
-	note.To.Range(func(actorID string, _ struct{}) bool {
+	for actorID := range note.To.Keys() {
 		if actorID != r.User.ID {
 			anyRecipient = true
-			return false
+			break
 		}
-		return true
-	})
+	}
 	if !anyRecipient {
-		note.CC.Range(func(actorID string, _ struct{}) bool {
+		for actorID := range note.CC.Keys() {
 			if actorID != r.User.ID {
 				anyRecipient = true
-				return false
+				break
 			}
-			return true
-		})
+		}
 	}
 	if !anyRecipient {
 		w.Status(40, "Post audience is empty")
 		return
 	}
 
-	if len(note.To.OrderedMap)+len(note.CC.OrderedMap) > h.Config.MaxRecipients {
+	if len(slices.Collect(note.To.OrderedMap.Keys()))+len(slices.Collect(note.CC.OrderedMap.Keys())) > h.Config.MaxRecipients {
 		w.Status(40, "Too many recipients")
 		return
 	}

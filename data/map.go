@@ -16,46 +16,69 @@ limitations under the License.
 
 package data
 
+import (
+	"iter"
+	"slices"
+)
+
 type valueAndIndex[TV any] struct {
 	value TV
 	index int
 }
 
 // OrderedMap is a map that maintains insertion order. Listing of keys (using [OrderedMap.Keys]) iterates over keys and allocates memory.
-type OrderedMap[TK comparable, TV any] map[TK]valueAndIndex[TV]
+type OrderedMap[TK comparable, TV any] struct {
+	m    map[TK]valueAndIndex[TV]
+	keys []TK
+}
 
 // Contains determines if the map contains a key.
 func (m OrderedMap[TK, TV]) Contains(key TK) bool {
-	_, contains := m[key]
+	_, contains := m.m[key]
 	return contains
 }
 
 // Store adds a key/value pair to the map if the map doesn't contain it already.
 func (m OrderedMap[TK, TV]) Store(key TK, value TV) {
-	if _, dup := m[key]; !dup {
-		m[key] = valueAndIndex[TV]{value, len(m)}
+	if _, dup := m.m[key]; !dup {
+		if m.m == nil {
+			m.m = make(map[TK]valueAndIndex[TV], 1)
+		}
+		m.m[key] = valueAndIndex[TV]{value, len(m.m)}
 	}
 }
 
 // Keys returns a list of keys in the map.
 // To do so, it iterates over keys and allocates memory.
-func (m OrderedMap[TK, TV]) Keys() []TK {
-	l := make([]TK, len(m))
+func (m OrderedMap[TK, TV]) Keys() iter.Seq[TK] {
+	m.keys = slices.Grow(m.keys, len(m.m))
 
-	for k, v := range m {
-		l[v.index] = k
+	for k, v := range m.m {
+		if v.index < cap(m.keys) {
+			m.keys[v.index] = k
+		} else {
+			m.keys = append(m.keys, k)
+		}
 	}
 
-	return l
+	return func(yield func(TK) bool) {
+		for _, k := range m.keys {
+			if !yield(k) {
+				break
+			}
+		}
+	}
 }
 
-// Range iterates over the map and calls a callback for each key/value pair.
+// All iterates over the map and calls a callback for each key/value pair.
 // Iteration stops if the callback returns false.
-// Range calls [OrderedMap.Keys], therefore it allocates memory.
-func (m OrderedMap[TK, TV]) Range(f func(key TK, value TV) bool) {
-	for _, k := range m.Keys() {
-		if !f(k, m[k].value) {
-			break
+// All calls [OrderedMap.Keys], therefore it allocates memory.
+func (m OrderedMap[TK, TV]) All() iter.Seq2[TK, TV] {
+	return func(yield func(TK, TV) bool) {
+		for k := range m.Keys() {
+			if !yield(k, m.m[k].value) {
+				break
+			}
 		}
 	}
 }

@@ -31,6 +31,7 @@ import (
 	"github.com/dimkr/tootik/outbox"
 	"log/slog"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 )
@@ -68,8 +69,8 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 		return fmt.Errorf("ignoring post %s: %w", post.ID, fed.ErrBlockedDomain)
 	}
 
-	if len(post.To.OrderedMap)+len(post.CC.OrderedMap) > q.Config.MaxRecipients {
-		log.Warn("Post has too many recipients", "to", len(post.To.OrderedMap), "cc", len(post.CC.OrderedMap))
+	if len(slices.Collect(post.To.OrderedMap.Keys()))+len(slices.Collect(post.CC.OrderedMap.Keys())) > q.Config.MaxRecipients {
+		log.Warn("Post has too many recipients", "to", len(slices.Collect(post.To.OrderedMap.Keys())), "cc", len(slices.Collect(post.CC.OrderedMap.Keys())))
 		return nil
 	}
 
@@ -135,13 +136,11 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 		}
 	}
 
-	mentionedUsers.Range(func(id string, _ struct{}) bool {
+	for id := range mentionedUsers.Keys() {
 		if _, err := q.Resolver.ResolveID(ctx, log, q.DB, q.Key, id, 0); err != nil {
 			log.Warn("Failed to resolve mention", "mention", id, "error", err)
 		}
-
-		return true
-	})
+	}
 
 	return nil
 }
@@ -490,20 +489,20 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	}
 	rows.Close()
 
-	if len(activities) == 0 {
+	if len(slices.Collect(activities.Keys())) == 0 {
 		return 0, nil
 	}
 
-	activities.Range(func(activityString string, sender *ap.Actor) bool {
+	for activityString, sender := range activities.All() {
 		var activity ap.Activity
 		if err := json.Unmarshal([]byte(activityString), &activity); err != nil {
 			q.Log.Error("Failed to unmarshal activity", "raw", activityString, "error", err)
-			return true
+			continue
 		}
 
 		q.processActivityWithTimeout(ctx, sender, &activity, data.JSON(activityString))
-		return true
-	})
+		continue
+	}
 
 	if _, err := q.DB.ExecContext(ctx, `delete from inbox where id <= ?`, maxID); err != nil {
 		return 0, fmt.Errorf("failed to delete processed activities: %w", err)

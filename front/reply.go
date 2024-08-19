@@ -55,14 +55,12 @@ func (h *Handler) doReply(w text.Writer, r *request, args []string, readInput in
 		cc.Add(ap.Public)
 	} else {
 		to.Add(note.AttributedTo)
-		note.To.Range(func(id string, _ struct{}) bool {
+		for id := range note.To.Keys() {
 			cc.Add(id)
-			return true
-		})
-		note.CC.Range(func(id string, _ struct{}) bool {
+		}
+		for id := range note.CC.Keys() {
 			cc.Add(id)
-			return true
-		})
+		}
 	}
 
 	h.post(w, r, nil, &note, to, cc, note.Audience, readInput)

@@ -27,6 +27,7 @@ import (
 	"log/slog"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 )
@@ -206,12 +207,11 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 		}
 	}
 
-	inlineLinks.Range(func(link, alt string) bool {
+	for link, alt := range inlineLinks.All() {
 		if !mentionedUsers.Contains(link) {
 			links.Store(link, alt)
 		}
-		return true
-	})
+	}
 
 	for _, attachment := range note.Attachment {
 		if attachment.URL != "" {
@@ -256,22 +256,22 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 		meta := ""
 
 		// show link # only if at least one link doesn't point to the post
-		if note.URL == "" && len(links) > 0 {
-			meta += fmt.Sprintf(" %d🔗", len(links))
-		} else if note.URL != "" && len(links) > 1 {
-			meta += fmt.Sprintf(" %d🔗", len(links)-1)
+		if note.URL == "" && len(slices.Collect(links.Keys())) > 0 {
+			meta += fmt.Sprintf(" %d🔗", len(slices.Collect(links.Keys())))
+		} else if note.URL != "" && len(slices.Collect(links.Keys())) > 1 {
+			meta += fmt.Sprintf(" %d🔗", len(slices.Collect(links.Keys()))-1)
 		}
 
-		if len(hashtags) > 0 {
-			meta += fmt.Sprintf(" %d#️", len(hashtags))
+		if len(slices.Collect(hashtags.Keys())) > 0 {
+			meta += fmt.Sprintf(" %d#️", len(slices.Collect(hashtags.Keys())))
 		}
 
-		if len(mentionedUsers.OrderedMap) == 1 && (!parentAuthor.Valid || !mentionedUsers.Contains(parentAuthor.V.ID)) {
+		if len(slices.Collect(mentionedUsers.Keys())) == 1 && (!parentAuthor.Valid || !mentionedUsers.Contains(parentAuthor.V.ID)) {
 			meta += " 1👤"
-		} else if len(mentionedUsers.OrderedMap) > 1 && (!parentAuthor.Valid || !mentionedUsers.Contains(parentAuthor.V.ID)) {
-			meta += fmt.Sprintf(" %d👤", len(mentionedUsers.OrderedMap))
-		} else if len(mentionedUsers.OrderedMap) > 1 && parentAuthor.Valid && mentionedUsers.Contains(parentAuthor.V.ID) {
-			meta += fmt.Sprintf(" %d👤", len(mentionedUsers.OrderedMap)-1)
+		} else if len(slices.Collect(mentionedUsers.Keys())) > 1 && (!parentAuthor.Valid || !mentionedUsers.Contains(parentAuthor.V.ID)) {
+			meta += fmt.Sprintf(" %d👤", len(slices.Collect(mentionedUsers.Keys())))
+		} else if len(slices.Collect(mentionedUsers.Keys())) > 1 && parentAuthor.Valid && mentionedUsers.Contains(parentAuthor.V.ID) {
+			meta += fmt.Sprintf(" %d👤", len(slices.Collect(mentionedUsers.Keys()))-1)
 		}
 
 		if replies > 0 {
@@ -308,7 +308,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 			w.Link("/users/outbox/"+strings.TrimPrefix(author.ID, "https://"), authorDisplayName)
 		}
 
-		for _, mentionID := range mentionedUsers.Keys() {
+		for mentionID := range mentionedUsers.Keys() {
 			var mentionUserName string
 			if err := r.QueryRow(`select actor->>'$.preferredUsername' from persons where id = ?`, mentionID).Scan(&mentionUserName); err != nil && errors.Is(err, sql.ErrNoRows) {
 				r.Log.Warn("Mentioned user is unknown", "mention", mentionID)
@@ -400,20 +400,19 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 			}
 		}
 
-		links.Range(func(link string, alt string) bool {
+		for link, alt := range links.All() {
 			if alt == "" {
 				w.Link(link, link)
 			} else {
 				w.Link(link, alt)
 			}
-			return true
-		})
+		}
 
-		hashtags.Range(func(_ string, tag string) bool {
+		for _, tag := range hashtags.All() {
 			var exists int
 			if err := r.QueryRow(`select exists (select 1 from hashtags where hashtag = ? and note != ?)`, tag, note.ID).Scan(&exists); err != nil {
 				r.Log.Warn("Failed to check if hashtag is used by other posts", "note", note.ID, "hashtag", tag)
-				return true
+				continue
 			}
 
 			if exists == 1 && r.User == nil {
@@ -421,9 +420,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 			} else if exists == 1 {
 				w.Linkf("/users/hashtag/"+tag, "Posts tagged #%s", tag)
 			}
-
-			return true
-		})
+		}
 
 		if r.User != nil && note.AttributedTo == r.User.ID && note.Type != ap.Question && note.Name == "" { // polls and votes cannot be edited
 			w.Link("/users/edit/"+strings.TrimPrefix(note.ID, "https://"), "🩹 Edit")
