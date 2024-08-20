@@ -65,8 +65,19 @@ func (m OrderedMap[TK, TV]) Keys() iter.Seq[TK] {
 	}
 }
 
+// Values iterates over values in the map.
+// Values calls [OrderedMap.Keys], therefore it allocates memory.
+func (m OrderedMap[TK, TV]) Values() iter.Seq[TV] {
+	return func(yield func(TV) bool) {
+		for k := range m.Keys() {
+			if !yield(m[k].value) {
+				break
+			}
+		}
+	}
+}
+
 // All iterates over the map and calls a callback for each key/value pair.
-// Iteration stops if the callback returns false.
 // All calls [OrderedMap.Keys], therefore it allocates memory.
 func (m OrderedMap[TK, TV]) All() iter.Seq2[TK, TV] {
 	return func(yield func(TK, TV) bool) {

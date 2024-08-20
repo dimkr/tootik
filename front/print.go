@@ -407,7 +407,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 			}
 		}
 
-		for _, tag := range hashtags.All() {
+		for tag := range hashtags.Values() {
 			var exists int
 			if err := r.QueryRow(`select exists (select 1 from hashtags where hashtag = ? and note != ?)`, tag, note.ID).Scan(&exists); err != nil {
 				r.Log.Warn("Failed to check if hashtag is used by other posts", "note", note.ID, "hashtag", tag)
