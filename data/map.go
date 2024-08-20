@@ -35,9 +35,6 @@ func (m OrderedMap[TK, TV]) Contains(key TK) bool {
 // Store adds a key/value pair to the map if the map doesn't contain it already.
 func (m OrderedMap[TK, TV]) Store(key TK, value TV) {
 	if _, dup := m[key]; !dup {
-		if m == nil {
-			m = make(map[TK]valueAndIndex[TV], 1)
-		}
 		m[key] = valueAndIndex[TV]{value, len(m)}
 	}
 }
