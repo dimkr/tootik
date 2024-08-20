@@ -62,7 +62,7 @@ func (l *Listener) handleIcon(w http.ResponseWriter, r *http.Request) {
 
 	buf, err := icon.Generate(name)
 	if err != nil {
-		l.Log.Warn("Failed to generate icon", name, "error", err)
+		l.Log.Warn("Failed to generate icon", "name", name, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
