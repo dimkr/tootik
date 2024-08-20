@@ -500,7 +500,6 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		}
 
 		q.processActivityWithTimeout(ctx, sender, &activity, data.JSON(activityString))
-		continue
 	}
 
 	if _, err := q.DB.ExecContext(ctx, `delete from inbox where id <= ?`, maxID); err != nil {
