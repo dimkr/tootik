@@ -30,6 +30,10 @@ type Audience struct {
 }
 
 func (a *Audience) Add(s string) {
+	if a.OrderedMap == nil {
+		a.OrderedMap = data.OrderedMap[string, struct{}]{}
+	}
+
 	a.OrderedMap.Store(s, struct{}{})
 }
 
@@ -58,6 +62,10 @@ func (a *Audience) UnmarshalJSON(b []byte) error {
 }
 
 func (a Audience) MarshalJSON() ([]byte, error) {
+	if a.OrderedMap == nil {
+		return []byte("[]"), nil
+	}
+
 	return json.Marshal(slices.Collect(a.Keys()))
 }
 
