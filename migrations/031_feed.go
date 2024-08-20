@@ -18,7 +18,7 @@ func feed(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE UNIQUE INDEX feednotesharer ON feed(note->>'$.id', sharer->>'$.id')`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX feednote ON feed(note->>'$.id')`); err != nil {
 		return err
 	}
 
