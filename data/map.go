@@ -16,10 +16,7 @@ limitations under the License.
 
 package data
 
-import (
-	"fmt"
-	"iter"
-)
+import "iter"
 
 type valueAndIndex[TV any] struct {
 	value TV
@@ -54,7 +51,6 @@ func (m OrderedMap[TK, TV]) Keys() iter.Seq[TK] {
 		next := 0
 
 		for k, v := range m {
-			fmt.Println(k, " ", v)
 			if l[next] != nil {
 				if !yield(*l[next]) {
 					break
