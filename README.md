@@ -163,9 +163,9 @@ Federation happens through two tables, `inbox` and `outbox`. Both contain [Activ
                 ┏━━━━━━━━━━━━━━━━━┓
                 ┃ gemini.Listener ┃
                 ┗━━━━━━━━┳━━━━━━━━┛
-                 ┏━━━━━━━┻━━━━━━━━━┓
-                 ┃  front.Handler  ┃
-                 ┗━━━━━━━━┳━━━━━━━━┛
+                ┏━━━━━━━━┻━━━━━━━━━┓
+                ┃  front.Handler   ┃
+                ┗━━━━━━━━━┳━━━━━━━━┛
 ┌───────┐ ┌────────┐ ┌────┸────┐ ┌─────────┐ ┌────────┐ ┌────────┐
 │ notes │ │ shares │ │ persons │ │ follows │ │ outbox │ │ inbox  │
 ├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├────────┤ ├────────┤
