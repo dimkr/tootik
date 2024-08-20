@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -143,12 +142,12 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 		}
 	}
 
-	if summary != "" || len(slices.Collect(links.Keys())) > 0 {
+	if summary != "" || len(links) > 0 {
 		conn.Write([]byte{'\r', '\n'})
 	}
 
 	i := 0
-	last := len(slices.Collect(posts.Keys())) - 1
+	last := len(posts) - 1
 	for content, inserted := range posts.All() {
 		text, links := plain.FromHTML(content)
 
@@ -177,7 +176,7 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 		i++
 	}
 
-	if len(slices.Collect(posts.Keys())) == 0 && summary == "" && len(slices.Collect(links.Keys())) == 0 {
+	if len(posts) == 0 && summary == "" && len(links) == 0 {
 		conn.Write([]byte("No Plan.\r\n"))
 	}
 }

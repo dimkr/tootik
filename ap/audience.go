@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dimkr/tootik/data"
+	"slices"
 )
 
 // Audience is an ordered, unique list of actor IDs.
@@ -57,7 +58,7 @@ func (a *Audience) UnmarshalJSON(b []byte) error {
 }
 
 func (a Audience) MarshalJSON() ([]byte, error) {
-	return json.Marshal(a.Keys())
+	return json.Marshal(slices.Collect(a.Keys()))
 }
 
 func (a *Audience) Scan(src any) error {

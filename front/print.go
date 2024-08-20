@@ -27,7 +27,6 @@ import (
 	"log/slog"
 	"net/url"
 	"regexp"
-	"slices"
 	"strings"
 	"time"
 )
@@ -256,22 +255,22 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 		meta := ""
 
 		// show link # only if at least one link doesn't point to the post
-		if note.URL == "" && len(slices.Collect(links.Keys())) > 0 {
-			meta += fmt.Sprintf(" %d🔗", len(slices.Collect(links.Keys())))
-		} else if note.URL != "" && len(slices.Collect(links.Keys())) > 1 {
-			meta += fmt.Sprintf(" %d🔗", len(slices.Collect(links.Keys()))-1)
+		if note.URL == "" && len(links) > 0 {
+			meta += fmt.Sprintf(" %d🔗", len(links))
+		} else if note.URL != "" && len(links) > 1 {
+			meta += fmt.Sprintf(" %d🔗", len(links)-1)
 		}
 
-		if len(slices.Collect(hashtags.Keys())) > 0 {
-			meta += fmt.Sprintf(" %d#️", len(slices.Collect(hashtags.Keys())))
+		if len(hashtags) > 0 {
+			meta += fmt.Sprintf(" %d#️", len(hashtags))
 		}
 
-		if len(slices.Collect(mentionedUsers.Keys())) == 1 && (!parentAuthor.Valid || !mentionedUsers.Contains(parentAuthor.V.ID)) {
+		if len(mentionedUsers.OrderedMap) == 1 && (!parentAuthor.Valid || !mentionedUsers.Contains(parentAuthor.V.ID)) {
 			meta += " 1👤"
-		} else if len(slices.Collect(mentionedUsers.Keys())) > 1 && (!parentAuthor.Valid || !mentionedUsers.Contains(parentAuthor.V.ID)) {
-			meta += fmt.Sprintf(" %d👤", len(slices.Collect(mentionedUsers.Keys())))
-		} else if len(slices.Collect(mentionedUsers.Keys())) > 1 && parentAuthor.Valid && mentionedUsers.Contains(parentAuthor.V.ID) {
-			meta += fmt.Sprintf(" %d👤", len(slices.Collect(mentionedUsers.Keys()))-1)
+		} else if len(mentionedUsers.OrderedMap) > 1 && (!parentAuthor.Valid || !mentionedUsers.Contains(parentAuthor.V.ID)) {
+			meta += fmt.Sprintf(" %d👤", len(mentionedUsers.OrderedMap))
+		} else if len(mentionedUsers.OrderedMap) > 1 && parentAuthor.Valid && mentionedUsers.Contains(parentAuthor.V.ID) {
+			meta += fmt.Sprintf(" %d👤", len(mentionedUsers.OrderedMap)-1)
 		}
 
 		if replies > 0 {

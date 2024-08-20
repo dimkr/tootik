@@ -26,7 +26,6 @@ import (
 	"github.com/dimkr/tootik/front/text/plain"
 	"github.com/dimkr/tootik/outbox"
 	"regexp"
-	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -190,7 +189,7 @@ func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo 
 		return
 	}
 
-	if len(slices.Collect(note.To.OrderedMap.Keys()))+len(slices.Collect(note.CC.OrderedMap.Keys())) > h.Config.MaxRecipients {
+	if len(note.To.OrderedMap)+len(note.CC.OrderedMap) > h.Config.MaxRecipients {
 		w.Status(40, "Too many recipients")
 		return
 	}

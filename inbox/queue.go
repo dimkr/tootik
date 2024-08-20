@@ -31,7 +31,6 @@ import (
 	"github.com/dimkr/tootik/outbox"
 	"log/slog"
 	"net/url"
-	"slices"
 	"strings"
 	"time"
 )
@@ -69,8 +68,8 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 		return fmt.Errorf("ignoring post %s: %w", post.ID, fed.ErrBlockedDomain)
 	}
 
-	if len(slices.Collect(post.To.OrderedMap.Keys()))+len(slices.Collect(post.CC.OrderedMap.Keys())) > q.Config.MaxRecipients {
-		log.Warn("Post has too many recipients", "to", len(slices.Collect(post.To.OrderedMap.Keys())), "cc", len(slices.Collect(post.CC.OrderedMap.Keys())))
+	if len(post.To.OrderedMap)+len(post.CC.OrderedMap) > q.Config.MaxRecipients {
+		log.Warn("Post has too many recipients", "to", len(post.To.OrderedMap), "cc", len(post.CC.OrderedMap))
 		return nil
 	}
 
@@ -489,7 +488,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	}
 	rows.Close()
 
-	if len(slices.Collect(activities.Keys())) == 0 {
+	if len(activities) == 0 {
 		return 0, nil
 	}
 

@@ -24,7 +24,6 @@ import (
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/text/plain"
-	"slices"
 	"strings"
 	"time"
 )
@@ -267,7 +266,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 			}
 
 			raw, links := plain.FromHTML(prop.Value)
-			if len(slices.Collect(links.Keys())) > 1 {
+			if len(links) > 1 {
 				continue
 			}
 
@@ -275,7 +274,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 				w.Empty()
 			}
 
-			if len(slices.Collect(links.Keys())) == 0 {
+			if len(links) == 0 {
 				w.Textf("%s: %s", prop.Name, raw)
 			} else {
 				for link := range links.Keys() {

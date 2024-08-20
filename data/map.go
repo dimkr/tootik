@@ -17,8 +17,8 @@ limitations under the License.
 package data
 
 import (
+	"fmt"
 	"iter"
-	"slices"
 )
 
 type valueAndIndex[TV any] struct {
@@ -27,44 +27,46 @@ type valueAndIndex[TV any] struct {
 }
 
 // OrderedMap is a map that maintains insertion order. Listing of keys (using [OrderedMap.Keys]) iterates over keys and allocates memory.
-type OrderedMap[TK comparable, TV any] struct {
-	m    map[TK]valueAndIndex[TV]
-	keys []TK
-}
+type OrderedMap[TK comparable, TV any] map[TK]valueAndIndex[TV]
 
 // Contains determines if the map contains a key.
 func (m OrderedMap[TK, TV]) Contains(key TK) bool {
-	_, contains := m.m[key]
+	_, contains := m[key]
 	return contains
 }
 
 // Store adds a key/value pair to the map if the map doesn't contain it already.
 func (m OrderedMap[TK, TV]) Store(key TK, value TV) {
-	if _, dup := m.m[key]; !dup {
-		if m.m == nil {
-			m.m = make(map[TK]valueAndIndex[TV], 1)
+	if _, dup := m[key]; !dup {
+		if m == nil {
+			m = make(map[TK]valueAndIndex[TV], 1)
 		}
-		m.m[key] = valueAndIndex[TV]{value, len(m.m)}
+		m[key] = valueAndIndex[TV]{value, len(m)}
 	}
 }
 
-// Keys returns a list of keys in the map.
-// To do so, it iterates over keys and allocates memory.
+// Keys iterates over keys in the map.
+// It allocates memory.
 func (m OrderedMap[TK, TV]) Keys() iter.Seq[TK] {
-	m.keys = slices.Grow(m.keys, len(m.m))
-
-	for k, v := range m.m {
-		if v.index < cap(m.keys) {
-			m.keys[v.index] = k
-		} else {
-			m.keys = append(m.keys, k)
-		}
-	}
+	l := make([]*TK, len(m))
 
 	return func(yield func(TK) bool) {
-		for _, k := range m.keys {
-			if !yield(k) {
-				break
+		next := 0
+
+		for k, v := range m {
+			fmt.Println(k, " ", v)
+			if l[next] != nil {
+				if !yield(*l[next]) {
+					break
+				}
+				next++
+			} else if v.index == next {
+				if !yield(k) {
+					break
+				}
+				next++
+			} else {
+				l[v.index] = &k
 			}
 		}
 	}
@@ -76,7 +78,7 @@ func (m OrderedMap[TK, TV]) Keys() iter.Seq[TK] {
 func (m OrderedMap[TK, TV]) All() iter.Seq2[TK, TV] {
 	return func(yield func(TK, TV) bool) {
 		for k := range m.Keys() {
-			if !yield(k, m.m[k].value) {
+			if !yield(k, m[k].value) {
 				break
 			}
 		}

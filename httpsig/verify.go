@@ -124,7 +124,7 @@ func Extract(r *http.Request, body []byte, domain string, maxAge time.Duration) 
 		rawHeaders.Store(strings.TrimSpace(h), struct{}{})
 	}
 
-	if len(slices.Collect(rawHeaders.Keys())) == 0 {
+	if len(rawHeaders) == 0 {
 		return nil, errors.New("empty headers list")
 	}
 
