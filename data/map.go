@@ -48,13 +48,13 @@ func (m OrderedMap[TK, TV]) Keys() iter.Seq[TK] {
 		next := 0
 
 		for k, v := range m {
-			if l[next] != nil {
-				if !yield(*l[next]) {
+			if v.index == next {
+				if !yield(k) {
 					break
 				}
 				next++
-			} else if v.index == next {
-				if !yield(k) {
+			} else if l[next] != nil {
+				if !yield(*l[next]) {
 					break
 				}
 				next++
