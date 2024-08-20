@@ -42,7 +42,8 @@ func (m OrderedMap[TK, TV]) Store(key TK, value TV) {
 // Keys iterates over keys in the map.
 // It allocates memory.
 func (m OrderedMap[TK, TV]) Keys() iter.Seq[TK] {
-	l := make([]*TK, len(m))
+	have := len(m)
+	l := make([]*TK, have)
 
 	return func(yield func(TK) bool) {
 		next := 0
@@ -50,17 +51,28 @@ func (m OrderedMap[TK, TV]) Keys() iter.Seq[TK] {
 		for k, v := range m {
 			if v.index == next {
 				if !yield(k) {
-					break
+					return
 				}
 				next++
-			} else if l[next] != nil {
-				if !yield(*l[next]) {
-					break
-				}
-				next++
-			} else {
-				l[v.index] = &k
+				continue
 			}
+
+			l[v.index] = &k
+
+			if l[next] != nil {
+				if !yield(*l[next]) {
+					return
+				}
+
+				next++
+			}
+		}
+
+		for next < have {
+			if !yield(*l[next]) {
+				break
+			}
+			next++
 		}
 	}
 }
