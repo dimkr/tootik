@@ -160,12 +160,12 @@ Federation happens through two tables, `inbox` and `outbox`. Both contain [Activ
 `inbox` contains activities by users on other servers, while `outbox` contains activities of local users.
 
 ```
-                    ┏━━━━━━━━━━━━━━━━━┓
-                    ┃ gemini.Listener ┃
-                    ┗━━━━━━━━┳━━━━━━━━┛
-                    ┏━━━━━━━━┻━━━━━━━━┓
-                    ┃  front.Handler  ┃
-                    ┗━━━━━┳━━━━━━━━━━━┛
+                ┏━━━━━━━━━━━━━━━━━┓
+                ┃ gemini.Listener ┃
+                ┗━━━━━━━━┳━━━━━━━━┛
+                 ┏━━━━━━━┻━━━━━━━━━┓
+                 ┃  front.Handler  ┃
+                 ┗━━━━━━━━┳━━━━━━━━┛
 ┌───────┐ ┌────────┐ ┌────┸────┐ ┌─────────┐ ┌────────┐ ┌────────┐
 │ notes │ │ shares │ │ persons │ │ follows │ │ outbox │ │ inbox  │
 ├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├────────┤ ├────────┤
