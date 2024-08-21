@@ -335,12 +335,39 @@ func (r *Resolver) tryResolve(ctx context.Context, log *slog.Logger, db *sql.DB,
 		return nil, cachedActor, fmt.Errorf("%s does not match %s", actor.ID, profile)
 	}
 
-	if _, err := db.ExecContext(
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
+	}
+
+	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO persons(id, actor, fetched) VALUES($1, $2, UNIXEPOCH()) ON CONFLICT(id) DO UPDATE SET actor = $2, updated = UNIXEPOCH()`,
 		actor.ID,
 		string(body),
 	); err != nil {
+		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`UPDATE feed SET author = ? WHERE author->>'$.id' = ?`,
+		string(body),
+		actor.ID,
+	); err != nil {
+		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`UPDATE feed SET sharer = ? WHERE sharer->>'$.id' = ?`,
+		string(body),
+		actor.ID,
+	); err != nil {
+		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
+	}
+
+	if err := tx.Commit(); err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
 	}
 
