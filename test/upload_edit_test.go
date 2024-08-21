@@ -17,7 +17,9 @@ limitations under the License.
 package test
 
 import (
+	"context"
 	"fmt"
+	"github.com/dimkr/tootik/inbox"
 	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
@@ -32,6 +34,8 @@ func TestUploadEdit_HappyFlow(t *testing.T) {
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
+
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
@@ -48,6 +52,8 @@ func TestUploadEdit_HappyFlow(t *testing.T) {
 	edit := server.Upload(fmt.Sprintf("/users/upload/edit/%s;mime=text/plain;size=15", id), server.Bob, []byte("Hello followers"))
 	assert.Equal(fmt.Sprintf("30 gemini://%s/users/view/%s\r\n", domain, id), edit)
 
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+
 	users = server.Handle("/users", server.Alice)
 	assert.NotContains(users, "No posts.")
 	assert.Contains(users, "Hello followers")
@@ -55,9 +61,7 @@ func TestUploadEdit_HappyFlow(t *testing.T) {
 	edit = server.Upload(fmt.Sprintf("/users/upload/edit/%s;mime=text/plain;size=16", id), server.Bob, []byte("Hello, followers"))
 	assert.Equal("40 Please try again later\r\n", edit)
 
-	users = server.Handle("/users", server.Alice)
-	assert.NotContains(users, "No posts.")
-	assert.Contains(users, "Hello followers")
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	users = server.Handle("/users", server.Alice)
 	assert.NotContains(users, "No posts.")
@@ -72,6 +76,8 @@ func TestUploadEdit_Empty(t *testing.T) {
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
+
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
@@ -97,6 +103,8 @@ func TestUploadEdit_SizeLimit(t *testing.T) {
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
+
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
@@ -125,6 +133,8 @@ func TestUploadEdit_InvalidSize(t *testing.T) {
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello followers")
@@ -149,6 +159,8 @@ func TestUploadEdit_InvalidType(t *testing.T) {
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
+
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
@@ -175,6 +187,8 @@ func TestUploadEdit_NoSize(t *testing.T) {
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello followers")
@@ -199,6 +213,8 @@ func TestUploadEdit_NoType(t *testing.T) {
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
+
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
