@@ -17,7 +17,9 @@ limitations under the License.
 package test
 
 import (
+	"context"
 	"fmt"
+	"github.com/dimkr/tootik/inbox"
 	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
@@ -44,6 +46,8 @@ func TestReply_AuthorNotFollowed(t *testing.T) {
 	view = server.Handle("/users/view/"+id, server.Alice)
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
+
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	users := server.Handle("/users", server.Bob)
 	assert.Contains(users, "Welcome Bob")
@@ -78,6 +82,8 @@ func TestReply_AuthorFollowed(t *testing.T) {
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+
 	users := server.Handle("/users", server.Bob)
 	assert.Contains(users, "Welcome Bob")
 
@@ -111,6 +117,8 @@ func TestReply_PostToFollowers(t *testing.T) {
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+
 	users := server.Handle("/users", server.Bob)
 	assert.Contains(users, "Welcome Bob")
 
@@ -139,6 +147,8 @@ func TestReply_PostToFollowersNotFollowing(t *testing.T) {
 
 	view = server.Handle("/users/view/"+id, server.Alice)
 	assert.Equal("40 Post not found\r\n", view)
+
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	users := server.Handle("/users", server.Bob)
 	assert.NotContains(users, "Welcome Bob")
@@ -176,6 +186,8 @@ func TestReply_PostToFollowersUnfollowedBeforeReply(t *testing.T) {
 	assert.NotContains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+
 	users := server.Handle("/users", server.Bob)
 	assert.NotContains(users, "Welcome Bob")
 
@@ -210,6 +222,8 @@ func TestReply_PostToFollowersUnfollowedAfterReply(t *testing.T) {
 
 	view = server.Handle("/users/view/"+id, server.Alice)
 	assert.Equal("40 Post not found\r\n", view)
+
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	users := server.Handle("/users", server.Bob)
 	assert.Contains(users, "Welcome Bob")
@@ -247,6 +261,8 @@ func TestReply_SelfReply(t *testing.T) {
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome me")
 
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+
 	users := server.Handle("/users", server.Bob)
 	assert.NotContains(users, "Welcome me")
 
@@ -280,6 +296,8 @@ func TestReply_ReplyToPublicPostByFollowedUser(t *testing.T) {
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello world")
 	assert.NotContains(users, "Welcome Bob")
@@ -311,6 +329,8 @@ func TestReply_ReplyToPublicPostByNotFollowedUser(t *testing.T) {
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+
 	users := server.Handle("/users", server.Alice)
 	assert.NotContains(users, "Hello world")
 	assert.NotContains(users, "Welcome Bob")
@@ -332,6 +352,8 @@ func TestReply_DM(t *testing.T) {
 	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(users, "Hello Bob")
@@ -347,6 +369,8 @@ func TestReply_DM(t *testing.T) {
 
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hello%%20Bob", id), server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
+
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	users = server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
@@ -369,6 +393,8 @@ func TestReply_DMUnfollowed(t *testing.T) {
 	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(users, "Hello Bob")
@@ -387,6 +413,8 @@ func TestReply_DMUnfollowed(t *testing.T) {
 
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hello%%20Bob", id), server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
+
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	users = server.Handle("/users", server.Alice)
 	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
@@ -409,6 +437,8 @@ func TestReply_DMToAnotherUser(t *testing.T) {
 	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(users, "Hello Bob")
@@ -424,6 +454,8 @@ func TestReply_DMToAnotherUser(t *testing.T) {
 
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hello%%20Bob", id), server.Carol)
 	assert.Equal("40 Post not found\r\n", reply)
+
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	users = server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")

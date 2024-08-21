@@ -29,7 +29,6 @@ import (
 	"github.com/dimkr/tootik/front/text/gmi"
 	"github.com/dimkr/tootik/front/user"
 	"github.com/dimkr/tootik/httpsig"
-	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/migrations"
 	_ "github.com/mattn/go-sqlite3"
 	"log/slog"
@@ -116,16 +115,6 @@ func newTestServer() *server {
 }
 
 func (s *server) Handle(request string, user *ap.Actor) string {
-	if request == "/users" {
-		if _, err := s.db.Exec(`DELETE FROM feed`); err != nil {
-			panic(err)
-		}
-
-		if err := (inbox.FeedUpdater{Domain: domain, Config: s.cfg, DB: s.db}).Run(context.Background()); err != nil {
-			panic(err)
-		}
-	}
-
 	u, err := url.Parse(request)
 	if err != nil {
 		panic(err)

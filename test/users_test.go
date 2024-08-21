@@ -35,6 +35,8 @@ func TestUsers_NoPosts(t *testing.T) {
 
 	assert := assert.New(t)
 
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
 }
@@ -44,6 +46,8 @@ func TestUsers_UnauthenticatedUser(t *testing.T) {
 	defer server.Shutdown()
 
 	assert := assert.New(t)
+
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	users := server.Handle("/users", nil)
 	assert.Equal("30 /oops\r\n", users)
@@ -60,6 +64,8 @@ func TestUsers_DM(t *testing.T) {
 
 	dm := server.Handle("/users/dm?Hello%20%40alice", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
+
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello @alice")
@@ -80,6 +86,8 @@ func TestUsers_DMNotFollowing(t *testing.T) {
 	unfollow := server.Handle("/users/unfollow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), unfollow)
 
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+
 	users := server.Handle("/users", server.Alice)
 	assert.NotContains(users, "Hello @alice")
 }
@@ -96,6 +104,8 @@ func TestUsers_PostToFollowers(t *testing.T) {
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello world")
 }
@@ -108,6 +118,8 @@ func TestUsers_PostToFollowersNotFollowing(t *testing.T) {
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.NotContains(users, "Hello world")
@@ -125,6 +137,8 @@ func TestUsers_PublicPost(t *testing.T) {
 	say := server.Handle("/users/say?Hello%20world", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello world")
 }
@@ -137,6 +151,8 @@ func TestUsers_PublicPostNotFollowing(t *testing.T) {
 
 	say := server.Handle("/users/say?Hello%20world", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.NotContains(users, "Hello world")
@@ -187,6 +203,8 @@ func TestUsers_PublicPostShared(t *testing.T) {
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
+
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello world")
@@ -240,6 +258,8 @@ func TestUsers_PublicPostSharedNotFollowing(t *testing.T) {
 
 	unfollow := server.Handle("/users/unfollow/127.0.0.1/user/erin", server.Alice)
 	assert.Equal("30 /users/outbox/127.0.0.1/user/erin\r\n", unfollow)
+
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.NotContains(users, "Hello world")
