@@ -417,6 +417,48 @@ func TestReply_DMUnfollowed(t *testing.T) {
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	users = server.Handle("/users", server.Alice)
+	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.NotContains(users, "Hello Bob")
+
+	users = server.Handle("/users", server.Bob)
+	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.Contains(users, "Hello Bob")
+}
+
+func TestReply_DMUnfollowedBeforeFeedUpdate(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
+
+	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
+
+	users := server.Handle("/users", server.Alice)
+	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.NotContains(users, "Hello Bob")
+
+	users = server.Handle("/users", server.Bob)
+	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.NotContains(users, "Hello Bob")
+
+	id := dm[15 : len(dm)-2]
+
+	view := server.Handle("/users/view/"+id, server.Alice)
+	assert.Contains(view, "Hello @alice@localhost.localdomain:8443")
+
+	unfollow := server.Handle("/users/unfollow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), unfollow)
+
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hello%%20Bob", id), server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
+
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+
+	users = server.Handle("/users", server.Alice)
 	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(users, "Hello Bob")
 
