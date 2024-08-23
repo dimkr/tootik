@@ -114,14 +114,12 @@ func Extract(r *http.Request, body []byte, domain string, maxAge time.Duration) 
 		return nil, fmt.Errorf("failed to decode signature: %w", err)
 	}
 
-	fields := strings.Fields(strings.TrimSpace(strings.ToLower(headers)))
-	rawHeaders := make([]string, 0, len(fields))
+	rawHeaders := strings.Fields(strings.ToLower(headers))
 	uniqueHeaders := make(map[string]struct{}, len(fields))
-	for _, h := range fields {
+	for _, h := range rawHeaders {
 		if _, dup := uniqueHeaders[h]; dup {
 			return nil, errors.New("duplicate header: " + h)
 		}
-		rawHeaders = append(rawHeaders, strings.TrimSpace(h))
 		uniqueHeaders[h] = struct{}{}
 	}
 
