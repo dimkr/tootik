@@ -149,13 +149,11 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 		}
 	}
 
-	mentionedUsers.Range(func(id string, _ struct{}) bool {
+	for id := range mentionedUsers.Keys() {
 		if _, err := q.Resolver.ResolveID(ctx, log, q.DB, q.Key, id, 0); err != nil {
 			log.Warn("Failed to resolve mention", "mention", id, "error", err)
 		}
-
-		return true
-	})
+	}
 
 	return nil
 }
@@ -520,16 +518,15 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		return 0, nil
 	}
 
-	activities.Range(func(activityString string, sender *ap.Actor) bool {
+	for activityString, sender := range activities.All() {
 		var activity ap.Activity
 		if err := json.Unmarshal([]byte(activityString), &activity); err != nil {
 			q.Log.Error("Failed to unmarshal activity", "raw", activityString, "error", err)
-			return true
+			continue
 		}
 
 		q.processActivityWithTimeout(ctx, sender, &activity, data.JSON(activityString))
-		return true
-	})
+	}
 
 	if _, err := q.DB.ExecContext(ctx, `delete from inbox where id <= ?`, maxID); err != nil {
 		return 0, fmt.Errorf("failed to delete processed activities: %w", err)

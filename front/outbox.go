@@ -237,14 +237,13 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		for _, line := range summary {
 			w.Quote(line)
 		}
-		links.Range(func(link, alt string) bool {
+		for link, alt := range links.All() {
 			if alt == "" {
 				w.Link(link, link)
 			} else {
 				w.Linkf(link, "%s [%s]", link, alt)
 			}
-			return true
-		})
+		}
 	}
 
 	if offset == 0 {
@@ -278,10 +277,10 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 			if len(links) == 0 {
 				w.Textf("%s: %s", prop.Name, raw)
 			} else {
-				links.Range(func(link string, _ string) bool {
+				for link := range links.Keys() {
 					w.Linkf(link, prop.Name)
-					return false
-				})
+					break
+				}
 			}
 
 			firstProperty = false

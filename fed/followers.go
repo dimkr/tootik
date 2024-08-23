@@ -254,9 +254,9 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 		return err
 	}
 
-	local.Range(func(follower string, _ struct{}) bool {
+	for follower := range local.Keys() {
 		if remote.OrderedItems.Contains(follower) {
-			return true
+			continue
 		}
 
 		log.Info("Found unknown local follow", "followed", d.Followed, "follower", follower)
@@ -269,19 +269,17 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 		); err != nil {
 			log.Warn("Failed to remove local follow", "followed", d.Followed, "follower", follower, "error", err)
 		}
-
-		return true
-	})
+	}
 
 	prefix := fmt.Sprintf("https://%s/", domain)
 
-	remote.OrderedItems.Range(func(follower string, _ struct{}) bool {
+	for follower := range remote.OrderedItems.Keys() {
 		if local.Contains(follower) {
-			return true
+			continue
 		}
 
 		if !strings.HasPrefix(follower, prefix) {
-			return true
+			continue
 		}
 
 		log.Info("Found unknown remote follow", "followed", d.Followed, "follower", follower)
@@ -289,10 +287,10 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 		var exists int
 		if err := db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM persons WHERE id = ?)`, follower).Scan(&exists); err != nil {
 			log.Warn("Failed to check if follower exists", "followed", d.Followed, "follower", follower, "error", err)
-			return true
+			continue
 		} else if exists == 0 {
 			log.Info("Follower does not exist", "followed", d.Followed, "follower", follower)
-			return true
+			continue
 		}
 
 		var followID string
@@ -301,15 +299,13 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 			log.Warn("Using fake follow ID to remove unknown remote follow", "followed", d.Followed, "follower", follower, "id", followID)
 		} else if err != nil {
 			log.Warn("Failed to fetch follow ID of unknown remote follow", "followed", d.Followed, "follower", follower, "error", err)
-			return true
+			continue
 		}
 
 		if err := outbox.Unfollow(ctx, domain, log, db, follower, d.Followed, followID); err != nil {
 			log.Warn("Failed to remove remote follow", "followed", d.Followed, "follower", follower, "error", err)
 		}
-
-		return true
-	})
+	}
 
 	return nil
 }

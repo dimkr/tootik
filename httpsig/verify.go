@@ -24,7 +24,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/dimkr/tootik/data"
 	"net/http"
 	"regexp"
 	"strings"
@@ -115,32 +114,33 @@ func Extract(r *http.Request, body []byte, domain string, maxAge time.Duration) 
 		return nil, fmt.Errorf("failed to decode signature: %w", err)
 	}
 
-	rawHeaders := data.OrderedMap[string, struct{}]{}
-	for _, h := range strings.Fields(strings.TrimSpace(strings.ToLower(headers))) {
-		if rawHeaders.Contains(h) {
+	rawHeaders := strings.Fields(strings.ToLower(headers))
+	uniqueHeaders := make(map[string]struct{}, len(rawHeaders))
+	for _, h := range rawHeaders {
+		if _, dup := uniqueHeaders[h]; dup {
 			return nil, errors.New("duplicate header: " + h)
 		}
-		rawHeaders.Store(strings.TrimSpace(h), struct{}{})
+		uniqueHeaders[h] = struct{}{}
 	}
 
 	if len(rawHeaders) == 0 {
 		return nil, errors.New("empty headers list")
 	}
 
-	if !rawHeaders.Contains("(request-target)") {
+	if _, ok := uniqueHeaders["(request-target)"]; !ok {
 		return nil, errors.New("(request-target) is not signed")
 	}
 
-	if !rawHeaders.Contains("host") {
+	if _, ok := uniqueHeaders["host"]; !ok {
 		return nil, errors.New("host is not signed")
 	}
 
-	if !rawHeaders.Contains("date") {
+	if _, ok := uniqueHeaders["date"]; !ok {
 		return nil, errors.New("date is not signed")
 	}
 
 	if body != nil {
-		if !rawHeaders.Contains("digest") {
+		if _, ok := uniqueHeaders["digest"]; !ok {
 			return nil, errors.New("digest is not signed")
 		}
 
@@ -168,7 +168,7 @@ func Extract(r *http.Request, body []byte, domain string, maxAge time.Duration) 
 		}
 	}
 
-	s, err := buildSignatureString(r, rawHeaders.Keys())
+	s, err := buildSignatureString(r, rawHeaders)
 	if err != nil {
 		return nil, err
 	}

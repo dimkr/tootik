@@ -16,6 +16,8 @@ limitations under the License.
 
 package data
 
+import "iter"
+
 type valueAndIndex[TV any] struct {
 	value TV
 	index int
@@ -37,9 +39,70 @@ func (m OrderedMap[TK, TV]) Store(key TK, value TV) {
 	}
 }
 
-// Keys returns a list of keys in the map.
-// To do so, it iterates over keys and allocates memory.
-func (m OrderedMap[TK, TV]) Keys() []TK {
+// Keys iterates over keys in the map.
+// It allocates memory.
+func (m OrderedMap[TK, TV]) Keys() iter.Seq[TK] {
+	have := len(m)
+	l := make([]*TK, have)
+
+	return func(yield func(TK) bool) {
+		next := 0
+
+		for k, v := range m {
+			if v.index == next {
+				if !yield(k) {
+					return
+				}
+				next++
+				continue
+			}
+
+			l[v.index] = &k
+
+			if l[next] != nil {
+				if !yield(*l[next]) {
+					return
+				}
+
+				next++
+			}
+		}
+
+		for next < have {
+			if !yield(*l[next]) {
+				break
+			}
+			next++
+		}
+	}
+}
+
+// Values iterates over values in the map.
+// Values calls [OrderedMap.Keys], therefore it allocates memory.
+func (m OrderedMap[TK, TV]) Values() iter.Seq[TV] {
+	return func(yield func(TV) bool) {
+		for k := range m.Keys() {
+			if !yield(m[k].value) {
+				break
+			}
+		}
+	}
+}
+
+// All iterates over key/value pairs in the map.
+// All calls [OrderedMap.Keys], therefore it allocates memory.
+func (m OrderedMap[TK, TV]) All() iter.Seq2[TK, TV] {
+	return func(yield func(TK, TV) bool) {
+		for k := range m.Keys() {
+			if !yield(k, m[k].value) {
+				break
+			}
+		}
+	}
+}
+
+// CollectKeys returns a new slice of keys in the map.
+func (m OrderedMap[TK, TV]) CollectKeys() []TK {
 	l := make([]TK, len(m))
 
 	for k, v := range m {
@@ -47,15 +110,4 @@ func (m OrderedMap[TK, TV]) Keys() []TK {
 	}
 
 	return l
-}
-
-// Range iterates over the map and calls a callback for each key/value pair.
-// Iteration stops if the callback returns false.
-// Range calls [OrderedMap.Keys], therefore it allocates memory.
-func (m OrderedMap[TK, TV]) Range(f func(key TK, value TV) bool) {
-	for _, k := range m.Keys() {
-		if !f(k, m[k].value) {
-			break
-		}
-	}
 }

@@ -170,21 +170,19 @@ func (h *Handler) post(w text.Writer, r *request, oldNote *ap.Object, inReplyTo 
 	}
 
 	anyRecipient := false
-	note.To.Range(func(actorID string, _ struct{}) bool {
+	for actorID := range note.To.Keys() {
 		if actorID != r.User.ID {
 			anyRecipient = true
-			return false
+			break
 		}
-		return true
-	})
+	}
 	if !anyRecipient {
-		note.CC.Range(func(actorID string, _ struct{}) bool {
+		for actorID := range note.CC.Keys() {
 			if actorID != r.User.ID {
 				anyRecipient = true
-				return false
+				break
 			}
-			return true
-		})
+		}
 	}
 	if !anyRecipient {
 		w.Status(40, "Post audience is empty")

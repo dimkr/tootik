@@ -65,7 +65,7 @@ func (a Audience) MarshalJSON() ([]byte, error) {
 		return []byte("[]"), nil
 	}
 
-	return json.Marshal(a.Keys())
+	return json.Marshal(a.CollectKeys())
 }
 
 func (a *Audience) Scan(src any) error {

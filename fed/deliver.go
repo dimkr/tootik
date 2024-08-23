@@ -245,15 +245,13 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 
 	// deduplicate recipients or skip if we're forwarding an activity
 	if job.Activity.Actor == job.Sender.ID {
-		job.Activity.To.Range(func(id string, _ struct{}) bool {
+		for id := range job.Activity.To.Keys() {
 			recipients.Add(id)
-			return true
-		})
+		}
 
-		job.Activity.CC.Range(func(id string, _ struct{}) bool {
+		for id := range job.Activity.CC.Keys() {
 			recipients.Add(id)
-			return true
-		})
+		}
 	}
 
 	actorIDs := ap.Audience{}
@@ -280,20 +278,19 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 	}
 
 	// assume that all other federated recipients are actors and not collections
-	recipients.Range(func(recipient string, _ struct{}) bool {
+	for recipient := range recipients.Keys() {
 		actorIDs.Add(recipient)
-		return true
-	})
+	}
 
 	var author string
 	if obj, ok := job.Activity.Object.(*ap.Object); ok {
 		author = obj.AttributedTo
 	}
 
-	actorIDs.Range(func(actorID string, _ struct{}) bool {
+	for actorID := range actorIDs.Keys() {
 		if actorID == author || actorID == ap.Public {
 			q.Log.Debug("Skipping recipient", "to", actorID, "activity", job.Activity.ID)
-			return true
+			continue
 		}
 
 		to, err := q.Resolver.ResolveID(ctx, q.Log, q.DB, key, actorID, ap.Offline)
@@ -302,7 +299,7 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 			if !errors.Is(err, ErrActorGone) && !errors.Is(err, ErrBlockedDomain) {
 				events <- deliveryEvent{job, false}
 			}
-			return true
+			continue
 		}
 
 		// if possible, use the recipients's shared inbox and skip other recipients with the same shared inbox
@@ -318,12 +315,12 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 		if err != nil {
 			q.Log.Warn("Failed to create new request", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
 			events <- deliveryEvent{job, false}
-			return true
+			continue
 		}
 
 		if req.URL.Host == q.Domain {
 			q.Log.Debug("Skipping local recipient inbox", "to", actorID, "activity", job.Activity.ID, "inbox", inbox)
-			return true
+			continue
 		}
 
 		req.Header.Set("User-Agent", userAgent)
@@ -345,9 +342,7 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 			Request: req,
 			Inbox:   inbox,
 		}
-
-		return true
-	})
+	}
 
 	return nil
 }

@@ -206,12 +206,11 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 		}
 	}
 
-	inlineLinks.Range(func(link, alt string) bool {
+	for link, alt := range inlineLinks.All() {
 		if !mentionedUsers.Contains(link) {
 			links.Store(link, alt)
 		}
-		return true
-	})
+	}
 
 	for _, attachment := range note.Attachment {
 		if attachment.URL != "" {
@@ -308,7 +307,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 			w.Link("/users/outbox/"+strings.TrimPrefix(author.ID, "https://"), authorDisplayName)
 		}
 
-		for _, mentionID := range mentionedUsers.Keys() {
+		for mentionID := range mentionedUsers.Keys() {
 			var mentionUserName string
 			if err := r.QueryRow(`select actor->>'$.preferredUsername' from persons where id = ?`, mentionID).Scan(&mentionUserName); err != nil && errors.Is(err, sql.ErrNoRows) {
 				r.Log.Warn("Mentioned user is unknown", "mention", mentionID)
@@ -400,20 +399,19 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 			}
 		}
 
-		links.Range(func(link string, alt string) bool {
+		for link, alt := range links.All() {
 			if alt == "" {
 				w.Link(link, link)
 			} else {
 				w.Link(link, alt)
 			}
-			return true
-		})
+		}
 
-		hashtags.Range(func(_ string, tag string) bool {
+		for tag := range hashtags.Values() {
 			var exists int
 			if err := r.QueryRow(`select exists (select 1 from hashtags where hashtag = ? and note != ?)`, tag, note.ID).Scan(&exists); err != nil {
 				r.Log.Warn("Failed to check if hashtag is used by other posts", "note", note.ID, "hashtag", tag)
-				return true
+				continue
 			}
 
 			if exists == 1 && r.User == nil {
@@ -421,9 +419,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 			} else if exists == 1 {
 				w.Linkf("/users/hashtag/"+tag, "Posts tagged #%s", tag)
 			}
-
-			return true
-		})
+		}
 
 		if r.User != nil && note.AttributedTo == r.User.ID && note.Type != ap.Question && note.Name == "" { // polls and votes cannot be edited
 			w.Link("/users/edit/"+strings.TrimPrefix(note.ID, "https://"), "🩹 Edit")

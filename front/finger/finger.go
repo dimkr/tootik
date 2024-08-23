@@ -131,7 +131,7 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 		conn.Write([]byte{'\r', '\n'})
 	}
 
-	links.Range(func(link, alt string) bool {
+	for link, alt := range links.All() {
 		if !strings.Contains(summary, link) {
 			if alt == "" {
 				conn.Write([]byte(link))
@@ -140,9 +140,7 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 			}
 			conn.Write([]byte{'\r', '\n'})
 		}
-
-		return true
-	})
+	}
 
 	if summary != "" || len(links) > 0 {
 		conn.Write([]byte{'\r', '\n'})
@@ -150,7 +148,7 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 
 	i := 0
 	last := len(posts) - 1
-	posts.Range(func(content string, inserted int64) bool {
+	for content, inserted := range posts.All() {
 		text, links := plain.FromHTML(content)
 
 		conn.Write([]byte(time.Unix(inserted, 0).Format(time.DateOnly)))
@@ -160,7 +158,7 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 			conn.Write([]byte{'\r', '\n'})
 		}
 
-		links.Range(func(link, alt string) bool {
+		for link, alt := range links.All() {
 			if !strings.Contains(text, link) {
 				if alt == "" {
 					conn.Write([]byte(link))
@@ -169,17 +167,14 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 				}
 				conn.Write([]byte{'\r', '\n'})
 			}
-
-			return true
-		})
+		}
 
 		if i < last {
 			conn.Write([]byte{'\r', '\n'})
 		}
 
 		i++
-		return true
-	})
+	}
 
 	if len(posts) == 0 && summary == "" && len(links) == 0 {
 		conn.Write([]byte("No Plan.\r\n"))

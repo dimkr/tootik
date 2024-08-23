@@ -47,14 +47,13 @@ func Flatten(note *ap.Object) string {
 	b.WriteString(content)
 	b.WriteByte(' ')
 	b.WriteString(note.AttributedTo)
-	links.Range(func(link, alt string) bool {
+	for link, alt := range links.All() {
 		if alt == "" {
-			return true
+			continue
 		}
 		b.WriteByte(' ')
 		b.WriteString(link)
-		return true
-	})
+	}
 	return b.String()
 }
 

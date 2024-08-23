@@ -13,12 +13,12 @@ jobs:
       image: debian:bookworm-slim
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '>=1.22.0'
       - run: |
           apt-get update -qq
           apt-get install -y --no-install-recommends ca-certificates gcc libc6-dev
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.23.0'
       - run: |
           go generate ./migrations
           go vet ./...
