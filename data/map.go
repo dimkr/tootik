@@ -100,3 +100,14 @@ func (m OrderedMap[TK, TV]) All() iter.Seq2[TK, TV] {
 		}
 	}
 }
+
+// CollectKeys returns a new slice of keys in the map.
+func (m OrderedMap[TK, TV]) CollectKeys() []TK {
+	l := make([]TK, len(m))
+
+	for k, v := range m {
+		l[v.index] = k
+	}
+
+	return l
+}
