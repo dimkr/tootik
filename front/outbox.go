@@ -279,6 +279,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 			} else {
 				for link := range links.Keys() {
 					w.Linkf(link, prop.Name)
+					break
 				}
 			}
 
