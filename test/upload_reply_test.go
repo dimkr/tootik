@@ -17,7 +17,9 @@ limitations under the License.
 package test
 
 import (
+	"context"
 	"fmt"
+	"github.com/dimkr/tootik/inbox"
 	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
@@ -47,6 +49,8 @@ func TestUploadReply_PostToFollowers(t *testing.T) {
 	view = server.Handle("/users/view/"+id, server.Alice)
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
+
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	users := server.Handle("/users", server.Bob)
 	assert.Contains(users, "Welcome Bob")

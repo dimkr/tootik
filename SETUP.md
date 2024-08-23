@@ -106,7 +106,7 @@ If you have a graphical web browser and a Gemini client that configures itself a
 
 11. Register by creating a client certificate or clicking "Sign in" and use "View profile" to verify that your instance is able to "discover" users on other servers.
 
-Once a user is discovered, you can follow this user and your instance should start receiving new posts by this user. They should appear under your user's inbox ("My feed") and the user's profile.
+Once a user is discovered, you can follow this user and your instance should start receiving new posts by this user. They should appear under your user's inbox ("My feed") after a while (`FeedUpdateInterval`) and the user's profile.
 
 **If you don't see any posts, check tootik's output.**
 

@@ -140,11 +140,19 @@ func (r *Resolver) tryResolveOrCache(ctx context.Context, log *slog.Logger, db *
 }
 
 func deleteActor(ctx context.Context, log *slog.Logger, db *sql.DB, id string) {
-	if _, err := db.ExecContext(ctx, `delete from notesfts where id in (select id from notes where author = ?)`, id); err != nil {
+	if _, err := db.ExecContext(ctx, `delete from notesfts where exists (select 1 from notes where notes.author = ? and notesfts.id = notes.id)`, id); err != nil {
 		log.Warn("Failed to delete notes by actor", "id", id, "error", err)
 	}
 
-	if _, err := db.ExecContext(ctx, `delete from shares where by = $1 or note in (select id from notes where author = $1)`, id); err != nil {
+	if _, err := db.ExecContext(ctx, `delete from shares where by = $1 or exists (select 1 from notes where notes.author = ? and notes.id = shares.note)`, id); err != nil {
+		log.Warn("Failed to delete shares by actor", "id", id, "error", err)
+	}
+
+	if _, err := db.ExecContext(ctx, `delete from feed where sharer->>'$.id' = ?`, id); err != nil {
+		log.Warn("Failed to delete shares by actor", "id", id, "error", err)
+	}
+
+	if _, err := db.ExecContext(ctx, `delete from feed where author->>'$.id' = ?`, id); err != nil {
 		log.Warn("Failed to delete shares by actor", "id", id, "error", err)
 	}
 
@@ -327,12 +335,39 @@ func (r *Resolver) tryResolve(ctx context.Context, log *slog.Logger, db *sql.DB,
 		return nil, cachedActor, fmt.Errorf("%s does not match %s", actor.ID, profile)
 	}
 
-	if _, err := db.ExecContext(
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
+	}
+
+	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO persons(id, actor, fetched) VALUES($1, $2, UNIXEPOCH()) ON CONFLICT(id) DO UPDATE SET actor = $2, updated = UNIXEPOCH()`,
 		actor.ID,
 		string(body),
 	); err != nil {
+		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`UPDATE feed SET author = ? WHERE author->>'$.id' = ?`,
+		string(body),
+		actor.ID,
+	); err != nil {
+		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`UPDATE feed SET sharer = ? WHERE sharer->>'$.id' = ?`,
+		string(body),
+		actor.ID,
+	); err != nil {
+		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
+	}
+
+	if err := tx.Commit(); err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
 	}
 

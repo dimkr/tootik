@@ -75,6 +75,15 @@ func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, log *slog.L
 
 	if _, err := tx.ExecContext(
 		ctx,
+		`UPDATE feed SET note = ? WHERE note->>'$.id' = ?`,
+		&note,
+		note.ID,
+	); err != nil {
+		return fmt.Errorf("failed to update note: %w", err)
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
 		string(j),
 		note.AttributedTo,

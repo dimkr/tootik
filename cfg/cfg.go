@@ -108,11 +108,14 @@ type Config struct {
 	FollowersSyncBatchSize int
 	FollowersSyncInterval  time.Duration
 
+	FeedUpdateInterval time.Duration
+
 	NotesTTL          time.Duration
 	InvisiblePostsTTL time.Duration
 	DeliveryTTL       time.Duration
 	SharesTTL         time.Duration
 	ActorTTL          time.Duration
+	FeedTTL           time.Duration
 }
 
 // FillDefaults replaces missing or invalid settings with defaults.
@@ -364,6 +367,10 @@ func (c *Config) FillDefaults() {
 		c.FollowersSyncInterval = time.Hour * 24 * 3
 	}
 
+	if c.FeedUpdateInterval <= 0 {
+		c.FeedUpdateInterval = time.Minute * 10
+	}
+
 	if c.NotesTTL <= 0 {
 		c.NotesTTL = time.Hour * 24 * 30
 	}
@@ -382,5 +389,9 @@ func (c *Config) FillDefaults() {
 
 	if c.ActorTTL <= 0 {
 		c.ActorTTL = time.Hour * 24 * 7
+	}
+
+	if c.FeedTTL <= 0 {
+		c.FeedTTL = time.Hour * 24 * 7
 	}
 }

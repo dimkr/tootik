@@ -146,13 +146,13 @@ Most user-visible data is stored in 4 tables in tootik's database:
 `shares.note` points to a row in `notes`.
 
 ```
-┌───────┐ ┌────────┐ ┌─────────┐ ┌─────────┐ ┏━━━━━━━━━┓ ┏━━━━━━━━━┓
-│ notes │ │ shares │ │ persons │ │ follows │ ┃ outbox  ┃ ┃  inbox  ┃
-├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ┣━━━━━━━━━┫ ┣━━━━━━━━━┫
-│object │ │note    │ │actor    │ │follower │ ┃activity ┃ ┃activity ┃
-│author │ │by      │ │...      │ │followed │ ┃sender   ┃ ┃sender   ┃
-│...    │ │...     │ │         │ │...      │ ┃...      ┃ ┃...      ┃
-└───────┘ └────────┘ └─────────┘ └─────────┘ ┗━━━━━━━━━┛ ┗━━━━━━━━━┛
+┌───────┐ ┌────────┐ ┌─────────┐ ┌─────────┐ ┏━━━━━━━━┓ ┏━━━━━━━━┓
+│ notes │ │ shares │ │ persons │ │ follows │ ┃ outbox ┃ ┃ inbox  ┃
+├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ┣━━━━━━━━┫ ┣━━━━━━━━┫
+│object │ │note    │ │actor    │ │follower │ ┃activity┃ ┃activity┃
+│author │ │by      │ │...      │ │followed │ ┃sender  ┃ ┃sender  ┃
+│...    │ │...     │ │         │ │...      │ ┃...     ┃ ┃...     ┃
+└───────┘ └────────┘ └─────────┘ └─────────┘ ┗━━━━━━━━┛ ┗━━━━━━━━┛
 ```
 
 Federation happens through two tables, `inbox` and `outbox`. Both contain [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) objects that represent actions performed by the users in `persons`.
@@ -166,13 +166,14 @@ Federation happens through two tables, `inbox` and `outbox`. Both contain [Activ
                 ┏━━━━━━━━┻━━━━━━━━━┓
                 ┃  front.Handler   ┃
                 ┗━━━━━━━━━┳━━━━━━━━┛
-┌───────┐ ┌────────┐ ┌────┸────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
-│ notes │ │ shares │ │ persons │ │ follows │ │ outbox  │ │  inbox  │
-├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├─────────┤ ├─────────┤
-│object │ │note    │ │actor    │ │follower │ │activity │ │activity │
-│author │ │by      │ │...      │ │followed │ │sender   │ │sender   │
-│...    │ │...     │ │         │ │...      │ │...      │ │...      │
-└───────┘ └────────┘ └────┰────┘ └─────────┘ └─────────┘ └─────────┘
+┌───────┐ ┌────────┐ ┌────┸────┐ ┌─────────┐ ┌────────┐ ┌────────┐
+│ notes │ │ shares │ │ persons │ │ follows │ │ outbox │ │ inbox  │
+├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├────────┤ ├────────┤
+│object │ │note    │ │actor    │ │follower │ │activity│ │activity│
+│author │ │by      │ │...      │ │followed │ │sender  │ │sender  │
+│...    │ │...     │ │         │ │...      │ │...     │ │...     │
+└───────┘ └────────┘ └────┰────┘ └─────────┘ └────────┘ └────────┘
+                          ┃
                   ┏━━━━━━━┻━━━━━━┓
                   ┃ fed.Resolver ┃
                   ┗━━━━━━━━━━━━━━┛
@@ -189,13 +190,14 @@ Federation happens through two tables, `inbox` and `outbox`. Both contain [Activ
                 ┌────────┴─────────┐
     ┏━━━━━━━━━━━┥  front.Handler   │
     ┃           └┰────────┬───────┰┘
-┌───┸───┐ ┌──────┸─┐ ┌────┴────┐ ┌┸────────┐ ┌─────────┐ ┌─────────┐
-│ notes │ │ shares │ │ persons │ │ follows │ │ outbox  │ │  inbox  │
-├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├─────────┤ ├─────────┤
-│object │ │note    │ │actor    │ │follower │ │activity │ │activity │
-│author │ │by      │ │...      │ │followed │ │sender   │ │sender   │
-│...    │ │...     │ │         │ │...      │ │...      │ │...      │
-└───────┘ └────────┘ └────┬────┘ └─────────┘ └─────────┘ └─────────┘
+┌───┸───┐ ┌──────┸─┐ ┌────┴────┐ ┌┸────────┐ ┌────────┐ ┌────────┐
+│ notes │ │ shares │ │ persons │ │ follows │ │ outbox │ │ inbox  │
+├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├────────┤ ├────────┤
+│object │ │note    │ │actor    │ │follower │ │activity│ │activity│
+│author │ │by      │ │...      │ │followed │ │sender  │ │sender  │
+│...    │ │...     │ │         │ │...      │ │...     │ │...     │
+└───────┘ └────────┘ └────┬────┘ └─────────┘ └────────┘ └────────┘
+                          │
                   ┌───────┴──────┐
                   │ fed.Resolver │
                   └──────────────┘
@@ -217,16 +219,17 @@ In addition, Gemini requests can:
                 ┌────────┴─────────┐
     ┌───────────┤  front.Handler   ┝━━━━━━━━━━━┓
     │           └┬────────┬───────┬┘           ┃
-┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴────────┐ ┌─┸───────┐ ┌─────────┐
-│ notes │ │ shares │ │ persons │ │ follows │ │ outbox  │ │  inbox  │
-├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├─────────┤ ├─────────┤
-│object │ │note    │ │actor    │ │follower │ │activity │ │activity │
-│author │ │by      │ │...      │ │followed │ │sender   │ │sender   │
-│...    │ │...     │ │         │ │...      │ │...      │ │...      │
-└───────┘ └────────┘ └────┬────┘ └───────┰─┘ └┰────────┘ └─────────┘
-                  ┌───────┴──────┐      ┏┻━━━━┻━━━━━┓
-                  │ fed.Resolver │      ┃ fed.Queue ┃
-                  └──────────────┘      ┗━━━━━━━━━━━┛
+┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴────────┐ ┌─┸──────┐ ┌────────┐
+│ notes │ │ shares │ │ persons │ │ follows │ │ outbox │ │ inbox  │
+├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├────────┤ ├────────┤
+│object │ │note    │ │actor    │ │follower │ │activity│ │activity│
+│author │ │by      │ │...      │ │followed │ │sender  │ │sender  │
+│...    │ │...     │ │         │ │...      │ │...     │ │...     │
+└───────┘ └────────┘ └────┬────┘ └───────┰─┘ └┰───────┘ └────────┘
+                          │             ┏┻━━━━┻━━━━━┓
+                  ┌───────┴──────┐      ┃ fed.Queue ┃
+                  │ fed.Resolver │      ┗━━━━━━━━━━━┛
+                  └──────────────┘
 ```
 
 Each user action (post creation, post deletion, ...) is recorded as an [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) object written to `outbox`.
@@ -241,16 +244,17 @@ Each user action (post creation, post deletion, ...) is recorded as an [Activity
                 ┌────────┴─────────┐  ┗━━━┳━━━━━┳━━━━━┛
     ┌───────────┤  front.Handler   ├──────╂────┐┃
     │           └┬────────┬───────┬┘      ┃    │┃
-┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┸┐ ┌─┴┸──────┐ ┌─────────┐
-│ notes │ │ shares │ │ persons │ │ follows │ │ outbox  │ │  inbox  │
-├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├─────────┤ ├─────────┤
-│object │ │note    │ │actor    │ │follower │ │activity │ │activity │
-│author │ │by      │ │...      │ │followed │ │sender   │ │sender   │
-│...    │ │...     │ │         │ │...      │ │...      │ │...      │
-└───────┘ └────────┘ └────┬────┘ └───────┬─┘ └┬────────┘ └─────────┘
-                  ┌───────┴──────┐      ┌┴────┴─────┐
-                  │ fed.Resolver │      │ fed.Queue │
-                  └──────────────┘      └───────────┘
+┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┸┐ ┌─┴┸─────┐ ┌────────┐
+│ notes │ │ shares │ │ persons │ │ follows │ │ outbox │ │ inbox  │
+├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├────────┤ ├────────┤
+│object │ │note    │ │actor    │ │follower │ │activity│ │activity│
+│author │ │by      │ │...      │ │followed │ │sender  │ │sender  │
+│...    │ │...     │ │         │ │...      │ │...     │ │...     │
+└───────┘ └────────┘ └────┬────┘ └───────┬─┘ └┬───────┘ └────────┘
+                          │             ┌┴────┴─────┐
+                  ┌───────┴──────┐      │ fed.Queue │
+                  │ fed.Resolver │      └───────────┘
+                  └──────────────┘
 ```
 
 tootik may perform automatic actions in the name of the user:
@@ -264,22 +268,22 @@ tootik may perform automatic actions in the name of the user:
                 │ gemini.Listener │   │ outbox.Poller │
                 └────────┬────────┘   │ fed.Syncer    │
                 ┌────────┴─────────┐  └───┬─────┬─────┘ ┏━━━━━━━━━━━━━━┓
-    ┌───────────┤  front.Handler   ├──────┼────┐│    ┏━━┫ fed.Listener ┣━━┓
-    │           └┬────────┬───────┬┘      │    ││    ┃  ┗━━━━━┳━━━━━━━━┛  ┃
-┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┴┐ ┌─┴┴────┸─┐ ┌────┸────┐      ┃
-│ notes │ │ shares │ │ persons │ │ follows │ │ outbox  │ │  inbox  │      ┃
-├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├─────────┤ ├─────────┤      ┃
-│object │ │note    │ │actor    │ │follower │ │activity │ │activity │      ┃
-│author │ │by      │ │...      │ │followed │ │sender   │ │sender   │      ┃
-│...    │ │...     │ │         │ │...      │ │...      │ │...      │      ┃
-└───────┘ └────────┘ └────┬────┘ └───────┬─┘ └┬────────┘ └─────────┘      ┃
-                  ┌───────┴──────┐      ┌┴────┴─────┐                     ┃
-                  │ fed.Resolver │      │ fed.Queue │                     ┃
-                  └───────┰──────┘      └───────────┘                     ┃
-                          ┃                                               ┃
-                          ┃                                               ┃
-                          ┃                                               ┃
-                          ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+    ┌───────────┤  front.Handler   ├──────┼────┐│    ┏━━┫ fed.Listener ┣━━━━━━┓
+    │           └┬────────┬───────┬┘      │    ││    ┃  ┗━━━━━┳━━━━━━━━┛      ┃
+┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┴┐ ┌─┴┴────┸┐ ┌─────┸──┐            ┃
+│ notes │ │ shares │ │ persons │ │ follows │ │ outbox │ │ inbox  │            ┃
+├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├────────┤ ├────────┤            ┃
+│object │ │note    │ │actor    │ │follower │ │activity│ │activity│            ┃
+│author │ │by      │ │...      │ │followed │ │sender  │ │sender  │            ┃
+│...    │ │...     │ │         │ │...      │ │...     │ │...     │            ┃
+└───────┘ └────────┘ └────┬────┘ └───────┬─┘ └┬───────┘ └────────┘            ┃
+                          │             ┌┴────┴─────┐                         ┃
+                  ┌───────┴──────┐      │ fed.Queue │                         ┃
+                  │ fed.Resolver │      └───────────┘                         ┃
+                  └───────┰──────┘                                            ┃
+                          ┃                                                   ┃
+                          ┃                                                   ┃
+                          ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
 Requests from other servers are handled by [fed.Listener](https://pkg.go.dev/github.com/dimkr/tootik/fed#Listener), a HTTP server.
@@ -294,22 +298,22 @@ In addition, [fed.Listener](https://pkg.go.dev/github.com/dimkr/tootik/fed#Liste
                 │ gemini.Listener │   │ outbox.Poller │
                 └────────┬────────┘   │ fed.Syncer    │
                 ┌────────┴─────────┐  └───┬─────┬─────┘ ┌──────────────┐
-    ┌───────────┤  front.Handler   ├──────┼────┐│    ┌──┤ fed.Listener ├──┐
-    │           └┬────────┬───────┬┘      │    ││    │  └─────┬────────┘  │
-┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┴┐ ┌─┴┴────┴─┐ ┌────┴────┐      │
-│ notes │ │ shares │ │ persons │ │ follows │ │ outbox  │ │  inbox  │      │
-├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├─────────┤ ├─────────┤      │
-│object │ │note    │ │actor    │ │follower │ │activity │ │activity │      │
-│author │ │by      │ │...      │ │followed │ │sender   │ │sender   │      │
-│...    │ │...     │ │         │ │...      │ │...      │ │...      │      │
-└───┰───┘ └───┰────┘ └────┬────┘ └────┰──┬─┘ └┬────────┘ └──────┰──┘      │
-    ┃         ┃   ┌───────┴──────┐    ┃ ┌┴────┴─────┐     ┏━━━━━┻━━━━━━━┓ │
-    ┃         ┃   │ fed.Resolver │    ┃ │ fed.Queue │     ┃ inbox.Queue ┃ │
-    ┃         ┃   └───────┬──────┘    ┃ └───────────┘     ┗━┳━┳━┳━━━━━━━┛ │
-    ┃         ┃           │           ┗━━━━━━━━━━━━━━━━━━━━━┛ ┃ ┃         │
-    ┃         ┗━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ ┃         │
-    ┗━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛         │
-                          └───────────────────────────────────────────────┘
+    ┌───────────┤  front.Handler   ├──────┼────┐│    ┌──┤ fed.Listener ├──────┐
+    │           └┬────────┬───────┬┘      │    ││    │  └─────┬────────┘      │
+┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┴┐ ┌─┴┴────┴┐ ┌─────┴──┐            │
+│ notes │ │ shares │ │ persons │ │ follows │ │ outbox │ │ inbox  │            │
+├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├────────┤ ├────────┤            │
+│object │ │note    │ │actor    │ │follower │ │activity│ │activity│            │
+│author │ │by      │ │...      │ │followed │ │sender  │ │sender  │            │
+│...    │ │...     │ │         │ │...      │ │...     │ │...     │            │
+└───┰───┘ └───┰────┘ └────┬────┘ └────┰──┬─┘ └┬───────┘ └──────┰─┘            │
+    ┃         ┃           │           ┃ ┌┴────┴─────┐     ┏━━━━┻━━━━━━━━┓     │
+    ┃         ┃   ┌───────┴──────┐    ┃ │ fed.Queue │     ┃ inbox.Queue ┃     │
+    ┃         ┃   │ fed.Resolver │    ┃ └───────────┘     ┗━┳━┳━┳━━━━━━━┛     │
+    ┃         ┃   └───────┬──────┘    ┗━━━━━━━━━━━━━━━━━━━━━┛ ┃ ┃             │
+    ┃         ┗━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ ┃             │
+    ┗━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛             │
+                          └───────────────────────────────────────────────────┘
 ```
 
 Once inserted into `inbox`, [inbox.Queue](https://pkg.go.dev/github.com/dimkr/tootik/inbox#Queue) processes the received activities:
@@ -326,22 +330,22 @@ Once inserted into `inbox`, [inbox.Queue](https://pkg.go.dev/github.com/dimkr/to
                 │ gemini.Listener │   │ outbox.Poller │
                 └────────┬────────┘   │ fed.Syncer    │
                 ┌────────┴─────────┐  └───┬─────┬─────┘ ┌──────────────┐
-    ┌───────────┤  front.Handler   ├──────┼────┐│    ┌──┤ fed.Listener ├──┐
-    │           └┬────────┬───────┬┘      │    ││    │  └─────┬────────┘  │
-┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┴┐ ┌─┴┴────┴─┐ ┌────┴────┐      │
-│ notes │ │ shares │ │ persons │ │ follows │ │ outbox  │ │  inbox  │      │
-├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├─────────┤ ├─────────┤      │
-│object │ │note    │ │actor    │ │follower │ │activity │ │activity │      │
-│author │ │by      │ │...      │ │followed │ │sender   │ │sender   │      │
-│...    │ │...     │ │         │ │...      │ │...      │ │...      │      │
-└───┬───┘ └───┬────┘ └────┬────┘ └────┬──┬─┘ └┬───────┰┘ └──────┬──┘      │
-    │         │   ┌───────┴──────┐    │ ┌┴────┴─────┐ ┃   ┌─────┴───────┐ │
-    │         │   │ fed.Resolver │    │ │ fed.Queue │ ┗━━━┥ inbox.Queue │ │
-    │         │   └───────┬──────┘    │ └───────────┘     └─┬─┬─┬───────┘ │
-    │         │           │           └─────────────────────┘ │ │         │
-    │         └───────────┼───────────────────────────────────┘ │         │
-    └─────────────────────┼─────────────────────────────────────┘         │
-                          └───────────────────────────────────────────────┘
+    ┌───────────┤  front.Handler   ├──────┼────┐│    ┌──┤ fed.Listener ├──────┐
+    │           └┬────────┬───────┬┘      │    ││    │  └─────┬────────┘      │
+┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┴┐ ┌─┴┴────┴┐ ┌─────┴──┐            │
+│ notes │ │ shares │ │ persons │ │ follows │ │ outbox │ │ inbox  │            │
+├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├────────┤ ├────────┤            │
+│object │ │note    │ │actor    │ │follower │ │activity│ │activity│            │
+│author │ │by      │ │...      │ │followed │ │sender  │ │sender  │            │
+│...    │ │...     │ │         │ │...      │ │...     │ │...     │            │
+└───┬───┘ └───┬────┘ └────┬────┘ └────┬──┬─┘ └┬──────┰┘ └──────┬─┘            │
+    │         │           │           │ ┌┴────┴─────┐┃    ┌────┴────────┐     │
+    │         │   ┌───────┴──────┐    │ │ fed.Queue │┗━━━━┥ inbox.Queue │     │
+    │         │   │ fed.Resolver │    │ └───────────┘     └─┬─┬─┬───────┘     │
+    │         │   └───────┬──────┘    └─────────────────────┘ │ │             │
+    │         └───────────┼───────────────────────────────────┘ │             │
+    └─────────────────────┼─────────────────────────────────────┘             │
+                          └───────────────────────────────────────────────────┘
 ```
 
 Sometimes, a received or newly created local [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) is forwarded to the followers of a local user:
@@ -354,26 +358,56 @@ Sometimes, a received or newly created local [Activity](https://pkg.go.dev/githu
                 │ gemini.Listener │   │ outbox.Poller │
                 └────────┬────────┘   │ fed.Syncer    │
                 ┌────────┴─────────┐  └───┬─────┬─────┘ ┌──────────────┐
-    ┌───────────┤  front.Handler   ├──────┼────┐│    ┌──┤ fed.Listener ├──┐
-    │           └┬────────┬───────┬┘      │    ││    │  └─────┬────────┘  │
-┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┴┐ ┌─┴┴────┴─┐ ┌────┴────┐      │
-│ notes │ │ shares │ │ persons │ │ follows │ │ outbox  │ │  inbox  │      │
-├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├─────────┤ ├─────────┤      │
-│object │ │note    │ │actor    │ │follower │ │activity │ │activity │      │
-│author │ │by      │ │...      │ │followed │ │sender   │ │sender   │      │
-│...    │ │...     │ │         │ │...      │ │...      │ │...      │      │
-└───┬───┘ └───┬────┘ └────┬────┘ └────┬──┬─┘ └┬───────┬┘ └──────┬──┘      │
-    │         │   ┌───────┴──────┐    │ ┌┴────┴─────┐ │   ┌─────┴───────┐ │
-    │         │   │ fed.Resolver │    │ │ fed.Queue │ └───┤ inbox.Queue │ │
-    │         │   └───────┬─┰────┘    │ └───────────┘     └─┬─┬─┬─┰─────┘ │
-    │         │           │ ┃         └─────────────────────┘ │ │ ┃       │
-    │         └───────────┼─╂─────────────────────────────────┘ │ ┃       │
-    └─────────────────────┼─╂───────────────────────────────────┘ ┃       │
-                          └─╂─────────────────────────────────────╂───────┘
+    ┌───────────┤  front.Handler   ├──────┼────┐│    ┌──┤ fed.Listener ├──────┐
+    │           └┬────────┬───────┬┘      │    ││    │  └─────┬────────┘      │
+┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┴┐ ┌─┴┴────┴┐ ┌─────┴──┐            │
+│ notes │ │ shares │ │ persons │ │ follows │ │ outbox │ │ inbox  │            │
+├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├────────┤ ├────────┤            │
+│object │ │note    │ │actor    │ │follower │ │activity│ │activity│            │
+│author │ │by      │ │...      │ │followed │ │sender  │ │sender  │            │
+│...    │ │...     │ │         │ │...      │ │...     │ │...     │            │
+└───┬───┘ └───┬────┘ └────┬────┘ └────┬──┬─┘ └┬──────┬┘ └──────┬─┘            │
+    │         │           │           │ ┌┴────┴─────┐│    ┌────┴────────┐     │
+    │         │   ┌───────┴──────┐    │ │ fed.Queue │└────┤ inbox.Queue │     │
+    │         │   │ fed.Resolver │    │ └───────────┘     └─┬─┬─┬─┰─────┘     │
+    │         │   └───────┬─┰────┘    └─────────────────────┘ │ │ ┃           │
+    │         └───────────┼─╂─────────────────────────────────┘ │ ┃           │
+    └─────────────────────┼─╂───────────────────────────────────┘ ┃           │
+                          └─╂─────────────────────────────────────╂───────────┘
                             ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
 To display details like the user's name and speed up the verification of future incoming replies, [inbox.Queue](https://pkg.go.dev/github.com/dimkr/tootik/inbox#Queue) uses [Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) to fetch the [Actor](https://pkg.go.dev/github.com/dimkr/tootik/ap#Actor) objects of mentioned users (if needed).
+
+```
+                                      ┌───────────────┐
+                ┌─────────────────┐   │ outbox.Mover  │
+                │ gemini.Listener │   │ outbox.Poller │
+                └────────┬────────┘   │ fed.Syncer    │
+                ┌────────┴─────────┐  └───┬─────┬─────┘ ┌──────────────┐
+    ┌───────────┤  front.Handler   ├──────┼────┐│    ┌──┤ fed.Listener ├──────┐
+    │           └┬────────┬───────┬┘      │    ││    │  └─────┬────────┘      │
+┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┴┐ ┌─┴┴────┴┐ ┌─────┴──┐ ┏━━━━━━━━┓ │
+│ notes │ │ shares │ │ persons │ │ follows │ │ outbox │ │ inbox  │ ┃  feed  ┃ │
+├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├────────┤ ├────────┤ ┣━━━━━━━━┫ │
+│object │ │note    │ │actor    │ │follower │ │activity│ │activity│ ┃follower┃ │
+│author │ │by      │ │...      │ │followed │ │sender  │ │sender  │ ┃note    ┃ │
+│...    │ │...     │ │         │ │...      │ │...     │ │...     │ ┃...     ┃ │
+└─┰─┬───┘ └─┰─┬────┘ └──┰─┬────┘ └──┰─┬──┬─┘ └┬──────┬┘ └──────┬─┘ ┗━━━━━━┳━┛ │
+  ┃ │       ┃ │ ┏━━━━━━━┛ │         ┃ │ ┌┴────┴─────┐│    ┌────┴────────┐ ┃   │
+  ┃ │       ┃ │ ┃ ┌───────┴──────┐  ┃ │ │ fed.Queue │└────┤ inbox.Queue │ ┃   │
+  ┃ │       ┃ │ ┃ │ fed.Resolver │  ┃ │ └───────────┘     └─┬─┬─┬─┬─────┘ ┃   │
+  ┃ │       ┃ │ ┃ └───────┬─┬────┘  ┃ └─────────────────────┘ │ │ │       ┃   │
+  ┃ │       ┃ └─╂─────────┼─┼───────╂─────────────────────────┘ │ │       ┃   │
+  ┃ └───────╂───╂─────────┼─┼───────╂───────────────────────────┘ │       ┃   │
+  ┃         ┃   ┃         └─┼───────╂─────────────────────────────┼───────╂───┘
+┏━┻━━━━━━━━━┻━━━┻━━━┓       └───────╂─────────────────────────────┘       ┃
+┃ inbox.FeedUpdater ┣━━━━━━━━━━━━━━━┛                                     ┃
+┗━━━━━━━━━┳━━━━━━━━━┛                                                     ┃
+          ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+```
+
+To speed up each user's feed, [inbox.FeedUpdater](https://pkg.go.dev/github.com/dimkr/tootik/inbox#FeedUpdater) periodically appends rows to the `feed` table. This table holds all information that appears in the user's feed: posts written or shared by followed users, author information and more, eliminating the need for `join` queries, slow filtering by post visibility, deduplication and sorting by time when a user views their feed. This table is indexed by user and time, allowing fast querying of a single feed page for a particular user.
 
 ## More Documentation
 

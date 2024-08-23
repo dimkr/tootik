@@ -78,8 +78,22 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 		return fmt.Errorf("failed to check of %s is a duplicate: %w", post.ID, err)
 	} else if err == nil {
 		if sender.ID == post.Audience && !audience.Valid {
-			if _, err := q.DB.ExecContext(ctx, `update notes set object = json_set(object, '$.audience', ?) where id = ? and object->>'$.audience' is null`, post.Audience, post.ID); err != nil {
+			tx, err := q.DB.BeginTx(ctx, nil)
+			if err != nil {
+				return fmt.Errorf("cannot set %s audience: %w", post.ID, err)
+			}
+			defer tx.Rollback()
+
+			if _, err := tx.ExecContext(ctx, `update notes set object = json_set(object, '$.audience', ?) where id = ? and object->>'$.audience' is null`, post.Audience, post.ID); err != nil {
 				return fmt.Errorf("failed to set %s audience to %s: %w", post.ID, audience.String, err)
+			}
+
+			if _, err := tx.ExecContext(ctx, `update feed set note = json_set(note, '$.audience', ?) where note->>'$.id' = ? and note->>'$.audience' is null`, post.Audience, post.ID); err != nil {
+				return fmt.Errorf("failed to set %s audience to %s: %w", post.ID, audience.String, err)
+			}
+
+			if err := tx.Commit(); err != nil {
+				return fmt.Errorf("cannot set %s audience: %w", post.ID, err)
 			}
 		}
 
@@ -197,6 +211,9 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 				return fmt.Errorf("cannot delete %s: %w", deleted, err)
 			}
 			if _, err := tx.ExecContext(ctx, `delete from shares where note = ?`, deleted); err != nil {
+				return fmt.Errorf("cannot delete %s: %w", deleted, err)
+			}
+			if _, err := tx.ExecContext(ctx, `delete from feed where note->>'$.id' = ?`, deleted); err != nil {
 				return fmt.Errorf("cannot delete %s: %w", deleted, err)
 			}
 
@@ -412,6 +429,15 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 			); err != nil {
 				return fmt.Errorf("failed to update post %s: %w", post.ID, err)
 			}
+		}
+
+		if _, err := tx.ExecContext(
+			ctx,
+			`update feed set note = ? where note->>'$.id' = ?`,
+			post,
+			post.ID,
+		); err != nil {
+			return fmt.Errorf("failed to update post %s: %w", post.ID, err)
 		}
 
 		if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, log, tx, post, activity, rawActivity); err != nil {

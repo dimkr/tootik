@@ -62,6 +62,15 @@ func Undo(ctx context.Context, domain string, db *sql.DB, activity *ap.Activity)
 
 	if _, err := tx.ExecContext(
 		ctx,
+		`DELETE FROM feed WHERE note->>'$.id' = ? AND sharer->>'$.id' = ?`,
+		noteID,
+		activity.Actor,
+	); err != nil {
+		return fmt.Errorf("failed to remove share: %w", err)
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
 		&undo,
 		activity.Actor,
