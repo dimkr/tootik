@@ -115,7 +115,7 @@ func Extract(r *http.Request, body []byte, domain string, maxAge time.Duration) 
 	}
 
 	rawHeaders := strings.Fields(strings.ToLower(headers))
-	uniqueHeaders := make(map[string]struct{}, len(fields))
+	uniqueHeaders := make(map[string]struct{}, len(rawHeaders))
 	for _, h := range rawHeaders {
 		if _, dup := uniqueHeaders[h]; dup {
 			return nil, errors.New("duplicate header: " + h)
