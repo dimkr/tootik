@@ -32,7 +32,7 @@ const bufferSize = 256
 
 // Wrap wraps an [io.Writer] with a Gemini response writer.
 func Wrap(w io.Writer) text.Writer {
-	return &writer{bufio.NewWriterSize(w, bufferSize)}
+	return &writer{Writer: bufio.NewWriterSize(w, bufferSize)}
 }
 
 func (w *writer) Unwrap() io.Writer {
@@ -49,7 +49,7 @@ func (w *writer) Status(code int, meta string) {
 func (w *writer) Statusf(code int, format string, a ...any) {
 	fmt.Fprintf(w, "%d ", code)
 	fmt.Fprintf(w, format, a...)
-	w.Write([]byte("\r\n"))
+	w.WriteString("\r\n")
 	if code != 20 {
 		w.Writer = bufio.NewWriterSize(io.Discard, bufferSize)
 	}
@@ -72,84 +72,84 @@ func (w *writer) Redirectf(format string, a ...any) {
 }
 
 func (w *writer) Title(title string) {
-	w.Write([]byte("# "))
-	w.Write([]byte(title))
-	w.Write([]byte("\n\n"))
+	w.WriteString("# ")
+	w.WriteString(title)
+	w.WriteString("\n\n")
 }
 
 func (w *writer) Titlef(format string, a ...any) {
-	w.Write([]byte("# "))
+	w.WriteString("# ")
 	fmt.Fprintf(w, format, a...)
-	w.Write([]byte("\n\n"))
+	w.WriteString("\n\n")
 }
 
 func (w *writer) Subtitle(subtitle string) {
-	w.Write([]byte("## "))
-	w.Write([]byte(subtitle))
-	w.Write([]byte("\n\n"))
+	w.WriteString("## ")
+	w.WriteString(subtitle)
+	w.WriteString("\n\n")
 }
 
 func (w *writer) Subtitlef(format string, a ...any) {
-	w.Write([]byte("## "))
+	w.WriteString("## ")
 	fmt.Fprintf(w, format, a...)
-	w.Write([]byte("\n\n"))
+	w.WriteString("n\n")
 }
 
 func (w *writer) Text(line string) {
-	w.Write([]byte(line))
-	w.Write([]byte{'\n'})
+	w.WriteString(line)
+	w.WriteRune('\n')
 }
 
 func (w *writer) Textf(format string, a ...any) {
 	fmt.Fprintf(w, format, a...)
-	w.Write([]byte{'\n'})
+	w.WriteRune('\n')
 }
 
 func (w *writer) Empty() {
-	w.Write([]byte{'\n'})
+	w.WriteRune('\n')
 }
 
 func (w *writer) Link(url, name string) {
 	fmt.Fprintf(w, "=> %s ", url)
-	w.Write([]byte(name))
-	w.Write([]byte{'\n'})
+	w.WriteString(name)
+	w.WriteRune('\n')
 }
 
 func (w *writer) Linkf(url, format string, a ...any) {
 	fmt.Fprintf(w, "=> %s ", url)
 	fmt.Fprintf(w, format, a...)
-	w.Write([]byte{'\n'})
+	w.WriteRune('\n')
 }
 
 func (w *writer) Item(item string) {
-	w.Write([]byte("* "))
-	w.Write([]byte(item))
-	w.Write([]byte{'\n'})
+	w.WriteString("* ")
+	w.WriteString(item)
+	w.WriteRune('\n')
 }
 
 func (w *writer) Itemf(format string, a ...any) {
-	w.Write([]byte("* "))
+	w.WriteString("* ")
 	fmt.Fprintf(w, format, a...)
-	w.Write([]byte{'\n'})
+	w.WriteRune('\n')
 }
 
 func (w *writer) Quote(quote string) {
-	w.Write([]byte("> "))
-	w.Write([]byte(quote))
-	w.Write([]byte{'\n'})
+	w.WriteString("> ")
+	w.WriteString(quote)
+	w.WriteRune('\n')
 }
 
 func (w *writer) Raw(alt, raw string) {
 	fmt.Fprintf(w, "```%s\n", alt)
-	w.Write([]byte(raw))
+	w.WriteString(raw)
 	if len(raw) > 0 && raw[len(raw)-1] != '\n' {
-		w.Write([]byte{'\n'})
+		w.WriteRune('\n')
 	}
-	w.Write([]byte("```\n"))
+	w.WriteString("```\n")
 }
 
 func (w *writer) Separator() {
-	w.Write([]byte("\n────\n\n"))
+	w.WriteString("\n────\n\n")
 }
 
 func (*writer) Clone(w io.Writer) text.Writer {

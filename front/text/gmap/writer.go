@@ -149,9 +149,9 @@ func (w *writer) Raw(alt, raw string) {
 		end -= 1
 	}
 	for _, line := range strings.Split(raw[:end], "\n") {
-		w.Write([]byte{'i'})
-		w.Write([]byte(line))
-		w.Write([]byte("\t/\t0\t0\r\n"))
+		w.WriteRune('i')
+		w.WriteString(line)
+		w.WriteString("\t/\t0\t0\r\n")
 	}
 }
 
