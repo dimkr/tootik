@@ -121,7 +121,9 @@ func (s *server) Handle(request string, user *ap.Actor) string {
 
 	var buf bytes.Buffer
 	var wg sync.WaitGroup
-	s.handler.Handle(context.Background(), slog.Default(), nil, gmi.Wrap(&buf), u, user, httpsig.Key{}, s.db, fed.NewResolver(nil, domain, s.cfg, &http.Client{}), &wg)
+	w := gmi.Wrap(&buf)
+	s.handler.Handle(context.Background(), slog.Default(), nil, w, u, user, httpsig.Key{}, s.db, fed.NewResolver(nil, domain, s.cfg, &http.Client{}), &wg)
+	w.Flush()
 
 	return buf.String()
 }
@@ -135,7 +137,9 @@ func (s *server) Upload(request string, user *ap.Actor, body []byte) string {
 
 	var buf bytes.Buffer
 	var wg sync.WaitGroup
-	s.handler.Handle(context.Background(), slog.Default(), bytes.NewBuffer(body), gmi.Wrap(&buf), u, user, httpsig.Key{}, s.db, fed.NewResolver(nil, domain, s.cfg, &http.Client{}), &wg)
+	w := gmi.Wrap(&buf)
+	s.handler.Handle(context.Background(), slog.Default(), bytes.NewBuffer(body), w, u, user, httpsig.Key{}, s.db, fed.NewResolver(nil, domain, s.cfg, &http.Client{}), &wg)
+	w.Flush()
 
 	return buf.String()
 }

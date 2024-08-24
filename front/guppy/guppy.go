@@ -100,6 +100,7 @@ func (gl *Listener) handle(ctx context.Context, wg *sync.WaitGroup, from net.Add
 
 	chunk := make([]byte, gl.Config.GuppyResponseChunkSize)
 
+	w.Flush()
 	n, err := buf.Read(chunk)
 	if err != nil {
 		gl.Log.Error("Failed to read first respone chunk", "error", err)
