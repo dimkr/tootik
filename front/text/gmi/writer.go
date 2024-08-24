@@ -25,20 +25,24 @@ import (
 )
 
 type writer struct {
-	text.Base
+	*bufio.Writer
 }
 
 const bufferSize = 256
 
 // Wrap wraps an [io.Writer] with a Gemini response writer.
 func Wrap(w io.Writer) text.Writer {
-	return &writer{Base: text.Base{Writer: bufio.NewWriterSize(w, bufferSize)}}
+	return &writer{bufio.NewWriterSize(w, bufferSize)}
+}
+
+func (w *writer) Unwrap() io.Writer {
+	return w.Writer
 }
 
 func (w *writer) Status(code int, meta string) {
 	fmt.Fprintf(w, "%d %s\r\n", code, meta)
 	if code != 20 {
-		w.Base = text.Base{Writer: io.Discard}
+		w.Writer = bufio.NewWriterSize(io.Discard, bufferSize)
 	}
 }
 
@@ -47,7 +51,7 @@ func (w *writer) Statusf(code int, format string, a ...any) {
 	fmt.Fprintf(w, format, a...)
 	w.Write([]byte("\r\n"))
 	if code != 20 {
-		w.Base = text.Base{Writer: io.Discard}
+		w.Writer = bufio.NewWriterSize(io.Discard, bufferSize)
 	}
 }
 
@@ -149,5 +153,5 @@ func (w *writer) Separator() {
 }
 
 func (*writer) Clone(w io.Writer) text.Writer {
-	return &writer{Base: text.Base{Writer: bufio.NewWriterSize(w, bufferSize)}}
+	return &writer{bufio.NewWriterSize(w, bufferSize)}
 }

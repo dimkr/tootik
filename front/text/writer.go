@@ -25,6 +25,8 @@ type Writer interface {
 	Clone(io.Writer) Writer
 	Unwrap() io.Writer
 
+	Flush() error
+
 	OK()
 	Error()
 	Redirect(string)

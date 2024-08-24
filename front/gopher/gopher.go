@@ -89,6 +89,7 @@ func (gl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 	}
 
 	w := gmap.Wrap(conn, gl.Domain, gl.Config)
+	defer w.Flush()
 
 	gl.Handler.Handle(ctx, gl.Log.With(slog.Group("request", "path", reqUrl.Path)), nil, w, reqUrl, nil, httpsig.Key{}, gl.DB, gl.Resolver, wg)
 }

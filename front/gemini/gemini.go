@@ -130,6 +130,7 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 	}
 
 	w := gmi.Wrap(conn)
+	defer w.Flush()
 
 	user, privKey, err := gl.getUser(ctx, conn, tlsConn)
 	if err != nil && errors.Is(err, front.ErrNotRegistered) && reqUrl.Path == "/users" {
