@@ -43,6 +43,7 @@ func (w *writer) Unwrap() io.Writer {
 func (w *writer) Status(code int, meta string) {
 	fmt.Fprintf(w, "%d %s\r\n", code, meta)
 	if code != 20 {
+		w.Flush()
 		w.discard = true
 	}
 }
@@ -52,6 +53,7 @@ func (w *writer) Statusf(code int, format string, a ...any) {
 	fmt.Fprintf(w, format, a...)
 	w.WriteString("\r\n")
 	if code != 20 {
+		w.Flush()
 		w.discard = true
 	}
 }
