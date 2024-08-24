@@ -17,7 +17,6 @@ limitations under the License.
 package front
 
 import (
-	"bytes"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 )
@@ -63,10 +62,7 @@ func writeUserMenu(w text.Writer, user *ap.Actor) {
 
 func withUserMenu(f func(text.Writer, *request, ...string)) func(text.Writer, *request, ...string) {
 	return func(w text.Writer, r *request, args ...string) {
-		var buf bytes.Buffer
-		clone := w.Clone(&buf)
-		f(clone, r, args...)
-		writeUserMenu(clone, r.User)
-		w.Write(buf.Bytes())
+		f(w, r, args...)
+		writeUserMenu(w, r.User)
 	}
 }
