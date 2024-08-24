@@ -25,6 +25,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"time"
 )
 
 type sender struct {
@@ -50,7 +51,7 @@ func (s *sender) send(log *slog.Logger, key httpsig.Key, req *http.Request) (*ht
 
 	log.Debug("Sending request", "url", urlString)
 
-	if err := httpsig.Sign(req, key); err != nil {
+	if err := httpsig.Sign(req, key, time.Now()); err != nil {
 		return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
 	}
 

@@ -36,7 +36,7 @@ var (
 )
 
 // Sign adds a signature to an outgoing HTTP request.
-func Sign(r *http.Request, key Key) error {
+func Sign(r *http.Request, key Key, now time.Time) error {
 	if key.ID == "" {
 		return errors.New("empty key ID")
 	}
@@ -55,7 +55,7 @@ func Sign(r *http.Request, key Key) error {
 		headers = postHeaders
 	}
 
-	r.Header.Set("Date", time.Now().UTC().Format(http.TimeFormat))
+	r.Header.Set("Date", now.UTC().Format(http.TimeFormat))
 	r.Header.Set("Host", r.URL.Host)
 
 	s, err := buildSignatureString(r, headers)

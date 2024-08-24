@@ -27,10 +27,11 @@ import (
 	"github.com/dimkr/tootik/httpsig"
 	"log/slog"
 	"net/http"
+	"time"
 )
 
 func verify(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, r *http.Request, body []byte, db *sql.DB, resolver *Resolver, key httpsig.Key, flags ap.ResolverFlag) (*ap.Actor, error) {
-	sig, err := httpsig.Extract(r, body, domain, cfg.MaxRequestAge)
+	sig, err := httpsig.Extract(r, body, domain, time.Now(), cfg.MaxRequestAge)
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify message: %w", err)
 	}

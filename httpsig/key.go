@@ -16,7 +16,7 @@ limitations under the License.
 
 package httpsig
 
-// Key is used to sign outgoing HTTP requests.
+// Key is used to sign outgoing HTTP requests or verify incoming HTTP requests.
 type Key struct {
 	ID         string
 	PrivateKey any

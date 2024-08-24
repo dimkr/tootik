@@ -19,6 +19,7 @@ package httpsig
 import (
 	"fmt"
 	"net/http"
+	"net/textproto"
 	"strings"
 )
 
@@ -42,7 +43,10 @@ func buildSignatureString(r *http.Request, headers []string) (string, error) {
 			b.WriteString(strings.ToLower(h))
 			b.WriteByte(':')
 			b.WriteByte(' ')
-			values := r.Header.Values(h)
+			values, ok := r.Header[textproto.CanonicalMIMEHeaderKey(h)]
+			if !ok || len(values) == 0 {
+				return "", fmt.Errorf("unspecified header: " + h)
+			}
 			for j, v := range values {
 				b.WriteString(strings.TrimSpace(v))
 				if j < len(values)-1 {
