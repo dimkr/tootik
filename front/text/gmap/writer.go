@@ -29,6 +29,7 @@ import (
 
 type writer struct {
 	*bufio.Writer
+	inner  io.Writer
 	Domain string
 	Config *cfg.Config
 }
@@ -37,11 +38,11 @@ const bufferSize = 256
 
 // Wrap wraps an [io.Writer] with a gophermap writer.
 func Wrap(w io.Writer, domain string, cfg *cfg.Config) text.Writer {
-	return &writer{Writer: bufio.NewWriterSize(w, bufferSize), Domain: domain, Config: cfg}
+	return &writer{Writer: bufio.NewWriterSize(w, bufferSize), inner: w, Domain: domain, Config: cfg}
 }
 
 func (w *writer) Unwrap() io.Writer {
-	return w.Writer
+	return w.inner
 }
 
 func (w *writer) Status(code int, meta string) {
@@ -162,9 +163,5 @@ func (w *writer) Separator() {
 }
 
 func (gw *writer) Clone(w io.Writer) text.Writer {
-	return &writer{Writer: bufio.NewWriterSize(w, bufferSize), Domain: gw.Domain, Config: gw.Config}
-}
-
-func (w *writer) Flush() error {
-	return w.Writer.Flush()
+	return &writer{Writer: bufio.NewWriterSize(w, bufferSize), inner: w, Domain: gw.Domain, Config: gw.Config}
 }

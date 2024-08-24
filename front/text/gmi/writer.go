@@ -26,6 +26,7 @@ import (
 
 type writer struct {
 	*bufio.Writer
+	inner   io.Writer
 	discard bool
 }
 
@@ -33,11 +34,11 @@ const bufferSize = 256
 
 // Wrap wraps an [io.Writer] with a Gemini response writer.
 func Wrap(w io.Writer) text.Writer {
-	return &writer{Writer: bufio.NewWriterSize(w, bufferSize)}
+	return &writer{Writer: bufio.NewWriterSize(w, bufferSize), inner: w}
 }
 
 func (w *writer) Unwrap() io.Writer {
-	return w.Writer
+	return w.inner
 }
 
 func (w *writer) Status(code int, meta string) {
@@ -212,5 +213,5 @@ func (w *writer) Separator() {
 }
 
 func (*writer) Clone(w io.Writer) text.Writer {
-	return &writer{Writer: bufio.NewWriterSize(w, bufferSize)}
+	return &writer{Writer: bufio.NewWriterSize(w, bufferSize), inner: w}
 }
