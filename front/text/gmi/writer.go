@@ -26,6 +26,7 @@ import (
 
 type writer struct {
 	*bufio.Writer
+	discard bool
 }
 
 const bufferSize = 256
@@ -42,7 +43,7 @@ func (w *writer) Unwrap() io.Writer {
 func (w *writer) Status(code int, meta string) {
 	fmt.Fprintf(w, "%d %s\r\n", code, meta)
 	if code != 20 {
-		w.Writer = bufio.NewWriterSize(io.Discard, bufferSize)
+		w.discard = true
 	}
 }
 
@@ -51,7 +52,7 @@ func (w *writer) Statusf(code int, format string, a ...any) {
 	fmt.Fprintf(w, format, a...)
 	w.WriteString("\r\n")
 	if code != 20 {
-		w.Writer = bufio.NewWriterSize(io.Discard, bufferSize)
+		w.discard = true
 	}
 }
 
@@ -72,74 +73,126 @@ func (w *writer) Redirectf(format string, a ...any) {
 }
 
 func (w *writer) Title(title string) {
+	if w.discard {
+		return
+	}
+
 	w.WriteString("# ")
 	w.WriteString(title)
 	w.WriteString("\n\n")
 }
 
 func (w *writer) Titlef(format string, a ...any) {
+	if w.discard {
+		return
+	}
+
 	w.WriteString("# ")
 	fmt.Fprintf(w, format, a...)
 	w.WriteString("\n\n")
 }
 
 func (w *writer) Subtitle(subtitle string) {
+	if w.discard {
+		return
+	}
+
 	w.WriteString("## ")
 	w.WriteString(subtitle)
 	w.WriteString("\n\n")
 }
 
 func (w *writer) Subtitlef(format string, a ...any) {
+	if w.discard {
+		return
+	}
+
 	w.WriteString("## ")
 	fmt.Fprintf(w, format, a...)
 	w.WriteString("n\n")
 }
 
 func (w *writer) Text(line string) {
+	if w.discard {
+		return
+	}
+
 	w.WriteString(line)
 	w.WriteRune('\n')
 }
 
 func (w *writer) Textf(format string, a ...any) {
+	if w.discard {
+		return
+	}
+
 	fmt.Fprintf(w, format, a...)
 	w.WriteRune('\n')
 }
 
 func (w *writer) Empty() {
+	if w.discard {
+		return
+	}
+
 	w.WriteRune('\n')
 }
 
 func (w *writer) Link(url, name string) {
+	if w.discard {
+		return
+	}
+
 	fmt.Fprintf(w, "=> %s ", url)
 	w.WriteString(name)
 	w.WriteRune('\n')
 }
 
 func (w *writer) Linkf(url, format string, a ...any) {
+	if w.discard {
+		return
+	}
+
 	fmt.Fprintf(w, "=> %s ", url)
 	fmt.Fprintf(w, format, a...)
 	w.WriteRune('\n')
 }
 
 func (w *writer) Item(item string) {
+	if w.discard {
+		return
+	}
+
 	w.WriteString("* ")
 	w.WriteString(item)
 	w.WriteRune('\n')
 }
 
 func (w *writer) Itemf(format string, a ...any) {
+	if w.discard {
+		return
+	}
+
 	w.WriteString("* ")
 	fmt.Fprintf(w, format, a...)
 	w.WriteRune('\n')
 }
 
 func (w *writer) Quote(quote string) {
+	if w.discard {
+		return
+	}
+
 	w.WriteString("> ")
 	w.WriteString(quote)
 	w.WriteRune('\n')
 }
 
 func (w *writer) Raw(alt, raw string) {
+	if w.discard {
+		return
+	}
+
 	fmt.Fprintf(w, "```%s\n", alt)
 	w.WriteString(raw)
 	if len(raw) > 0 && raw[len(raw)-1] != '\n' {
@@ -149,9 +202,13 @@ func (w *writer) Raw(alt, raw string) {
 }
 
 func (w *writer) Separator() {
+	if w.discard {
+		return
+	}
+
 	w.WriteString("\n────\n\n")
 }
 
 func (*writer) Clone(w io.Writer) text.Writer {
-	return &writer{bufio.NewWriterSize(w, bufferSize)}
+	return &writer{Writer: bufio.NewWriterSize(w, bufferSize)}
 }
