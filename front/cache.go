@@ -40,7 +40,6 @@ func (w chanWriter) Write(p []byte) (int, error) {
 }
 
 func callAndCache(r *request, w text.Writer, args []string, f func(text.Writer, *request, ...string), key string, now time.Time, cache *sync.Map) {
-	var buf bytes.Buffer
 	c := make(chan []byte)
 
 	r2 := *r
@@ -51,6 +50,7 @@ func callAndCache(r *request, w text.Writer, args []string, f func(text.Writer, 
 		close(c)
 	}()
 
+	var buf bytes.Buffer
 	for {
 		chunk, ok := <-c
 		if !ok {
