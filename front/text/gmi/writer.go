@@ -111,7 +111,7 @@ func (w *writer) Subtitlef(format string, a ...any) {
 
 	w.WriteString("## ")
 	fmt.Fprintf(w, format, a...)
-	w.WriteString("n\n")
+	w.WriteString("\n\n")
 }
 
 func (w *writer) Text(line string) {
