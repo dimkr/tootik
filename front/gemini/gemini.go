@@ -132,7 +132,9 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 		return
 	}
 
-	w := gmi.Wrap(bufio.NewWriterSize(conn, bufferSize))
+	buffered := bufio.NewWriterSize(conn, bufferSize)
+	defer buffered.Flush()
+	w := gmi.Wrap(buffered)
 
 	user, privKey, err := gl.getUser(ctx, conn, tlsConn)
 	if err != nil && errors.Is(err, front.ErrNotRegistered) && reqUrl.Path == "/users" {

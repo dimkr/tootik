@@ -91,7 +91,9 @@ func (gl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 		return
 	}
 
-	w := gmap.Wrap(bufio.NewWriterSize(conn, bufferSize), gl.Domain, gl.Config)
+	buffered := bufio.NewWriterSize(conn, bufferSize)
+	defer buffered.Flush()
+	w := gmap.Wrap(buffered, gl.Domain, gl.Config)
 
 	gl.Handler.Handle(ctx, gl.Log.With(slog.Group("request", "path", reqUrl.Path)), nil, w, reqUrl, nil, httpsig.Key{}, gl.DB, gl.Resolver, wg)
 }
