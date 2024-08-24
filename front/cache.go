@@ -43,11 +43,13 @@ func (w chanWriter) Write(p []byte) (int, error) {
 func callAndCache(r *request, w text.Writer, args []string, f func(text.Writer, *request, ...string), key string, now time.Time, cache *sync.Map) {
 	c := make(chan []byte)
 
-	r2 := *r
-	r2.Context = context.Background()
-
 	go func() {
-		f(w.Clone(&chanWriter{c}), &r2, args...)
+		r2 := *r
+		r2.Context = context.Background()
+
+		w2 := w.Clone(&chanWriter{c})
+
+		f(w2, &r2, args...)
 		close(c)
 	}()
 
@@ -61,9 +63,9 @@ func callAndCache(r *request, w text.Writer, args []string, f func(text.Writer, 
 		buf.Write(chunk)
 	}
 
-	cached := w.Clone(&buf)
-	cached.Empty()
-	cached.Textf("(Cached response generated on %s)", now.Format(time.UnixDate))
+	w2 := w.Clone(&buf)
+	w2.Empty()
+	w2.Textf("(Cached response generated on %s)", now.Format(time.UnixDate))
 
 	cache.Store(key, cacheEntry{buf.Bytes(), now})
 }
