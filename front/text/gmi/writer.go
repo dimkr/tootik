@@ -18,6 +18,7 @@ limitations under the License.
 package gmi
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/dimkr/tootik/front/text"
 	"io"
@@ -27,9 +28,11 @@ type writer struct {
 	text.Base
 }
 
+const bufferSize = 256
+
 // Wrap wraps an [io.Writer] with a Gemini response writer.
 func Wrap(w io.Writer) text.Writer {
-	return &writer{Base: text.Base{Writer: w}}
+	return &writer{Base: text.Base{Writer: bufio.NewWriterSize(w, bufferSize)}}
 }
 
 func (w *writer) Status(code int, meta string) {
@@ -146,5 +149,5 @@ func (w *writer) Separator() {
 }
 
 func (*writer) Clone(w io.Writer) text.Writer {
-	return &writer{Base: text.Base{Writer: w}}
+	return &writer{Base: text.Base{Writer: bufio.NewWriterSize(w, bufferSize)}}
 }

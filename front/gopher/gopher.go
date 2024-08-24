@@ -18,7 +18,6 @@ limitations under the License.
 package gopher
 
 import (
-	"bufio"
 	"context"
 	"database/sql"
 	"errors"
@@ -44,8 +43,6 @@ type Listener struct {
 	Resolver ap.Resolver
 	Addr     string
 }
-
-const bufferSize = 256
 
 func (gl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGroup) {
 	if err := conn.SetDeadline(time.Now().Add(gl.Config.GopherRequestTimeout)); err != nil {
@@ -91,9 +88,7 @@ func (gl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 		return
 	}
 
-	buffered := bufio.NewWriterSize(conn, bufferSize)
-	defer buffered.Flush()
-	w := gmap.Wrap(buffered, gl.Domain, gl.Config)
+	w := gmap.Wrap(conn, gl.Domain, gl.Config)
 
 	gl.Handler.Handle(ctx, gl.Log.With(slog.Group("request", "path", reqUrl.Path)), nil, w, reqUrl, nil, httpsig.Key{}, gl.DB, gl.Resolver, wg)
 }

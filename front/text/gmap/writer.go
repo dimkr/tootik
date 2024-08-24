@@ -18,6 +18,7 @@ limitations under the License.
 package gmap
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front/text"
@@ -32,9 +33,11 @@ type writer struct {
 	Config *cfg.Config
 }
 
+const bufferSize = 256
+
 // Wrap wraps an [io.Writer] with a gophermap writer.
 func Wrap(w io.Writer, domain string, cfg *cfg.Config) text.Writer {
-	return &writer{Base: text.Base{Writer: w}, Domain: domain, Config: cfg}
+	return &writer{Base: text.Base{Writer: bufio.NewWriterSize(w, bufferSize)}, Domain: domain, Config: cfg}
 }
 
 func (w *writer) Status(code int, meta string) {
@@ -155,5 +158,5 @@ func (w *writer) Separator() {
 }
 
 func (gw *writer) Clone(w io.Writer) text.Writer {
-	return &writer{Base: text.Base{Writer: w}, Domain: gw.Domain, Config: gw.Config}
+	return &writer{Base: text.Base{Writer: bufio.NewWriterSize(w, bufferSize)}, Domain: gw.Domain, Config: gw.Config}
 }

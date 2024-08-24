@@ -18,7 +18,6 @@ limitations under the License.
 package gemini
 
 import (
-	"bufio"
 	"context"
 	"crypto/sha256"
 	"crypto/tls"
@@ -50,8 +49,6 @@ type Listener struct {
 	CertPath string
 	KeyPath  string
 }
-
-const bufferSize = 256
 
 func (gl *Listener) getUser(ctx context.Context, conn net.Conn, tlsConn *tls.Conn) (*ap.Actor, httpsig.Key, error) {
 	state := tlsConn.ConnectionState()
@@ -132,9 +129,7 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 		return
 	}
 
-	buffered := bufio.NewWriterSize(conn, bufferSize)
-	defer buffered.Flush()
-	w := gmi.Wrap(buffered)
+	w := gmi.Wrap(conn)
 
 	user, privKey, err := gl.getUser(ctx, conn, tlsConn)
 	if err != nil && errors.Is(err, front.ErrNotRegistered) && reqUrl.Path == "/users" {
