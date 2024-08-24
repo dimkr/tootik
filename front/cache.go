@@ -21,6 +21,7 @@ import (
 	"context"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front/text"
+	"slices"
 	"sync"
 	"time"
 )
@@ -35,7 +36,7 @@ type cacheEntry struct {
 }
 
 func (w chanWriter) Write(p []byte) (int, error) {
-	w.c <- p
+	w.c <- slices.Clone(p)
 	return len(p), nil
 }
 
