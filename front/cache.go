@@ -48,8 +48,9 @@ func callAndCache(r *request, w text.Writer, args []string, f func(text.Writer, 
 		r2.Context = context.Background()
 
 		w2 := w.Clone(&chanWriter{c})
-
 		f(w2, &r2, args...)
+
+		w2.Flush()
 		close(c)
 	}()
 
@@ -66,6 +67,7 @@ func callAndCache(r *request, w text.Writer, args []string, f func(text.Writer, 
 	w2 := w.Clone(&buf)
 	w2.Empty()
 	w2.Textf("(Cached response generated on %s)", now.Format(time.UnixDate))
+	w2.Flush()
 
 	cache.Store(key, cacheEntry{buf.Bytes(), now})
 }
