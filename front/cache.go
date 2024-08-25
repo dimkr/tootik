@@ -70,6 +70,12 @@ func callAndCache(r *request, w text.Writer, args []string, f func(text.Writer, 
 		buf.Write(chunk)
 	}
 
+	if send {
+		if err := w.Flush(); err != nil {
+			r.Log.Warn("Failed to send response", "error", err)
+		}
+	}
+
 	w2 := w.Clone(&buf)
 	w2.Empty()
 	w2.Textf("(Cached response generated on %s)", now.Format(time.UnixDate))
