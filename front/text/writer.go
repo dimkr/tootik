@@ -19,6 +19,7 @@ package text
 import "io"
 
 // Writer builds a textual response.
+// The response is buffered: call [Writer.Flush] to flush the last chunk to the underlying [io.Writer].
 type Writer interface {
 	io.Writer
 
