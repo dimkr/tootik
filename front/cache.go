@@ -55,12 +55,18 @@ func callAndCache(r *request, w text.Writer, args []string, f func(text.Writer, 
 	}()
 
 	var buf bytes.Buffer
+	send := true
 	for {
 		chunk, ok := <-c
 		if !ok {
 			break
 		}
-		w.Write(chunk)
+		if send {
+			if _, err := w.Write(chunk); err != nil {
+				r.Log.Warn("Failed to send response", "error", err)
+				send = false
+			}
+		}
 		buf.Write(chunk)
 	}
 
