@@ -62,7 +62,7 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 	var rows *sql.Rows
 	if r.User == nil {
 		rows, err = r.Query(
-			`select replies.object, persons.actor, replies.inserted from notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
+			`select replies.object, persons.actor, null as sharer, replies.inserted from notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
 			left join persons on persons.id = replies.author
 			where notes.id = $1 and replies.public = 1
 			order by replies.inserted desc limit $2 offset $3`,
@@ -72,7 +72,7 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 		)
 	} else {
 		rows, err = r.Query(
-			`select replies.object, persons.actor, replies.inserted from
+			`select replies.object, persons.actor, null as sharer, replies.inserted from
 			notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
 			left join persons on persons.id = replies.author
 			left join (select id from persons where actor->>'$.type' = 'Group') groups on groups.id = replies.object->>'$.audience'
