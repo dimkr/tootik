@@ -71,12 +71,8 @@ func (h *Handler) showFeedPage(w text.Writer, r *request, title string, query fu
 		w.Title(title)
 	}
 
-	count := r.PrintNotes(w, rows, true, printDaySeparators)
+	count := r.PrintNotes(w, rows, true, printDaySeparators, "No posts.")
 	rows.Close()
-
-	if count == 0 {
-		w.Text("No posts.")
-	}
 
 	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
 		w.Separator()

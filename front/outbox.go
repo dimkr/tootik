@@ -278,12 +278,8 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		w.Separator()
 	}
 
-	count := r.PrintNotes(w, rows, true, actor.Type != ap.Group)
+	count := r.PrintNotes(w, rows, true, actor.Type != ap.Group, "No posts.")
 	rows.Close()
-
-	if count == 0 {
-		w.Text("No posts.")
-	}
 
 	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
 		w.Separator()

@@ -145,12 +145,8 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 		}
 	}
 
-	count := r.PrintNotes(w, rows, false, false)
+	count := r.PrintNotes(w, rows, false, false, "No replies.")
 	rows.Close()
-
-	if count == 0 {
-		w.Text("No replies.")
-	}
 
 	var originalPostExists int
 	var threadHead sql.NullString

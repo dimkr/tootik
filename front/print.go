@@ -449,7 +449,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 	}
 }
 
-func (r *request) PrintNotes(w text.Writer, rows *sql.Rows, printParentAuthor, printDaySeparators bool) int {
+func (r *request) PrintNotes(w text.Writer, rows *sql.Rows, printParentAuthor, printDaySeparators bool, fallback string) int {
 	var lastDay int64
 	count := 0
 	for rows.Next() {
@@ -488,6 +488,10 @@ func (r *request) PrintNotes(w text.Writer, rows *sql.Rows, printParentAuthor, p
 
 		lastDay = currentDay
 		count++
+	}
+
+	if count == 0 {
+		w.Text(fallback)
 	}
 
 	return count

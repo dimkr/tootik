@@ -154,12 +154,8 @@ func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 		w.Titlef("🔎 Search Results for '%s'", query)
 	}
 
-	count := r.PrintNotes(w, rows, true, false)
+	count := r.PrintNotes(w, rows, true, false, "No results.")
 	rows.Close()
-
-	if count == 0 {
-		w.Text("No results.")
-	}
 
 	if offset > 0 || count == h.Config.PostsPerPage {
 		w.Separator()
