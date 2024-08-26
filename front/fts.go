@@ -146,33 +146,22 @@ func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	notes := make([]feedRow, h.Config.PostsPerPage)
-	count := 0
-
-	for rows.Next() {
-		if err := rows.Scan(&notes[count].Note, &notes[count].Author, &notes[count].Sharer, &notes[count].Published); err != nil {
-			r.Log.Warn("Failed to scan search result", "error", err)
-			continue
-		}
-		count++
-	}
-	rows.Close()
-
 	w.OK()
 
-	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
+	if offset > 0 {
 		w.Titlef("🔎 Search Results for '%s' (%d-%d)", query, offset, offset+h.Config.PostsPerPage)
 	} else {
 		w.Titlef("🔎 Search Results for '%s'", query)
 	}
 
+	count := r.PrintNotes(w, rows, true, false)
+	rows.Close()
+
 	if count == 0 {
 		w.Text("No results.")
-	} else {
-		r.PrintNotes(w, notes[:count], true, false)
 	}
 
-	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
+	if offset > 0 || count == h.Config.PostsPerPage {
 		w.Separator()
 	}
 

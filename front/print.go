@@ -31,13 +31,6 @@ import (
 	"time"
 )
 
-type feedRow struct {
-	Note      ap.Object
-	Author    sql.Null[ap.Actor]
-	Sharer    sql.Null[ap.Actor]
-	Published int64
-}
-
 var verifiedRegex = regexp.MustCompile(`(\s*:[a-zA-Z0-9_]+:\s*)+`)
 
 func getTextAndLinks(s string, maxRunes, maxLines int) ([]string, data.OrderedMap[string, string]) {
@@ -456,35 +449,46 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 	}
 }
 
-func (r *request) PrintNotes(w text.Writer, rows []feedRow, printParentAuthor, printDaySeparators bool) {
+func (r *request) PrintNotes(w text.Writer, rows *sql.Rows, printParentAuthor, printDaySeparators bool) int {
 	var lastDay int64
-	first := true
-	for _, row := range rows {
-		if row.Note.Type != ap.Note && row.Note.Type != ap.Page && row.Note.Type != ap.Article && row.Note.Type != ap.Question {
-			r.Log.Warn("Post type is unsupported", "type", row.Note.Type)
+	count := 0
+	for rows.Next() {
+		var note ap.Object
+		var author sql.Null[ap.Actor]
+		var sharer sql.Null[ap.Actor]
+		var published int64
+		if err := rows.Scan(&note, &author, &sharer, &published); err != nil {
+			r.Log.Warn("Failed to scan post", "error", err)
 			continue
 		}
 
-		if !row.Author.Valid {
-			r.Log.Warn("Post author is unknown", "note", row.Note.ID, "author", row.Note.AttributedTo)
+		if note.Type != ap.Note && note.Type != ap.Page && note.Type != ap.Article && note.Type != ap.Question {
+			r.Log.Warn("Post type is unsupported", "type", note.Type)
 			continue
 		}
 
-		currentDay := row.Published / (60 * 60 * 24)
+		if !author.Valid {
+			r.Log.Warn("Post author is unknown", "note", note.ID, "author", note.AttributedTo)
+			continue
+		}
 
-		if !first && printDaySeparators && currentDay != lastDay {
+		currentDay := published / (60 * 60 * 24)
+
+		if count > 0 && printDaySeparators && currentDay != lastDay {
 			w.Separator()
-		} else if !first {
+		} else if count > 0 {
 			w.Empty()
 		}
 
-		if row.Sharer.Valid {
-			r.PrintNote(w, &row.Note, &row.Author.V, &row.Sharer.V, time.Unix(row.Published, 0), true, true, printParentAuthor, true)
+		if sharer.Valid {
+			r.PrintNote(w, &note, &author.V, &sharer.V, time.Unix(published, 0), true, true, printParentAuthor, true)
 		} else {
-			r.PrintNote(w, &row.Note, &row.Author.V, nil, time.Unix(row.Published, 0), true, true, printParentAuthor, true)
+			r.PrintNote(w, &note, &author.V, nil, time.Unix(published, 0), true, true, printParentAuthor, true)
 		}
 
 		lastDay = currentDay
-		first = false
+		count++
 	}
+
+	return count
 }

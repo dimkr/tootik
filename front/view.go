@@ -89,20 +89,6 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 		w.Error()
 		return
 	}
-	defer rows.Close()
-
-	replies := make([]feedRow, h.Config.RepliesPerPage)
-	count := 0
-
-	for rows.Next() {
-		if err := rows.Scan(&replies[count].Note, &replies[count].Author, &replies[count].Published); err != nil {
-			r.Log.Warn("Failed to scan reply", "error", err)
-			continue
-		}
-
-		count++
-	}
-	rows.Close()
 
 	w.OK()
 
@@ -150,16 +136,21 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 			}
 		}
 
-		if count > 0 && offset >= h.Config.RepliesPerPage {
+		if offset > 0 {
 			w.Empty()
 			w.Subtitlef("💬 Replies to %s (%d-%d)", author.PreferredUsername, offset, offset+h.Config.RepliesPerPage)
-		} else if count > 0 {
+		} else {
 			w.Empty()
 			w.Subtitle("💬 Replies")
 		}
 	}
 
-	r.PrintNotes(w, replies[:count], false, false)
+	count := r.PrintNotes(w, rows, false, false)
+	rows.Close()
+
+	if count == 0 {
+		w.Text("No replies.")
+	}
 
 	var originalPostExists int
 	var threadHead sql.NullString

@@ -177,20 +177,6 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		w.Error()
 		return
 	}
-	defer rows.Close()
-
-	notes := make([]feedRow, h.Config.PostsPerPage)
-	count := 0
-
-	for rows.Next() {
-		if err := rows.Scan(&notes[count].Note, &notes[count].Author, &notes[count].Sharer, &notes[count].Published); err != nil {
-			r.Log.Warn("Failed to scan post", "error", err)
-			continue
-		}
-
-		count++
-	}
-	rows.Close()
 
 	w.OK()
 
@@ -202,11 +188,11 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		summary, links = getTextAndLinks(actor.Summary, -1, -1)
 	}
 
-	if actor.Type != ap.Person && (offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage) {
+	if actor.Type != ap.Person && offset > 0 {
 		w.Titlef("%s [%s] (%d-%d)", displayName, actor.Type, offset, offset+h.Config.PostsPerPage)
 	} else if actor.Type != ap.Person {
 		w.Titlef("%s [%s]", displayName, actor.Type)
-	} else if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
+	} else if offset > 0 {
 		w.Titlef("%s (%d-%d)", displayName, offset, offset+h.Config.PostsPerPage)
 	} else {
 		w.Title(displayName)
@@ -292,10 +278,11 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		w.Separator()
 	}
 
+	count := r.PrintNotes(w, rows, true, actor.Type != ap.Group)
+	rows.Close()
+
 	if count == 0 {
 		w.Text("No posts.")
-	} else {
-		r.PrintNotes(w, notes[:count], true, actor.Type != ap.Group)
 	}
 
 	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
