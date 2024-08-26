@@ -71,8 +71,6 @@ func (h *Handler) showFeedPage(w text.Writer, r *request, title string, query fu
 		w.Title(title)
 	}
 
-	w.OK()
-
 	count := r.PrintNotes(w, rows, true, printDaySeparators)
 	rows.Close()
 
