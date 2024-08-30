@@ -70,5 +70,5 @@ func (w *Writer) Redirectf(format string, a ...any) {
 }
 
 func (w *Writer) Clone(w2 io.Writer) text.Writer {
-	return &Writer{Writer: gmi.Wrap(w2), seq: w.seq}
+	return Wrap(w2, w.seq)
 }

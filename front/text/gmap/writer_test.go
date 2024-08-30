@@ -33,6 +33,7 @@ func TestRaw_TrailingNewLine(t *testing.T) {
 		"Alt text",
 		"  _\n\\'_'/\n|___|\n/   \\\n",
 	)
+	w.Flush()
 
 	assert.Equal(
 		"i  _\t/\t0\t0\r\ni\\'_'/\t/\t0\t0\r\ni|___|\t/\t0\t0\r\ni/   \\\t/\t0\t0\r\n",
@@ -50,6 +51,7 @@ func TestRaw_NoTrailingNewLine(t *testing.T) {
 		"Alt text",
 		"  _\n\\'_'/\n|___|\n/   \\",
 	)
+	w.Flush()
 
 	assert.Equal(
 		"i  _\t/\t0\t0\r\ni\\'_'/\t/\t0\t0\r\ni|___|\t/\t0\t0\r\ni/   \\\t/\t0\t0\r\n",

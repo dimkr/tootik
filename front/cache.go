@@ -21,34 +21,78 @@ import (
 	"context"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front/text"
+	"slices"
 	"sync"
 	"time"
 )
+
+type chanWriter struct {
+	c chan<- []byte
+}
 
 type cacheEntry struct {
 	Value   []byte
 	Created time.Time
 }
 
-func callAndCache(r *request, w text.Writer, args []string, f func(text.Writer, *request, ...string), key string, now time.Time, cache *sync.Map) []byte {
+func (w chanWriter) Write(p []byte) (int, error) {
+	w.c <- slices.Clone(p)
+	return len(p), nil
+}
+
+func callAndCache(r *request, w text.Writer, args []string, f func(text.Writer, *request, ...string), key string, now time.Time, cache *sync.Map) {
+	c := make(chan []byte)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// handle the request without timeout: the listener will close w on timeout
+	go func() {
+		r2 := *r
+		r2.Context = ctx
+
+		w2 := w.Clone(&chanWriter{c})
+		f(w2, &r2, args...)
+
+		w2.Flush()
+		close(c)
+	}()
+
 	var buf bytes.Buffer
+	send := true
+	for {
+		chunk, ok := <-c
+		if !ok {
+			if send {
+				if err := w.Flush(); err != nil {
+					r.Log.Warn("Failed to send response", "error", err)
+				}
+			}
+
+			break
+		}
+
+		// send response chunks to the client, until error
+		if send {
+			if _, err := w.Write(chunk); err != nil {
+				r.Log.Warn("Failed to send response", "error", err)
+				send = false
+			}
+		}
+
+		// remember the sent chunk
+		buf.Write(chunk)
+	}
+
+	// if we're here, w is closed or sending failed
+	cancel()
+
+	// append a footer to cached responses
 	w2 := w.Clone(&buf)
-
-	r2 := *r
-	r2.Context = context.Background()
-
-	f(w2, &r2, args...)
-
-	resp := buf.Bytes()
-
-	raw := make([]byte, len(resp))
-	copy(raw, resp)
-
 	w2.Empty()
 	w2.Textf("(Cached response generated on %s)", now.Format(time.UnixDate))
+	w2.Flush()
 
 	cache.Store(key, cacheEntry{buf.Bytes(), now})
-	return raw
 }
 
 func withCache(f func(text.Writer, *request, ...string), d time.Duration, cache *sync.Map, cfg *cfg.Config) func(text.Writer, *request, ...string) {
@@ -59,7 +103,7 @@ func withCache(f func(text.Writer, *request, ...string), d time.Duration, cache 
 		entry, cached := cache.Load(key)
 		if !cached {
 			r.Log.Info("Generating first response", "key", key)
-			w.Write(callAndCache(r, w, args, f, key, now, cache))
+			callAndCache(r, w, args, f, key, now, cache)
 			return
 		}
 
@@ -69,24 +113,7 @@ func withCache(f func(text.Writer, *request, ...string), d time.Duration, cache 
 			return
 		}
 
-		update := make(chan []byte, 1)
-		timer := time.NewTimer(cfg.CacheUpdateTimeout)
-		defer timer.Stop()
-
-		r.WaitGroup.Add(1)
-		go func() {
-			r.Log.Info("Generating new response", "key", key)
-			update <- callAndCache(r, w, args, f, key, now, cache)
-			r.WaitGroup.Done()
-		}()
-
-		select {
-		case resp := <-update:
-			w.Write(resp)
-
-		case <-timer.C:
-			r.Log.Warn("Timeout, sending old cached response", "key", key)
-			w.Write(entry.(cacheEntry).Value)
-		}
+		r.Log.Info("Generating new response", "key", key)
+		callAndCache(r, w, args, f, key, now, cache)
 	}
 }

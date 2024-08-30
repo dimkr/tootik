@@ -62,7 +62,7 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 	var rows *sql.Rows
 	if r.User == nil {
 		rows, err = r.Query(
-			`select replies.object, persons.actor, replies.inserted from notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
+			`select replies.object, persons.actor, null as sharer, replies.inserted from notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
 			left join persons on persons.id = replies.author
 			where notes.id = $1 and replies.public = 1
 			order by replies.inserted desc limit $2 offset $3`,
@@ -72,7 +72,7 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 		)
 	} else {
 		rows, err = r.Query(
-			`select replies.object, persons.actor, replies.inserted from
+			`select replies.object, persons.actor, null as sharer, replies.inserted from
 			notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
 			left join persons on persons.id = replies.author
 			left join (select id from persons where actor->>'$.type' = 'Group') groups on groups.id = replies.object->>'$.audience'
@@ -89,20 +89,6 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 		w.Error()
 		return
 	}
-	defer rows.Close()
-
-	replies := make([]feedRow, h.Config.RepliesPerPage)
-	count := 0
-
-	for rows.Next() {
-		if err := rows.Scan(&replies[count].Note, &replies[count].Author, &replies[count].Published); err != nil {
-			r.Log.Warn("Failed to scan reply", "error", err)
-			continue
-		}
-
-		count++
-	}
-	rows.Close()
 
 	w.OK()
 
@@ -150,16 +136,17 @@ func (h *Handler) view(w text.Writer, r *request, args ...string) {
 			}
 		}
 
-		if count > 0 && offset >= h.Config.RepliesPerPage {
+		if offset > 0 {
 			w.Empty()
 			w.Subtitlef("💬 Replies to %s (%d-%d)", author.PreferredUsername, offset, offset+h.Config.RepliesPerPage)
-		} else if count > 0 {
+		} else {
 			w.Empty()
 			w.Subtitle("💬 Replies")
 		}
 	}
 
-	r.PrintNotes(w, replies[:count], false, false)
+	count := r.PrintNotes(w, rows, false, false, "No replies.")
+	rows.Close()
 
 	var originalPostExists int
 	var threadHead sql.NullString

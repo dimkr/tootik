@@ -27,14 +27,14 @@ import (
 )
 
 type writer struct {
-	text.Base
+	*text.LineWriter
 	Domain string
 	Config *cfg.Config
 }
 
 // Wrap wraps an [io.Writer] with a gophermap writer.
 func Wrap(w io.Writer, domain string, cfg *cfg.Config) text.Writer {
-	return &writer{Base: text.Base{Writer: w}, Domain: domain, Config: cfg}
+	return &writer{LineWriter: text.LineBuffered(w), Domain: domain, Config: cfg}
 }
 
 func (w *writer) Status(code int, meta string) {
@@ -155,5 +155,5 @@ func (w *writer) Separator() {
 }
 
 func (gw *writer) Clone(w io.Writer) text.Writer {
-	return &writer{Base: text.Base{Writer: w}, Domain: gw.Domain, Config: gw.Config}
+	return Wrap(w, gw.Domain, gw.Config)
 }
