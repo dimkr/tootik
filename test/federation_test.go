@@ -118,11 +118,7 @@ func (c *fediverseClient) Do(r *http.Request) (*http.Response, error) {
 		return nil, fmt.Errorf("Unknown instance: %s", r.URL.Host)
 	}
 
-	//fmt.Println("Handling request", r)
-
 	i.Backend.ServeHTTP(w, r)
-
-	//fmt.Println("Got response", string(w.Body.Bytes()))
 
 	return &http.Response{
 		StatusCode: w.StatusCode,
@@ -169,9 +165,7 @@ func (i *instance) HandleFrontendRequest(request string, user *ap.Actor, key htt
 func (f fediverse) AddInstance(domain string) *instance {
 	log := slog.Default().With("instance", domain)
 
-	path := filepath.Join(f.t.TempDir(), domain+".sqlite3")
-	fmt.Println(path)
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite3", filepath.Join(f.t.TempDir(), domain+".sqlite3")+"?_journal_mode=WAL")
 	if err != nil {
 		panic(err)
 		f.t.FailNow()
