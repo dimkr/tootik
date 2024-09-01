@@ -394,8 +394,7 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 		}
 
 		if (post.Type == ap.Question && post.Updated != nil && lastChange >= post.Updated.Unix()) || (post.Type != ap.Question && (post.Updated == nil || lastChange >= post.Updated.Unix())) {
-			log.Debug("Received old update request for new post")
-			return nil
+			log.Info("Received old update request for new post")
 		}
 
 		// only the group can decide if audience has changed

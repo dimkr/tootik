@@ -116,7 +116,7 @@ func TestDeliver_TwoUsersTwoPosts(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(q.process(context.Background()))
+	assert.NoError(q.ProcessBatch(context.Background()))
 	assert.Empty(client.Data)
 
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/2","type":"Create","actor":"https://localhost.localdomain/user/bob","object":{"id":"https://localhost.localdomain/note/2","type":"Note","attributedTo":"https://localhost.localdomain/user/bob","content":"bye","inReplyTo":"https://localhost.localdomain/note/1","to":["https://localhost.localdomain/user/alice","https://localhost.localdomain/followers/bob"],"cc":[]},"to":["https://localhost.localdomain/user/alice","https://localhost.localdomain/followers/bob"],"cc":[]}`
@@ -137,7 +137,7 @@ func TestDeliver_TwoUsersTwoPosts(t *testing.T) {
 		},
 	}
 
-	assert.NoError(q.process(context.Background()))
+	assert.NoError(q.ProcessBatch(context.Background()))
 	assert.Empty(client.Data)
 }
 
@@ -225,7 +225,7 @@ func TestDeliver_ForwardedPost(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(q.process(context.Background()))
+	assert.NoError(q.ProcessBatch(context.Background()))
 	assert.Empty(client.Data)
 
 	_, err = db.Exec(
@@ -235,7 +235,7 @@ func TestDeliver_ForwardedPost(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(q.process(context.Background()))
+	assert.NoError(q.ProcessBatch(context.Background()))
 	assert.Empty(client.Data)
 }
 
@@ -323,7 +323,7 @@ func TestDeliver_OneFailed(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(q.process(context.Background()))
+	assert.NoError(q.ProcessBatch(context.Background()))
 	assert.Empty(client.Data)
 
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/2","type":"Create","actor":"https://localhost.localdomain/user/bob","object":{"id":"https://localhost.localdomain/note/2","type":"Note","attributedTo":"https://localhost.localdomain/user/bob","content":"bye","inReplyTo":"https://localhost.localdomain/note/1","to":["https://localhost.localdomain/user/alice","https://localhost.localdomain/followers/bob"],"cc":[]},"to":["https://localhost.localdomain/user/alice","https://localhost.localdomain/followers/bob"],"cc":[]}`
@@ -344,7 +344,7 @@ func TestDeliver_OneFailed(t *testing.T) {
 		},
 	}
 
-	assert.NoError(q.process(context.Background()))
+	assert.NoError(q.ProcessBatch(context.Background()))
 	assert.Empty(client.Data)
 }
 
@@ -426,7 +426,7 @@ func TestDeliver_OneFailedRetry(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(q.process(context.Background()))
+	assert.NoError(q.ProcessBatch(context.Background()))
 	assert.Empty(client.Data)
 
 	cfg.DeliveryRetryInterval = 0
@@ -440,10 +440,10 @@ func TestDeliver_OneFailedRetry(t *testing.T) {
 		},
 	}
 
-	assert.NoError(q.process(context.Background()))
+	assert.NoError(q.ProcessBatch(context.Background()))
 	assert.Empty(client.Data)
 
-	assert.NoError(q.process(context.Background()))
+	assert.NoError(q.ProcessBatch(context.Background()))
 }
 
 func TestDeliver_OneInvalidURLRetry(t *testing.T) {
@@ -518,17 +518,17 @@ func TestDeliver_OneInvalidURLRetry(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(q.process(context.Background()))
+	assert.NoError(q.ProcessBatch(context.Background()))
 	assert.Empty(client.Data)
 
 	cfg.DeliveryRetryInterval = 0
 
 	client.Data = map[string]testResponse{}
 
-	assert.NoError(q.process(context.Background()))
+	assert.NoError(q.ProcessBatch(context.Background()))
 	assert.Empty(client.Data)
 
-	assert.NoError(q.process(context.Background()))
+	assert.NoError(q.ProcessBatch(context.Background()))
 }
 
 func TestDeliver_MaxAttempts(t *testing.T) {
@@ -609,7 +609,7 @@ func TestDeliver_MaxAttempts(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(q.process(context.Background()))
+	assert.NoError(q.ProcessBatch(context.Background()))
 	assert.Empty(client.Data)
 
 	cfg.DeliveryRetryInterval = 0
@@ -624,10 +624,10 @@ func TestDeliver_MaxAttempts(t *testing.T) {
 		},
 	}
 
-	assert.NoError(q.process(context.Background()))
+	assert.NoError(q.ProcessBatch(context.Background()))
 	assert.Empty(client.Data)
 
-	assert.NoError(q.process(context.Background()))
+	assert.NoError(q.ProcessBatch(context.Background()))
 }
 
 func TestDeliver_SharedInbox(t *testing.T) {
@@ -718,7 +718,7 @@ func TestDeliver_SharedInbox(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(q.process(context.Background()))
+	assert.NoError(q.ProcessBatch(context.Background()))
 	assert.Empty(client.Data)
 }
 
@@ -810,7 +810,7 @@ func TestDeliver_SharedInboxRetry(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(q.process(context.Background()))
+	assert.NoError(q.ProcessBatch(context.Background()))
 	assert.Empty(client.Data)
 
 	cfg.DeliveryRetryInterval = 0
@@ -824,7 +824,7 @@ func TestDeliver_SharedInboxRetry(t *testing.T) {
 		},
 	}
 
-	assert.NoError(q.process(context.Background()))
+	assert.NoError(q.ProcessBatch(context.Background()))
 	assert.Empty(client.Data)
 }
 
@@ -909,13 +909,13 @@ func TestDeliver_SharedInboxUnknownActor(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(q.process(context.Background()))
+	assert.NoError(q.ProcessBatch(context.Background()))
 	assert.Empty(client.Data)
 
 	cfg.DeliveryRetryInterval = 0
 
 	client.Data = map[string]testResponse{}
 
-	assert.NoError(q.process(context.Background()))
+	assert.NoError(q.ProcessBatch(context.Background()))
 	assert.Empty(client.Data)
 }

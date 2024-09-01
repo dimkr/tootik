@@ -70,14 +70,14 @@ func (q *Queue) Process(ctx context.Context) error {
 			return nil
 
 		case <-t.C:
-			if err := q.process(ctx); err != nil {
+			if err := q.ProcessBatch(ctx); err != nil {
 				q.Log.Error("Failed to deliver posts", "error", err)
 			}
 		}
 	}
 }
 
-func (q *Queue) process(ctx context.Context) error {
+func (q *Queue) ProcessBatch(ctx context.Context) error {
 	q.Log.Debug("Polling delivery queue")
 
 	rows, err := q.DB.QueryContext(ctx, `select outbox.attempts, outbox.activity, outbox.activity, outbox.inserted, persons.actor, persons.privkey from outbox join persons on persons.id = outbox.sender where outbox.sent = 0 and (outbox.attempts = 0 or (outbox.attempts < ? and outbox.last <= unixepoch() - ?)) order by outbox.attempts asc, outbox.last asc limit ?`, q.Config.MaxDeliveryAttempts, q.Config.DeliveryRetryInterval, q.Config.DeliveryBatchSize)
@@ -134,7 +134,7 @@ func (q *Queue) process(ctx context.Context) error {
 
 		if _, err := q.DB.ExecContext(ctx, `update outbox set last = unixepoch(), attempts = ? where activity->>'$.id' = ? and sender = ?`, deliveryAttempts+1, activity.ID, actor.ID); err != nil {
 			q.Log.Error("Failed to save last delivery attempt time", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
-			continue
+			//continue
 		}
 
 		job := deliveryJob{
@@ -259,7 +259,7 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 
 	// list the actor's federated followers if we're forwarding an activity by another actor, or if addressed by actor
 	if wideDelivery {
-		followers, err := q.DB.QueryContext(ctx, `select distinct follower from follows where followed = ? and follower not like ? and follower not like ? and accepted = 1 and inserted < ?`, job.Sender.ID, fmt.Sprintf("https://%s/%%", q.Domain), fmt.Sprintf("https://%s/%%", activityID.Host), inserted.Unix())
+		followers, err := q.DB.QueryContext(ctx, `select distinct follower from follows where followed = ? and follower not like ? and follower not like ? and accepted = 1 and inserted <= ?`, job.Sender.ID, fmt.Sprintf("https://%s/%%", q.Domain), fmt.Sprintf("https://%s/%%", activityID.Host), inserted.Unix())
 		if err != nil {
 			q.Log.Warn("Failed to list followers", "activity", job.Activity.ID, "error", err)
 		} else {
