@@ -36,65 +36,35 @@ func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 	}
 
 	rows, err := r.Query(`
-		select u.actor, max(u.ninserted)/(24*60*60) from
+		select persons.actor, g.ninserted/(24*60*60) from
 		(
-			select persons.actor, notes.inserted as ninserted, follows.inserted as finserted from
-			follows
-			join persons
-			on
-				persons.id = follows.followed
-			join notes
-			on
-				notes.object->>'$.audience' = follows.followed
-			where
-				follows.follower = $1 and
-				persons.actor->>'$.type' = 'Group' and
-				notes.object->'$.inReplyTo' is null and
-				notes.inserted >= unixepoch() - 7*24*60*60
-			union all
-			select persons.actor, notes.inserted as ninserted, follows.inserted as finserted from
-			follows
-			join persons
-			on
-				persons.id = follows.followed
-			join notes
-			on
-				notes.author = follows.followed
-			where
-				follows.follower = $1 and
-				persons.actor->>'$.type' != 'Group' and
-				notes.inserted >= unixepoch() - 7*24*60*60
-			union all
-			select persons.actor, shares.inserted as ninserted, follows.inserted as finserted from
-			follows
-			join shares
-			on
-				shares.by = follows.followed
-			join persons
-			on
-				persons.id = follows.followed
-			join notes
-			on
-				notes.id = shares.note
-			where
-				shares.inserted >= unixepoch() - 7*24*60*60 and
-				notes.public = 1 and
-				follows.follower = $1
-			union all
-			select persons.actor, null as ninserted, follows.inserted as finserted from
-			follows
-			join persons
-			on
-				persons.id = follows.followed
-			where
-				follows.follower = $1
-		) u
-		group by
-			u.actor
+			select followed, max(ninserted) as ninserted, max(finserted) as finserted from
+			(
+				select follows.followed, feed.inserted as ninserted, follows.inserted as finserted from
+				follows
+				join feed
+				on
+					feed.author->>'$.id' = follows.followed or
+					feed.sharer->>'$.id' = follows.followed
+				where
+					follows.follower = $1 and
+					feed.follower = $1 and
+					feed.inserted >= unixepoch() - 7*24*60*60
+				union all
+				select follows.followed, null as ninserted, follows.inserted as finserted from
+				follows
+				where
+					follows.follower = $1
+			)
+			group by followed
+		) g
+		join persons
+		on
+			persons.id = g.followed
 		order by
-			max(u.ninserted)/(24*60*60) desc,
-			max(u.ninserted) desc,
-			u.finserted desc
+			g.ninserted/(24*60*60) desc,
+			g.ninserted desc,
+			g.finserted desc
 		`,
 		r.User.ID,
 	)

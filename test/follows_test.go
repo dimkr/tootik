@@ -17,7 +17,9 @@ limitations under the License.
 package test
 
 import (
+	"context"
 	"fmt"
+	"github.com/dimkr/tootik/inbox"
 	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
@@ -29,6 +31,8 @@ func TestFollows_NoFollows(t *testing.T) {
 	defer server.Shutdown()
 
 	assert := assert.New(t)
+
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	follows := server.Handle("/users/follows", server.Alice)
 	assert.Contains(follows, "No followed users.")
@@ -43,12 +47,16 @@ func TestFollows_TwoInactive(t *testing.T) {
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+
 	follows := strings.Split(server.Handle("/users/follows", server.Alice), "\n")
 	assert.Contains(follows, "=> /users/outbox/localhost.localdomain:8443/user/bob 😈 bob (bob@localhost.localdomain:8443)")
 	assert.NotContains(follows, "=> /users/outbox/localhost.localdomain:8443/user/carol 😈 carol (carol@localhost.localdomain:8443)")
 
 	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Carol.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Carol.ID, "https://")), follow)
+
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	follows = strings.Split(server.Handle("/users/follows", server.Alice), "\n")
 	assert.Contains(follows, "=> /users/outbox/localhost.localdomain:8443/user/bob 😈 bob (bob@localhost.localdomain:8443)")
@@ -67,12 +75,16 @@ func TestFollows_OneActiveOneInactive(t *testing.T) {
 	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Carol.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Carol.ID, "https://")), follow)
 
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+
 	follows := server.Handle("/users/follows", server.Alice)
 	assert.Contains(follows, "=> /users/outbox/localhost.localdomain:8443/user/bob 😈 bob (bob@localhost.localdomain:8443)")
 	assert.Contains(follows, "=> /users/outbox/localhost.localdomain:8443/user/carol 😈 carol (carol@localhost.localdomain:8443)")
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	follows = server.Handle("/users/follows", server.Alice)
 	assert.Contains(follows, fmt.Sprintf("=> /users/outbox/localhost.localdomain:8443/user/bob %s 😈 bob (bob@localhost.localdomain:8443)", time.Now().Format(time.DateOnly)))
@@ -84,6 +96,8 @@ func TestFollows_UnauthenticatedUser(t *testing.T) {
 	defer server.Shutdown()
 
 	assert := assert.New(t)
+
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	follows := server.Handle("/users/follows", nil)
 	assert.Equal("30 /users\r\n", follows)
