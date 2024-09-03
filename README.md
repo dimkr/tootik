@@ -179,9 +179,9 @@ Federation happens through two tables, `inbox` and `outbox`. Both contain [Activ
                   ┗━━━━━━━━━━━━━━┛
 ```
 
-[gemini.Listener](https://pkg.go.dev/github.com/dimkr/tootik/front/gemini#Listener) is a Gemini server that handles requests through [Handler](https://pkg.go.dev/github.com/dimkr/tootik/front#Handler). It adds rows to `persons` during new user registration and changes rows when users change properties like their display name.
+[gemini.Listener](https://pkg.go.dev/github.com/dimkr/tootik/front/gemini#Listener) is a Gemini server that handles requests using [Handler](https://pkg.go.dev/github.com/dimkr/tootik/front#Handler). It adds rows to `persons` during new user registration and changes rows when users change properties like their display name.
 
-[Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) is responsible for fetching [Actor](https://pkg.go.dev/github.com/dimkr/tootik/ap#Actor)s that represents users of other servers. The fetched objects are cached in `persons`.
+[Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) is responsible for fetching [Actor](https://pkg.go.dev/github.com/dimkr/tootik/ap#Actor)s that represents users of other servers, using `user@domain` pairs and [WebFinger](https://datatracker.ietf.org/doc/html/rfc7033). The fetched objects are cached in `persons`.
 
 ```
                 ┌─────────────────┐
@@ -232,9 +232,9 @@ In addition, Gemini requests can:
                   └──────────────┘
 ```
 
-Each user action (post creation, post deletion, ...) is recorded as an [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) object written to `outbox`.
+User actions like post creation or deletion are recorded as [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) objects written to `outbox`.
 
-[fed.Queue](https://pkg.go.dev/github.com/dimkr/tootik/fed#Queue) is responsible for sending activities to followers from other servers, if needed.
+[fed.Queue](https://pkg.go.dev/github.com/dimkr/tootik/fed#Queue) polls `outbox` and delivers these activities to followers on other servers. It uses the `deliveries` table to track delivery progress and retry failed deliveries.
 
 ```
                                       ┏━━━━━━━━━━━━━━━┓
