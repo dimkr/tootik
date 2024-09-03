@@ -24,11 +24,6 @@ import (
 	"time"
 )
 
-type followedUserActivity struct {
-	Actor ap.Actor
-	Last  sql.NullInt64
-}
-
 func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
@@ -74,40 +69,39 @@ func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	var followedUsers []followedUserActivity
-
-	for rows.Next() {
-		var row followedUserActivity
-		if err := rows.Scan(&row.Actor, &row.Last); err != nil {
-			r.Log.Warn("Failed to list a followed user", "error", err)
-			continue
-		}
-
-		followedUsers = append(followedUsers, row)
-	}
-	rows.Close()
+	defer rows.Close()
 
 	w.OK()
 	w.Title("⚡ Followed Users")
 
-	if len(followedUsers) == 0 {
-		w.Text("No followed users.")
-		return
-	}
-
+	i := 0
 	var lastDay sql.NullInt64
-	for i, row := range followedUsers {
-		if i > 0 && row.Last != lastDay {
+	for rows.Next() {
+		var actor ap.Actor
+		var last sql.NullInt64
+		if err := rows.Scan(&actor, &last); err != nil {
+			r.Log.Warn("Failed to list a followed user", "error", err)
+			continue
+		}
+
+		if i > 0 && last != lastDay {
 			w.Separator()
 		}
-		lastDay = row.Last
+		lastDay = last
 
-		displayName := h.getActorDisplayName(&row.Actor, r.Log)
+		displayName := h.getActorDisplayName(&actor, r.Log)
 
-		if row.Last.Valid {
-			w.Linkf("/users/outbox/"+strings.TrimPrefix(row.Actor.ID, "https://"), "%s %s", time.Unix(row.Last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
+		if last.Valid {
+			w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.ID, "https://"), "%s %s", time.Unix(last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
 		} else {
-			w.Link("/users/outbox/"+strings.TrimPrefix(row.Actor.ID, "https://"), displayName)
+			w.Link("/users/outbox/"+strings.TrimPrefix(actor.ID, "https://"), displayName)
 		}
+
+		i++
+	}
+
+	if i == 0 {
+		w.Text("No followed users.")
+		return
 	}
 }
