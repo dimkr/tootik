@@ -39,9 +39,14 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if r.ContentLength > l.Config.MaxRequestBodySize {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+
 	body, err := io.ReadAll(io.LimitReader(r.Body, l.Config.MaxRequestBodySize))
 	if err != nil {
-		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 

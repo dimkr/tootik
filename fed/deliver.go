@@ -30,6 +30,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -325,6 +326,7 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 
 		req.Header.Set("User-Agent", userAgent)
 		req.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
+		req.Header.Set("Content-Length", strconv.Itoa(len(rawActivity)))
 
 		if recipients.Contains(job.Sender.Followers) {
 			if digest, err := followers.Digest(ctx, q.DB, q.Domain, job.Sender, req.URL.Host); err == nil {
