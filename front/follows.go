@@ -24,11 +24,6 @@ import (
 	"time"
 )
 
-type followedUserActivity struct {
-	Actor ap.Actor
-	Last  sql.NullInt64
-}
-
 func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
@@ -36,65 +31,35 @@ func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 	}
 
 	rows, err := r.Query(`
-		select u.actor, max(u.ninserted)/(24*60*60) from
+		select persons.actor, g.ninserted/(24*60*60) from
 		(
-			select persons.actor, notes.inserted as ninserted, follows.inserted as finserted from
-			follows
-			join persons
-			on
-				persons.id = follows.followed
-			join notes
-			on
-				notes.object->>'$.audience' = follows.followed
-			where
-				follows.follower = $1 and
-				persons.actor->>'$.type' = 'Group' and
-				notes.object->'$.inReplyTo' is null and
-				notes.inserted >= unixepoch() - 7*24*60*60
-			union all
-			select persons.actor, notes.inserted as ninserted, follows.inserted as finserted from
-			follows
-			join persons
-			on
-				persons.id = follows.followed
-			join notes
-			on
-				notes.author = follows.followed
-			where
-				follows.follower = $1 and
-				persons.actor->>'$.type' != 'Group' and
-				notes.inserted >= unixepoch() - 7*24*60*60
-			union all
-			select persons.actor, shares.inserted as ninserted, follows.inserted as finserted from
-			follows
-			join shares
-			on
-				shares.by = follows.followed
-			join persons
-			on
-				persons.id = follows.followed
-			join notes
-			on
-				notes.id = shares.note
-			where
-				shares.inserted >= unixepoch() - 7*24*60*60 and
-				notes.public = 1 and
-				follows.follower = $1
-			union all
-			select persons.actor, null as ninserted, follows.inserted as finserted from
-			follows
-			join persons
-			on
-				persons.id = follows.followed
-			where
-				follows.follower = $1
-		) u
-		group by
-			u.actor
+			select followed, max(ninserted) as ninserted, max(finserted) as finserted from
+			(
+				select follows.followed, feed.inserted as ninserted, follows.inserted as finserted from
+				follows
+				join feed
+				on
+					feed.author->>'$.id' = follows.followed or
+					feed.sharer->>'$.id' = follows.followed
+				where
+					follows.follower = $1 and
+					feed.follower = $1 and
+					feed.inserted >= unixepoch() - 7*24*60*60
+				union all
+				select follows.followed, null as ninserted, follows.inserted as finserted from
+				follows
+				where
+					follows.follower = $1
+			)
+			group by followed
+		) g
+		join persons
+		on
+			persons.id = g.followed
 		order by
-			max(u.ninserted)/(24*60*60) desc,
-			max(u.ninserted) desc,
-			u.finserted desc
+			g.ninserted/(24*60*60) desc,
+			g.ninserted desc,
+			g.finserted desc
 		`,
 		r.User.ID,
 	)
@@ -104,40 +69,39 @@ func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	var followedUsers []followedUserActivity
-
-	for rows.Next() {
-		var row followedUserActivity
-		if err := rows.Scan(&row.Actor, &row.Last); err != nil {
-			r.Log.Warn("Failed to list a followed user", "error", err)
-			continue
-		}
-
-		followedUsers = append(followedUsers, row)
-	}
-	rows.Close()
+	defer rows.Close()
 
 	w.OK()
 	w.Title("⚡ Followed Users")
 
-	if len(followedUsers) == 0 {
-		w.Text("No followed users.")
-		return
-	}
-
+	i := 0
 	var lastDay sql.NullInt64
-	for i, row := range followedUsers {
-		if i > 0 && row.Last != lastDay {
+	for rows.Next() {
+		var actor ap.Actor
+		var last sql.NullInt64
+		if err := rows.Scan(&actor, &last); err != nil {
+			r.Log.Warn("Failed to list a followed user", "error", err)
+			continue
+		}
+
+		if i > 0 && last != lastDay {
 			w.Separator()
 		}
-		lastDay = row.Last
+		lastDay = last
 
-		displayName := h.getActorDisplayName(&row.Actor, r.Log)
+		displayName := h.getActorDisplayName(&actor, r.Log)
 
-		if row.Last.Valid {
-			w.Linkf("/users/outbox/"+strings.TrimPrefix(row.Actor.ID, "https://"), "%s %s", time.Unix(row.Last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
+		if last.Valid {
+			w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.ID, "https://"), "%s %s", time.Unix(last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
 		} else {
-			w.Link("/users/outbox/"+strings.TrimPrefix(row.Actor.ID, "https://"), displayName)
+			w.Link("/users/outbox/"+strings.TrimPrefix(actor.ID, "https://"), displayName)
 		}
+
+		i++
+	}
+
+	if i == 0 {
+		w.Text("No followed users.")
+		return
 	}
 }
