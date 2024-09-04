@@ -62,10 +62,9 @@ func callAndCache(r *request, w text.Writer, args []string, f func(text.Writer, 
 	for {
 		chunk, ok := <-c
 		if !ok {
-			if send {
-				if err := w.Flush(); err != nil {
-					r.Log.Warn("Failed to send response", "error", err)
-				}
+			// always call Flush()
+			if err := w.Flush(); err != nil && send {
+				r.Log.Warn("Failed to send response", "error", err)
 			}
 
 			break
