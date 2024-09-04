@@ -106,6 +106,8 @@ func (w *LineWriter) Write(p []byte) (int, error) {
 }
 
 func (w *LineWriter) Flush() error {
+	wasClosed := w.closed
+
 	if !w.closed {
 		close(w.c)
 		err := <-w.done
@@ -115,6 +117,10 @@ func (w *LineWriter) Flush() error {
 
 	if w.err != nil {
 		return w.err
+	}
+
+	if !wasClosed {
+		return nil
 	}
 
 	return net.ErrClosed
