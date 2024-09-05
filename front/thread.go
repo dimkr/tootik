@@ -25,11 +25,6 @@ import (
 	"strings"
 )
 
-type threadNode struct {
-	Depth                            int
-	PostID, Inserted, AuthorUserName string
-}
-
 func (h *Handler) thread(w text.Writer, r *request, args ...string) {
 	postID := "https://" + args[1]
 
@@ -65,30 +60,6 @@ func (h *Handler) thread(w text.Writer, r *request, args ...string) {
 	}
 	defer rows.Close()
 
-	count := 0
-	nodes := make([]threadNode, h.Config.PostsPerPage)
-
-	for rows.Next() {
-		if err := rows.Scan(
-			&nodes[count].Depth,
-			&nodes[count].PostID,
-			&nodes[count].Inserted,
-			&nodes[count].AuthorUserName,
-		); err != nil {
-			r.Log.Info("Failed to scan post", "post", postID, "error", err)
-			continue
-		}
-
-		count++
-	}
-	rows.Close()
-
-	if count == 0 {
-		r.Log.Info("Failed to fetch any nodes in thread", "post", postID)
-		w.Error()
-		return
-	}
-
 	w.OK()
 
 	var displayName string
@@ -104,7 +75,24 @@ func (h *Handler) thread(w text.Writer, r *request, args ...string) {
 		w.Titlef("🧵 Replies to %s", displayName)
 	}
 
-	for _, node := range nodes[:count] {
+	count := 0
+	var firstNodeID string
+	for rows.Next() {
+		var node struct {
+			Depth                            int
+			PostID, Inserted, AuthorUserName string
+		}
+
+		if err := rows.Scan(
+			&node.Depth,
+			&node.PostID,
+			&node.Inserted,
+			&node.AuthorUserName,
+		); err != nil {
+			r.Log.Info("Failed to scan post", "post", postID, "error", err)
+			continue
+		}
+
 		var b strings.Builder
 		b.WriteString(node.Inserted)
 		b.WriteByte(' ')
@@ -121,15 +109,26 @@ func (h *Handler) thread(w text.Writer, r *request, args ...string) {
 		} else {
 			w.Link("/users/view/"+strings.TrimPrefix(node.PostID, "https://"), b.String())
 		}
+
+		if count == 0 {
+			firstNodeID = node.PostID
+		}
+		count++
 	}
 
-	if (threadHead.Valid && count > 0 && threadHead.String != nodes[0].PostID) || offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
+	if count == 0 {
+		r.Log.Info("Failed to fetch any nodes in thread", "post", postID)
+		w.Error()
+		return
+	}
+
+	if (threadHead.Valid && count > 0 && threadHead.String != firstNodeID) || offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
 		w.Separator()
 	}
 
-	if threadHead.Valid && count > 0 && threadHead.String != nodes[0].PostID && r.User == nil {
+	if threadHead.Valid && count > 0 && threadHead.String != firstNodeID && r.User == nil {
 		w.Link("/view/"+strings.TrimPrefix(threadHead.String, "https://"), "View first post in thread")
-	} else if threadHead.Valid && count > 0 && threadHead.String != nodes[0].PostID {
+	} else if threadHead.Valid && count > 0 && threadHead.String != firstNodeID {
 		w.Link("/users/view/"+strings.TrimPrefix(threadHead.String, "https://"), "View first post in thread")
 	}
 
