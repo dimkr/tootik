@@ -104,7 +104,7 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 
 		server := http.Server{
 			Addr:     l.Addr,
-			Handler:  mux,
+			Handler:  http.TimeoutHandler(mux, time.Second*30, ""),
 			ErrorLog: slog.NewLogLogger(l.Log.Handler(), l.LogLevel),
 			BaseContext: func(net.Listener) context.Context {
 				return serverCtx
