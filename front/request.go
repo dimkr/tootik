@@ -42,6 +42,6 @@ type Request struct {
 	// User optionally specifies a signed in user.
 	User *ap.Actor
 
-	// User optionally specifies the signing key associated with User.
+	// Key optionally specifies the signing key associated with User.
 	Key httpsig.Key
 }
