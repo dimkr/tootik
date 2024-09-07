@@ -36,12 +36,10 @@ import (
 type Listener struct {
 	Domain   string
 	Closed   bool
-	LogLevel slog.Level
 	Config   *cfg.Config
 	DB       *sql.DB
 	Resolver *Resolver
 	ActorKey httpsig.Key
-	Log      *slog.Logger
 	Addr     string
 	Cert     string
 	Key      string
@@ -64,7 +62,7 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 	mux.HandleFunc("GET /{$}", l.handleIndex)
 
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
-		l.Log.Debug("Received request to non-existing path", "path", r.URL.Path)
+		slog.Debug("Received request to non-existing path", "path", r.URL.Path)
 		w.WriteHeader(http.StatusNotFound)
 	})
 
@@ -103,9 +101,8 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 		serverCtx, stopServer := context.WithCancel(ctx)
 
 		server := http.Server{
-			Addr:     l.Addr,
-			Handler:  http.TimeoutHandler(mux, time.Second*30, ""),
-			ErrorLog: slog.NewLogLogger(l.Log.Handler(), l.LogLevel),
+			Addr:    l.Addr,
+			Handler: http.TimeoutHandler(mux, time.Second*30, ""),
 			BaseContext: func(net.Listener) context.Context {
 				return serverCtx
 			},
@@ -141,7 +138,7 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 					}
 
 					if (event.Has(fsnotify.Write) || event.Has(fsnotify.Create)) && (event.Name == certAbsPath || event.Name == keyAbsPath) {
-						l.Log.Info("Stopping server: file has changed", "name", event.Name)
+						slog.Info("Stopping server: file has changed", "name", event.Name)
 						timer.Reset(certReloadDelay)
 					}
 
@@ -154,7 +151,7 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 			}
 		}()
 
-		l.Log.Info("Starting server")
+		slog.Info("Starting server")
 		var err error
 		if l.Plain {
 			err = server.ListenAndServe()

@@ -27,7 +27,6 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/inbox/note"
-	"log/slog"
 	"time"
 )
 
@@ -36,7 +35,7 @@ const maxDeliveryQueueSize = 128
 var ErrDeliveryQueueFull = errors.New("delivery queue is full")
 
 // Create queues a Create activity for delivery.
-func Create(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, post *ap.Object, author *ap.Actor) error {
+func Create(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, post *ap.Object, author *ap.Actor) error {
 	var queueSize int
 	if err := db.QueryRowContext(ctx, `select count(distinct activity->'$.id') from outbox where sent = 0 and attempts < ?`, cfg.MaxDeliveryAttempts).Scan(&queueSize); err != nil {
 		return fmt.Errorf("failed to query delivery queue size: %w", err)
@@ -67,7 +66,7 @@ func Create(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 	}
 	defer tx.Rollback()
 
-	if err := note.Insert(ctx, log, tx, post); err != nil {
+	if err := note.Insert(ctx, tx, post); err != nil {
 		return fmt.Errorf("failed to insert note: %w", err)
 	}
 
@@ -75,7 +74,7 @@ func Create(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 		return fmt.Errorf("failed to insert Create: %w", err)
 	}
 
-	if err := ForwardActivity(ctx, domain, cfg, log, tx, post, &create, data.JSON(j)); err != nil {
+	if err := ForwardActivity(ctx, domain, cfg, tx, post, &create, data.JSON(j)); err != nil {
 		return err
 	}
 

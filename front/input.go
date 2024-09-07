@@ -26,7 +26,7 @@ import (
 // inputFunc is a callback that returns user-provided text or false
 type inputFunc func() (string, bool)
 
-func readQuery(w text.Writer, r *request, prompt string) (string, bool) {
+func readQuery(w text.Writer, r *Request, prompt string) (string, bool) {
 	if r.URL.RawQuery == "" {
 		w.Status(10, prompt)
 		return "", false
@@ -41,7 +41,7 @@ func readQuery(w text.Writer, r *request, prompt string) (string, bool) {
 	return content, true
 }
 
-func readBody(w text.Writer, r *request, args []string) (string, bool) {
+func (h *Handler) readBody(w text.Writer, r *Request, args []string) (string, bool) {
 	if r.Body == nil {
 		w.Redirect("/users/oops")
 		return "", false
@@ -79,7 +79,7 @@ func readBody(w text.Writer, r *request, args []string) (string, bool) {
 		return "", false
 	}
 
-	if size > int64(r.Handler.Config.MaxPostsLength)*4 {
+	if size > int64(h.Config.MaxPostsLength)*4 {
 		r.Log.Warn("Content is too big", "size", size)
 		w.Status(40, "Content is too big")
 		return "", false

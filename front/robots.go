@@ -20,7 +20,7 @@ import (
 	"github.com/dimkr/tootik/front/text"
 )
 
-func robots(w text.Writer, r *request, args ...string) {
+func robots(w text.Writer, r *Request, args ...string) {
 	w.Status(20, "text/plain")
 	w.Text("User-agent: *")
 	w.Text("Disallow: /")

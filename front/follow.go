@@ -21,7 +21,7 @@ import (
 	"github.com/dimkr/tootik/outbox"
 )
 
-func (h *Handler) follow(w text.Writer, r *request, args ...string) {
+func (h *Handler) follow(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -30,7 +30,7 @@ func (h *Handler) follow(w text.Writer, r *request, args ...string) {
 	followed := "https://" + args[1]
 
 	var exists int
-	if err := r.QueryRow(`select exists (select 1 from persons where id = ?)`, followed).Scan(&exists); err != nil {
+	if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from persons where id = ?)`, followed).Scan(&exists); err != nil {
 		r.Log.Warn("Failed to check if user exists", "followed", followed, "error", err)
 		w.Error()
 		return
@@ -43,7 +43,7 @@ func (h *Handler) follow(w text.Writer, r *request, args ...string) {
 	}
 
 	var follows int
-	if err := r.QueryRow(`select count(*) from follows where follower = ?`, r.User.ID).Scan(&follows); err != nil {
+	if err := h.DB.QueryRowContext(r.Context, `select count(*) from follows where follower = ?`, r.User.ID).Scan(&follows); err != nil {
 		r.Log.Warn("Failed to count follows", "error", err)
 		w.Error()
 		return
@@ -55,7 +55,7 @@ func (h *Handler) follow(w text.Writer, r *request, args ...string) {
 	}
 
 	var following int
-	if err := r.QueryRow(`select exists (select 1 from follows where follower = ? and followed =?)`, r.User.ID, followed).Scan(&following); err != nil {
+	if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from follows where follower = ? and followed =?)`, r.User.ID, followed).Scan(&following); err != nil {
 		r.Log.Warn("Failed to check if user is already followed", "followed", followed, "error", err)
 		w.Error()
 		return
@@ -65,7 +65,7 @@ func (h *Handler) follow(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	if err := outbox.Follow(r.Context, h.Domain, r.User, followed, r.DB); err != nil {
+	if err := outbox.Follow(r.Context, h.Domain, r.User, followed, h.DB); err != nil {
 		r.Log.Warn("Failed to follow user", "followed", followed, "error", err)
 		w.Error()
 		return

@@ -18,44 +18,30 @@ package front
 
 import (
 	"context"
-	"database/sql"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/httpsig"
 	"io"
 	"log/slog"
 	"net/url"
-	"sync"
 )
 
-type request struct {
-	Context   context.Context
-	Handler   *Handler
-	URL       *url.URL
-	Body      io.Reader
-	User      *ap.Actor
-	Key       httpsig.Key
-	DB        *sql.DB
-	Resolver  ap.Resolver
-	WaitGroup *sync.WaitGroup
-	Log       *slog.Logger
-}
+// Request represents a request.
+type Request struct {
+	// Context specifies the request context.
+	Context context.Context
 
-func (r *request) Resolve(host, name string, flags ap.ResolverFlag) (*ap.Actor, error) {
-	return r.Resolver.Resolve(r.Context, r.Log, r.DB, r.Key, host, name, flags)
-}
+	// URL specifies the requested URL.
+	URL *url.URL
 
-func (r *request) Exec(query string, args ...any) (sql.Result, error) {
-	return r.DB.ExecContext(r.Context, query, args...)
-}
+	// Log specifies a slog.Logger used while handling the request.
+	Log *slog.Logger
 
-func (r *request) Query(query string, args ...any) (*sql.Rows, error) {
-	return r.DB.QueryContext(r.Context, query, args...)
-}
+	// Body optionally specifies an io.Reader to read the request body from.
+	Body io.Reader
 
-func (r *request) QueryRow(query string, args ...any) *sql.Row {
-	return r.DB.QueryRowContext(r.Context, query, args...)
-}
+	// User optionally specifies a signed in user.
+	User *ap.Actor
 
-func (r *request) AddLogContext(attrs ...any) {
-	r.Log = r.Log.With(attrs...)
+	// User optionally specifies the signing key associated with User.
+	Key httpsig.Key
 }

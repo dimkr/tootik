@@ -60,8 +60,8 @@ func writeUserMenu(w text.Writer, user *ap.Actor) {
 	w.Link(prefix+"/help", "🛟 Help")
 }
 
-func withUserMenu(f func(text.Writer, *request, ...string)) func(text.Writer, *request, ...string) {
-	return func(w text.Writer, r *request, args ...string) {
+func withUserMenu(f func(text.Writer, *Request, ...string)) func(text.Writer, *Request, ...string) {
+	return func(w text.Writer, r *Request, args ...string) {
 		f(w, r, args...)
 		writeUserMenu(w, r.User)
 	}

@@ -38,7 +38,6 @@ import (
 type Queue struct {
 	Domain   string
 	Config   *cfg.Config
-	Log      *slog.Logger
 	DB       *sql.DB
 	Resolver *Resolver
 }
@@ -72,14 +71,14 @@ func (q *Queue) Process(ctx context.Context) error {
 
 		case <-t.C:
 			if err := q.process(ctx); err != nil {
-				q.Log.Error("Failed to deliver posts", "error", err)
+				slog.Error("Failed to deliver posts", "error", err)
 			}
 		}
 	}
 }
 
 func (q *Queue) process(ctx context.Context) error {
-	q.Log.Debug("Polling delivery queue")
+	slog.Debug("Polling delivery queue")
 
 	rows, err := q.DB.QueryContext(ctx, `select outbox.attempts, outbox.activity, outbox.activity, outbox.inserted, persons.actor, persons.privkey from outbox join persons on persons.id = outbox.sender where outbox.sent = 0 and (outbox.attempts = 0 or (outbox.attempts < ? and outbox.last <= unixepoch() - ?)) order by outbox.attempts asc, outbox.last asc limit ?`, q.Config.MaxDeliveryAttempts, q.Config.DeliveryRetryInterval, q.Config.DeliveryBatchSize)
 	if err != nil {
@@ -123,18 +122,18 @@ func (q *Queue) process(ctx context.Context) error {
 		var inserted int64
 		var deliveryAttempts int
 		if err := rows.Scan(&deliveryAttempts, &activity, &rawActivity, &inserted, &actor, &privKeyPem); err != nil {
-			q.Log.Error("Failed to fetch post to deliver", "error", err)
+			slog.Error("Failed to fetch post to deliver", "error", err)
 			continue
 		}
 
 		privKey, err := data.ParsePrivateKey(privKeyPem)
 		if err != nil {
-			q.Log.Error("Failed to parse private key", "error", err)
+			slog.Error("Failed to parse private key", "error", err)
 			continue
 		}
 
 		if _, err := q.DB.ExecContext(ctx, `update outbox set last = unixepoch(), attempts = ? where activity->>'$.id' = ? and sender = ?`, deliveryAttempts+1, activity.ID, actor.ID); err != nil {
-			q.Log.Error("Failed to save last delivery attempt time", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
+			slog.Error("Failed to save last delivery attempt time", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
 
@@ -148,7 +147,7 @@ func (q *Queue) process(ctx context.Context) error {
 
 		// queue tasks for all outgoing requests
 		if err := q.queueTasks(ctx, job, []byte(rawActivity), httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, time.Unix(inserted, 0), &followers, tasks, events); err != nil {
-			q.Log.Warn("Failed to queue activity for delivery", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
+			slog.Warn("Failed to queue activity for delivery", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 		}
 	}
 
@@ -164,14 +163,14 @@ func (q *Queue) process(ctx context.Context) error {
 
 	for job, done := range results {
 		if !done {
-			q.Log.Info("Failed to deliver an activity to at least one recipient", "id", job.Activity.ID)
+			slog.Info("Failed to deliver an activity to at least one recipient", "id", job.Activity.ID)
 			continue
 		}
 
 		if _, err := q.DB.ExecContext(ctx, `update outbox set sent = 1 where activity->>'$.id' = ? and sender = ?`, job.Activity.ID, job.Sender.ID); err != nil {
-			q.Log.Error("Failed to mark delivery as completed", "id", job.Activity.ID, "error", err)
+			slog.Error("Failed to mark delivery as completed", "id", job.Activity.ID, "error", err)
 		} else {
-			q.Log.Info("Successfully delivered an activity to all recipients", "id", job.Activity.ID)
+			slog.Info("Successfully delivered an activity to all recipients", "id", job.Activity.ID)
 		}
 	}
 
@@ -184,7 +183,7 @@ func (q *Queue) deliverWithTimeout(parent context.Context, task deliveryTask) er
 
 	req := task.Request.WithContext(ctx)
 
-	resp, err := q.Resolver.send(q.Log, task.Key, req)
+	resp, err := q.Resolver.send(task.Key, req)
 	if err == nil {
 		resp.Body.Close()
 	}
@@ -206,22 +205,22 @@ func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, event
 
 		var delivered int
 		if err := q.DB.QueryRowContext(ctx, `select exists (select 1 from deliveries where activity = ? and inbox = ?)`, task.Job.Activity.ID, task.Inbox).Scan(&delivered); err != nil {
-			q.Log.Error("Failed to check if delivered already", "to", task.Inbox, "activity", task.Job.Activity.ID, "error", err)
+			slog.Error("Failed to check if delivered already", "to", task.Inbox, "activity", task.Job.Activity.ID, "error", err)
 			events <- deliveryEvent{task.Job, false}
 			continue
 		}
 
 		if delivered == 1 {
-			q.Log.Info("Skipping recipient", "to", task.Inbox, "activity", task.Job.Activity.ID)
+			slog.Info("Skipping recipient", "to", task.Inbox, "activity", task.Job.Activity.ID)
 			continue
 		}
 
-		q.Log.Info("Delivering activity to recipient", "inbox", task.Inbox, "activity", task.Job.Activity.ID)
+		slog.Info("Delivering activity to recipient", "inbox", task.Inbox, "activity", task.Job.Activity.ID)
 
 		if err := q.deliverWithTimeout(ctx, task); err == nil {
-			q.Log.Info("Successfully sent an activity", "from", task.Job.Sender.ID, "to", task.Inbox, "activity", task.Job.Activity.ID)
+			slog.Info("Successfully sent an activity", "from", task.Job.Sender.ID, "to", task.Inbox, "activity", task.Job.Activity.ID)
 		} else {
-			q.Log.Warn("Failed to send an activity", "from", task.Job.Sender.ID, "to", task.Inbox, "activity", task.Job.Activity.ID, "error", err)
+			slog.Warn("Failed to send an activity", "from", task.Job.Sender.ID, "to", task.Inbox, "activity", task.Job.Activity.ID, "error", err)
 			if !errors.Is(err, ErrBlockedDomain) {
 				events <- deliveryEvent{task.Job, false}
 			}
@@ -230,7 +229,7 @@ func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, event
 		}
 
 		if _, err := q.DB.ExecContext(ctx, `insert into deliveries(activity, inbox) values (?, ?)`, task.Job.Activity.ID, task.Inbox); err != nil {
-			q.Log.Error("Failed to record delivery", "activity", task.Job.Activity.ID, "inbox", task.Inbox, "error", err)
+			slog.Error("Failed to record delivery", "activity", task.Job.Activity.ID, "inbox", task.Inbox, "error", err)
 			events <- deliveryEvent{task.Job, false}
 		}
 	}
@@ -262,12 +261,12 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 	if wideDelivery {
 		followers, err := q.DB.QueryContext(ctx, `select distinct follower from follows where followed = ? and follower not like ? and follower not like ? and accepted = 1 and inserted < ?`, job.Sender.ID, fmt.Sprintf("https://%s/%%", q.Domain), fmt.Sprintf("https://%s/%%", activityID.Host), inserted.Unix())
 		if err != nil {
-			q.Log.Warn("Failed to list followers", "activity", job.Activity.ID, "error", err)
+			slog.Warn("Failed to list followers", "activity", job.Activity.ID, "error", err)
 		} else {
 			for followers.Next() {
 				var follower string
 				if err := followers.Scan(&follower); err != nil {
-					q.Log.Warn("Skipped a follower", "activity", job.Activity.ID, "error", err)
+					slog.Warn("Skipped a follower", "activity", job.Activity.ID, "error", err)
 					continue
 				}
 
@@ -290,13 +289,13 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 
 	for actorID := range actorIDs.Keys() {
 		if actorID == author || actorID == ap.Public {
-			q.Log.Debug("Skipping recipient", "to", actorID, "activity", job.Activity.ID)
+			slog.Debug("Skipping recipient", "to", actorID, "activity", job.Activity.ID)
 			continue
 		}
 
-		to, err := q.Resolver.ResolveID(ctx, q.Log, q.DB, key, actorID, ap.Offline)
+		to, err := q.Resolver.ResolveID(ctx, key, actorID, ap.Offline)
 		if err != nil {
-			q.Log.Warn("Failed to resolve a recipient", "to", actorID, "activity", job.Activity.ID, "error", err)
+			slog.Warn("Failed to resolve a recipient", "to", actorID, "activity", job.Activity.ID, "error", err)
 			if !errors.Is(err, ErrActorGone) && !errors.Is(err, ErrBlockedDomain) {
 				events <- deliveryEvent{job, false}
 			}
@@ -307,20 +306,20 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 		inbox := to.Inbox
 		if wideDelivery {
 			if sharedInbox, ok := to.Endpoints["sharedInbox"]; ok && sharedInbox != "" {
-				q.Log.Debug("Using shared inbox", "to", actorID, "activity", job.Activity.ID, "shared_inbox", inbox)
+				slog.Debug("Using shared inbox", "to", actorID, "activity", job.Activity.ID, "shared_inbox", inbox)
 				inbox = sharedInbox
 			}
 		}
 
 		req, err := http.NewRequest(http.MethodPost, inbox, bytes.NewReader(rawActivity))
 		if err != nil {
-			q.Log.Warn("Failed to create new request", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
+			slog.Warn("Failed to create new request", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
 			events <- deliveryEvent{job, false}
 			continue
 		}
 
 		if req.URL.Host == q.Domain {
-			q.Log.Debug("Skipping local recipient inbox", "to", actorID, "activity", job.Activity.ID, "inbox", inbox)
+			slog.Debug("Skipping local recipient inbox", "to", actorID, "activity", job.Activity.ID, "inbox", inbox)
 			continue
 		}
 
@@ -332,11 +331,11 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 			if digest, err := followers.Digest(ctx, q.DB, q.Domain, job.Sender, req.URL.Host); err == nil {
 				req.Header.Set("Collection-Synchronization", digest)
 			} else {
-				q.Log.Warn("Failed to digest followers", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
+				slog.Warn("Failed to digest followers", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
 			}
 		}
 
-		q.Log.Info("Queueing activity for delivery", "inbox", inbox, "activity", job.Activity.ID)
+		slog.Info("Queueing activity for delivery", "inbox", inbox, "activity", job.Activity.ID)
 
 		tasks[crc32.ChecksumIEEE([]byte(inbox))%uint32(len(tasks))] <- deliveryTask{
 			Job:     job,

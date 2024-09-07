@@ -70,7 +70,7 @@ func loadBlocklist(path string) (map[string]struct{}, error) {
 	return blockedDomains, nil
 }
 
-func NewBlockList(log *slog.Logger, path string) (*BlockList, error) {
+func NewBlockList(path string) (*BlockList, error) {
 	domains, err := loadBlocklist(path)
 	if err != nil {
 		return nil, err
@@ -112,20 +112,20 @@ func NewBlockList(log *slog.Logger, path string) (*BlockList, error) {
 			case <-timer.C:
 				newDomains, err := loadBlocklist(path)
 				if err != nil {
-					log.Warn("Failed to reload blocklist", "path", path, "error", err)
+					slog.Warn("Failed to reload blocklist", "path", path, "error", err)
 					continue
 				}
 
 				// continue if the old list wasn't empty and the new one is empty; maybe the file was opened with O_TRUNC
 				if len(b.domains) > 0 && len(newDomains) == 0 {
-					log.Warn("New blocklist is empty")
+					slog.Warn("New blocklist is empty")
 					continue
 				}
 
 				b.lock.Lock()
 				b.domains = newDomains
 				b.lock.Unlock()
-				log.Info("Reloaded blocklist", "path", path, "length", len(newDomains))
+				slog.Info("Reloaded blocklist", "path", path, "length", len(newDomains))
 			}
 		}
 	}()

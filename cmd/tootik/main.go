@@ -134,12 +134,13 @@ func main() {
 		opts.AddSource = true
 	}
 
-	log := slog.New(slog.NewJSONHandler(os.Stderr, &opts))
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &opts)))
+	slog.SetLogLoggerLevel(slog.Level(*logLevel))
 
 	var blockList *fed.BlockList
 	if *blockListPath != "" {
 		var err error
-		blockList, err = fed.NewBlockList(log, *blockListPath)
+		blockList, err = fed.NewBlockList(*blockListPath)
 		if err != nil {
 			panic(err)
 		}
@@ -153,7 +154,7 @@ func main() {
 	}
 	defer db.Close()
 
-	log.Debug("Starting", "version", buildinfo.Version, "cfg", &cfg)
+	slog.Debug("Starting", "version", buildinfo.Version, "cfg", &cfg)
 
 	transport := http.Transport{
 		MaxIdleConns:    cfg.ResolverMaxIdleConns,
@@ -168,7 +169,7 @@ func main() {
 			return http.ErrUseLastResponse
 		},
 	}
-	resolver := fed.NewResolver(blockList, *domain, &cfg, &client)
+	resolver := fed.NewResolver(blockList, *domain, &cfg, &client, db)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -181,7 +182,7 @@ func main() {
 	go func() {
 		select {
 		case <-sigs:
-			log.Info("Received termination signal")
+			slog.Info("Received termination signal")
 			cancel()
 			wg.Done()
 		case <-ctx.Done():
@@ -189,7 +190,7 @@ func main() {
 		}
 	}()
 
-	if err := migrations.Run(ctx, log, *domain, db); err != nil {
+	if err := migrations.Run(ctx, *domain, db); err != nil {
 		panic(err)
 	}
 
@@ -309,7 +310,7 @@ func main() {
 		return
 	}
 
-	handler, err := front.NewHandler(*domain, *closed, &cfg)
+	handler, err := front.NewHandler(*domain, *closed, &cfg, resolver, db)
 	if err != nil {
 		panic(err)
 	}
@@ -325,12 +326,10 @@ func main() {
 			&fed.Listener{
 				Domain:   *domain,
 				Closed:   *closed,
-				LogLevel: slog.Level(*logLevel),
 				Config:   &cfg,
 				DB:       db,
-				Resolver: resolver,
 				ActorKey: nobodyKey,
-				Log:      log.With("listener", "https"),
+				Resolver: resolver,
 				Addr:     *addr,
 				Cert:     *cert,
 				Key:      *key,
@@ -342,10 +341,8 @@ func main() {
 			&gemini.Listener{
 				Domain:   *domain,
 				Config:   &cfg,
-				Log:      log.With("listener", "gemini"),
 				DB:       db,
 				Handler:  handler,
-				Resolver: resolver,
 				Addr:     *gemAddr,
 				CertPath: *gemCert,
 				KeyPath:  *gemKey,
@@ -354,13 +351,10 @@ func main() {
 		{
 			"Gopher",
 			&gopher.Listener{
-				Domain:   *domain,
-				Config:   &cfg,
-				Log:      log.With("listener", "gopher"),
-				Handler:  handler,
-				DB:       db,
-				Resolver: resolver,
-				Addr:     *gopherAddr,
+				Domain:  *domain,
+				Config:  &cfg,
+				Handler: handler,
+				Addr:    *gopherAddr,
 			},
 		},
 		{
@@ -368,7 +362,6 @@ func main() {
 			&finger.Listener{
 				Domain: *domain,
 				Config: &cfg,
-				Log:    log.With("listener", "finger"),
 				DB:     db,
 				Addr:   *fingerAddr,
 			},
@@ -376,20 +369,17 @@ func main() {
 		{
 			"Guppy",
 			&guppy.Listener{
-				Domain:   *domain,
-				Config:   &cfg,
-				Log:      log.With("listener", "guppy"),
-				DB:       db,
-				Handler:  handler,
-				Resolver: resolver,
-				Addr:     *guppyAddr,
+				Domain:  *domain,
+				Config:  &cfg,
+				Handler: handler,
+				Addr:    *guppyAddr,
 			},
 		},
 	} {
 		wg.Add(1)
 		go func() {
 			if err := svc.Listener.ListenAndServe(ctx); err != nil {
-				log.Error("Listener has failed", "listener", svc.Name, "error", err)
+				slog.Error("Listener has failed", "listener", svc.Name, "error", err)
 			}
 			cancel()
 			wg.Done()
@@ -408,7 +398,6 @@ func main() {
 				Domain:    *domain,
 				Config:    &cfg,
 				BlockList: blockList,
-				Log:       log.With("queue", "inbox"),
 				DB:        db,
 				Resolver:  resolver,
 				Key:       nobodyKey,
@@ -419,7 +408,6 @@ func main() {
 			&fed.Queue{
 				Domain:   *domain,
 				Config:   &cfg,
-				Log:      log.With("queue", "outbox"),
 				DB:       db,
 				Resolver: resolver,
 			},
@@ -428,7 +416,7 @@ func main() {
 		wg.Add(1)
 		go func() {
 			if err := queue.Queue.Process(ctx); err != nil {
-				log.Error("Failed to process queue", "queue", queue.Name, "error", err)
+				slog.Error("Failed to process queue", "queue", queue.Name, "error", err)
 			}
 			cancel()
 			wg.Done()
@@ -457,7 +445,6 @@ func main() {
 			&outbox.Poller{
 				Domain: *domain,
 				Config: &cfg,
-				Log:    log.With("job", "poller"),
 				DB:     db,
 			},
 		},
@@ -466,7 +453,6 @@ func main() {
 			followMoveInterval,
 			&outbox.Mover{
 				Domain:   *domain,
-				Log:      log.With("job", "mover"),
 				DB:       db,
 				Resolver: resolver,
 				Key:      nobodyKey,
@@ -478,7 +464,6 @@ func main() {
 			&fed.Syncer{
 				Domain:   *domain,
 				Config:   &cfg,
-				Log:      log.With("job", "sync"),
 				DB:       db,
 				Resolver: resolver,
 				Key:      nobodyKey,
@@ -503,13 +488,13 @@ func main() {
 			defer t.Stop()
 
 			for {
-				log.Info("Running periodic job", "job", job.Name)
+				slog.Info("Running periodic job", "job", job.Name)
 				start := time.Now()
 				if err := job.Runner.Run(ctx); err != nil {
-					log.Error("Periodic job has failed", "job", job.Name, "error", err)
+					slog.Error("Periodic job has failed", "job", job.Name, "error", err)
 					break
 				}
-				log.Info("Done running periodic job", "job", job.Name, "duration", time.Since(start).String())
+				slog.Info("Done running periodic job", "job", job.Name, "duration", time.Since(start).String())
 
 				select {
 				case <-ctx.Done():
@@ -522,6 +507,6 @@ func main() {
 	}
 
 	<-ctx.Done()
-	log.Info("Shutting down")
+	slog.Info("Shutting down")
 	wg.Wait()
 }

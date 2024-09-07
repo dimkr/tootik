@@ -25,7 +25,7 @@ import (
 	"unicode/utf8"
 )
 
-func (h *Handler) doBio(w text.Writer, r *request, readInput func(text.Writer, *request) (string, bool)) {
+func (h *Handler) doBio(w text.Writer, r *Request, readInput func(text.Writer, *Request) (string, bool)) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -49,7 +49,7 @@ func (h *Handler) doBio(w text.Writer, r *request, readInput func(text.Writer, *
 		return
 	}
 
-	tx, err := r.DB.BeginTx(r.Context, nil)
+	tx, err := h.DB.BeginTx(r.Context, nil)
 	if err != nil {
 		r.Log.Warn("Failed to update summary", "error", err)
 		w.Error()
@@ -84,22 +84,22 @@ func (h *Handler) doBio(w text.Writer, r *request, readInput func(text.Writer, *
 	w.Redirect("/users/outbox/" + strings.TrimPrefix(r.User.ID, "https://"))
 }
 
-func (h *Handler) bio(w text.Writer, r *request, args ...string) {
+func (h *Handler) bio(w text.Writer, r *Request, args ...string) {
 	h.doBio(
 		w,
 		r,
-		func(w text.Writer, r *request) (string, bool) {
+		func(w text.Writer, r *Request) (string, bool) {
 			return readQuery(w, r, "Bio")
 		},
 	)
 }
 
-func (h *Handler) uploadBio(w text.Writer, r *request, args ...string) {
+func (h *Handler) uploadBio(w text.Writer, r *Request, args ...string) {
 	h.doBio(
 		w,
 		r,
-		func(w text.Writer, r *request) (string, bool) {
-			return readBody(w, r, args)
+		func(w text.Writer, r *Request) (string, bool) {
+			return h.readBody(w, r, args)
 		},
 	)
 }

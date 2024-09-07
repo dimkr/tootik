@@ -26,7 +26,6 @@ import (
 	"github.com/dimkr/tootik/inbox/note"
 	"github.com/dimkr/tootik/outbox"
 	"github.com/stretchr/testify/assert"
-	"log/slog"
 	"net/http"
 	"strings"
 	"testing"
@@ -60,7 +59,6 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
@@ -94,9 +92,8 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -138,7 +135,6 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
@@ -173,9 +169,8 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -249,7 +244,6 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
@@ -264,7 +258,6 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/2",
@@ -299,9 +292,8 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -340,7 +332,6 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
@@ -374,9 +365,8 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -415,7 +405,6 @@ func TestForward_ReplyToDM(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
@@ -449,9 +438,8 @@ func TestForward_ReplyToDM(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -479,7 +467,6 @@ func TestForward_NotFollowingAuthor(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
@@ -513,9 +500,8 @@ func TestForward_NotFollowingAuthor(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -554,7 +540,6 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
@@ -588,9 +573,8 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -618,7 +602,6 @@ func TestForward_ReplyToFederatedPost(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://127.0.0.1/note/1",
@@ -652,9 +635,8 @@ func TestForward_ReplyToFederatedPost(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -693,7 +675,6 @@ func TestForward_MaxDepth(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
@@ -708,7 +689,6 @@ func TestForward_MaxDepth(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/2",
@@ -724,7 +704,6 @@ func TestForward_MaxDepth(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/3",
@@ -740,7 +719,6 @@ func TestForward_MaxDepth(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/4",
@@ -775,9 +753,8 @@ func TestForward_MaxDepth(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -816,7 +793,6 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
@@ -831,7 +807,6 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/2",
@@ -847,7 +822,6 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/3",
@@ -863,7 +837,6 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/4",
@@ -879,7 +852,6 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/5",
@@ -914,9 +886,8 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -1077,7 +1048,6 @@ func TestForward_EditedReplyToPublicPost(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
@@ -1112,9 +1082,8 @@ func TestForward_EditedReplyToPublicPost(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -1187,7 +1156,6 @@ func TestForward_ResentEditedReplyToPublicPost(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
@@ -1222,9 +1190,8 @@ func TestForward_ResentEditedReplyToPublicPost(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -1308,7 +1275,6 @@ func TestForward_DeletedReplyToPublicPost(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
@@ -1352,9 +1318,8 @@ func TestForward_DeletedReplyToPublicPost(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -1396,7 +1361,6 @@ func TestForward_DeletedDeletedReplyToPublicPost(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
@@ -1440,9 +1404,8 @@ func TestForward_DeletedDeletedReplyToPublicPost(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())

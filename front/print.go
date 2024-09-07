@@ -87,7 +87,7 @@ func getTextAndLinks(s string, maxRunes, maxLines int) ([]string, data.OrderedMa
 	return summary, links
 }
 
-func (h *Handler) getDisplayName(id, preferredUsername, name string, t ap.ActorType, log *slog.Logger) string {
+func (h *Handler) getDisplayName(id, preferredUsername, name string, t ap.ActorType) string {
 	prefix := fmt.Sprintf("https://%s/user/", h.Domain)
 
 	isLocal := strings.HasPrefix(id, prefix)
@@ -114,20 +114,20 @@ func (h *Handler) getDisplayName(id, preferredUsername, name string, t ap.ActorT
 
 	u, err := url.Parse(id)
 	if err != nil {
-		log.Warn("Failed to parse user ID", "id", id, "error", err)
+		slog.Warn("Failed to parse user ID", "id", id, "error", err)
 		return fmt.Sprintf("%s %s", emoji, displayName)
 	}
 
 	return fmt.Sprintf("%s %s (%s@%s)", emoji, displayName, preferredUsername, u.Host)
 }
 
-func (h *Handler) getActorDisplayName(actor *ap.Actor, log *slog.Logger) string {
+func (h *Handler) getActorDisplayName(actor *ap.Actor) string {
 	userName, _ := plain.FromHTML(actor.PreferredUsername)
 	name, _ := plain.FromHTML(actor.Name)
-	return h.getDisplayName(actor.ID, userName, name, actor.Type, log)
+	return h.getDisplayName(actor.ID, userName, name, actor.Type)
 }
 
-func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sharer *ap.Actor, published time.Time, compact, printAuthor, printParentAuthor, titleIsLink bool) {
+func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *ap.Actor, sharer *ap.Actor, published time.Time, compact, printAuthor, printParentAuthor, titleIsLink bool) {
 	if note.AttributedTo == "" {
 		r.Log.Warn("Note has no author", "id", note.ID)
 		return
@@ -136,8 +136,8 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 	maxLines := -1
 	maxRunes := -1
 	if compact {
-		maxLines = r.Handler.Config.CompactViewMaxLines
-		maxRunes = r.Handler.Config.CompactViewMaxRunes
+		maxLines = h.Config.CompactViewMaxLines
+		maxRunes = h.Config.CompactViewMaxRunes
 	}
 
 	noteBody := note.Content
@@ -214,7 +214,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 	}
 
 	var replies int
-	if err := r.QueryRow(`select count(*) from notes where object->>'$.inReplyTo' = ?`, note.ID).Scan(&replies); err != nil {
+	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where object->>'$.inReplyTo' = ?`, note.ID).Scan(&replies); err != nil {
 		r.Log.Warn("Failed to count replies", "id", note.ID, "error", err)
 	}
 
@@ -237,7 +237,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 
 	var parentAuthor sql.Null[ap.Actor]
 	if note.InReplyTo != "" {
-		if err := r.QueryRow(`select persons.actor from notes join persons on persons.id = notes.author where notes.id = ?`, note.InReplyTo).Scan(&parentAuthor); err != nil && errors.Is(err, sql.ErrNoRows) {
+		if err := h.DB.QueryRowContext(r.Context, `select persons.actor from notes join persons on persons.id = notes.author where notes.id = ?`, note.InReplyTo).Scan(&parentAuthor); err != nil && errors.Is(err, sql.ErrNoRows) {
 			r.Log.Info("Parent post or author is missing", "id", note.InReplyTo)
 		} else if err != nil {
 			r.Log.Warn("Failed to query parent post author", "id", note.InReplyTo, "error", err)
@@ -302,7 +302,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 
 		for mentionID := range mentionedUsers.Keys() {
 			var mentionUserName string
-			if err := r.QueryRow(`select actor->>'$.preferredUsername' from persons where id = ?`, mentionID).Scan(&mentionUserName); err != nil && errors.Is(err, sql.ErrNoRows) {
+			if err := h.DB.QueryRowContext(r.Context, `select actor->>'$.preferredUsername' from persons where id = ?`, mentionID).Scan(&mentionUserName); err != nil && errors.Is(err, sql.ErrNoRows) {
 				r.Log.Warn("Mentioned user is unknown", "mention", mentionID)
 				continue
 			} else if err != nil {
@@ -325,7 +325,8 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 			var rows *sql.Rows
 			var err error
 			if r.User == nil {
-				rows, err = r.Query(
+				rows, err = h.DB.QueryContext(
+					r.Context,
 					`select id, username from
 					(
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 1 as rank from shares
@@ -344,11 +345,12 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 					group by id
 					order by min(rank), inserted limit $3`,
 					note.ID,
-					r.Handler.Domain,
-					r.Handler.Config.SharesPerPost,
+					h.Domain,
+					h.Config.SharesPerPost,
 				)
 			} else {
-				rows, err = r.Query(
+				rows, err = h.DB.QueryContext(
+					r.Context,
 					`select id, username from
 					(
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 1 as rank from shares
@@ -373,8 +375,8 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 					order by min(rank), inserted limit $4`,
 					note.ID,
 					r.User.ID,
-					r.Handler.Domain,
-					r.Handler.Config.SharesPerPost,
+					h.Domain,
+					h.Config.SharesPerPost,
 				)
 			}
 			if err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -402,7 +404,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 
 		for tag := range hashtags.Values() {
 			var exists int
-			if err := r.QueryRow(`select exists (select 1 from hashtags where hashtag = ? and note != ?)`, tag, note.ID).Scan(&exists); err != nil {
+			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from hashtags where hashtag = ? and note != ?)`, tag, note.ID).Scan(&exists); err != nil {
 				r.Log.Warn("Failed to check if hashtag is used by other posts", "note", note.ID, "hashtag", tag)
 				continue
 			}
@@ -416,7 +418,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 
 		if r.User != nil && note.AttributedTo == r.User.ID && note.Type != ap.Question && note.Name == "" { // polls and votes cannot be edited
 			w.Link("/users/edit/"+strings.TrimPrefix(note.ID, "https://"), "🩹 Edit")
-			w.Link(fmt.Sprintf("titan://%s/users/upload/edit/%s", r.Handler.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload edited post")
+			w.Link(fmt.Sprintf("titan://%s/users/upload/edit/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload edited post")
 		}
 		if r.User != nil && note.AttributedTo == r.User.ID {
 			w.Link("/users/delete/"+strings.TrimPrefix(note.ID, "https://"), "💣 Delete")
@@ -433,7 +435,7 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 
 		if r.User != nil && note.IsPublic() && note.AttributedTo != r.User.ID {
 			var shared int
-			if err := r.QueryRow(`select exists (select 1 from shares where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&shared); err != nil {
+			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from shares where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&shared); err != nil {
 				r.Log.Warn("Failed to check if post is shared", "id", note.ID, "error", err)
 			} else if shared == 0 {
 				w.Link("/users/share/"+strings.TrimPrefix(note.ID, "https://"), "🔁 Share")
@@ -444,12 +446,12 @@ func (r *request) PrintNote(w text.Writer, note *ap.Object, author *ap.Actor, sh
 
 		if r.User != nil {
 			w.Link("/users/reply/"+strings.TrimPrefix(note.ID, "https://"), "💬 Reply")
-			w.Link(fmt.Sprintf("titan://%s/users/upload/reply/%s", r.Handler.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload reply")
+			w.Link(fmt.Sprintf("titan://%s/users/upload/reply/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload reply")
 		}
 	}
 }
 
-func (r *request) PrintNotes(w text.Writer, rows *sql.Rows, printParentAuthor, printDaySeparators bool, fallback string) int {
+func (h *Handler) PrintNotes(w text.Writer, r *Request, rows *sql.Rows, printParentAuthor, printDaySeparators bool, fallback string) int {
 	var lastDay int64
 	count := 0
 	for rows.Next() {
@@ -481,9 +483,9 @@ func (r *request) PrintNotes(w text.Writer, rows *sql.Rows, printParentAuthor, p
 		}
 
 		if sharer.Valid {
-			r.PrintNote(w, &note, &author.V, &sharer.V, time.Unix(published, 0), true, true, printParentAuthor, true)
+			h.PrintNote(w, r, &note, &author.V, &sharer.V, time.Unix(published, 0), true, true, printParentAuthor, true)
 		} else {
-			r.PrintNote(w, &note, &author.V, nil, time.Unix(published, 0), true, true, printParentAuthor, true)
+			h.PrintNote(w, r, &note, &author.V, nil, time.Unix(published, 0), true, true, printParentAuthor, true)
 		}
 
 		lastDay = currentDay

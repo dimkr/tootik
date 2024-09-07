@@ -21,7 +21,6 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/inbox/note"
 	"github.com/stretchr/testify/assert"
-	"log/slog"
 	"testing"
 )
 
@@ -188,7 +187,6 @@ func TestFTS_SearchByMentionUserName(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
@@ -229,7 +227,6 @@ func TestFTS_SearchByMentionID(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",

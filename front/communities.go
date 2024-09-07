@@ -22,8 +22,9 @@ import (
 	"time"
 )
 
-func (h *Handler) communities(w text.Writer, r *request, args ...string) {
-	rows, err := r.Query(
+func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
+	rows, err := h.DB.QueryContext(
+		r.Context,
 		`
 			select persons.id, persons.actor->>'preferredUsername', max(notes.inserted) from notes
 			join persons

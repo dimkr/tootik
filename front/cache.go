@@ -40,7 +40,7 @@ func (w chanWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func callAndCache(r *request, w text.Writer, args []string, f func(text.Writer, *request, ...string), key string, now time.Time, cache *sync.Map) {
+func callAndCache(r *Request, w text.Writer, args []string, f func(text.Writer, *Request, ...string), key string, now time.Time, cache *sync.Map) {
 	c := make(chan []byte)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -94,8 +94,8 @@ func callAndCache(r *request, w text.Writer, args []string, f func(text.Writer, 
 	cache.Store(key, cacheEntry{buf.Bytes(), now})
 }
 
-func withCache(f func(text.Writer, *request, ...string), d time.Duration, cache *sync.Map, cfg *cfg.Config) func(text.Writer, *request, ...string) {
-	return func(w text.Writer, r *request, args ...string) {
+func withCache(f func(text.Writer, *Request, ...string), d time.Duration, cache *sync.Map, cfg *cfg.Config) func(text.Writer, *Request, ...string) {
+	return func(w text.Writer, r *Request, args ...string) {
 		key := r.URL.String()
 		now := time.Now()
 

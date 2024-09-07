@@ -21,7 +21,7 @@ import (
 	"net/url"
 )
 
-func search(w text.Writer, r *request, args ...string) {
+func search(w text.Writer, r *Request, args ...string) {
 	if r.URL.RawQuery == "" {
 		w.Status(10, "Hashtag")
 		return

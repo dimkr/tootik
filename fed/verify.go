@@ -19,24 +19,21 @@ package fed
 import (
 	"context"
 	"crypto/x509"
-	"database/sql"
 	"encoding/pem"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/httpsig"
-	"log/slog"
 	"net/http"
 	"time"
 )
 
-func verify(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, r *http.Request, body []byte, db *sql.DB, resolver *Resolver, key httpsig.Key, flags ap.ResolverFlag) (*ap.Actor, error) {
-	sig, err := httpsig.Extract(r, body, domain, time.Now(), cfg.MaxRequestAge)
+func (l *Listener) verify(ctx context.Context, r *http.Request, body []byte, flags ap.ResolverFlag) (*ap.Actor, error) {
+	sig, err := httpsig.Extract(r, body, l.Domain, time.Now(), l.Config.MaxRequestAge)
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify message: %w", err)
 	}
 
-	actor, err := resolver.ResolveID(r.Context(), log, db, key, sig.KeyID, flags)
+	actor, err := l.Resolver.ResolveID(r.Context(), l.ActorKey, sig.KeyID, flags)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get key %s to verify message: %w", sig.KeyID, err)
 	}

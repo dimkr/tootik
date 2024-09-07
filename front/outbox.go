@@ -28,11 +28,11 @@ import (
 	"time"
 )
 
-func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
+func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 	actorID := "https://" + args[1]
 
 	var actor ap.Actor
-	if err := r.QueryRow(`select actor from persons where id = ?`, actorID).Scan(&actor); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := h.DB.QueryRowContext(r.Context, `select actor from persons where id = ?`, actorID).Scan(&actor); err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Info("Person was not found", "actor", actorID)
 		w.Status(40, "User not found")
 		return
@@ -49,14 +49,13 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	r.AddLogContext("actor", actorID)
-
-	r.Log.Info("Viewing outbox", "offset", offset)
+	r.Log.Info("Viewing outbox", "actor", actorID, "offset", offset)
 
 	var rows *sql.Rows
 	if actor.Type == ap.Group && r.User == nil {
 		// unauthenticated users can only see public posts in a group
-		rows, err = r.Query(
+		rows, err = h.DB.QueryContext(
+			r.Context,
 			`select notes.object, authors.actor, null, max(notes.inserted, coalesce(max(replies.inserted), 0)) from notes
 			join persons authors on authors.id = notes.author
 			left join notes replies on replies.object->>'$.inReplyTo' = notes.id
@@ -69,7 +68,8 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		)
 	} else if actor.Type == ap.Group && r.User != nil {
 		// users can see public posts in a group and non-public posts if they follow the group
-		rows, err = r.Query(
+		rows, err = h.DB.QueryContext(
+			r.Context,
 			`select notes.object, authors.actor, null, max(notes.inserted, coalesce(max(replies.inserted), 0)) from notes
 			join persons authors on authors.id = notes.author
 			left join notes replies on replies.object->>'$.inReplyTo' = notes.id
@@ -89,7 +89,8 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		)
 	} else if r.User == nil {
 		// unauthenticated users can only see public posts
-		rows, err = r.Query(
+		rows, err = h.DB.QueryContext(
+			r.Context,
 			`select object, actor, sharer, max(inserted) from (
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
 				join persons on persons.id = $1
@@ -110,7 +111,8 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		)
 	} else if r.User.ID == actorID {
 		// users can see all their posts
-		rows, err = r.Query(
+		rows, err = h.DB.QueryContext(
+			r.Context,
 			`select object, actor, sharer, max(inserted) from (
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
 				join persons on persons.id = notes.author
@@ -130,7 +132,8 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		)
 	} else {
 		// users can see only public posts by others, posts to followers if following, and DMs
-		rows, err = r.Query(
+		rows, err = h.DB.QueryContext(
+			r.Context,
 			`select object, actor, sharer, max(inserted) from (
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
 				join persons on persons.id = $1
@@ -173,14 +176,14 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		)
 	}
 	if err != nil {
-		r.Log.Warn("Failed to fetch posts", "error", err)
+		r.Log.Warn("Failed to fetch posts", "actor", actorID, "error", err)
 		w.Error()
 		return
 	}
 
 	w.OK()
 
-	displayName := h.getActorDisplayName(&actor, r.Log)
+	displayName := h.getActorDisplayName(&actor)
 
 	var summary []string
 	var links data.OrderedMap[string, string]
@@ -278,7 +281,7 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 		w.Separator()
 	}
 
-	count := r.PrintNotes(w, rows, true, actor.Type != ap.Group, "No posts.")
+	count := h.PrintNotes(w, r, rows, true, actor.Type != ap.Group, "No posts.")
 	rows.Close()
 
 	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
@@ -295,8 +298,8 @@ func (h *Handler) userOutbox(w text.Writer, r *request, args ...string) {
 
 	if r.User != nil && actorID != r.User.ID {
 		var followed int
-		if err := r.QueryRow(`select exists (select 1 from follows where follower = ? and followed = ?)`, r.User.ID, actorID).Scan(&followed); err != nil {
-			r.Log.Warn("Failed to check if user is followed", "folowed", actorID, "error", err)
+		if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from follows where follower = ? and followed = ?)`, r.User.ID, actorID).Scan(&followed); err != nil {
+			r.Log.Warn("Failed to check if user is followed", "actor", actorID, "error", err)
 		} else if followed == 0 {
 			w.Separator()
 			w.Linkf("/users/follow/"+strings.TrimPrefix(actorID, "https://"), "⚡ Follow %s", actor.PreferredUsername)

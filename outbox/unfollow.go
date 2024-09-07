@@ -23,12 +23,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
-	"log/slog"
 	"time"
 )
 
 // Unfollow queues an Unfollow activity for delivery.
-func Unfollow(ctx context.Context, domain string, log *slog.Logger, db *sql.DB, follower, followed, followID string) error {
+func Unfollow(ctx context.Context, domain string, db *sql.DB, follower, followed, followID string) error {
 	if followed == follower {
 		return fmt.Errorf("%s cannot unfollow %s", follower, followed)
 	}

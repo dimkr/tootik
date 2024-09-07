@@ -26,12 +26,11 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	inote "github.com/dimkr/tootik/inbox/note"
-	"log/slog"
 	"time"
 )
 
 // UpdateNote queues an Update activity for delivery.
-func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, note *ap.Object) error {
+func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, note *ap.Object) error {
 	updateID := fmt.Sprintf("https://%s/update/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", note.ID, time.Now().UnixNano()))))
 
 	update := ap.Activity{
@@ -104,7 +103,7 @@ func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, log *slog.L
 		}
 	}
 
-	if err := ForwardActivity(ctx, domain, cfg, log, tx, note, &update, data.JSON(j)); err != nil {
+	if err := ForwardActivity(ctx, domain, cfg, tx, note, &update, data.JSON(j)); err != nil {
 		return err
 	}
 

@@ -19,13 +19,10 @@ package gopher
 
 import (
 	"context"
-	"database/sql"
 	"errors"
-	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/front/text/gmap"
-	"github.com/dimkr/tootik/httpsig"
 	"io"
 	"log/slog"
 	"net"
@@ -35,18 +32,15 @@ import (
 )
 
 type Listener struct {
-	Domain   string
-	Config   *cfg.Config
-	Log      *slog.Logger
-	Handler  front.Handler
-	DB       *sql.DB
-	Resolver ap.Resolver
-	Addr     string
+	Domain  string
+	Config  *cfg.Config
+	Handler front.Handler
+	Addr    string
 }
 
-func (gl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGroup) {
+func (gl *Listener) handle(ctx context.Context, conn net.Conn) {
 	if err := conn.SetDeadline(time.Now().Add(gl.Config.GopherRequestTimeout)); err != nil {
-		gl.Log.Warn("Failed to set deadline", "error", err)
+		slog.Warn("Failed to set deadline", "error", err)
 		return
 	}
 
@@ -55,20 +49,20 @@ func (gl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 	for {
 		n, err := conn.Read(req[total:])
 		if err != nil && total == 0 && errors.Is(err, io.EOF) {
-			gl.Log.Debug("Failed to receive request", "error", err)
+			slog.Debug("Failed to receive request", "error", err)
 			return
 		} else if err != nil {
-			gl.Log.Warn("Failed to receive request", "error", err)
+			slog.Warn("Failed to receive request", "error", err)
 			return
 		}
 		if n <= 0 {
-			gl.Log.Warn("Failed to receive request")
+			slog.Warn("Failed to receive request")
 			return
 		}
 		total += n
 
 		if total == cap(req) {
-			gl.Log.Warn("Request is too big")
+			slog.Warn("Request is too big")
 			return
 		}
 
@@ -82,16 +76,24 @@ func (gl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 		path = "/"
 	}
 
-	reqUrl, err := url.Parse(path)
+	r := front.Request{
+		Context: ctx,
+		Body:    conn,
+	}
+
+	var err error
+	r.URL, err = url.Parse(path)
 	if err != nil {
-		gl.Log.Warn("Failed to parse request", "path", path, "error", err)
+		slog.Warn("Failed to parse request", "path", path, "error", err)
 		return
 	}
+
+	r.Log = slog.With(slog.Group("request", "path", r.URL.Path))
 
 	w := gmap.Wrap(conn, gl.Domain, gl.Config)
 	defer w.Flush()
 
-	gl.Handler.Handle(ctx, gl.Log.With(slog.Group("request", "path", reqUrl.Path)), nil, w, reqUrl, nil, httpsig.Key{}, gl.DB, gl.Resolver, wg)
+	gl.Handler.Handle(&r, w)
 }
 
 // ListenAndServe handles Gopher requests.
@@ -117,7 +119,7 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 		for ctx.Err() == nil {
 			conn, err := l.Accept()
 			if err != nil {
-				gl.Log.Warn("Failed to accept a connection", "error", err)
+				slog.Warn("Failed to accept a connection", "error", err)
 				continue
 			}
 
@@ -136,7 +138,7 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 
 			wg.Add(1)
 			go func() {
-				gl.handle(requestCtx, conn, &wg)
+				gl.handle(requestCtx, conn)
 				conn.Write([]byte(".\r\n"))
 				conn.Close()
 				timer.Stop()

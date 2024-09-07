@@ -36,7 +36,7 @@ type sender struct {
 
 var userAgent = "tootik/" + buildinfo.Version
 
-func (s *sender) send(log *slog.Logger, key httpsig.Key, req *http.Request) (*http.Response, error) {
+func (s *sender) send(key httpsig.Key, req *http.Request) (*http.Response, error) {
 	urlString := req.URL.String()
 
 	if req.URL.Scheme != "https" {
@@ -49,7 +49,7 @@ func (s *sender) send(log *slog.Logger, key httpsig.Key, req *http.Request) (*ht
 
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
-	log.Debug("Sending request", "url", urlString)
+	slog.Debug("Sending request", "url", urlString)
 
 	if err := httpsig.Sign(req, key, time.Now()); err != nil {
 		return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
@@ -72,7 +72,7 @@ func (s *sender) send(log *slog.Logger, key httpsig.Key, req *http.Request) (*ht
 	return resp, nil
 }
 
-func (s *sender) get(ctx context.Context, log *slog.Logger, key httpsig.Key, url string) (*http.Response, error) {
+func (s *sender) get(ctx context.Context, key httpsig.Key, url string) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request to %s: %w", url, err)
@@ -81,5 +81,5 @@ func (s *sender) get(ctx context.Context, log *slog.Logger, key httpsig.Key, url
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
-	return s.send(log, key, req)
+	return s.send(key, req)
 }

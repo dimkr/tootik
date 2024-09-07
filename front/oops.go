@@ -20,7 +20,7 @@ import (
 	"github.com/dimkr/tootik/front/text"
 )
 
-func oops(w text.Writer, r *request, args ...string) {
+func oops(w text.Writer, r *Request, args ...string) {
 	w.OK()
 	w.Title("🦖🦖🦖")
 	w.Empty()

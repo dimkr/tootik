@@ -24,7 +24,6 @@ import (
 	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/outbox"
 	"github.com/stretchr/testify/assert"
-	"log/slog"
 	"net/http"
 	"strings"
 	"testing"
@@ -237,9 +236,8 @@ func TestCommunity_ReplyInThread(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -309,9 +307,8 @@ func TestCommunity_ReplyInThreadAuthorNotFollowing(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -399,9 +396,8 @@ func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -485,9 +481,8 @@ func TestCommunity_DuplicateReplyInThread(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -583,9 +578,8 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -700,9 +694,8 @@ func TestCommunity_UnknownEditedReplyInThread(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())

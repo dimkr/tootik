@@ -24,13 +24,15 @@ import (
 	"time"
 )
 
-func (h *Handler) follows(w text.Writer, r *request, args ...string) {
+func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
 	}
 
-	rows, err := r.Query(`
+	rows, err := h.DB.QueryContext(
+		r.Context,
+		`
 		select persons.actor, g.ninserted/(24*60*60) from
 		(
 			select followed, max(ninserted) as ninserted, max(finserted) as finserted from
@@ -89,7 +91,7 @@ func (h *Handler) follows(w text.Writer, r *request, args ...string) {
 		}
 		lastDay = last
 
-		displayName := h.getActorDisplayName(&actor, r.Log)
+		displayName := h.getActorDisplayName(&actor)
 
 		if last.Valid {
 			w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.ID, "https://"), "%s %s", time.Unix(last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)

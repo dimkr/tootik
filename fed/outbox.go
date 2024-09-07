@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -35,11 +36,11 @@ func (l *Listener) getCollection(w http.ResponseWriter, r *http.Request, usernam
 		"type":     "OrderedCollection",
 	}
 
-	l.Log.Info("Listing activities by user", "username", username)
+	slog.Info("Listing activities by user", "username", username)
 
 	var totalItems sql.NullInt64
 	if err := l.DB.QueryRowContext(r.Context(), `select count(*) from notes join outbox on outbox.activity->>'$.object.id' = notes.id where outbox.sender = $1 and notes.author = $1 and notes.public = 1`, actorID).Scan(&totalItems); err != nil {
-		l.Log.Warn("Failed to count activities", "username", username, "error", err)
+		slog.Warn("Failed to count activities", "username", username, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -51,7 +52,7 @@ func (l *Listener) getCollection(w http.ResponseWriter, r *http.Request, usernam
 
 	var firstSince sql.NullInt64
 	if err := l.DB.QueryRowContext(r.Context(), `select min(outbox.inserted) from notes join outbox on outbox.activity->>'$.object.id' = notes.id where outbox.sender = $1 and notes.author = $1 and notes.public = 1`, actorID, activitiesPerPage).Scan(&firstSince); err != nil {
-		l.Log.Warn("Failed to get first page timestamp", "username", username, "error", err)
+		slog.Warn("Failed to get first page timestamp", "username", username, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -62,7 +63,7 @@ func (l *Listener) getCollection(w http.ResponseWriter, r *http.Request, usernam
 	if totalItems.Valid && totalItems.Int64 > activitiesPerPage {
 		var lastSince sql.NullInt64
 		if err := l.DB.QueryRowContext(r.Context(), `select min(inserted) from (select outbox.inserted from notes join outbox on outbox.activity->>'$.object.id' = notes.id where outbox.sender = $1 and notes.author = $1 and notes.public = 1 order by outbox.inserted desc limit $2)`, actorID, activitiesPerPage).Scan(&lastSince); err != nil {
-			l.Log.Warn("Failed to get last page timestamp", "username", username, "error", err)
+			slog.Warn("Failed to get last page timestamp", "username", username, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -75,7 +76,7 @@ func (l *Listener) getCollection(w http.ResponseWriter, r *http.Request, usernam
 
 	j, err := json.Marshal(collection)
 	if err != nil {
-		l.Log.Warn("Failed to marshal collection", "username", username, "error", err)
+		slog.Warn("Failed to marshal collection", "username", username, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -89,7 +90,7 @@ func (l *Listener) handleOutbox(w http.ResponseWriter, r *http.Request) {
 
 	var actorID sql.NullString
 	if err := l.DB.QueryRowContext(r.Context(), `select id from persons where actor->>'$.preferredUsername' = ? and host = ?`, username, l.Domain).Scan(&actorID); err != nil {
-		l.Log.Warn("Failed to check if user exists", "username", username, "error", err)
+		slog.Warn("Failed to check if user exists", "username", username, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -100,13 +101,13 @@ func (l *Listener) handleOutbox(w http.ResponseWriter, r *http.Request) {
 
 	if shouldRedirect(r) {
 		outbox := fmt.Sprintf("gemini://%s/outbox/%s", l.Domain, strings.TrimPrefix(actorID.String, "https://"))
-		l.Log.Info("Redirecting to outbox over Gemini", "outbox", outbox)
+		slog.Info("Redirecting to outbox over Gemini", "outbox", outbox)
 		w.Header().Set("Location", outbox)
 		w.WriteHeader(http.StatusMovedPermanently)
 		return
 	}
 
-	l.Log.Info("Fetching activities by user", "username", username)
+	slog.Info("Fetching activities by user", "username", username)
 
 	if r.URL.RawQuery == "" {
 		l.getCollection(w, r, username, actorID.String)
@@ -115,7 +116,7 @@ func (l *Listener) handleOutbox(w http.ResponseWriter, r *http.Request) {
 
 	since, err := strconv.ParseInt(r.URL.RawQuery, 10, 64)
 	if err != nil {
-		l.Log.Warn("Failed to parse offset", "username", username, "query", r.URL.RawQuery, "error", err)
+		slog.Warn("Failed to parse offset", "username", username, "query", r.URL.RawQuery, "error", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -127,7 +128,7 @@ func (l *Listener) handleOutbox(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := l.DB.QueryContext(r.Context(), `select outbox.activity from notes join outbox on outbox.activity->>'$.object.id' = notes.id where outbox.sender = $1 and outbox.activity->>'$.actor' = $1 and notes.author = $1 and notes.public = 1 and outbox.inserted >= $2 order by notes.inserted limit $3`, actorID.String, since, activitiesPerPage)
 	if err != nil {
-		l.Log.Warn("Failed to fetch activities", "username", username, "since", since, "error", err)
+		slog.Warn("Failed to fetch activities", "username", username, "since", since, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -139,7 +140,7 @@ func (l *Listener) handleOutbox(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var activity ap.Activity
 		if err := rows.Scan(&activity); err != nil {
-			l.Log.Warn("Failed to scan activity", "error", err)
+			slog.Warn("Failed to scan activity", "error", err)
 			continue
 		}
 
@@ -158,7 +159,7 @@ func (l *Listener) handleOutbox(w http.ResponseWriter, r *http.Request) {
 
 	var nextSince sql.NullInt64
 	if err := l.DB.QueryRowContext(r.Context(), `select max(inserted) from (select outbox.inserted from notes join outbox on outbox.activity->>'$.object.id' = notes.id where outbox.sender = $1 and outbox.activity->>'$.actor' = $1 and notes.author = $1 and notes.public = 1 and outbox.inserted > $2 order by outbox.inserted limit $2 offset $3)`, actorID, since, activitiesPerPage).Scan(&nextSince); err != nil {
-		l.Log.Warn("Failed to get next page timestamp", "username", username, "since", since, "error", err)
+		slog.Warn("Failed to get next page timestamp", "username", username, "since", since, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -168,7 +169,7 @@ func (l *Listener) handleOutbox(w http.ResponseWriter, r *http.Request) {
 
 	var prevSince sql.NullInt64
 	if err := l.DB.QueryRowContext(r.Context(), `select min(inserted) from (select outbox.inserted from notes join outbox on outbox.activity->>'$.object.id' = notes.id where outbox.sender = $1 and outbox.activity->>'$.actor' = $1 and notes.author = $1 and notes.public = 1 and outbox.inserted < $2 order by outbox.inserted desc limit $3)`, actorID, since, activitiesPerPage).Scan(&prevSince); err != nil {
-		l.Log.Warn("Failed to get previous page timestamp", "username", username, "since", since, "error", err)
+		slog.Warn("Failed to get previous page timestamp", "username", username, "since", since, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -178,7 +179,7 @@ func (l *Listener) handleOutbox(w http.ResponseWriter, r *http.Request) {
 
 	j, err := json.Marshal(page)
 	if err != nil {
-		l.Log.Warn("Failed to marshal page", "username", username, "since", since, "error", err)
+		slog.Warn("Failed to marshal page", "username", username, "since", since, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

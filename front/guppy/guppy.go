@@ -20,14 +20,11 @@ package guppy
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/front/text/guppy"
-	"github.com/dimkr/tootik/httpsig"
 	"io"
 	"log/slog"
 	"math"
@@ -39,13 +36,10 @@ import (
 )
 
 type Listener struct {
-	Domain   string
-	Config   *cfg.Config
-	Log      *slog.Logger
-	DB       *sql.DB
-	Handler  front.Handler
-	Resolver ap.Resolver
-	Addr     string
+	Domain  string
+	Config  *cfg.Config
+	Handler front.Handler
+	Addr    string
 }
 
 type incomingPacket struct {
@@ -65,19 +59,24 @@ const (
 	retryInterval  = time.Millisecond * 100
 )
 
-func (gl *Listener) handle(ctx context.Context, wg *sync.WaitGroup, from net.Addr, req []byte, acks <-chan []byte, done chan<- string, s net.PacketConn) {
+func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks <-chan []byte, done chan<- string, s net.PacketConn) {
 	defer func() {
 		done <- from.String()
 	}()
 
 	if req[len(req)-1] == '\r' && req[len(req)] == '\n' {
-		gl.Log.Warn("Invalid request")
+		slog.Warn("Invalid request")
 		return
 	}
 
-	reqUrl, err := url.Parse(string(req[:len(req)-2]))
+	r := front.Request{
+		Context: ctx,
+	}
+
+	var err error
+	r.URL, err = url.Parse(string(req[:len(req)-2]))
 	if err != nil {
-		gl.Log.Warn("Invalid request", "request", string(req[:len(req)-2]), "error", err)
+		slog.Warn("Invalid request", "request", string(req[:len(req)-2]), "error", err)
 		return
 	}
 
@@ -86,15 +85,16 @@ func (gl *Listener) handle(ctx context.Context, wg *sync.WaitGroup, from net.Add
 	var buf bytes.Buffer
 	w := guppy.Wrap(&buf, seq)
 
-	if reqUrl.Host != gl.Domain {
+	if r.URL.Host != gl.Domain {
 		w.Status(4, "Wrong host")
 	} else {
-		gl.Log.Info("Handling request", "path", reqUrl.Path, "url", reqUrl.String(), "from", from)
-		gl.Handler.Handle(ctx, gl.Log, nil, w, reqUrl, nil, httpsig.Key{}, gl.DB, gl.Resolver, wg)
+		slog.Info("Handling request", "path", r.URL, "url", r.URL.String(), "from", from)
+		r.Log = slog.With(slog.Group("request", "path", r.URL.Path))
+		gl.Handler.Handle(&r, w)
 	}
 
 	if ctx.Err() != nil {
-		gl.Log.Warn("Failed to handle request in time", "path", reqUrl.Path, "from", from)
+		slog.Warn("Failed to handle request in time", "path", r.URL.Path, "from", from)
 		return
 	}
 
@@ -103,7 +103,7 @@ func (gl *Listener) handle(ctx context.Context, wg *sync.WaitGroup, from net.Add
 	w.Flush()
 	n, err := buf.Read(chunk)
 	if err != nil {
-		gl.Log.Error("Failed to read first respone chunk", "error", err)
+		slog.Error("Failed to read first respone chunk", "error", err)
 		return
 	}
 
@@ -127,7 +127,7 @@ func (gl *Listener) handle(ctx context.Context, wg *sync.WaitGroup, from net.Add
 			chunks = append(chunks, responseChunk{Data: []byte(statusLine), Seq: seq})
 			break
 		} else if err != nil {
-			gl.Log.Error("Failed to read respone chunk", "error", err)
+			slog.Error("Failed to read respone chunk", "error", err)
 			return
 		}
 		chunks = append(chunks, responseChunk{Data: append([]byte(statusLine), chunk[:n]...), Seq: seq})
@@ -136,7 +136,7 @@ func (gl *Listener) handle(ctx context.Context, wg *sync.WaitGroup, from net.Add
 	retry := time.NewTicker(retryInterval)
 	defer retry.Stop()
 
-	gl.Log.Debug("Sending response", "path", reqUrl.Path, "from", from, "first", chunks[0].Seq, "last", chunks[len(chunks)-1].Seq, "chunks", len(chunks))
+	slog.Debug("Sending response", "path", r.URL.Path, "from", from, "first", chunks[0].Seq, "last", chunks[len(chunks)-1].Seq, "chunks", len(chunks))
 
 	firstTime := true
 
@@ -144,38 +144,38 @@ func (gl *Listener) handle(ctx context.Context, wg *sync.WaitGroup, from net.Add
 		if !firstTime {
 			select {
 			case <-ctx.Done():
-				gl.Log.Warn("Session timed out", "path", reqUrl.Path, "from", from)
+				slog.Warn("Session timed out", "path", r.URL.Path, "from", from)
 				return
 
 			case ack, ok := <-acks:
 				if !ok {
-					gl.Log.Warn("Session timed out", "path", reqUrl.Path, "from", from)
+					slog.Warn("Session timed out", "path", r.URL.Path, "from", from)
 					return
 				}
 
 				var ackedSeq int
 				n, err := fmt.Sscanf(string(ack), "%d\r\n", &ackedSeq)
 				if err != nil {
-					gl.Log.Debug("Received invalid ack", "path", reqUrl.Path, "from", from, "ack", string(ack), "error", err)
+					slog.Debug("Received invalid ack", "path", r.URL.Path, "from", from, "ack", string(ack), "error", err)
 					continue
 				}
 				if n < 1 {
-					gl.Log.Debug("Received invalid ack", "path", reqUrl.Path, "from", from, "ack", string(ack))
+					slog.Debug("Received invalid ack", "path", r.URL.Path, "from", from, "ack", string(ack))
 					continue
 				}
 
 				i := ackedSeq - chunks[0].Seq
 				if i < 0 || i >= len(chunks) {
-					gl.Log.Debug("Received invalid ack", "path", reqUrl.Path, "from", from, "ack", string(ack))
+					slog.Debug("Received invalid ack", "path", r.URL.Path, "from", from, "ack", string(ack))
 					continue
 				}
 
 				if chunks[i].Acked {
-					gl.Log.Debug("Received duplicate ack", "path", reqUrl.Path, "from", from, "acked", ackedSeq)
+					slog.Debug("Received duplicate ack", "path", r.URL.Path, "from", from, "acked", ackedSeq)
 					continue
 				}
 
-				gl.Log.Debug("Marking packet as received", "path", reqUrl.Path, "from", from, "acked", ackedSeq)
+				slog.Debug("Marking packet as received", "path", r.URL.Path, "from", from, "acked", ackedSeq)
 				chunks[i].Acked = true
 
 				// stop if the acked packet is the EOF packet
@@ -197,9 +197,9 @@ func (gl *Listener) handle(ctx context.Context, wg *sync.WaitGroup, from net.Add
 				break
 			}
 			if chunks[i].Sent == (time.Time{}) {
-				gl.Log.Debug("Sending packet", "path", reqUrl.Path, "from", from, "seq", chunks[i].Seq)
+				slog.Debug("Sending packet", "path", r.URL.Path, "from", from, "seq", chunks[i].Seq)
 			} else {
-				gl.Log.Debug("Resending packet", "path", reqUrl.Path, "from", from, "seq", chunks[i].Seq)
+				slog.Debug("Resending packet", "path", r.URL.Path, "from", from, "seq", chunks[i].Seq)
 			}
 			s.WriteTo(chunks[i].Data, from)
 			chunks[i].Sent = now
@@ -230,7 +230,7 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 		for {
 			n, from, err := l.ReadFrom(buf)
 			if err != nil {
-				gl.Log.Error("Failed to receive a packet", "error", err)
+				slog.Error("Failed to receive a packet", "error", err)
 				return
 			}
 			incoming <- incomingPacket{buf[:n], from}
@@ -273,7 +273,7 @@ loop:
 				continue
 			}
 			if len(sessions) > gl.Config.MaxGuppySessions {
-				gl.Log.Warn("Too many sessions")
+				slog.Warn("Too many sessions")
 				l.WriteTo([]byte("4 Too many sessions\r\n"), pkt.From)
 				continue
 			}
@@ -285,7 +285,7 @@ loop:
 
 			wg.Add(1)
 			go func() {
-				gl.handle(requestCtx, &wg, pkt.From, pkt.Data, acks, done, l)
+				gl.handle(requestCtx, pkt.From, pkt.Data, acks, done, l)
 				cancelRequest()
 				wg.Done()
 			}()

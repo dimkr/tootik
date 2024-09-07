@@ -22,7 +22,6 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/inbox/note"
 	"github.com/stretchr/testify/assert"
-	"log/slog"
 	"strings"
 	"testing"
 )
@@ -249,7 +248,6 @@ func TestThread_Tree(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/6",
@@ -265,7 +263,6 @@ func TestThread_Tree(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
@@ -280,7 +277,6 @@ func TestThread_Tree(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/4",
@@ -296,7 +292,6 @@ func TestThread_Tree(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/2",
@@ -312,7 +307,6 @@ func TestThread_Tree(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/3",
@@ -328,7 +322,6 @@ func TestThread_Tree(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/5",
@@ -369,7 +362,6 @@ func TestThread_SubTree(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/6",
@@ -385,7 +377,6 @@ func TestThread_SubTree(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
@@ -400,7 +391,6 @@ func TestThread_SubTree(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/4",
@@ -416,7 +406,6 @@ func TestThread_SubTree(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/2",
@@ -432,7 +421,6 @@ func TestThread_SubTree(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/3",
@@ -448,7 +436,6 @@ func TestThread_SubTree(t *testing.T) {
 	assert.NoError(
 		note.Insert(
 			context.Background(),
-			slog.Default(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/5",

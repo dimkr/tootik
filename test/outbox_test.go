@@ -22,7 +22,6 @@ import (
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/inbox"
 	"github.com/stretchr/testify/assert"
-	"log/slog"
 	"net/http"
 	"strings"
 	"testing"
@@ -244,9 +243,8 @@ func TestOutbox_PublicPostInGroup(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -288,9 +286,8 @@ func TestOutbox_PublicPostInGroupUnauthenticatedUser(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -332,9 +329,8 @@ func TestOutbox_PublicPostInGroupAudienceSetByUser(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -390,9 +386,8 @@ func TestOutbox_PublicPostInGroupAudienceSetByGroup(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -448,9 +443,8 @@ func TestOutbox_PublicPostInGroupDeletedByUser(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -513,9 +507,8 @@ func TestOutbox_PublicPostInGroupDeletedByAnotherUser(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -571,9 +564,8 @@ func TestOutbox_PublicPostInGroupDeletedByGroup(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -636,9 +628,8 @@ func TestOutbox_PublicPostInGroupForwardedDelete(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -694,9 +685,8 @@ func TestOutbox_PublicPostInGroupEditedByUser(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -758,9 +748,8 @@ func TestOutbox_PostToFollowersInGroup(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -808,9 +797,8 @@ func TestOutbox_PostToFollowersInGroupNotFollowingGroup(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -855,9 +843,8 @@ func TestOutbox_PostToFollowersInGroupNotAccepted(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -905,9 +892,8 @@ func TestOutbox_PostToFollowersInGroupFollowingAuthor(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -955,62 +941,8 @@ func TestOutbox_PostToFollowersInGroupUnauthenticatedUser(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
-		Key:       server.NobodyKey,
-	}
-	n, err := queue.ProcessBatch(context.Background())
-	assert.NoError(err)
-	assert.Equal(1, n)
-
-	outbox := server.Handle("/outbox/other.localdomain/group/people", nil)
-	assert.NotContains(outbox, "Hello world")
-}
-
-func TestOutbox_DMInGroup(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
-
-	assert := assert.New(t)
-
-	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
-	)
-	assert.NoError(err)
-
-	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://other.localdomain/group/people",
-		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
-	)
-	assert.NoError(err)
-
-	follow := server.Handle("/users/follow/other.localdomain/group/people", server.Alice)
-	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
-
-	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
-
-	_, err = server.db.Exec(`update follows set accepted = 1`)
-	assert.NoError(err)
-
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
-		"https://other.localdomain/group/people",
-		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://other.localdomain/group/people"]}`,
-	)
-	assert.NoError(err)
-
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -1058,9 +990,8 @@ func TestOutbox_DMInGroupNotFollowingGroup(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -1111,9 +1042,8 @@ func TestOutbox_DMInGroupAnotherUser(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())

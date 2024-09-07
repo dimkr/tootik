@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
+	"log/slog"
 	"net/http"
 )
 
@@ -30,20 +31,20 @@ func (l *Listener) handlePost(w http.ResponseWriter, r *http.Request) {
 
 	if shouldRedirect(r) {
 		url := fmt.Sprintf("gemini://%s/view/%s%s", l.Domain, l.Domain, r.URL.Path)
-		l.Log.Info("Redirecting to post over Gemini", "url", url)
+		slog.Info("Redirecting to post over Gemini", "url", url)
 		w.Header().Set("Location", url)
 		w.WriteHeader(http.StatusMovedPermanently)
 		return
 	}
 
-	l.Log.Info("Fetching post", "post", postID)
+	slog.Info("Fetching post", "post", postID)
 
 	var note ap.Object
 	if err := l.DB.QueryRowContext(r.Context(), `select object from notes where id = ? and public = 1`, postID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
-		l.Log.Warn("Failed to fetch post", "post", postID, "error", err)
+		slog.Warn("Failed to fetch post", "post", postID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -52,7 +53,7 @@ func (l *Listener) handlePost(w http.ResponseWriter, r *http.Request) {
 
 	j, err := json.Marshal(note)
 	if err != nil {
-		l.Log.Warn("Failed to marshal post", "post", postID, "error", err)
+		slog.Warn("Failed to marshal post", "post", postID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

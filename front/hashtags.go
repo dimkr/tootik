@@ -23,7 +23,7 @@ import (
 	"github.com/dimkr/tootik/front/text"
 )
 
-func scanHashtags(r *request, rows *sql.Rows) []string {
+func scanHashtags(r *Request, rows *sql.Rows) []string {
 	tags := make([]string, 0, 30)
 
 	for rows.Next() {
@@ -39,7 +39,7 @@ func scanHashtags(r *request, rows *sql.Rows) []string {
 	return tags
 }
 
-func printHashtags(w text.Writer, r *request, title string, tags []string) {
+func printHashtags(w text.Writer, r *Request, title string, tags []string) {
 	w.Text(title)
 	w.Empty()
 
@@ -52,8 +52,9 @@ func printHashtags(w text.Writer, r *request, title string, tags []string) {
 	}
 }
 
-func (h *Handler) hashtags(w text.Writer, r *request, args ...string) {
-	rows, err := r.Query(
+func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
+	rows, err := h.DB.QueryContext(
+		r.Context,
 		`
 			select hashtag from (
 				select hashtag, max(inserted)/86400 as last, count(distinct author) as authors, count(distinct follower) as followers, count(distinct id) as posts from (
@@ -94,7 +95,8 @@ func (h *Handler) hashtags(w text.Writer, r *request, args ...string) {
 	followed := scanHashtags(r, rows)
 	rows.Close()
 
-	rows, err = r.Query(
+	rows, err = h.DB.QueryContext(
+		r.Context,
 		`
 			select hashtag from (
 				select hashtag, max(inserted)/86400 as last, count(distinct author) as authors, count(*) as posts from (
@@ -125,7 +127,8 @@ func (h *Handler) hashtags(w text.Writer, r *request, args ...string) {
 	all := scanHashtags(r, rows)
 	rows.Close()
 
-	rows, err = r.Query(
+	rows, err = h.DB.QueryContext(
+		r.Context,
 		`
 			select strftime('%Y-%m-%d', datetime(day*86400, 'unixepoch')) || ' #' || hashtag, authors from (
 				select notes.inserted/86400 as day, hashtags.hashtag, count(distinct notes.author) authors from

@@ -27,7 +27,7 @@ import (
 	"strings"
 )
 
-func forwardToGroup[T ap.RawActivity](ctx context.Context, domain string, log *slog.Logger, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity T, firstPostID string) (bool, error) {
+func forwardToGroup[T ap.RawActivity](ctx context.Context, domain string, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity T, firstPostID string) (bool, error) {
 	var group ap.Actor
 	if err := tx.QueryRowContext(
 		ctx,
@@ -86,7 +86,7 @@ func forwardToGroup[T ap.RawActivity](ctx context.Context, domain string, log *s
 		return true, nil
 	}
 
-	log.Info("Forwarding post to group followers", "group", group.ID, "post", note.ID)
+	slog.Info("Forwarding post to group followers", "activity", activity.ID, "note", note.ID, "group", group.ID)
 
 	if _, err := tx.ExecContext(
 		ctx,
@@ -121,7 +121,7 @@ func forwardToGroup[T ap.RawActivity](ctx context.Context, domain string, log *s
 // ForwardActivity forwards an activity if needed.
 // A reply by B in a thread started by A is forwarded to all followers of A.
 // A post by a follower of a local group, which mentions the group or replies to a post in the group, is forwarded to followers of the group.
-func ForwardActivity[T ap.RawActivity](ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity T) error {
+func ForwardActivity[T ap.RawActivity](ctx context.Context, domain string, cfg *cfg.Config, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity T) error {
 	// poll votes don't need to be forwarded
 	if note.Name != "" && note.Content == "" {
 		return nil
@@ -133,19 +133,19 @@ func ForwardActivity[T ap.RawActivity](ctx context.Context, domain string, cfg *
 	if note.InReplyTo != "" {
 		var depth int
 		if err := tx.QueryRowContext(ctx, `with recursive thread(id, author, parent, depth) as (select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, 1 as depth from notes where id = $1 union all select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent where t.depth <= $2) select id, author, depth from thread order by depth desc limit 1`, note.ID, cfg.MaxForwardingDepth+1).Scan(&firstPostID, &threadStarterID, &depth); err != nil && errors.Is(err, sql.ErrNoRows) {
-			log.Debug("Failed to find thread for post", "note", note.ID)
+			slog.Debug("Failed to find thread for post", "activity", activity.ID, "note", note.ID)
 			return nil
 		} else if err != nil {
 			return fmt.Errorf("failed to fetch first post in thread: %w", err)
 		}
 		if depth > cfg.MaxForwardingDepth {
-			log.Debug("Thread exceeds depth limit for forwarding")
+			slog.Debug("Thread exceeds depth limit for forwarding", "activity", activity.ID, "note", note.ID)
 			return nil
 		}
 	}
 
 	if note.IsPublic() {
-		if groupThread, err := forwardToGroup(ctx, domain, log, tx, note, activity, rawActivity, firstPostID); err != nil {
+		if groupThread, err := forwardToGroup(ctx, domain, tx, note, activity, rawActivity, firstPostID); err != nil {
 			return err
 		} else if groupThread {
 			return nil
@@ -159,7 +159,7 @@ func ForwardActivity[T ap.RawActivity](ctx context.Context, domain string, cfg *
 
 	prefix := fmt.Sprintf("https://%s/", domain)
 	if !strings.HasPrefix(threadStarterID, prefix) {
-		log.Debug("Thread starter is federated")
+		slog.Debug("Thread starter is federated", "activity", activity.ID, "note", note.ID)
 		return nil
 	}
 
@@ -168,7 +168,7 @@ func ForwardActivity[T ap.RawActivity](ctx context.Context, domain string, cfg *
 		return err
 	}
 	if shouldForward == 0 {
-		log.Debug("Activity does not need to be forwarded")
+		slog.Debug("Activity does not need to be forwarded", "activity", activity.ID, "note", note.ID)
 		return nil
 	}
 
@@ -181,6 +181,6 @@ func ForwardActivity[T ap.RawActivity](ctx context.Context, domain string, cfg *
 		return err
 	}
 
-	log.Info("Forwarding activity to followers of thread starter", "thread", firstPostID, "starter", threadStarterID)
+	slog.Info("Forwarding activity to followers of thread starter", "activity", activity.ID, "note", note.ID, "thread", firstPostID, "starter", threadStarterID)
 	return nil
 }

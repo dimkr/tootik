@@ -17,8 +17,6 @@ limitations under the License.
 package test
 
 import (
-	"sync"
-
 	"bytes"
 	"context"
 	"database/sql"
@@ -72,7 +70,7 @@ func newTestServer() *server {
 	var cfg cfg.Config
 	cfg.FillDefaults()
 
-	if err := migrations.Run(context.Background(), slog.Default(), domain, db); err != nil {
+	if err := migrations.Run(context.Background(), domain, db); err != nil {
 		panic(err)
 	}
 
@@ -96,7 +94,7 @@ func newTestServer() *server {
 		panic(err)
 	}
 
-	handler, err := front.NewHandler(domain, false, &cfg)
+	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
 	if err != nil {
 		panic(err)
 	}
@@ -120,9 +118,16 @@ func (s *server) Handle(request string, user *ap.Actor) string {
 	}
 
 	var buf bytes.Buffer
-	var wg sync.WaitGroup
 	w := gmi.Wrap(&buf)
-	s.handler.Handle(context.Background(), slog.Default(), nil, w, u, user, httpsig.Key{}, s.db, fed.NewResolver(nil, domain, s.cfg, &http.Client{}), &wg)
+	s.handler.Handle(
+		&front.Request{
+			Context: context.Background(),
+			URL:     u,
+			Log:     slog.Default(),
+			User:    user,
+		},
+		w,
+	)
 	w.Flush()
 
 	return buf.String()
@@ -136,9 +141,17 @@ func (s *server) Upload(request string, user *ap.Actor, body []byte) string {
 	u.Scheme = "titan"
 
 	var buf bytes.Buffer
-	var wg sync.WaitGroup
 	w := gmi.Wrap(&buf)
-	s.handler.Handle(context.Background(), slog.Default(), bytes.NewBuffer(body), w, u, user, httpsig.Key{}, s.db, fed.NewResolver(nil, domain, s.cfg, &http.Client{}), &wg)
+	s.handler.Handle(
+		&front.Request{
+			Context: context.Background(),
+			URL:     u,
+			Log:     slog.Default(),
+			Body:    bytes.NewBuffer(body),
+			User:    user,
+		},
+		w,
+	)
 	w.Flush()
 
 	return buf.String()

@@ -21,7 +21,7 @@ import (
 	"strings"
 )
 
-func me(w text.Writer, r *request, args ...string) {
+func me(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return

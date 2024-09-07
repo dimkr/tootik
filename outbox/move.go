@@ -29,7 +29,6 @@ import (
 
 type Mover struct {
 	Domain   string
-	Log      *slog.Logger
 	DB       *sql.DB
 	Resolver ap.Resolver
 	Key      httpsig.Key
@@ -45,18 +44,18 @@ func (m *Mover) updatedMoveTargets(ctx context.Context, prefix string) error {
 	for rows.Next() {
 		var oldID, newID string
 		if err := rows.Scan(&oldID, &newID); err != nil {
-			m.Log.Error("Failed to scan moved actor", "error", err)
+			slog.Error("Failed to scan moved actor", "error", err)
 			continue
 		}
 
-		actor, err := m.Resolver.ResolveID(ctx, m.Log, m.DB, m.Key, newID, 0)
+		actor, err := m.Resolver.ResolveID(ctx, m.Key, newID, 0)
 		if err != nil {
-			m.Log.Warn("Failed to resolve move target", "old", oldID, "new", newID, "error", err)
+			slog.Warn("Failed to resolve move target", "old", oldID, "new", newID, "error", err)
 			continue
 		}
 
 		if !actor.AlsoKnownAs.Contains(oldID) {
-			m.Log.Warn("New account does not point to old account", "new", newID, "old", oldID)
+			slog.Warn("New account does not point to old account", "new", newID, "old", oldID)
 		}
 	}
 
@@ -105,21 +104,21 @@ func (m *Mover) Run(ctx context.Context) error {
 		var oldID, newID, oldFollowID string
 		var onlyRemove bool
 		if err := rows.Scan(&actor, &oldID, &newID, &oldFollowID, &onlyRemove); err != nil {
-			m.Log.Error("Failed to scan follow to move", "error", err)
+			slog.Error("Failed to scan follow to move", "error", err)
 			continue
 		}
 
 		if onlyRemove {
-			m.Log.Info("Removing follow of moved actor", "follow", oldFollowID, "old", oldID, "new", newID)
+			slog.Info("Removing follow of moved actor", "follow", oldFollowID, "old", oldID, "new", newID)
 		} else {
-			m.Log.Info("Moving follow", "follow", oldFollowID, "old", oldID, "new", newID)
+			slog.Info("Moving follow", "follow", oldFollowID, "old", oldID, "new", newID)
 			if err := Follow(ctx, m.Domain, &actor, newID, m.DB); err != nil {
-				m.Log.Warn("Failed to follow new actor", "follow", oldFollowID, "old", oldID, "new", newID, "error", err)
+				slog.Warn("Failed to follow new actor", "follow", oldFollowID, "old", oldID, "new", newID, "error", err)
 				continue
 			}
 		}
-		if err := Unfollow(ctx, m.Domain, m.Log, m.DB, actor.ID, oldID, oldFollowID); err != nil {
-			m.Log.Warn("Failed to unfollow old actor", "follow", oldFollowID, "old", oldID, "new", newID, "error", err)
+		if err := Unfollow(ctx, m.Domain, m.DB, actor.ID, oldID, oldFollowID); err != nil {
+			slog.Warn("Failed to unfollow old actor", "follow", oldFollowID, "old", oldID, "new", newID, "error", err)
 		}
 	}
 

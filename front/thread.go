@@ -25,7 +25,7 @@ import (
 	"strings"
 )
 
-func (h *Handler) thread(w text.Writer, r *request, args ...string) {
+func (h *Handler) thread(w text.Writer, r *Request, args ...string) {
 	postID := "https://" + args[1]
 
 	offset, err := getOffset(r.URL)
@@ -38,7 +38,7 @@ func (h *Handler) thread(w text.Writer, r *request, args ...string) {
 	r.Log.Info("Viewing thread", "post", postID)
 
 	var threadHead sql.NullString
-	if err := r.QueryRow(`with recursive thread(id, parent) as (select notes.id, notes.object->>'$.inReplyTo' as parent from notes where id = ? union all select notes.id, notes.object->>'$.inReplyTo' as parent from thread t join notes on notes.id = t.parent) select thread.id from thread where thread.parent is null limit 1`, postID).Scan(&threadHead); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := h.DB.QueryRowContext(r.Context, `with recursive thread(id, parent) as (select notes.id, notes.object->>'$.inReplyTo' as parent from notes where id = ? union all select notes.id, notes.object->>'$.inReplyTo' as parent from thread t join notes on notes.id = t.parent) select thread.id from thread where thread.parent is null limit 1`, postID).Scan(&threadHead); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Failed to fetch thread head", "error", err)
 		w.Error()
 		return
@@ -46,13 +46,13 @@ func (h *Handler) thread(w text.Writer, r *request, args ...string) {
 
 	var rootAuthorID, rootAuthorType, rootAuthorUsername string
 	var rootAuthorName sql.NullString
-	if err := r.QueryRow(`select persons.id, persons.actor->>'$.type', persons.actor->>'$.preferredUsername', persons.actor->>'$.name' from notes join persons on persons.id = notes.author where notes.id = ?`, postID).Scan(&rootAuthorID, &rootAuthorType, &rootAuthorUsername, &rootAuthorName); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := h.DB.QueryRowContext(r.Context, `select persons.id, persons.actor->>'$.type', persons.actor->>'$.preferredUsername', persons.actor->>'$.name' from notes join persons on persons.id = notes.author where notes.id = ?`, postID).Scan(&rootAuthorID, &rootAuthorType, &rootAuthorUsername, &rootAuthorName); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Failed to fetch thread root author", "error", err)
 		w.Error()
 		return
 	}
 
-	rows, err := r.Query(`select thread.depth, thread.id, strftime('%Y-%m-%d', datetime(thread.inserted, 'unixepoch')), persons.actor->>'$.preferredUsername' from (with recursive thread(id, author, inserted, parent, depth, path) as (select notes.id, notes.author, notes.inserted, object->>'$.inReplyTo' as parent, 0 as depth, notes.inserted || notes.id as path from notes where id = $1 union all select notes.id, notes.author, notes.inserted, notes.object->>'$.inReplyTo', t.depth + 1, t.path || notes.inserted || notes.id from thread t join notes on notes.object->>'$.inReplyTo' = t.id) select thread.depth, thread.id, thread.author, thread.inserted, thread.path from thread order by thread.path limit $2 offset $3) thread join persons on persons.id = thread.author order by thread.path`, postID, h.Config.PostsPerPage, offset)
+	rows, err := h.DB.QueryContext(r.Context, `select thread.depth, thread.id, strftime('%Y-%m-%d', datetime(thread.inserted, 'unixepoch')), persons.actor->>'$.preferredUsername' from (with recursive thread(id, author, inserted, parent, depth, path) as (select notes.id, notes.author, notes.inserted, object->>'$.inReplyTo' as parent, 0 as depth, notes.inserted || notes.id as path from notes where id = $1 union all select notes.id, notes.author, notes.inserted, notes.object->>'$.inReplyTo', t.depth + 1, t.path || notes.inserted || notes.id from thread t join notes on notes.object->>'$.inReplyTo' = t.id) select thread.depth, thread.id, thread.author, thread.inserted, thread.path from thread order by thread.path limit $2 offset $3) thread join persons on persons.id = thread.author order by thread.path`, postID, h.Config.PostsPerPage, offset)
 	if err != nil {
 		r.Log.Info("Failed to fetch thread", "post", postID, "error", err)
 		w.Status(40, "Post not found")
@@ -64,9 +64,9 @@ func (h *Handler) thread(w text.Writer, r *request, args ...string) {
 
 	var displayName string
 	if rootAuthorName.Valid {
-		displayName = h.getDisplayName(rootAuthorID, rootAuthorUsername, rootAuthorName.String, ap.ActorType(rootAuthorType), r.Log)
+		displayName = h.getDisplayName(rootAuthorID, rootAuthorUsername, rootAuthorName.String, ap.ActorType(rootAuthorType))
 	} else {
-		displayName = h.getDisplayName(rootAuthorID, rootAuthorUsername, "", ap.ActorType(rootAuthorType), r.Log)
+		displayName = h.getDisplayName(rootAuthorID, rootAuthorUsername, "", ap.ActorType(rootAuthorType))
 	}
 
 	if offset > 0 && offset >= h.Config.PostsPerPage {

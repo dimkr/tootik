@@ -22,7 +22,6 @@ import (
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/inbox"
 	"github.com/stretchr/testify/assert"
-	"log/slog"
 	"net/http"
 	"strings"
 	"testing"
@@ -329,9 +328,8 @@ func TestView_Update(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -388,9 +386,8 @@ func TestView_OldUpdate(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -554,9 +551,8 @@ func TestView_PostInGroupPublicAndGroupFollowed(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -606,9 +602,8 @@ func TestView_PostInGroupNotPublicAndGroupFollowed(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -658,9 +653,8 @@ func TestView_PostInGroupNotPublicAndGroupFollowedButNotAccepted(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -707,9 +701,8 @@ func TestView_PostInGroupNotPublicAndAuthorFollowed(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -759,9 +752,8 @@ func TestView_PostInGroupNotPublicAndAuthorFollowedButNotAccepted(t *testing.T) 
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -824,9 +816,8 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithReply(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -893,9 +884,8 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithPrivateReply(t *testing.T)
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())

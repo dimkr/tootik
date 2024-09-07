@@ -26,7 +26,6 @@ import (
 	"github.com/dimkr/tootik/migrations"
 	"github.com/stretchr/testify/assert"
 	"io"
-	"log/slog"
 	"net/http"
 	"os"
 	"testing"
@@ -66,7 +65,7 @@ func TestDeliver_TwoUsersTwoPosts(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
+	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
 	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, "alice", ap.Person, nil)
 	assert.NoError(err)
@@ -97,12 +96,11 @@ func TestDeliver_TwoUsersTwoPosts(t *testing.T) {
 	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/bob')`)
 	assert.NoError(err)
 
-	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
+	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
 	q := Queue{
 		Domain:   "localhost.localdomain",
 		Config:   &cfg,
-		Log:      slog.Default(),
 		DB:       db,
 		Resolver: resolver,
 	}
@@ -175,7 +173,7 @@ func TestDeliver_ForwardedPost(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
+	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
 	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, "alice", ap.Person, nil)
 	assert.NoError(err)
@@ -206,12 +204,11 @@ func TestDeliver_ForwardedPost(t *testing.T) {
 	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/bob')`)
 	assert.NoError(err)
 
-	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
+	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
 	q := Queue{
 		Domain:   "localhost.localdomain",
 		Config:   &cfg,
-		Log:      slog.Default(),
 		DB:       db,
 		Resolver: resolver,
 	}
@@ -273,7 +270,7 @@ func TestDeliver_OneFailed(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
+	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
 	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, "alice", ap.Person, nil)
 	assert.NoError(err)
@@ -304,12 +301,11 @@ func TestDeliver_OneFailed(t *testing.T) {
 	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/bob')`)
 	assert.NoError(err)
 
-	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
+	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
 	q := Queue{
 		Domain:   "localhost.localdomain",
 		Config:   &cfg,
-		Log:      slog.Default(),
 		DB:       db,
 		Resolver: resolver,
 	}
@@ -382,7 +378,7 @@ func TestDeliver_OneFailedRetry(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
+	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
 	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, "alice", ap.Person, nil)
 	assert.NoError(err)
@@ -407,12 +403,11 @@ func TestDeliver_OneFailedRetry(t *testing.T) {
 	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
+	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
 	q := Queue{
 		Domain:   "localhost.localdomain",
 		Config:   &cfg,
-		Log:      slog.Default(),
 		DB:       db,
 		Resolver: resolver,
 	}
@@ -474,7 +469,7 @@ func TestDeliver_OneInvalidURLRetry(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
+	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
 	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, "alice", ap.Person, nil)
 	assert.NoError(err)
@@ -499,12 +494,11 @@ func TestDeliver_OneInvalidURLRetry(t *testing.T) {
 	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
+	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
 	q := Queue{
 		Domain:   "localhost.localdomain",
 		Config:   &cfg,
-		Log:      slog.Default(),
 		DB:       db,
 		Resolver: resolver,
 	}
@@ -565,7 +559,7 @@ func TestDeliver_MaxAttempts(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
+	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
 	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, "alice", ap.Person, nil)
 	assert.NoError(err)
@@ -590,12 +584,11 @@ func TestDeliver_MaxAttempts(t *testing.T) {
 	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
+	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
 	q := Queue{
 		Domain:   "localhost.localdomain",
 		Config:   &cfg,
-		Log:      slog.Default(),
 		DB:       db,
 		Resolver: resolver,
 	}
@@ -664,7 +657,7 @@ func TestDeliver_SharedInbox(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
+	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
 	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, "alice", ap.Person, nil)
 	assert.NoError(err)
@@ -699,12 +692,11 @@ func TestDeliver_SharedInbox(t *testing.T) {
 	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/frank', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
+	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
 	q := Queue{
 		Domain:   "localhost.localdomain",
 		Config:   &cfg,
-		Log:      slog.Default(),
 		DB:       db,
 		Resolver: resolver,
 	}
@@ -756,7 +748,7 @@ func TestDeliver_SharedInboxRetry(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
+	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
 	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, "alice", ap.Person, nil)
 	assert.NoError(err)
@@ -791,12 +783,11 @@ func TestDeliver_SharedInboxRetry(t *testing.T) {
 	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/frank', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
+	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
 	q := Queue{
 		Domain:   "localhost.localdomain",
 		Config:   &cfg,
-		Log:      slog.Default(),
 		DB:       db,
 		Resolver: resolver,
 	}
@@ -862,7 +853,7 @@ func TestDeliver_SharedInboxUnknownActor(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), slog.Default(), "localhost.localdomain", db))
+	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
 	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, "alice", ap.Person, nil)
 	assert.NoError(err)
@@ -890,12 +881,11 @@ func TestDeliver_SharedInboxUnknownActor(t *testing.T) {
 	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/frank', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client)
+	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
 	q := Queue{
 		Domain:   "localhost.localdomain",
 		Config:   &cfg,
-		Log:      slog.Default(),
 		DB:       db,
 		Resolver: resolver,
 	}

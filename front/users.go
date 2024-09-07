@@ -22,7 +22,7 @@ import (
 	"github.com/dimkr/tootik/front/text"
 )
 
-func (h *Handler) users(w text.Writer, r *request, args ...string) {
+func (h *Handler) users(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/oops")
 		return
@@ -33,8 +33,9 @@ func (h *Handler) users(w text.Writer, r *request, args ...string) {
 		r,
 		"📻 My Feed",
 		func(offset int) (*sql.Rows, error) {
-			return r.Query(`
-				select note, author, sharer, inserted from
+			return h.DB.QueryContext(
+				r.Context,
+				`select note, author, sharer, inserted from
 				feed
 				where
 					follower = $1

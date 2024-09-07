@@ -22,7 +22,6 @@ import (
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/inbox"
 	"github.com/stretchr/testify/assert"
-	"log/slog"
 	"net/http"
 	"strings"
 
@@ -195,9 +194,8 @@ func TestUsers_PublicPostShared(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())
@@ -247,9 +245,8 @@ func TestUsers_PublicPostSharedNotFollowing(t *testing.T) {
 		Domain:    domain,
 		Config:    server.cfg,
 		BlockList: &fed.BlockList{},
-		Log:       slog.Default(),
 		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}),
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
 		Key:       server.NobodyKey,
 	}
 	n, err := queue.ProcessBatch(context.Background())

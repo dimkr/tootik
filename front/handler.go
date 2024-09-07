@@ -17,7 +17,6 @@ limitations under the License.
 package front
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -25,10 +24,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front/static"
 	"github.com/dimkr/tootik/front/text"
-	"github.com/dimkr/tootik/httpsig"
-	"io"
 	"log/slog"
-	"net/url"
 	"regexp"
 	"sync"
 	"time"
@@ -36,14 +32,16 @@ import (
 
 // Handler handles frontend (client-to-server) requests.
 type Handler struct {
-	handlers map[*regexp.Regexp]func(text.Writer, *request, ...string)
+	handlers map[*regexp.Regexp]func(text.Writer, *Request, ...string)
 	Domain   string
 	Config   *cfg.Config
+	Resolver ap.Resolver
+	DB       *sql.DB
 }
 
 var ErrNotRegistered = errors.New("user is not registered")
 
-func serveStaticFile(lines []string, w text.Writer, r *request, args ...string) {
+func serveStaticFile(lines []string, w text.Writer, r *Request, args ...string) {
 	w.OK()
 
 	for _, line := range lines {
@@ -52,11 +50,13 @@ func serveStaticFile(lines []string, w text.Writer, r *request, args ...string) 
 }
 
 // NewHandler returns a new [Handler].
-func NewHandler(domain string, closed bool, cfg *cfg.Config) (Handler, error) {
+func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolver, db *sql.DB) (Handler, error) {
 	h := Handler{
-		handlers: map[*regexp.Regexp]func(text.Writer, *request, ...string){},
+		handlers: map[*regexp.Regexp]func(text.Writer, *Request, ...string){},
 		Domain:   domain,
 		Config:   cfg,
+		Resolver: resolver,
+		DB:       db,
 	}
 	var cache sync.Map
 
@@ -64,7 +64,7 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) (Handler, error) {
 
 	h.handlers[regexp.MustCompile(`^/users$`)] = withUserMenu(h.users)
 	if closed {
-		h.handlers[regexp.MustCompile(`^/users/register$`)] = func(w text.Writer, r *request, args ...string) {
+		h.handlers[regexp.MustCompile(`^/users/register$`)] = func(w text.Writer, r *Request, args ...string) {
 			w.Status(40, "Registration is closed")
 		}
 	} else {
@@ -103,7 +103,7 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) (Handler, error) {
 	h.handlers[regexp.MustCompile(`^/users/unshare/(\S+)`)] = h.unshare
 
 	h.handlers[regexp.MustCompile(`^/users/edit/(\S+)`)] = h.edit
-	h.handlers[regexp.MustCompile(`^/users/delete/(\S+)`)] = delete
+	h.handlers[regexp.MustCompile(`^/users/delete/(\S+)`)] = h.delete
 
 	h.handlers[regexp.MustCompile(`^/users/upload/dm;([a-z]+)=([^;]+);([a-z]+)=([^;]+)`)] = h.uploadDM
 	h.handlers[regexp.MustCompile(`^/users/upload/whisper;([a-z]+)=([^;]+);([a-z]+)=([^;]+)`)] = h.uploadWhisper
@@ -147,7 +147,7 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) (Handler, error) {
 	}
 
 	for path, lines := range files {
-		h.handlers[regexp.MustCompile(fmt.Sprintf(`^%s$`, path))] = withUserMenu(func(w text.Writer, r *request, args ...string) {
+		h.handlers[regexp.MustCompile(fmt.Sprintf(`^%s$`, path))] = withUserMenu(func(w text.Writer, r *Request, args ...string) {
 			serveStaticFile(lines, w, r, args...)
 		})
 	}
@@ -156,40 +156,18 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config) (Handler, error) {
 }
 
 // Handle handles a request and writes a response.
-func (h *Handler) Handle(ctx context.Context, log *slog.Logger, r io.Reader, w text.Writer, reqUrl *url.URL, user *ap.Actor, key httpsig.Key, db *sql.DB, resolver ap.Resolver, wg *sync.WaitGroup) {
+func (h *Handler) Handle(r *Request, w text.Writer) {
 	for re, handler := range h.handlers {
-		m := re.FindStringSubmatch(reqUrl.Path)
+		m := re.FindStringSubmatch(r.URL.Path)
 		if m != nil {
-			var l *slog.Logger
-			if user == nil {
-				l = log.With(slog.Group("request", "path", reqUrl.Path))
-			} else {
-				l = log.With(slog.Group("request", "path", reqUrl.Path, "user", user.ID))
-			}
-
-			handler(
-				w,
-				&request{
-					Context:   ctx,
-					Handler:   h,
-					URL:       reqUrl,
-					Body:      r,
-					User:      user,
-					Key:       key,
-					DB:        db,
-					Resolver:  resolver,
-					WaitGroup: wg,
-					Log:       l,
-				},
-				m...,
-			)
+			handler(w, r, m...)
 			return
 		}
 	}
 
-	log.Warn("Received an invalid request", "path", reqUrl.Path)
+	slog.Warn("Received an invalid request", "path", r.URL.Path)
 
-	if user == nil {
+	if r.User == nil {
 		w.Redirect("/oops")
 	} else {
 		w.Redirect("/users/oops")

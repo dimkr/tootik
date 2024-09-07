@@ -21,7 +21,7 @@ import (
 	"github.com/dimkr/tootik/front/text"
 )
 
-func (h *Handler) dm(w text.Writer, r *request, args ...string) {
+func (h *Handler) dm(w text.Writer, r *Request, args ...string) {
 	to := ap.Audience{}
 	cc := ap.Audience{}
 
@@ -30,11 +30,11 @@ func (h *Handler) dm(w text.Writer, r *request, args ...string) {
 	})
 }
 
-func (h *Handler) uploadDM(w text.Writer, r *request, args ...string) {
+func (h *Handler) uploadDM(w text.Writer, r *Request, args ...string) {
 	to := ap.Audience{}
 	cc := ap.Audience{}
 
 	h.post(w, r, nil, nil, to, cc, "", func() (string, bool) {
-		return readBody(w, r, args)
+		return h.readBody(w, r, args)
 	})
 }

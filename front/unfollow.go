@@ -23,7 +23,7 @@ import (
 	"github.com/dimkr/tootik/outbox"
 )
 
-func (h *Handler) unfollow(w text.Writer, r *request, args ...string) {
+func (h *Handler) unfollow(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -32,7 +32,7 @@ func (h *Handler) unfollow(w text.Writer, r *request, args ...string) {
 	followed := "https://" + args[1]
 
 	var followID string
-	if err := r.QueryRow(`select follows.id from persons join follows on persons.id = follows.followed where persons.id = ? and follows.follower = ?`, followed, r.User.ID).Scan(&followID); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := h.DB.QueryRowContext(r.Context, `select follows.id from persons join follows on persons.id = follows.followed where persons.id = ? and follows.follower = ?`, followed, r.User.ID).Scan(&followID); err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Cannot undo a non-existing follow", "followed", followed, "error", err)
 		w.Status(40, "No such follow")
 	} else if err != nil {
@@ -41,7 +41,7 @@ func (h *Handler) unfollow(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	if err := outbox.Unfollow(r.Context, h.Domain, r.Log, r.DB, r.User.ID, followed, followID); err != nil {
+	if err := outbox.Unfollow(r.Context, h.Domain, h.DB, r.User.ID, followed, followID); err != nil {
 		r.Log.Warn("Failed undo follow", "followed", followed, "error", err)
 		w.Error()
 		return

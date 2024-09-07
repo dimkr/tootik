@@ -38,14 +38,13 @@ import (
 type Listener struct {
 	Domain string
 	Config *cfg.Config
-	Log    *slog.Logger
 	DB     *sql.DB
 	Addr   string
 }
 
 func (fl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGroup) {
 	if err := conn.SetDeadline(time.Now().Add(fl.Config.GuppyRequestTimeout)); err != nil {
-		fl.Log.Warn("Failed to set deadline", "error", err)
+		slog.Warn("Failed to set deadline", "error", err)
 		return
 	}
 
@@ -54,20 +53,20 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 	for {
 		n, err := conn.Read(req[total:])
 		if err != nil && total == 0 && errors.Is(err, io.EOF) {
-			fl.Log.Debug("Failed to receive request", "error", err)
+			slog.Debug("Failed to receive request", "error", err)
 			return
 		} else if err != nil {
-			fl.Log.Warn("Failed to receive request", "error", err)
+			slog.Warn("Failed to receive request", "error", err)
 			return
 		}
 		if n <= 0 {
-			fl.Log.Warn("Failed to receive request")
+			slog.Warn("Failed to receive request")
 			return
 		}
 		total += n
 
 		if total == cap(req) {
-			fl.Log.Warn("Request is too big")
+			slog.Warn("Request is too big")
 			return
 		}
 
@@ -77,7 +76,7 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 	}
 
 	user := string(req[:total-2])
-	log := fl.Log.With(slog.String("user", user))
+	log := slog.With(slog.String("user", user))
 
 	if user == "" {
 		log.Warn("Invalid username specified")
@@ -204,7 +203,7 @@ func (fl *Listener) ListenAndServe(ctx context.Context) error {
 		for ctx.Err() == nil {
 			conn, err := l.Accept()
 			if err != nil {
-				fl.Log.Warn("Failed to accept a connection", "error", err)
+				slog.Warn("Failed to accept a connection", "error", err)
 				continue
 			}
 

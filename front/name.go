@@ -26,7 +26,7 @@ import (
 	"unicode/utf8"
 )
 
-func (h *Handler) name(w text.Writer, r *request, args ...string) {
+func (h *Handler) name(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -63,7 +63,7 @@ func (h *Handler) name(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	tx, err := r.DB.BeginTx(r.Context, nil)
+	tx, err := h.DB.BeginTx(r.Context, nil)
 	if err != nil {
 		r.Log.Warn("Failed to update name", "error", err)
 		w.Error()

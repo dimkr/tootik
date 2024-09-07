@@ -21,13 +21,14 @@ import (
 	"github.com/dimkr/tootik/front/text"
 )
 
-func (h *Handler) local(w text.Writer, r *request, args ...string) {
+func (h *Handler) local(w text.Writer, r *Request, args ...string) {
 	h.showFeedPage(
 		w,
 		r,
 		"📡 Local Feed",
 		func(offset int) (*sql.Rows, error) {
-			return r.Query(
+			return h.DB.QueryContext(
+				r.Context,
 				`
 					select object, actor, sharer, inserted from
 					(

@@ -39,7 +39,6 @@ type Queue struct {
 	Domain    string
 	Config    *cfg.Config
 	BlockList *fed.BlockList
-	Log       *slog.Logger
 	DB        *sql.DB
 	Resolver  ap.Resolver
 	Key       httpsig.Key
@@ -101,7 +100,7 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 		return nil
 	}
 
-	if _, err := q.Resolver.ResolveID(ctx, log, q.DB, q.Key, post.AttributedTo, 0); err != nil {
+	if _, err := q.Resolver.ResolveID(ctx, q.Key, post.AttributedTo, 0); err != nil {
 		return fmt.Errorf("failed to resolve %s: %w", post.AttributedTo, err)
 	}
 
@@ -116,7 +115,7 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 		post.Audience = ""
 	}
 
-	if err := note.Insert(ctx, log, tx, post); err != nil {
+	if err := note.Insert(ctx, tx, post); err != nil {
 		return fmt.Errorf("cannot insert %s: %w", post.ID, err)
 	}
 
@@ -131,7 +130,7 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 		}
 	}
 
-	if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, log, tx, post, activity, rawActivity); err != nil {
+	if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, tx, post, activity, rawActivity); err != nil {
 		return fmt.Errorf("cannot forward %s: %w", post.ID, err)
 	}
 
@@ -150,7 +149,7 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 	}
 
 	for id := range mentionedUsers.Keys() {
-		if _, err := q.Resolver.ResolveID(ctx, log, q.DB, q.Key, id, 0); err != nil {
+		if _, err := q.Resolver.ResolveID(ctx, q.Key, id, 0); err != nil {
 			log.Warn("Failed to resolve mention", "mention", id, "error", err)
 		}
 	}
@@ -198,7 +197,7 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 				return fmt.Errorf("failed to delete %s: %w", deleted, err)
 			}
 
-			if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, log, tx, &note, activity, rawActivity); err != nil {
+			if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, tx, &note, activity, rawActivity); err != nil {
 				return fmt.Errorf("failed to delete %s: %w", deleted, err)
 			}
 
@@ -438,7 +437,7 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 			return fmt.Errorf("failed to update post %s: %w", post.ID, err)
 		}
 
-		if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, log, tx, post, activity, rawActivity); err != nil {
+		if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, tx, post, activity, rawActivity); err != nil {
 			return fmt.Errorf("failed to forward update post %s: %w", post.ID, err)
 		}
 
@@ -472,7 +471,7 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Ac
 	ctx, cancel := context.WithTimeout(parent, q.Config.ActivityProcessingTimeout)
 	defer cancel()
 
-	log := q.Log.With("activity", activity, "sender", sender.ID)
+	log := slog.With("activity", activity, "sender", sender.ID)
 	if err := processActivity(ctx, q, log, sender, activity, rawActivity, 1, false); err != nil {
 		log.Warn("Failed to process activity", "error", err)
 	}
@@ -480,7 +479,7 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Ac
 
 // ProcessBatch processes one batch of incoming activites in the queue.
 func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
-	q.Log.Debug("Polling activities queue")
+	slog.Debug("Polling activities queue")
 
 	rows, err := q.DB.QueryContext(ctx, `select inbox.id, persons.actor, inbox.activity from (select * from inbox limit -1 offset case when (select count(*) from inbox) >= $1 then $1/10 else 0 end) inbox left join persons on persons.id = inbox.sender order by inbox.id limit $2`, q.Config.MaxActivitiesQueueSize, q.Config.ActivitiesBatchSize)
 	if err != nil {
@@ -499,14 +498,14 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		var activityString string
 		var sender sql.Null[ap.Actor]
 		if err := rows.Scan(&id, &sender, &activityString); err != nil {
-			q.Log.Error("Failed to scan activity", "error", err)
+			slog.Error("Failed to scan activity", "error", err)
 			continue
 		}
 
 		maxID = id
 
 		if !sender.Valid {
-			q.Log.Warn("Sender is unknown", "id", id)
+			slog.Warn("Sender is unknown", "id", id)
 			continue
 		}
 
@@ -521,7 +520,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	for activityString, sender := range activities.All() {
 		var activity ap.Activity
 		if err := json.Unmarshal([]byte(activityString), &activity); err != nil {
-			q.Log.Error("Failed to unmarshal activity", "raw", activityString, "error", err)
+			slog.Error("Failed to unmarshal activity", "raw", activityString, "error", err)
 			continue
 		}
 

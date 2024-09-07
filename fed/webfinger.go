@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -36,7 +37,7 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 
 	resource, err := url.QueryUnescape(query.Get("resource"))
 	if err != nil {
-		l.Log.Info("Failed to decode query", "resource", r.URL.RawQuery, "error", err)
+		slog.Info("Failed to decode query", "resource", r.URL.RawQuery, "error", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -52,14 +53,14 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 		var fields = strings.Split(resource, "@")
 
 		if len(fields) > 2 {
-			l.Log.Info("Received invalid resource", "resource", resource)
+			slog.Info("Received invalid resource", "resource", resource)
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte("Resource must contain zero or one @"))
 			return
 		}
 
 		if len(fields) == 2 && fields[1] != l.Domain {
-			l.Log.Info("Received invalid resource", "resource", resource, "domain", fields[1])
+			slog.Info("Received invalid resource", "resource", resource, "domain", fields[1])
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprintf(w, "Resource must end with @%s", l.Domain)
 			return
@@ -73,7 +74,7 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 		username = "nobody"
 	}
 
-	l.Log.Info("Looking up resource", "resource", resource, "user", username)
+	slog.Info("Looking up resource", "resource", resource, "user", username)
 
 	var actorID sql.NullString
 	if err := l.DB.QueryRowContext(r.Context(), `select id from persons where actor->>'$.preferredUsername' = ? and host = ?`, username, l.Domain).Scan(&actorID); err != nil {
@@ -82,7 +83,7 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !actorID.Valid {
-		l.Log.Info("Notifying that user does not exist", "user", username)
+		slog.Info("Notifying that user does not exist", "user", username)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}

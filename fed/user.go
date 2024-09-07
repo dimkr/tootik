@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 )
@@ -27,11 +28,11 @@ import (
 func (l *Listener) handleUser(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("username")
 
-	l.Log.Info("Looking up user", "name", name)
+	slog.Info("Looking up user", "name", name)
 
 	var actorID, actorString string
 	if err := l.DB.QueryRowContext(r.Context(), `select id, actor from persons where actor->>'$.preferredUsername' = ? and host = ?`, name, l.Domain).Scan(&actorID, &actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
-		l.Log.Info("Notifying about deleted user", "name", name)
+		slog.Info("Notifying about deleted user", "name", name)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
@@ -42,7 +43,7 @@ func (l *Listener) handleUser(w http.ResponseWriter, r *http.Request) {
 	// redirect browsers to the outbox page over Gemini
 	if shouldRedirect(r) {
 		outbox := fmt.Sprintf("gemini://%s/outbox/%s", l.Domain, strings.TrimPrefix(actorID, "https://"))
-		l.Log.Info("Redirecting to outbox over Gemini", "outbox", outbox)
+		slog.Info("Redirecting to outbox over Gemini", "outbox", outbox)
 		w.Header().Set("Location", outbox)
 		w.WriteHeader(http.StatusMovedPermanently)
 		return

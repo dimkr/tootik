@@ -24,7 +24,7 @@ import (
 	"github.com/dimkr/tootik/outbox"
 )
 
-func (h *Handler) unshare(w text.Writer, r *request, args ...string) {
+func (h *Handler) unshare(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -33,7 +33,7 @@ func (h *Handler) unshare(w text.Writer, r *request, args ...string) {
 	postID := "https://" + args[1]
 
 	var share ap.Activity
-	if err := r.QueryRow(`select activity from outbox where activity->>'$.actor' = $1 and sender = $1 and activity->>'$.type' = 'Announce' and activity->>'$.object' = $2`, r.User.ID, postID).Scan(&share); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := h.DB.QueryRowContext(r.Context, `select activity from outbox where activity->>'$.actor' = $1 and sender = $1 and activity->>'$.type' = 'Announce' and activity->>'$.object' = $2`, r.User.ID, postID).Scan(&share); err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Attempted to unshare non-existing share", "post", postID, "error", err)
 		w.Error()
 		return
@@ -43,7 +43,7 @@ func (h *Handler) unshare(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	if err := outbox.Undo(r.Context, r.Handler.Domain, r.DB, &share); err != nil {
+	if err := outbox.Undo(r.Context, h.Domain, h.DB, &share); err != nil {
 		r.Log.Warn("Failed to unshare post", "post", postID, "error", err)
 		w.Error()
 		return

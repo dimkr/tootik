@@ -22,6 +22,7 @@ import (
 	"errors"
 	"github.com/dimkr/tootik/ap"
 	"io"
+	"log/slog"
 	"net/http"
 )
 
@@ -30,17 +31,17 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 
 	var registered int
 	if err := l.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where actor->>'$.preferredUsername' = ? and host = ?)`, receiver, l.Domain).Scan(&registered); err != nil {
-		l.Log.Warn("Failed to check if receiving user exists", "receiver", receiver, "error", err)
+		slog.Warn("Failed to check if receiving user exists", "receiver", receiver, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	} else if registered == 0 {
-		l.Log.Debug("Receiving user does not exist", "receiver", receiver)
+		slog.Debug("Receiving user does not exist", "receiver", receiver)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
 	if r.ContentLength > l.Config.MaxRequestBodySize {
-		l.Log.Warn("Ignoring big request", "size", r.ContentLength)
+		slog.Warn("Ignoring big request", "size", r.ContentLength)
 		w.WriteHeader(http.StatusRequestEntityTooLarge)
 		return
 	}
@@ -53,7 +54,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 
 	var activity ap.Activity
 	if err := json.Unmarshal(body, &activity); err != nil {
-		l.Log.Warn("Failed to unmarshal activity", "body", string(body), "error", err)
+		slog.Warn("Failed to unmarshal activity", "body", string(body), "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -66,21 +67,21 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		flags |= ap.Offline
 	}
 
-	sender, err := verify(r.Context(), l.Domain, l.Config, l.Log, r, body, l.DB, l.Resolver, l.ActorKey, flags)
+	sender, err := l.verify(r.Context(), r, body, flags)
 	if err != nil {
 		if errors.Is(err, ErrActorGone) {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
 		if errors.Is(err, ErrActorNotCached) {
-			l.Log.Debug("Ignoring Delete activity for unknown actor", "error", err)
+			slog.Debug("Ignoring Delete activity for unknown actor", "error", err)
 			w.WriteHeader(http.StatusOK)
 			return
 		}
 		if errors.Is(err, ErrBlockedDomain) {
-			l.Log.Debug("Failed to verify activity", "activity", activity.ID, "type", activity.Type, "error", err)
+			slog.Debug("Failed to verify activity", "activity", activity.ID, "type", activity.Type, "error", err)
 		} else {
-			l.Log.Warn("Failed to verify activity", "activity", activity.ID, "type", activity.Type, "error", err)
+			slog.Warn("Failed to verify activity", "activity", activity.ID, "type", activity.Type, "error", err)
 		}
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -92,7 +93,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		sender.ID,
 		string(body),
 	); err != nil {
-		l.Log.Error("Failed to insert activity", "sender", sender.ID, "error", err)
+		slog.Error("Failed to insert activity", "sender", sender.ID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -100,7 +101,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 	followersSync := r.Header.Get("Collection-Synchronization")
 	if followersSync != "" {
 		if err := l.saveFollowersDigest(r.Context(), sender, followersSync); err != nil {
-			l.Log.Warn("Failed to save followers sync header", "sender", sender.ID, "header", followersSync, "error", err)
+			slog.Warn("Failed to save followers sync header", "sender", sender.ID, "header", followersSync, "error", err)
 		}
 	}
 

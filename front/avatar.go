@@ -33,7 +33,7 @@ var supportedImageTypes = map[string]struct{}{
 	"image/gif":  {},
 }
 
-func (h *Handler) uploadAvatar(w text.Writer, r *request, args ...string) {
+func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -64,7 +64,7 @@ func (h *Handler) uploadAvatar(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	if size > r.Handler.Config.MaxAvatarSize {
+	if size > h.Config.MaxAvatarSize {
 		r.Log.Warn("Image is too big", "size", size)
 		w.Status(40, "Image is too big")
 		return
@@ -98,14 +98,14 @@ func (h *Handler) uploadAvatar(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	resized, err := icon.Scale(r.Handler.Config, buf)
+	resized, err := icon.Scale(h.Config, buf)
 	if err != nil {
 		r.Log.Warn("Failed to read avatar", "error", err)
 		w.Error()
 		return
 	}
 
-	tx, err := r.DB.BeginTx(r.Context, nil)
+	tx, err := h.DB.BeginTx(r.Context, nil)
 	if err != nil {
 		r.Log.Warn("Failed to set avatar", "error", err)
 		w.Error()
@@ -117,7 +117,7 @@ func (h *Handler) uploadAvatar(w text.Writer, r *request, args ...string) {
 		r.Context,
 		"update persons set actor = json_set(actor, '$.icon.url', $1, '$.icon[0].url', $1, '$.updated', $2) where id = $3",
 		// we add fragment because some servers cache the image until the URL changes
-		fmt.Sprintf("https://%s/icon/%s%s#%d", r.Handler.Domain, r.User.PreferredUsername, icon.FileNameExtension, now.UnixNano()),
+		fmt.Sprintf("https://%s/icon/%s%s#%d", h.Domain, r.User.PreferredUsername, icon.FileNameExtension, now.UnixNano()),
 		now.Format(time.RFC3339Nano),
 		r.User.ID,
 	); err != nil {
@@ -149,5 +149,5 @@ func (h *Handler) uploadAvatar(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	w.Redirectf("gemini://%s/users/outbox/%s", r.Handler.Domain, strings.TrimPrefix(r.User.ID, "https://"))
+	w.Redirectf("gemini://%s/users/outbox/%s", h.Domain, strings.TrimPrefix(r.User.ID, "https://"))
 }

@@ -24,11 +24,10 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
-	"log/slog"
 )
 
 // Delete queues a Delete activity for delivery.
-func Delete(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logger, db *sql.DB, note *ap.Object) error {
+func Delete(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, note *ap.Object) error {
 	delete := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      note.ID + "#delete",
@@ -53,7 +52,7 @@ func Delete(ctx context.Context, domain string, cfg *cfg.Config, log *slog.Logge
 	}
 	defer tx.Rollback()
 
-	if err := ForwardActivity(ctx, domain, cfg, log, tx, note, &delete, data.JSON(j)); err != nil {
+	if err := ForwardActivity(ctx, domain, cfg, tx, note, &delete, data.JSON(j)); err != nil {
 		return err
 	}
 

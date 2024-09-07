@@ -22,7 +22,6 @@ import (
 	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/outbox"
 	"github.com/stretchr/testify/assert"
-	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -495,7 +494,6 @@ func TestEdit_PollAddOption(t *testing.T) {
 
 	poller := outbox.Poller{
 		Domain: domain,
-		Log:    slog.Default(),
 		DB:     server.db,
 	}
 	assert.NoError(poller.Run(context.Background()))
@@ -546,7 +544,6 @@ func TestEdit_RemoveQuestion(t *testing.T) {
 
 	poller := outbox.Poller{
 		Domain: domain,
-		Log:    slog.Default(),
 		DB:     server.db,
 	}
 	assert.NoError(poller.Run(context.Background()))

@@ -27,7 +27,7 @@ import (
 
 var skipRegex = regexp.MustCompile(` skip (\d+)$`)
 
-func (h *Handler) fts(w text.Writer, r *request, args ...string) {
+func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 	if r.URL.RawQuery == "" {
 		w.Status(10, "Query")
 		return
@@ -55,7 +55,8 @@ func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 
 	var rows *sql.Rows
 	if r.User == nil {
-		rows, err = r.Query(
+		rows, err = h.DB.QueryContext(
+			r.Context,
 			`
 				select notes.object, authors.actor, groups.actor, notes.inserted from
 				notesfts
@@ -77,7 +78,8 @@ func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 			offset,
 		)
 	} else {
-		rows, err = r.Query(
+		rows, err = h.DB.QueryContext(
+			r.Context,
 			`
 				select u.object, authors.actor, groups.actor, u.inserted from
 				(
@@ -154,7 +156,7 @@ func (h *Handler) fts(w text.Writer, r *request, args ...string) {
 		w.Titlef("🔎 Search Results for '%s'", query)
 	}
 
-	count := r.PrintNotes(w, rows, true, false, "No results.")
+	count := h.PrintNotes(w, r, rows, true, false, "No results.")
 	rows.Close()
 
 	if offset > 0 || count == h.Config.PostsPerPage {

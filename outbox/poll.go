@@ -29,7 +29,6 @@ import (
 type Poller struct {
 	Domain string
 	Config *cfg.Config
-	Log    *slog.Logger
 	DB     *sql.DB
 }
 
@@ -51,7 +50,7 @@ func (p *Poller) Run(ctx context.Context) error {
 		var pollID, option string
 		var count int64
 		if err := rows.Scan(&pollID, &option, &count); err != nil {
-			p.Log.Warn("Failed to scan poll result", "error", err)
+			slog.Warn("Failed to scan poll result", "error", err)
 			continue
 		}
 
@@ -62,7 +61,7 @@ func (p *Poller) Run(ctx context.Context) error {
 
 		var obj ap.Object
 		if err := p.DB.QueryRowContext(ctx, "select object from notes where id = ?", pollID).Scan(&obj); err != nil {
-			p.Log.Warn("Failed to fetch poll", "poll", pollID, "error", err)
+			slog.Warn("Failed to fetch poll", "poll", pollID, "error", err)
 			continue
 		}
 
@@ -100,10 +99,10 @@ func (p *Poller) Run(ctx context.Context) error {
 			continue
 		}
 
-		p.Log.Info("Updating poll results", "poll", poll.ID)
+		slog.Info("Updating poll results", "poll", poll.ID)
 
-		if err := UpdateNote(ctx, p.Domain, p.Config, p.Log, p.DB, poll); err != nil {
-			p.Log.Warn("Failed to update poll results", "poll", poll.ID, "error", err)
+		if err := UpdateNote(ctx, p.Domain, p.Config, p.DB, poll); err != nil {
+			slog.Warn("Failed to update poll results", "poll", poll.ID, "error", err)
 		}
 	}
 

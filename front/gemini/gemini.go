@@ -41,10 +41,8 @@ import (
 type Listener struct {
 	Domain   string
 	Config   *cfg.Config
-	Log      *slog.Logger
 	DB       *sql.DB
 	Handler  front.Handler
-	Resolver ap.Resolver
 	Addr     string
 	CertPath string
 	KeyPath  string
@@ -74,25 +72,25 @@ func (gl *Listener) getUser(ctx context.Context, conn net.Conn, tlsConn *tls.Con
 		return nil, httpsig.Key{}, fmt.Errorf("failed to parse private key for %s: %w", certHash, err)
 	}
 
-	gl.Log.Debug("Found existing user", "hash", certHash, "user", id)
+	slog.Debug("Found existing user", "hash", certHash, "user", id)
 	return &actor, httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, nil
 }
 
 // Handle handles a Gemini request.
-func (gl *Listener) Handle(ctx context.Context, conn net.Conn, wg *sync.WaitGroup) {
+func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 	if err := conn.SetDeadline(time.Now().Add(gl.Config.GeminiRequestTimeout)); err != nil {
-		gl.Log.Warn("Failed to set deadline", "error", err)
+		slog.Warn("Failed to set deadline", "error", err)
 		return
 	}
 
 	tlsConn, ok := conn.(*tls.Conn)
 	if !ok {
-		gl.Log.Warn("Invalid connection")
+		slog.Warn("Invalid connection")
 		return
 	}
 
 	if err := tlsConn.HandshakeContext(ctx); err != nil {
-		gl.Log.Warn("Handshake failed", "error", err)
+		slog.Warn("Handshake failed", "error", err)
 		return
 	}
 
@@ -101,20 +99,20 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 	for {
 		n, err := conn.Read(req[total : total+1])
 		if err != nil && total == 0 && errors.Is(err, io.EOF) {
-			gl.Log.Debug("Failed to receive request", "error", err)
+			slog.Debug("Failed to receive request", "error", err)
 			return
 		} else if err != nil {
-			gl.Log.Warn("Failed to receive request", "error", err)
+			slog.Warn("Failed to receive request", "error", err)
 			return
 		}
 		if n <= 0 {
-			gl.Log.Warn("Failed to receive request")
+			slog.Warn("Failed to receive request")
 			return
 		}
 		total += n
 
 		if total == cap(req) {
-			gl.Log.Warn("Request is too big")
+			slog.Warn("Request is too big")
 			return
 		}
 
@@ -123,30 +121,42 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 		}
 	}
 
-	reqUrl, err := url.Parse(string(req[:total-2]))
+	r := front.Request{
+		Context: ctx,
+		Body:    conn,
+	}
+
+	var err error
+	r.URL, err = url.Parse(string(req[:total-2]))
 	if err != nil {
-		gl.Log.Warn("Failed to parse request", "request", string(req[:total-2]), "error", err)
+		slog.Warn("Failed to parse request", "request", string(req[:total-2]), "error", err)
 		return
 	}
 
 	w := gmi.Wrap(conn)
 	defer w.Flush()
 
-	user, privKey, err := gl.getUser(ctx, conn, tlsConn)
-	if err != nil && errors.Is(err, front.ErrNotRegistered) && reqUrl.Path == "/users" {
-		gl.Log.Info("Redirecting new user")
+	r.User, r.Key, err = gl.getUser(ctx, conn, tlsConn)
+	if err != nil && errors.Is(err, front.ErrNotRegistered) && r.URL.Path == "/users" {
+		slog.Info("Redirecting new user")
 		w.Redirect("/users/register")
 		return
 	} else if err != nil && !errors.Is(err, front.ErrNotRegistered) {
-		gl.Log.Warn("Failed to get user", "error", err)
+		slog.Warn("Failed to get user", "error", err)
 		w.Error()
 		return
-	} else if err == nil && user == nil && reqUrl.Path == "/users" {
+	} else if err == nil && r.User == nil && r.URL.Path == "/users" {
 		w.Status(60, "Client certificate required")
 		return
 	}
 
-	gl.Handler.Handle(ctx, gl.Log, conn, w, reqUrl, user, privKey, gl.DB, gl.Resolver, wg)
+	if r.User == nil {
+		r.Log = slog.With(slog.Group("request", "path", r.URL.Path))
+	} else {
+		r.Log = slog.With(slog.Group("request", "path", r.URL.Path, "user", r.User.ID))
+	}
+
+	gl.Handler.Handle(&r, w)
 }
 
 // ListenAndServe handles Gemini requests.
@@ -182,7 +192,7 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 		for ctx.Err() == nil {
 			conn, err := l.Accept()
 			if err != nil {
-				gl.Log.Warn("Failed to accept a connection", "error", err)
+				slog.Warn("Failed to accept a connection", "error", err)
 				continue
 			}
 
@@ -208,7 +218,7 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 
 			wg.Add(1)
 			go func() {
-				gl.Handle(requestCtx, conn, &wg)
+				gl.Handle(requestCtx, conn)
 				timer.Stop()
 				cancelRequest()
 				wg.Done()

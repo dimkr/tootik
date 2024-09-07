@@ -24,7 +24,7 @@ import (
 	"time"
 )
 
-func (h *Handler) alias(w text.Writer, r *request, args ...string) {
+func (h *Handler) alias(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -57,14 +57,14 @@ func (h *Handler) alias(w text.Writer, r *request, args ...string) {
 		return
 	}
 
-	actor, err := r.Resolve(tokens[1], tokens[0], 0)
+	actor, err := h.Resolver.Resolve(r.Context, r.Key, tokens[1], tokens[0], 0)
 	if err != nil {
 		r.Log.Warn("Failed to resolve alias", "alias", alias, "error", err)
 		w.Status(40, "Failed to resolve "+alias)
 		return
 	}
 
-	tx, err := r.DB.BeginTx(r.Context, nil)
+	tx, err := h.DB.BeginTx(r.Context, nil)
 	if err != nil {
 		r.Log.Warn("Failed to update alias", "error", err)
 		w.Error()
