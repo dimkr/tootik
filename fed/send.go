@@ -61,8 +61,13 @@ func (s *sender) send(key httpsig.Key, req *http.Request) (*http.Response, error
 	}
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+		defer resp.Body.Close()
+
+		if resp.ContentLength > s.Config.MaxRequestBodySize {
+			return resp, fmt.Errorf("failed to send request to %s: %d", urlString, resp.StatusCode)
+		}
+
 		body, err := io.ReadAll(io.LimitReader(resp.Body, s.Config.MaxRequestBodySize))
-		resp.Body.Close()
 		if err != nil {
 			return resp, fmt.Errorf("failed to send request to %s: %d, %w", urlString, resp.StatusCode, err)
 		}

@@ -271,6 +271,10 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 	}
 	defer resp.Body.Close()
 
+	if resp.ContentLength > r.Config.MaxRequestBodySize {
+		return nil, cachedActor, fmt.Errorf("failed to decode %s response: response is too big", finger)
+	}
+
 	var webFingerResponse webFingerResponse
 	if err := json.NewDecoder(io.LimitReader(resp.Body, r.Config.MaxRequestBodySize)).Decode(&webFingerResponse); err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to decode %s response: %w", finger, err)
@@ -322,6 +326,10 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 		return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", profile, err)
 	}
 	defer resp.Body.Close()
+
+	if resp.ContentLength > r.Config.MaxRequestBodySize {
+		return nil, cachedActor, fmt.Errorf("failed to fetch %s: response is too big", profile)
+	}
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, r.Config.MaxRequestBodySize))
 	if err != nil {
