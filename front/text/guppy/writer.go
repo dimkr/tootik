@@ -39,13 +39,13 @@ func (w *Writer) Status(code int, meta string) {
 		fmt.Fprintf(w, "%d %s\r\n", code, meta)
 	} else if code == 3 || code == 4 {
 		fmt.Fprintf(w, "%d %s\r\n", code, meta)
-		w.Writer = gmi.Wrap(io.Discard)
+		w.Flush()
 	} else if code == 10 {
 		fmt.Fprintf(w, "1 Input required: %s\r\n", meta)
-		w.Writer = gmi.Wrap(io.Discard)
+		w.Flush()
 	} else {
 		fmt.Fprintf(w, "4 %s\r\n", meta)
-		w.Writer = gmi.Wrap(io.Discard)
+		w.Flush()
 	}
 }
 
