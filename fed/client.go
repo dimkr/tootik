@@ -16,9 +16,7 @@ limitations under the License.
 
 package fed
 
-import (
-	"net/http"
-)
+import "net/http"
 
 // Client is a HTTP client.
 type Client interface {

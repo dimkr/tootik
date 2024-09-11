@@ -16,9 +16,7 @@ limitations under the License.
 
 package front
 
-import (
-	"github.com/dimkr/tootik/front/text"
-)
+import "github.com/dimkr/tootik/front/text"
 
 func oops(w text.Writer, r *Request, args ...string) {
 	w.OK()
