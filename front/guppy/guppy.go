@@ -88,7 +88,7 @@ func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks 
 	if r.URL.Host != gl.Domain {
 		w.Status(4, "Wrong host")
 	} else {
-		slog.Info("Handling request", "path", r.URL, "url", r.URL.String(), "from", from)
+		slog.Info("Handling request", "path", r.URL.Path, "from", from)
 		r.Log = slog.With(slog.Group("request", "path", r.URL.Path))
 		gl.Handler.Handle(&r, w)
 	}
