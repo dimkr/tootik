@@ -271,12 +271,12 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 	}
 	defer resp.Body.Close()
 
-	if resp.ContentLength > r.Config.MaxRequestBodySize {
+	if resp.ContentLength > r.Config.MaxResponseBodySize {
 		return nil, cachedActor, fmt.Errorf("failed to decode %s response: response is too big", finger)
 	}
 
 	var webFingerResponse webFingerResponse
-	if err := json.NewDecoder(io.LimitReader(resp.Body, r.Config.MaxRequestBodySize)).Decode(&webFingerResponse); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, r.Config.MaxResponseBodySize)).Decode(&webFingerResponse); err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to decode %s response: %w", finger, err)
 	}
 
@@ -327,11 +327,11 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 	}
 	defer resp.Body.Close()
 
-	if resp.ContentLength > r.Config.MaxRequestBodySize {
+	if resp.ContentLength > r.Config.MaxResponseBodySize {
 		return nil, cachedActor, fmt.Errorf("failed to fetch %s: response is too big", profile)
 	}
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, r.Config.MaxRequestBodySize))
+	body, err := io.ReadAll(io.LimitReader(resp.Body, r.Config.MaxResponseBodySize))
 	if err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", profile, err)
 	}

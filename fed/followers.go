@@ -246,10 +246,14 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 	}
 	defer resp.Body.Close()
 
+	if resp.ContentLength > cfg.MaxResponseBodySize {
+		return errors.New("response is too big")
+	}
+
 	var remote struct {
 		OrderedItems ap.Audience `json:"orderedItems"`
 	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, cfg.MaxRequestBodySize)).Decode(&remote); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, cfg.MaxResponseBodySize)).Decode(&remote); err != nil {
 		return err
 	}
 

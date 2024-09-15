@@ -63,6 +63,8 @@ type Config struct {
 	MaxRequestBodySize int64
 	MaxRequestAge      time.Duration
 
+	MaxResponseBodySize int64
+
 	CompactViewMaxRunes int
 	CompactViewMaxLines int
 
@@ -230,6 +232,10 @@ func (c *Config) FillDefaults() {
 
 	if c.MaxRequestAge <= 0 {
 		c.MaxRequestAge = time.Minute * 5
+	}
+
+	if c.MaxResponseBodySize <= 0 {
+		c.MaxResponseBodySize = 1024 * 1024
 	}
 
 	if c.CompactViewMaxRunes <= 0 {
