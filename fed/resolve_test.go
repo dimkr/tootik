@@ -2424,7 +2424,7 @@ func TestResolve_FederatedActorOldCacheBigWebFingerResponse(t *testing.T) {
 		},
 	}
 
-	cfg.MaxRequestBodySize = 1
+	cfg.MaxResponseBodySize = 1
 
 	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
@@ -2691,7 +2691,7 @@ func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 		},
 	}
 
-	cfg.MaxRequestBodySize = 438
+	cfg.MaxResponseBodySize = 438
 
 	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
