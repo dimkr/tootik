@@ -59,7 +59,11 @@ type deliveryEvent struct {
 	Done bool
 }
 
-// Process polls the queue of outgoing activities and delivers them to other servers with timeout and retries.
+// Process polls the queue of outgoing activities and delivers them to other servers.
+// Delivery happens in batches, with multiple workers, timeout and retries.
+// The listing of additional activities and recipients runs in parallel with delivery.
+// If possible, wide deliveries (e.g. public posts) are performed using the sharedInbox endpoint, greatly reducing the
+// number of outgoing requests when many recipients share the same endpoint.
 func (q *Queue) Process(ctx context.Context) error {
 	t := time.NewTicker(q.Config.OutboxPollingInterval)
 	defer t.Stop()
@@ -80,7 +84,30 @@ func (q *Queue) Process(ctx context.Context) error {
 func (q *Queue) process(ctx context.Context) error {
 	slog.Debug("Polling delivery queue")
 
-	rows, err := q.DB.QueryContext(ctx, `select outbox.attempts, outbox.activity, outbox.activity, outbox.inserted, persons.actor, persons.privkey from outbox join persons on persons.id = outbox.sender where outbox.sent = 0 and (outbox.attempts = 0 or (outbox.attempts < ? and outbox.last <= unixepoch() - ?)) order by outbox.attempts asc, outbox.last asc limit ?`, q.Config.MaxDeliveryAttempts, q.Config.DeliveryRetryInterval, q.Config.DeliveryBatchSize)
+	rows, err := q.DB.QueryContext(
+		ctx,
+		`select outbox.attempts, outbox.activity, outbox.activity, outbox.inserted, persons.actor, persons.privkey from
+		outbox
+		join persons
+		on
+			persons.id = outbox.sender
+		where
+			outbox.sent = 0 and
+			(
+				outbox.attempts = 0 or
+				(
+					outbox.attempts < ? and
+					outbox.last <= unixepoch() - ?
+				)
+			)
+		order by
+			outbox.attempts asc,
+			outbox.last asc
+		limit ?`,
+		q.Config.MaxDeliveryAttempts,
+		q.Config.DeliveryRetryInterval,
+		q.Config.DeliveryBatchSize,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to fetch posts to deliver: %w", err)
 	}
@@ -89,8 +116,9 @@ func (q *Queue) process(ctx context.Context) error {
 	events := make(chan deliveryEvent)
 	tasks := make([]chan deliveryTask, 0, q.Config.DeliveryWorkers)
 	var wg sync.WaitGroup
-	done := make(chan map[deliveryJob]bool)
+	results := make(chan map[deliveryJob]bool)
 
+	// start worker routines, each with its own task queue
 	wg.Add(q.Config.DeliveryWorkers)
 	for range q.Config.DeliveryWorkers {
 		ch := make(chan deliveryTask, q.Config.DeliveryWorkerBuffer)
@@ -104,13 +132,13 @@ func (q *Queue) process(ctx context.Context) error {
 	}
 
 	go func() {
-		results := make(map[deliveryJob]bool, q.Config.DeliveryBatchSize)
+		r := make(map[deliveryJob]bool, q.Config.DeliveryBatchSize)
 
 		for event := range events {
-			results[event.Job] = event.Done
+			r[event.Job] = event.Done
 		}
 
-		done <- results
+		results <- r
 	}()
 
 	followers := partialFollowers{}
@@ -121,7 +149,14 @@ func (q *Queue) process(ctx context.Context) error {
 		var actor ap.Actor
 		var inserted int64
 		var deliveryAttempts int
-		if err := rows.Scan(&deliveryAttempts, &activity, &rawActivity, &inserted, &actor, &privKeyPem); err != nil {
+		if err := rows.Scan(
+			&deliveryAttempts,
+			&activity,
+			&rawActivity,
+			&inserted,
+			&actor,
+			&privKeyPem,
+		); err != nil {
 			slog.Error("Failed to fetch post to deliver", "error", err)
 			continue
 		}
@@ -132,7 +167,13 @@ func (q *Queue) process(ctx context.Context) error {
 			continue
 		}
 
-		if _, err := q.DB.ExecContext(ctx, `update outbox set last = unixepoch(), attempts = ? where activity->>'$.id' = ? and sender = ?`, deliveryAttempts+1, activity.ID, actor.ID); err != nil {
+		if _, err := q.DB.ExecContext(
+			ctx,
+			`update outbox set last = unixepoch(), attempts = ? where activity->>'$.id' = ? and sender = ?`,
+			deliveryAttempts+1,
+			activity.ID,
+			actor.ID,
+		); err != nil {
 			slog.Error("Failed to save last delivery attempt time", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
@@ -142,32 +183,48 @@ func (q *Queue) process(ctx context.Context) error {
 			Sender:   &actor,
 		}
 
-		// notify about the new job
+		// notify about the new job and mark it as successful until a worker notifies otherwise
 		events <- deliveryEvent{job, true}
 
-		// queue tasks for all outgoing requests
-		if err := q.queueTasks(ctx, job, []byte(rawActivity), httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, time.Unix(inserted, 0), &followers, tasks, events); err != nil {
+		// queue tasks for all outgoing requests while workers are busy with previous tasks
+		if err := q.queueTasks(
+			ctx,
+			job,
+			[]byte(rawActivity),
+			httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey},
+			time.Unix(inserted, 0),
+			&followers,
+			tasks,
+			events,
+		); err != nil {
 			slog.Warn("Failed to queue activity for delivery", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 		}
 	}
 
-	// wait for all tasks to finish
+	// notify workers that no more tasks will be queued
 	for _, ch := range tasks {
 		close(ch)
 	}
+
+	// wait for all workers to finish their tasks
 	wg.Wait()
 
-	// receive all job results
+	// stop collection of job results
 	close(events)
-	results := <-done
 
-	for job, done := range results {
+	// receive and save job results
+	for job, done := range <-results {
 		if !done {
 			slog.Info("Failed to deliver an activity to at least one recipient", "id", job.Activity.ID)
 			continue
 		}
 
-		if _, err := q.DB.ExecContext(ctx, `update outbox set sent = 1 where activity->>'$.id' = ? and sender = ?`, job.Activity.ID, job.Sender.ID); err != nil {
+		if _, err := q.DB.ExecContext(
+			ctx,
+			`update outbox set sent = 1 where activity->>'$.id' = ? and sender = ?`,
+			job.Activity.ID,
+			job.Sender.ID,
+		); err != nil {
 			slog.Error("Failed to mark delivery as completed", "id", job.Activity.ID, "error", err)
 		} else {
 			slog.Info("Successfully delivered an activity to all recipients", "id", job.Activity.ID)
@@ -196,6 +253,7 @@ func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, event
 	for task := range requests {
 		if m, ok := tried[task.Job.Activity.ID]; ok {
 			if _, ok := m[task.Inbox]; ok {
+				// if we have a duplicate task, skip without querying the deliveries table
 				continue
 			}
 			m[task.Inbox] = struct{}{}
@@ -204,7 +262,12 @@ func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, event
 		}
 
 		var delivered int
-		if err := q.DB.QueryRowContext(ctx, `select exists (select 1 from deliveries where activity = ? and inbox = ?)`, task.Job.Activity.ID, task.Inbox).Scan(&delivered); err != nil {
+		if err := q.DB.QueryRowContext(
+			ctx,
+			`select exists (select 1 from deliveries where activity = ? and inbox = ?)`,
+			task.Job.Activity.ID,
+			task.Inbox,
+		).Scan(&delivered); err != nil {
 			slog.Error("Failed to check if delivered already", "to", task.Inbox, "activity", task.Job.Activity.ID, "error", err)
 			events <- deliveryEvent{task.Job, false}
 			continue
@@ -228,14 +291,28 @@ func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, event
 			continue
 		}
 
-		if _, err := q.DB.ExecContext(ctx, `insert into deliveries(activity, inbox) values (?, ?)`, task.Job.Activity.ID, task.Inbox); err != nil {
+		if _, err := q.DB.ExecContext(
+			ctx,
+			`insert into deliveries(activity, inbox) values (?, ?)`,
+			task.Job.Activity.ID,
+			task.Inbox,
+		); err != nil {
 			slog.Error("Failed to record delivery", "activity", task.Job.Activity.ID, "inbox", task.Inbox, "error", err)
 			events <- deliveryEvent{task.Job, false}
 		}
 	}
 }
 
-func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []byte, key httpsig.Key, inserted time.Time, followers *partialFollowers, tasks []chan deliveryTask, events chan<- deliveryEvent) error {
+func (q *Queue) queueTasks(
+	ctx context.Context,
+	job deliveryJob,
+	rawActivity []byte,
+	key httpsig.Key,
+	inserted time.Time,
+	followers *partialFollowers,
+	tasks []chan deliveryTask,
+	events chan<- deliveryEvent,
+) error {
 	activityID, err := url.Parse(job.Activity.ID)
 	if err != nil {
 		return err
@@ -259,7 +336,14 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 
 	// list the actor's federated followers if we're forwarding an activity by another actor, or if addressed by actor
 	if wideDelivery {
-		followers, err := q.DB.QueryContext(ctx, `select distinct follower from follows where followed = ? and follower not like ? and follower not like ? and accepted = 1 and inserted < ?`, job.Sender.ID, fmt.Sprintf("https://%s/%%", q.Domain), fmt.Sprintf("https://%s/%%", activityID.Host), inserted.Unix())
+		followers, err := q.DB.QueryContext(
+			ctx,
+			`select distinct follower from follows where followed = ? and follower not like ? and follower not like ? and accepted = 1 and inserted < ?`,
+			job.Sender.ID,
+			fmt.Sprintf("https://%s/%%", q.Domain),
+			fmt.Sprintf("https://%s/%%", activityID.Host),
+			inserted.Unix(),
+		)
 		if err != nil {
 			slog.Warn("Failed to list followers", "activity", job.Activity.ID, "error", err)
 		} else {
@@ -287,6 +371,8 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 		author = obj.AttributedTo
 	}
 
+	contentLength := strconv.Itoa(len(rawActivity))
+
 	for actorID := range actorIDs.Keys() {
 		if actorID == author || actorID == ap.Public {
 			slog.Debug("Skipping recipient", "to", actorID, "activity", job.Activity.ID)
@@ -302,7 +388,7 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 			continue
 		}
 
-		// if possible, use the recipients's shared inbox and skip other recipients with the same shared inbox
+		// if possible, use the recipient's shared inbox and skip other recipients with the same shared inbox
 		inbox := to.Inbox
 		if wideDelivery {
 			if sharedInbox, ok := to.Endpoints["sharedInbox"]; ok && sharedInbox != "" {
@@ -325,7 +411,7 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 
 		req.Header.Set("User-Agent", userAgent)
 		req.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
-		req.Header.Set("Content-Length", strconv.Itoa(len(rawActivity)))
+		req.Header.Set("Content-Length", contentLength)
 
 		if recipients.Contains(job.Sender.Followers) {
 			if digest, err := followers.Digest(ctx, q.DB, q.Domain, job.Sender, req.URL.Host); err == nil {
@@ -337,6 +423,7 @@ func (q *Queue) queueTasks(ctx context.Context, job deliveryJob, rawActivity []b
 
 		slog.Info("Queueing activity for delivery", "inbox", inbox, "activity", job.Activity.ID)
 
+		// assign a task to a random worker but use one worker per inbox, so activities are delivered once per inbox
 		tasks[crc32.ChecksumIEEE([]byte(inbox))%uint32(len(tasks))] <- deliveryTask{
 			Job:     job,
 			Key:     key,
