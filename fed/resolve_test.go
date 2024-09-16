@@ -45,6 +45,15 @@ type testClient struct {
 	Data map[string]testResponse
 }
 
+func newTestResponse(statusCode int, body string) *http.Response {
+	buf := []byte(body)
+	return &http.Response{
+		StatusCode:    statusCode,
+		ContentLength: int64(len(buf)),
+		Body:          io.NopCloser(bytes.NewReader(buf)),
+	}
+}
+
 func newTestClient(data map[string]testResponse) testClient {
 	return testClient{Data: data}
 }
@@ -246,49 +255,47 @@ func TestResolve_FederatedActorFirstTime(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -328,49 +335,47 @@ func TestResolve_FederatedActorFirstTimeThroughMention(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -483,54 +488,52 @@ func TestResolve_FederatedActorFirstTimeInvalidWebFingerLink(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "123",
-								"rel": "abc",
-								"type": "def"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "123",
+							"rel": "abc",
+							"type": "def"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -570,49 +573,47 @@ func TestResolve_FederatedActorFirstTimeActorIDMismatch(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/erin",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/erin",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -649,49 +650,47 @@ func TestResolve_FederatedActorCached(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -737,28 +736,27 @@ func TestResolve_FederatedActorCachedInvalidActorHost(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://169.254.0.1/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://169.254.0.1/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://169.254.0.1/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://169.254.0.1/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 	})
 
@@ -795,28 +793,27 @@ func TestResolve_FederatedActorCachedActorHostWithPort(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0:443/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0:443/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0:443/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0:443/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 	})
 
@@ -853,49 +850,47 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://tootik.0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://tootik.0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://tootik.0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://tootik.0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://tootik.0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://tootik.0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://tootik.0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -918,49 +913,47 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 
 	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://tootik.0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://tootik.0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://tootik.0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://tootik.0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://tootik.0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	}
 
@@ -993,49 +986,47 @@ func TestResolve_FederatedActorCachedActorHostSubdomainFetchedRecently(t *testin
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://tootik.0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://tootik.0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://tootik.0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://tootik.0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://tootik.0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://tootik.0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://tootik.0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -1084,49 +1075,47 @@ func TestResolve_FederatedActorCachedActorIDChanged(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -1149,28 +1138,27 @@ func TestResolve_FederatedActorCachedActorIDChanged(t *testing.T) {
 
 	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/erin"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/erin",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/erin",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:erin@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/erin"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/erin",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/erin",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:erin@0.0.0.0"
+				}`,
+			),
 		},
 	}
 
@@ -1203,49 +1191,47 @@ func TestResolve_FederatedActorCachedButBlocked(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -1298,49 +1284,47 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -1363,49 +1347,47 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 
 	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan123",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan123",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	}
 
@@ -1443,49 +1425,47 @@ func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -1505,50 +1485,48 @@ func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 
 	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan123",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"published": "2018-08-18T00:00:00Z"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan123",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"published": "2018-08-18T00:00:00Z"
+				}`,
+			),
 		},
 	}
 
@@ -1586,49 +1564,47 @@ func TestResolve_FederatedActorOldCacheStillNew(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -1648,49 +1624,47 @@ func TestResolve_FederatedActorOldCacheStillNew(t *testing.T) {
 
 	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	}
 
@@ -1719,50 +1693,48 @@ func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"published": "2018-08-18T00:00:00Z"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"published": "2018-08-18T00:00:00Z"
+				}`,
+			),
 		},
 	})
 
@@ -1785,50 +1757,48 @@ func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
 
 	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"published": "2088-08-18T00:00:00Z"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"published": "2088-08-18T00:00:00Z"
+				}`,
+			),
 		},
 	}
 
@@ -1857,50 +1827,48 @@ func TestResolve_FederatedActorOldCacheWasNewNowUnknown(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						},
-						"published": "2088-08-18T00:00:00Z"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"published": "2088-08-18T00:00:00Z"
+				}`,
+			),
 		},
 	})
 
@@ -1920,49 +1888,47 @@ func TestResolve_FederatedActorOldCacheWasNewNowUnknown(t *testing.T) {
 
 	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	}
 
@@ -1992,49 +1958,47 @@ func TestResolve_FederatedActorOldCacheFetchedRecently(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -2083,49 +2047,47 @@ func TestResolve_FederatedActorOldCacheButOffline(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -2174,28 +2136,27 @@ func TestResolve_FederatedActorOldCacheInvalidID(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "http://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "http://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "http://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "http://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 	})
 
@@ -2232,49 +2193,47 @@ func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -2297,10 +2256,10 @@ func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
 
 	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`abc`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`abc`,
+			),
 		},
 	}
 
@@ -2334,49 +2293,47 @@ func TestResolve_FederatedActorOldCacheBigWebFingerResponse(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -2399,28 +2356,27 @@ func TestResolve_FederatedActorOldCacheBigWebFingerResponse(t *testing.T) {
 
 	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 	}
 
@@ -2455,49 +2411,47 @@ func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -2520,34 +2474,33 @@ func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 
 	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`abc`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`abc`,
+			),
 		},
 	}
 
@@ -2580,49 +2533,47 @@ func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -2645,53 +2596,51 @@ func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 
 	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan123",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan123",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	}
 
-	cfg.MaxResponseBodySize = 438
+	cfg.MaxResponseBodySize = 419
 
 	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
@@ -2722,49 +2671,47 @@ func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -2787,28 +2734,27 @@ func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 
 	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "abc"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "def"
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "abc"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "def"
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 	}
 
@@ -2847,49 +2793,47 @@ func TestResolve_FederatedActorOldCacheWebFingerError(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -2951,49 +2895,47 @@ func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -3016,28 +2958,27 @@ func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 
 	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
 			Error: errors.New("a"),
@@ -3079,49 +3020,47 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/user/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/user/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -3163,28 +3102,27 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 
 	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusGone,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusGone,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 	}
 
@@ -3218,49 +3156,47 @@ func TestResolve_FederatedActorFirstTimeWrongID(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/users/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/users/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/users/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/users/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/users/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/users/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/users/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/users/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/users/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -3300,28 +3236,27 @@ func TestResolve_FederatedActorFirstTimeDeleted(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusGone,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/user/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/user/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusGone,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 	})
 
@@ -3380,49 +3315,47 @@ func TestResolve_FederatedActorFirstTimeTooYoung(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/users/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/users/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/users/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/users/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/users/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/users/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/users/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/users/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/users/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -3459,49 +3392,47 @@ func TestResolve_FederatedActorWrongIDCached(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/users/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/users/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/users/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/users/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/users/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/users/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/users/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/users/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/users/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -3547,49 +3478,47 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/users/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/users/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/users/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/users/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/users/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/users/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/users/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/users/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/users/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -3612,49 +3541,47 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 
 	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/users/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/users/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/users/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/users/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/users/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/users/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/users/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/users/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan123",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/users/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan123",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	}
 
@@ -3687,49 +3614,47 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/users/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/users/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/users/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/users/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/users/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/users/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/users/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/users/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/users/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	})
 
@@ -3752,49 +3677,47 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 
 	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/users/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/users/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/users/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/users/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/users/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/users/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/users/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/users/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan123",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/users/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan123",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	}
 
@@ -3816,49 +3739,47 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 
 	client.Data = map[string]testResponse{
 		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"aliases": [
-							"https://0.0.0.0/users/dan"
-						],
-						"links": [
-							{
-								"href": "https://0.0.0.0/users/dan",
-								"rel": "self",
-								"type": "application/activity+json"
-							},
-							{
-								"href": "https://0.0.0.0/users/dan",
-								"rel": "self",
-								"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-							}
-						],
-						"subject": "acct:dan@0.0.0.0"
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/users/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/users/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/users/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
 		},
 		"https://0.0.0.0/users/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewReader([]byte(
-					`{
-						"@context": [
-							"https://www.w3.org/ns/activitystreams",
-							"https://w3id.org/security/v1"
-						],
-						"id": "https://0.0.0.0/users/dan",
-						"type": "Person",
-						"inbox": "https://0.0.0.0/inbox/dan456",
-						"outbox": "https://0.0.0.0/outbox/dan",
-						"preferredUsername": "dan",
-						"followers": "https://0.0.0.0/followers/dan",
-						"endpoints": {
-							"sharedInbox": "https://0.0.0.0/inbox/nobody"
-						}
-					}`))),
-			},
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/users/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan456",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
 		},
 	}
 
