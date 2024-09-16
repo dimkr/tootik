@@ -138,6 +138,86 @@ func TestResolve_LocalActorDoesNotExist(t *testing.T) {
 	assert.True(errors.Is(err, ErrNoLocalActor))
 }
 
+func TestResolve_FederatedInstanceActor(t *testing.T) {
+	assert := assert.New(t)
+
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	assert.NoError(err)
+	f.Close()
+
+	path := f.Name()
+	defer os.Remove(path)
+
+	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	assert.NoError(err)
+
+	blockList := BlockList{}
+
+	var cfg cfg.Config
+	cfg.FillDefaults()
+	cfg.MinActorAge = 0
+
+	client := newTestClient(map[string]testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:0.0.0.0@0.0.0.0": testResponse{
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
+		},
+		"https://0.0.0.0/user/dan": testResponse{
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
+		},
+	})
+
+	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
+
+	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db)
+	assert.NoError(err)
+
+	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
+
+	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/@dan", ap.InstanceActor)
+	assert.NoError(err)
+	assert.Empty(client.Data)
+
+	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
+	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
+}
+
 func TestResolve_FederatedActorInvalidURL(t *testing.T) {
 	assert := assert.New(t)
 
@@ -1405,6 +1485,148 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 	assert.Equal("https://0.0.0.0/inbox/dan123", actor.Inbox)
 }
 
+func TestResolve_FederatedActorOldCacheWasSuspended(t *testing.T) {
+	assert := assert.New(t)
+
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	assert.NoError(err)
+	f.Close()
+
+	path := f.Name()
+	defer os.Remove(path)
+
+	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	assert.NoError(err)
+
+	blockList := BlockList{}
+
+	var cfg cfg.Config
+	cfg.FillDefaults()
+
+	client := newTestClient(map[string]testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
+		},
+		"https://0.0.0.0/user/dan": testResponse{
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"published": "2018-08-18T00:00:00Z",
+					"suspended": true
+				}`,
+			),
+		},
+	})
+
+	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
+
+	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db)
+	assert.NoError(err)
+
+	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
+
+	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	assert.True(errors.Is(err, ErrSuspendedActor))
+	assert.Empty(client.Data)
+
+	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
+	assert.NoError(err)
+
+	client.Data = map[string]testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
+		},
+		"https://0.0.0.0/user/dan": testResponse{
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan123",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"published": "2018-08-18T00:00:00Z",
+					"suspended": false
+				}`,
+			),
+		},
+	}
+
+	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	assert.NoError(err)
+	assert.Empty(client.Data)
+
+	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
+	assert.Equal("https://0.0.0.0/inbox/dan123", actor.Inbox)
+
+	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	assert.NoError(err)
+
+	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
+	assert.Equal("https://0.0.0.0/inbox/dan123", actor.Inbox)
+}
+
 func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 	assert := assert.New(t)
 
@@ -1542,6 +1764,127 @@ func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan123", actor.Inbox)
+}
+
+func TestResolve_FederatedActorOldCacheUpdateFailed(t *testing.T) {
+	assert := assert.New(t)
+
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	assert.NoError(err)
+	f.Close()
+
+	path := f.Name()
+	defer os.Remove(path)
+
+	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	assert.NoError(err)
+
+	blockList := BlockList{}
+
+	var cfg cfg.Config
+	cfg.FillDefaults()
+
+	client := newTestClient(map[string]testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
+		},
+		"https://0.0.0.0/user/dan": testResponse{
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					}
+				}`,
+			),
+		},
+	})
+
+	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
+
+	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db)
+	assert.NoError(err)
+
+	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
+
+	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	assert.True(errors.Is(err, ErrYoungActor))
+	assert.Empty(client.Data)
+
+	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
+	assert.NoError(err)
+
+	client.Data = map[string]testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
+		},
+		"https://0.0.0.0/user/dan": testResponse{
+			Response: newTestResponse(
+				http.StatusInternalServerError,
+				`{}`,
+			),
+		},
+	}
+
+	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	assert.True(errors.Is(err, ErrYoungActor))
+	assert.Empty(client.Data)
+
+	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	assert.NoError(err)
+
+	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
+	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 }
 
 func TestResolve_FederatedActorOldCacheStillNew(t *testing.T) {
@@ -3368,6 +3711,84 @@ func TestResolve_FederatedActorFirstTimeTooYoung(t *testing.T) {
 
 	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
 	assert.True(errors.Is(err, ErrYoungActor))
+	assert.Empty(client.Data)
+}
+
+func TestResolve_FederatedActorFirstTimeSuspended(t *testing.T) {
+	assert := assert.New(t)
+
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	assert.NoError(err)
+	f.Close()
+
+	path := f.Name()
+	defer os.Remove(path)
+
+	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	assert.NoError(err)
+
+	blockList := BlockList{}
+
+	var cfg cfg.Config
+	cfg.FillDefaults()
+
+	client := newTestClient(map[string]testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://0.0.0.0/users/dan"
+					],
+					"links": [
+						{
+							"href": "https://0.0.0.0/users/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://0.0.0.0/users/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@0.0.0.0"
+				}`,
+			),
+		},
+		"https://0.0.0.0/users/dan": testResponse{
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/users/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"published": "2018-08-18T00:00:00Z",
+					"suspended": true
+				}`,
+			),
+		},
+	})
+
+	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
+
+	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db)
+	assert.NoError(err)
+
+	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
+
+	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	assert.True(errors.Is(err, ErrSuspendedActor))
 	assert.Empty(client.Data)
 }
 
