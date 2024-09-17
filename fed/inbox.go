@@ -30,7 +30,12 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 	receiver := r.PathValue("username")
 
 	var registered int
-	if err := l.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where actor->>'$.preferredUsername' = ? and host = ?)`, receiver, l.Domain).Scan(&registered); err != nil {
+	if err := l.DB.QueryRowContext(
+		r.Context(),
+		`select exists (select 1 from persons where actor->>'$.preferredUsername' = ? and host = ?)`,
+		receiver,
+		l.Domain,
+	).Scan(&registered); err != nil {
 		slog.Warn("Failed to check if receiving user exists", "receiver", receiver, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return

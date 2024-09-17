@@ -27,7 +27,15 @@ import (
 	"strings"
 )
 
-func forwardToGroup[T ap.RawActivity](ctx context.Context, domain string, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity T, firstPostID string) (bool, error) {
+func forwardToGroup[T ap.RawActivity](
+	ctx context.Context,
+	domain string,
+	tx *sql.Tx,
+	note *ap.Object,
+	activity *ap.Activity,
+	rawActivity T,
+	firstPostID string,
+) (bool, error) {
 	var group ap.Actor
 	if err := tx.QueryRowContext(
 		ctx,
@@ -78,7 +86,12 @@ func forwardToGroup[T ap.RawActivity](ctx context.Context, domain string, tx *sq
 	}
 
 	var following int
-	if err := tx.QueryRowContext(ctx, `select exists (select 1 from follows where follower = ? and followed = ? and accepted = 1)`, note.AttributedTo, group.ID).Scan(&following); err != nil {
+	if err := tx.QueryRowContext(
+		ctx,
+		`select exists (select 1 from follows where follower = ? and followed = ? and accepted = 1)`,
+		note.AttributedTo,
+		group.ID,
+	).Scan(&following); err != nil {
 		return true, err
 	}
 
@@ -120,8 +133,17 @@ func forwardToGroup[T ap.RawActivity](ctx context.Context, domain string, tx *sq
 
 // ForwardActivity forwards an activity if needed.
 // A reply by B in a thread started by A is forwarded to all followers of A.
-// A post by a follower of a local group, which mentions the group or replies to a post in the group, is forwarded to followers of the group.
-func ForwardActivity[T ap.RawActivity](ctx context.Context, domain string, cfg *cfg.Config, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity T) error {
+// A post by a follower of a local group, which mentions the group or replies to a post in the group, is forwarded to
+// followers of the group.
+func ForwardActivity[T ap.RawActivity](
+	ctx context.Context,
+	domain string,
+	cfg *cfg.Config,
+	tx *sql.Tx,
+	note *ap.Object,
+	activity *ap.Activity,
+	rawActivity T,
+) error {
 	// poll votes don't need to be forwarded
 	if note.Name != "" && note.Content == "" {
 		return nil
@@ -132,7 +154,12 @@ func ForwardActivity[T ap.RawActivity](ctx context.Context, domain string, cfg *
 
 	if note.InReplyTo != "" {
 		var depth int
-		if err := tx.QueryRowContext(ctx, `with recursive thread(id, author, parent, depth) as (select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, 1 as depth from notes where id = $1 union all select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent where t.depth <= $2) select id, author, depth from thread order by depth desc limit 1`, note.ID, cfg.MaxForwardingDepth+1).Scan(&firstPostID, &threadStarterID, &depth); err != nil && errors.Is(err, sql.ErrNoRows) {
+		if err := tx.QueryRowContext(
+			ctx,
+			`with recursive thread(id, author, parent, depth) as (select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, 1 as depth from notes where id = $1 union all select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent where t.depth <= $2) select id, author, depth from thread order by depth desc limit 1`,
+			note.ID,
+			cfg.MaxForwardingDepth+1,
+		).Scan(&firstPostID, &threadStarterID, &depth); err != nil && errors.Is(err, sql.ErrNoRows) {
 			slog.Debug("Failed to find thread for post", "activity", activity.ID, "note", note.ID)
 			return nil
 		} else if err != nil {
@@ -164,7 +191,11 @@ func ForwardActivity[T ap.RawActivity](ctx context.Context, domain string, cfg *
 	}
 
 	var shouldForward int
-	if err := tx.QueryRowContext(ctx, `select exists (select 1 from notes join persons on persons.id = notes.author and (notes.public = 1 or exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers') or exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers')) where notes.id = ?)`, firstPostID).Scan(&shouldForward); err != nil {
+	if err := tx.QueryRowContext(
+		ctx,
+		`select exists (select 1 from notes join persons on persons.id = notes.author and (notes.public = 1 or exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers') or exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers')) where notes.id = ?)`,
+		firstPostID,
+	).Scan(&shouldForward); err != nil {
 		return err
 	}
 	if shouldForward == 0 {

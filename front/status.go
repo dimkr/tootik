@@ -47,43 +47,161 @@ func (h *Handler) getGraph(r *Request, query string, keys []string, values []int
 func (h *Handler) getDailyPostsGraph(r *Request) string {
 	keys := make([]string, 24)
 	values := make([]int64, 24)
-	return h.getGraph(r, `select strftime('%Y-%m-%d %H:%M', datetime(inserted*60*60, 'unixepoch')), count(*) from (select inserted/(60*60) as inserted from notes where inserted>unixepoch()-60*60*24 and inserted<unixepoch()/(60*60)*60*60) group by inserted order by inserted`, keys, values)
+	return h.getGraph(
+		r,
+		`select strftime('%Y-%m-%d %H:%M', datetime(inserted*60*60, 'unixepoch')), count(*) from (
+			select inserted/(60*60) as inserted from
+			notes
+			where
+				inserted>unixepoch()-60*60*24 and
+				inserted<unixepoch()/(60*60)*60*60
+		)
+		group by
+			inserted
+		order by
+			inserted`,
+		keys,
+		values,
+	)
 }
 
 func (h *Handler) getWeeklyPostsGraph(r *Request) string {
 	keys := make([]string, 7)
 	values := make([]int64, 7)
-	return h.getGraph(r, `select strftime('%Y-%m-%d', datetime(inserted*60*60*24, 'unixepoch')), count(*) from (select inserted/(60*60*24) as inserted from notes where inserted>unixepoch()-60*60*24*7 and inserted<unixepoch()/(60*60*24)*(60*60*24)) group by inserted order by inserted`, keys, values)
+	return h.getGraph(
+		r,
+		`select strftime('%Y-%m-%d', datetime(inserted*60*60*24, 'unixepoch')), count(*) from (
+			select inserted/(60*60*24) as inserted from
+			notes
+			where
+				inserted>unixepoch()-60*60*24*7 and
+				inserted<unixepoch()/(60*60*24)*(60*60*24)
+		)
+		group by
+			inserted
+		order by
+			inserted`,
+		keys,
+		values,
+	)
 }
 
 func (h *Handler) getWeeklyFailedDeliveriesGraph(r *Request) string {
 	keys := make([]string, 7)
 	values := make([]int64, 7)
-	return h.getGraph(r, `select strftime('%Y-%m-%d %H:%M', datetime(day*60*60*24, 'unixepoch')), count(*) from (select inserted/(60*60*24) as day from outbox where sent = 0 and inserted>unixepoch()-60*60*24*7 and inserted<unixepoch()/(60*60*24)*60*60*24) group by day order by day`, keys, values)
+	return h.getGraph(
+		r,
+		`select strftime('%Y-%m-%d %H:%M', datetime(day*60*60*24, 'unixepoch')), count(*) from (
+			select inserted/(60*60*24) as day from
+			outbox
+			where
+				sent = 0 and
+				inserted>unixepoch()-60*60*24*7 and
+				inserted<unixepoch()/(60*60*24)*60*60*24
+		)
+		group by
+			day
+		order by
+			day`,
+		keys,
+		values,
+	)
 }
 
 func (h *Handler) getUsersGraph(r *Request) string {
 	keys := make([]string, 24)
 	values := make([]int64, 24)
-	return h.getGraph(r, `select strftime('%Y-%m-%d %H:%M', datetime(inserted*60*60, 'unixepoch')), count(*) from (select inserted/(60*60) as inserted from persons where inserted>unixepoch()-60*60*24 and inserted<unixepoch()/(60*60)*60*60) group by inserted order by inserted`, keys, values)
+	return h.getGraph(
+		r,
+		`select strftime('%Y-%m-%d %H:%M', datetime(inserted*60*60, 'unixepoch')), count(*) from (
+			select inserted/(60*60) as inserted from
+			persons 
+			where
+				inserted>unixepoch()-60*60*24 and
+				inserted<unixepoch()/(60*60)*60*60
+		)
+		group by
+			inserted
+		order by
+			inserted`,
+		keys,
+		values,
+	)
 }
 
 func (h *Handler) getKnownInstancesGraph(r *Request) string {
 	keys := make([]string, 7)
 	values := make([]int64, 7)
-	return h.getGraph(r, `select strftime('%Y-%m-%d', datetime(days.day, 'unixepoch')), count(*) from (select host, min(inserted/(60*60*24)*60*60*24) as day from persons group by host) hosts join (select distinct inserted/(60*60*24)*60*60*24 as day from persons where inserted>unixepoch()-60*60*24*7 and inserted<unixepoch()/(60*60*24)*60*60*24) days on hosts.day < days.day group by days.day`, keys, values)
+	return h.getGraph(
+		r,
+		`select strftime('%Y-%m-%d', datetime(days.day, 'unixepoch')), count(*) from (
+			select host, min(inserted/(60*60*24)*60*60*24) as day from
+			persons
+			group by
+				host
+		) hosts
+		join (
+			select distinct inserted/(60*60*24)*60*60*24 as day from
+			persons
+			where
+				inserted>unixepoch()-60*60*24*7 and
+				inserted<unixepoch()/(60*60*24)*60*60*24
+		) days
+		on
+			hosts.day < days.day
+		group by
+			days.day`,
+		keys,
+		values,
+	)
 }
 
 func (h *Handler) getActiveInstancesGraph(r *Request) string {
 	keys := make([]string, 10)
 	values := make([]int64, 10)
-	return h.getGraph(r, `select host, (cast(round(avg(posts)) as int)) as daily from (select host, day, count(*) as posts from (select host, inserted/(60*60*24) as day from notes where inserted > unixepoch()-60*60*24*7) group by host, day) group by host order by daily desc limit 10`, keys, values)
+	return h.getGraph(
+		r,
+		`select host, (cast(round(avg(posts)) as int)) as daily from (
+			select host, day, count(*) as posts from (
+				select host, inserted/(60*60*24) as day from
+				notes
+				where
+					inserted > unixepoch()-60*60*24*7
+				)
+				group by
+					host, day
+		)
+		group by
+			host
+		order by
+			daily desc
+		limit 10`,
+		keys,
+		values,
+	)
 }
 
 func (h *Handler) getActiveUsersGraph(r *Request) string {
 	keys := make([]string, 7)
 	values := make([]int64, 7)
-	return h.getGraph(r, `select strftime('%Y-%m-%d', datetime(day, 'unixepoch')), count(distinct author) from (select notes.inserted/(60*60*24)*60*60*24 as day, persons.id as author from notes join persons on persons.id = notes.author where notes.inserted>unixepoch()-60*60*24*7 and notes.inserted<unixepoch()/(60*60*24)*60*60*24) group by day`, keys, values)
+	return h.getGraph(
+		r,
+		`select strftime('%Y-%m-%d', datetime(day, 'unixepoch')), count(distinct author) from (
+			select notes.inserted/(60*60*24)*60*60*24 as day, persons.id as author from
+			notes
+			join
+			persons
+			on
+				persons.id = notes.author 
+			where
+				notes.inserted>unixepoch()-60*60*24*7 and
+				notes.inserted<unixepoch()/(60*60*24)*60*60*24
+		)
+		group by
+			day`,
+		keys,
+		values,
+	)
 }
 
 func (h *Handler) status(w text.Writer, r *Request, args ...string) {
@@ -91,55 +209,91 @@ func (h *Handler) status(w text.Writer, r *Request, args ...string) {
 	var lastPost, lastFederatedPost, lastRegister, lastFederatedUser sql.NullInt64
 	var outboxSize, inboxSize int
 
-	if err := h.DB.QueryRowContext(r.Context, `select count(*) from persons where host = ?`, h.Domain).Scan(&usersCount); err != nil {
+	if err := h.DB.QueryRowContext(
+		r.Context,
+		`select count(*) from persons where host = ?`,
+		h.Domain,
+	).Scan(&usersCount); err != nil {
 		r.Log.Info("Failed to get users count", "error", err)
 		w.Error()
 		return
 	}
 
-	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where host = ?`, h.Domain).Scan(&postsCount); err != nil {
+	if err := h.DB.QueryRowContext(
+		r.Context,
+		`select count(*) from notes where host = ?`,
+		h.Domain,
+	).Scan(&postsCount); err != nil {
 		r.Log.Info("Failed to get posts count", "error", err)
 		w.Error()
 		return
 	}
 
-	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where host = ? and inserted >= unixepoch() - 24*60*60`, h.Domain).Scan(&postsToday); err != nil {
+	if err := h.DB.QueryRowContext(
+		r.Context,
+		`select count(*) from notes where host = ? and inserted >= unixepoch() - 24*60*60`,
+		h.Domain,
+	).Scan(&postsToday); err != nil {
 		r.Log.Info("Failed to get daily posts count", "error", err)
 		w.Error()
 		return
 	}
 
-	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where host != ?`, h.Domain).Scan(&federatedPostsCount); err != nil {
+	if err := h.DB.QueryRowContext(
+		r.Context,
+		`select count(*) from notes where host != ?`,
+		h.Domain,
+	).Scan(&federatedPostsCount); err != nil {
 		r.Log.Info("Failed to get federated posts count", "error", err)
 		w.Error()
 		return
 	}
 
-	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where host != ? and inserted >= unixepoch() - 24*60*60`, h.Domain).Scan(&federatedPostsToday); err != nil {
+	if err := h.DB.QueryRowContext(
+		r.Context,
+		`select count(*) from notes where host != ? and inserted >= unixepoch() - 24*60*60`,
+		h.Domain,
+	).Scan(&federatedPostsToday); err != nil {
 		r.Log.Info("Failed to get daily federated posts count", "error", err)
 		w.Error()
 		return
 	}
 
-	if err := h.DB.QueryRowContext(r.Context, `select max(inserted) from notes where host = ?`, h.Domain).Scan(&lastPost); err != nil {
+	if err := h.DB.QueryRowContext(
+		r.Context,
+		`select max(inserted) from notes where host = ?`,
+		h.Domain,
+	).Scan(&lastPost); err != nil {
 		r.Log.Info("Failed to get last post time", "error", err)
 		w.Error()
 		return
 	}
 
-	if err := h.DB.QueryRowContext(r.Context, `select max(inserted) from notes where host != ?`, h.Domain).Scan(&lastFederatedPost); err != nil {
+	if err := h.DB.QueryRowContext(
+		r.Context,
+		`select max(inserted) from notes where host != ?`,
+		h.Domain,
+	).Scan(&lastFederatedPost); err != nil {
 		r.Log.Info("Failed to get last federated post time", "error", err)
 		w.Error()
 		return
 	}
 
-	if err := h.DB.QueryRowContext(r.Context, `select max(inserted) from persons where host = ?`, h.Domain).Scan(&lastRegister); err != nil {
+	if err := h.DB.QueryRowContext(
+		r.Context,
+		`select max(inserted) from persons where host = ?`,
+		h.Domain,
+	).Scan(&lastRegister); err != nil {
 		r.Log.Info("Failed to get last post time", "error", err)
 		w.Error()
 		return
 	}
 
-	if err := h.DB.QueryRowContext(r.Context, `select max(max(inserted), max(updated)) from persons where host != ?`, h.Domain).Scan(&lastFederatedUser); err != nil {
+	if err := h.DB.QueryRowContext(
+		r.Context,
+		`select max(max(inserted), max(updated)) from persons where host != ?`,
+		h.Domain,
+	).Scan(&lastFederatedUser); err != nil {
 		r.Log.Info("Failed to get last post time", "error", err)
 		w.Error()
 		return
@@ -151,7 +305,11 @@ func (h *Handler) status(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := h.DB.QueryRowContext(r.Context, `select count(distinct activity->'$.id') from outbox where sent = 0 and attempts < ?`, h.Config.MaxDeliveryAttempts).Scan(&outboxSize); err != nil {
+	if err := h.DB.QueryRowContext(
+		r.Context,
+		`select count(distinct activity->'$.id') from outbox where sent = 0 and attempts < ?`,
+		h.Config.MaxDeliveryAttempts,
+	).Scan(&outboxSize); err != nil {
 		r.Log.Info("Failed to get delivery queue size", "error", err)
 		w.Error()
 		return

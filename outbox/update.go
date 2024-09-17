@@ -31,7 +31,11 @@ import (
 
 // UpdateNote queues an Update activity for delivery.
 func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, note *ap.Object) error {
-	updateID := fmt.Sprintf("https://%s/update/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", note.ID, time.Now().UnixNano()))))
+	updateID := fmt.Sprintf(
+		"https://%s/update/%x",
+		domain,
+		sha256.Sum256([]byte(fmt.Sprintf("%s|%d", note.ID, time.Now().UnixNano()))),
+	)
 
 	update := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
@@ -98,7 +102,12 @@ func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB,
 		if hashtag.Type != ap.Hashtag || len(hashtag.Name) <= 1 || hashtag.Name[0] != '#' {
 			continue
 		}
-		if _, err = tx.ExecContext(ctx, `insert into hashtags (note, hashtag) values(?,?)`, note.ID, hashtag.Name[1:]); err != nil {
+		if _, err = tx.ExecContext(
+			ctx,
+			`insert into hashtags (note, hashtag) values(?,?)`,
+			note.ID,
+			hashtag.Name[1:],
+		); err != nil {
 			return fmt.Errorf("failed to insert hashtag: %w", err)
 		}
 	}
@@ -116,7 +125,11 @@ func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB,
 
 // UpdateActor queues an Update activity for delivery.
 func UpdateActor(ctx context.Context, domain string, tx *sql.Tx, actorID string) error {
-	updateID := fmt.Sprintf("https://%s/update/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", actorID, time.Now().UnixNano()))))
+	updateID := fmt.Sprintf(
+		"https://%s/update/%x",
+		domain,
+		sha256.Sum256([]byte(fmt.Sprintf("%s|%d", actorID, time.Now().UnixNano()))),
+	)
 
 	to := ap.Audience{}
 	to.Add(ap.Public)

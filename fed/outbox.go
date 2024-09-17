@@ -39,7 +39,20 @@ func (l *Listener) getCollection(w http.ResponseWriter, r *http.Request, usernam
 	slog.Info("Listing activities by user", "username", username)
 
 	var totalItems sql.NullInt64
-	if err := l.DB.QueryRowContext(r.Context(), `select count(*) from notes join outbox on outbox.activity->>'$.object.id' = notes.id where outbox.sender = $1 and notes.author = $1 and notes.public = 1`, actorID).Scan(&totalItems); err != nil {
+	if err := l.DB.QueryRowContext(
+		r.Context(),
+		`select count(*) from
+		notes
+		join
+		outbox
+		on
+			outbox.activity->>'$.object.id' = notes.id
+		where
+			outbox.sender = $1 and
+			notes.author = $1 and
+			notes.public = 1`,
+		actorID,
+	).Scan(&totalItems); err != nil {
 		slog.Warn("Failed to count activities", "username", username, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -51,7 +64,20 @@ func (l *Listener) getCollection(w http.ResponseWriter, r *http.Request, usernam
 	}
 
 	var firstSince sql.NullInt64
-	if err := l.DB.QueryRowContext(r.Context(), `select min(outbox.inserted) from notes join outbox on outbox.activity->>'$.object.id' = notes.id where outbox.sender = $1 and notes.author = $1 and notes.public = 1`, actorID, activitiesPerPage).Scan(&firstSince); err != nil {
+	if err := l.DB.QueryRowContext(
+		r.Context(),
+		`select min(outbox.inserted) from
+		notes
+		join outbox
+		on
+			outbox.activity->>'$.object.id' = notes.id
+		where
+			outbox.sender = $1 and
+			notes.author = $1 and
+			notes.public = 1`,
+		actorID,
+		activitiesPerPage,
+	).Scan(&firstSince); err != nil {
 		slog.Warn("Failed to get first page timestamp", "username", username, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -62,7 +88,25 @@ func (l *Listener) getCollection(w http.ResponseWriter, r *http.Request, usernam
 
 	if totalItems.Valid && totalItems.Int64 > activitiesPerPage {
 		var lastSince sql.NullInt64
-		if err := l.DB.QueryRowContext(r.Context(), `select min(inserted) from (select outbox.inserted from notes join outbox on outbox.activity->>'$.object.id' = notes.id where outbox.sender = $1 and notes.author = $1 and notes.public = 1 order by outbox.inserted desc limit $2)`, actorID, activitiesPerPage).Scan(&lastSince); err != nil {
+		if err := l.DB.QueryRowContext(
+			r.Context(),
+			`select min(inserted) from (
+				select outbox.inserted from
+				notes
+				join outbox
+				on
+					outbox.activity->>'$.object.id' = notes.id
+				where
+					outbox.sender = $1 and
+					notes.author = $1 and
+					notes.public = 1
+				order by
+					outbox.inserted desc
+				limit $2
+			)`,
+			actorID,
+			activitiesPerPage,
+		).Scan(&lastSince); err != nil {
 			slog.Warn("Failed to get last page timestamp", "username", username, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -89,7 +133,12 @@ func (l *Listener) handleOutbox(w http.ResponseWriter, r *http.Request) {
 	username := r.PathValue("username")
 
 	var actorID sql.NullString
-	if err := l.DB.QueryRowContext(r.Context(), `select id from persons where actor->>'$.preferredUsername' = ? and host = ?`, username, l.Domain).Scan(&actorID); err != nil {
+	if err := l.DB.QueryRowContext(
+		r.Context(),
+		`select id from persons where actor->>'$.preferredUsername' = ? and host = ?`,
+		username,
+		l.Domain,
+	).Scan(&actorID); err != nil {
 		slog.Warn("Failed to check if user exists", "username", username, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -126,7 +175,27 @@ func (l *Listener) handleOutbox(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := l.DB.QueryContext(r.Context(), `select outbox.activity from notes join outbox on outbox.activity->>'$.object.id' = notes.id where outbox.sender = $1 and outbox.activity->>'$.actor' = $1 and notes.author = $1 and notes.public = 1 and outbox.inserted >= $2 order by notes.inserted limit $3`, actorID.String, since, activitiesPerPage)
+	rows, err := l.DB.QueryContext(
+		r.Context(),
+		`select outbox.activity from
+		notes
+		join
+		outbox
+		on
+			outbox.activity->>'$.object.id' = notes.id
+		where
+			outbox.sender = $1 and
+			outbox.activity->>'$.actor' = $1 and
+			notes.author = $1 and
+			notes.public = 1 and
+			outbox.inserted >= $2
+		order by
+			notes.inserted
+		limit $3`,
+		actorID.String,
+		since,
+		activitiesPerPage,
+	)
 	if err != nil {
 		slog.Warn("Failed to fetch activities", "username", username, "since", since, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -158,7 +227,29 @@ func (l *Listener) handleOutbox(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var nextSince sql.NullInt64
-	if err := l.DB.QueryRowContext(r.Context(), `select max(inserted) from (select outbox.inserted from notes join outbox on outbox.activity->>'$.object.id' = notes.id where outbox.sender = $1 and outbox.activity->>'$.actor' = $1 and notes.author = $1 and notes.public = 1 and outbox.inserted > $2 order by outbox.inserted limit $2 offset $3)`, actorID, since, activitiesPerPage).Scan(&nextSince); err != nil {
+	if err := l.DB.QueryRowContext(
+		r.Context(),
+		`select max(inserted) from (
+			select outbox.inserted from
+			notes
+			join outbox
+			on
+				outbox.activity->>'$.object.id' = notes.id
+			where
+				outbox.sender = $1 and
+				outbox.activity->>'$.actor' = $1 and
+				notes.author = $1 and
+				notes.public = 1 and
+				outbox.inserted > $2
+			order by
+				outbox.inserted
+			limit $2
+			offset $3
+		)`,
+		actorID,
+		since,
+		activitiesPerPage,
+	).Scan(&nextSince); err != nil {
 		slog.Warn("Failed to get next page timestamp", "username", username, "since", since, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -168,7 +259,28 @@ func (l *Listener) handleOutbox(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var prevSince sql.NullInt64
-	if err := l.DB.QueryRowContext(r.Context(), `select min(inserted) from (select outbox.inserted from notes join outbox on outbox.activity->>'$.object.id' = notes.id where outbox.sender = $1 and outbox.activity->>'$.actor' = $1 and notes.author = $1 and notes.public = 1 and outbox.inserted < $2 order by outbox.inserted desc limit $3)`, actorID, since, activitiesPerPage).Scan(&prevSince); err != nil {
+	if err := l.DB.QueryRowContext(
+		r.Context(),
+		`select min(inserted) from (
+			select outbox.inserted from
+			notes
+			join outbox
+			on
+				outbox.activity->>'$.object.id' = notes.id
+			where
+				outbox.sender = $1 and
+				outbox.activity->>'$.actor' = $1 and
+				notes.author = $1 and
+				notes.public = 1 and
+				outbox.inserted < $2
+			order by
+				outbox.inserted desc
+			limit $3
+		)`,
+		actorID,
+		since,
+		activitiesPerPage,
+	).Scan(&prevSince); err != nil {
 		slog.Warn("Failed to get previous page timestamp", "username", username, "since", since, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return

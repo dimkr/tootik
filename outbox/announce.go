@@ -28,7 +28,11 @@ import (
 // Announce queues an Announce activity for delivery.
 func Announce(ctx context.Context, domain string, tx *sql.Tx, actor *ap.Actor, note *ap.Object) error {
 	now := time.Now()
-	announceID := fmt.Sprintf("https://%s/announce/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", actor.ID, note.ID, now.UnixNano()))))
+	announceID := fmt.Sprintf(
+		"https://%s/announce/%x",
+		domain,
+		sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", actor.ID, note.ID, now.UnixNano()))),
+	)
 
 	to := ap.Audience{}
 	to.Add(ap.Public)

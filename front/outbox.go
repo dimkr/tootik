@@ -32,7 +32,11 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 	actorID := "https://" + args[1]
 
 	var actor ap.Actor
-	if err := h.DB.QueryRowContext(r.Context, `select actor from persons where id = ?`, actorID).Scan(&actor); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := h.DB.QueryRowContext(
+		r.Context,
+		`select actor from persons where id = ?`,
+		actorID,
+	).Scan(&actor); err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Info("Person was not found", "actor", actorID)
 		w.Status(40, "User not found")
 		return

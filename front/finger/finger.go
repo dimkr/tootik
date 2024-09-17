@@ -92,7 +92,12 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 	}
 
 	var actor ap.Actor
-	if err := fl.DB.QueryRowContext(ctx, `select actor from persons where actor->>'$.preferredUsername' = ? and host = ?`, user, fl.Domain).Scan(&actor); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := fl.DB.QueryRowContext(
+		ctx,
+		`select actor from persons where actor->>'$.preferredUsername' = ? and host = ?`,
+		user,
+		fl.Domain,
+	).Scan(&actor); err != nil && errors.Is(err, sql.ErrNoRows) {
 		log.Info("User does not exist")
 		fmt.Fprintf(conn, "Login: %s\r\nPlan:\r\nNo Plan.\r\n", user)
 		return
@@ -105,7 +110,11 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 
 	posts := data.OrderedMap[string, int64]{}
 
-	rows, err := fl.DB.QueryContext(ctx, `select object->>'$.content', inserted from notes where public = 1 and author = ? order by inserted desc limit 5`, actor.ID)
+	rows, err := fl.DB.QueryContext(
+		ctx,
+		`select object->>'$.content', inserted from notes where public = 1 and author = ? order by inserted desc limit 5`,
+		actor.ID,
+	)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		log.Warn("Failed to query posts", "error", err)
 		return

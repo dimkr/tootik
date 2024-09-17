@@ -23,7 +23,8 @@ type valueAndIndex[TV any] struct {
 	index int
 }
 
-// OrderedMap is a map that maintains insertion order. Listing of keys (using [OrderedMap.Keys]) iterates over keys and allocates memory.
+// OrderedMap is a map that maintains insertion order. Listing of keys (using [OrderedMap.Keys]) iterates over keys and
+// allocates memory.
 type OrderedMap[TK comparable, TV any] map[TK]valueAndIndex[TV]
 
 // Contains determines if the map contains a key.

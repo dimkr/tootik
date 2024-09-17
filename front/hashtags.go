@@ -175,7 +175,12 @@ func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
 	w.Title("🔥 Hashtags")
 
 	if len(followed) > 0 {
-		printHashtags(w, r, "Most popular hashtags used by users with at least 2 local followers, in the last week:", followed)
+		printHashtags(
+			w,
+			r,
+			"Most popular hashtags used by users with at least 2 local followers, in the last week:",
+			followed,
+		)
 	}
 
 	if len(labels) > 0 {

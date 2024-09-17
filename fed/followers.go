@@ -57,7 +57,12 @@ var followersSyncRegex = regexp.MustCompile(`\b([^"=]+)="([^"]+)"`)
 func fetchFollowers(ctx context.Context, db *sql.DB, followed, host string) (ap.Audience, error) {
 	var followers ap.Audience
 
-	rows, err := db.QueryContext(ctx, `SELECT follower FROM follows WHERE followed = ? AND follower LIKE 'https://' || ? || '/' || '%' AND accepted = 1`, followed, host)
+	rows, err := db.QueryContext(
+		ctx,
+		`SELECT follower FROM follows WHERE followed = ? AND follower LIKE 'https://' || ? || '/' || '%' AND accepted = 1`,
+		followed,
+		host,
+	)
 	if err != nil {
 		return followers, err
 	}
@@ -75,7 +80,12 @@ func fetchFollowers(ctx context.Context, db *sql.DB, followed, host string) (ap.
 }
 
 func digestFollowers(ctx context.Context, db *sql.DB, followed, host string) (string, error) {
-	rows, err := db.QueryContext(ctx, `SELECT follower FROM follows WHERE followed = ? AND follower LIKE 'https://' || ? || '/' || '%' AND accepted = 1`, followed, host)
+	rows, err := db.QueryContext(
+		ctx,
+		`SELECT follower FROM follows WHERE followed = ? AND follower LIKE 'https://' || ? || '/' || '%' AND accepted = 1`,
+		followed,
+		host,
+	)
 	if err != nil {
 		return "", err
 	}
@@ -96,7 +106,13 @@ func digestFollowers(ctx context.Context, db *sql.DB, followed, host string) (st
 	return fmt.Sprintf("%x", digest), nil
 }
 
-func (f partialFollowers) Digest(ctx context.Context, db *sql.DB, domain string, actor *ap.Actor, host string) (string, error) {
+func (f partialFollowers) Digest(
+	ctx context.Context,
+	db *sql.DB,
+	domain string,
+	actor *ap.Actor,
+	host string,
+) (string, error) {
 	byActor, ok := f[actor.ID]
 	if ok {
 		if header, ok := byActor[host]; ok && header != "" {
@@ -112,7 +128,13 @@ func (f partialFollowers) Digest(ctx context.Context, db *sql.DB, domain string,
 		return "", err
 	}
 
-	header := fmt.Sprintf(`collectionId="%s", url="https://%s/followers_synchronization/%s", digest="%s"`, actor.Followers, domain, actor.PreferredUsername, digest)
+	header := fmt.Sprintf(
+		`collectionId="%s", url="https://%s/followers_synchronization/%s", digest="%s"`,
+		actor.Followers,
+		domain,
+		actor.PreferredUsername,
+		digest,
+	)
 	byActor[host] = header
 	return header, nil
 }
@@ -133,7 +155,13 @@ func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := l.DB.QueryContext(r.Context(), `SELECT follower FROM follows WHERE followed = 'https://' || ? || '/user/' || ? AND follower LIKE 'https://' || ? || '/' || '%'`, l.Domain, name, u.Host)
+	rows, err := l.DB.QueryContext(
+		r.Context(),
+		`SELECT follower FROM follows WHERE followed = 'https://' || ? || '/user/' || ? AND follower LIKE 'https://' || ? || '/' || '%'`,
+		l.Domain,
+		name,
+		u.Host,
+	)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -225,7 +253,14 @@ func (l *Listener) saveFollowersDigest(ctx context.Context, sender *ap.Actor, he
 	return nil
 }
 
-func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, resolver *Resolver, key httpsig.Key) error {
+func (d *followersDigest) Sync(
+	ctx context.Context,
+	domain string,
+	cfg *cfg.Config,
+	db *sql.DB,
+	resolver *Resolver,
+	key httpsig.Key,
+) error {
 	if digest, err := digestFollowers(ctx, db, d.Followed, domain); err != nil {
 		return err
 	} else if err == nil && digest == d.Digest {
@@ -288,7 +323,11 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 		slog.Info("Found unknown remote follow", "followed", d.Followed, "follower", follower)
 
 		var exists int
-		if err := db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM persons WHERE id = ?)`, follower).Scan(&exists); err != nil {
+		if err := db.QueryRowContext(
+			ctx,
+			`SELECT EXISTS (SELECT 1 FROM persons WHERE id = ?)`,
+			follower,
+		).Scan(&exists); err != nil {
 			slog.Warn("Failed to check if follower exists", "followed", d.Followed, "follower", follower, "error", err)
 			continue
 		} else if exists == 0 {
@@ -297,8 +336,17 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 		}
 
 		var followID string
-		if err := db.QueryRowContext(ctx, `SELECT id FROM follows WHERE follower = ? AND followed = ?`, follower, d.Followed).Scan(&followID); err != nil && errors.Is(err, sql.ErrNoRows) {
-			followID = fmt.Sprintf("https://%s/follow/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", follower, d.Followed, time.Now().UnixNano()))))
+		if err := db.QueryRowContext(
+			ctx,
+			`SELECT id FROM follows WHERE follower = ? AND followed = ?`,
+			follower,
+			d.Followed,
+		).Scan(&followID); err != nil && errors.Is(err, sql.ErrNoRows) {
+			followID = fmt.Sprintf(
+				"https://%s/follow/%x",
+				domain,
+				sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", follower, d.Followed, time.Now().UnixNano()))),
+			)
 			slog.Warn("Using fake follow ID to remove unknown remote follow", "followed", d.Followed, "follower", follower, "id", followID)
 		} else if err != nil {
 			slog.Warn("Failed to fetch follow ID of unknown remote follow", "followed", d.Followed, "follower", follower, "error", err)
@@ -314,7 +362,10 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 }
 
 func (s *Syncer) processBatch(ctx context.Context) (int, error) {
-	if _, err := s.DB.ExecContext(ctx, `DELETE FROM follows_sync WHERE NOT EXISTS (SELECT 1 FROM persons WHERE persons.id = follows_sync.actor)`); err != nil {
+	if _, err := s.DB.ExecContext(
+		ctx,
+		`DELETE FROM follows_sync WHERE NOT EXISTS (SELECT 1 FROM persons WHERE persons.id = follows_sync.actor)`,
+	); err != nil {
 		return 0, err
 	}
 
@@ -345,7 +396,11 @@ func (s *Syncer) processBatch(ctx context.Context) (int, error) {
 			slog.Warn("Failed to sync followers", "actor", job.Followed, "error", err)
 		}
 
-		if _, err := s.DB.ExecContext(ctx, `UPDATE follows_sync SET changed = UNIXEPOCH() WHERE actor = ?`, job.Followed); err != nil {
+		if _, err := s.DB.ExecContext(
+			ctx,
+			`UPDATE follows_sync SET changed = UNIXEPOCH() WHERE actor = ?`,
+			job.Followed,
+		); err != nil {
 			return 0, fmt.Errorf("failed to update last sync time for %s: %w", job.Followed, err)
 		}
 	}

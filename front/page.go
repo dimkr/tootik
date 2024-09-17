@@ -42,7 +42,13 @@ func getOffset(requestUrl *url.URL) (int, error) {
 	return int(offset), nil
 }
 
-func (h *Handler) showFeedPage(w text.Writer, r *Request, title string, query func(int) (*sql.Rows, error), printDaySeparators bool) {
+func (h *Handler) showFeedPage(
+	w text.Writer,
+	r *Request,
+	title string,
+	query func(int) (*sql.Rows, error),
+	printDaySeparators bool,
+) {
 	offset, err := getOffset(r.URL)
 	if err != nil {
 		r.Log.Info("Failed to parse query", "url", r.URL, "error", err)

@@ -32,7 +32,11 @@ func Unfollow(ctx context.Context, domain string, db *sql.DB, follower, followed
 		return fmt.Errorf("%s cannot unfollow %s", follower, followed)
 	}
 
-	undoID := fmt.Sprintf("https://%s/undo/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", follower, followed, time.Now().UnixNano()))))
+	undoID := fmt.Sprintf(
+		"https://%s/undo/%x",
+		domain,
+		sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", follower, followed, time.Now().UnixNano()))),
+	)
 
 	to := ap.Audience{}
 	to.Add(followed)
@@ -75,7 +79,11 @@ func Unfollow(ctx context.Context, domain string, db *sql.DB, follower, followed
 		return fmt.Errorf("failed to insert undo for %s: %w", followID, err)
 	}
 
-	if _, err := tx.ExecContext(ctx, `delete from follows where id = ?`, followID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if _, err := tx.ExecContext(
+		ctx,
+		`delete from follows where id = ?`,
+		followID,
+	); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("failed to unfollow %s: %w", followID, err)
 	}
 

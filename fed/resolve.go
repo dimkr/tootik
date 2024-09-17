@@ -88,7 +88,12 @@ func NewResolver(blockedDomains *BlockList, domain string, cfg *cfg.Config, clie
 }
 
 // ResolveID retrieves an actor object by its ID.
-func (r *Resolver) ResolveID(ctx context.Context, key httpsig.Key, id string, flags ap.ResolverFlag) (*ap.Actor, error) {
+func (r *Resolver) ResolveID(
+	ctx context.Context,
+	key httpsig.Key,
+	id string,
+	flags ap.ResolverFlag,
+) (*ap.Actor, error) {
 	u, err := url.Parse(id)
 	if err != nil {
 		return nil, fmt.Errorf("cannot resolve %s: %w", id, err)
@@ -115,7 +120,12 @@ func (r *Resolver) ResolveID(ctx context.Context, key httpsig.Key, id string, fl
 }
 
 // Resolve retrieves an actor object by host and name.
-func (r *Resolver) Resolve(ctx context.Context, key httpsig.Key, host, name string, flags ap.ResolverFlag) (*ap.Actor, error) {
+func (r *Resolver) Resolve(
+	ctx context.Context,
+	key httpsig.Key,
+	host, name string,
+	flags ap.ResolverFlag,
+) (*ap.Actor, error) {
 	if actor, err := r.tryResolveOrCache(ctx, key, host, name, flags); err != nil {
 		return nil, err
 	} else if actor.Suspended {
@@ -125,7 +135,12 @@ func (r *Resolver) Resolve(ctx context.Context, key httpsig.Key, host, name stri
 	}
 }
 
-func (r *Resolver) tryResolveOrCache(ctx context.Context, key httpsig.Key, host, name string, flags ap.ResolverFlag) (*ap.Actor, error) {
+func (r *Resolver) tryResolveOrCache(
+	ctx context.Context,
+	key httpsig.Key,
+	host, name string,
+	flags ap.ResolverFlag,
+) (*ap.Actor, error) {
 	actor, cachedActor, err := r.tryResolve(ctx, key, host, name, flags)
 	if err != nil && cachedActor != nil && cachedActor.Published != nil && time.Since(cachedActor.Published.Time) < r.Config.MinActorAge {
 		slog.Warn("Failed to update cached actor", "host", host, "name", name, "error", err)
@@ -142,11 +157,19 @@ func (r *Resolver) tryResolveOrCache(ctx context.Context, key httpsig.Key, host,
 }
 
 func deleteActor(ctx context.Context, db *sql.DB, id string) {
-	if _, err := db.ExecContext(ctx, `delete from notesfts where exists (select 1 from notes where notes.author = ? and notesfts.id = notes.id)`, id); err != nil {
+	if _, err := db.ExecContext(
+		ctx,
+		`delete from notesfts where exists (select 1 from notes where notes.author = ? and notesfts.id = notes.id)`,
+		id,
+	); err != nil {
 		slog.Warn("Failed to delete notes by actor", "id", id, "error", err)
 	}
 
-	if _, err := db.ExecContext(ctx, `delete from shares where by = $1 or exists (select 1 from notes where notes.author = ? and notes.id = shares.note)`, id); err != nil {
+	if _, err := db.ExecContext(
+		ctx,
+		`delete from shares where by = $1 or exists (select 1 from notes where notes.author = ? and notes.id = shares.note)`,
+		id,
+	); err != nil {
 		slog.Warn("Failed to delete shares by actor", "id", id, "error", err)
 	}
 
@@ -171,7 +194,12 @@ func deleteActor(ctx context.Context, db *sql.DB, id string) {
 	}
 }
 
-func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
+func (r *Resolver) tryResolve(
+	ctx context.Context,
+	key httpsig.Key,
+	host, name string,
+	flags ap.ResolverFlag,
+) (*ap.Actor, *ap.Actor, error) {
 	slog.Debug("Resolving actor", "host", host, "name", name)
 
 	if r.BlockedDomains != nil && r.BlockedDomains.Contains(host) {
@@ -198,7 +226,12 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 	var updated, inserted int64
 	var fetched sql.NullInt64
 	var sinceLastUpdate time.Duration
-	if err := r.db.QueryRowContext(ctx, `select actor, updated, fetched, inserted from persons where actor->>'$.preferredUsername' = $1 and host = $2`, name, host).Scan(&tmp, &updated, &fetched, &inserted); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := r.db.QueryRowContext(
+		ctx,
+		`select actor, updated, fetched, inserted from persons where actor->>'$.preferredUsername' = $1 and host = $2`,
+		name,
+		host,
+	).Scan(&tmp, &updated, &fetched, &inserted); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, fmt.Errorf("failed to fetch %s%s cache: %w", name, host, err)
 	} else if err == nil {
 		cachedActor = &tmp

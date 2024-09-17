@@ -37,7 +37,11 @@ var ErrDeliveryQueueFull = errors.New("delivery queue is full")
 // Create queues a Create activity for delivery.
 func Create(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, post *ap.Object, author *ap.Actor) error {
 	var queueSize int
-	if err := db.QueryRowContext(ctx, `select count(distinct activity->'$.id') from outbox where sent = 0 and attempts < ?`, cfg.MaxDeliveryAttempts).Scan(&queueSize); err != nil {
+	if err := db.QueryRowContext(
+		ctx,
+		`select count(distinct activity->'$.id') from outbox where sent = 0 and attempts < ?`,
+		cfg.MaxDeliveryAttempts,
+	).Scan(&queueSize); err != nil {
 		return fmt.Errorf("failed to query delivery queue size: %w", err)
 	}
 
@@ -48,11 +52,15 @@ func Create(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, pos
 	create := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		Type:    ap.Create,
-		ID:      fmt.Sprintf("https://%s/create/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", post.ID, time.Now().Unix())))),
-		Actor:   author.ID,
-		Object:  post,
-		To:      post.To,
-		CC:      post.CC,
+		ID: fmt.Sprintf(
+			"https://%s/create/%x",
+			domain,
+			sha256.Sum256([]byte(fmt.Sprintf("%s|%d", post.ID, time.Now().Unix()))),
+		),
+		Actor:  author.ID,
+		Object: post,
+		To:     post.To,
+		CC:     post.CC,
 	}
 
 	j, err := json.Marshal(create)
@@ -70,7 +78,12 @@ func Create(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, pos
 		return fmt.Errorf("failed to insert note: %w", err)
 	}
 
-	if _, err = tx.ExecContext(ctx, `insert into outbox (activity, sender) values(?,?)`, string(j), author.ID); err != nil {
+	if _, err = tx.ExecContext(
+		ctx,
+		`insert into outbox (activity, sender) values(?,?)`,
+		string(j),
+		author.ID,
+	); err != nil {
 		return fmt.Errorf("failed to insert Create: %w", err)
 	}
 

@@ -59,7 +59,14 @@ const (
 	retryInterval  = time.Millisecond * 100
 )
 
-func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks <-chan []byte, done chan<- string, s net.PacketConn) {
+func (gl *Listener) handle(
+	ctx context.Context,
+	from net.Addr,
+	req []byte,
+	acks <-chan []byte,
+	done chan<- string,
+	s net.PacketConn,
+) {
 	defer func() {
 		done <- from.String()
 	}()

@@ -36,7 +36,11 @@ func (l *Listener) handleIcon(w http.ResponseWriter, r *http.Request) {
 	slog.Info("Looking up cached icon", "name", name)
 
 	var cache []byte
-	if err := l.DB.QueryRowContext(r.Context(), `select buf from icons where name = ?`, name).Scan(&cache); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := l.DB.QueryRowContext(
+		r.Context(),
+		`select buf from icons where name = ?`,
+		name,
+	).Scan(&cache); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		slog.Warn("Failed to get cached icon", "name", name, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -48,7 +52,12 @@ func (l *Listener) handleIcon(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var exists int
-	if err := l.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where actor->>'$.preferredUsername' = ? and host = ?)`, name, l.Domain).Scan(&exists); err != nil {
+	if err := l.DB.QueryRowContext(
+		r.Context(),
+		`select exists (select 1 from persons where actor->>'$.preferredUsername' = ? and host = ?)`,
+		name,
+		l.Domain,
+	).Scan(&exists); err != nil {
 		slog.Warn("Failed to check if user exists", "name", name, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return

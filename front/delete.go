@@ -34,7 +34,12 @@ func (h *Handler) delete(w text.Writer, r *Request, args ...string) {
 	postID := "https://" + args[1]
 
 	var note ap.Object
-	if err := h.DB.QueryRowContext(r.Context, `select object from notes where id = ? and author = ?`, postID, r.User.ID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := h.DB.QueryRowContext(
+		r.Context,
+		`select object from notes where id = ? and author = ?`,
+		postID,
+		r.User.ID,
+	).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Attempted to delete a non-existing post", "post", postID, "error", err)
 		w.Error()
 		return

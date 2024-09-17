@@ -119,12 +119,47 @@ func (a *Activity) Value() (driver.Value, error) {
 
 func (a *Activity) LogValue() slog.Value {
 	if o, ok := a.Object.(*Object); ok {
-		return slog.GroupValue(slog.String("id", a.ID), slog.String("type", string(a.Type)), slog.String("actor", a.Actor), slog.Group("object", "kind", "object", "id", o.ID, "type", o.Type, "attributed_to", o.AttributedTo))
+		return slog.GroupValue(
+			slog.String("id", a.ID),
+			slog.String("type", string(a.Type)),
+			slog.String("actor", a.Actor),
+			slog.Group(
+				"object",
+				"kind", "object",
+				"id", o.ID,
+				"type", o.Type,
+				"attributed_to", o.AttributedTo,
+			),
+		)
 	} else if inner, ok := a.Object.(*Activity); ok {
-		return slog.GroupValue(slog.String("id", a.ID), slog.String("type", string(a.Type)), slog.String("actor", a.Actor), slog.Group("object", "kind", "activity", "id", inner.ID, "type", inner.Type, "actor", inner.Actor))
+		return slog.GroupValue(
+			slog.String("id", a.ID),
+			slog.String("type", string(a.Type)),
+			slog.String("actor", a.Actor),
+			slog.Group(
+				"object",
+				"kind", "activity",
+				"id", inner.ID,
+				"type", inner.Type,
+				"actor", inner.Actor,
+			),
+		)
 	} else if s, ok := a.Object.(string); ok {
-		return slog.GroupValue(slog.String("id", a.ID), slog.String("type", string(a.Type)), slog.String("actor", a.Actor), slog.Group("object", "kind", "string", "id", s))
+		return slog.GroupValue(
+			slog.String("id", a.ID),
+			slog.String("type", string(a.Type)),
+			slog.String("actor", a.Actor),
+			slog.Group(
+				"object",
+				"kind", "string",
+				"id", s,
+			),
+		)
 	} else {
-		return slog.GroupValue(slog.String("id", a.ID), slog.String("type", string(a.Type)), slog.String("actor", a.Actor))
+		return slog.GroupValue(
+			slog.String("id", a.ID),
+			slog.String("type", string(a.Type)),
+			slog.String("actor", a.Actor),
+		)
 	}
 }

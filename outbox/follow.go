@@ -32,7 +32,11 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 		return fmt.Errorf("%s cannot follow %s", follower.ID, followed)
 	}
 
-	followID := fmt.Sprintf("https://%s/follow/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", follower.ID, followed, time.Now().UnixNano()))))
+	followID := fmt.Sprintf(
+		"https://%s/follow/%x",
+		domain,
+		sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", follower.ID, followed, time.Now().UnixNano()))),
+	)
 
 	to := ap.Audience{}
 	to.Add(followed)

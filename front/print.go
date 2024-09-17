@@ -127,7 +127,14 @@ func (h *Handler) getActorDisplayName(actor *ap.Actor) string {
 	return h.getDisplayName(actor.ID, userName, name, actor.Type)
 }
 
-func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *ap.Actor, sharer *ap.Actor, published time.Time, compact, printAuthor, printParentAuthor, titleIsLink bool) {
+func (h *Handler) PrintNote(
+	w text.Writer,
+	r *Request,
+	note *ap.Object,
+	author, sharer *ap.Actor,
+	published time.Time,
+	compact, printAuthor, printParentAuthor, titleIsLink bool,
+) {
 	if note.AttributedTo == "" {
 		r.Log.Warn("Note has no author", "id", note.ID)
 		return
@@ -214,7 +221,11 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 	}
 
 	var replies int
-	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where object->>'$.inReplyTo' = ?`, note.ID).Scan(&replies); err != nil {
+	if err := h.DB.QueryRowContext(
+		r.Context,
+		`select count(*) from notes where object->>'$.inReplyTo' = ?`,
+		note.ID,
+	).Scan(&replies); err != nil {
 		r.Log.Warn("Failed to count replies", "id", note.ID, "error", err)
 	}
 
@@ -237,7 +248,11 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 
 	var parentAuthor sql.Null[ap.Actor]
 	if note.InReplyTo != "" {
-		if err := h.DB.QueryRowContext(r.Context, `select persons.actor from notes join persons on persons.id = notes.author where notes.id = ?`, note.InReplyTo).Scan(&parentAuthor); err != nil && errors.Is(err, sql.ErrNoRows) {
+		if err := h.DB.QueryRowContext(
+			r.Context,
+			`select persons.actor from notes join persons on persons.id = notes.author where notes.id = ?`,
+			note.InReplyTo,
+		).Scan(&parentAuthor); err != nil && errors.Is(err, sql.ErrNoRows) {
 			r.Log.Info("Parent post or author is missing", "id", note.InReplyTo)
 		} else if err != nil {
 			r.Log.Warn("Failed to query parent post author", "id", note.InReplyTo, "error", err)
@@ -302,7 +317,11 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 
 		for mentionID := range mentionedUsers.Keys() {
 			var mentionUserName string
-			if err := h.DB.QueryRowContext(r.Context, `select actor->>'$.preferredUsername' from persons where id = ?`, mentionID).Scan(&mentionUserName); err != nil && errors.Is(err, sql.ErrNoRows) {
+			if err := h.DB.QueryRowContext(
+				r.Context,
+				`select actor->>'$.preferredUsername' from persons where id = ?`,
+				mentionID,
+			).Scan(&mentionUserName); err != nil && errors.Is(err, sql.ErrNoRows) {
 				r.Log.Warn("Mentioned user is unknown", "mention", mentionID)
 				continue
 			} else if err != nil {
@@ -404,7 +423,12 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 
 		for tag := range hashtags.Values() {
 			var exists int
-			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from hashtags where hashtag = ? and note != ?)`, tag, note.ID).Scan(&exists); err != nil {
+			if err := h.DB.QueryRowContext(
+				r.Context,
+				`select exists (select 1 from hashtags where hashtag = ? and note != ?)`,
+				tag,
+				note.ID,
+			).Scan(&exists); err != nil {
 				r.Log.Warn("Failed to check if hashtag is used by other posts", "note", note.ID, "hashtag", tag)
 				continue
 			}
@@ -435,7 +459,12 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 
 		if r.User != nil && note.IsPublic() && note.AttributedTo != r.User.ID {
 			var shared int
-			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from shares where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&shared); err != nil {
+			if err := h.DB.QueryRowContext(
+				r.Context,
+				`select exists (select 1 from shares where note = ? and by = ?)`,
+				note.ID,
+				r.User.ID,
+			).Scan(&shared); err != nil {
 				r.Log.Warn("Failed to check if post is shared", "id", note.ID, "error", err)
 			} else if shared == 0 {
 				w.Link("/users/share/"+strings.TrimPrefix(note.ID, "https://"), "🔁 Share")
@@ -451,7 +480,13 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 	}
 }
 
-func (h *Handler) PrintNotes(w text.Writer, r *Request, rows *sql.Rows, printParentAuthor, printDaySeparators bool, fallback string) int {
+func (h *Handler) PrintNotes(
+	w text.Writer,
+	r *Request,
+	rows *sql.Rows,
+	printParentAuthor, printDaySeparators bool,
+	fallback string,
+) int {
 	var lastDay int64
 	count := 0
 	for rows.Next() {

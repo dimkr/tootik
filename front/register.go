@@ -57,7 +57,12 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 	certHash := fmt.Sprintf("%x", sha256.Sum256(clientCert.Raw))
 
 	var taken int
-	if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from persons where host = ? and certhash = ?)`, h.Domain, certHash).Scan(&taken); err != nil {
+	if err := h.DB.QueryRowContext(
+		r.Context,
+		`select exists (select 1 from persons where host = ? and certhash = ?)`,
+		h.Domain,
+		certHash,
+	).Scan(&taken); err != nil {
 		r.Log.Warn("Failed to check if cerificate hash is already in use", "hash", certHash, "error", err)
 		w.Error()
 		return
@@ -93,7 +98,12 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from persons where actor->>'$.preferredUsername' = ? and host = ?)`, userName, h.Domain).Scan(&taken); err != nil {
+	if err := h.DB.QueryRowContext(
+		r.Context,
+		`select exists (select 1 from persons where actor->>'$.preferredUsername' = ? and host = ?)`,
+		userName,
+		h.Domain,
+	).Scan(&taken); err != nil {
 		r.Log.Warn("Failed to check if username is taken", "name", userName, "error", err)
 		w.Error()
 		return
@@ -106,7 +116,11 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 	}
 
 	var lastRegister sql.NullInt64
-	if err := h.DB.QueryRowContext(r.Context, `select max(inserted) from persons where host = ?`, h.Domain).Scan(&lastRegister); err != nil {
+	if err := h.DB.QueryRowContext(
+		r.Context,
+		`select max(inserted) from persons where host = ?`,
+		h.Domain,
+	).Scan(&lastRegister); err != nil {
 		r.Log.Warn("Failed to check last registration time", "name", userName, "error", err)
 		w.Error()
 		return
