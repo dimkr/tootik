@@ -58,7 +58,12 @@ func (h *Handler) doEdit(w text.Writer, r *Request, args []string, readInput inp
 	var edits int
 	if err := h.DB.QueryRowContext(
 		r.Context,
-		`select count(*) from outbox where activity->>'$.object.id' = ? and sender = ? and (activity->>'$.type' = 'Update' or activity->>'$.type' = 'Create')`,
+		`select count(*) from
+		outbox
+		where
+			activity->>'$.object.id' = ? and
+			sender = ? and
+			(activity->>'$.type' = 'Update' or activity->>'$.type' = 'Create')`,
 		note.ID,
 		r.User.ID,
 	).Scan(&edits); err != nil {

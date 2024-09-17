@@ -40,7 +40,24 @@ func (h *Handler) thread(w text.Writer, r *Request, args ...string) {
 	var threadHead sql.NullString
 	if err := h.DB.QueryRowContext(
 		r.Context,
-		`with recursive thread(id, parent) as (select notes.id, notes.object->>'$.inReplyTo' as parent from notes where id = ? union all select notes.id, notes.object->>'$.inReplyTo' as parent from thread t join notes on notes.id = t.parent) select thread.id from thread where thread.parent is null limit 1`,
+		`with recursive thread(id, parent) as (
+			select notes.id, notes.object->>'$.inReplyTo' as parent from
+			notes
+			where
+				id = ?
+			union all
+			select notes.id, notes.object->>'$.inReplyTo' as parent from
+			thread t
+			join
+			notes
+			on
+				notes.id = t.parent
+		)
+		select thread.id from
+		thread
+		where
+			thread.parent is null
+		limit 1`,
 		postID,
 	).Scan(&threadHead); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Failed to fetch thread head", "error", err)
@@ -52,7 +69,14 @@ func (h *Handler) thread(w text.Writer, r *Request, args ...string) {
 	var rootAuthorName sql.NullString
 	if err := h.DB.QueryRowContext(
 		r.Context,
-		`select persons.id, persons.actor->>'$.type', persons.actor->>'$.preferredUsername', persons.actor->>'$.name' from notes join persons on persons.id = notes.author where notes.id = ?`,
+		`select persons.id, persons.actor->>'$.type', persons.actor->>'$.preferredUsername', persons.actor->>'$.name' from
+		notes
+		join
+		persons
+		on
+			persons.id = notes.author
+		where
+			notes.id = ?`,
 		postID,
 	).Scan(&rootAuthorID, &rootAuthorType, &rootAuthorUsername, &rootAuthorName); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Failed to fetch thread root author", "error", err)
@@ -62,7 +86,30 @@ func (h *Handler) thread(w text.Writer, r *Request, args ...string) {
 
 	rows, err := h.DB.QueryContext(
 		r.Context,
-		`select thread.depth, thread.id, strftime('%Y-%m-%d', datetime(thread.inserted, 'unixepoch')), persons.actor->>'$.preferredUsername' from (with recursive thread(id, author, inserted, parent, depth, path) as (select notes.id, notes.author, notes.inserted, object->>'$.inReplyTo' as parent, 0 as depth, notes.inserted || notes.id as path from notes where id = $1 union all select notes.id, notes.author, notes.inserted, notes.object->>'$.inReplyTo', t.depth + 1, t.path || notes.inserted || notes.id from thread t join notes on notes.object->>'$.inReplyTo' = t.id) select thread.depth, thread.id, thread.author, thread.inserted, thread.path from thread order by thread.path limit $2 offset $3) thread join persons on persons.id = thread.author order by thread.path`,
+		`select thread.depth, thread.id, strftime('%Y-%m-%d', datetime(thread.inserted, 'unixepoch')), persons.actor->>'$.preferredUsername' from (
+			with recursive thread(id, author, inserted, parent, depth, path) as (
+				select notes.id, notes.author, notes.inserted, object->>'$.inReplyTo' as parent, 0 as depth, notes.inserted || notes.id as path from
+				notes
+				where
+					id = $1
+				union all
+				select notes.id, notes.author, notes.inserted, notes.object->>'$.inReplyTo', t.depth + 1, t.path || notes.inserted || notes.id from
+				thread t
+				join notes
+				on
+					notes.object->>'$.inReplyTo' = t.id
+			)
+			select thread.depth, thread.id, thread.author, thread.inserted, thread.path from
+			thread
+			order by
+				thread.path limit $2
+				offset $3
+		) thread
+		join persons
+		on
+			persons.id = thread.author
+		order by
+			thread.path`,
 		postID,
 		h.Config.PostsPerPage,
 		offset,

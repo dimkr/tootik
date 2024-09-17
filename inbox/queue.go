@@ -48,7 +48,16 @@ const maxActivityDepth = 3
 
 var ErrActivityTooNested = errors.New("exceeded activity depth limit")
 
-func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity T, post *ap.Object, shared bool) error {
+func processCreateActivity[T ap.RawActivity](
+	ctx context.Context,
+	q *Queue,
+	log *slog.Logger,
+	sender *ap.Actor,
+	activity *ap.Activity,
+	rawActivity T,
+	post *ap.Object,
+	shared bool,
+) error {
 	prefix := fmt.Sprintf("https://%s/", q.Domain)
 	if strings.HasPrefix(sender.ID, prefix) || strings.HasPrefix(post.ID, prefix) || strings.HasPrefix(post.AttributedTo, prefix) || strings.HasPrefix(activity.Actor, prefix) {
 		return fmt.Errorf("received invalid Create for %s by %s from %s", post.ID, post.AttributedTo, activity.Actor)
@@ -73,7 +82,10 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 	}
 
 	var audience sql.NullString
-	if err := q.DB.QueryRowContext(ctx, `select object->>'$.audience' from notes where id = ?`, post.ID).Scan(&audience); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := q.DB.QueryRowContext(
+		ctx,
+		`select object->>'$.audience' from notes where id = ?`,
+		post.ID).Scan(&audience); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("failed to check of %s is a duplicate: %w", post.ID, err)
 	} else if err == nil {
 		if sender.ID == post.Audience && !audience.Valid {
@@ -83,11 +95,21 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 			}
 			defer tx.Rollback()
 
-			if _, err := tx.ExecContext(ctx, `update notes set object = json_set(object, '$.audience', ?) where id = ? and object->>'$.audience' is null`, post.Audience, post.ID); err != nil {
+			if _, err := tx.ExecContext(
+				ctx,
+				`update notes set object = json_set(object, '$.audience', ?) where id = ? and object->>'$.audience' is null`,
+				post.Audience,
+				post.ID,
+			); err != nil {
 				return fmt.Errorf("failed to set %s audience to %s: %w", post.ID, audience.String, err)
 			}
 
-			if _, err := tx.ExecContext(ctx, `update feed set note = json_set(note, '$.audience', ?) where note->>'$.id' = ? and note->>'$.audience' is null`, post.Audience, post.ID); err != nil {
+			if _, err := tx.ExecContext(
+				ctx,
+				`update feed set note = json_set(note, '$.audience', ?) where note->>'$.id' = ? and note->>'$.audience' is null`,
+				post.Audience,
+				post.ID,
+			); err != nil {
 				return fmt.Errorf("failed to set %s audience to %s: %w", post.ID, audience.String, err)
 			}
 
@@ -157,7 +179,16 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 	return nil
 }
 
-func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity T, depth int, shared bool) error {
+func processActivity[T ap.RawActivity](
+	ctx context.Context,
+	q *Queue,
+	log *slog.Logger,
+	sender *ap.Actor,
+	activity *ap.Activity,
+	rawActivity T,
+	depth int,
+	shared bool,
+) error {
 	if depth == maxActivityDepth {
 		return ErrActivityTooNested
 	}
@@ -190,7 +221,12 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 			defer tx.Rollback()
 
 			var note ap.Object
-			if err := q.DB.QueryRowContext(ctx, `select object from notes where id = $1 and (author = $2 or object->>'$.audience' = $2)`, deleted, sender.ID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
+			if err := q.DB.QueryRowContext(
+				ctx,
+				`select object from notes where id = $1 and (author = $2 or object->>'$.audience' = $2)`,
+				deleted,
+				sender.ID,
+			).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
 				log.Debug("Received delete request for non-existing post", "deleted", deleted)
 				return nil
 			} else if err != nil {
@@ -320,7 +356,12 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 			return errors.New("received an undo request on federated actor")
 		}
 
-		if _, err := q.DB.ExecContext(ctx, `delete from follows where follower = ? and followed = ?`, follower, followed); err != nil {
+		if _, err := q.DB.ExecContext(
+			ctx,
+			`delete from follows where follower = ? and followed = ?`,
+			follower,
+			followed,
+		); err != nil {
 			return fmt.Errorf("failed to remove follow of %s by %s: %w", followed, follower, err)
 		}
 
@@ -373,7 +414,12 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 
 		var oldPost ap.Object
 		var lastChange int64
-		if err := q.DB.QueryRowContext(ctx, `select max(inserted, updated), object from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastChange, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
+		if err := q.DB.QueryRowContext(
+			ctx,
+			`select max(inserted, updated), object from notes where id = ? and author = ?`,
+			post.ID,
+			post.AttributedTo,
+		).Scan(&lastChange, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
 			log.Debug("Received Update for non-existing post")
 			return processCreateActivity(ctx, q, log, sender, activity, rawActivity, post, shared)
 		} else if err != nil {
@@ -467,7 +513,12 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 	return nil
 }
 
-func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Actor, activity *ap.Activity, rawActivity data.JSON) {
+func (q *Queue) processActivityWithTimeout(
+	parent context.Context,
+	sender *ap.Actor,
+	activity *ap.Activity,
+	rawActivity data.JSON,
+) {
 	ctx, cancel := context.WithTimeout(parent, q.Config.ActivityProcessingTimeout)
 	defer cancel()
 
@@ -481,7 +532,23 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Ac
 func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	slog.Debug("Polling activities queue")
 
-	rows, err := q.DB.QueryContext(ctx, `select inbox.id, persons.actor, inbox.activity from (select * from inbox limit -1 offset case when (select count(*) from inbox) >= $1 then $1/10 else 0 end) inbox left join persons on persons.id = inbox.sender order by inbox.id limit $2`, q.Config.MaxActivitiesQueueSize, q.Config.ActivitiesBatchSize)
+	rows, err := q.DB.QueryContext(
+		ctx,
+		`select inbox.id, persons.actor, inbox.activity from (
+		select * from
+		inbox
+		limit -1
+		offset case when (select count(*) from inbox) >= $1 then $1/10 else 0 end
+	) inbox
+	left join persons
+	on
+		persons.id = inbox.sender
+	order by
+		inbox.id
+	limit $2`,
+		q.Config.MaxActivitiesQueueSize,
+		q.Config.ActivitiesBatchSize,
+	)
 	if err != nil {
 		return 0, fmt.Errorf("failed to fetch activities to process: %w", err)
 	}

@@ -147,9 +147,11 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 	}
 
 	for path, lines := range files {
-		h.handlers[regexp.MustCompile(fmt.Sprintf(`^%s$`, path))] = withUserMenu(func(w text.Writer, r *Request, args ...string) {
-			serveStaticFile(lines, w, r, args...)
-		})
+		h.handlers[regexp.MustCompile(fmt.Sprintf(`^%s$`, path))] = withUserMenu(
+			func(w text.Writer, r *Request, args ...string) {
+				serveStaticFile(lines, w, r, args...)
+			},
+		)
 	}
 
 	return h, nil

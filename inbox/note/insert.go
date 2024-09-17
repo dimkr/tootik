@@ -103,7 +103,12 @@ func Insert(ctx context.Context, tx *sql.Tx, note *ap.Object) error {
 	}
 
 	for _, hashtag := range hashtags {
-		if _, err := tx.ExecContext(ctx, `insert into hashtags (note, hashtag) values(?,?)`, note.ID, hashtag); err != nil {
+		if _, err := tx.ExecContext(
+			ctx,
+			`insert into hashtags (note, hashtag) values(?,?)`,
+			note.ID,
+			hashtag,
+		); err != nil {
 			slog.Warn("Failed to tag post", "post", note.ID, "hashtag", hashtag, "error", err)
 		}
 	}

@@ -100,7 +100,11 @@ func (h *Handler) post(
 
 	var postID string
 	if oldNote == nil {
-		postID = fmt.Sprintf("https://%s/post/%x", h.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", r.User.ID, content, now.Unix()))))
+		postID = fmt.Sprintf(
+			"https://%s/post/%x",
+			h.Domain,
+			sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", r.User.ID, content, now.Unix()))),
+		)
 	} else {
 		postID = oldNote.ID
 	}
@@ -108,7 +112,11 @@ func (h *Handler) post(
 	var tags []ap.Tag
 
 	for _, hashtag := range hashtagRegex.FindAllString(content, -1) {
-		tags = append(tags, ap.Tag{Type: ap.Hashtag, Name: hashtag, Href: fmt.Sprintf("gemini://%s/hashtag/%s", h.Domain, hashtag[1:])})
+		tags = append(tags, ap.Tag{
+			Type: ap.Hashtag,
+			Name: hashtag,
+			Href: fmt.Sprintf("gemini://%s/hashtag/%s", h.Domain, hashtag[1:]),
+		})
 	}
 
 	for _, mention := range mentionRegex.FindAllStringSubmatch(content, -1) {
@@ -120,7 +128,25 @@ func (h *Handler) post(
 		if mention[2] == "" && inReplyTo != nil {
 			err = h.DB.QueryRowContext(
 				r.Context,
-				`select id from (select id, case when id = $1 then 3 when id in (select followed from follows where follower = $2 and accepted = 1) then 2 when host = $3 then 1 else 0 end as score from persons where actor->>'$.preferredUsername' = $4) where score > 0 order by score desc limit 1`,
+				`select id from (
+					select
+						id,
+						case when
+							id = $1 then 3
+							when id in (select followed from follows where follower = $2 and accepted = 1) then 2
+							when host = $3 then 1
+							else 0
+						end as score
+					from
+					persons
+					where
+						actor->>'$.preferredUsername' = $4
+				)
+				where
+					score > 0
+				order by
+					score desc
+				limit 1`,
 				inReplyTo.AttributedTo,
 				r.User.ID,
 				h.Domain,
@@ -129,7 +155,24 @@ func (h *Handler) post(
 		} else if mention[2] == "" && inReplyTo == nil {
 			err = h.DB.QueryRowContext(
 				r.Context,
-				`select id from (select id, case when host = $1 then 2 when id in (select followed from follows where follower = $2 and accepted = 1) then 1 else 0 end as score from persons where actor->>'$.preferredUsername' = $3) where score > 0 order by score desc limit 1`,
+				`select id from (
+					select
+						id,
+						case when
+							host = $1 then 2
+							when id in (select followed from follows where follower = $2 and accepted = 1) then 1
+							else 0
+						end as score
+					from
+					persons
+					where
+						actor->>'$.preferredUsername' = $3
+				)
+				where
+					score > 0
+				order by
+					score desc
+				limit 1`,
 				h.Domain,
 				r.User.ID,
 				mention[1],
