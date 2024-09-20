@@ -75,11 +75,10 @@ type Config struct {
 	GopherRequestTimeout time.Duration
 	LineWidth            int
 
-	GuppyRequestTimeout    time.Duration
-	MaxGuppySessions       int
-	GuppyChunkTimeout      time.Duration
-	GuppyResponseChunkSize int
-	MaxSentGuppyChunks     int
+	GuppyRequestTimeout time.Duration
+	MaxGuppySessions    int
+	GuppyChunkTimeout   time.Duration
+	MaxSentGuppyChunks  int
 
 	DeliveryBatchSize     int
 	DeliveryRetryInterval int64
@@ -271,10 +270,6 @@ func (c *Config) FillDefaults() {
 
 	if c.GuppyChunkTimeout <= 0 {
 		c.GuppyChunkTimeout = time.Second * 2
-	}
-
-	if c.GuppyResponseChunkSize <= 0 {
-		c.GuppyResponseChunkSize = 512
 	}
 
 	if c.MaxSentGuppyChunks <= 0 {
