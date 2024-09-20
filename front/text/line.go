@@ -55,23 +55,32 @@ func LineBuffered(inner io.Writer) *LineWriter {
 				continue
 			}
 
-			w.buffer.Write(buf)
-
-			if buf[len(buf)-1] != '\n' {
-				continue
-			}
-
-			lines++
-
-			if lines == bufferSize {
-				_, err := w.inner.Write(w.buffer.Bytes())
-				if err != nil {
-					w.done <- err
-					return
+			for {
+				if len(buf) == 0 {
+					break
 				}
 
-				w.buffer.Reset()
-				lines = 0
+				i := bytes.IndexByte(buf, '\n')
+				if i == -1 {
+					w.buffer.Write(buf)
+					break
+				}
+
+				w.buffer.Write(buf[:i+1])
+				lines++
+
+				if lines == bufferSize {
+					_, err := w.inner.Write(w.buffer.Bytes())
+					if err != nil {
+						w.done <- err
+						return
+					}
+
+					w.buffer.Reset()
+					lines = 0
+				}
+
+				buf = buf[i+1:]
 			}
 		}
 
