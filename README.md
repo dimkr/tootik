@@ -45,7 +45,11 @@ Welcome, fedinaut! localhost.localdomain:8443 is an instance of tootik, a federa
 
 ## Overview
 
-tootik is a federated, text-based social network. A tootik user can interact with others on the same instance, users on other tootik instances, [Mastodon](https://joinmastodon.org/) users, [Lemmy](https://join-lemmy.org/) users and users of other [ActivityPub](https://www.w3.org/TR/activitypub/)-compatible servers. Unlike other social networks, tootik doesn't have a browser-based interface or an app: instead, its minimalistic, text-based interface is served over [Gemini](https://geminiprotocol.net/):
+tootik is a text-based social network.
+
+tootik is federated: users can join an existing server or [set up](SETUP.md) their own instance. A tootik user can interact with others on the same instance, users on other tootik instances, [Mastodon](https://joinmastodon.org/) users, [Lemmy](https://join-lemmy.org/) users and users of other [ActivityPub](https://www.w3.org/TR/activitypub/)-compatible server.
+
+Unlike other social networks, tootik doesn't have a browser-based interface or an app: instead, its minimalistic, text-based interface is served over [Gemini](https://geminiprotocol.net/):
 
 ```
                          Gemini           ActivityPub (HTTPS)
@@ -77,11 +81,11 @@ tootik is a federated, text-based social network. A tootik user can interact wit
 ```
 
 This makes tootik lightweight, private and accessible:
-* Its UI supports [Gemini](https://geminiprotocol.net/), Gopher, Finger and [Guppy](https://github.com/dimkr/guppy-protocol): there's a wide variety of clients to choose from and some work great on old devices.
+* Its UI supports [Gemini](https://geminiprotocol.net/) but also Gopher, Finger and [Guppy](https://github.com/dimkr/guppy-protocol): there's a wide variety of clients to choose from and some work great on old devices.
 * Rich content is reduced to plain text and links: it's a fast, low-bandwidth UI suitable for screen readers.
 * Anonymity: you authenticate using a TLS client certificate and don't have to share your email address or real name.
 * No promoted content, tracking or analytics: social networking, with the slow and non-commercial vibe of the small internet.
-* It's a single static executable, making it easy to [set up your own instance](SETUP.md) instead of joining an existing one.
+* It's a single static executable, making it easy to [set up your own instance](SETUP.md) and update it later.
 * All instance data is stored in a single file, a [sqlite](https://sqlite.org/) database that is easy to backup and restore.
 * It's lightweight: a <=$5/mo VPS or a SBC is more than enough for a small instance.
 * It implements the subset of ActivityPub required for its feature set but not more, to stay small, reliable and maintainable.
@@ -141,7 +145,7 @@ Most user-visible data is stored in 4 tables in tootik's database:
 3. `persons`, which contains [Actor](https://pkg.go.dev/github.com/dimkr/tootik/ap#Actor) objects that represent users
 4. `follows`, which records "user A follows user B" relationships
 
-`notes.author`, `shares.by`, `follows.follower` and `follows.followed` point to a row in `persons`.
+`notes.author`, `shares.by`, `follows.follower` and `follows.followed` point to rows in `persons`.
 
 `shares.note` points to a row in `notes`.
 
@@ -160,9 +164,9 @@ Federation happens through two tables, `inbox` and `outbox`. Both contain [Activ
 `inbox` contains activities by users on other servers, while `outbox` contains activities of local users.
 
 ```
-                ┏━━━━━━━━━━━━━━━━━┓
-                ┃ gemini.Listener ┃
-                ┗━━━━━━━━┳━━━━━━━━┛
+   ┏━━━━━━━━━━┓ ┏━━━━━━━━━━━━━━━━━┓
+   ┃ gmi.Wrap ┣━┫ gemini.Listener ┃
+   ┗━━━━━━━━━━┛ ┗━━━━━━━━┳━━━━━━━━┛
                 ┏━━━━━━━━┻━━━━━━━━━┓
                 ┃  front.Handler   ┃
                 ┗━━━━━━━━━┳━━━━━━━━┛
@@ -181,12 +185,14 @@ Federation happens through two tables, `inbox` and `outbox`. Both contain [Activ
 
 [gemini.Listener](https://pkg.go.dev/github.com/dimkr/tootik/front/gemini#Listener) is a Gemini server that handles requests using [Handler](https://pkg.go.dev/github.com/dimkr/tootik/front#Handler). It adds rows to `persons` during new user registration and changes rows when users change properties like their display name.
 
-[Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) is responsible for fetching [Actor](https://pkg.go.dev/github.com/dimkr/tootik/ap#Actor)s that represents users of other servers, using `user@domain` pairs and [WebFinger](https://datatracker.ietf.org/doc/html/rfc7033). The fetched objects are cached in `persons`.
+[gemini.Listener](https://pkg.go.dev/github.com/dimkr/tootik/front/gemini#Listener) provides [Handler](https://pkg.go.dev/github.com/dimkr/tootik/front#Handler) with a [writer](https://pkg.go.dev/github.com/dimkr/tootik/front/text/gmi#Wrap) that builds a Gemini response and asynchronously sends it to the client in chunks, while [Handler](https://pkg.go.dev/github.com/dimkr/tootik/front#Handler) continues to handle the request and append more lines to the page.
+
+[Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) is responsible for fetching [Actor](https://pkg.go.dev/github.com/dimkr/tootik/ap#Actor)s that represent users of other servers, using `user@domain` pairs and [WebFinger](https://datatracker.ietf.org/doc/html/rfc7033). The fetched objects are cached in `persons`.
 
 ```
-                ┌─────────────────┐
-                │ gemini.Listener │
-                └────────┬────────┘
+   ┌──────────┐ ┌─────────────────┐
+   │ gmi.Wrap ├─┤ gemini.Listener │
+   └──────────┘ └────────┬────────┘
                 ┌────────┴─────────┐
     ┏━━━━━━━━━━━┥  front.Handler   │
     ┃           └┰────────┬───────┰┘
@@ -213,9 +219,9 @@ In addition, Gemini requests can:
 * ...
 
 ```
-                ┌─────────────────┐
-                │ gemini.Listener │
-                └────────┬────────┘
+   ┌──────────┐ ┌─────────────────┐
+   │ gmi.Wrap ├─┤ gemini.Listener │
+   └──────────┘ └────────┬────────┘
                 ┌────────┴─────────┐
     ┌───────────┤  front.Handler   ┝━━━━━━━━━━━┓
     │           └┬────────┬───────┬┘           ┃
@@ -238,9 +244,9 @@ User actions like post creation or deletion are recorded as [Activity](https://p
 
 ```
                                       ┏━━━━━━━━━━━━━━━┓
-                ┌─────────────────┐   ┃ outbox.Mover  ┃
-                │ gemini.Listener │   ┃ outbox.Poller ┃
-                └────────┬────────┘   ┃ fed.Syncer    ┃
+   ┌──────────┐ ┌─────────────────┐   ┃ outbox.Mover  ┃
+   │ gmi.Wrap ├─┤ gemini.Listener │   ┃ outbox.Poller ┃
+   └──────────┘ └────────┬────────┘   ┃ fed.Syncer    ┃
                 ┌────────┴─────────┐  ┗━━━┳━━━━━┳━━━━━┛
     ┌───────────┤  front.Handler   ├──────╂────┐┃
     │           └┬────────┬───────┬┘      ┃    │┃
@@ -264,9 +270,9 @@ tootik may perform automatic actions in the name of the user:
 
 ```
                                       ┌───────────────┐
-                ┌─────────────────┐   │ outbox.Mover  │
-                │ gemini.Listener │   │ outbox.Poller │
-                └────────┬────────┘   │ fed.Syncer    │
+   ┌──────────┐ ┌─────────────────┐   │ outbox.Mover  │
+   │ gmi.Wrap ├─┤ gemini.Listener │   │ outbox.Poller │
+   └──────────┘ └────────┬────────┘   │ fed.Syncer    │
                 ┌────────┴─────────┐  └───┬─────┬─────┘ ┏━━━━━━━━━━━━━━┓
     ┌───────────┤  front.Handler   ├──────┼────┐│    ┏━━┫ fed.Listener ┣━━━━━━┓
     │           └┬────────┬───────┬┘      │    ││    ┃  ┗━━━━━┳━━━━━━━━┛      ┃
@@ -294,9 +300,9 @@ In addition, [fed.Listener](https://pkg.go.dev/github.com/dimkr/tootik/fed#Liste
 
 ```
                                       ┌───────────────┐
-                ┌─────────────────┐   │ outbox.Mover  │
-                │ gemini.Listener │   │ outbox.Poller │
-                └────────┬────────┘   │ fed.Syncer    │
+   ┌──────────┐ ┌─────────────────┐   │ outbox.Mover  │
+   │ gmi.Wrap ├─┤ gemini.Listener │   │ outbox.Poller │
+   └──────────┘ └────────┬────────┘   │ fed.Syncer    │
                 ┌────────┴─────────┐  └───┬─────┬─────┘ ┌──────────────┐
     ┌───────────┤  front.Handler   ├──────┼────┐│    ┌──┤ fed.Listener ├──────┐
     │           └┬────────┬───────┬┘      │    ││    │  └─────┬────────┘      │
@@ -318,7 +324,7 @@ In addition, [fed.Listener](https://pkg.go.dev/github.com/dimkr/tootik/fed#Liste
 
 Once inserted into `inbox`, [inbox.Queue](https://pkg.go.dev/github.com/dimkr/tootik/inbox#Queue) processes the received activities:
 * Adds new posts received in `Create` activities to `notes`
-* Edits post in `notes` according to `Update` activities
+* Edits posts in `notes` according to `Update` activities
 * Records `Announce` activities in `shares`
 * Marks a follower-followed relationship in `follows` as accepted, when the followed user sends an `Accept` activity
 * Adds a new row to `follows` when a remote user sends a `Follow` activity to a local user
@@ -326,9 +332,9 @@ Once inserted into `inbox`, [inbox.Queue](https://pkg.go.dev/github.com/dimkr/to
 
 ```
                                       ┌───────────────┐
-                ┌─────────────────┐   │ outbox.Mover  │
-                │ gemini.Listener │   │ outbox.Poller │
-                └────────┬────────┘   │ fed.Syncer    │
+   ┌──────────┐ ┌─────────────────┐   │ outbox.Mover  │
+   │ gmi.Wrap ├─┤ gemini.Listener │   │ outbox.Poller │
+   └──────────┘ └────────┬────────┘   │ fed.Syncer    │
                 ┌────────┴─────────┐  └───┬─────┬─────┘ ┌──────────────┐
     ┌───────────┤  front.Handler   ├──────┼────┐│    ┌──┤ fed.Listener ├──────┐
     │           └┬────────┬───────┬┘      │    ││    │  └─────┬────────┘      │
@@ -354,9 +360,9 @@ Sometimes, a received or newly created local [Activity](https://pkg.go.dev/githu
 
 ```
                                       ┌───────────────┐
-                ┌─────────────────┐   │ outbox.Mover  │
-                │ gemini.Listener │   │ outbox.Poller │
-                └────────┬────────┘   │ fed.Syncer    │
+   ┌──────────┐ ┌─────────────────┐   │ outbox.Mover  │
+   │ gmi.Wrap ├─┤ gemini.Listener │   │ outbox.Poller │
+   └──────────┘ └────────┬────────┘   │ fed.Syncer    │
                 ┌────────┴─────────┐  └───┬─────┬─────┘ ┌──────────────┐
     ┌───────────┤  front.Handler   ├──────┼────┐│    ┌──┤ fed.Listener ├──────┐
     │           └┬────────┬───────┬┘      │    ││    │  └─────┬────────┘      │
@@ -381,9 +387,9 @@ To display details like the user's name and speed up the verification of future 
 
 ```
                                       ┌───────────────┐
-                ┌─────────────────┐   │ outbox.Mover  │
-                │ gemini.Listener │   │ outbox.Poller │
-                └────────┬────────┘   │ fed.Syncer    │
+   ┌──────────┐ ┌─────────────────┐   │ outbox.Mover  │
+   │ gmi.Wrap ├─┤ gemini.Listener │   │ outbox.Poller │
+   └──────────┘ └────────┬────────┘   │ fed.Syncer    │
                 ┌────────┴─────────┐  └───┬─────┬─────┘ ┌──────────────┐
     ┌───────────┤  front.Handler   ├──────┼────┐│    ┌──┤ fed.Listener ├──────┐
     │           └┬────────┬───────┬┘      │    ││    │  └─────┬────────┘      │
