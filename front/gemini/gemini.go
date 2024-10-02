@@ -153,7 +153,7 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 	if r.User == nil {
 		r.Log = slog.With(slog.Group("request", "path", r.URL.Path))
 	} else {
-		r.Log = slog.With(slog.Group("request", "path", r.URL.Path, "user", r.User.ID))
+		r.Log = slog.With(slog.Group("request", "path", r.URL.Path, "user", r.User.PreferredUsername))
 	}
 
 	gl.Handler.Handle(&r, w)

@@ -24,7 +24,6 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front/static"
 	"github.com/dimkr/tootik/front/text"
-	"log/slog"
 	"regexp"
 	"sync"
 	"time"
@@ -165,7 +164,7 @@ func (h *Handler) Handle(r *Request, w text.Writer) {
 		}
 	}
 
-	slog.Warn("Received an invalid request", "path", r.URL.Path)
+	r.Log.Warn("Received an invalid request")
 
 	if r.User == nil {
 		w.Redirect("/oops")
