@@ -4,7 +4,7 @@ go 1.23.1
 
 require (
 	github.com/fsnotify/fsnotify v1.7.0
-	github.com/mattn/go-sqlite3 v1.14.23
+	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/image v0.21.0
 	golang.org/x/sync v0.8.0
