@@ -176,18 +176,12 @@ Federation happens through two tables, `inbox` and `outbox`. Both contain [Activ
 │object │ │note    │ │actor    │ │follower │ │activity│ │activity│
 │author │ │by      │ │...      │ │followed │ │sender  │ │sender  │
 │...    │ │...     │ │         │ │...      │ │...     │ │...     │
-└───────┘ └────────┘ └────┰────┘ └─────────┘ └────────┘ └────────┘
-                          ┃
-                  ┏━━━━━━━┻━━━━━━┓
-                  ┃ fed.Resolver ┃
-                  ┗━━━━━━━━━━━━━━┛
+└───────┘ └────────┘ └─────────┘ └─────────┘ └────────┘ └────────┘
 ```
 
 [gemini.Listener](https://pkg.go.dev/github.com/dimkr/tootik/front/gemini#Listener) is a Gemini server that handles requests using [Handler](https://pkg.go.dev/github.com/dimkr/tootik/front#Handler). It adds rows to `persons` during new user registration and changes rows when users change properties like their display name.
 
 [gemini.Listener](https://pkg.go.dev/github.com/dimkr/tootik/front/gemini#Listener) provides [Handler](https://pkg.go.dev/github.com/dimkr/tootik/front#Handler) with a [writer](https://pkg.go.dev/github.com/dimkr/tootik/front/text/gmi#Wrap) that builds a Gemini response and asynchronously sends it to the client in chunks, while [Handler](https://pkg.go.dev/github.com/dimkr/tootik/front#Handler) continues to handle the request and append more lines to the page.
-
-[Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) is responsible for fetching [Actor](https://pkg.go.dev/github.com/dimkr/tootik/ap#Actor)s that represent users of other servers, using `user@domain` pairs and [WebFinger](https://datatracker.ietf.org/doc/html/rfc7033). The fetched objects are cached in `persons`.
 
 ```
    ┌──────────┐ ┌─────────────────┐
@@ -202,11 +196,7 @@ Federation happens through two tables, `inbox` and `outbox`. Both contain [Activ
 │object │ │note    │ │actor    │ │follower │ │activity│ │activity│
 │author │ │by      │ │...      │ │followed │ │sender  │ │sender  │
 │...    │ │...     │ │         │ │...      │ │...     │ │...     │
-└───────┘ └────────┘ └────┬────┘ └─────────┘ └────────┘ └────────┘
-                          │
-                  ┌───────┴──────┐
-                  │ fed.Resolver │
-                  └──────────────┘
+└───────┘ └────────┘ └─────────┘ └─────────┘ └────────┘ └────────┘
 ```
 
 In addition, Gemini requests can:
@@ -231,16 +221,10 @@ In addition, Gemini requests can:
 │object │ │note    │ │actor    │ │follower │ │activity│ │activity│
 │author │ │by      │ │...      │ │followed │ │sender  │ │sender  │
 │...    │ │...     │ │         │ │...      │ │...     │ │...     │
-└───────┘ └────────┘ └────┬────┘ └───────┰─┘ └┰───────┘ └────────┘
-                          │             ┏┻━━━━┻━━━━━┓
-                  ┌───────┴──────┐      ┃ fed.Queue ┃
-                  │ fed.Resolver │      ┗━━━━━━━━━━━┛
-                  └──────────────┘
+└───────┘ └────────┘ └─────────┘ └─────────┘ └────────┘ └────────┘
 ```
 
 User actions like post creation or deletion are recorded as [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) objects written to `outbox`.
-
-[fed.Queue](https://pkg.go.dev/github.com/dimkr/tootik/fed#Queue) polls `outbox` and delivers these activities to followers on other servers. It uses the `deliveries` table to track delivery progress and retry failed deliveries.
 
 ```
                                       ┏━━━━━━━━━━━━━━━┓
@@ -256,17 +240,60 @@ User actions like post creation or deletion are recorded as [Activity](https://p
 │object │ │note    │ │actor    │ │follower │ │activity│ │activity│
 │author │ │by      │ │...      │ │followed │ │sender  │ │sender  │
 │...    │ │...     │ │         │ │...      │ │...     │ │...     │
-└───────┘ └────────┘ └────┬────┘ └───────┬─┘ └┬───────┘ └────────┘
-                          │             ┌┴────┴─────┐
-                  ┌───────┴──────┐      │ fed.Queue │
-                  │ fed.Resolver │      └───────────┘
-                  └──────────────┘
+└───────┘ └────────┘ └─────────┘ └─────────┘ └────────┘ └────────┘
 ```
 
-tootik may perform automatic actions in the name of the user:
+tootik may perform automatic actions and push additional activities to `outbox`, on behalf of the user:
 1. Follow the new account and unfollow the old one, if a followed user moved their account
 2. Update poll results for polls published by the user, and send the new results to followers
 3. Handle disagreement between `follows` rows for this user and what other servers know
+
+```
+                                      ┌───────────────┐
+   ┌──────────┐ ┌─────────────────┐   │ outbox.Mover  │
+   │ gmi.Wrap ├─┤ gemini.Listener │   │ outbox.Poller │
+   └──────────┘ └────────┬────────┘   │ fed.Syncer    │
+                ┌────────┴─────────┐  └───┬─────┬─────┘
+    ┌───────────┤  front.Handler   ├──────┼────┐│
+    │           └┬────────┬───────┬┘      │    ││
+┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┴┐ ┌─┴┴─────┐ ┌────────┐
+│ notes │ │ shares │ │ persons │ │ follows │ │ outbox │ │ inbox  │
+├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├────────┤ ├────────┤
+│object │ │note    │ │actor    │ │follower │ │activity│ │activity│
+│author │ │by      │ │...      │ │followed │ │sender  │ │sender  │
+│...    │ │...     │ │         │ │...      │ │...     │ │...     │
+└───────┘ └────────┘ └─────────┘ └───────┰─┘ └┰───────┘ └────────┘
+                                        ┏┻━━━━┻━━━━━┓
+                                        ┃ fed.Queue ┃
+                                        ┗━━━━━━━━━━━┛
+```
+
+[fed.Queue](https://pkg.go.dev/github.com/dimkr/tootik/fed#Queue) polls `outbox` and delivers these activities to followers on other servers. It uses the `deliveries` table to track delivery progress and retry failed deliveries.
+
+```
+                                      ┌───────────────┐
+   ┌──────────┐ ┌─────────────────┐   │ outbox.Mover  │
+   │ gmi.Wrap ├─┤ gemini.Listener │   │ outbox.Poller │
+   └──────────┘ └────────┬────────┘   │ fed.Syncer    │
+                ┌────────┴─────────┐  └───┬─────┬─────┘
+    ┌───────────┤  front.Handler   ├──────┼────┐│
+    │           └┬────────┬───────┬┘      │    ││
+┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┴┐ ┌─┴┴─────┐ ┌────────┐
+│ notes │ │ shares │ │ persons │ │ follows │ │ outbox │ │ inbox  │
+├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├────────┤ ├────────┤
+│object │ │note    │ │actor    │ │follower │ │activity│ │activity│
+│author │ │by      │ │...      │ │followed │ │sender  │ │sender  │
+│...    │ │...     │ │         │ │...      │ │...     │ │...     │
+└───────┘ └────────┘ └────┰────┘ └───────┬─┘ └┬───────┘ └────────┘
+                          ┃             ┌┴────┴─────┐
+                  ┏━━━━━━━┻━━━━━━┓ ┏━━━━┥ fed.Queue │
+                  ┃ fed.Resolver ┣━┛    └───────────┘
+                  ┗━━━━━━━━━━━━━━┛
+```
+
+[Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) is responsible for fetching [Actor](https://pkg.go.dev/github.com/dimkr/tootik/ap#Actor)s that represent users of other servers, using `user@domain` pairs and [WebFinger](https://datatracker.ietf.org/doc/html/rfc7033). The fetched objects are cached in `persons`, and contain properties like the user's inbox URL and public key.
+
+[fed.Queue](https://pkg.go.dev/github.com/dimkr/tootik/fed#Queue) uses [Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) to make a list of unique inbox URLs each activity should be delivered to. If this is a wide delivery (a public post or a post to followers) and two recipients share the same `sharedInbox`, [fed.Queue](https://pkg.go.dev/github.com/dimkr/tootik/fed#Queue) delivers the activity to both recipients in a single request.
 
 ```
                                       ┌───────────────┐
@@ -284,8 +311,8 @@ tootik may perform automatic actions in the name of the user:
 │...    │ │...     │ │         │ │...      │ │...     │ │...     │            ┃
 └───────┘ └────────┘ └────┬────┘ └───────┬─┘ └┬───────┘ └────────┘            ┃
                           │             ┌┴────┴─────┐                         ┃
-                  ┌───────┴──────┐      │ fed.Queue │                         ┃
-                  │ fed.Resolver │      └───────────┘                         ┃
+                  ┌───────┴──────┐ ┌────┤ fed.Queue │                         ┃
+                  │ fed.Resolver ├─┘    └───────────┘                         ┃
                   └───────┰──────┘                                            ┃
                           ┃                                                   ┃
                           ┃                                                   ┃
@@ -314,8 +341,8 @@ In addition, [fed.Listener](https://pkg.go.dev/github.com/dimkr/tootik/fed#Liste
 │...    │ │...     │ │         │ │...      │ │...     │ │...     │            │
 └───┰───┘ └───┰────┘ └────┬────┘ └────┰──┬─┘ └┬───────┘ └──────┰─┘            │
     ┃         ┃           │           ┃ ┌┴────┴─────┐     ┏━━━━┻━━━━━━━━┓     │
-    ┃         ┃   ┌───────┴──────┐    ┃ │ fed.Queue │     ┃ inbox.Queue ┃     │
-    ┃         ┃   │ fed.Resolver │    ┃ └───────────┘     ┗━┳━┳━┳━━━━━━━┛     │
+    ┃         ┃   ┌───────┴──────┐ ┌──╂─┤ fed.Queue │     ┃ inbox.Queue ┃     │
+    ┃         ┃   │ fed.Resolver ├─┘  ┃ └───────────┘     ┗━┳━┳━┳━━━━━━━┛     │
     ┃         ┃   └───────┬──────┘    ┗━━━━━━━━━━━━━━━━━━━━━┛ ┃ ┃             │
     ┃         ┗━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ ┃             │
     ┗━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛             │
@@ -346,8 +373,8 @@ Once inserted into `inbox`, [inbox.Queue](https://pkg.go.dev/github.com/dimkr/to
 │...    │ │...     │ │         │ │...      │ │...     │ │...     │            │
 └───┬───┘ └───┬────┘ └────┬────┘ └────┬──┬─┘ └┬──────┰┘ └──────┬─┘            │
     │         │           │           │ ┌┴────┴─────┐┃    ┌────┴────────┐     │
-    │         │   ┌───────┴──────┐    │ │ fed.Queue │┗━━━━┥ inbox.Queue │     │
-    │         │   │ fed.Resolver │    │ └───────────┘     └─┬─┬─┬───────┘     │
+    │         │   ┌───────┴──────┐ ┌──┼─┤ fed.Queue │┗━━━━┥ inbox.Queue │     │
+    │         │   │ fed.Resolver ├─┘  │ └───────────┘     └─┬─┬─┬───────┘     │
     │         │   └───────┬──────┘    └─────────────────────┘ │ │             │
     │         └───────────┼───────────────────────────────────┘ │             │
     └─────────────────────┼─────────────────────────────────────┘             │
@@ -374,8 +401,8 @@ Sometimes, a received or newly created local [Activity](https://pkg.go.dev/githu
 │...    │ │...     │ │         │ │...      │ │...     │ │...     │            │
 └───┬───┘ └───┬────┘ └────┬────┘ └────┬──┬─┘ └┬──────┬┘ └──────┬─┘            │
     │         │           │           │ ┌┴────┴─────┐│    ┌────┴────────┐     │
-    │         │   ┌───────┴──────┐    │ │ fed.Queue │└────┤ inbox.Queue │     │
-    │         │   │ fed.Resolver │    │ └───────────┘     └─┬─┬─┬─┰─────┘     │
+    │         │   ┌───────┴──────┐ ┌──┼─┤ fed.Queue │└────┤ inbox.Queue │     │
+    │         │   │ fed.Resolver ├─┘  │ └───────────┘     └─┬─┬─┬─┰─────┘     │
     │         │   └───────┬─┰────┘    └─────────────────────┘ │ │ ┃           │
     │         └───────────┼─╂─────────────────────────────────┘ │ ┃           │
     └─────────────────────┼─╂───────────────────────────────────┘ ┃           │
@@ -401,8 +428,8 @@ To display details like the user's name and speed up the verification of future 
 │...    │ │...     │ │         │ │...      │ │...     │ │...     │ ┃...     ┃ │
 └─┰─┬───┘ └─┰─┬────┘ └──┰─┬────┘ └──┰─┬──┬─┘ └┬──────┬┘ └──────┬─┘ ┗━━━━━━┳━┛ │
   ┃ │       ┃ │ ┏━━━━━━━┛ │         ┃ │ ┌┴────┴─────┐│    ┌────┴────────┐ ┃   │
-  ┃ │       ┃ │ ┃ ┌───────┴──────┐  ┃ │ │ fed.Queue │└────┤ inbox.Queue │ ┃   │
-  ┃ │       ┃ │ ┃ │ fed.Resolver │  ┃ │ └───────────┘     └─┬─┬─┬─┬─────┘ ┃   │
+  ┃ │       ┃ │ ┃ ┌───────┴──────┐ ┌╂─┼─┤ fed.Queue │└────┤ inbox.Queue │ ┃   │
+  ┃ │       ┃ │ ┃ │ fed.Resolver ├─┘┃ │ └───────────┘     └─┬─┬─┬─┬─────┘ ┃   │
   ┃ │       ┃ │ ┃ └───────┬─┬────┘  ┃ └─────────────────────┘ │ │ │       ┃   │
   ┃ │       ┃ └─╂─────────┼─┼───────╂─────────────────────────┘ │ │       ┃   │
   ┃ └───────╂───╂─────────┼─┼───────╂───────────────────────────┘ │       ┃   │
