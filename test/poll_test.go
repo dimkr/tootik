@@ -918,3 +918,33 @@ func TestPoll_LocalVoteVisibilityPublic(t *testing.T) {
 	assert.NotContains(view, "bob")
 	assert.NotContains(view, "carol")
 }
+
+func TestPoll_LocalSelfVote(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	say := server.Handle("/users/say?%5bPOLL%20So%2c%20polls%20on%20Station%20are%20pretty%20cool%2c%20right%3f%5d%20Nope%20%7c%20Hell%20yeah%21%20%7c%20I%20couldn%27t%20care%20less", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+
+	server.cfg.PostThrottleUnit = 0
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hell%%20yeah%%21", say[15:len(say)-2]), server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
+
+	reply = server.Handle(fmt.Sprintf("/users/reply/%s?I%%20couldn%%27t%%20care%%20less", say[15:len(say)-2]), server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
+
+	poller := outbox.Poller{
+		Domain: domain,
+		DB:     server.db,
+	}
+	assert.NoError(poller.Run(context.Background()))
+
+	view := server.Handle("/view/"+say[15:len(say)-2], nil)
+	assert.Contains(view, "So, polls on Station are pretty cool, right?")
+	assert.NotContains(view, "Vote")
+	assert.Contains(strings.Split(view, "\n"), "0          Nope")
+	assert.Contains(strings.Split(view, "\n"), "1 ████████ Hell yeah!")
+	assert.Contains(strings.Split(view, "\n"), "1 ████████ I couldn't care less")
+}

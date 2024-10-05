@@ -138,6 +138,8 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 		Tag:          tags,
 	}
 
+	anyRecipient := false
+
 	if inReplyTo != nil {
 		note.InReplyTo = inReplyTo.ID
 
@@ -164,16 +166,20 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 					note.To = ap.Audience{}
 					note.To.Add(inReplyTo.AttributedTo)
 					note.CC = ap.Audience{}
+
+					// allow users to vote on their own polls
+					anyRecipient = true
 				}
 			}
 		}
 	}
 
-	anyRecipient := false
-	for actorID := range note.To.Keys() {
-		if actorID != r.User.ID {
-			anyRecipient = true
-			break
+	if !anyRecipient {
+		for actorID := range note.To.Keys() {
+			if actorID != r.User.ID {
+				anyRecipient = true
+				break
+			}
 		}
 	}
 	if !anyRecipient {
