@@ -164,10 +164,10 @@ Federation happens through two tables, `inbox` and `outbox`. Both contain [Activ
 `inbox` contains activities by users on other servers, while `outbox` contains activities of local users.
 
 ```
-   ┏━━━━━━━━━━┓ ┏━━━━━━━━━━━━━━━━━┓
-   ┃ gmi.Wrap ┣━┫ gemini.Listener ┃
-   ┗━━━━━━━━━━┛ ┗━━━━━━━━┳━━━━━━━━┛
-                ┏━━━━━━━━┻━━━━━━━━━━┓
+  ┏━━━━━━━━━━┓ ┏━━━━━━━━━━━━━━━━━┓
+  ┃ gmi.Wrap ┣━┫ gemini.Listener ┃
+  ┗━━━━━━━━━━┛ ┗━━━━━━━━┳━━━━━━━━┛
+                ┏━━━━━━━┻━━━━━━━━━━━┓
                 ┃   front.Handler   ┃
                 ┗━━━━━━━━━┳━━━━━━━━━┛
 ┌───────┐ ┌────────┐ ┌────┸────┐ ┌─────────┐ ┌────────┐ ┌────────┐
@@ -184,10 +184,10 @@ Federation happens through two tables, `inbox` and `outbox`. Both contain [Activ
 [gemini.Listener](https://pkg.go.dev/github.com/dimkr/tootik/front/gemini#Listener) provides [Handler](https://pkg.go.dev/github.com/dimkr/tootik/front#Handler) with a [writer](https://pkg.go.dev/github.com/dimkr/tootik/front/text/gmi#Wrap) that builds a Gemini response and asynchronously sends it to the client in chunks, while [Handler](https://pkg.go.dev/github.com/dimkr/tootik/front#Handler) continues to handle the request and append more lines to the page.
 
 ```
-   ┌──────────┐ ┌─────────────────┐
-   │ gmi.Wrap ├─┤ gemini.Listener │
-   └──────────┘ └────────┬────────┘
-                ┌────────┴──────────┐
+  ┌──────────┐ ┌─────────────────┐
+  │ gmi.Wrap ├─┤ gemini.Listener │
+  └──────────┘ └────────┬────────┘
+                ┌───────┴───────────┐
     ┏━━━━━━━━━━━┥   front.Handler   │
     ┃           └┰────────┬───────┰─┘
 ┌───┸───┐ ┌──────┸─┐ ┌────┴────┐ ┌┸────────┐ ┌────────┐ ┌────────┐
@@ -209,10 +209,10 @@ In addition, Gemini requests can:
 * ...
 
 ```
-   ┌──────────┐ ┌─────────────────┐
-   │ gmi.Wrap ├─┤ gemini.Listener │
-   └──────────┘ └────────┬────────┘
-                ┌────────┴──────────┐
+  ┌──────────┐ ┌─────────────────┐
+  │ gmi.Wrap ├─┤ gemini.Listener │
+  └──────────┘ └────────┬────────┘
+                ┌───────┴───────────┐
     ┌───────────┤   front.Handler   ┝━━━━━━━━━━┓
     │           └┬────────┬───────┬─┘          ┃
 ┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴────────┐ ┌─┸──────┐ ┌────────┐
@@ -228,10 +228,10 @@ User actions like post creation or deletion are recorded as [Activity](https://p
 
 ```
                                       ┏━━━━━━━━━━━━━━━┓
-   ┌──────────┐ ┌─────────────────┐   ┃ outbox.Mover  ┃
-   │ gmi.Wrap ├─┤ gemini.Listener │   ┃ outbox.Poller ┃
-   └──────────┘ └────────┬────────┘   ┃ fed.Syncer    ┃
-                ┌────────┴──────────┐ ┗━━━┳━━━━━┳━━━━━┛
+  ┌──────────┐ ┌─────────────────┐    ┃ outbox.Mover  ┃
+  │ gmi.Wrap ├─┤ gemini.Listener │    ┃ outbox.Poller ┃
+  └──────────┘ └────────┬────────┘    ┃ fed.Syncer    ┃
+                ┌───────┴───────────┐ ┗━━━┳━━━━━┳━━━━━┛
     ┌───────────┤   front.Handler   ├─────╂────┐┃
     │           └┬────────┬───────┬─┘     ┃    │┃
 ┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┸┐ ┌─┴┸─────┐ ┌────────┐
@@ -250,10 +250,10 @@ tootik may perform automatic actions and push additional activities to `outbox`,
 
 ```
                                       ┌───────────────┐
-   ┌──────────┐ ┌─────────────────┐   │ outbox.Mover  │
-   │ gmi.Wrap ├─┤ gemini.Listener │   │ outbox.Poller │
-   └──────────┘ └────────┬────────┘   │ fed.Syncer    │
-                ┌────────┴──────────┐ └───┬─────┬─────┘
+  ┌──────────┐ ┌─────────────────┐    │ outbox.Mover  │
+  │ gmi.Wrap ├─┤ gemini.Listener │    │ outbox.Poller │
+  └──────────┘ └────────┬────────┘    │ fed.Syncer    │
+                ┌───────┴───────────┐ └───┬─────┬─────┘
     ┌───────────┤   front.Handler   ├─────┼────┐│
     │           └┬────────┬───────┬─┘     │    ││
 ┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┴┐ ┌─┴┴─────┐ ┌────────┐
@@ -272,10 +272,10 @@ tootik may perform automatic actions and push additional activities to `outbox`,
 
 ```
                                       ┌───────────────┐
-   ┌──────────┐ ┌─────────────────┐   │ outbox.Mover  │
-   │ gmi.Wrap ├─┤ gemini.Listener │   │ outbox.Poller │
-   └──────────┘ └────────┬────────┘   │ fed.Syncer    │
-                ┌────────┴──────────┐ └───┬─────┬─────┘
+  ┌──────────┐ ┌─────────────────┐    │ outbox.Mover  │
+  │ gmi.Wrap ├─┤ gemini.Listener │    │ outbox.Poller │
+  └──────────┘ └────────┬────────┘    │ fed.Syncer    │
+                ┌───────┴───────────┐ └───┬─────┬─────┘
     ┌───────────┤   front.Handler   ├─────┼────┐│
     │           └┬────────┬───────┬─┘     │    ││
 ┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┴┐ ┌─┴┴─────┐ ┌────────┐
@@ -297,10 +297,10 @@ tootik may perform automatic actions and push additional activities to `outbox`,
 
 ```
                                       ┌───────────────┐
-   ┌──────────┐ ┌─────────────────┐   │ outbox.Mover  │
-   │ gmi.Wrap ├─┤ gemini.Listener │   │ outbox.Poller │
-   └──────────┘ └────────┬────────┘   │ fed.Syncer    │
-                ┌────────┴──────────┐ └───┬─────┬─────┘ ┏━━━━━━━━━━━━━━┓
+  ┌──────────┐ ┌─────────────────┐    │ outbox.Mover  │
+  │ gmi.Wrap ├─┤ gemini.Listener │    │ outbox.Poller │
+  └──────────┘ └────────┬────────┘    │ fed.Syncer    │
+                ┌───────┴───────────┐ └───┬─────┬─────┘ ┏━━━━━━━━━━━━━━┓
     ┌───────────┤   front.Handler   ├─────┼────┐│    ┏━━┫ fed.Listener ┣━━━━━━┓
     │           └┬────────┬───────┬─┘     │    ││    ┃  ┗━━━━━┳━━━━━━━━┛      ┃
 ┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┴┐ ┌─┴┴────┸┐ ┌─────┸──┐            ┃
@@ -327,10 +327,10 @@ In addition, [fed.Listener](https://pkg.go.dev/github.com/dimkr/tootik/fed#Liste
 
 ```
                                       ┌───────────────┐
-   ┌──────────┐ ┌─────────────────┐   │ outbox.Mover  │
-   │ gmi.Wrap ├─┤ gemini.Listener │   │ outbox.Poller │
-   └──────────┘ └────────┬────────┘   │ fed.Syncer    │
-                ┌────────┴──────────┐ └───┬─────┬─────┘ ┌──────────────┐
+  ┌──────────┐ ┌─────────────────┐    │ outbox.Mover  │
+  │ gmi.Wrap ├─┤ gemini.Listener │    │ outbox.Poller │
+  └──────────┘ └────────┬────────┘    │ fed.Syncer    │
+                ┌───────┴───────────┐ └───┬─────┬─────┘ ┌──────────────┐
     ┌───────────┤   front.Handler   ├─────┼────┐│    ┌──┤ fed.Listener ├──────┐
     │           └┬────────┬───────┬─┘     │    ││    │  └─────┬────────┘      │
 ┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┴┐ ┌─┴┴────┴┐ ┌─────┴──┐            │
@@ -359,10 +359,10 @@ Once inserted into `inbox`, [inbox.Queue](https://pkg.go.dev/github.com/dimkr/to
 
 ```
                                       ┌───────────────┐
-   ┌──────────┐ ┌─────────────────┐   │ outbox.Mover  │
-   │ gmi.Wrap ├─┤ gemini.Listener │   │ outbox.Poller │
-   └──────────┘ └────────┬────────┘   │ fed.Syncer    │
-                ┌────────┴──────────┐ └───┬─────┬─────┘ ┌──────────────┐
+  ┌──────────┐ ┌─────────────────┐    │ outbox.Mover  │
+  │ gmi.Wrap ├─┤ gemini.Listener │    │ outbox.Poller │
+  └──────────┘ └────────┬────────┘    │ fed.Syncer    │
+                ┌───────┴───────────┐ └───┬─────┬─────┘ ┌──────────────┐
     ┌───────────┤   front.Handler   ├─────┼────┐│    ┌──┤ fed.Listener ├──────┐
     │           └┬────────┬───────┬─┘     │    ││    │  └─────┬────────┘      │
 ┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┴┐ ┌─┴┴────┴┐ ┌─────┴──┐            │
@@ -387,10 +387,10 @@ Sometimes, a received or newly created local [Activity](https://pkg.go.dev/githu
 
 ```
                                       ┌───────────────┐
-   ┌──────────┐ ┌─────────────────┐   │ outbox.Mover  │
-   │ gmi.Wrap ├─┤ gemini.Listener │   │ outbox.Poller │
-   └──────────┘ └────────┬────────┘   │ fed.Syncer    │
-                ┌────────┴──────────┐ └───┬─────┬─────┘ ┌──────────────┐
+  ┌──────────┐ ┌─────────────────┐    │ outbox.Mover  │
+  │ gmi.Wrap ├─┤ gemini.Listener │    │ outbox.Poller │
+  └──────────┘ └────────┬────────┘    │ fed.Syncer    │
+                ┌───────┴───────────┐ └───┬─────┬─────┘ ┌──────────────┐
     ┌───────────┤   front.Handler   ├─────┼────┐│    ┌──┤ fed.Listener ├──────┐
     │           └┬────────┬───────┬─┘     │    ││    │  └─────┬────────┘      │
 ┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┴┐ ┌─┴┴────┴┐ ┌─────┴──┐            │
@@ -413,12 +413,12 @@ Sometimes, a received or newly created local [Activity](https://pkg.go.dev/githu
 To display details like the user's name and speed up the verification of future incoming replies, [inbox.Queue](https://pkg.go.dev/github.com/dimkr/tootik/inbox#Queue) uses [Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) to fetch the [Actor](https://pkg.go.dev/github.com/dimkr/tootik/ap#Actor) objects of mentioned users (if needed).
 
 ```
-                                     ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-                                     ┃┌───────────────┐                   ┃
-   ┌──────────┐ ┌─────────────────┐  ┃│ outbox.Mover  │                   ┃
-   │ gmi.Wrap ├─┤ gemini.Listener │  ┃│ outbox.Poller │                   ┃
-   └──────────┘ └────────┬────────┘┏━┛│ fed.Syncer    │                   ┃
-                ┌────────┴─────────┸┐ └───┬─────┬─────┘ ┌──────────────┐  ┃
+                                   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+                                   ┃  ┌───────────────┐                   ┃
+  ┌──────────┐ ┌─────────────────┐ ┃  │ outbox.Mover  │                   ┃
+  │ gmi.Wrap ├─┤ gemini.Listener │ ┃  │ outbox.Poller │                   ┃
+  └──────────┘ └────────┬────────┘ ┃  │ fed.Syncer    │                   ┃
+                ┌───────┴──────────┸┐ └───┬─────┬─────┘ ┌──────────────┐  ┃
     ┌───────────┤   front.Handler   ├─────┼────┐│    ┌──┤ fed.Listener ├──╂───┐
     │           └┬────────┬───────┬─┘     │    ││    │  └─────┬────────┘  ┃   │
 ┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┴┐ ┌─┴┴────┴┐ ┌─────┴──┐ ┏━━━━━━┻━┓ │
