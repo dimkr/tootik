@@ -445,6 +445,17 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 		}
 
 		if r.User != nil {
+			var bookmarked int
+			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from bookmarks where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&bookmarked); err != nil {
+				r.Log.Warn("Failed to check if post is bookmarked", "id", note.ID, "error", err)
+			} else if bookmarked == 0 {
+				w.Link("/users/bookmark/"+strings.TrimPrefix(note.ID, "https://"), "🔖 Bookmark")
+			} else {
+				w.Link("/users/unbookmark/"+strings.TrimPrefix(note.ID, "https://"), "✂️️ Unbookmark")
+			}
+		}
+
+		if r.User != nil {
 			w.Link("/users/reply/"+strings.TrimPrefix(note.ID, "https://"), "💬 Reply")
 			w.Link(fmt.Sprintf("titan://%s/users/upload/reply/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload reply")
 		}

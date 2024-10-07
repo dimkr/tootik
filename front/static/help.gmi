@@ -38,3 +38,4 @@ Registered users can:
 * Follow users
 * View private posts
 * View a feed of posts by followed users
+* Bookmark posts

@@ -101,6 +101,10 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 	h.handlers[regexp.MustCompile(`^/users/share/(\S+)`)] = h.share
 	h.handlers[regexp.MustCompile(`^/users/unshare/(\S+)`)] = h.unshare
 
+	h.handlers[regexp.MustCompile(`^/users/bookmark/(\S+)`)] = h.bookmark
+	h.handlers[regexp.MustCompile(`^/users/unbookmark/(\S+)`)] = h.unbookmark
+	h.handlers[regexp.MustCompile(`^/users/bookmarks$`)] = h.bookmarks
+
 	h.handlers[regexp.MustCompile(`^/users/edit/(\S+)`)] = h.edit
 	h.handlers[regexp.MustCompile(`^/users/delete/(\S+)`)] = h.delete
 

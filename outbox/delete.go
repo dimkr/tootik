@@ -91,6 +91,14 @@ func Delete(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, not
 
 	if _, err := tx.ExecContext(
 		ctx,
+		`DELETE FROM bookmarks WHERE note = ?`,
+		note.ID,
+	); err != nil {
+		return fmt.Errorf("failed to delete note: %w", err)
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
 		`DELETE FROM feed WHERE note->>'$.id' = ?`,
 		note.ID,
 	); err != nil {
