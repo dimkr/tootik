@@ -115,7 +115,14 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 		wg.Add(1)
 		go func() {
 			<-serverCtx.Done()
-			server.Shutdown(context.Background())
+
+			// shut down gracefully only on reload
+			if ctx.Err() == nil {
+				slog.Info("Shutting down server")
+				server.Shutdown(ctx)
+			}
+
+			server.Close()
 			wg.Done()
 		}()
 
@@ -129,7 +136,6 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 			for {
 				select {
 				case <-serverCtx.Done():
-					server.Shutdown(context.Background())
 					return
 
 				case event, ok := <-w.Events:
