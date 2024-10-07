@@ -243,7 +243,7 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 	}()
 
 	sessions := make(map[string]chan []byte)
-	done := make(chan string, 1)
+	done := make(chan string, gl.Config.MaxGuppySessions)
 
 loop:
 	for {
