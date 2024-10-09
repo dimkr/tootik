@@ -451,7 +451,7 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 			} else if bookmarked == 0 {
 				w.Link("/users/bookmark/"+strings.TrimPrefix(note.ID, "https://"), "🔖 Bookmark")
 			} else {
-				w.Link("/users/unbookmark/"+strings.TrimPrefix(note.ID, "https://"), "💣 Unbookmark")
+				w.Link("/users/unbookmark/"+strings.TrimPrefix(note.ID, "https://"), "🔖 Unbookmark")
 			}
 		}
 

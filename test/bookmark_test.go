@@ -34,7 +34,7 @@ func TestBookmark_HappyFlow(t *testing.T) {
 
 	view := strings.Split(server.Handle("/users/view/"+say[15:len(say)-2], server.Bob), "\n")
 	assert.Contains(view, fmt.Sprintf("=> /users/bookmark/%s 🔖 Bookmark", say[15:len(say)-2]))
-	assert.NotContains(view, fmt.Sprintf("=> /users/unbookmark/%s 💣️ Unbookmark", say[15:len(say)-2]))
+	assert.NotContains(view, fmt.Sprintf("=> /users/unbookmark/%s 🔖 Unbookmark", say[15:len(say)-2]))
 
 	bookmarks := strings.Split(server.Handle("/users/bookmarks", server.Bob), "\n")
 	assert.Contains(bookmarks, "No posts.")
@@ -49,7 +49,7 @@ func TestBookmark_HappyFlow(t *testing.T) {
 
 	view = strings.Split(server.Handle("/users/view/"+say[15:len(say)-2], server.Bob), "\n")
 	assert.NotContains(view, fmt.Sprintf("=> /users/bookmark/%s 🔖 Bookmark", say[15:len(say)-2]))
-	assert.Contains(view, fmt.Sprintf("=> /users/unbookmark/%s 💣️ Unbookmark", say[15:len(say)-2]))
+	assert.Contains(view, fmt.Sprintf("=> /users/unbookmark/%s 🔖 Unbookmark", say[15:len(say)-2]))
 
 	unbookmark := server.Handle("/users/unbookmark/"+say[15:len(say)-2], server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", say[15:len(say)-2]), unbookmark)
@@ -60,7 +60,7 @@ func TestBookmark_HappyFlow(t *testing.T) {
 
 	view = strings.Split(server.Handle("/users/view/"+say[15:len(say)-2], server.Bob), "\n")
 	assert.Contains(view, fmt.Sprintf("=> /users/bookmark/%s 🔖 Bookmark", say[15:len(say)-2]))
-	assert.NotContains(view, fmt.Sprintf("=> /users/unbookmark/%s 💣️ Unbookmark", say[15:len(say)-2]))
+	assert.NotContains(view, fmt.Sprintf("=> /users/unbookmark/%s 🔖 Unbookmark", say[15:len(say)-2]))
 }
 
 func TestBookmark_Throttling(t *testing.T) {
