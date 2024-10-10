@@ -127,6 +127,10 @@ func Suspend(ctx context.Context, domain, user string, cfg *cfg.Config, db *sql.
 		return err
 	}
 
+	if err := undoFollows(ctx, domain, actorID, db); err != nil {
+		return err
+	}
+
 	if err := undoShares(ctx, domain, actorID, db); err != nil {
 		return err
 	}
