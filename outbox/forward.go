@@ -164,7 +164,7 @@ func ForwardActivity[T ap.RawActivity](ctx context.Context, domain string, cfg *
 	}
 
 	var shouldForward int
-	if err := tx.QueryRowContext(ctx, `select exists (select 1 from notes join persons on persons.id = notes.author and (notes.public = 1 or exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers') or exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers')) where notes.id = ? and notes.author != ?)`, firstPostID, activity.Actor).Scan(&shouldForward); err != nil {
+	if err := tx.QueryRowContext(ctx, `select exists (select 1 from notes join persons on persons.id = notes.author and (notes.public = 1 or exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers') or exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers')) where notes.id = ?)`, firstPostID, activity.Actor).Scan(&shouldForward); err != nil {
 		return err
 	}
 	if shouldForward == 0 {
