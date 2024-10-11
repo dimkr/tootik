@@ -95,3 +95,61 @@ func TestDelete_UnauthenticatedUser(t *testing.T) {
 	view = server.Handle("/users/view/"+id, server.Alice)
 	assert.Contains(view, "Hello world")
 }
+
+func TestDelete_WithReply(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	say := server.Handle("/users/say?Hello%20world", server.Alice)
+	assert.Regexp(`30 /users/view/\S+\r\n$`, say)
+
+	postID := say[15 : len(say)-2]
+
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Alice", postID), server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
+
+	replyID := reply[15 : len(reply)-2]
+
+	delete := server.Handle("/users/delete/"+replyID, server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), delete)
+
+	view := server.Handle("/users/view/"+replyID, server.Alice)
+	assert.Equal(view, "40 Post not found\r\n")
+
+	delete = server.Handle("/users/delete/"+postID, server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), delete)
+
+	view = server.Handle("/users/view/"+postID, server.Alice)
+	assert.Equal(view, "40 Post not found\r\n")
+}
+
+func TestDelete_WithReplyPostDeletedFirst(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	say := server.Handle("/users/say?Hello%20world", server.Alice)
+	assert.Regexp(`30 /users/view/\S+\r\n$`, say)
+
+	postID := say[15 : len(say)-2]
+
+	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Alice", postID), server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
+
+	replyID := reply[15 : len(reply)-2]
+
+	delete := server.Handle("/users/delete/"+postID, server.Alice)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), delete)
+
+	view := server.Handle("/users/view/"+postID, server.Alice)
+	assert.Equal(view, "40 Post not found\r\n")
+
+	delete = server.Handle("/users/delete/"+replyID, server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), delete)
+
+	view = server.Handle("/users/view/"+replyID, server.Alice)
+	assert.Equal(view, "40 Post not found\r\n")
+}
