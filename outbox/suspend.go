@@ -26,7 +26,7 @@ import (
 )
 
 func undoFollows(ctx context.Context, domain, actorID string, db *sql.DB) error {
-	follows, err := db.QueryContext(ctx, `select id, followed from follows where follower = ?`, actorID)
+	follows, err := db.QueryContext(ctx, `select id, followed from follows where follower = ? order by inserted`, actorID)
 	if err != nil {
 		return err
 	}
@@ -47,7 +47,7 @@ func undoFollows(ctx context.Context, domain, actorID string, db *sql.DB) error 
 }
 
 func undoShares(ctx context.Context, domain, actorID string, db *sql.DB) error {
-	shares, err := db.QueryContext(ctx, `select activity from outbox where activity->>'$.actor' = $1 and sender = $1 and activity->>'$.type' = 'Announce'`, actorID)
+	shares, err := db.QueryContext(ctx, `select activity from outbox where activity->>'$.actor' = $1 and sender = $1 and activity->>'$.type' = 'Announce' order by inserted`, actorID)
 	if err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ func undoShares(ctx context.Context, domain, actorID string, db *sql.DB) error {
 }
 
 func deletePosts(ctx context.Context, domain, actorID string, cfg *cfg.Config, db *sql.DB) error {
-	posts, err := db.QueryContext(ctx, `select object from notes where author = ?`, actorID)
+	posts, err := db.QueryContext(ctx, `select object from notes where author = ? order by inserted`, actorID)
 	if err != nil {
 		return err
 	}
