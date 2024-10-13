@@ -82,12 +82,26 @@ func (gc *GarbageCollector) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to trim feed: %w", err)
 	}
 
-	if _, err := gc.DB.ExecContext(ctx, `delete from bookmarks where not exists (select 1 from notes where notes.id = bookmarks.note)`); err != nil {
-		return fmt.Errorf("failed to remove bookmarks for deleted posts: %w", err)
-	}
-
 	if _, err := gc.DB.ExecContext(ctx, `delete from bookmarks where not exists (select 1 from persons where persons.id = bookmarks.by)`); err != nil {
 		return fmt.Errorf("failed to remove bookmarks by deleted users: %w", err)
+	}
+
+	if _, err := gc.DB.ExecContext(
+		ctx,
+		`delete from bookmarks where not exists (
+			select 1 from notes
+			where
+				notes.id = bookmarks.note and
+				(
+					notes.public = 1 or
+					exists (select 1 from json_each(notes.object->'$.to') where exists (select 1 from follows join persons on persons.id = follows.followed where follows.follower = bookmarks.by and follows.followed = notes.author and (notes.author = value or persons.actor->>'$.followers' = value))) or
+					exists (select 1 from json_each(notes.object->'$.cc') where exists (select 1 from follows join persons on persons.id = follows.followed where follows.follower = bookmarks.by and follows.followed = notes.author and (notes.author = value or persons.actor->>'$.followers' = value))) or
+					exists (select 1 from json_each(notes.object->'$.to') where value = bookmarks.by) or
+					exists (select 1 from json_each(notes.object->'$.cc') where value = bookmarks.by)
+				)
+		)`,
+	); err != nil {
+		return fmt.Errorf("failed to invisible bookmarks: %w", err)
 	}
 
 	return nil

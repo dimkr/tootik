@@ -171,3 +171,60 @@ func TestBookmark_Twice(t *testing.T) {
 	assert.Contains(bookmarks, "No posts.")
 	assert.NotContains(bookmarks, "> Hello 1")
 }
+
+func TestBookmark_ToFollowers(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
+
+	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+
+	id := whisper[15 : len(whisper)-2]
+
+	bookmark := server.Handle("/users/bookmark/"+id, server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), bookmark)
+
+	bookmark = server.Handle("/users/bookmark/"+id, server.Carol)
+	assert.Equal("40 Post not found\r\n", bookmark)
+
+	bookmarks := strings.Split(server.Handle("/users/bookmarks", server.Bob), "\n")
+	assert.Contains(bookmarks, "> Hello world")
+
+	bookmarks = strings.Split(server.Handle("/users/bookmarks", server.Carol), "\n")
+	assert.NotContains(bookmarks, "> Hello world")
+
+	unfollow := server.Handle("/users/unfollow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), unfollow)
+
+	bookmarks = strings.Split(server.Handle("/users/bookmarks", server.Bob), "\n")
+	assert.NotContains(bookmarks, "> Hello world")
+}
+
+func TestBookmark_DM(t *testing.T) {
+	server := newTestServer()
+	defer server.Shutdown()
+
+	assert := assert.New(t)
+
+	dm := server.Handle("/users/dm?Hello%20%40bob%40localhost.localdomain%3a8443", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
+
+	id := dm[15 : len(dm)-2]
+
+	bookmark := server.Handle("/users/bookmark/"+id, server.Bob)
+	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), bookmark)
+
+	bookmark = server.Handle("/users/bookmark/"+id, server.Carol)
+	assert.Equal("40 Post not found\r\n", bookmark)
+
+	bookmarks := strings.Split(server.Handle("/users/bookmarks", server.Bob), "\n")
+	assert.Contains(bookmarks, "> Hello @bob@localhost.localdomain:8443")
+
+	bookmarks = strings.Split(server.Handle("/users/bookmarks", server.Carol), "\n")
+	assert.NotContains(bookmarks, "> Hello @bob@localhost.localdomain:8443")
+}

@@ -37,10 +37,20 @@ func (h *Handler) bookmarks(w text.Writer, r *Request, args ...string) {
 				r.Context,
 				`select notes.object, persons.actor, null as sharer, notes.inserted from bookmarks
 				join notes
-				on notes.id = bookmarks.note
+				on
+					notes.id = bookmarks.note
 				join persons
-				on persons.id = notes.author
-				where bookmarks.by = $1
+				on
+					persons.id = notes.author
+				where
+					bookmarks.by = $1 and 
+					(
+						notes.public = 1 or
+						exists (select 1 from json_each(notes.object->'$.to') where exists (select 1 from follows join persons on persons.id = follows.followed where follows.follower = $1 and follows.followed = notes.author and (notes.author = value or persons.actor->>'$.followers' = value))) or
+						exists (select 1 from json_each(notes.object->'$.cc') where exists (select 1 from follows join persons on persons.id = follows.followed where follows.follower = $1 and follows.followed = notes.author and (notes.author = value or persons.actor->>'$.followers' = value))) or
+						exists (select 1 from json_each(notes.object->'$.to') where value = $1) or
+						exists (select 1 from json_each(notes.object->'$.cc') where value = $1)
+					)
 				order by bookmarks.inserted desc
 				limit $2
 				offset $3`,

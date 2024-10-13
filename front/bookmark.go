@@ -31,7 +31,24 @@ func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
 	postID := "https://" + args[1]
 
 	var exists int
-	if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from notes where id = ?)`, postID).Scan(&exists); err != nil {
+	if err := h.DB.QueryRowContext(
+		r.Context,
+		`select exists (
+			select 1 from notes
+			where
+				notes.id = $1 and
+				(
+					notes.public = 1 or
+					exists (select 1 from json_each(notes.object->'$.to') where exists (select 1 from follows join persons on persons.id = follows.followed where follows.follower = $2 and follows.followed = notes.author and (notes.author = value or persons.actor->>'$.followers' = value))) or
+					exists (select 1 from json_each(notes.object->'$.cc') where exists (select 1 from follows join persons on persons.id = follows.followed where follows.follower = $2 and follows.followed = notes.author and (notes.author = value or persons.actor->>'$.followers' = value))) or
+					exists (select 1 from json_each(notes.object->'$.to') where value = $2) or
+					exists (select 1 from json_each(notes.object->'$.cc') where value = $2)
+				)
+				
+		)`,
+		postID,
+		r.User.ID,
+	).Scan(&exists); err != nil {
 		r.Log.Warn("Failed to check if bookmarked post exists", "post", postID, "error", err)
 		w.Error()
 		return
