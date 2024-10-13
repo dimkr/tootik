@@ -30,8 +30,16 @@ func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
 
 	postID := "https://" + args[1]
 
+	tx, err := h.DB.BeginTx(r.Context, nil)
+	if err != nil {
+		r.Log.Warn("Failed to insert bookmark", "error", err)
+		w.Error()
+		return
+	}
+	defer tx.Rollback()
+
 	var exists int
-	if err := h.DB.QueryRowContext(
+	if err := tx.QueryRowContext(
 		r.Context,
 		`select exists (
 			select 1 from notes
@@ -63,7 +71,7 @@ func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
 
 	var count int
 	var last sql.NullInt64
-	if err := h.DB.QueryRowContext(r.Context, `select count(*), max(inserted) from bookmarks where by = ?`, r.User.ID).Scan(&count, &last); err != nil {
+	if err := tx.QueryRowContext(r.Context, `select count(*), max(inserted) from bookmarks where by = ?`, r.User.ID).Scan(&count, &last); err != nil {
 		r.Log.Warn("Failed to check if bookmark needs to be throttled", "error", err)
 		w.Error()
 		return
@@ -84,7 +92,13 @@ func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
 		}
 	}
 
-	if _, err := h.DB.ExecContext(r.Context, `insert into bookmarks(note, by) values(?, ?)`, postID, r.User.ID); err != nil {
+	if _, err := tx.ExecContext(r.Context, `insert into bookmarks(note, by) values(?, ?)`, postID, r.User.ID); err != nil {
+		r.Log.Warn("Failed to insert bookmark", "error", err)
+		w.Error()
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
 		r.Log.Warn("Failed to insert bookmark", "error", err)
 		w.Error()
 		return
