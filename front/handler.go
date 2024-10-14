@@ -25,7 +25,6 @@ import (
 	"github.com/dimkr/tootik/front/static"
 	"github.com/dimkr/tootik/front/text"
 	"regexp"
-	"sync"
 	"time"
 )
 
@@ -57,7 +56,6 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 		Resolver: resolver,
 		DB:       db,
 	}
-	var cache sync.Map
 
 	h.handlers[regexp.MustCompile(`^/$`)] = withUserMenu(h.home)
 
@@ -72,8 +70,8 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 
 	h.handlers[regexp.MustCompile(`^/users/mentions$`)] = withUserMenu(h.mentions)
 
-	h.handlers[regexp.MustCompile(`^/local$`)] = withCache(withUserMenu(h.local), time.Minute*15, &cache, cfg)
-	h.handlers[regexp.MustCompile(`^/users/local$`)] = withCache(withUserMenu(h.local), time.Minute*15, &cache, cfg)
+	h.handlers[regexp.MustCompile(`^/local$`)] = withCache(withUserMenu(h.local), time.Minute*15, cfg)
+	h.handlers[regexp.MustCompile(`^/users/local$`)] = withCache(withUserMenu(h.local), time.Minute*15, cfg)
 
 	h.handlers[regexp.MustCompile(`^/outbox/(\S+)$`)] = withUserMenu(h.userOutbox)
 	h.handlers[regexp.MustCompile(`^/users/outbox/(\S+)$`)] = withUserMenu(h.userOutbox)
@@ -124,11 +122,11 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 	h.handlers[regexp.MustCompile(`^/communities$`)] = withUserMenu(h.communities)
 	h.handlers[regexp.MustCompile(`^/users/communities$`)] = withUserMenu(h.communities)
 
-	h.handlers[regexp.MustCompile(`^/hashtag/([a-zA-Z0-9]+)$`)] = withCache(withUserMenu(h.hashtag), time.Minute*5, &cache, cfg)
-	h.handlers[regexp.MustCompile(`^/users/hashtag/([a-zA-Z0-9]+)$`)] = withCache(withUserMenu(h.hashtag), time.Minute*5, &cache, cfg)
+	h.handlers[regexp.MustCompile(`^/hashtag/([a-zA-Z0-9]+)$`)] = withCache(withUserMenu(h.hashtag), time.Minute*5, cfg)
+	h.handlers[regexp.MustCompile(`^/users/hashtag/([a-zA-Z0-9]+)$`)] = withCache(withUserMenu(h.hashtag), time.Minute*5, cfg)
 
-	h.handlers[regexp.MustCompile(`^/hashtags$`)] = withCache(withUserMenu(h.hashtags), time.Minute*30, &cache, cfg)
-	h.handlers[regexp.MustCompile(`^/users/hashtags$`)] = withCache(withUserMenu(h.hashtags), time.Minute*30, &cache, cfg)
+	h.handlers[regexp.MustCompile(`^/hashtags$`)] = withCache(withUserMenu(h.hashtags), time.Minute*30, cfg)
+	h.handlers[regexp.MustCompile(`^/users/hashtags$`)] = withCache(withUserMenu(h.hashtags), time.Minute*30, cfg)
 
 	h.handlers[regexp.MustCompile(`^/search$`)] = withUserMenu(search)
 	h.handlers[regexp.MustCompile(`^/users/search$`)] = withUserMenu(search)
@@ -136,8 +134,8 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 	h.handlers[regexp.MustCompile(`^/fts$`)] = withUserMenu(h.fts)
 	h.handlers[regexp.MustCompile(`^/users/fts$`)] = withUserMenu(h.fts)
 
-	h.handlers[regexp.MustCompile(`^/status$`)] = withCache(withUserMenu(h.status), time.Minute*5, &cache, cfg)
-	h.handlers[regexp.MustCompile(`^/users/status$`)] = withCache(withUserMenu(h.status), time.Minute*5, &cache, cfg)
+	h.handlers[regexp.MustCompile(`^/status$`)] = withCache(withUserMenu(h.status), time.Minute*5, cfg)
+	h.handlers[regexp.MustCompile(`^/users/status$`)] = withCache(withUserMenu(h.status), time.Minute*5, cfg)
 
 	h.handlers[regexp.MustCompile(`^/oops`)] = withUserMenu(oops)
 	h.handlers[regexp.MustCompile(`^/users/oops`)] = withUserMenu(oops)
