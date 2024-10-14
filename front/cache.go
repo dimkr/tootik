@@ -21,8 +21,8 @@ import (
 	"context"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front/text"
+	"golang.org/x/sync/semaphore"
 	"slices"
-	"sync"
 	"time"
 )
 
@@ -40,7 +40,7 @@ func (w chanWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func callAndCache(r *Request, w text.Writer, args []string, f func(text.Writer, *Request, ...string), key string, now time.Time, cache *sync.Map) {
+func callAndCache(r *Request, w text.Writer, args []string, f func(text.Writer, *Request, ...string), key string, now time.Time, cache *cacheEntry) {
 	c := make(chan []byte)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -91,28 +91,41 @@ func callAndCache(r *Request, w text.Writer, args []string, f func(text.Writer, 
 	w2.Textf("(Cached response generated on %s)", now.Format(time.UnixDate))
 	w2.Flush()
 
-	cache.Store(key, cacheEntry{buf.Bytes(), now})
+	cache.Value = buf.Bytes()
+	cache.Created = now
 }
 
-func withCache(f func(text.Writer, *Request, ...string), d time.Duration, cache *sync.Map, cfg *cfg.Config) func(text.Writer, *Request, ...string) {
+func withCache(f func(text.Writer, *Request, ...string), d time.Duration, cfg *cfg.Config) func(text.Writer, *Request, ...string) {
+	cache := &cacheEntry{}
+	lock := semaphore.NewWeighted(1)
+
 	return func(w text.Writer, r *Request, args ...string) {
 		key := r.URL.String()
 		now := time.Now()
 
-		entry, cached := cache.Load(key)
-		if !cached {
-			r.Log.Info("Generating first response", "key", key)
-			callAndCache(r, w, args, f, key, now, cache)
+		if err := lock.Acquire(r.Context, 1); err != nil {
+			r.Log.Warn("Failed to acquire cache lock", "key", key)
+			w.Error()
 			return
 		}
 
-		if entry.(cacheEntry).Created.After(now.Add(-d)) {
+		if cache.Value == nil {
+			r.Log.Info("Generating first response", "key", key)
+			callAndCache(r, w, args, f, key, now, cache)
+			lock.Release(1)
+			return
+		}
+
+		if cache.Created.After(now.Add(-d)) {
+			value := cache.Value
+			lock.Release(1)
 			r.Log.Info("Sending cached response", "key", key)
-			w.Write(entry.(cacheEntry).Value)
+			w.Write(value)
 			return
 		}
 
 		r.Log.Info("Generating new response", "key", key)
 		callAndCache(r, w, args, f, key, now, cache)
+		lock.Release(1)
 	}
 }
