@@ -139,6 +139,22 @@ func Suspend(ctx context.Context, domain, user string, cfg *cfg.Config, db *sql.
 		return err
 	}
 
+	if _, err := db.ExecContext(ctx, `delete from feed where follower = ?`, actorID); err != nil {
+		return err
+	}
+
+	if _, err := db.ExecContext(ctx, `delete from feed where followed = ?`, actorID); err != nil {
+		return err
+	}
+
+	if _, err := db.ExecContext(ctx, `delete from feed where author->>'$.id' = ?`, actorID); err != nil {
+		return err
+	}
+
+	if _, err := db.ExecContext(ctx, `update feed set sharer = null where sharer->>'$.id' = ?`, actorID); err != nil {
+		return err
+	}
+
 	if _, err := db.ExecContext(ctx, `delete from bookmarks where by = ?`, actorID); err != nil {
 		return err
 	}
