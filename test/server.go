@@ -41,6 +41,7 @@ type server struct {
 	cfg       *cfg.Config
 	db        *sql.DB
 	dbPath    string
+	handler   front.Handler
 	Alice     *ap.Actor
 	Bob       *ap.Actor
 	Carol     *ap.Actor
@@ -93,10 +94,16 @@ func newTestServer() *server {
 		panic(err)
 	}
 
+	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
+	if err != nil {
+		panic(err)
+	}
+
 	return &server{
 		cfg:       &cfg,
 		dbPath:    path,
 		db:        db,
+		handler:   handler,
 		Alice:     alice,
 		Bob:       bob,
 		Carol:     carol,
@@ -110,14 +117,9 @@ func (s *server) Handle(request string, user *ap.Actor) string {
 		panic(err)
 	}
 
-	handler, err := front.NewHandler(domain, false, s.cfg, fed.NewResolver(nil, domain, s.cfg, &http.Client{}, s.db), s.db)
-	if err != nil {
-		panic(err)
-	}
-
 	var buf bytes.Buffer
 	w := gmi.Wrap(&buf)
-	handler.Handle(
+	s.handler.Handle(
 		&front.Request{
 			Context: context.Background(),
 			URL:     u,
@@ -138,14 +140,9 @@ func (s *server) Upload(request string, user *ap.Actor, body []byte) string {
 	}
 	u.Scheme = "titan"
 
-	handler, err := front.NewHandler(domain, false, s.cfg, fed.NewResolver(nil, domain, s.cfg, &http.Client{}, s.db), s.db)
-	if err != nil {
-		panic(err)
-	}
-
 	var buf bytes.Buffer
 	w := gmi.Wrap(&buf)
-	handler.Handle(
+	s.handler.Handle(
 		&front.Request{
 			Context: context.Background(),
 			URL:     u,
