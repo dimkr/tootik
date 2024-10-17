@@ -73,6 +73,14 @@ func LineBuffered(inner io.Writer) *LineWriter {
 					_, err := w.inner.Write(w.buffer.Bytes())
 					if err != nil {
 						w.done <- err
+
+						// continue reading until closed, to unblock the writing routine
+						for {
+							if _, ok := <-w.c; !ok {
+								break
+							}
+						}
+
 						return
 					}
 
