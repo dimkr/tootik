@@ -516,7 +516,7 @@ func TestPoll_DeleteReply(t *testing.T) {
 	assert.Equal(1, valid)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?chocolate", reply[15:len(reply)-2]), server.Alice)
-	assert.Equal("40 Please try again later\r\n", edit)
+	assert.Regexp(`^40 Please wait for \S+\r\n$`, edit)
 }
 
 func TestPoll_Update(t *testing.T) {
