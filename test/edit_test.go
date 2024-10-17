@@ -48,7 +48,7 @@ func TestEdit_Throttling(t *testing.T) {
 	id := whisper[15 : len(whisper)-2]
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?Hello%%20followers", id), server.Bob)
-	assert.Equal("40 Please try again later\r\n", edit)
+	assert.Regexp(`^40 Please wait for \S+\r\n$`, edit)
 
 	users = server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")

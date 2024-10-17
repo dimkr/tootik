@@ -57,7 +57,7 @@ func TestSay_Throttling(t *testing.T) {
 	assert.Contains(outbox, "Hello world")
 
 	say = server.Handle("/users/say?Hello%20once%20more,%20world", server.Alice)
-	assert.Equal("40 Please wait before posting again\r\n", say)
+	assert.Regexp(`^40 Please wait for \S+\r\n$`, say)
 
 	outbox = server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Contains(outbox, "Hello world")

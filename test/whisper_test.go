@@ -89,7 +89,7 @@ func TestWhisper_Throttling(t *testing.T) {
 	assert.Contains(outbox, "Hello world")
 
 	whisper = server.Handle("/users/whisper?Hello%20once%20more,%20world", server.Alice)
-	assert.Equal("40 Please wait before posting again\r\n", whisper)
+	assert.Regexp(`^40 Please wait for \S+\r\n$`, whisper)
 
 	outbox = server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Contains(outbox, "Hello world")

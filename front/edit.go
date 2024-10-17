@@ -63,9 +63,10 @@ func (h *Handler) doEdit(w text.Writer, r *Request, args []string, readInput inp
 	}
 
 	canEdit := lastEditTime.Add(h.Config.EditThrottleUnit * time.Duration(math.Pow(h.Config.EditThrottleFactor, float64(edits))))
-	if time.Now().Before(canEdit) {
+	until := time.Until(canEdit)
+	if until > 0 {
 		r.Log.Warn("Throttled request to edit post", "note", note.ID, "can", canEdit)
-		w.Status(40, "Please try again later")
+		w.Statusf(40, "Please wait for %s", until.Truncate(time.Second).String())
 		return
 	}
 
