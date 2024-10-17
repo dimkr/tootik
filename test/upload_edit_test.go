@@ -59,7 +59,7 @@ func TestUploadEdit_HappyFlow(t *testing.T) {
 	assert.Contains(users, "Hello followers")
 
 	edit = server.Upload(fmt.Sprintf("/users/upload/edit/%s;mime=text/plain;size=16", id), server.Bob, []byte("Hello, followers"))
-	assert.Equal("40 Please try again later\r\n", edit)
+	assert.Regexp(`^40 Please wait for \S+\r\n$`, edit)
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 

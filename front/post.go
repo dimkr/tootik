@@ -60,16 +60,17 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 
 		if today.Valid && today.Int64 >= h.Config.MaxPostsPerDay {
 			r.Log.Warn("User has exceeded the daily posts quota", "posts", today.Int64)
-			w.Status(40, "Please wait before posting again")
+			w.Status(40, "Reached daily posts quota")
 			return
 		}
 
 		if today.Valid && last.Valid {
 			t := time.Unix(last.Int64, 0)
-			interval := max(1, time.Duration(today.Int64/h.Config.PostThrottleFactor)) * h.Config.PostThrottleUnit
-			if now.Sub(t) < interval {
-				r.Log.Warn("User is posting too frequently", "last", t, "can", t.Add(interval))
-				w.Status(40, "Please wait before posting again")
+			can := t.Add(max(1, time.Duration(today.Int64/h.Config.PostThrottleFactor)) * h.Config.PostThrottleUnit)
+			until := time.Until(can)
+			if until > 0 {
+				r.Log.Warn("User is posting too frequently", "last", t, "can", can)
+				w.Statusf(40, "Please wait for %s", until.Truncate(time.Second).String())
 				return
 			}
 		}
