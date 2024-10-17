@@ -87,6 +87,7 @@ func main() {
 		fmt.Fprintf(flag.CommandLine.Output(), "\n%s [flag]... add-community NAME\n\tAdd a community\n", os.Args[0])
 		fmt.Fprintf(flag.CommandLine.Output(), "\n%s [flag]... set-bio NAME PATH\n\tSet user's bio\n", os.Args[0])
 		fmt.Fprintf(flag.CommandLine.Output(), "\n%s [flag]... set-avatar NAME PATH\n\tSet user's avatar\n", os.Args[0])
+		fmt.Fprintf(flag.CommandLine.Output(), "\n%s [flag]... suspend NAME\n\tSuspend user\n", os.Args[0])
 
 		os.Exit(2)
 	}
@@ -98,7 +99,7 @@ func main() {
 	}
 
 	cmd := flag.Arg(0)
-	if !((cmd == "" && flag.NArg() == 0) || (cmd == "add-community" && flag.NArg() == 2 && flag.Arg(1) != "") || ((cmd == "set-bio" || cmd == "set-avatar") && flag.NArg() == 3 && flag.Arg(1) != "" && flag.Arg(2) != "")) {
+	if !((cmd == "" && flag.NArg() == 0) || ((cmd == "add-community" || cmd == "suspend") && flag.NArg() == 2 && flag.Arg(1) != "") || ((cmd == "set-bio" || cmd == "set-avatar") && flag.NArg() == 3 && flag.Arg(1) != "" && flag.Arg(2) != "")) {
 		flag.Usage()
 	}
 
@@ -307,6 +308,12 @@ func main() {
 			panic(err)
 		}
 
+		return
+
+	case "suspend":
+		if err := outbox.Suspend(ctx, *domain, flag.Arg(1), &cfg, db); err != nil {
+			panic(err)
+		}
 		return
 	}
 
