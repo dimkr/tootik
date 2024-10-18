@@ -78,9 +78,13 @@ func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
 
 	now := time.Now()
 
-	if (r.User.Updated != nil && now.Sub(r.User.Updated.Time) < h.Config.MinActorEditInterval) || (r.User.Updated == nil && now.Sub(r.User.Published.Time) < h.Config.MinActorEditInterval) {
-		r.Log.Warn("Throttled request to set avatar")
-		w.Status(40, "Please try again later")
+	can := r.User.Published.Time.Add(h.Config.MinActorEditInterval)
+	if r.User.Updated != nil {
+		can = r.User.Updated.Time.Add(h.Config.MinActorEditInterval)
+	}
+	if now.Before(can) {
+		r.Log.Warn("Throttled request to set avatar", "can", can)
+		w.Statusf(40, "Please wait for %s", time.Until(can).Truncate(time.Second).String())
 		return
 	}
 
