@@ -150,6 +150,10 @@ func deleteActor(ctx context.Context, db *sql.DB, id string) {
 		slog.Warn("Failed to delete shares by actor", "id", id, "error", err)
 	}
 
+	if _, err := db.ExecContext(ctx, `delete from bookmarks where exists (select 1 from notes where notes.author = ? and notes.id = bookmarks.note)`, id); err != nil {
+		slog.Warn("Failed to delete bookmarks by actor", "id", id, "error", err)
+	}
+
 	if _, err := db.ExecContext(ctx, `delete from feed where sharer->>'$.id' = ?`, id); err != nil {
 		slog.Warn("Failed to delete shares by actor", "id", id, "error", err)
 	}
