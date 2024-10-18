@@ -31,7 +31,7 @@ func TestName_Throttled(t *testing.T) {
 	assert := assert.New(t)
 
 	summary := server.Handle("/users/name?Jane%20Doe", server.Alice)
-	assert.Equal("40 Please try again later\r\n", summary)
+	assert.Regexp(`^40 Please wait for \S+\r\n$`, summary)
 }
 
 func TestName_HappyFlow(t *testing.T) {
