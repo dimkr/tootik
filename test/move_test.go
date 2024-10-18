@@ -321,7 +321,7 @@ func TestMove_LocalToLocalAliasThrottled(t *testing.T) {
 	assert := assert.New(t)
 
 	alias := server.Handle("/users/alias?bob%40localhost.localdomain%3a8443", server.Alice)
-	assert.Equal("40 Please try again later\r\n", alias)
+	assert.Regexp(`^40 Please wait for \S+\r\n$`, alias)
 }
 
 func TestMove_LocalToLocal(t *testing.T) {

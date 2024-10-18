@@ -44,7 +44,7 @@ func TestAvatar_NewUser(t *testing.T) {
 	assert := assert.New(t)
 
 	server.Alice.Published = &ap.Time{Time: time.Now().Add(-time.Second * 5)}
-	assert.Equal("40 Please try again later\r\n", server.Upload("/users/upload/avatar;mime=image/gif;size=63", server.Alice, avatar))
+	assert.Regexp(`^40 Please wait for \S+\r\n$`, server.Upload("/users/upload/avatar;mime=image/gif;size=63", server.Alice, avatar))
 }
 
 func TestAvatar_ChangedRecently(t *testing.T) {
@@ -55,7 +55,7 @@ func TestAvatar_ChangedRecently(t *testing.T) {
 
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
 	server.Alice.Updated = &ap.Time{Time: time.Now().Add(-time.Second * 5)}
-	assert.Equal("40 Please try again later\r\n", server.Upload("/users/upload/avatar;mime=image/gif;size=63", server.Alice, avatar))
+	assert.Regexp(`^40 Please wait for \S+\r\n$`, server.Upload("/users/upload/avatar;mime=image/gif;size=63", server.Alice, avatar))
 }
 
 func TestAvatar_HappyFlowSizeFirst(t *testing.T) {
