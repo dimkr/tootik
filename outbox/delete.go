@@ -52,16 +52,26 @@ func Delete(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, not
 	}
 	defer tx.Rollback()
 
-	if err := ForwardActivity(ctx, domain, cfg, tx, note, &delete, data.JSON(j)); err != nil {
-		return err
-	}
-
 	// mark this post as sent so recipients who haven't received it yet don't receive it
 	if _, err := tx.ExecContext(
 		ctx,
 		`UPDATE outbox SET sent = 1 WHERE activity->>'$.object.id' = ? AND activity->>'$.type' = 'Create'`,
 		note.ID,
 	); err != nil {
+		return fmt.Errorf("failed to insert delete activity: %w", err)
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
+		string(j),
+		note.AttributedTo,
+	); err != nil {
+		return fmt.Errorf("failed to insert delete activity: %w", err)
+	}
+
+	// determine whether or not this activity needs to be forwarded before we potentially punch a hole in the thread
+	if err := ForwardActivity(ctx, domain, cfg, tx, note, &delete, data.JSON(j)); err != nil {
 		return fmt.Errorf("failed to insert delete activity: %w", err)
 	}
 
@@ -95,15 +105,6 @@ func Delete(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, not
 		note.ID,
 	); err != nil {
 		return fmt.Errorf("failed to delete note: %w", err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`INSERT OR IGNORE INTO outbox (activity, sender) VALUES (?,?)`,
-		string(j),
-		note.AttributedTo,
-	); err != nil {
-		return fmt.Errorf("failed to insert delete activity: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
