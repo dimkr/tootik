@@ -52,10 +52,6 @@ func Delete(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, not
 	}
 	defer tx.Rollback()
 
-	if err := ForwardActivity(ctx, domain, cfg, tx, note, &delete, data.JSON(j)); err != nil {
-		return err
-	}
-
 	// mark this post as sent so recipients who haven't received it yet don't receive it
 	if _, err := tx.ExecContext(
 		ctx,
@@ -99,10 +95,14 @@ func Delete(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, not
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT OR IGNORE INTO outbox (activity, sender) VALUES (?,?)`,
+		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
 		string(j),
 		note.AttributedTo,
 	); err != nil {
+		return fmt.Errorf("failed to insert delete activity: %w", err)
+	}
+
+	if err := ForwardActivity(ctx, domain, cfg, tx, note, &delete, data.JSON(j)); err != nil {
 		return fmt.Errorf("failed to insert delete activity: %w", err)
 	}
 
