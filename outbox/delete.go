@@ -70,6 +70,7 @@ func Delete(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, not
 		return fmt.Errorf("failed to insert delete activity: %w", err)
 	}
 
+	// determine whether or not this activity needs to be forwarded before we potentially punch a hole in the thread
 	if err := ForwardActivity(ctx, domain, cfg, tx, note, &delete, data.JSON(j)); err != nil {
 		return fmt.Errorf("failed to insert delete activity: %w", err)
 	}
