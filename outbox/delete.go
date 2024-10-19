@@ -63,6 +63,19 @@ func Delete(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, not
 
 	if _, err := tx.ExecContext(
 		ctx,
+		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
+		string(j),
+		note.AttributedTo,
+	); err != nil {
+		return fmt.Errorf("failed to insert delete activity: %w", err)
+	}
+
+	if err := ForwardActivity(ctx, domain, cfg, tx, note, &delete, data.JSON(j)); err != nil {
+		return fmt.Errorf("failed to insert delete activity: %w", err)
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
 		`DELETE FROM notes WHERE id = ?`,
 		note.ID,
 	); err != nil {
@@ -91,19 +104,6 @@ func Delete(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, not
 		note.ID,
 	); err != nil {
 		return fmt.Errorf("failed to delete note: %w", err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
-		string(j),
-		note.AttributedTo,
-	); err != nil {
-		return fmt.Errorf("failed to insert delete activity: %w", err)
-	}
-
-	if err := ForwardActivity(ctx, domain, cfg, tx, note, &delete, data.JSON(j)); err != nil {
-		return fmt.Errorf("failed to insert delete activity: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
