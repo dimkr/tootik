@@ -21,6 +21,7 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"fmt"
+	"github.com/TwiN/go-away"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/user"
@@ -81,6 +82,11 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 		if altName != "" {
 			userName = altName
 		}
+	}
+
+	if goaway.IsProfane(userName) {
+		r.Log.Warn("Detected profane user name", "name", userName)
+		userName = ""
 	}
 
 	if userName == "" {
