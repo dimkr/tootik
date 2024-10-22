@@ -331,8 +331,8 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 					(
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 1 as rank from shares
 						join notes on notes.id = shares.note
-						join persons on persons.id = shares.by and persons.id = notes.object->>'$.audience'
-						where shares.note = $1
+						join persons on persons.id = shares.by
+						where shares.note = $1 and persons.actor->>'$.type' = 'Group'
 						union all
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 2 as rank from shares
 						join persons on persons.id = shares.by
@@ -355,8 +355,8 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 					(
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 1 as rank from shares
 						join notes on notes.id = shares.note
-						join persons on persons.id = shares.by and persons.id = notes.object->>'$.audience'
-						where shares.note = $1
+						join persons on persons.id = shares.by
+						where shares.note = $1 and persons.actor->>'$.type' = 'Group'
 						union all
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 2 as rank from shares
 						join follows on follows.followed = shares.by

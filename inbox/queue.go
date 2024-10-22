@@ -72,30 +72,10 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 		return nil
 	}
 
-	var audience sql.NullString
-	if err := q.DB.QueryRowContext(ctx, `select object->>'$.audience' from notes where id = ?`, post.ID).Scan(&audience); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	var duplicate int
+	if err := q.DB.QueryRowContext(ctx, `select exists (select 1 from notes where id = ?)`, post.ID).Scan(&duplicate); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("failed to check of %s is a duplicate: %w", post.ID, err)
-	} else if err == nil {
-		if sender.ID == post.Audience && !audience.Valid {
-			tx, err := q.DB.BeginTx(ctx, nil)
-			if err != nil {
-				return fmt.Errorf("cannot set %s audience: %w", post.ID, err)
-			}
-			defer tx.Rollback()
-
-			if _, err := tx.ExecContext(ctx, `update notes set object = json_set(object, '$.audience', ?) where id = ? and object->>'$.audience' is null`, post.Audience, post.ID); err != nil {
-				return fmt.Errorf("failed to set %s audience to %s: %w", post.ID, audience.String, err)
-			}
-
-			if _, err := tx.ExecContext(ctx, `update feed set note = json_set(note, '$.audience', ?) where note->>'$.id' = ? and note->>'$.audience' is null`, post.Audience, post.ID); err != nil {
-				return fmt.Errorf("failed to set %s audience to %s: %w", post.ID, audience.String, err)
-			}
-
-			if err := tx.Commit(); err != nil {
-				return fmt.Errorf("cannot set %s audience: %w", post.ID, err)
-			}
-		}
-
+	} else if err == nil && duplicate == 1 {
 		log.Debug("Post is a duplicate")
 		return nil
 	}
