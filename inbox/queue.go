@@ -91,8 +91,28 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 				return fmt.Errorf("failed to set %s audience to %s: %w", post.ID, audience.String, err)
 			}
 
+			if shared {
+				if _, err := tx.ExecContext(
+					ctx,
+					`INSERT INTO shares (note, by) VALUES(?,?)`,
+					post.ID,
+					sender.ID,
+				); err != nil {
+					return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, sender.ID, err)
+				}
+			}
+
 			if err := tx.Commit(); err != nil {
 				return fmt.Errorf("cannot set %s audience: %w", post.ID, err)
+			}
+		} else if shared {
+			if _, err := q.DB.ExecContext(
+				ctx,
+				`INSERT INTO shares (note, by) VALUES(?,?)`,
+				post.ID,
+				sender.ID,
+			); err != nil {
+				return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, sender.ID, err)
 			}
 		}
 
