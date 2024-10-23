@@ -339,13 +339,6 @@ func TestOutbox_PublicPostInGroupAudienceSetByUser(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	_, err = server.db.Exec(
-		`insert into shares (by, note) values(?,?)`,
-		"https://other.localdomain/group/people",
-		"https://127.0.0.1/note/1",
-	)
-	assert.NoError(err)
-
 	queue := inbox.Queue{
 		Domain:    domain,
 		Config:    server.cfg,
