@@ -141,7 +141,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 								persons.actor->>'$.followers' in (replies.cc0, replies.to0, replies.cc1, replies.to1, replies.cc2, replies.to2) or
 								(notes.to2 is not null and exists (select 1 from json_each(replies.object->'$.to') where value = persons.actor->>'$.followers')) or
 								(notes.cc2 is not null and exists (select 1 from json_each(replies.object->'$.cc') where value = persons.actor->>'$.followers')) or
-								(persons.actor->>'$.type' = 'Group' and exists (select 1 from shares where shares.by = follows.id and shares.note = $1))
+								(persons.actor->>'$.type' = 'Group' and exists (select 1 from shares where shares.by = persons.id and shares.note = replies.id))
 							)
 					)
 				)
