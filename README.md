@@ -34,6 +34,7 @@ Welcome, fedinaut! localhost.localdomain:8443 is an instance of tootik, a federa
 🏕️ Communities
 🔥 Hashtags
 🔭 View profile
+🔖 Bookmarks
 🔎 Search posts
 📣 New post
 ⚙️ Settings
@@ -107,6 +108,7 @@ This makes tootik lightweight, private and accessible:
   * Follow to join
   * Mention community in a public post to start thread
   * Community sends posts and replies to all members
+* Bookmarks
 * Full-text search within posts
 * Upload of posts and user avatars, over [Titan](gemini://transjovian.org/titan)
 * Account migration, in both directions

@@ -54,6 +54,9 @@ type Config struct {
 	MaxFollowsPerUser   int
 	FollowAcceptTimeout time.Duration
 
+	MaxBookmarksPerUser int
+	MinBookmarkInterval time.Duration
+
 	PostsPerPage   int
 	RepliesPerPage int
 	MaxOffset      int
@@ -207,6 +210,14 @@ func (c *Config) FillDefaults() {
 
 	if c.FollowAcceptTimeout <= 0 {
 		c.FollowAcceptTimeout = time.Hour * 24 * 2
+	}
+
+	if c.MaxBookmarksPerUser <= 0 {
+		c.MaxBookmarksPerUser = 100
+	}
+
+	if c.MinBookmarkInterval <= 0 {
+		c.MinBookmarkInterval = time.Second * 5
 	}
 
 	if c.PostsPerPage <= 0 {
