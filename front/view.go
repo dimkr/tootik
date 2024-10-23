@@ -77,12 +77,12 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 							where
 								follows.accepted = 1 and
 								follows.follower = $2
-							) follows
-							where
-								follows.followers in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-								(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = follows.followers)) or
-								(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = follows.followers)) or
-								(follows.type = 'Group' and exists (select 1 from shares where shares.by = follows.id and shares.note = notes.id))
+						) follows
+						where
+							follows.followers in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = follows.followers)) or
+							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = follows.followers)) or
+							(follows.type = 'Group' and exists (select 1 from shares where shares.by = follows.id and shares.note = notes.id))
 					)
 				)
 			`,
