@@ -65,7 +65,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 				join persons authors on
 					authors.id = notes.author and coalesce(authors.actor->>'$.discoverable', 1)
 				left join persons groups on
-					groups.actor->>'$.type' = 'Group' and groups.id = notes.object->>'$.audience'
+					groups.actor->>'$.type' = 'Group' and exists (select 1 from shares where shares.by = groups.id and shares.note = notes.id)
 				where
 					notes.public = 1 and
 					notesfts.content match $1
@@ -126,7 +126,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 				join persons authors on
 					authors.id = u.author and coalesce(authors.actor->>'$.discoverable', 1)
 				left join persons groups on
-					groups.actor->>'$.type' = 'Group' and groups.id = u.object->>'$.audience'
+					groups.actor->>'$.type' = 'Group' and exists (select 1 from shares where shares.by = groups.id and shares.note = u.id)
 				group by
 					u.id
 				order by

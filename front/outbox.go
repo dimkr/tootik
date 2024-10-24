@@ -56,10 +56,11 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// unauthenticated users can only see public posts in a group
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select notes.object, authors.actor, null, max(notes.inserted, coalesce(max(replies.inserted), 0)) from notes
+			`select notes.object, authors.actor, null, max(notes.inserted, coalesce(max(replies.inserted), 0)) from shares
+			join notes on notes.id = shares.note
 			join persons authors on authors.id = notes.author
 			left join notes replies on replies.object->>'$.inReplyTo' = notes.id
-			where notes.object->>'$.audience' = $1 and notes.public = 1 and notes.object->>'$.inReplyTo' is null
+			where shares.by = $1 and notes.public = 1 and notes.object->>'$.inReplyTo' is null
 			group by notes.id
 			order by max(notes.inserted, coalesce(max(replies.inserted), 0)) / 86400 desc, count(replies.id) desc, notes.inserted desc limit $2 offset $3`,
 			actorID,
@@ -70,11 +71,12 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// users can see public posts in a group and non-public posts if they follow the group
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select notes.object, authors.actor, null, max(notes.inserted, coalesce(max(replies.inserted), 0)) from notes
+			`select notes.object, authors.actor, null, max(notes.inserted, coalesce(max(replies.inserted), 0)) from shares
+			join notes on notes.id = shares.note
 			join persons authors on authors.id = notes.author
 			left join notes replies on replies.object->>'$.inReplyTo' = notes.id
 			where
-				notes.object->>'$.audience' = $1 and
+				shares.by = $1 and
 				(
 					notes.public = 1 or
 					exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
