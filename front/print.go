@@ -377,7 +377,7 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 						join persons on persons.id = shares.by
 						where shares.note = $1 and persons.host = $3
 						union all
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 4 as rank from shares
+						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 5 as rank from shares
 						join persons on persons.id = shares.by
 						where shares.note = $1 and persons.host != $3
 					)
