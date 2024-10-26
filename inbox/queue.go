@@ -82,6 +82,7 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 				return fmt.Errorf("cannot set %s audience: %w", post.ID, err)
 			}
 			defer tx.Rollback()
+
 			if _, err := tx.ExecContext(ctx, `update notes set object = json_set(object, '$.audience', ?) where id = ? and object->>'$.audience' is null`, post.Audience, post.ID); err != nil {
 				return fmt.Errorf("failed to set %s audience to %s: %w", post.ID, audience.String, err)
 			}
