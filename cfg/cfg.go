@@ -57,6 +57,8 @@ type Config struct {
 	MaxBookmarksPerUser int
 	MinBookmarkInterval time.Duration
 
+	MinCheckersInterval time.Duration
+
 	PostsPerPage   int
 	RepliesPerPage int
 	MaxOffset      int
@@ -218,6 +220,10 @@ func (c *Config) FillDefaults() {
 
 	if c.MinBookmarkInterval <= 0 {
 		c.MinBookmarkInterval = time.Second * 5
+	}
+
+	if c.MinCheckersInterval <= 0 {
+		c.MinCheckersInterval = time.Hour
 	}
 
 	if c.PostsPerPage <= 0 {

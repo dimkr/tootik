@@ -139,6 +139,15 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 	h.handlers[regexp.MustCompile(`^/status$`)] = withCache(withUserMenu(h.status), time.Minute*5, &cache, cfg)
 	h.handlers[regexp.MustCompile(`^/users/status$`)] = withCache(withUserMenu(h.status), time.Minute*5, &cache, cfg)
 
+	h.handlers[regexp.MustCompile(`^/checkers$`)] = withUserMenu(h.checkers)
+	h.handlers[regexp.MustCompile(`^/users/checkers$`)] = withUserMenu(h.checkers)
+	h.handlers[regexp.MustCompile(`^/users/checkers/start$`)] = withUserMenu(h.checkersStart)
+	h.handlers[regexp.MustCompile(`^/users/checkers/join/([1-9][0-9]*)$`)] = withUserMenu(h.checkersJoin)
+	h.handlers[regexp.MustCompile(`^/users/checkers/surrender/([1-9][0-9]*)$`)] = withUserMenu(h.checkersSurrender)
+	h.handlers[regexp.MustCompile(`^/checkers/([1-9][0-9]*)$`)] = withUserMenu(h.checkersView)
+	h.handlers[regexp.MustCompile(`^/users/checkers/([1-9][0-9]*)$`)] = withUserMenu(h.checkersView)
+	h.handlers[regexp.MustCompile(`^/users/checkers/move/([1-9][0-9]*)/([0-7])([0-7])([0-7])([0-7])([0-7])([0-7])$`)] = withUserMenu(h.checkersMove)
+
 	h.handlers[regexp.MustCompile(`^/oops`)] = withUserMenu(oops)
 	h.handlers[regexp.MustCompile(`^/users/oops`)] = withUserMenu(oops)
 
