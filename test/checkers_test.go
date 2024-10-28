@@ -26,6 +26,8 @@ func TestCheckers_HappyFlow(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	server.cfg.CheckersRandomizePlayer = nil
+
 	assert := assert.New(t)
 
 	assert.Equal("30 /users/checkers/1\r\n", server.Handle("/users/checkers/start", server.Alice))
@@ -208,6 +210,8 @@ func TestCheckers_MustCapture(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	server.cfg.CheckersRandomizePlayer = nil
+
 	assert := assert.New(t)
 
 	assert.Equal("30 /users/checkers/1\r\n", server.Handle("/users/checkers/start", server.Alice))
@@ -223,6 +227,8 @@ func TestCheckers_MustCapture(t *testing.T) {
 func TestCheckers_NotYourTurn(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
+
+	server.cfg.CheckersRandomizePlayer = nil
 
 	assert := assert.New(t)
 
@@ -240,6 +246,8 @@ func TestCheckers_InvalidMove(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
 
+	server.cfg.CheckersRandomizePlayer = nil
+
 	assert := assert.New(t)
 
 	assert.Equal("30 /users/checkers/1\r\n", server.Handle("/users/checkers/start", server.Alice))
@@ -255,6 +263,8 @@ func TestCheckers_InvalidMove(t *testing.T) {
 func TestCheckers_SurrenderHuman(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
+
+	server.cfg.CheckersRandomizePlayer = nil
 
 	assert := assert.New(t)
 
@@ -274,6 +284,8 @@ func TestCheckers_SurrenderHuman(t *testing.T) {
 func TestCheckers_SurrenderHumanMove(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
+
+	server.cfg.CheckersRandomizePlayer = nil
 
 	assert := assert.New(t)
 
@@ -295,6 +307,8 @@ func TestCheckers_SurrenderHumanMove(t *testing.T) {
 func TestCheckers_SurrenderOrc(t *testing.T) {
 	server := newTestServer()
 	defer server.Shutdown()
+
+	server.cfg.CheckersRandomizePlayer = nil
 
 	assert := assert.New(t)
 

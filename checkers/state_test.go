@@ -23,7 +23,7 @@ import (
 )
 
 func TestState_HappyFlow(t *testing.T) {
-	game := Start()
+	game := Start(Human)
 
 	for {
 		var moves []Move

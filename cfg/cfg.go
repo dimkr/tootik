@@ -57,7 +57,8 @@ type Config struct {
 	MaxBookmarksPerUser int
 	MinBookmarkInterval time.Duration
 
-	MinCheckersInterval time.Duration
+	MinCheckersInterval     time.Duration
+	CheckersRandomizePlayer *bool
 
 	PostsPerPage   int
 	RepliesPerPage int
@@ -224,6 +225,11 @@ func (c *Config) FillDefaults() {
 
 	if c.MinCheckersInterval <= 0 {
 		c.MinCheckersInterval = time.Hour
+	}
+
+	if c.CheckersRandomizePlayer == nil {
+		tmp := true
+		c.CheckersRandomizePlayer = &tmp
 	}
 
 	if c.PostsPerPage <= 0 {

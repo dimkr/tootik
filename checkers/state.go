@@ -22,8 +22,8 @@ type State struct {
 	Current Player
 }
 
-func Start() *State {
-	return &State{
+func Start(first Player) *State {
+	state := &State{
 		Board: Board{Humans: map[Coord]Piece{
 			{1, 7}: {ID: 8},
 			{3, 7}: {ID: 9},
@@ -53,8 +53,10 @@ func Start() *State {
 				{6, 2}: {ID: 3},
 			},
 		},
-		Current: Human,
+		Current: first,
 	}
+
+	return state
 }
 
 func (s State) getCell(c Coord) Player {

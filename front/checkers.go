@@ -23,6 +23,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/checkers"
 	"github.com/dimkr/tootik/front/text"
+	"math/rand/v2"
 	"slices"
 	"strconv"
 	"time"
@@ -107,9 +108,9 @@ func (h *Handler) checkers(w text.Writer, r *Request, args ...string) {
 		}
 
 		if r.User != nil {
-			w.Linkf(fmt.Sprintf("/users/checkers/%d", rowID), "%s %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername)
+			w.Linkf(fmt.Sprintf("/users/checkers/%d", rowID), "%s 🤺 %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername)
 		} else {
-			w.Linkf(fmt.Sprintf("/checkers/%d", rowID), "%s %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername)
+			w.Linkf(fmt.Sprintf("/checkers/%d", rowID), "%s 🤺 %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername)
 		}
 
 		anyPending = true
@@ -132,9 +133,9 @@ func (h *Handler) checkers(w text.Writer, r *Request, args ...string) {
 		}
 
 		if r.User != nil {
-			w.Linkf(fmt.Sprintf("/users/checkers/%d", rowID), "%s %s vs %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername, orc.PreferredUsername)
+			w.Linkf(fmt.Sprintf("/users/checkers/%d", rowID), "%s 🤺 %s vs 🧌 %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername, orc.PreferredUsername)
 		} else {
-			w.Linkf(fmt.Sprintf("/checkers/%d", rowID), "%s %s vs %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername, orc.PreferredUsername)
+			w.Linkf(fmt.Sprintf("/checkers/%d", rowID), "%s 🤺 %s vs 🧌 %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername, orc.PreferredUsername)
 		}
 
 		anyActive = true
@@ -157,9 +158,9 @@ func (h *Handler) checkers(w text.Writer, r *Request, args ...string) {
 		}
 
 		if r.User != nil {
-			w.Linkf(fmt.Sprintf("/users/checkers/%d", rowID), "%s %s vs %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername, orc.PreferredUsername)
+			w.Linkf(fmt.Sprintf("/users/checkers/%d", rowID), "%s 🤺 %s vs 🧌 %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername, orc.PreferredUsername)
 		} else {
-			w.Linkf(fmt.Sprintf("/checkers/%d", rowID), "%s %s vs %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername, orc.PreferredUsername)
+			w.Linkf(fmt.Sprintf("/checkers/%d", rowID), "%s 🤺 %s vs 🧌 %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername, orc.PreferredUsername)
 		}
 
 		anyEnded = true
@@ -208,7 +209,12 @@ func (h *Handler) checkersStart(w text.Writer, r *Request, args ...string) {
 		}
 	}
 
-	res, err := h.DB.ExecContext(r.Context, `insert into checkers(human, state) values(?, ?)`, r.User.ID, checkers.Start())
+	first := checkers.Human
+	if h.Config.CheckersRandomizePlayer != nil && *h.Config.CheckersRandomizePlayer && rand.IntN(2) == 1 {
+		first = checkers.Orc
+	}
+
+	res, err := h.DB.ExecContext(r.Context, `insert into checkers(human, state) values(?, ?)`, r.User.ID, checkers.Start(first))
 	if err != nil {
 		r.Log.Warn("Failed to insert game", "error", err)
 		w.Error()
@@ -357,16 +363,16 @@ func (h *Handler) checkersView(w text.Writer, r *Request, args ...string) {
 
 	w.OK()
 
-	if r.User != nil && orc.Valid && r.User.ID == human.ID {
-		w.Titlef("👑 You vs %s: Turn %d", orc.V.PreferredUsername, len(state.Turns))
-	} else if r.User != nil && orc.Valid && r.User.ID == orc.V.ID {
-		w.Titlef("👑 %s vs You: Turn %d", human.PreferredUsername, len(state.Turns))
-	} else if orc.Valid {
-		w.Titlef("👑 %s vs %s: Turn %d", human.PreferredUsername, orc.V.PreferredUsername, len(state.Turns))
-	} else if r.User != nil {
-		w.Titlef("👑 New Game by You")
+	if !orc.Valid && r.User != nil && r.User.ID == human.ID {
+		w.Titlef("🤺 You vs 🧌 Somebody: Turn %d", len(state.Turns))
+	} else if !orc.Valid {
+		w.Titlef("🤺 %s vs 🧌 Somebody: Turn %d", human.PreferredUsername, len(state.Turns))
+	} else if r.User != nil && r.User.ID == human.ID {
+		w.Titlef("🤺 You vs 🧌 %s: Turn %d", orc.V.PreferredUsername, len(state.Turns))
+	} else if r.User != nil && r.User.ID == orc.V.ID {
+		w.Titlef("🤺 %s vs 🧌 You: Turn %d", human.PreferredUsername, len(state.Turns))
 	} else {
-		w.Titlef("👑 New Game by " + human.PreferredUsername)
+		w.Titlef("🤺 %s vs 🧌 %s: Turn %d", human.PreferredUsername, orc.V.PreferredUsername, len(state.Turns))
 	}
 
 	if len(state.Turns) > 1 {
