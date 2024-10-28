@@ -29,11 +29,6 @@ import (
 )
 
 func (h *Handler) checkers(w text.Writer, r *Request, args ...string) {
-	if r.User == nil {
-		w.Redirect("/oops")
-		return
-	}
-
 	pending, err := h.DB.QueryContext(
 		r.Context,
 		`
