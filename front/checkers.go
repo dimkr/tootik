@@ -496,7 +496,7 @@ func (h *Handler) checkersView(w text.Writer, r *Request, args ...string) {
 		}
 	}
 
-	if r.User != nil && orc.Valid && (human.ID == r.User.ID || orc.V.ID == r.User.ID) {
+	if r.User != nil && (human.ID == r.User.ID || (orc.Valid && orc.V.ID == r.User.ID)) {
 		w.Empty()
 		w.Link(fmt.Sprintf("/users/checkers/surrender/%d", rowID), "🏃 Surrender")
 	}
