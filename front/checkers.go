@@ -108,7 +108,7 @@ func (h *Handler) checkers(w text.Writer, r *Request, args ...string) {
 		if r.User != nil {
 			w.Linkf(fmt.Sprintf("/users/checkers/%d", rowID), "%s %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername)
 		} else {
-			w.Linkf(fmt.Sprintf("/checkers/view/%d", rowID), "%s %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername)
+			w.Linkf(fmt.Sprintf("/checkers/%d", rowID), "%s %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername)
 		}
 
 		anyPending = true
@@ -133,7 +133,7 @@ func (h *Handler) checkers(w text.Writer, r *Request, args ...string) {
 		if r.User != nil {
 			w.Linkf(fmt.Sprintf("/users/checkers/%d", rowID), "%s %s vs %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername, orc.PreferredUsername)
 		} else {
-			w.Linkf(fmt.Sprintf("/checkers/view/%d", rowID), "%s %s vs %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername, orc.PreferredUsername)
+			w.Linkf(fmt.Sprintf("/checkers/%d", rowID), "%s %s vs %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername, orc.PreferredUsername)
 		}
 
 		anyActive = true
@@ -158,7 +158,7 @@ func (h *Handler) checkers(w text.Writer, r *Request, args ...string) {
 		if r.User != nil {
 			w.Linkf(fmt.Sprintf("/users/checkers/%d", rowID), "%s %s vs %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername, orc.PreferredUsername)
 		} else {
-			w.Linkf(fmt.Sprintf("/checkers/view/%d", rowID), "%s %s vs %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername, orc.PreferredUsername)
+			w.Linkf(fmt.Sprintf("/checkers/%d", rowID), "%s %s vs %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername, orc.PreferredUsername)
 		}
 
 		anyEnded = true
