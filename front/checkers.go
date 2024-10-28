@@ -595,9 +595,9 @@ func (h *Handler) checkersMove(w text.Writer, r *Request, args ...string) {
 	}
 
 	move := checkers.Move{
-		From:     checkers.Coord{int(fromX), int(fromY)},
-		To:       checkers.Coord{int(toX), int(toY)},
-		Captured: checkers.Coord{int(capturedX), int(capturedY)},
+		From:     checkers.Coord{X: int(fromX), Y: int(fromY)},
+		To:       checkers.Coord{X: int(toX), Y: int(toY)},
+		Captured: checkers.Coord{X: int(capturedX), Y: int(capturedY)},
 	}
 	if err := act(move); err != nil {
 		if errors.Is(err, checkers.ErrMustCapture) {
