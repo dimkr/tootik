@@ -91,8 +91,9 @@ func (h *Handler) checkers(w text.Writer, r *Request, args ...string) {
 		return
 	}
 	defer active.Close()
+
 	w.OK()
-	w.Title("🎲 Checkers")
+	w.Title("👑 Checkers")
 
 	w.Subtitle("Pending Games")
 
@@ -357,15 +358,15 @@ func (h *Handler) checkersView(w text.Writer, r *Request, args ...string) {
 	w.OK()
 
 	if r.User != nil && orc.Valid && r.User.ID == human.ID {
-		w.Titlef("You vs %s: Turn %d", orc.V.PreferredUsername, len(state.Turns))
+		w.Titlef("👑 You vs %s: Turn %d", orc.V.PreferredUsername, len(state.Turns))
 	} else if r.User != nil && orc.Valid && r.User.ID == orc.V.ID {
-		w.Titlef("%s vs You: Turn %d", human.PreferredUsername, len(state.Turns))
+		w.Titlef("👑 %s vs You: Turn %d", human.PreferredUsername, len(state.Turns))
 	} else if orc.Valid {
-		w.Titlef("%s vs %s: Turn %d", human.PreferredUsername, orc.V.PreferredUsername, len(state.Turns))
+		w.Titlef("👑 %s vs %s: Turn %d", human.PreferredUsername, orc.V.PreferredUsername, len(state.Turns))
 	} else if r.User != nil {
-		w.Titlef("New Game by You")
+		w.Titlef("👑 New Game by You")
 	} else {
-		w.Titlef("New Game by " + human.PreferredUsername)
+		w.Titlef("👑 New Game by " + human.PreferredUsername)
 	}
 
 	if len(state.Turns) > 1 {
