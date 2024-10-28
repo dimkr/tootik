@@ -17,7 +17,6 @@ limitations under the License.
 package test
 
 import (
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"

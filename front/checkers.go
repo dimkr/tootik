@@ -401,7 +401,7 @@ func (h *Handler) checkersView(w text.Writer, r *Request, args ...string) {
 
 	if r.User != nil && !orc.Valid && human.ID != r.User.ID {
 		w.Empty()
-		w.Linkf(fmt.Sprintf("/users/checkers/join/%d", rowID), "🤺 Play against "+human.PreferredUsername)
+		w.Linkf(fmt.Sprintf("/users/checkers/join/%d", rowID), "🧌 Play orcs")
 	} else if !orc.Valid {
 		w.Empty()
 		w.Text("Waiting for a player to join.")
