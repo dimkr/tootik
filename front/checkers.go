@@ -392,6 +392,7 @@ func (h *Handler) checkersView(w text.Writer, r *Request, args ...string) {
 
 	if winner.Valid {
 		w.Empty()
+
 		if r.User != nil && winner.String == r.User.ID {
 			w.Text("You won.")
 		} else if winner.String == orc.V.ID {
@@ -402,6 +403,7 @@ func (h *Handler) checkersView(w text.Writer, r *Request, args ...string) {
 
 		return
 	} else if ended.Valid {
+		w.Empty()
 		w.Textf("Game has ended at %s.", time.Unix(ended.Int64, 0).Format(time.DateOnly))
 		return
 	}
