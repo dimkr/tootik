@@ -43,9 +43,52 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 	var group sql.Null[ap.Actor]
 
 	if r.User == nil {
-		err = h.DB.QueryRowContext(r.Context, `select notes.object, persons.actor, groups.actor from notes join persons on persons.id = notes.author left join (select id, actor from persons where actor->>'$.type' = 'Group') groups on groups.id = notes.object->>'$.audience' where notes.id = ? and notes.public = 1`, postID).Scan(&note, &author, &group)
+		err = h.DB.QueryRowContext(
+			r.Context,
+			`
+			select notes.object, persons.actor, groups.actor from notes
+			join persons on persons.id = notes.author
+			left join (select id, actor from persons where actor->>'$.type' = 'Group') groups on exists (select 1 from shares where shares.by = groups.id and shares.note = $1)
+			where
+				notes.id = $1 and
+				notes.public = 1
+			`,
+			postID,
+		).Scan(&note, &author, &group)
 	} else {
-		err = h.DB.QueryRowContext(r.Context, `select notes.object, persons.actor, groups.actor from notes join persons on persons.id = notes.author left join (select id, actor from persons where actor->>'$.type' = 'Group') groups on groups.id = notes.object->>'$.audience' where notes.id = $1 and (notes.public = 1 or notes.author = $2 or $2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $2)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $2)) or exists (select 1 from (select persons.id, persons.actor->>'$.followers' as followers, persons.actor->>'$.type' as type from persons join follows on follows.followed = persons.id where follows.accepted = 1 and follows.follower = $2) follows where follows.followers in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = follows.followers)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = follows.followers)) or (follows.id = notes.object->>'$.audience' and follows.type = 'Group')))`, postID, r.User.ID).Scan(&note, &author, &group)
+		err = h.DB.QueryRowContext(
+			r.Context,
+			`
+			select notes.object, persons.actor, groups.actor from notes
+			join persons on persons.id = notes.author
+			left join (select id, actor from persons where actor->>'$.type' = 'Group') groups on exists (select 1 from shares where shares.by = groups.id and shares.note = $1)
+			where
+				notes.id = $1 and
+				(
+					notes.public = 1 or
+					notes.author = $2 or
+					$2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $2)) or
+					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $2)) or
+					exists (
+						select 1 from (
+							select persons.id, persons.actor->>'$.followers' as followers, persons.actor->>'$.type' as type from persons
+							join follows on follows.followed = persons.id
+							where
+								follows.accepted = 1 and
+								follows.follower = $2
+						) follows
+						where
+							follows.followers in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = follows.followers)) or
+							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = follows.followers)) or
+							(follows.type = 'Group' and exists (select 1 from shares where shares.by = follows.id and shares.note = notes.id))
+					)
+				)
+			`,
+			postID,
+			r.User.ID,
+		).Scan(&note, &author, &group)
 	}
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Info("Post was not found", "post", postID)
@@ -61,10 +104,14 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select replies.object, persons.actor, null as sharer, replies.inserted from notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
+			`
+			select replies.object, persons.actor, null as sharer, replies.inserted from notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
 			left join persons on persons.id = replies.author
-			where notes.id = $1 and replies.public = 1
-			order by replies.inserted desc limit $2 offset $3`,
+			where
+				notes.id = $1 and
+				replies.public = 1
+			order by replies.inserted desc limit $2 offset $3
+			`,
 			postID,
 			h.Config.RepliesPerPage,
 			offset,
@@ -72,12 +119,34 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 	} else {
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select replies.object, persons.actor, null as sharer, replies.inserted from
+			`
+			select replies.object, persons.actor, null as sharer, replies.inserted from
 			notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
 			left join persons on persons.id = replies.author
-			left join (select id from persons where actor->>'$.type' = 'Group') groups on groups.id = replies.object->>'$.audience'
-			where notes.id = $1 and (replies.public = 1 or replies.author = $2 or $2 in (replies.cc0, replies.to0, replies.cc1, replies.to1, replies.cc2, replies.to2) or (replies.to2 is not null and exists (select 1 from json_each(replies.object->'$.to') where value = $2)) or (replies.cc2 is not null and exists (select 1 from json_each(replies.object->'$.cc') where value = $2)) or exists (select 1 from persons join follows on follows.followed = persons.id where follows.follower = $2 and follows.accepted = 1 and persons.actor->>'$.followers' in (replies.cc0, replies.to0, replies.cc1, replies.to1, replies.cc2, replies.to2) or (notes.to2 is not null and exists (select 1 from json_each(replies.object->'$.to') where value = persons.actor->>'$.followers')) or (notes.cc2 is not null and exists (select 1 from json_each(replies.object->'$.cc') where value = persons.actor->>'$.followers')) or (follows.followed = groups.id and persons.actor->>'$.type' = 'Group')))
-			order by replies.inserted desc limit $3 offset $4`,
+			where
+				notes.id = $1 and
+				(
+					replies.public = 1 or
+					replies.author = $2 or
+					$2 in (replies.cc0, replies.to0, replies.cc1, replies.to1, replies.cc2, replies.to2) or
+					(replies.to2 is not null and exists (select 1 from json_each(replies.object->'$.to') where value = $2)) or
+					(replies.cc2 is not null and exists (select 1 from json_each(replies.object->'$.cc') where value = $2)) or
+					exists (
+						select 1 from persons
+						join follows on follows.followed = persons.id
+						where
+							follows.follower = $2 and
+							follows.accepted = 1 and
+							(
+								persons.actor->>'$.followers' in (replies.cc0, replies.to0, replies.cc1, replies.to1, replies.cc2, replies.to2) or
+								(notes.to2 is not null and exists (select 1 from json_each(replies.object->'$.to') where value = persons.actor->>'$.followers')) or
+								(notes.cc2 is not null and exists (select 1 from json_each(replies.object->'$.cc') where value = persons.actor->>'$.followers')) or
+								(persons.actor->>'$.type' = 'Group' and exists (select 1 from shares where shares.by = persons.id and shares.note = replies.id))
+							)
+					)
+				)
+			order by replies.inserted desc limit $3 offset $4
+			`,
 			postID,
 			r.User.ID,
 			h.Config.RepliesPerPage,

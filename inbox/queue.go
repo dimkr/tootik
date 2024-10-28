@@ -91,8 +91,30 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 				return fmt.Errorf("failed to set %s audience to %s: %w", post.ID, audience.String, err)
 			}
 
+			if shared {
+				if _, err := tx.ExecContext(
+					ctx,
+					`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
+					post.ID,
+					sender.ID,
+					activity.ID,
+				); err != nil {
+					return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, sender.ID, err)
+				}
+			}
+
 			if err := tx.Commit(); err != nil {
 				return fmt.Errorf("cannot set %s audience: %w", post.ID, err)
+			}
+		} else if shared {
+			if _, err := q.DB.ExecContext(
+				ctx,
+				`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
+				post.ID,
+				sender.ID,
+				activity.ID,
+			); err != nil {
+				return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, sender.ID, err)
 			}
 		}
 
@@ -122,9 +144,10 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 	if shared {
 		if _, err := tx.ExecContext(
 			ctx,
-			`INSERT INTO shares (note, by) VALUES(?,?)`,
+			`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
 			post.ID,
 			sender.ID,
+			activity.ID,
 		); err != nil {
 			return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, sender.ID, err)
 		}
@@ -340,9 +363,10 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 			if postID, ok := activity.Object.(string); ok && postID != "" {
 				if _, err := q.DB.ExecContext(
 					ctx,
-					`INSERT INTO shares (note, by) VALUES(?,?)`,
+					`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
 					postID,
 					sender.ID,
+					activity.ID,
 				); err != nil {
 					return fmt.Errorf("cannot insert share for %s by %s: %w", postID, sender.ID, err)
 				}

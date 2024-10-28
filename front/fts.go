@@ -65,7 +65,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 				join persons authors on
 					authors.id = notes.author and coalesce(authors.actor->>'$.discoverable', 1)
 				left join persons groups on
-					groups.actor->>'$.type' = 'Group' and groups.id = notes.object->>'$.audience'
+					groups.actor->>'$.type' = 'Group' and exists (select 1 from shares where shares.by = groups.id and shares.note = notes.id)
 				where
 					notes.public = 1 and
 					notesfts.content match $1
@@ -102,13 +102,15 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 						(
 							persons.actor->>'$.followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
 							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers')) or
-							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers'))
+							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers')) or
+							(persons.actor->>'$.type' = 'Group' and exists (select 1 from shares where shares.by = persons.id and shares.note = notes.id))
 						)
 					join
 					notesfts on
 						notesfts.id = notes.id
 					where
 						follows.follower = $2 and
+						follows.accepted = 1 and
 						notesfts.content match $1
 					union all
 					select notes.id, notes.object, notes.author, notes.inserted, rank, 0 as aud from
@@ -126,7 +128,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 				join persons authors on
 					authors.id = u.author and coalesce(authors.actor->>'$.discoverable', 1)
 				left join persons groups on
-					groups.actor->>'$.type' = 'Group' and groups.id = u.object->>'$.audience'
+					groups.actor->>'$.type' = 'Group' and exists (select 1 from shares where shares.by = groups.id and shares.note = u.id)
 				group by
 					u.id
 				order by

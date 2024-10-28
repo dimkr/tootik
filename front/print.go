@@ -331,14 +331,19 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 					(
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 1 as rank from shares
 						join notes on notes.id = shares.note
-						join persons on persons.id = shares.by and persons.id = notes.object->>'$.audience'
-						where shares.note = $1
+						join persons on persons.id = shares.by
+						where shares.note = $1 and persons.actor->>'$.type' = 'Group'
 						union all
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 2 as rank from shares
+						join notes on notes.id = shares.note
+						join persons on persons.id = shares.by
+						where shares.note = $1
+						union all
+						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 3 as rank from shares
 						join persons on persons.id = shares.by
 						where shares.note = $1 and persons.host = $2
 						union all
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 3 as rank from shares
+						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 4 as rank from shares
 						join persons on persons.id = shares.by
 						where shares.note = $1 and persons.host != $2
 					)
@@ -355,19 +360,24 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 					(
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 1 as rank from shares
 						join notes on notes.id = shares.note
-						join persons on persons.id = shares.by and persons.id = notes.object->>'$.audience'
-						where shares.note = $1
+						join persons on persons.id = shares.by
+						where shares.note = $1 and persons.actor->>'$.type' = 'Group'
 						union all
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 2 as rank from shares
+						join notes on notes.id = shares.note
+						join persons on persons.id = shares.by
+						where shares.note = $1
+						union all
+						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 3 as rank from shares
 						join follows on follows.followed = shares.by
 						join persons on persons.id = follows.followed
 						where shares.note = $1 and follows.follower = $2
 						union all
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 3 as rank from shares
+						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 4 as rank from shares
 						join persons on persons.id = shares.by
 						where shares.note = $1 and persons.host = $3
 						union all
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 4 as rank from shares
+						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 5 as rank from shares
 						join persons on persons.id = shares.by
 						where shares.note = $1 and persons.host != $3
 					)
