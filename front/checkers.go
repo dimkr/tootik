@@ -169,7 +169,7 @@ func (h *Handler) checkers(w text.Writer, r *Request, args ...string) {
 	}
 
 	if r.User != nil {
-		w.Empty()
+		w.Separator()
 		w.Link("/users/checkers/start", "🤺 Start game")
 	}
 }

@@ -23,6 +23,15 @@ This page shows popular hashtags, allowing you to discover trends and shared int
 
 This is a full-text search tool that lists posts containing keyword(s), ordered by relevance.
 
+> 🎲 Games
+
+This page lists games available on this server.
+
+Currently, there is only one game: checkers on an 8x8 board. Games are separated into 3 categories:
+* Pending games: games waiting for a player to join
+* Active games: games with two players but no verdict yet
+* Ended games
+
 > 📊 Status
 
 This page shows various statistics about this server and the parts of the fediverse it's connected to.
