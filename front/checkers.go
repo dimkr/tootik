@@ -420,7 +420,7 @@ func (h *Handler) checkersView(w text.Writer, r *Request, args ...string) {
 	} else if r.User != nil && human.ID == r.User.ID {
 		w.Empty()
 
-		moves := slices.SortedFunc(state.OrcMoves(), func(a, b checkers.Move) int {
+		moves := slices.SortedFunc(state.HumanMoves(), func(a, b checkers.Move) int {
 			if a.Captured != (checkers.Coord{}) && b.Captured == (checkers.Coord{}) {
 				return -1
 			} else if a.Captured == (checkers.Coord{}) && b.Captured != (checkers.Coord{}) {
