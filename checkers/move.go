@@ -199,14 +199,20 @@ func (s *State) HumanMoves() iter.Seq[Move] {
 	}
 }
 
-func (s *State) ActHuman(from, to Coord) error {
-	if s.Current != Human {
+func (s *State) act(
+	from, to Coord,
+	us, them Player,
+	ours, theirs map[Coord]Piece,
+	moves func() iter.Seq[Move],
+	kingY int,
+) error {
+	if s.Current != us {
 		return ErrWait
 	}
 
 	var captured Coord
 
-	for move := range s.HumanMoves() {
+	for move := range moves() {
 		if move.From == from && move.To == to {
 			captured = move.Captured
 			goto legal
@@ -217,7 +223,7 @@ func (s *State) ActHuman(from, to Coord) error {
 
 legal:
 	if captured == (Coord{}) {
-		for m := range s.HumanMoves() {
+		for m := range moves() {
 			if m.Captured != (Coord{}) {
 				return ErrMustCapture
 			}
@@ -230,21 +236,21 @@ legal:
 	})
 
 	if captured != (Coord{}) {
-		delete(s.Orcs, captured)
+		delete(theirs, captured)
 	}
 
-	piece := s.Humans[from]
-	if to.Y == 0 {
+	piece := ours[from]
+	if to.Y == kingY {
 		piece.King = true
 	}
-	s.Humans[to] = piece
-	delete(s.Humans, from)
+	ours[to] = piece
+	delete(ours, from)
 
-	s.Current = Orc
+	s.Current = them
 	if captured != (Coord{}) {
-		for m := range s.HumanMoves() {
+		for m := range moves() {
 			if m.From == to && m.Captured != (Coord{}) {
-				s.Current = Human
+				s.Current = us
 				break
 			}
 		}
@@ -253,56 +259,28 @@ legal:
 	return nil
 }
 
+func (s *State) ActHuman(from, to Coord) error {
+	return s.act(
+		from,
+		to,
+		Human,
+		Orc,
+		s.Humans,
+		s.Orcs,
+		s.HumanMoves,
+		0,
+	)
+}
+
 func (s *State) ActOrc(from, to Coord) error {
-	if s.Current != Orc {
-		return ErrWait
-	}
-
-	var captured Coord
-
-	for move := range s.OrcMoves() {
-		if move.From == from && move.To == to {
-			captured = move.Captured
-			goto legal
-		}
-	}
-
-	return ErrImpossibleMove
-
-legal:
-	if captured == (Coord{}) {
-		for m := range s.OrcMoves() {
-			if m.Captured != (Coord{}) {
-				return ErrMustCapture
-			}
-		}
-	}
-
-	s.Turns = append(s.Turns, Board{
-		Humans: maps.Clone(s.Humans),
-		Orcs:   maps.Clone(s.Orcs),
-	})
-
-	if captured != (Coord{}) {
-		delete(s.Humans, captured)
-	}
-
-	piece := s.Orcs[from]
-	if to.Y == 7 {
-		piece.King = true
-	}
-	s.Orcs[to] = piece
-	delete(s.Orcs, from)
-
-	s.Current = Human
-	if captured != (Coord{}) {
-		for m := range s.OrcMoves() {
-			if m.From == to && m.Captured != (Coord{}) {
-				s.Current = Orc
-				break
-			}
-		}
-	}
-
-	return nil
+	return s.act(
+		from,
+		to,
+		Orc,
+		Human,
+		s.Orcs,
+		s.Humans,
+		s.OrcMoves,
+		7,
+	)
 }
