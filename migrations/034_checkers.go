@@ -6,7 +6,7 @@ import (
 )
 
 func checkers(ctx context.Context, domain string, tx *sql.Tx) error {
-	if _, err := tx.ExecContext(ctx, `CREATE TABLE checkers(human STRING, orc STRING, state STRING NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()), winner STRING, ended INTEGER)`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE TABLE checkers(human STRING, orc STRING, state STRING NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()), winner STRING, updated INTEGER, ended INTEGER)`); err != nil {
 		return err
 	}
 

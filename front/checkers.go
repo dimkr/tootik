@@ -53,7 +53,7 @@ func (h *Handler) checkers(w text.Writer, r *Request, args ...string) {
 	active, err := h.DB.QueryContext(
 		r.Context,
 		`
-		select checkers.rowid, humans.actor, orcs.actor, checkers.inserted from checkers
+		select checkers.rowid, humans.actor, orcs.actor, coalesce(checkers.updated, checkers.inserted) as ts from checkers
 		join persons humans on
 			humans.id = checkers.human
 		join persons orcs on
@@ -62,7 +62,7 @@ func (h *Handler) checkers(w text.Writer, r *Request, args ...string) {
 			checkers.ended is null and
 			checkers.orc is not null
 		order by
-			checkers.inserted
+			ts desc
 		`,
 	)
 	if err != nil {
@@ -75,7 +75,7 @@ func (h *Handler) checkers(w text.Writer, r *Request, args ...string) {
 	ended, err := h.DB.QueryContext(
 		r.Context,
 		`
-		select checkers.rowid, humans.actor, orcs.actor, checkers.inserted from checkers
+		select checkers.rowid, humans.actor, orcs.actor, checkers.ended from checkers
 		join persons humans on
 			humans.id = checkers.human
 		join persons orcs on
@@ -83,7 +83,7 @@ func (h *Handler) checkers(w text.Writer, r *Request, args ...string) {
 		where
 			checkers.ended is not null
 		order by
-			checkers.inserted
+			checkers.ended desc
 		`,
 	)
 	if err != nil {
@@ -287,7 +287,7 @@ func (h *Handler) checkersJoin(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if _, err := h.DB.ExecContext(r.Context, `update checkers set orc = ? where rowid = ? and orc is null`, r.User.ID, rowID); err != nil {
+	if _, err := h.DB.ExecContext(r.Context, `update checkers set orc = ?, updated = unixepoch() where rowid = ? and orc is null`, r.User.ID, rowID); err != nil {
 		r.Log.Warn("Failed to join game", "row_id", rowID, "error", err)
 		w.Error()
 		return
@@ -612,12 +612,12 @@ func (h *Handler) checkersMove(w text.Writer, r *Request, args ...string) {
 	}
 
 	if won {
-		if _, err := h.DB.ExecContext(r.Context, `update checkers set state = ?, winner = ?, ended = unixepoch() where rowid = ?`, &state, r.User.ID, rowID); err != nil {
+		if _, err := h.DB.ExecContext(r.Context, `update checkers set state = ?, winner = ?, updated = unixepoch(), ended = unixepoch() where rowid = ?`, &state, r.User.ID, rowID); err != nil {
 			r.Log.Warn("Failed to act", "row_id", rowID, "human", human.ID, "orc", orc.ID, "error", err)
 			w.Error()
 			return
 		}
-	} else if _, err := h.DB.ExecContext(r.Context, `update checkers set state = ? where rowid = ?`, &state, rowID); err != nil {
+	} else if _, err := h.DB.ExecContext(r.Context, `update checkers set state = ?, updated = unixepoch() where rowid = ?`, &state, rowID); err != nil {
 		r.Log.Warn("Failed to act", "row_id", rowID, "human", human.ID, "orc", orc.ID, "error", err)
 		w.Error()
 		return
