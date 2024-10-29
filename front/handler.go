@@ -146,7 +146,7 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 	h.handlers[regexp.MustCompile(`^/users/checkers/surrender/([1-9][0-9]*)$`)] = withUserMenu(h.checkersSurrender)
 	h.handlers[regexp.MustCompile(`^/checkers/([1-9][0-9]*)$`)] = withUserMenu(h.checkersView)
 	h.handlers[regexp.MustCompile(`^/users/checkers/([1-9][0-9]*)$`)] = withUserMenu(h.checkersView)
-	h.handlers[regexp.MustCompile(`^/users/checkers/move/([1-9][0-9]*)/([0-7])([0-7])([0-7])([0-7])([0-7])([0-7])$`)] = withUserMenu(h.checkersMove)
+	h.handlers[regexp.MustCompile(`^/users/checkers/move/([1-9][0-9]*)/([0-7])([0-7])([0-7])([0-7])$`)] = withUserMenu(h.checkersMove)
 
 	h.handlers[regexp.MustCompile(`^/oops`)] = withUserMenu(oops)
 	h.handlers[regexp.MustCompile(`^/users/oops`)] = withUserMenu(oops)

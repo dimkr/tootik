@@ -20,7 +20,6 @@ import (
 	"errors"
 	"iter"
 	"maps"
-	"slices"
 )
 
 type Move struct {
@@ -200,15 +199,16 @@ func (s *State) HumanMoves() iter.Seq[Move] {
 	}
 }
 
-func (s *State) ActHuman(move Move) error {
+func (s *State) ActHuman(from, to Coord) error {
 	if s.Current != Human {
 		return ErrWait
 	}
 
-	moves := s.HumanMoves()
+	var captured Coord
 
-	for m := range moves {
-		if m == move {
+	for move := range s.HumanMoves() {
+		if move.From == from && move.To == to {
+			captured = move.Captured
 			goto legal
 		}
 	}
@@ -216,8 +216,8 @@ func (s *State) ActHuman(move Move) error {
 	return ErrImpossibleMove
 
 legal:
-	if move.Captured == (Coord{}) {
-		for m := range moves {
+	if captured == (Coord{}) {
+		for m := range s.HumanMoves() {
 			if m.Captured != (Coord{}) {
 				return ErrMustCapture
 			}
@@ -229,21 +229,21 @@ legal:
 		Orcs:   maps.Clone(s.Orcs),
 	})
 
-	if move.Captured != (Coord{}) {
-		delete(s.Orcs, move.Captured)
+	if captured != (Coord{}) {
+		delete(s.Orcs, captured)
 	}
 
-	piece := s.Humans[move.From]
-	if move.To.Y == 0 {
+	piece := s.Humans[from]
+	if to.Y == 0 {
 		piece.King = true
 	}
-	s.Humans[move.To] = piece
-	delete(s.Humans, move.From)
+	s.Humans[to] = piece
+	delete(s.Humans, from)
 
 	s.Current = Orc
-	if move.Captured != (Coord{}) {
+	if captured != (Coord{}) {
 		for m := range s.HumanMoves() {
-			if m.From == move.To && m.Captured != (Coord{}) {
+			if m.From == to && m.Captured != (Coord{}) {
 				s.Current = Human
 				break
 			}
@@ -253,15 +253,16 @@ legal:
 	return nil
 }
 
-func (s *State) ActOrc(move Move) error {
+func (s *State) ActOrc(from, to Coord) error {
 	if s.Current != Orc {
 		return ErrWait
 	}
 
-	moves := slices.Collect(s.OrcMoves())
+	var captured Coord
 
-	for _, m := range moves {
-		if m == move {
+	for move := range s.OrcMoves() {
+		if move.From == from && move.To == to {
+			captured = move.Captured
 			goto legal
 		}
 	}
@@ -269,8 +270,8 @@ func (s *State) ActOrc(move Move) error {
 	return ErrImpossibleMove
 
 legal:
-	if move.Captured == (Coord{}) {
-		for _, m := range moves {
+	if captured == (Coord{}) {
+		for m := range s.OrcMoves() {
 			if m.Captured != (Coord{}) {
 				return ErrMustCapture
 			}
@@ -282,21 +283,21 @@ legal:
 		Orcs:   maps.Clone(s.Orcs),
 	})
 
-	if move.Captured != (Coord{}) {
-		delete(s.Humans, move.Captured)
+	if captured != (Coord{}) {
+		delete(s.Humans, captured)
 	}
 
-	piece := s.Orcs[move.From]
-	if move.To.Y == 7 {
+	piece := s.Orcs[from]
+	if to.Y == 7 {
 		piece.King = true
 	}
-	s.Orcs[move.To] = piece
-	delete(s.Orcs, move.From)
+	s.Orcs[to] = piece
+	delete(s.Orcs, from)
 
 	s.Current = Human
-	if move.Captured != (Coord{}) {
+	if captured != (Coord{}) {
 		for m := range s.OrcMoves() {
-			if m.From == move.To && m.Captured != (Coord{}) {
+			if m.From == to && m.Captured != (Coord{}) {
 				s.Current = Orc
 				break
 			}

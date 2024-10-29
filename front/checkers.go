@@ -450,9 +450,9 @@ func (h *Handler) checkersView(w text.Writer, r *Request, args ...string) {
 
 		for _, move := range moves {
 			if move.Captured == (checkers.Coord{}) {
-				w.Linkf(fmt.Sprintf("/users/checkers/move/%d/%d%d%d%d%d%d", rowID, move.From.X, move.From.Y, move.To.X, move.To.Y, move.Captured.X, move.Captured.Y), "Move human %d from %d,%d to %d,%d", state.Humans[move.From].ID, move.From.X, move.From.Y, move.To.X, move.To.Y)
+				w.Linkf(fmt.Sprintf("/users/checkers/move/%d/%d%d%d%d", rowID, move.From.X, move.From.Y, move.To.X, move.To.Y), "Move human %d from %d,%d to %d,%d", state.Humans[move.From].ID, move.From.X, move.From.Y, move.To.X, move.To.Y)
 			} else {
-				w.Linkf(fmt.Sprintf("/users/checkers/move/%d/%d%d%d%d%d%d", rowID, move.From.X, move.From.Y, move.To.X, move.To.Y, move.Captured.X, move.Captured.Y), "Move human %d from %d,%d to %d,%d (capture orc %d)", state.Humans[move.From].ID, move.From.X, move.From.Y, move.To.X, move.To.Y, state.Orcs[move.Captured].ID)
+				w.Linkf(fmt.Sprintf("/users/checkers/move/%d/%d%d%d%d", rowID, move.From.X, move.From.Y, move.To.X, move.To.Y), "Move human %d from %d,%d to %d,%d (capture orc %d)", state.Humans[move.From].ID, move.From.X, move.From.Y, move.To.X, move.To.Y, state.Orcs[move.Captured].ID)
 			}
 		}
 	} else if !ended.Valid && r.User != nil && r.User.ID == orc.V.ID && state.Current == checkers.Human {
@@ -491,9 +491,9 @@ func (h *Handler) checkersView(w text.Writer, r *Request, args ...string) {
 
 		for _, move := range moves {
 			if move.Captured == (checkers.Coord{}) {
-				w.Linkf(fmt.Sprintf("/users/checkers/move/%d/%d%d%d%d%d%d", rowID, move.From.X, move.From.Y, move.To.X, move.To.Y, move.Captured.X, move.Captured.Y), "Move orc %d from %d,%d to %d,%d", state.Orcs[move.From].ID, move.From.X, move.From.Y, move.To.X, move.To.Y)
+				w.Linkf(fmt.Sprintf("/users/checkers/move/%d/%d%d%d%d%", rowID, move.From.X, move.From.Y, move.To.X, move.To.Y), "Move orc %d from %d,%d to %d,%d", state.Orcs[move.From].ID, move.From.X, move.From.Y, move.To.X, move.To.Y)
 			} else {
-				w.Linkf(fmt.Sprintf("/users/checkers/move/%d/%d%d%d%d%d%d", rowID, move.From.X, move.From.Y, move.To.X, move.To.Y, move.Captured.X, move.Captured.Y), "Move orc %d from %d,%d to %d,%d (capture human %d)", state.Orcs[move.From].ID, move.From.X, move.From.Y, move.To.X, move.To.Y, state.Humans[move.Captured].ID)
+				w.Linkf(fmt.Sprintf("/users/checkers/move/%d/%d%d%d%d", rowID, move.From.X, move.From.Y, move.To.X, move.To.Y), "Move orc %d from %d,%d to %d,%d (capture human %d)", state.Orcs[move.From].ID, move.From.X, move.From.Y, move.To.X, move.To.Y, state.Humans[move.Captured].ID)
 			}
 		}
 	}
@@ -545,20 +545,6 @@ func (h *Handler) checkersMove(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	capturedX, err := strconv.ParseInt(args[6], 10, 64)
-	if err != nil {
-		r.Log.Warn("Failed to parse captured X", "x", args[5], "error", err)
-		w.Error()
-		return
-	}
-
-	capturedY, err := strconv.ParseInt(args[7], 10, 64)
-	if err != nil {
-		r.Log.Warn("Failed to parse captured Y", "y", args[6], "error", err)
-		w.Error()
-		return
-	}
-
 	var human, orc ap.Actor
 	var state checkers.State
 	if err := h.DB.QueryRowContext(
@@ -603,12 +589,7 @@ func (h *Handler) checkersMove(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	move := checkers.Move{
-		From:     checkers.Coord{X: int(fromX), Y: int(fromY)},
-		To:       checkers.Coord{X: int(toX), Y: int(toY)},
-		Captured: checkers.Coord{X: int(capturedX), Y: int(capturedY)},
-	}
-	if err := act(move); err != nil {
+	if err := act(checkers.Coord{X: int(fromX), Y: int(fromY)}, checkers.Coord{X: int(toX), Y: int(toY)}); err != nil {
 		if errors.Is(err, checkers.ErrMustCapture) {
 			w.Status(40, "Must capture")
 			return

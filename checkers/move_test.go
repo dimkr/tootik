@@ -116,13 +116,13 @@ func TestHuman_CaptureBottomLeft(t *testing.T) {
 		},
 	)
 
-	if err := game.ActHuman(moves[1]); err == nil {
+	if err := game.ActHuman(moves[1].From, moves[1].To); err == nil {
 		t.Fatal("Illegal move")
 	} else if !errors.Is(err, ErrMustCapture) {
 		t.Fatalf("Wrong reason: %v", err)
 	}
 
-	if err := game.ActHuman(moves[0]); err != nil {
+	if err := game.ActHuman(moves[0].From, moves[0].To); err != nil {
 		t.Fatalf("Move failed: %v", err)
 	}
 }
@@ -158,13 +158,13 @@ func TestHuman_CaptureBottomRight(t *testing.T) {
 		},
 	)
 
-	if err := game.ActHuman(moves[1]); err == nil {
+	if err := game.ActHuman(moves[1].From, moves[1].To); err == nil {
 		t.Fatal("Illegal move")
 	} else if !errors.Is(err, ErrMustCapture) {
 		t.Fatalf("Wrong reason: %v", err)
 	}
 
-	if err := game.ActHuman(moves[0]); err != nil {
+	if err := game.ActHuman(moves[0].From, moves[0].To); err != nil {
 		t.Fatalf("Move failed: %v", err)
 	}
 }
@@ -204,19 +204,19 @@ func TestHuman_CaptureTopLeft(t *testing.T) {
 		},
 	)
 
-	if err := game.ActHuman(moves[1]); err == nil {
+	if err := game.ActHuman(moves[1].From, moves[1].To); err == nil {
 		t.Fatal("Illegal move")
 	} else if !errors.Is(err, ErrMustCapture) {
 		t.Fatalf("Wrong reason: %v", err)
 	}
 
-	if err := game.ActHuman(moves[2]); err == nil {
+	if err := game.ActHuman(moves[2].From, moves[2].To); err == nil {
 		t.Fatal("Illegal move")
 	} else if !errors.Is(err, ErrMustCapture) {
 		t.Fatalf("Wrong reason: %v", err)
 	}
 
-	if err := game.ActHuman(moves[0]); err != nil {
+	if err := game.ActHuman(moves[0].From, moves[0].To); err != nil {
 		t.Fatalf("Move failed: %v", err)
 	}
 }
@@ -256,19 +256,19 @@ func TestHuman_CaptureTopRight(t *testing.T) {
 		},
 	)
 
-	if err := game.ActHuman(moves[1]); err == nil {
+	if err := game.ActHuman(moves[1].From, moves[1].To); err == nil {
 		t.Fatal("Illegal move")
 	} else if !errors.Is(err, ErrMustCapture) {
 		t.Fatalf("Wrong reason: %v", err)
 	}
 
-	if err := game.ActHuman(moves[2]); err == nil {
+	if err := game.ActHuman(moves[2].From, moves[2].To); err == nil {
 		t.Fatal("Illegal move")
 	} else if !errors.Is(err, ErrMustCapture) {
 		t.Fatalf("Wrong reason: %v", err)
 	}
 
-	if err := game.ActHuman(moves[0]); err != nil {
+	if err := game.ActHuman(moves[0].From, moves[0].To); err != nil {
 		t.Fatalf("Move failed: %v", err)
 	}
 }
@@ -304,13 +304,13 @@ func TestOrc_CaptureTopLeft(t *testing.T) {
 		},
 	)
 
-	if err := game.ActOrc(moves[1]); err == nil {
+	if err := game.ActOrc(moves[1].From, moves[1].To); err == nil {
 		t.Fatal("Illegal move")
 	} else if !errors.Is(err, ErrMustCapture) {
 		t.Fatalf("Wrong reason: %v", err)
 	}
 
-	if err := game.ActOrc(moves[0]); err != nil {
+	if err := game.ActOrc(moves[0].From, moves[0].To); err != nil {
 		t.Fatalf("Move failed: %v", err)
 	}
 }
@@ -345,7 +345,7 @@ func TestOrc_NoCapture(t *testing.T) {
 		},
 	)
 
-	if err := game.ActOrc(moves[0]); err != nil {
+	if err := game.ActOrc(moves[0].From, moves[0].To); err != nil {
 		t.Fatalf("Move failed: %v", err)
 	}
 }
@@ -381,13 +381,13 @@ func TestOrc_CaptureTopRight(t *testing.T) {
 		},
 	)
 
-	if err := game.ActOrc(moves[1]); err == nil {
+	if err := game.ActOrc(moves[1].From, moves[1].To); err == nil {
 		t.Fatal("Illegal move")
 	} else if !errors.Is(err, ErrMustCapture) {
 		t.Fatalf("Wrong reason: %v", err)
 	}
 
-	if err := game.ActOrc(moves[0]); err != nil {
+	if err := game.ActOrc(moves[0].From, moves[0].To); err != nil {
 		t.Fatalf("Move failed: %v", err)
 	}
 }
@@ -427,19 +427,19 @@ func TestOrc_CaptureBottomLeft(t *testing.T) {
 		},
 	)
 
-	if err := game.ActOrc(moves[1]); err == nil {
+	if err := game.ActOrc(moves[1].From, moves[1].To); err == nil {
 		t.Fatal("Illegal move")
 	} else if !errors.Is(err, ErrMustCapture) {
 		t.Fatalf("Wrong reason: %v", err)
 	}
 
-	if err := game.ActOrc(moves[2]); err == nil {
+	if err := game.ActOrc(moves[2].From, moves[2].To); err == nil {
 		t.Fatal("Illegal move")
 	} else if !errors.Is(err, ErrMustCapture) {
 		t.Fatalf("Wrong reason: %v", err)
 	}
 
-	if err := game.ActOrc(moves[0]); err != nil {
+	if err := game.ActOrc(moves[0].From, moves[0].To); err != nil {
 		t.Fatalf("Move failed: %v", err)
 	}
 }
@@ -479,19 +479,19 @@ func TestOrc_CaptureBottomRight(t *testing.T) {
 		},
 	)
 
-	if err := game.ActOrc(moves[1]); err == nil {
+	if err := game.ActOrc(moves[1].From, moves[1].To); err == nil {
 		t.Fatal("Illegal move")
 	} else if !errors.Is(err, ErrMustCapture) {
 		t.Fatalf("Wrong reason: %v", err)
 	}
 
-	if err := game.ActOrc(moves[2]); err == nil {
+	if err := game.ActOrc(moves[2].From, moves[2].To); err == nil {
 		t.Fatal("Illegal move")
 	} else if !errors.Is(err, ErrMustCapture) {
 		t.Fatalf("Wrong reason: %v", err)
 	}
 
-	if err := game.ActOrc(moves[0]); err != nil {
+	if err := game.ActOrc(moves[0].From, moves[0].To); err != nil {
 		t.Fatalf("Move failed: %v", err)
 	}
 }
@@ -563,7 +563,7 @@ func TestOrc_KingCaptureBottomRight(t *testing.T) {
 
 	for i := 0; i < len(moves); i++ {
 		if moves[i].Captured == (Coord{}) {
-			if err := game.ActOrc(moves[i]); err == nil {
+			if err := game.ActOrc(moves[i].From, moves[i].To); err == nil {
 				t.Fatalf("Illegal move %d", i)
 			} else if !errors.Is(err, ErrMustCapture) {
 				t.Fatalf("Wrong reason for move %d: %v", i, err)
@@ -571,7 +571,7 @@ func TestOrc_KingCaptureBottomRight(t *testing.T) {
 		}
 	}
 
-	if err := game.ActOrc(moves[5]); err != nil {
+	if err := game.ActOrc(moves[5].From, moves[5].To); err != nil {
 		t.Fatalf("Move failed: %v", err)
 	}
 }
@@ -639,7 +639,7 @@ func TestOrc_KingCaptureBottomLeft(t *testing.T) {
 
 	for i := 0; i < len(moves); i++ {
 		if moves[i].Captured == (Coord{}) {
-			if err := game.ActOrc(moves[i]); err == nil {
+			if err := game.ActOrc(moves[i].From, moves[i].To); err == nil {
 				t.Fatalf("Illegal move %d", i)
 			} else if !errors.Is(err, ErrMustCapture) {
 				t.Fatalf("Wrong reason for move %d: %v", i, err)
@@ -647,7 +647,7 @@ func TestOrc_KingCaptureBottomLeft(t *testing.T) {
 		}
 	}
 
-	if err := game.ActOrc(moves[7]); err != nil {
+	if err := game.ActOrc(moves[7].From, moves[7].To); err != nil {
 		t.Fatalf("Move failed: %v", err)
 	}
 }
@@ -714,7 +714,7 @@ func TestOrc_KingCaptureTopLeft(t *testing.T) {
 
 	for i := 0; i < len(moves); i++ {
 		if moves[i].Captured == (Coord{}) {
-			if err := game.ActOrc(moves[i]); err == nil {
+			if err := game.ActOrc(moves[i].From, moves[i].To); err == nil {
 				t.Fatalf("Illegal move %d", i)
 			} else if !errors.Is(err, ErrMustCapture) {
 				t.Fatalf("Wrong reason for move %d: %v", i, err)
@@ -722,7 +722,7 @@ func TestOrc_KingCaptureTopLeft(t *testing.T) {
 		}
 	}
 
-	if err := game.ActOrc(moves[3]); err != nil {
+	if err := game.ActOrc(moves[3].From, moves[3].To); err != nil {
 		t.Fatalf("Move failed: %v", err)
 	}
 }
@@ -789,7 +789,7 @@ func TestOrc_KingCaptureTopRight(t *testing.T) {
 
 	for i := 0; i < len(moves); i++ {
 		if moves[i].Captured == (Coord{}) {
-			if err := game.ActOrc(moves[i]); err == nil {
+			if err := game.ActOrc(moves[i].From, moves[i].To); err == nil {
 				t.Fatalf("Illegal move %d", i)
 			} else if !errors.Is(err, ErrMustCapture) {
 				t.Fatalf("Wrong reason for move %d: %v", i, err)
@@ -797,7 +797,7 @@ func TestOrc_KingCaptureTopRight(t *testing.T) {
 		}
 	}
 
-	if err := game.ActOrc(moves[1]); err != nil {
+	if err := game.ActOrc(moves[1].From, moves[1].To); err != nil {
 		t.Fatalf("Move failed: %v", err)
 	}
 }
@@ -868,7 +868,7 @@ func TestOrc_KingNoCapture(t *testing.T) {
 		},
 	)
 
-	if err := game.ActOrc(moves[0]); err != nil {
+	if err := game.ActOrc(moves[0].From, moves[0].To); err != nil {
 		t.Fatalf("Move failed: %v", err)
 	}
 }

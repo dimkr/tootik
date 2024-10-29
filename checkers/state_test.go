@@ -39,7 +39,7 @@ func TestState_HappyFlow(t *testing.T) {
 
 				return rand.Int() % 2
 			})
-			if err := game.ActOrc(moves[0]); err != nil {
+			if err := game.ActOrc(moves[0].From, moves[0].To); err != nil {
 				t.Fatalf("Move failed: %v", err)
 			}
 		} else {
@@ -55,7 +55,7 @@ func TestState_HappyFlow(t *testing.T) {
 				return rand.Int() % 2
 			})
 
-			if err := game.ActHuman(moves[0]); err != nil {
+			if err := game.ActHuman(moves[0].From, moves[0].To); err != nil {
 				t.Fatalf("Move failed: %v", err)
 			}
 		}
