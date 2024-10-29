@@ -83,45 +83,53 @@ func (s *State) kingMoves(kingPos Coord, us, them map[Coord]Piece, yield func(Mo
 	return true
 }
 
-func (s *State) doCaptureMoves(pos Coord, enemy Player, yield func(Move) bool) bool {
-	if pos.X < 6 && pos.Y < 6 {
-		captured := Coord{pos.X + 1, pos.Y + 1}
-		next := Coord{pos.X + 2, pos.Y + 2}
-		if s.getCell(captured) == enemy && s.getCell(next) == None {
-			if !yield(Move{From: pos, To: next, Captured: captured}) {
+func doCaptureMove(
+	pos, next, captured Coord,
+	ours, theirs map[Coord]Piece,
+	yield func(Move) bool,
+) bool {
+	if _, ok := theirs[captured]; ok {
+		if _, ok := ours[next]; !ok {
+			if _, ok := ours[next]; !ok && !yield(Move{From: pos, To: next, Captured: captured}) {
 				return false
 			}
 		}
 	}
 
-	if pos.X > 1 && pos.Y < 6 {
-		captured := Coord{pos.X - 1, pos.Y + 1}
-		next := Coord{pos.X - 2, pos.Y + 2}
-		if s.getCell(captured) == enemy && s.getCell(next) == None {
-			if !yield(Move{From: pos, To: next, Captured: captured}) {
-				return false
-			}
-		}
+	return true
+}
+
+func (s *State) doCaptureMoves(pos Coord, ours, theirs map[Coord]Piece, yield func(Move) bool) bool {
+	if pos.X < 6 && pos.Y < 6 && !doCaptureMove(
+		pos, Coord{pos.X + 2, pos.Y + 2}, Coord{pos.X + 1, pos.Y + 1},
+		ours, theirs,
+		yield,
+	) {
+		return false
 	}
 
-	if pos.X > 1 && pos.Y > 1 {
-		captured := Coord{pos.X - 1, pos.Y - 1}
-		next := Coord{pos.X - 2, pos.Y - 2}
-		if s.getCell(captured) == enemy && s.getCell(next) == None {
-			if !yield(Move{From: pos, To: next, Captured: captured}) {
-				return false
-			}
-		}
+	if pos.X > 1 && pos.Y < 6 && !doCaptureMove(
+		pos, Coord{pos.X - 2, pos.Y + 2}, Coord{pos.X - 1, pos.Y + 1},
+		ours, theirs,
+		yield,
+	) {
+		return false
 	}
 
-	if pos.X < 6 && pos.Y > 1 {
-		captured := Coord{pos.X + 1, pos.Y - 1}
-		next := Coord{pos.X + 2, pos.Y - 2}
-		if s.getCell(captured) == enemy && s.getCell(next) == None {
-			if !yield(Move{From: pos, To: next, Captured: captured}) {
-				return false
-			}
-		}
+	if pos.X > 1 && pos.Y > 1 && !doCaptureMove(
+		pos, Coord{pos.X - 2, pos.Y - 2}, Coord{pos.X - 1, pos.Y - 1},
+		ours, theirs,
+		yield,
+	) {
+		return false
+	}
+
+	if pos.X < 6 && pos.Y > 1 && !doCaptureMove(
+		pos, Coord{pos.X + 2, pos.Y - 2}, Coord{pos.X + 1, pos.Y - 1},
+		ours, theirs,
+		yield,
+	) {
+		return false
 	}
 
 	return true
@@ -138,14 +146,14 @@ func (s *State) OrcMoves() iter.Seq[Move] {
 				continue
 			}
 
-			if !s.doCaptureMoves(pos, Human, yield) {
+			if !s.doCaptureMoves(pos, s.Orcs, s.Humans, yield) {
 				return
 			}
 
 			if pos.X < 7 && pos.Y < 7 {
 				next := Coord{pos.X + 1, pos.Y + 1}
-				if s.getCell(next) == None {
-					if !yield(Move{From: pos, To: next}) {
+				if _, ok := s.Humans[next]; !ok {
+					if _, ok := s.Orcs[next]; !ok && !yield(Move{From: pos, To: next}) {
 						return
 					}
 				}
@@ -153,8 +161,8 @@ func (s *State) OrcMoves() iter.Seq[Move] {
 
 			if pos.X > 0 && pos.Y < 7 {
 				next := Coord{pos.X - 1, pos.Y + 1}
-				if s.getCell(next) == None {
-					if !yield(Move{From: pos, To: next}) {
+				if _, ok := s.Humans[next]; !ok {
+					if _, ok := s.Orcs[next]; !ok && !yield(Move{From: pos, To: next}) {
 						return
 					}
 				}
@@ -174,14 +182,14 @@ func (s *State) HumanMoves() iter.Seq[Move] {
 				continue
 			}
 
-			if !s.doCaptureMoves(pos, Orc, yield) {
+			if !s.doCaptureMoves(pos, s.Humans, s.Orcs, yield) {
 				return
 			}
 
 			if pos.X > 0 && pos.Y > 0 {
 				next := Coord{pos.X - 1, pos.Y - 1}
-				if s.getCell(next) == None {
-					if !yield(Move{From: pos, To: next}) {
+				if _, ok := s.Humans[next]; !ok {
+					if _, ok := s.Orcs[next]; !ok && !yield(Move{From: pos, To: next}) {
 						return
 					}
 				}
@@ -189,8 +197,8 @@ func (s *State) HumanMoves() iter.Seq[Move] {
 
 			if pos.X < 7 && pos.Y > 0 {
 				next := Coord{pos.X + 1, pos.Y - 1}
-				if s.getCell(next) == None {
-					if !yield(Move{From: pos, To: next}) {
+				if _, ok := s.Humans[next]; !ok {
+					if _, ok := s.Orcs[next]; !ok && !yield(Move{From: pos, To: next}) {
 						return
 					}
 				}
