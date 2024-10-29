@@ -32,7 +32,7 @@ var (
 	ErrMustCapture    = errors.New("must capture")
 )
 
-func (s *State) doKingMoves(kingPos Coord, dx, dy int, us, them map[Coord]Piece, yield func(Move) bool) bool {
+func yieldKingMovesDir(kingPos Coord, dx, dy int, us, them map[Coord]Piece, yield func(Move) bool) bool {
 	pos := kingPos
 	captured := Coord{}
 
@@ -63,20 +63,20 @@ func (s *State) doKingMoves(kingPos Coord, dx, dy int, us, them map[Coord]Piece,
 	return true
 }
 
-func (s *State) kingMoves(kingPos Coord, us, them map[Coord]Piece, yield func(Move) bool) bool {
-	if !s.doKingMoves(kingPos, 1, 1, us, them, yield) {
+func yieldKingMoves(kingPos Coord, us, them map[Coord]Piece, yield func(Move) bool) bool {
+	if !yieldKingMovesDir(kingPos, 1, 1, us, them, yield) {
 		return false
 	}
 
-	if !s.doKingMoves(kingPos, -1, 1, us, them, yield) {
+	if !yieldKingMovesDir(kingPos, -1, 1, us, them, yield) {
 		return false
 	}
 
-	if !s.doKingMoves(kingPos, 1, -1, us, them, yield) {
+	if !yieldKingMovesDir(kingPos, 1, -1, us, them, yield) {
 		return false
 	}
 
-	if !s.doKingMoves(kingPos, -1, -1, us, them, yield) {
+	if !yieldKingMovesDir(kingPos, -1, -1, us, them, yield) {
 		return false
 	}
 
@@ -90,8 +90,8 @@ func doCaptureMove(
 ) bool {
 	if _, ok := theirs[captured]; ok {
 		if _, ok := ours[next]; !ok {
-			if _, ok := ours[next]; !ok && !yield(Move{From: pos, To: next, Captured: captured}) {
-				return false
+			if _, ok := theirs[next]; !ok {
+				return yield(Move{From: pos, To: next, Captured: captured})
 			}
 		}
 	}
@@ -99,7 +99,7 @@ func doCaptureMove(
 	return true
 }
 
-func (s *State) doCaptureMoves(pos Coord, ours, theirs map[Coord]Piece, yield func(Move) bool) bool {
+func yieldCaptureMoves(pos Coord, ours, theirs map[Coord]Piece, yield func(Move) bool) bool {
 	if pos.X < 6 && pos.Y < 6 && !doCaptureMove(
 		pos, Coord{pos.X + 2, pos.Y + 2}, Coord{pos.X + 1, pos.Y + 1},
 		ours, theirs,
@@ -135,37 +135,41 @@ func (s *State) doCaptureMoves(pos Coord, ours, theirs map[Coord]Piece, yield fu
 	return true
 }
 
+func yieldMove(
+	pos, next Coord,
+	ours, theirs map[Coord]Piece,
+	yield func(Move) bool,
+) bool {
+	if _, ok := ours[next]; !ok {
+		if _, ok := theirs[next]; !ok {
+			return yield(Move{From: pos, To: next})
+		}
+	}
+
+	return true
+}
+
 func (s *State) OrcMoves() iter.Seq[Move] {
 	return func(yield func(Move) bool) {
 		for pos, orc := range s.Orcs {
 			if orc.King {
-				if !s.kingMoves(pos, s.Orcs, s.Humans, yield) {
+				if !yieldKingMoves(pos, s.Orcs, s.Humans, yield) {
 					return
 				}
 
 				continue
 			}
 
-			if !s.doCaptureMoves(pos, s.Orcs, s.Humans, yield) {
+			if !yieldCaptureMoves(pos, s.Orcs, s.Humans, yield) {
 				return
 			}
 
-			if pos.X < 7 && pos.Y < 7 {
-				next := Coord{pos.X + 1, pos.Y + 1}
-				if _, ok := s.Humans[next]; !ok {
-					if _, ok := s.Orcs[next]; !ok && !yield(Move{From: pos, To: next}) {
-						return
-					}
-				}
+			if pos.X < 7 && pos.Y < 7 && !yieldMove(pos, Coord{pos.X + 1, pos.Y + 1}, s.Orcs, s.Humans, yield) {
+				return
 			}
 
-			if pos.X > 0 && pos.Y < 7 {
-				next := Coord{pos.X - 1, pos.Y + 1}
-				if _, ok := s.Humans[next]; !ok {
-					if _, ok := s.Orcs[next]; !ok && !yield(Move{From: pos, To: next}) {
-						return
-					}
-				}
+			if pos.X > 0 && pos.Y < 7 && !yieldMove(pos, Coord{pos.X - 1, pos.Y + 1}, s.Orcs, s.Humans, yield) {
+				return
 			}
 		}
 	}
@@ -175,33 +179,23 @@ func (s *State) HumanMoves() iter.Seq[Move] {
 	return func(yield func(Move) bool) {
 		for pos, human := range s.Humans {
 			if human.King {
-				if !s.kingMoves(pos, s.Humans, s.Orcs, yield) {
+				if !yieldKingMoves(pos, s.Humans, s.Orcs, yield) {
 					return
 				}
 
 				continue
 			}
 
-			if !s.doCaptureMoves(pos, s.Humans, s.Orcs, yield) {
+			if !yieldCaptureMoves(pos, s.Humans, s.Orcs, yield) {
 				return
 			}
 
-			if pos.X > 0 && pos.Y > 0 {
-				next := Coord{pos.X - 1, pos.Y - 1}
-				if _, ok := s.Humans[next]; !ok {
-					if _, ok := s.Orcs[next]; !ok && !yield(Move{From: pos, To: next}) {
-						return
-					}
-				}
+			if pos.X > 0 && pos.Y > 0 && !yieldMove(pos, Coord{pos.X - 1, pos.Y - 1}, s.Humans, s.Orcs, yield) {
+				return
 			}
 
-			if pos.X < 7 && pos.Y > 0 {
-				next := Coord{pos.X + 1, pos.Y - 1}
-				if _, ok := s.Humans[next]; !ok {
-					if _, ok := s.Orcs[next]; !ok && !yield(Move{From: pos, To: next}) {
-						return
-					}
-				}
+			if pos.X < 7 && pos.Y > 0 && !yieldMove(pos, Coord{pos.X + 1, pos.Y - 1}, s.Humans, s.Orcs, yield) {
+				return
 			}
 		}
 	}
