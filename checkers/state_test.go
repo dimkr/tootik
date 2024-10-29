@@ -23,37 +23,42 @@ import (
 )
 
 func TestState_HappyFlow(t *testing.T) {
-	game := Start(Human)
+	first := Human
+	if rand.Int()%2 == 1 {
+		first = Orc
+	}
+
+	game := Start(first)
 
 	for {
-		var moves []Move
 		if game.Current == Orc {
-			moves = slices.Collect(game.OrcMoves())
-			if len(moves) == 0 {
-				break
-			}
-			slices.SortStableFunc(moves, func(a, b Move) int {
+			moves := slices.SortedFunc(game.OrcMoves(), func(a, b Move) int {
 				if a.Captured != (Coord{}) && b.Captured == (Coord{}) {
 					return -1
 				}
 
 				return rand.Int() % 2
 			})
+
+			if len(moves) == 0 {
+				break
+			}
+
 			if err := game.ActOrc(moves[0].From, moves[0].To); err != nil {
 				t.Fatalf("Move failed: %v", err)
 			}
 		} else {
-			moves = slices.Collect(game.HumanMoves())
-			if len(moves) == 0 {
-				break
-			}
-			slices.SortStableFunc(moves, func(a, b Move) int {
+			moves := slices.SortedFunc(game.HumanMoves(), func(a, b Move) int {
 				if a.Captured != (Coord{}) && b.Captured == (Coord{}) {
 					return -1
 				}
 
 				return rand.Int() % 2
 			})
+
+			if len(moves) == 0 {
+				break
+			}
 
 			if err := game.ActHuman(moves[0].From, moves[0].To); err != nil {
 				t.Fatalf("Move failed: %v", err)
