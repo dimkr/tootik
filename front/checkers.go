@@ -491,7 +491,7 @@ func (h *Handler) checkersView(w text.Writer, r *Request, args ...string) {
 
 		for _, move := range moves {
 			if move.Captured == (checkers.Coord{}) {
-				w.Linkf(fmt.Sprintf("/users/checkers/move/%d/%d%d%d%d%", rowID, move.From.X, move.From.Y, move.To.X, move.To.Y), "Move orc %d from %d,%d to %d,%d", state.Orcs[move.From].ID, move.From.X, move.From.Y, move.To.X, move.To.Y)
+				w.Linkf(fmt.Sprintf("/users/checkers/move/%d/%d%d%d%d", rowID, move.From.X, move.From.Y, move.To.X, move.To.Y), "Move orc %d from %d,%d to %d,%d", state.Orcs[move.From].ID, move.From.X, move.From.Y, move.To.X, move.To.Y)
 			} else {
 				w.Linkf(fmt.Sprintf("/users/checkers/move/%d/%d%d%d%d", rowID, move.From.X, move.From.Y, move.To.X, move.To.Y), "Move orc %d from %d,%d to %d,%d (capture human %d)", state.Orcs[move.From].ID, move.From.X, move.From.Y, move.To.X, move.To.Y, state.Humans[move.Captured].ID)
 			}
