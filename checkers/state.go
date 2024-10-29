@@ -16,10 +16,16 @@ limitations under the License.
 
 package checkers
 
+import (
+	"database/sql/driver"
+	"encoding/json"
+	"fmt"
+)
+
 type State struct {
 	Board
-	Turns   []Board
-	Current Player
+	Turns   []Board `json:"turns,omitempty"`
+	Current Player  `json:"current"`
 }
 
 func Start(first Player) *State {
@@ -59,14 +65,15 @@ func Start(first Player) *State {
 	return state
 }
 
-func (s State) getCell(c Coord) Player {
-	if _, ok := s.Humans[c]; ok {
-		return Human
+func (s *State) Scan(src any) error {
+	str, ok := src.(string)
+	if !ok {
+		return fmt.Errorf("unsupported conversion from %T to %T", src, s)
 	}
+	return json.Unmarshal([]byte(str), s)
+}
 
-	if _, ok := s.Orcs[c]; ok {
-		return Orc
-	}
-
-	return None
+func (s *State) Value() (driver.Value, error) {
+	buf, err := json.Marshal(s)
+	return string(buf), err
 }

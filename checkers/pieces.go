@@ -16,7 +16,41 @@ limitations under the License.
 
 package checkers
 
-type Piece struct {
-	ID   int  `json:"id"`
-	King bool `json:"king,omitempty"`
+import "encoding/json"
+
+type pieces map[Coord]Piece
+
+func (p pieces) MarshalJSON() ([]byte, error) {
+	tmp := make([]struct {
+		Coord
+		Piece
+	}, len(p))
+
+	i := 0
+	for pos, piece := range p {
+		tmp[i].Coord = pos
+		tmp[i].Piece = piece
+		i++
+	}
+
+	return json.Marshal(tmp)
+}
+
+func (p *pieces) UnmarshalJSON(b []byte) error {
+	var tmp []struct {
+		Coord
+		Piece
+	}
+
+	if err := json.Unmarshal(b, &tmp); err != nil {
+		return err
+	}
+
+	*p = make(pieces, len(tmp))
+
+	for _, item := range tmp {
+		(*p)[item.Coord] = item.Piece
+	}
+
+	return nil
 }

@@ -17,5 +17,6 @@ limitations under the License.
 package checkers
 
 type Coord struct {
-	X, Y int
+	X int `json:"x"`
+	Y int `json:"y"`
 }

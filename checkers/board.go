@@ -22,8 +22,8 @@ import (
 )
 
 type Board struct {
-	Humans map[Coord]Piece
-	Orcs   map[Coord]Piece
+	Humans pieces `json:"humans,omitempty"`
+	Orcs   pieces `json:"orcs,omitempty"`
 }
 
 func (s Board) String() string {

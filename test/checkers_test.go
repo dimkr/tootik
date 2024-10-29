@@ -257,7 +257,7 @@ func TestCheckers_InvalidMove(t *testing.T) {
 	assert.Equal("30 /users/checkers/1\r\n", server.Handle("/users/checkers/move/1/0213", server.Bob))
 	assert.Equal("30 /users/checkers/1\r\n", server.Handle("/users/checkers/move/1/7564", server.Alice))
 	assert.Equal("30 /users/checkers/1\r\n", server.Handle("/users/checkers/move/1/4253", server.Bob))
-	assert.Equal("40 Invalid move\r\n", server.Handle("/users/checkers/move/1/643153", server.Alice))
+	assert.Equal("40 Invalid move\r\n", server.Handle("/users/checkers/move/1/6431", server.Alice))
 }
 
 func TestCheckers_SurrenderHuman(t *testing.T) {
@@ -301,7 +301,7 @@ func TestCheckers_SurrenderHumanMove(t *testing.T) {
 	assert.Contains(strings.Split(server.Handle("/users/checkers/1", server.Alice), "\n"), "bob won.")
 	assert.Contains(strings.Split(server.Handle("/users/checkers/1", server.Bob), "\n"), "You won.")
 
-	assert.Equal("40 Error\r\n", server.Handle("/users/checkers/move/1/644253", server.Alice))
+	assert.Equal("40 Error\r\n", server.Handle("/users/checkers/move/1/6442", server.Alice))
 }
 
 func TestCheckers_SurrenderOrc(t *testing.T) {
