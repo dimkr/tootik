@@ -420,7 +420,7 @@ func (h *Handler) checkersView(w text.Writer, r *Request, args ...string) {
 	} else if !orc.Valid {
 		w.Empty()
 		w.Text("Waiting for a player to join.")
-	} else if r.User != nil && r.User.ID == human.ID && state.Current == checkers.Orc {
+	} else if !ended.Valid && (r.User == nil || r.User.ID == human.ID) && state.Current == checkers.Orc {
 		w.Empty()
 		w.Textf("It's %s's turn.", orc.V.PreferredUsername)
 	} else if r.User != nil && human.ID == r.User.ID {
@@ -461,10 +461,10 @@ func (h *Handler) checkersView(w text.Writer, r *Request, args ...string) {
 				w.Linkf(fmt.Sprintf("/users/checkers/move/%d/%d%d%d%d", rowID, move.From.X, move.From.Y, move.To.X, move.To.Y), "Move human %d from %d,%d to %d,%d (capture orc %d)", state.Humans[move.From].ID, move.From.X, move.From.Y, move.To.X, move.To.Y, state.Orcs[move.Captured].ID)
 			}
 		}
-	} else if !ended.Valid && r.User != nil && r.User.ID == orc.V.ID && state.Current == checkers.Human {
+	} else if !ended.Valid && (r.User == nil || (orc.Valid && r.User.ID == orc.V.ID)) && state.Current == checkers.Human {
 		w.Empty()
 		w.Textf("It's %s's turn.", human.PreferredUsername)
-	} else if r.User != nil && orc.V.ID == r.User.ID {
+	} else if r.User != nil && orc.Valid && orc.V.ID == r.User.ID {
 		w.Empty()
 
 		moves := slices.SortedFunc(state.OrcMoves(), func(a, b checkers.Move) int {
