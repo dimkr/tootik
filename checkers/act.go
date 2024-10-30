@@ -23,9 +23,9 @@ import (
 )
 
 var (
-	ErrWait           = errors.New("not your turn")
-	ErrImpossibleMove = errors.New("impossible move")
-	ErrMustCapture    = errors.New("must capture")
+	ErrWait        = errors.New("not your turn")
+	ErrInvalidMove = errors.New("invalid move")
+	ErrMustCapture = errors.New("must capture")
 )
 
 func (s *State) act(
@@ -48,7 +48,7 @@ func (s *State) act(
 		}
 	}
 
-	return ErrImpossibleMove
+	return ErrInvalidMove
 
 legal:
 	if captured == (Coord{}) {

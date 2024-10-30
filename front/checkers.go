@@ -26,6 +26,7 @@ import (
 	"math/rand/v2"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -108,9 +109,9 @@ func (h *Handler) checkers(w text.Writer, r *Request, args ...string) {
 		}
 
 		if r.User != nil {
-			w.Linkf(fmt.Sprintf("/users/checkers/%d", rowID), "%s 🤺 %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername)
+			w.Linkf(fmt.Sprintf("/users/checkers/%d", rowID), "%s Game %d: 🤺 %s", time.Unix(inserted, 0).Format(time.DateOnly), rowID, human.PreferredUsername)
 		} else {
-			w.Linkf(fmt.Sprintf("/checkers/%d", rowID), "%s 🤺 %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername)
+			w.Linkf(fmt.Sprintf("/checkers/%d", rowID), "%s Game %d: 🤺 %s", time.Unix(inserted, 0).Format(time.DateOnly), rowID, human.PreferredUsername)
 		}
 
 		anyPending = true
@@ -126,16 +127,16 @@ func (h *Handler) checkers(w text.Writer, r *Request, args ...string) {
 	anyActive := false
 	for active.Next() {
 		var human, orc ap.Actor
-		var rowID, inserted int64
-		if err := active.Scan(&rowID, &human, &orc, &inserted); err != nil {
+		var rowID, updated int64
+		if err := active.Scan(&rowID, &human, &orc, &updated); err != nil {
 			r.Log.Error("Failed to fetch active game", "error", err)
 			continue
 		}
 
 		if r.User != nil {
-			w.Linkf(fmt.Sprintf("/users/checkers/%d", rowID), "%s 🤺 %s vs 🧌 %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername, orc.PreferredUsername)
+			w.Linkf(fmt.Sprintf("/users/checkers/%d", rowID), "%s Game %d: 🤺 %s vs 🧌 %s", time.Unix(updated, 0).Format(time.DateOnly), rowID, human.PreferredUsername, orc.PreferredUsername)
 		} else {
-			w.Linkf(fmt.Sprintf("/checkers/%d", rowID), "%s 🤺 %s vs 🧌 %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername, orc.PreferredUsername)
+			w.Linkf(fmt.Sprintf("/checkers/%d", rowID), "%s Game %d: 🤺 %s vs 🧌 %s", time.Unix(updated, 0).Format(time.DateOnly), rowID, human.PreferredUsername, orc.PreferredUsername)
 		}
 
 		anyActive = true
@@ -158,9 +159,9 @@ func (h *Handler) checkers(w text.Writer, r *Request, args ...string) {
 		}
 
 		if r.User != nil {
-			w.Linkf(fmt.Sprintf("/users/checkers/%d", rowID), "%s 🤺 %s vs 🧌 %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername, orc.PreferredUsername)
+			w.Linkf(fmt.Sprintf("/users/checkers/%d", rowID), "%s Game %d: 🤺 %s vs 🧌 %s", time.Unix(inserted, 0).Format(time.DateOnly), rowID, human.PreferredUsername, orc.PreferredUsername)
 		} else {
-			w.Linkf(fmt.Sprintf("/checkers/%d", rowID), "%s 🤺 %s vs 🧌 %s", time.Unix(inserted, 0).Format(time.DateOnly), human.PreferredUsername, orc.PreferredUsername)
+			w.Linkf(fmt.Sprintf("/checkers/%d", rowID), "%s Game %d: 🤺 %s vs 🧌 %s", time.Unix(inserted, 0).Format(time.DateOnly), rowID, human.PreferredUsername, orc.PreferredUsername)
 		}
 
 		anyEnded = true
@@ -362,30 +363,35 @@ func (h *Handler) checkersView(w text.Writer, r *Request, args ...string) {
 	}
 
 	w.OK()
+	w.Titlef("👑 Game %d: Turn %d", rowID, len(state.Turns))
 
-	if !orc.Valid && r.User != nil && r.User.ID == human.ID {
-		w.Titlef("🤺 You vs 🧌 Somebody: Turn %d", len(state.Turns))
-	} else if !orc.Valid {
-		w.Titlef("🤺 %s vs 🧌 Somebody: Turn %d", human.PreferredUsername, len(state.Turns))
-	} else if r.User != nil && r.User.ID == human.ID {
-		w.Titlef("🤺 You vs 🧌 %s: Turn %d", orc.V.PreferredUsername, len(state.Turns))
-	} else if r.User != nil && r.User.ID == orc.V.ID {
-		w.Titlef("🤺 %s vs 🧌 You: Turn %d", human.PreferredUsername, len(state.Turns))
-	} else {
-		w.Titlef("🤺 %s vs 🧌 %s: Turn %d", human.PreferredUsername, orc.V.PreferredUsername, len(state.Turns))
+	if r.User != nil && r.User.ID == human.ID {
+		w.Link("/users/outbox/"+strings.TrimPrefix(human.ID, "https://"), "🤺 You")
+	} else if r.User != nil && r.User.ID != human.ID {
+		w.Linkf("/users/outbox/"+strings.TrimPrefix(human.ID, "https://"), "🤺 %s", human.PreferredUsername)
+	} else if r.User == nil {
+		w.Linkf("/outbox/"+strings.TrimPrefix(human.ID, "https://"), "🤺 %s", human.PreferredUsername)
+	}
+
+	if orc.Valid && r.User != nil && r.User.ID == orc.V.ID {
+		w.Link("/users/outbox/"+strings.TrimPrefix(orc.V.ID, "https://"), "🧌 You")
+	} else if orc.Valid && r.User != nil && r.User.ID != orc.V.ID {
+		w.Linkf("/users/outbox/"+strings.TrimPrefix(orc.V.ID, "https://"), "🧌 %s", orc.V.PreferredUsername)
+	} else if orc.Valid && r.User == nil {
+		w.Linkf("/outbox/"+strings.TrimPrefix(orc.V.ID, "https://"), "🧌 %s", orc.V.PreferredUsername)
 	}
 
 	if len(state.Turns) > 1 {
 		for i, turn := range state.Turns[1:] {
-			if i > 1 {
-				w.Empty()
-			}
+			w.Empty()
 			w.Subtitlef("Turn %d", i)
 			w.Raw("Board", turn.String())
 		}
 
 		w.Empty()
 		w.Subtitlef("Turn %d", len(state.Turns)-1)
+	} else {
+		w.Empty()
 	}
 
 	w.Raw("Board", state.String())
@@ -416,7 +422,7 @@ func (h *Handler) checkersView(w text.Writer, r *Request, args ...string) {
 		w.Text("Waiting for a player to join.")
 	} else if r.User != nil && r.User.ID == human.ID && state.Current == checkers.Orc {
 		w.Empty()
-		w.Textf("Waiting for %s's turn.", orc.V.PreferredUsername)
+		w.Textf("It's %s's turn.", orc.V.PreferredUsername)
 	} else if r.User != nil && human.ID == r.User.ID {
 		w.Empty()
 
@@ -457,7 +463,7 @@ func (h *Handler) checkersView(w text.Writer, r *Request, args ...string) {
 		}
 	} else if !ended.Valid && r.User != nil && r.User.ID == orc.V.ID && state.Current == checkers.Human {
 		w.Empty()
-		w.Textf("Waiting for %s's turn.", human.PreferredUsername)
+		w.Textf("It's %s's turn.", human.PreferredUsername)
 	} else if r.User != nil && orc.V.ID == r.User.ID {
 		w.Empty()
 
@@ -595,7 +601,7 @@ func (h *Handler) checkersMove(w text.Writer, r *Request, args ...string) {
 			return
 		}
 
-		if errors.Is(err, checkers.ErrImpossibleMove) {
+		if errors.Is(err, checkers.ErrInvalidMove) {
 			w.Status(40, "Invalid move")
 			return
 		}
