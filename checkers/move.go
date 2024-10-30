@@ -16,21 +16,11 @@ limitations under the License.
 
 package checkers
 
-import (
-	"errors"
-	"iter"
-	"maps"
-)
+import "iter"
 
 type Move struct {
 	From, To, Captured Coord
 }
-
-var (
-	ErrWait           = errors.New("not your turn")
-	ErrImpossibleMove = errors.New("impossible move")
-	ErrMustCapture    = errors.New("must capture")
-)
 
 func yieldKingMovesDir(kingPos Coord, dx, dy int, us, them map[Coord]Piece, yield func(Move) bool) bool {
 	pos := kingPos
@@ -199,90 +189,4 @@ func (s *State) HumanMoves() iter.Seq[Move] {
 			}
 		}
 	}
-}
-
-func (s *State) act(
-	from, to Coord,
-	us, them Player,
-	ours, theirs map[Coord]Piece,
-	moves func() iter.Seq[Move],
-	kingY int,
-) error {
-	if s.Current != us {
-		return ErrWait
-	}
-
-	var captured Coord
-
-	for move := range moves() {
-		if move.From == from && move.To == to {
-			captured = move.Captured
-			goto legal
-		}
-	}
-
-	return ErrImpossibleMove
-
-legal:
-	if captured == (Coord{}) {
-		for m := range moves() {
-			if m.Captured != (Coord{}) {
-				return ErrMustCapture
-			}
-		}
-	}
-
-	s.Turns = append(s.Turns, Board{
-		Humans: maps.Clone(s.Humans),
-		Orcs:   maps.Clone(s.Orcs),
-	})
-
-	if captured != (Coord{}) {
-		delete(theirs, captured)
-	}
-
-	piece := ours[from]
-	if to.Y == kingY {
-		piece.King = true
-	}
-	ours[to] = piece
-	delete(ours, from)
-
-	s.Current = them
-	if captured != (Coord{}) {
-		for m := range moves() {
-			if m.From == to && m.Captured != (Coord{}) {
-				s.Current = us
-				break
-			}
-		}
-	}
-
-	return nil
-}
-
-func (s *State) ActHuman(from, to Coord) error {
-	return s.act(
-		from,
-		to,
-		Human,
-		Orc,
-		s.Humans,
-		s.Orcs,
-		s.HumanMoves,
-		0,
-	)
-}
-
-func (s *State) ActOrc(from, to Coord) error {
-	return s.act(
-		from,
-		to,
-		Orc,
-		Human,
-		s.Orcs,
-		s.Humans,
-		s.OrcMoves,
-		7,
-	)
 }
