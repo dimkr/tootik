@@ -20,6 +20,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
 type State struct {
@@ -58,6 +59,7 @@ func Start(first Player) *State {
 				{4, 2}: {ID: 2},
 				{6, 2}: {ID: 3},
 			},
+			Moved: time.Now(),
 		},
 		Current: first,
 	}

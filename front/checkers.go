@@ -109,9 +109,9 @@ func (h *Handler) checkers(w text.Writer, r *Request, args ...string) {
 		}
 
 		if r.User != nil {
-			w.Linkf(fmt.Sprintf("/users/checkers/%d", rowID), "%s Game %d: 🤺 %s", time.Unix(inserted, 0).Format(time.DateOnly), rowID, human.PreferredUsername)
+			w.Linkf(fmt.Sprintf("/users/checkers/%d", rowID), "%s Game #%d: 🤺 %s", time.Unix(inserted, 0).Format(time.DateOnly), rowID, human.PreferredUsername)
 		} else {
-			w.Linkf(fmt.Sprintf("/checkers/%d", rowID), "%s Game %d: 🤺 %s", time.Unix(inserted, 0).Format(time.DateOnly), rowID, human.PreferredUsername)
+			w.Linkf(fmt.Sprintf("/checkers/%d", rowID), "%s Game #%d: 🤺 %s", time.Unix(inserted, 0).Format(time.DateOnly), rowID, human.PreferredUsername)
 		}
 
 		anyPending = true
@@ -134,9 +134,9 @@ func (h *Handler) checkers(w text.Writer, r *Request, args ...string) {
 		}
 
 		if r.User != nil {
-			w.Linkf(fmt.Sprintf("/users/checkers/%d", rowID), "%s Game %d: 🤺 %s vs 🧌 %s: turn %d", time.Unix(updated, 0).Format(time.DateOnly), rowID, human.PreferredUsername, orc.PreferredUsername, turns)
+			w.Linkf(fmt.Sprintf("/users/checkers/%d", rowID), "%s Game #%d: 🤺 %s vs 🧌 %s: turn %d", time.Unix(updated, 0).Format(time.DateOnly), rowID, human.PreferredUsername, orc.PreferredUsername, turns)
 		} else {
-			w.Linkf(fmt.Sprintf("/checkers/%d", rowID), "%s Game %d: 🤺 %s vs 🧌 %s: turn %d", time.Unix(updated, 0).Format(time.DateOnly), rowID, human.PreferredUsername, orc.PreferredUsername, turns)
+			w.Linkf(fmt.Sprintf("/checkers/%d", rowID), "%s Game #%d: 🤺 %s vs 🧌 %s: turn %d", time.Unix(updated, 0).Format(time.DateOnly), rowID, human.PreferredUsername, orc.PreferredUsername, turns)
 		}
 
 		anyActive = true
@@ -159,9 +159,9 @@ func (h *Handler) checkers(w text.Writer, r *Request, args ...string) {
 		}
 
 		if r.User != nil {
-			w.Linkf(fmt.Sprintf("/users/checkers/%d", rowID), "%s Game %d: 🤺 %s vs 🧌 %s", time.Unix(inserted, 0).Format(time.DateOnly), rowID, human.PreferredUsername, orc.PreferredUsername)
+			w.Linkf(fmt.Sprintf("/users/checkers/%d", rowID), "%s Game #%d: 🤺 %s vs 🧌 %s", time.Unix(inserted, 0).Format(time.DateOnly), rowID, human.PreferredUsername, orc.PreferredUsername)
 		} else {
-			w.Linkf(fmt.Sprintf("/checkers/%d", rowID), "%s Game %d: 🤺 %s vs 🧌 %s", time.Unix(inserted, 0).Format(time.DateOnly), rowID, human.PreferredUsername, orc.PreferredUsername)
+			w.Linkf(fmt.Sprintf("/checkers/%d", rowID), "%s Game #%d: 🤺 %s vs 🧌 %s", time.Unix(inserted, 0).Format(time.DateOnly), rowID, human.PreferredUsername, orc.PreferredUsername)
 		}
 
 		anyEnded = true
@@ -363,7 +363,7 @@ func (h *Handler) checkersView(w text.Writer, r *Request, args ...string) {
 	}
 
 	w.OK()
-	w.Titlef("👑 Game %d: Turn %d", rowID, len(state.Turns))
+	w.Titlef("👑 Game #%d: Turn %d", rowID, len(state.Turns))
 
 	if r.User != nil && r.User.ID == human.ID {
 		w.Link("/users/outbox/"+strings.TrimPrefix(human.ID, "https://"), "🤺 You")
@@ -384,7 +384,7 @@ func (h *Handler) checkersView(w text.Writer, r *Request, args ...string) {
 	if len(state.Turns) > 1 {
 		for i, turn := range state.Turns[1:] {
 			w.Empty()
-			w.Subtitlef("Turn %d", i)
+			w.Subtitlef("%s Turn %d", turn.Moved.Format(time.DateOnly), i)
 			w.Raw("Board", turn.String())
 		}
 

@@ -20,6 +20,7 @@ import (
 	"errors"
 	"iter"
 	"maps"
+	"time"
 )
 
 var (
@@ -62,7 +63,9 @@ legal:
 	s.Turns = append(s.Turns, Board{
 		Humans: maps.Clone(s.Humans),
 		Orcs:   maps.Clone(s.Orcs),
+		Moved:  s.Moved,
 	})
+	s.Moved = time.Now()
 
 	if captured != (Coord{}) {
 		delete(theirs, captured)

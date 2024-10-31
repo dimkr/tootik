@@ -19,11 +19,13 @@ package checkers
 import (
 	"fmt"
 	"strings"
+	"time"
 )
 
 type Board struct {
-	Humans pieces `json:"humans,omitempty"`
-	Orcs   pieces `json:"orcs,omitempty"`
+	Humans pieces    `json:"humans,omitempty"`
+	Orcs   pieces    `json:"orcs,omitempty"`
+	Moved  time.Time `json:"moved"`
 }
 
 func (s Board) String() string {
