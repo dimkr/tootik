@@ -54,7 +54,7 @@ func (h *Handler) checkers(w text.Writer, r *Request, args ...string) {
 	active, err := h.DB.QueryContext(
 		r.Context,
 		`
-		select checkers.rowid, humans.actor, orcs.actor, coalesce(checkers.updated, checkers.inserted) as ts from checkers
+		select checkers.rowid, humans.actor, orcs.actor, coalesce(json_array_length(checkers.state->'$.turns'), 0) as turns, coalesce(checkers.updated, checkers.inserted) as ts from checkers
 		join persons humans on
 			humans.id = checkers.human
 		join persons orcs on
@@ -88,11 +88,11 @@ func (h *Handler) checkers(w text.Writer, r *Request, args ...string) {
 		`,
 	)
 	if err != nil {
-		r.Log.Error("Failed to fetch active games", "error", err)
+		r.Log.Error("Failed to fetch ended games", "error", err)
 		w.Error()
 		return
 	}
-	defer active.Close()
+	defer ended.Close()
 
 	w.OK()
 	w.Title("👑 Checkers")
@@ -127,16 +127,16 @@ func (h *Handler) checkers(w text.Writer, r *Request, args ...string) {
 	anyActive := false
 	for active.Next() {
 		var human, orc ap.Actor
-		var rowID, updated int64
-		if err := active.Scan(&rowID, &human, &orc, &updated); err != nil {
+		var rowID, updated, turns int64
+		if err := active.Scan(&rowID, &human, &orc, &turns, &updated); err != nil {
 			r.Log.Error("Failed to fetch active game", "error", err)
 			continue
 		}
 
 		if r.User != nil {
-			w.Linkf(fmt.Sprintf("/users/checkers/%d", rowID), "%s Game %d: 🤺 %s vs 🧌 %s", time.Unix(updated, 0).Format(time.DateOnly), rowID, human.PreferredUsername, orc.PreferredUsername)
+			w.Linkf(fmt.Sprintf("/users/checkers/%d", rowID), "%s Game %d: 🤺 %s vs 🧌 %s: turn %d", time.Unix(updated, 0).Format(time.DateOnly), rowID, human.PreferredUsername, orc.PreferredUsername, turns)
 		} else {
-			w.Linkf(fmt.Sprintf("/checkers/%d", rowID), "%s Game %d: 🤺 %s vs 🧌 %s", time.Unix(updated, 0).Format(time.DateOnly), rowID, human.PreferredUsername, orc.PreferredUsername)
+			w.Linkf(fmt.Sprintf("/checkers/%d", rowID), "%s Game %d: 🤺 %s vs 🧌 %s: turn %d", time.Unix(updated, 0).Format(time.DateOnly), rowID, human.PreferredUsername, orc.PreferredUsername, turns)
 		}
 
 		anyActive = true
