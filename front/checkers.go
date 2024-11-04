@@ -389,7 +389,7 @@ func (h *Handler) checkersView(w text.Writer, r *Request, args ...string) {
 		}
 
 		w.Empty()
-		w.Subtitlef("Turn %d", len(state.Turns)-1)
+		w.Subtitlef("%s Turn %d", state.Moved.Format(time.DateOnly), len(state.Turns)-1)
 	} else {
 		w.Empty()
 	}
