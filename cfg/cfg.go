@@ -125,7 +125,7 @@ type Config struct {
 // FillDefaults replaces missing or invalid settings with defaults.
 func (c *Config) FillDefaults() {
 	if c.DatabaseOptions == "" {
-		c.DatabaseOptions = "_journal_mode=WAL&_busy_timeout=5000"
+		c.DatabaseOptions = "_journal_mode=WAL&_synchronous=1&_busy_timeout=5000"
 	}
 
 	if c.RegistrationInterval <= 0 {
