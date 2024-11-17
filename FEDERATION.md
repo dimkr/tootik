@@ -34,7 +34,7 @@ tootik implements [draft-cavage-http-signatures-12](https://datatracker.ietf.org
 
 ## Application Actor
 
-tootik has no [Application Actor](https://codeberg.org/fediverse/fep/src/branch/main/fep/2677/fep-2677.md). It uses a special user named `nobody` to sign outgoing requests not initiated by a particular user.
+tootik creates a special user named `nobody`, which acts as an [Application Actor](https://codeberg.org/fediverse/fep/src/branch/main/fep/2677/fep-2677.md). Its key is used to sign outgoing requests not initiated by a particular user.
 
 This user can be discovered using [WebFinger](https://www.rfc-editor.org/rfc/rfc7033), just like any other user:
 

@@ -25,8 +25,9 @@ import (
 type ActorType string
 
 const (
-	Person ActorType = "Person"
-	Group  ActorType = "Group"
+	Person      ActorType = "Person"
+	Group       ActorType = "Group"
+	Application ActorType = "Application"
 )
 
 // Actor represents an ActivityPub actor.
