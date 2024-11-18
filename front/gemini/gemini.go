@@ -48,7 +48,7 @@ type Listener struct {
 	KeyPath  string
 }
 
-func (gl *Listener) getUser(ctx context.Context, conn net.Conn, tlsConn *tls.Conn) (*ap.Actor, httpsig.Key, error) {
+func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn) (*ap.Actor, httpsig.Key, error) {
 	state := tlsConn.ConnectionState()
 
 	if len(state.PeerCertificates) == 0 {
@@ -136,7 +136,7 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 	w := gmi.Wrap(conn)
 	defer w.Flush()
 
-	r.User, r.Key, err = gl.getUser(ctx, conn, tlsConn)
+	r.User, r.Key, err = gl.getUser(ctx, tlsConn)
 	if err != nil && errors.Is(err, front.ErrNotRegistered) && r.URL.Path == "/users" {
 		slog.Info("Redirecting new user")
 		w.Redirect("/users/register")

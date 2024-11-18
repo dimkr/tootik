@@ -158,7 +158,7 @@ func TestResolve_FederatedInstanceActor(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:0.0.0.0@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:0.0.0.0@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -181,7 +181,7 @@ func TestResolve_FederatedInstanceActor(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -334,7 +334,7 @@ func TestResolve_FederatedActorFirstTime(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -357,7 +357,7 @@ func TestResolve_FederatedActorFirstTime(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -414,7 +414,7 @@ func TestResolve_FederatedActorFirstTimeThroughMention(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -437,7 +437,7 @@ func TestResolve_FederatedActorFirstTimeThroughMention(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -567,7 +567,7 @@ func TestResolve_FederatedActorFirstTimeInvalidWebFingerLink(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -595,7 +595,7 @@ func TestResolve_FederatedActorFirstTimeInvalidWebFingerLink(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -652,7 +652,7 @@ func TestResolve_FederatedActorFirstTimeActorIDMismatch(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -675,7 +675,7 @@ func TestResolve_FederatedActorFirstTimeActorIDMismatch(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -729,7 +729,7 @@ func TestResolve_FederatedActorCached(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -752,7 +752,7 @@ func TestResolve_FederatedActorCached(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -815,7 +815,7 @@ func TestResolve_FederatedActorCachedInvalidActorHost(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -872,7 +872,7 @@ func TestResolve_FederatedActorCachedActorHostWithPort(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -929,7 +929,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -952,7 +952,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 				}`,
 			),
 		},
-		"https://tootik.0.0.0.0/user/dan": testResponse{
+		"https://tootik.0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -992,7 +992,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1015,7 +1015,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 				}`,
 			),
 		},
-		"https://tootik.0.0.0.0/user/dan": testResponse{
+		"https://tootik.0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1065,7 +1065,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomainFetchedRecently(t *testin
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1088,7 +1088,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomainFetchedRecently(t *testin
 				}`,
 			),
 		},
-		"https://tootik.0.0.0.0/user/dan": testResponse{
+		"https://tootik.0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1154,7 +1154,7 @@ func TestResolve_FederatedActorCachedActorIDChanged(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1177,7 +1177,7 @@ func TestResolve_FederatedActorCachedActorIDChanged(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1217,7 +1217,7 @@ func TestResolve_FederatedActorCachedActorIDChanged(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1270,7 +1270,7 @@ func TestResolve_FederatedActorCachedButBlocked(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1293,7 +1293,7 @@ func TestResolve_FederatedActorCachedButBlocked(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1336,7 +1336,7 @@ func TestResolve_FederatedActorCachedButBlocked(t *testing.T) {
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
 	blockList.domains = map[string]struct{}{
-		"0.0.0.0": struct{}{},
+		"0.0.0.0": {},
 	}
 
 	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
@@ -1363,7 +1363,7 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1386,7 +1386,7 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1426,7 +1426,7 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1449,7 +1449,7 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1504,7 +1504,7 @@ func TestResolve_FederatedActorOldCacheWasSuspended(t *testing.T) {
 	cfg.FillDefaults()
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1527,7 +1527,7 @@ func TestResolve_FederatedActorOldCacheWasSuspended(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1566,7 +1566,7 @@ func TestResolve_FederatedActorOldCacheWasSuspended(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1589,7 +1589,7 @@ func TestResolve_FederatedActorOldCacheWasSuspended(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1646,7 +1646,7 @@ func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 	cfg.FillDefaults()
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1669,7 +1669,7 @@ func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1706,7 +1706,7 @@ func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1729,7 +1729,7 @@ func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1785,7 +1785,7 @@ func TestResolve_FederatedActorOldCacheUpdateFailed(t *testing.T) {
 	cfg.FillDefaults()
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1808,7 +1808,7 @@ func TestResolve_FederatedActorOldCacheUpdateFailed(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1845,7 +1845,7 @@ func TestResolve_FederatedActorOldCacheUpdateFailed(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1868,7 +1868,7 @@ func TestResolve_FederatedActorOldCacheUpdateFailed(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusInternalServerError,
 				`{}`,
@@ -1906,7 +1906,7 @@ func TestResolve_FederatedActorOldCacheStillNew(t *testing.T) {
 	cfg.FillDefaults()
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1929,7 +1929,7 @@ func TestResolve_FederatedActorOldCacheStillNew(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1966,7 +1966,7 @@ func TestResolve_FederatedActorOldCacheStillNew(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -1989,7 +1989,7 @@ func TestResolve_FederatedActorOldCacheStillNew(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -2035,7 +2035,7 @@ func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
 	cfg.FillDefaults()
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -2058,7 +2058,7 @@ func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -2099,7 +2099,7 @@ func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -2122,7 +2122,7 @@ func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -2169,7 +2169,7 @@ func TestResolve_FederatedActorOldCacheWasNewNowUnknown(t *testing.T) {
 	cfg.FillDefaults()
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -2192,7 +2192,7 @@ func TestResolve_FederatedActorOldCacheWasNewNowUnknown(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -2230,7 +2230,7 @@ func TestResolve_FederatedActorOldCacheWasNewNowUnknown(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -2253,7 +2253,7 @@ func TestResolve_FederatedActorOldCacheWasNewNowUnknown(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -2300,7 +2300,7 @@ func TestResolve_FederatedActorOldCacheFetchedRecently(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -2323,7 +2323,7 @@ func TestResolve_FederatedActorOldCacheFetchedRecently(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -2389,7 +2389,7 @@ func TestResolve_FederatedActorOldCacheButOffline(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -2412,7 +2412,7 @@ func TestResolve_FederatedActorOldCacheButOffline(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -2478,7 +2478,7 @@ func TestResolve_FederatedActorOldCacheInvalidID(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -2535,7 +2535,7 @@ func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -2558,7 +2558,7 @@ func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -2598,7 +2598,7 @@ func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`abc`,
@@ -2635,7 +2635,7 @@ func TestResolve_FederatedActorOldCacheBigWebFingerResponse(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -2658,7 +2658,7 @@ func TestResolve_FederatedActorOldCacheBigWebFingerResponse(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -2698,7 +2698,7 @@ func TestResolve_FederatedActorOldCacheBigWebFingerResponse(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -2753,7 +2753,7 @@ func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -2776,7 +2776,7 @@ func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -2816,7 +2816,7 @@ func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -2839,7 +2839,7 @@ func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`abc`,
@@ -2875,7 +2875,7 @@ func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -2898,7 +2898,7 @@ func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -2938,7 +2938,7 @@ func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -2961,7 +2961,7 @@ func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -3013,7 +3013,7 @@ func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -3036,7 +3036,7 @@ func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -3076,7 +3076,7 @@ func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -3135,7 +3135,7 @@ func TestResolve_FederatedActorOldCacheWebFingerError(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -3158,7 +3158,7 @@ func TestResolve_FederatedActorOldCacheWebFingerError(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -3198,7 +3198,7 @@ func TestResolve_FederatedActorOldCacheWebFingerError(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Error: errors.New("a"),
 		},
 	}
@@ -3237,7 +3237,7 @@ func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -3260,7 +3260,7 @@ func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -3300,7 +3300,7 @@ func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -3323,7 +3323,7 @@ func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Error: errors.New("a"),
 		},
 	}
@@ -3362,7 +3362,7 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -3385,7 +3385,7 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/user/dan": testResponse{
+		"https://0.0.0.0/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -3444,7 +3444,7 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusGone,
 				`{
@@ -3498,7 +3498,7 @@ func TestResolve_FederatedActorFirstTimeWrongID(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -3521,7 +3521,7 @@ func TestResolve_FederatedActorFirstTimeWrongID(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/users/dan": testResponse{
+		"https://0.0.0.0/users/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -3578,7 +3578,7 @@ func TestResolve_FederatedActorFirstTimeDeleted(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusGone,
 				`{
@@ -3657,7 +3657,7 @@ func TestResolve_FederatedActorFirstTimeTooYoung(t *testing.T) {
 	cfg.FillDefaults()
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -3680,7 +3680,7 @@ func TestResolve_FederatedActorFirstTimeTooYoung(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/users/dan": testResponse{
+		"https://0.0.0.0/users/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -3733,7 +3733,7 @@ func TestResolve_FederatedActorFirstTimeSuspended(t *testing.T) {
 	cfg.FillDefaults()
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -3756,7 +3756,7 @@ func TestResolve_FederatedActorFirstTimeSuspended(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/users/dan": testResponse{
+		"https://0.0.0.0/users/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -3812,7 +3812,7 @@ func TestResolve_FederatedActorWrongIDCached(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -3835,7 +3835,7 @@ func TestResolve_FederatedActorWrongIDCached(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/users/dan": testResponse{
+		"https://0.0.0.0/users/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -3898,7 +3898,7 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -3921,7 +3921,7 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/users/dan": testResponse{
+		"https://0.0.0.0/users/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -3961,7 +3961,7 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -3984,7 +3984,7 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/users/dan": testResponse{
+		"https://0.0.0.0/users/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -4034,7 +4034,7 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -4057,7 +4057,7 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/users/dan": testResponse{
+		"https://0.0.0.0/users/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -4097,7 +4097,7 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -4120,7 +4120,7 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/users/dan": testResponse{
+		"https://0.0.0.0/users/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -4159,7 +4159,7 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": testResponse{
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -4182,7 +4182,7 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 				}`,
 			),
 		},
-		"https://0.0.0.0/users/dan": testResponse{
+		"https://0.0.0.0/users/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{

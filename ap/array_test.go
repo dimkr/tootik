@@ -122,7 +122,7 @@ func TestArrayMarshal_OneTag(t *testing.T) {
 	}{
 		ID: "a",
 		Tag: []Tag{
-			Tag{
+			{
 				Type: Hashtag,
 				Name: "b",
 			},
@@ -140,11 +140,11 @@ func TestArrayMarshal_TwoTags(t *testing.T) {
 	}{
 		ID: "a",
 		Tag: []Tag{
-			Tag{
+			{
 				Type: Hashtag,
 				Name: "b",
 			},
-			Tag{
+			{
 				Type: Emoji,
 				Name: "c",
 			},

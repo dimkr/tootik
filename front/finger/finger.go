@@ -42,7 +42,7 @@ type Listener struct {
 	Addr   string
 }
 
-func (fl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGroup) {
+func (fl *Listener) handle(ctx context.Context, conn net.Conn) {
 	if err := conn.SetDeadline(time.Now().Add(fl.Config.GuppyRequestTimeout)); err != nil {
 		slog.Warn("Failed to set deadline", "error", err)
 		return
@@ -222,7 +222,7 @@ func (fl *Listener) ListenAndServe(ctx context.Context) error {
 
 			wg.Add(1)
 			go func() {
-				fl.handle(requestCtx, conn, &wg)
+				fl.handle(requestCtx, conn)
 				conn.Close()
 				timer.Stop()
 				cancelRequest()

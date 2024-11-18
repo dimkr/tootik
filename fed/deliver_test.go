@@ -51,13 +51,13 @@ func TestDeliver_TwoUsersTwoPosts(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/dan": testResponse{
+		"https://ip6-allnodes/inbox/dan": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/erin": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -127,7 +127,7 @@ func TestDeliver_TwoUsersTwoPosts(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/erin": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -159,13 +159,13 @@ func TestDeliver_ForwardedPost(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/dan": testResponse{
+		"https://ip6-allnodes/inbox/dan": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/erin": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -256,13 +256,13 @@ func TestDeliver_OneFailed(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/dan": testResponse{
+		"https://ip6-allnodes/inbox/dan": {
 			Response: &http.Response{
 				StatusCode: http.StatusInternalServerError,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/erin": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -332,7 +332,7 @@ func TestDeliver_OneFailed(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/erin": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -364,13 +364,13 @@ func TestDeliver_OneFailedRetry(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/dan": testResponse{
+		"https://ip6-allnodes/inbox/dan": {
 			Response: &http.Response{
 				StatusCode: http.StatusInternalServerError,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/erin": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -427,7 +427,7 @@ func TestDeliver_OneFailedRetry(t *testing.T) {
 	cfg.DeliveryRetryInterval = 0
 
 	client.Data = map[string]testResponse{
-		"https://ip6-allnodes/inbox/dan": testResponse{
+		"https://ip6-allnodes/inbox/dan": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -461,7 +461,7 @@ func TestDeliver_OneInvalidURLRetry(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/erin": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -545,13 +545,13 @@ func TestDeliver_MaxAttempts(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/dan": testResponse{
+		"https://ip6-allnodes/inbox/dan": {
 			Response: &http.Response{
 				StatusCode: http.StatusInternalServerError,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/erin": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -609,7 +609,7 @@ func TestDeliver_MaxAttempts(t *testing.T) {
 	cfg.MaxDeliveryAttempts = 2
 
 	client.Data = map[string]testResponse{
-		"https://ip6-allnodes/inbox/dan": testResponse{
+		"https://ip6-allnodes/inbox/dan": {
 			Response: &http.Response{
 				StatusCode: http.StatusInternalServerError,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -643,13 +643,13 @@ func TestDeliver_SharedInbox(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/nobody": testResponse{
+		"https://ip6-allnodes/inbox/nobody": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-		"https://ip6-allnodes/inbox/frank": testResponse{
+		"https://ip6-allnodes/inbox/frank": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -734,13 +734,13 @@ func TestDeliver_SharedInboxRetry(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/nobody": testResponse{
+		"https://ip6-allnodes/inbox/nobody": {
 			Response: &http.Response{
 				StatusCode: http.StatusInternalServerError,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-		"https://ip6-allnodes/inbox/frank": testResponse{
+		"https://ip6-allnodes/inbox/frank": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -807,7 +807,7 @@ func TestDeliver_SharedInboxRetry(t *testing.T) {
 	cfg.DeliveryRetryInterval = 0
 
 	client.Data = map[string]testResponse{
-		"https://ip6-allnodes/inbox/nobody": testResponse{
+		"https://ip6-allnodes/inbox/nobody": {
 			Response: &http.Response{
 				StatusCode: http.StatusInternalServerError,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -839,13 +839,13 @@ func TestDeliver_SharedInboxUnknownActor(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/nobody": testResponse{
+		"https://ip6-allnodes/inbox/nobody": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-		"https://ip6-allnodes/inbox/frank": testResponse{
+		"https://ip6-allnodes/inbox/frank": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -931,13 +931,13 @@ func TestDeliver_SharedInboxSingleWorker(t *testing.T) {
 	cfg.DeliveryWorkers = 1
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/nobody": testResponse{
+		"https://ip6-allnodes/inbox/nobody": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-		"https://ip6-allnodes/inbox/frank": testResponse{
+		"https://ip6-allnodes/inbox/frank": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -1022,13 +1022,13 @@ func TestDeliver_SameInbox(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/dan": testResponse{
+		"https://ip6-allnodes/inbox/dan": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-		"https://ip6-allnodes/inbox/frank": testResponse{
+		"https://ip6-allnodes/inbox/frank": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -1113,13 +1113,13 @@ func TestDeliver_ToAndCCDuplicates(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/dan": testResponse{
+		"https://ip6-allnodes/inbox/dan": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/erin": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -1189,7 +1189,7 @@ func TestDeliver_ToAndCCDuplicates(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/erin": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -1221,13 +1221,13 @@ func TestDeliver_PublicInTo(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/dan": testResponse{
+		"https://ip6-allnodes/inbox/dan": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/erin": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -1297,7 +1297,7 @@ func TestDeliver_PublicInTo(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/erin": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -1329,13 +1329,13 @@ func TestDeliver_AuthorInTo(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/dan": testResponse{
+		"https://ip6-allnodes/inbox/dan": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/erin": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -1405,7 +1405,7 @@ func TestDeliver_AuthorInTo(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/erin": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),

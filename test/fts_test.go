@@ -195,7 +195,7 @@ func TestFTS_SearchByMentionUserName(t *testing.T) {
 				Content:      "Hello @abc",
 				To:           to,
 				Tag: []ap.Tag{
-					ap.Tag{
+					{
 						Type: ap.Mention,
 						Name: "@abc@localhost.localdomain:8443",
 						Href: server.Bob.ID,
@@ -235,7 +235,7 @@ func TestFTS_SearchByMentionID(t *testing.T) {
 				Content:      "Hello @abc",
 				To:           to,
 				Tag: []ap.Tag{
-					ap.Tag{
+					{
 						Type: ap.Mention,
 						Name: "@abc@localhost.localdomain:8443",
 						Href: server.Bob.ID,

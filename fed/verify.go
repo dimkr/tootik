@@ -17,7 +17,6 @@ limitations under the License.
 package fed
 
 import (
-	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -27,7 +26,7 @@ import (
 	"time"
 )
 
-func (l *Listener) verify(ctx context.Context, r *http.Request, body []byte, flags ap.ResolverFlag) (*ap.Actor, error) {
+func (l *Listener) verify(r *http.Request, body []byte, flags ap.ResolverFlag) (*ap.Actor, error) {
 	sig, err := httpsig.Extract(r, body, l.Domain, time.Now(), l.Config.MaxRequestAge)
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify message: %w", err)
