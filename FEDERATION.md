@@ -54,7 +54,7 @@ tootik does not fetch missing posts to complete threads with "ghost replies".
 
 ## Outbox
 
-tootik sets the `outbox` attribute on users, so servers that don't rely on reply forwarding and fetch missing replies can do so. However, this collection only lists public activities.
+tootik sets the `outbox` attribute on users, but it always leads to an empty collection.
 
 ## Account Migration
 
