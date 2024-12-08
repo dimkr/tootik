@@ -39,7 +39,6 @@ import (
 )
 
 type Listener struct {
-	Domain   string
 	Config   *cfg.Config
 	DB       *sql.DB
 	Handler  front.Handler
@@ -61,7 +60,7 @@ func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn) (*ap.Actor, 
 
 	var id, privKeyPem string
 	var actor ap.Actor
-	if err := gl.DB.QueryRowContext(ctx, `select id, actor, privkey from persons where host = ? and certhash = ?`, gl.Domain, certHash).Scan(&id, &actor, &privKeyPem); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := gl.DB.QueryRowContext(ctx, `select persons.id, persons.actor, persons.privkey from certificates join persons on persons.id = certificates.user where certificates.hash = ?`, certHash).Scan(&id, &actor, &privKeyPem); err != nil && errors.Is(err, sql.ErrNoRows) {
 		return nil, httpsig.Key{}, front.ErrNotRegistered
 	} else if err != nil {
 		return nil, httpsig.Key{}, fmt.Errorf("failed to fetch user for %s: %w", certHash, err)

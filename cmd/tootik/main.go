@@ -339,7 +339,6 @@ func main() {
 		{
 			"Gemini",
 			&gemini.Listener{
-				Domain:   *domain,
 				Config:   &cfg,
 				DB:       db,
 				Handler:  handler,

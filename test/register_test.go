@@ -21,6 +21,13 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"os"
+	"sync"
+	"testing"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/fed"
@@ -29,12 +36,6 @@ import (
 	"github.com/dimkr/tootik/front/user"
 	"github.com/dimkr/tootik/migrations"
 	"github.com/stretchr/testify/assert"
-	"io"
-	"net"
-	"net/http"
-	"os"
-	"sync"
-	"testing"
 )
 
 var (
@@ -168,7 +169,6 @@ func TestRegister_RedirectNoCertificate(t *testing.T) {
 	assert.NoError(err)
 
 	l := gemini.Listener{
-		Domain:  domain,
 		Config:  &cfg,
 		Handler: handler,
 		DB:      db,
@@ -251,7 +251,6 @@ func TestRegister_Redirect(t *testing.T) {
 	assert.NoError(err)
 
 	l := gemini.Listener{
-		Domain:  domain,
 		Config:  &cfg,
 		Handler: handler,
 		DB:      db,
@@ -331,7 +330,6 @@ func TestRegister_NoCertificate(t *testing.T) {
 	assert.NoError(err)
 
 	l := gemini.Listener{
-		Domain:  domain,
 		Config:  &cfg,
 		Handler: handler,
 		DB:      db,
@@ -414,7 +412,6 @@ func TestRegister_HappyFlow(t *testing.T) {
 	assert.NoError(err)
 
 	l := gemini.Listener{
-		Domain:  domain,
 		Config:  &cfg,
 		Handler: handler,
 		DB:      db,
@@ -497,7 +494,6 @@ func TestRegister_HappyFlowRegistrationClosed(t *testing.T) {
 	assert.NoError(err)
 
 	l := gemini.Listener{
-		Domain:  domain,
 		Config:  &cfg,
 		Handler: handler,
 		DB:      db,
@@ -583,7 +579,6 @@ func TestRegister_AlreadyRegistered(t *testing.T) {
 	assert.NoError(err)
 
 	l := gemini.Listener{
-		Domain:  domain,
 		Config:  &cfg,
 		Handler: handler,
 		DB:      db,
@@ -671,7 +666,6 @@ func TestRegister_Twice(t *testing.T) {
 		assert.NoError(err)
 
 		l := gemini.Listener{
-			Domain:  domain,
 			Config:  &cfg,
 			Handler: handler,
 			DB:      db,
@@ -770,7 +764,6 @@ func TestRegister_Throttling(t *testing.T) {
 		assert.NoError(err)
 
 		l := gemini.Listener{
-			Domain:  domain,
 			Config:  &cfg,
 			Handler: handler,
 			DB:      db,
@@ -869,7 +862,6 @@ func TestRegister_Throttling30Minutes(t *testing.T) {
 		assert.NoError(err)
 
 		l := gemini.Listener{
-			Domain:  domain,
 			Config:  &cfg,
 			Handler: handler,
 			DB:      db,
@@ -971,7 +963,6 @@ func TestRegister_Throttling1Hour(t *testing.T) {
 		assert.NoError(err)
 
 		l := gemini.Listener{
-			Domain:  domain,
 			Config:  &cfg,
 			Handler: handler,
 			DB:      db,
@@ -1067,7 +1058,6 @@ func TestRegister_RedirectTwice(t *testing.T) {
 		assert.NoError(err)
 
 		l := gemini.Listener{
-			Domain:  domain,
 			Config:  &cfg,
 			Handler: handler,
 			DB:      db,

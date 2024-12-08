@@ -57,7 +57,7 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 	certHash := fmt.Sprintf("%x", sha256.Sum256(clientCert.Raw))
 
 	var taken int
-	if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from persons where host = ? and certhash = ?)`, h.Domain, certHash).Scan(&taken); err != nil {
+	if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from certificates where hash = ?)`, certHash).Scan(&taken); err != nil {
 		r.Log.Warn("Failed to check if cerificate hash is already in use", "hash", certHash, "error", err)
 		w.Error()
 		return
