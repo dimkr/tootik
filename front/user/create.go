@@ -101,16 +101,50 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 		Published:                 &ap.Time{Time: time.Now()},
 	}
 
-	if _, err = db.ExecContext(
+	key := httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: priv}
+
+	if certHash == nil {
+		if _, err = db.ExecContext(
+			ctx,
+			`INSERT INTO persons (id, actor, privkey) VALUES(?,?,?)`,
+			id,
+			&actor,
+			string(privPem),
+		); err != nil {
+			return nil, httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
+		}
+
+		return &actor, key, nil
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
+	}
+	defer tx.Rollback()
+
+	if _, err = tx.ExecContext(
 		ctx,
-		`INSERT INTO persons (id, actor, privkey, certhash) VALUES(?,?,?,?)`,
+		`INSERT OR IGNORE INTO persons (id, actor, privkey) VALUES(?,?,?)`,
 		id,
 		&actor,
 		string(privPem),
-		certHash,
 	); err != nil {
 		return nil, httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 	}
 
-	return &actor, httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: priv}, nil
+	if _, err = tx.ExecContext(
+		ctx,
+		`INSERT OR IGNORE INTO certificates (user, hash, approved) VALUES($1, $2, (SELECT NOT EXISTS (SELECT 1 FROM certificates WHERE user = $1)))`,
+		name,
+		*certHash,
+	); err != nil {
+		return nil, httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
+	}
+
+	return &actor, key, nil
 }

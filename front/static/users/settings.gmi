@@ -7,6 +7,10 @@
 => titan://{{.Domain}}/users/upload/bio Upload bio
 => titan://{{.Domain}}/users/upload/avatar Upload avatar
 
+## Account
+
+=> /users/certificates 🎓 Certificates
+
 ## Migration
 
 => /users/alias 🔗 Set account alias

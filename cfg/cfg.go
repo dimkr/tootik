@@ -26,7 +26,8 @@ import (
 type Config struct {
 	DatabaseOptions string
 
-	RegistrationInterval time.Duration
+	RegistrationInterval       time.Duration
+	CertificateApprovalTimeout time.Duration
 
 	MaxPostsLength     int
 	MaxPostsPerDay     int64
@@ -130,6 +131,10 @@ func (c *Config) FillDefaults() {
 
 	if c.RegistrationInterval <= 0 {
 		c.RegistrationInterval = time.Hour
+	}
+
+	if c.CertificateApprovalTimeout <= 0 {
+		c.CertificateApprovalTimeout = time.Hour * 48
 	}
 
 	if c.MaxPostsLength <= 0 {
