@@ -105,5 +105,9 @@ func (gc *GarbageCollector) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to invisible bookmarks: %w", err)
 	}
 
+	if _, err := gc.DB.ExecContext(ctx, `delete from certificates where accepted = 0 and inserted < ?`, now.Add(-gc.Config.CertificateApprovalTimeout).Unix() ); err != nil {
+		return fmt.Errorf("failed to remove timed out certificate approval requests: %w", err)
+	}
+
 	return nil
 }
