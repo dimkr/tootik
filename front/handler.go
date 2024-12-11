@@ -38,7 +38,10 @@ type Handler struct {
 	DB       *sql.DB
 }
 
-var ErrNotRegistered = errors.New("user is not registered")
+var (
+	ErrNotRegistered = errors.New("user is not registered")
+	ErrNotApproved   = errors.New("client certificate is not approved")
+)
 
 func serveStaticFile(lines []string, w text.Writer, _ *Request, _ ...string) {
 	w.OK()
@@ -85,6 +88,9 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 	h.handlers[regexp.MustCompile(`^/users/name$`)] = h.name
 	h.handlers[regexp.MustCompile(`^/users/alias$`)] = h.alias
 	h.handlers[regexp.MustCompile(`^/users/move$`)] = h.move
+	h.handlers[regexp.MustCompile(`^/users/certificates$`)] = withUserMenu(h.certificates)
+	h.handlers[regexp.MustCompile(`^/users/approve/(\S+)$`)] = withUserMenu(h.approve)
+	h.handlers[regexp.MustCompile(`^/users/revoke/(\S+)$`)] = withUserMenu(h.revoke)
 
 	h.handlers[regexp.MustCompile(`^/view/(\S+)$`)] = withUserMenu(h.view)
 	h.handlers[regexp.MustCompile(`^/users/view/(\S+)$`)] = withUserMenu(h.view)
