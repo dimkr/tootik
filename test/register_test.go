@@ -1018,7 +1018,6 @@ func TestRegister_TwoCertificates(t *testing.T) {
 
 	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_journal_mode=WAL", t.Name())
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	defer println(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
 	db, err := sql.Open("sqlite3", dbPath)
 	assert.NoError(err)
 
