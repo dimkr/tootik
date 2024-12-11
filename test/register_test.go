@@ -1077,6 +1077,11 @@ func TestRegister_TwoCertificates(t *testing.T) {
 		{fmt.Sprintf("gemini://localhost.localdomain:8965/users/approve/%s\r\n", erinOtherCertHash), "^30 /users/certificates\r\n$", &clientCfg},
 		{"gemini://localhost.localdomain:8965/users/register\r\n", "^40 Already registered as erin\r\n$", &otherClientCfg},
 		{"gemini://localhost.localdomain:8965/users\r\n", "^20 text/gemini\r\n.+", &otherClientCfg},
+		{fmt.Sprintf("gemini://localhost.localdomain:8965/users/revoke/%s\r\n", erinCertHash), "^30 /users/certificates\r\n$", &otherClientCfg},
+		{"gemini://localhost.localdomain:8965/users\r\n", "^30 /users/register\r\n$", &clientCfg},
+		{"gemini://localhost.localdomain:8965/users/register\r\n", "^30 /users\r\n$", &clientCfg},
+		{"gemini://localhost.localdomain:8965/users\r\n", "^40 Client certificate is awaiting approval\r\n$", &clientCfg},
+		{"gemini://localhost.localdomain:8965/users\r\n", "^20 text/gemini\r\n.+", &otherClientCfg},
 	} {
 		unixReader, err := net.Dial("unix", socketPath)
 		assert.NoError(err)
