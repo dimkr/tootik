@@ -32,7 +32,7 @@ func (h *Handler) revoke(w text.Writer, r *Request, args ...string) {
 		r.Context,
 		`
 		delete from certificates
-		where user = ? and hash = ?
+		where user = $1 and hash = $2 and exists (select 1 from certificates others where others.user = $1 and others.hash != $2 and others.approved = 1)
 		`,
 		r.User.PreferredUsername,
 		hash,
