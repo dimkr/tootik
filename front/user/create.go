@@ -21,6 +21,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"database/sql"
 	"encoding/pem"
@@ -63,7 +64,7 @@ func gen() (*rsa.PrivateKey, []byte, []byte, error) {
 }
 
 // Create creates a new user.
-func Create(ctx context.Context, domain string, db *sql.DB, name string, actorType ap.ActorType, certHash *string) (*ap.Actor, httpsig.Key, error) {
+func Create(ctx context.Context, domain string, db *sql.DB, name string, actorType ap.ActorType, cert *x509.Certificate) (*ap.Actor, httpsig.Key, error) {
 	priv, privPem, pubPem, err := gen()
 	if err != nil {
 		return nil, httpsig.Key{}, fmt.Errorf("failed to generate key pair: %w", err)
@@ -103,7 +104,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 
 	key := httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: priv}
 
-	if certHash == nil {
+	if cert == nil {
 		if _, err = db.ExecContext(
 			ctx,
 			`INSERT INTO persons (id, actor, privkey) VALUES(?,?,?)`,
@@ -135,9 +136,10 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 
 	if _, err = tx.ExecContext(
 		ctx,
-		`INSERT OR IGNORE INTO certificates (user, hash, approved) VALUES($1, $2, (SELECT NOT EXISTS (SELECT 1 FROM certificates WHERE user = $1)))`,
+		`INSERT OR IGNORE INTO certificates (user, hash, approved, expires) VALUES($1, $2, (SELECT NOT EXISTS (SELECT 1 FROM certificates WHERE user = $1)), $3)`,
 		name,
-		*certHash,
+		fmt.Sprintf("%x", sha256.Sum256(cert.Raw)),
+		cert.NotAfter.Unix(),
 	); err != nil {
 		return nil, httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 	}

@@ -31,7 +31,7 @@ func (h *Handler) certificates(w text.Writer, r *Request, args ...string) {
 	rows, err := h.DB.QueryContext(
 		r.Context,
 		`
-		select inserted, hash, approved from certificates
+		select inserted, hash, approved, expires from certificates
 		where user = ?
 		order by inserted
 		`,
@@ -49,15 +49,16 @@ func (h *Handler) certificates(w text.Writer, r *Request, args ...string) {
 	w.Title("🎓 Certificates")
 
 	for rows.Next() {
-		var inserted int64
+		var inserted, expires int64
 		var hash string
 		var approved int
-		if err := rows.Scan(&inserted, &hash, &approved); err != nil {
+		if err := rows.Scan(&inserted, &hash, &approved, &expires); err != nil {
 			r.Log.Warn("Failed to fetch certificate", "user", r.User.PreferredUsername, "error", err)
 			continue
 		}
 
-		w.Textf("%s %s", time.Unix(inserted, 0).Format(time.DateOnly), hash)
+		w.Textf("%s Added %s, expires %s", hash, time.Unix(inserted, 0).Format(time.DateOnly), time.Unix(expires, 0).Format(time.DateOnly))
+
 		if approved == 0 {
 			w.Linkf("/users/approve/"+hash, "🟢 Approve %s", hash)
 			w.Linkf("/users/revoke/"+hash, "🔴 Deny %s", hash)

@@ -46,7 +46,7 @@ func (h *Handler) approve(w text.Writer, r *Request, args ...string) {
 		return
 	} else if n == 0 {
 		r.Log.Warn("Certificate doesn't exist or already approved", "user", r.User.PreferredUsername, "hash", hash)
-		w.Error()
+		w.Status(40, "Cannot approve certificate")
 		return
 	}
 
