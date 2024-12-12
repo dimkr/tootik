@@ -104,12 +104,13 @@ Polls must have between 2 and {{.Config.PollMaxOptions}} multi-choice options, a
 
 ## Client Certificates
 
-The username of a newly created account is the Common Name property of the client certificate provided during registration.
+The username of a newly created account is the Common Name property of the client certificate used during registration.
 
-To associate an additional client certificate with your existing account:
+To associate an additional client certificate with your account:
 * Create a new client certificate with the same Common Name as your current certificate
 * Register using the new certificate
-* While logged in using the old certificate, use Settings → Certificates to approve the new one
+* While authenticated using the old certificate, use Settings → Certificates to approve the new one
+* To secure your account, use Settings → Certificates to revoke access for old certificates you don't use anymore
 
 ## Account Migration
 
