@@ -69,7 +69,7 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 	}
 
 	var lastRegister sql.NullInt64
-	if err := h.DB.QueryRowContext(r.Context, `select max(inserted) from persons where host = ?`, h.Domain).Scan(&lastRegister); err != nil {
+	if err := h.DB.QueryRowContext(r.Context, `select max(inserted) from certificates`).Scan(&lastRegister); err != nil {
 		r.Log.Warn("Failed to check last registration time", "name", userName, "error", err)
 		w.Error()
 		return

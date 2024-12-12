@@ -906,7 +906,7 @@ func TestRegister_Throttling30Minutes(t *testing.T) {
 
 		assert.Regexp(data.pattern, string(resp))
 
-		_, err = db.Exec(`update persons set inserted = unixepoch() - 1800`)
+		_, err = db.Exec(`update certificates set inserted = unixepoch() - 1800`)
 		assert.NoError(err)
 	}
 }
@@ -1008,7 +1008,7 @@ func TestRegister_Throttling1Hour(t *testing.T) {
 
 		assert.Regexp(data.pattern, string(resp))
 
-		_, err = db.Exec(`update persons set inserted = unixepoch() - 3600`)
+		_, err = db.Exec(`update certificates set inserted = unixepoch() - 3600`)
 		assert.NoError(err)
 	}
 }

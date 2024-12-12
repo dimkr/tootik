@@ -22,6 +22,10 @@ func certificates(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX certificatesinserted ON certificates(inserted)`); err != nil {
+		return err
+	}
+
 	if _, err := tx.ExecContext(ctx, `CREATE INDEX certificateswaiting ON certificates(inserted) WHERE approved = 0`); err != nil {
 		return err
 	}
