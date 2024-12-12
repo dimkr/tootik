@@ -40,6 +40,7 @@ func (h *Handler) certificates(w text.Writer, r *Request, args ...string) {
 	if err != nil {
 		r.Log.Warn("Failed to fetch certificates", "user", r.User.PreferredUsername, "error", err)
 		w.Error()
+		return
 	}
 
 	defer rows.Close()
