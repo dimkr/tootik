@@ -102,7 +102,7 @@ For example:
 
 Polls must have between 2 and {{.Config.PollMaxOptions}} multi-choice options, and end after {{printf "%s" .Config.PollDuration}}.
 
-## Client Certificates
+## Client Certificates ("Identities")
 
 The username of a newly created account is the Common Name property of the client certificate used during registration.
 
