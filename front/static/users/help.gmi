@@ -108,9 +108,11 @@ The username of a newly created account is the Common Name property of the clien
 
 To associate an additional client certificate with your account:
 * Create a new client certificate with the same Common Name as your current certificate
-* Register using the new certificate
+* Register using the new certificate: this will add the certificate to the list of certificates waiting for your approval
 * While authenticated using the old certificate, use Settings → Certificates to approve the new one
-* To secure your account, use Settings → Certificates to revoke access for old certificates you don't use anymore
+* To secure your account, use Settings → Certificates to revoke access for certificates you don't use anymore
+
+Client certificates get rejected automatically after {{.Config.CertificateApprovalTimeout}} without approval.
 
 ## Account Migration
 
