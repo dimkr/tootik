@@ -48,6 +48,7 @@ func (h *Handler) certificates(w text.Writer, r *Request, args ...string) {
 	w.OK()
 	w.Title("🎓 Certificates")
 
+	first := true
 	for rows.Next() {
 		var inserted, expires int64
 		var hash string
@@ -57,13 +58,21 @@ func (h *Handler) certificates(w text.Writer, r *Request, args ...string) {
 			continue
 		}
 
-		w.Textf("%s Added %s, expires %s", hash, time.Unix(inserted, 0).Format(time.DateOnly), time.Unix(expires, 0).Format(time.DateOnly))
+		if !first {
+			w.Empty()
+		}
+
+		w.Textf("SHA-256: %s", hash)
+		w.Textf("Added: %s", time.Unix(inserted, 0).Format(time.DateOnly))
+		w.Textf("Expires: %s", time.Unix(expires, 0).Format(time.DateOnly))
 
 		if approved == 0 {
-			w.Linkf("/users/approve/"+hash, "🟢 Approve %s", hash)
-			w.Linkf("/users/revoke/"+hash, "🔴 Deny %s", hash)
+			w.Link("/users/approve/"+hash, "🟢 Approve")
+			w.Link("/users/revoke/"+hash, "🔴 Deny")
 		} else {
-			w.Linkf("/users/revoke/"+hash, "🔴 Revoke %s", hash)
+			w.Link("/users/revoke/"+hash, "🔴 Revoke")
 		}
+
+		first = false
 	}
 }
