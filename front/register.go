@@ -54,7 +54,8 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 	userName := clientCert.Subject.CommonName
 
 	if time.Now().After(clientCert.NotAfter) {
-		w.Status(40, "Expired client certificate")
+		r.Log.Warn("Client certificate has expired", "name", userName, "expired", clientCert.NotAfter)
+		w.Status(40, "Client certificate has expired")
 		return
 	}
 
