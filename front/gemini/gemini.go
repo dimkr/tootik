@@ -57,6 +57,10 @@ func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn) (*ap.Actor, 
 
 	clientCert := state.PeerCertificates[0]
 
+	if time.Now().After(clientCert.NotAfter) {
+		return nil, httpsig.Key{}, nil
+	}
+
 	certHash := fmt.Sprintf("%x", sha256.Sum256(clientCert.Raw))
 
 	var id, privKeyPem string
