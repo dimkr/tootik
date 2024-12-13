@@ -10,7 +10,7 @@ func certificates(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `INSERT INTO certificates(user, hash, expires, approved) SELECT actor->>'$.preferredUsername', certhash, 4102444800, 1 FROM persons WHERE certhash IS NOT NULL`); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO certificates(user, hash, expires, approved) SELECT actor->>'$.preferredUsername', UPPER(certhash), 4102444800, 1 FROM persons WHERE certhash IS NOT NULL`); err != nil {
 		return err
 	}
 

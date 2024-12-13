@@ -138,7 +138,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 		ctx,
 		`INSERT OR IGNORE INTO certificates (user, hash, approved, expires) VALUES($1, $2, (SELECT NOT EXISTS (SELECT 1 FROM certificates WHERE user = $1)), $3)`,
 		name,
-		fmt.Sprintf("%x", sha256.Sum256(cert.Raw)),
+		fmt.Sprintf("%X", sha256.Sum256(cert.Raw)),
 		cert.NotAfter.Unix(),
 	); err != nil {
 		return nil, httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)

@@ -61,7 +61,7 @@ func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn) (*ap.Actor, 
 		return nil, httpsig.Key{}, nil
 	}
 
-	certHash := fmt.Sprintf("%x", sha256.Sum256(clientCert.Raw))
+	certHash := fmt.Sprintf("%X", sha256.Sum256(clientCert.Raw))
 
 	var id, privKeyPem string
 	var actor ap.Actor
