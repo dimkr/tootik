@@ -67,10 +67,10 @@ func (h *Handler) certificates(w text.Writer, r *Request, args ...string) {
 		w.Item("Expires: " + time.Unix(expires, 0).Format(time.DateOnly))
 
 		if approved == 0 {
-			w.Link("/users/approve/"+hash, "🟢 Approve")
-			w.Link("/users/revoke/"+hash, "🔴 Deny")
+			w.Link("/users/certificates/approve/"+hash, "🟢 Approve")
+			w.Link("/users/certificates/revoke/"+hash, "🔴 Deny")
 		} else {
-			w.Link("/users/revoke/"+hash, "🔴 Revoke")
+			w.Link("/users/certificates/revoke/"+hash, "🔴 Revoke")
 		}
 
 		first = false

@@ -81,7 +81,7 @@ MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgwpYr2U3MW256QQjk
 /KbIgszEUXJ7ccMctWelADHc5dJjrf/nbXhvf/NAy0ibEVc6KM97dRMP
 -----END PRIVATE KEY-----`
 
-	erinCertHash = "eb108d8a0ef3051b2830feaa87aa79ada1c5b60dd8a7ceccc8ec25bd086dc11a"
+	erinCertHash = "EB108D8A0EF3051B2830FEAA87AA79ADA1C5B60DD8A7CECCC8EC25BD086DC11A"
 
 	erinOtherCert = `-----BEGIN CERTIFICATE-----
 MIIBdDCCARmgAwIBAgIUbFZSevby3dlfix1x1rSPo97pmwEwCgYIKoZIzj0EAwIw
@@ -100,7 +100,7 @@ GBjiDGYOI7qKaHNQd6X2uXvrM0KhRANCAAS1Kb1E6KuqOe+7igiQ5A6P5xL26TRa
 GEA5K95MyP1+0tNsd+JkjBazHstMmJn02HVfFCmE59xK4lMFLDlnQQJV
 -----END PRIVATE KEY-----`
 
-	erinOtherCertHash = "4561f7655d75bc965b6204aaed6cb1ce2047e1ca79397a81b41ac26281d42eff"
+	erinOtherCertHash = "4561F7655D75BC965B6204AAED6CB1CE2047E1CA79397A81B41AC26281D42EFF"
 
 	/*
 	   openssl ecparam -name prime256v1 -genkey -out /tmp/ec.pem
@@ -1074,10 +1074,10 @@ func TestRegister_TwoCertificates(t *testing.T) {
 		{"gemini://localhost.localdomain:8965/users/register\r\n", "^30 /users\r\n$", &otherClientCfg},
 		{"gemini://localhost.localdomain:8965/users\r\n", "^40 Client certificate is awaiting approval\r\n$", &otherClientCfg},
 		{"gemini://localhost.localdomain:8965/users/register\r\n", "^40 Client certificate is awaiting approval\r\n$", &otherClientCfg},
-		{fmt.Sprintf("gemini://localhost.localdomain:8965/users/approve/%s\r\n", erinOtherCertHash), "^30 /users/certificates\r\n$", &clientCfg},
+		{fmt.Sprintf("gemini://localhost.localdomain:8965/users/certificates/approve/%s\r\n", erinOtherCertHash), "^30 /users/certificates\r\n$", &clientCfg},
 		{"gemini://localhost.localdomain:8965/users/register\r\n", "^40 Already registered as erin\r\n$", &otherClientCfg},
 		{"gemini://localhost.localdomain:8965/users\r\n", "^20 text/gemini\r\n.+", &otherClientCfg},
-		{fmt.Sprintf("gemini://localhost.localdomain:8965/users/revoke/%s\r\n", erinCertHash), "^30 /users/certificates\r\n$", &otherClientCfg},
+		{fmt.Sprintf("gemini://localhost.localdomain:8965/users/certificates/revoke/%s\r\n", erinCertHash), "^30 /users/certificates\r\n$", &otherClientCfg},
 		{"gemini://localhost.localdomain:8965/users\r\n", "^30 /users/register\r\n$", &clientCfg},
 		{"gemini://localhost.localdomain:8965/users/register\r\n", "^30 /users\r\n$", &clientCfg},
 		{"gemini://localhost.localdomain:8965/users\r\n", "^40 Client certificate is awaiting approval\r\n$", &clientCfg},
