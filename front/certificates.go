@@ -62,9 +62,9 @@ func (h *Handler) certificates(w text.Writer, r *Request, args ...string) {
 			w.Empty()
 		}
 
-		w.Textf("SHA-256: %s", hash)
-		w.Textf("Added: %s", time.Unix(inserted, 0).Format(time.DateOnly))
-		w.Textf("Expires: %s", time.Unix(expires, 0).Format(time.DateOnly))
+		w.Item("SHA-256: " + hash)
+		w.Item("Added: " + time.Unix(inserted, 0).Format(time.DateOnly))
+		w.Item("Expires: " + time.Unix(expires, 0).Format(time.DateOnly))
 
 		if approved == 0 {
 			w.Link("/users/approve/"+hash, "🟢 Approve")
