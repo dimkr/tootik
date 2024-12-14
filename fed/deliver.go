@@ -74,14 +74,14 @@ func (q *Queue) Process(ctx context.Context) error {
 			return nil
 
 		case <-t.C:
-			if err := q.process(ctx); err != nil {
+			if _, err := q.ProcessBatch(ctx); err != nil {
 				slog.Error("Failed to deliver posts", "error", err)
 			}
 		}
 	}
 }
 
-func (q *Queue) process(ctx context.Context) error {
+func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	slog.Debug("Polling delivery queue")
 
 	rows, err := q.DB.QueryContext(
@@ -109,7 +109,7 @@ func (q *Queue) process(ctx context.Context) error {
 		q.Config.DeliveryBatchSize,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to fetch posts to deliver: %w", err)
+		return 0, fmt.Errorf("failed to fetch posts to deliver: %w", err)
 	}
 	defer rows.Close()
 
@@ -143,6 +143,7 @@ func (q *Queue) process(ctx context.Context) error {
 
 	followers := partialFollowers{}
 
+	count := 0
 	for rows.Next() {
 		var activity ap.Activity
 		var rawActivity, privKeyPem string
@@ -160,6 +161,8 @@ func (q *Queue) process(ctx context.Context) error {
 			slog.Error("Failed to fetch post to deliver", "error", err)
 			continue
 		}
+
+		count++
 
 		privKey, err := data.ParsePrivateKey(privKeyPem)
 		if err != nil {
@@ -231,7 +234,7 @@ func (q *Queue) process(ctx context.Context) error {
 		}
 	}
 
-	return nil
+	return count, nil
 }
 
 func (q *Queue) deliverWithTimeout(parent context.Context, task deliveryTask) error {
@@ -338,11 +341,10 @@ func (q *Queue) queueTasks(
 	if wideDelivery {
 		followers, err := q.DB.QueryContext(
 			ctx,
-			`select distinct follower from follows where followed = ? and follower not like ? and follower not like ? and accepted = 1 and inserted < ?`,
+			`select distinct follower from follows where followed = ? and follower not like ? and follower not like ? and accepted = 1`,
 			job.Sender.ID,
 			fmt.Sprintf("https://%s/%%", q.Domain),
 			fmt.Sprintf("https://%s/%%", activityID.Host),
-			inserted.Unix(),
 		)
 		if err != nil {
 			slog.Warn("Failed to list followers", "activity", job.Activity.ID, "error", err)

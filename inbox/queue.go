@@ -213,7 +213,7 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 			defer tx.Rollback()
 
 			var note ap.Object
-			if err := q.DB.QueryRowContext(ctx, `select object from notes where id = $1 and (author = $2 or object->>'$.audience' = $2)`, deleted, sender.ID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
+			if err := q.DB.QueryRowContext(ctx, `select object from notes where id = $1 and host != $2`, deleted, q.Domain).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
 				log.Debug("Received delete request for non-existing post", "deleted", deleted)
 				return nil
 			} else if err != nil {
@@ -407,17 +407,19 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 		// if specified, prefer post publication or editing time to insertion or last update time
 		var sec int64
 		if oldPost.Updated != nil {
-			sec = oldPost.Updated.Unix()
+			sec = oldPost.Updated.UnixNano()
 		}
 		if sec == 0 {
-			sec = oldPost.Published.Unix()
+			sec = oldPost.Published.UnixNano()
 		}
 		if sec > 0 {
 			lastChange = sec
+		} else {
+			lastChange *= 1000000000
 		}
 
-		if (post.Type == ap.Question && post.Updated != nil && lastChange >= post.Updated.Unix()) || (post.Type != ap.Question && (post.Updated == nil || lastChange >= post.Updated.Unix())) {
-			log.Debug("Received old update request for new post")
+		if (post.Type == ap.Question && post.Updated != nil && lastChange >= post.Updated.UnixNano()) || (post.Type != ap.Question && (post.Updated == nil || lastChange >= post.Updated.UnixNano())) {
+			log.Info("Received old update request for new post")
 			return nil
 		}
 

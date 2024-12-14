@@ -48,8 +48,8 @@ type Listener struct {
 
 const certReloadDelay = time.Second * 5
 
-// ListenAndServe handles HTTP requests from other servers.
-func (l *Listener) ListenAndServe(ctx context.Context) error {
+// NewHandler returns a [http.Handler] that handles ActivityPub requests.
+func (l *Listener) NewHandler() (http.Handler, error) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /robots.txt", robots)
 	mux.HandleFunc("GET /.well-known/webfinger", l.handleWebFinger)
@@ -67,10 +67,20 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 	})
 
 	if err := addNodeInfo(mux, l.Domain, l.Closed); err != nil {
-		return err
+		return nil, err
 	}
 
 	addHostMeta(mux, l.Domain)
+
+	return mux, nil
+}
+
+// ListenAndServe handles HTTP requests from other servers.
+func (l *Listener) ListenAndServe(ctx context.Context) error {
+	mux, err := l.NewHandler()
+	if err != nil {
+		return err
+	}
 
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
