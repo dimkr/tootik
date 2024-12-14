@@ -24,6 +24,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/fedtest"
 	"github.com/dimkr/tootik/front/user"
+	"github.com/dimkr/tootik/outbox"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -413,4 +414,51 @@ func TestFederation_ShareUnshare(t *testing.T) {
 		NotContains(fedtest.Line{Type: fedtest.Quote, Text: "hello"})
 	c.Handle(erin, "/users/outbox/b.localdomain/user/carol").
 		NotContains(fedtest.Line{Type: fedtest.Quote, Text: "hello"})
+}
+
+func TestFederation_MovedAccount(t *testing.T) {
+	f := fedtest.NewFediverse(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer f.Stop()
+
+	a := f["a.localdomain"]
+	b := f["b.localdomain"]
+	c := f["c.localdomain"]
+
+	a.Handle(david, "/users/register").OK()
+	b.Handle(carol, "/users/register").OK()
+	c.Handle(erin, "/users/register").OK()
+
+	a.Handle(david, "/users/resolve?carol%40b.localdomain").OK()
+	a.Handle(david, "/users/follow/b.localdomain/user/carol").OK()
+	f.Settle()
+
+	b.Handle(carol, "/users/alias?erin%40c.localdomain").OK()
+	c.Handle(erin, "/users/alias?carol%40b.localdomain").OK()
+
+	b.Handle(carol, "/users/move?erin%40c.localdomain").OK()
+	f.Settle()
+
+	a.Handle(david, "/users/resolve?erin%40c.localdomain").OK()
+
+	mover := outbox.Mover{
+		Domain:   "a.localdomain",
+		DB:       a.DB,
+		Resolver: a.Resolver,
+		Key:      a.NobodyKey,
+	}
+	if err := mover.Run(context.Background()); err != nil {
+		t.Fatalf("Failed to process moved accounts: %v", err)
+	}
+
+	f.Settle()
+
+	a.Handle(david, "/users/follows").
+		Contains(fedtest.Line{Type: fedtest.Link, Text: "👽 erin (erin@c.localdomain)", URL: "/users/outbox/c.localdomain/user/erin"})
+
+	c.Handle(erin, "/users/say?hello").
+		Contains(fedtest.Line{Type: fedtest.Quote, Text: "hello"})
+	f.Settle()
+
+	a.Handle(david, "/users/outbox/c.localdomain/user/erin").
+		Contains(fedtest.Line{Type: fedtest.Quote, Text: "hello"})
 }

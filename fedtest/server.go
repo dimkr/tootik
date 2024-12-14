@@ -29,6 +29,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/front"
@@ -44,6 +45,7 @@ type Server struct {
 	Test      *testing.T
 	Domain    string
 	DB        *sql.DB
+	Resolver  ap.Resolver
 	NobodyKey httpsig.Key
 	Frontend  gemini.Listener
 	Backend   http.Handler
@@ -89,6 +91,9 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 	cfg.MinActorAge = 0
 	cfg.RegistrationInterval = 0
 	cfg.EditThrottleUnit = 0
+	cfg.MinActorEditInterval = 0
+	cfg.ResolverCacheTTL = 0
+	cfg.ResolverRetryInterval = 0
 
 	dbPath := filepath.Join(t.TempDir(), domain+".sqlite3")
 
@@ -134,6 +139,7 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 		Test:      t,
 		Domain:    domain,
 		DB:        db,
+		Resolver:  resolver,
 		NobodyKey: nobodyKey,
 		Frontend: gemini.Listener{
 			Domain:  domain,
@@ -243,7 +249,6 @@ func (s *Server) handle(cert tls.Certificate, path string, redirects int) Page {
 
 	if strings.HasPrefix(prased.Status, "30 ") {
 		return s.handle(cert, prased.Status[3:len(resp)-2], redirects+1)
-
 	}
 
 	return prased
