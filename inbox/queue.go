@@ -419,7 +419,7 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 		}
 
 		if (post.Type == ap.Question && post.Updated != nil && lastChange >= post.Updated.UnixNano()) || (post.Type != ap.Question && (post.Updated == nil || lastChange >= post.Updated.UnixNano())) {
-			log.Info("Received old update request for new post")
+			log.Debug("Received old update request for new post")
 			return nil
 		}
 
