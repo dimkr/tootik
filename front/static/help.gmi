@@ -31,6 +31,8 @@ This page shows various statistics about this server and the parts of the fedive
 
 Follow this link to sign in or create an account on this server.
 
+The Common Name property of the client certificate ("identity") you use will determine your username.
+
 Registered users can:
 * Publish posts
 * Reply to posts

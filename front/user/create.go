@@ -21,6 +21,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"database/sql"
 	"encoding/pem"
@@ -63,7 +64,7 @@ func gen() (*rsa.PrivateKey, []byte, []byte, error) {
 }
 
 // Create creates a new user.
-func Create(ctx context.Context, domain string, db *sql.DB, name string, actorType ap.ActorType, certHash *string) (*ap.Actor, httpsig.Key, error) {
+func Create(ctx context.Context, domain string, db *sql.DB, name string, actorType ap.ActorType, cert *x509.Certificate) (*ap.Actor, httpsig.Key, error) {
 	priv, privPem, pubPem, err := gen()
 	if err != nil {
 		return nil, httpsig.Key{}, fmt.Errorf("failed to generate key pair: %w", err)
@@ -101,16 +102,51 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 		Published:                 &ap.Time{Time: time.Now()},
 	}
 
-	if _, err = db.ExecContext(
+	key := httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: priv}
+
+	if cert == nil {
+		if _, err = db.ExecContext(
+			ctx,
+			`INSERT INTO persons (id, actor, privkey) VALUES(?,?,?)`,
+			id,
+			&actor,
+			string(privPem),
+		); err != nil {
+			return nil, httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
+		}
+
+		return &actor, key, nil
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
+	}
+	defer tx.Rollback()
+
+	if _, err = tx.ExecContext(
 		ctx,
-		`INSERT INTO persons (id, actor, privkey, certhash) VALUES(?,?,?,?)`,
+		`INSERT OR IGNORE INTO persons (id, actor, privkey) VALUES(?,?,?)`,
 		id,
 		&actor,
 		string(privPem),
-		certHash,
 	); err != nil {
 		return nil, httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 	}
 
-	return &actor, httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: priv}, nil
+	if _, err = tx.ExecContext(
+		ctx,
+		`INSERT OR IGNORE INTO certificates (user, hash, approved, expires) VALUES($1, $2, (SELECT NOT EXISTS (SELECT 1 FROM certificates WHERE user = $1)), $3)`,
+		name,
+		fmt.Sprintf("%X", sha256.Sum256(cert.Raw)),
+		cert.NotAfter.Unix(),
+	); err != nil {
+		return nil, httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
+	}
+
+	return &actor, key, nil
 }

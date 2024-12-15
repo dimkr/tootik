@@ -81,6 +81,27 @@ MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgwpYr2U3MW256QQjk
 /KbIgszEUXJ7ccMctWelADHc5dJjrf/nbXhvf/NAy0ibEVc6KM97dRMP
 -----END PRIVATE KEY-----`
 
+	erinCertHash = "EB108D8A0EF3051B2830FEAA87AA79ADA1C5B60DD8A7CECCC8EC25BD086DC11A"
+
+	erinOtherCert = `-----BEGIN CERTIFICATE-----
+MIIBdDCCARmgAwIBAgIUbFZSevby3dlfix1x1rSPo97pmwEwCgYIKoZIzj0EAwIw
+DzENMAsGA1UEAwwEZXJpbjAeFw0yNDEyMTExNzAzMDJaFw0zNDEyMDkxNzAzMDJa
+MA8xDTALBgNVBAMMBGVyaW4wWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAS1Kb1E
+6KuqOe+7igiQ5A6P5xL26TRaGEA5K95MyP1+0tNsd+JkjBazHstMmJn02HVfFCmE
+59xK4lMFLDlnQQJVo1MwUTAdBgNVHQ4EFgQUymF2MzroPIh9yRRfvW70d078ZjMw
+HwYDVR0jBBgwFoAUymF2MzroPIh9yRRfvW70d078ZjMwDwYDVR0TAQH/BAUwAwEB
+/zAKBggqhkjOPQQDAgNJADBGAiEAuBkYquBho1QVLFnhXn4E8SW89IpdRhJlchCO
+AE2Vgr0CIQDXm/PrYlc/oGnUL4HDL44RS8Sz3Hecb098uAIACKlghw==
+-----END CERTIFICATE-----`
+
+	erinOtherKey = `-----BEGIN PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgFuJwYfaV8bUaZEDc
+GBjiDGYOI7qKaHNQd6X2uXvrM0KhRANCAAS1Kb1E6KuqOe+7igiQ5A6P5xL26TRa
+GEA5K95MyP1+0tNsd+JkjBazHstMmJn02HVfFCmE59xK4lMFLDlnQQJV
+-----END PRIVATE KEY-----`
+
+	erinOtherCertHash = "4561F7655D75BC965B6204AAED6CB1CE2047E1CA79397A81B41AC26281D42EFF"
+
 	/*
 	   openssl ecparam -name prime256v1 -genkey -out /tmp/ec.pem
 	   openssl req -new -x509 -key /tmp/ec.pem -sha256 -nodes -subj "/CN=david" -out cert.pem -keyout key.pem -days 3650
@@ -522,6 +543,7 @@ func TestRegister_AlreadyRegistered(t *testing.T) {
 
 	var cfg cfg.Config
 	cfg.FillDefaults()
+	cfg.RegistrationInterval = 0
 
 	assert.NoError(migrations.Run(context.Background(), domain, db))
 
@@ -576,7 +598,7 @@ func TestRegister_AlreadyRegistered(t *testing.T) {
 	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
 	assert.NoError(err)
 
-	_, _, err = user.Create(context.Background(), domain, db, "erin", ap.Person, nil)
+	_, _, err = user.Create(context.Background(), domain, db, "erin", ap.Person, erinKeyPair.Leaf)
 	assert.NoError(err)
 
 	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
@@ -595,7 +617,7 @@ func TestRegister_AlreadyRegistered(t *testing.T) {
 	resp, err := io.ReadAll(tlsReader)
 	assert.NoError(err)
 
-	assert.Equal("10 erin is already taken, enter user name\r\n", string(resp))
+	assert.Equal("40 Already registered as erin\r\n", string(resp))
 }
 
 func TestRegister_Twice(t *testing.T) {
@@ -608,6 +630,7 @@ func TestRegister_Twice(t *testing.T) {
 
 	var cfg cfg.Config
 	cfg.FillDefaults()
+	cfg.RegistrationInterval = 0
 
 	assert.NoError(migrations.Run(context.Background(), domain, db))
 
@@ -883,7 +906,7 @@ func TestRegister_Throttling30Minutes(t *testing.T) {
 
 		assert.Regexp(data.pattern, string(resp))
 
-		_, err = db.Exec(`update persons set inserted = unixepoch() - 1800`)
+		_, err = db.Exec(`update certificates set inserted = unixepoch() - 1800`)
 		assert.NoError(err)
 	}
 }
@@ -985,12 +1008,12 @@ func TestRegister_Throttling1Hour(t *testing.T) {
 
 		assert.Regexp(data.pattern, string(resp))
 
-		_, err = db.Exec(`update persons set inserted = unixepoch() - 3600`)
+		_, err = db.Exec(`update certificates set inserted = unixepoch() - 3600`)
 		assert.NoError(err)
 	}
 }
 
-func TestRegister_RedirectTwice(t *testing.T) {
+func TestRegister_TwoCertificates(t *testing.T) {
 	assert := assert.New(t)
 
 	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_journal_mode=WAL", t.Name())
@@ -1000,6 +1023,7 @@ func TestRegister_RedirectTwice(t *testing.T) {
 
 	var cfg cfg.Config
 	cfg.FillDefaults()
+	cfg.RegistrationInterval = 0
 
 	assert.NoError(migrations.Run(context.Background(), domain, db))
 
@@ -1020,6 +1044,14 @@ func TestRegister_RedirectTwice(t *testing.T) {
 		InsecureSkipVerify: true,
 	}
 
+	erinOtherKeyPair, err := tls.X509KeyPair([]byte(erinOtherCert), []byte(erinOtherKey))
+	assert.NoError(err)
+
+	otherClientCfg := tls.Config{
+		Certificates:       []tls.Certificate{erinOtherKeyPair},
+		InsecureSkipVerify: true,
+	}
+
 	socketPath := fmt.Sprintf("/tmp/%s.socket", t.Name())
 
 	localListener, err := net.Listen("unix", socketPath)
@@ -1030,13 +1062,26 @@ func TestRegister_RedirectTwice(t *testing.T) {
 	defer tlsListener.Close()
 
 	for _, data := range []struct {
-		url      string
-		expected string
+		url       string
+		expected  string
+		clientCfg *tls.Config
 	}{
-		{"gemini://localhost.localdomain:8965/users\r\n", "^30 /users/register\r\n$"},
-		{"gemini://localhost.localdomain:8965/users/register\r\n", "^30 /users\r\n$"},
-		{"gemini://localhost.localdomain:8965/users\r\n", "^20 text/gemini\r\n.+"},
-		{"gemini://localhost.localdomain:8965/users/register\r\n", "^40 Already registered as erin\r\n$"},
+		{"gemini://localhost.localdomain:8965/users\r\n", "^30 /users/register\r\n$", &clientCfg},
+		{"gemini://localhost.localdomain:8965/users/register\r\n", "^30 /users\r\n$", &clientCfg},
+		{"gemini://localhost.localdomain:8965/users\r\n", "^20 text/gemini\r\n.+", &clientCfg},
+		{"gemini://localhost.localdomain:8965/users/register\r\n", "^40 Already registered as erin\r\n$", &clientCfg},
+		{"gemini://localhost.localdomain:8965/users\r\n", "^30 /users/register\r\n$", &otherClientCfg},
+		{"gemini://localhost.localdomain:8965/users/register\r\n", "^30 /users\r\n$", &otherClientCfg},
+		{"gemini://localhost.localdomain:8965/users\r\n", "^40 Client certificate is awaiting approval\r\n$", &otherClientCfg},
+		{"gemini://localhost.localdomain:8965/users/register\r\n", "^40 Client certificate is awaiting approval\r\n$", &otherClientCfg},
+		{fmt.Sprintf("gemini://localhost.localdomain:8965/users/certificates/approve/%s\r\n", erinOtherCertHash), "^30 /users/certificates\r\n$", &clientCfg},
+		{"gemini://localhost.localdomain:8965/users/register\r\n", "^40 Already registered as erin\r\n$", &otherClientCfg},
+		{"gemini://localhost.localdomain:8965/users\r\n", "^20 text/gemini\r\n.+", &otherClientCfg},
+		{fmt.Sprintf("gemini://localhost.localdomain:8965/users/certificates/revoke/%s\r\n", erinCertHash), "^30 /users/certificates\r\n$", &otherClientCfg},
+		{"gemini://localhost.localdomain:8965/users\r\n", "^30 /users/register\r\n$", &clientCfg},
+		{"gemini://localhost.localdomain:8965/users/register\r\n", "^30 /users\r\n$", &clientCfg},
+		{"gemini://localhost.localdomain:8965/users\r\n", "^40 Client certificate is awaiting approval\r\n$", &clientCfg},
+		{"gemini://localhost.localdomain:8965/users\r\n", "^20 text/gemini\r\n.+", &otherClientCfg},
 	} {
 		unixReader, err := net.Dial("unix", socketPath)
 		assert.NoError(err)
@@ -1045,7 +1090,7 @@ func TestRegister_RedirectTwice(t *testing.T) {
 		tlsWriter, err := tlsListener.Accept()
 		assert.NoError(err)
 
-		tlsReader := tls.Client(unixReader, &clientCfg)
+		tlsReader := tls.Client(unixReader, data.clientCfg)
 		defer tlsReader.Close()
 
 		var wg sync.WaitGroup

@@ -57,14 +57,23 @@ func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn) (*ap.Actor, 
 
 	clientCert := state.PeerCertificates[0]
 
-	certHash := fmt.Sprintf("%x", sha256.Sum256(clientCert.Raw))
+	if time.Now().After(clientCert.NotAfter) {
+		return nil, httpsig.Key{}, nil
+	}
+
+	certHash := fmt.Sprintf("%X", sha256.Sum256(clientCert.Raw))
 
 	var id, privKeyPem string
 	var actor ap.Actor
-	if err := gl.DB.QueryRowContext(ctx, `select id, actor, privkey from persons where host = ? and certhash = ?`, gl.Domain, certHash).Scan(&id, &actor, &privKeyPem); err != nil && errors.Is(err, sql.ErrNoRows) {
+	var approved int
+	if err := gl.DB.QueryRowContext(ctx, `select persons.id, persons.actor, persons.privkey, certificates.approved from certificates join persons on persons.actor->>'$.preferredUsername' = certificates.user where persons.host = ? and certificates.hash = ? and certificates.expires > unixepoch()`, gl.Domain, certHash).Scan(&id, &actor, &privKeyPem, &approved); err != nil && errors.Is(err, sql.ErrNoRows) {
 		return nil, httpsig.Key{}, front.ErrNotRegistered
 	} else if err != nil {
 		return nil, httpsig.Key{}, fmt.Errorf("failed to fetch user for %s: %w", certHash, err)
+	}
+
+	if approved == 0 {
+		return nil, httpsig.Key{}, fmt.Errorf("failed to fetch user for %s: %w", certHash, front.ErrNotApproved)
 	}
 
 	privKey, err := data.ParsePrivateKey(privKeyPem)
@@ -140,6 +149,9 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 	if err != nil && errors.Is(err, front.ErrNotRegistered) && r.URL.Path == "/users" {
 		slog.Info("Redirecting new user")
 		w.Redirect("/users/register")
+		return
+	} else if errors.Is(err, front.ErrNotApproved) {
+		w.Status(40, "Client certificate is awaiting approval")
 		return
 	} else if err != nil && !errors.Is(err, front.ErrNotRegistered) {
 		slog.Warn("Failed to get user", "error", err)
