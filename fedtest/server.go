@@ -24,6 +24,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -174,7 +175,7 @@ func (s *Server) Stop() {
 	os.Remove(s.dbPath)
 }
 
-func (s *Server) handle(cert tls.Certificate, path string, redirects int) Page {
+func (s *Server) handle(cert tls.Certificate, path, input string, redirects int) Page {
 	if redirects == maxRedirects {
 		s.Test.Fatal("Too many redirects")
 	}
@@ -228,9 +229,12 @@ func (s *Server) handle(cert tls.Certificate, path string, redirects int) Page {
 		}
 	}
 
-	url := fmt.Sprintf("gemini://%s%s", s.Domain, path)
+	if input == "" {
+		_, err = fmt.Fprintf(tlsReader, "gemini://%s%s\r\n", s.Domain, path)
+	} else {
+		_, err = fmt.Fprintf(tlsReader, "gemini://%s%s?%s\r\n", s.Domain, path, url.QueryEscape(input))
 
-	_, err = fmt.Fprintf(tlsReader, "%s\r\n", url)
+	}
 	if err != nil {
 		s.Test.Fatalf("Failed to send request: %v", err)
 	}
@@ -251,13 +255,18 @@ func (s *Server) handle(cert tls.Certificate, path string, redirects int) Page {
 	prased := parseResponse(s, cert, path, string(resp))
 
 	if strings.HasPrefix(prased.Status, "30 ") {
-		return s.handle(cert, prased.Status[3:len(resp)-2], redirects+1)
+		return s.handle(cert, prased.Status[3:len(resp)-2], "", redirects+1)
 	}
 
 	return prased
 }
 
+// HandleInput is like [Server.Handle] but also accepts user-provided input.
+func (s *Server) HandleInput(cert tls.Certificate, path, input string) Page {
+	return s.handle(cert, path, input, 0)
+}
+
 // Handle simulates a Gemini request, follows redirects and returns a [Page].
 func (s *Server) Handle(cert tls.Certificate, path string) Page {
-	return s.handle(cert, path, 0)
+	return s.handle(cert, path, "", 0)
 }

@@ -18,8 +18,6 @@ package fedtest
 
 import (
 	"crypto/tls"
-	"fmt"
-	"net/url"
 	"slices"
 	"strings"
 )
@@ -107,15 +105,17 @@ func (p Page) NotContains(line Line) Page {
 	return p
 }
 
-func (p Page) Follow(text, input string) Page {
+// FollowInput is like [Page.Follow] but also accepts user-provided input.
+func (p Page) FollowInput(text, input string) Page {
 	path, ok := p.Links[text]
 	if !ok {
 		p.server.Test.Fatalf(`%s does not contain "%s" link`, p.Raw, text)
 	}
 
-	if input == "" {
-		return p.server.Handle(p.cert, path)
-	}
+	return p.server.HandleInput(p.cert, path, input)
+}
 
-	return p.server.Handle(p.cert, fmt.Sprintf("%s?%s", path, url.QueryEscape(input)))
+// Follow follows a link, follows redirects and returns a [Page].
+func (p Page) Follow(text string) Page {
+	return p.FollowInput(text, "")
 }

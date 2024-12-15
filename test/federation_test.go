@@ -82,11 +82,11 @@ func TestFederation_PublicPost(t *testing.T) {
 	a.Handle(david, "/users/register").OK()
 	b.Handle(erin, "/users/register").OK()
 
-	a.Handle(carol, "/users/resolve?erin%40b.localdomain").OK()
+	a.HandleInput(carol, "/users/resolve", "erin@b.localdomain").OK()
 	a.Handle(carol, "/users/follow/b.localdomain/user/erin").OK()
 	f.Settle()
 
-	post := b.Handle(erin, "/users/say?hello").
+	post := b.HandleInput(erin, "/users/say", "hello").
 		Contains(fedtest.Line{Type: fedtest.Quote, Text: "hello"})
 	f.Settle()
 
@@ -95,7 +95,7 @@ func TestFederation_PublicPost(t *testing.T) {
 	a.Handle(david, "/users/outbox/b.localdomain/user/erin").
 		Contains(fedtest.Line{Type: fedtest.Quote, Text: "hello"})
 
-	post.Follow("🩹 Edit", "hola").
+	post.FollowInput("🩹 Edit", "hola").
 		Contains(fedtest.Line{Type: fedtest.Quote, Text: "hola"})
 	f.Settle()
 
@@ -104,7 +104,7 @@ func TestFederation_PublicPost(t *testing.T) {
 	a.Handle(david, "/users/outbox/b.localdomain/user/erin").
 		Contains(fedtest.Line{Type: fedtest.Quote, Text: "hola"})
 
-	post.Follow("💣 Delete", "").OK()
+	post.Follow("💣 Delete").OK()
 	f.Settle()
 
 	a.Handle(carol, "/users/outbox/b.localdomain/user/erin").
@@ -124,11 +124,11 @@ func TestFederation_PostToFollowers(t *testing.T) {
 	a.Handle(david, "/users/register").OK()
 	b.Handle(erin, "/users/register").OK()
 
-	a.Handle(carol, "/users/resolve?erin%40b.localdomain").OK()
+	a.HandleInput(carol, "/users/resolve", "erin@b.localdomain").OK()
 	a.Handle(carol, "/users/follow/b.localdomain/user/erin").OK()
 	f.Settle()
 
-	post := b.Handle(erin, "/users/whisper?hello").
+	post := b.HandleInput(erin, "/users/whisper", "hello").
 		Contains(fedtest.Line{Type: fedtest.Quote, Text: "hello"})
 	f.Settle()
 
@@ -137,7 +137,7 @@ func TestFederation_PostToFollowers(t *testing.T) {
 	a.Handle(david, "/users/outbox/b.localdomain/user/erin").
 		NotContains(fedtest.Line{Type: fedtest.Quote, Text: "hello"})
 
-	post.Follow("🩹 Edit", "hola").OK()
+	post.FollowInput("🩹 Edit", "hola").OK()
 	f.Settle()
 
 	a.Handle(carol, "/users/outbox/b.localdomain/user/erin").
@@ -145,7 +145,7 @@ func TestFederation_PostToFollowers(t *testing.T) {
 	a.Handle(david, "/users/outbox/b.localdomain/user/erin").
 		NotContains(fedtest.Line{Type: fedtest.Quote, Text: "hola"})
 
-	post.Follow("💣 Delete", "").OK()
+	post.Follow("💣 Delete").OK()
 	f.Settle()
 
 	a.Handle(carol, "/users/outbox/b.localdomain/user/erin").
@@ -165,8 +165,8 @@ func TestFederation_DM(t *testing.T) {
 	a.Handle(david, "/users/register").OK()
 	b.Handle(erin, "/users/register").OK()
 
-	b.Handle(erin, "/users/resolve?carol%40a.localdomain").OK()
-	post := b.Handle(erin, "/users/dm?%40carol%40a.localdomain%20hello").
+	b.HandleInput(erin, "/users/resolve", "carol@a.localdomain").OK()
+	post := b.HandleInput(erin, "/users/dm", "@carol@.localdomain hello").
 		Contains(fedtest.Line{Type: fedtest.Quote, Text: "@carol@a.localdomain hello"})
 	f.Settle()
 
@@ -175,7 +175,7 @@ func TestFederation_DM(t *testing.T) {
 	a.Handle(david, "/users/outbox/b.localdomain/user/erin").
 		NotContains(fedtest.Line{Type: fedtest.Quote, Text: "@carol@a.localdomain hello"})
 
-	post.Follow("🩹 Edit", "hola").OK()
+	post.FollowInput("🩹 Edit", "hola").OK()
 	f.Settle()
 
 	a.Handle(carol, "/users/outbox/b.localdomain/user/erin").
@@ -183,7 +183,7 @@ func TestFederation_DM(t *testing.T) {
 	a.Handle(david, "/users/outbox/b.localdomain/user/erin").
 		NotContains(fedtest.Line{Type: fedtest.Quote, Text: "hola"})
 
-	post.Follow("💣 Delete", "").OK()
+	post.Follow("💣 Delete").OK()
 	f.Settle()
 
 	a.Handle(carol, "/users/outbox/b.localdomain/user/erin").
@@ -208,15 +208,15 @@ func TestFederation_PostInCommunity(t *testing.T) {
 	a.Handle(david, "/users/register").OK()
 	b.Handle(erin, "/users/register").OK()
 
-	a.Handle(carol, "/users/resolve?stuff%40g.localdomain").OK()
+	a.HandleInput(carol, "/users/resolve", "stuff@g.localdomain").OK()
 	a.Handle(carol, "/users/follow/g.localdomain/user/stuff").OK()
 	f.Settle()
 
-	b.Handle(erin, "/users/resolve?stuff%40g.localdomain").OK()
+	b.HandleInput(erin, "/users/resolve", "stuff@.localdomain").OK()
 	b.Handle(erin, "/users/follow/g.localdomain/user/stuff").OK()
 	f.Settle()
 
-	post := b.Handle(erin, "/users/say?%40stuff%40g.localdomain%20hello").
+	post := b.HandleInput(erin, "/users/say", "@stuff@.localdomain hello").
 		Contains(fedtest.Line{Type: fedtest.Quote, Text: "@stuff@g.localdomain hello"})
 	f.Settle()
 
@@ -227,7 +227,7 @@ func TestFederation_PostInCommunity(t *testing.T) {
 	b.Handle(erin, "/users/outbox/g.localdomain/user/stuff").
 		Contains(fedtest.Line{Type: fedtest.Quote, Text: "@stuff@g.localdomain hello"})
 
-	post.Follow("🩹 Edit", "hola").OK()
+	post.FollowInput("🩹 Edit", "hola").OK()
 	f.Settle()
 
 	a.Handle(carol, "/users/outbox/g.localdomain/user/stuff").
@@ -237,7 +237,7 @@ func TestFederation_PostInCommunity(t *testing.T) {
 	b.Handle(erin, "/users/outbox/g.localdomain/user/stuff").
 		Contains(fedtest.Line{Type: fedtest.Quote, Text: "hola"})
 
-	post.Follow("💣 Delete", "").OK()
+	post.Follow("💣 Delete").OK()
 	f.Settle()
 
 	a.Handle(carol, "/users/outbox/g.localdomain/user/stuff").
@@ -264,20 +264,20 @@ func TestFederation_ReplyInCommunity(t *testing.T) {
 	a.Handle(david, "/users/register").OK()
 	b.Handle(erin, "/users/register").OK()
 
-	a.Handle(carol, "/users/resolve?stuff%40g.localdomain").OK()
+	a.HandleInput(carol, "/users/resolve", "stuff@g.localdomain").OK()
 	a.Handle(carol, "/users/follow/g.localdomain/user/stuff").OK()
 	f.Settle()
 
-	b.Handle(erin, "/users/resolve?stuff%40g.localdomain").OK()
+	b.HandleInput(erin, "/users/resolve", "stuff@g.localdomain").OK()
 	b.Handle(erin, "/users/follow/g.localdomain/user/stuff").OK()
 	f.Settle()
 
-	post := b.Handle(erin, "/users/say?%40stuff%40g.localdomain%20hello").
+	post := b.HandleInput(erin, "/users/say", "@stuff@g.localdomain hello").
 		OK().
 		Contains(fedtest.Line{Type: fedtest.Quote, Text: "@stuff@g.localdomain hello"})
 	f.Settle()
 
-	reply := a.Handle(david, post.Links["💬 Reply"]+"?hi").
+	reply := a.HandleInput(david, post.Links["💬 Reply"], "hi").
 		Contains(fedtest.Line{Type: fedtest.Quote, Text: "hi"})
 	f.Settle()
 
@@ -288,7 +288,7 @@ func TestFederation_ReplyInCommunity(t *testing.T) {
 	b.Handle(erin, "/users/outbox/a.localdomain/user/david").
 		Contains(fedtest.Line{Type: fedtest.Quote, Text: "hi"})
 
-	reply.Follow("🩹 Edit", "hola").OK()
+	reply.FollowInput("🩹 Edit", "hola").OK()
 	f.Settle()
 
 	a.Handle(carol, "/users/outbox/a.localdomain/user/david").
@@ -298,7 +298,7 @@ func TestFederation_ReplyInCommunity(t *testing.T) {
 	b.Handle(erin, "/users/outbox/a.localdomain/user/david").
 		Contains(fedtest.Line{Type: fedtest.Quote, Text: "hola"})
 
-	reply.Follow("💣 Delete", "").OK()
+	reply.Follow("💣 Delete").OK()
 	f.Settle()
 
 	a.Handle(carol, "/users/outbox/a.localdomain/user/david").
@@ -321,20 +321,20 @@ func TestFederation_ReplyForwarding(t *testing.T) {
 	b.Handle(carol, "/users/register").OK()
 	c.Handle(erin, "/users/register").OK()
 
-	b.Handle(carol, "/users/resolve?david%40a.localdomain").OK()
+	b.HandleInput(carol, "/users/resolve", "david@a.localdomain").OK()
 	b.Handle(carol, "/users/follow/a.localdomain/user/david").OK()
 
-	c.Handle(erin, "/users/resolve?david%40a.localdomain").OK()
+	c.HandleInput(erin, "/users/resolve", "david@a.localdomain").OK()
 	c.Handle(erin, "/users/follow/a.localdomain/user/david").OK()
 
 	f.Settle()
 
-	post := a.Handle(david, "/users/say?hello").
+	post := a.HandleInput(david, "/users/say", "hello").
 		OK().
 		Contains(fedtest.Line{Type: fedtest.Quote, Text: "hello"})
 	f.Settle()
 
-	reply := b.Handle(carol, post.Links["💬 Reply"]+"?hi").
+	reply := b.HandleInput(carol, post.Links["💬 Reply"], "hi").
 		Contains(fedtest.Line{Type: fedtest.Quote, Text: "hi"})
 	f.Settle()
 
@@ -345,7 +345,7 @@ func TestFederation_ReplyForwarding(t *testing.T) {
 	c.Handle(erin, "/users/outbox/b.localdomain/user/carol").
 		Contains(fedtest.Line{Type: fedtest.Quote, Text: "hi"})
 
-	reply.Follow("🩹 Edit", "hola").OK()
+	reply.FollowInput("🩹 Edit", "hola").OK()
 	f.Settle()
 
 	a.Handle(david, "/users/outbox/b.localdomain/user/carol").
@@ -355,7 +355,7 @@ func TestFederation_ReplyForwarding(t *testing.T) {
 	c.Handle(erin, "/users/outbox/b.localdomain/user/carol").
 		Contains(fedtest.Line{Type: fedtest.Quote, Text: "hola"})
 
-	reply.Follow("💣 Delete", "").OK()
+	reply.Follow("💣 Delete").OK()
 	f.Settle()
 
 	a.Handle(david, "/users/outbox/b.localdomain/user/carol").
@@ -378,23 +378,23 @@ func TestFederation_ShareUnshare(t *testing.T) {
 	b.Handle(carol, "/users/register").OK()
 	c.Handle(erin, "/users/register").OK()
 
-	b.Handle(carol, "/users/resolve?david%40a.localdomain").OK()
+	b.HandleInput(carol, "/users/resolve", "david@a.localdomain").OK()
 	b.Handle(carol, "/users/follow/a.localdomain/user/david").OK()
 
-	c.Handle(erin, "/users/resolve?david%40a.localdomain").OK()
+	c.HandleInput(erin, "/users/resolve", "david@a.localdomain").OK()
 	c.Handle(erin, "/users/follow/a.localdomain/user/david").OK()
 
-	c.Handle(erin, "/users/resolve?carol%40b.localdomain").OK()
+	c.HandleInput(erin, "/users/resolve", "carol@.localdomain").OK()
 	c.Handle(erin, "/users/follow/b.localdomain/user/carol").OK()
 
 	f.Settle()
 
-	post := a.Handle(david, "/users/say?hello").
+	post := a.HandleInput(david, "/users/say", "hello").
 		Contains(fedtest.Line{Type: fedtest.Quote, Text: "hello"})
 	f.Settle()
 
 	share := b.Handle(carol, post.Request).
-		Follow("🔁 Share", "").
+		Follow("🔁 Share").
 		OK()
 	f.Settle()
 
@@ -405,7 +405,7 @@ func TestFederation_ShareUnshare(t *testing.T) {
 	c.Handle(erin, "/users/outbox/b.localdomain/user/carol").
 		Contains(fedtest.Line{Type: fedtest.Quote, Text: "hello"})
 
-	share.Follow("🔄️ Unshare", "").OK()
+	share.Follow("🔄️ Unshare").OK()
 	f.Settle()
 
 	c.Handle(erin, "/users/outbox/b.localdomain/user/carol").
@@ -428,17 +428,17 @@ func TestFederation_MovedAccount(t *testing.T) {
 	b.Handle(carol, "/users/register").OK()
 	c.Handle(erin, "/users/register").OK()
 
-	a.Handle(david, "/users/resolve?carol%40b.localdomain").OK()
+	a.HandleInput(david, "/users/resolve", "carol@b.localdomain").OK()
 	a.Handle(david, "/users/follow/b.localdomain/user/carol").OK()
 	f.Settle()
 
-	b.Handle(carol, "/users/alias?erin%40c.localdomain").OK()
-	c.Handle(erin, "/users/alias?carol%40b.localdomain").OK()
+	b.HandleInput(carol, "/users/alias", "erin@c.localdomain").OK()
+	c.HandleInput(erin, "/users/alias", "carol@b.localdomain").OK()
 
-	b.Handle(carol, "/users/move?erin%40c.localdomain").OK()
+	b.HandleInput(carol, "/users/move", "erin@c.localdomain").OK()
 	f.Settle()
 
-	a.Handle(david, "/users/resolve?erin%40c.localdomain").OK()
+	a.HandleInput(david, "/users/resolve", "erin@c.localdomain").OK()
 
 	mover := outbox.Mover{
 		Domain:   "a.localdomain",
@@ -455,7 +455,7 @@ func TestFederation_MovedAccount(t *testing.T) {
 	a.Handle(david, "/users/follows").
 		Contains(fedtest.Line{Type: fedtest.Link, Text: "👽 erin (erin@c.localdomain)", URL: "/users/outbox/c.localdomain/user/erin"})
 
-	c.Handle(erin, "/users/say?hello").
+	c.HandleInput(erin, "/users/say", "hello").
 		Contains(fedtest.Line{Type: fedtest.Quote, Text: "hello"})
 	f.Settle()
 
@@ -475,17 +475,17 @@ func TestFederation_Poll(t *testing.T) {
 	b.Handle(carol, "/users/register").OK()
 	c.Handle(erin, "/users/register").OK()
 
-	b.Handle(carol, "/users/resolve?david%40a.localdomain").OK()
+	b.HandleInput(carol, "/users/resolve", "david@a.localdomain").OK()
 	b.Handle(carol, "/users/follow/a.localdomain/user/david").OK()
-	c.Handle(erin, "/users/resolve?david%40a.localdomain").OK()
+	c.HandleInput(erin, "/users/resolve", "david@a.localdomain").OK()
 	c.Handle(erin, "/users/follow/a.localdomain/user/david").OK()
 	f.Settle()
 
-	poll := a.Handle(david, "/users/say?%5bPOLL%20Favorite%20color%5d%20Gray%20%7c%20Orange").
+	poll := a.HandleInput(david, "/users/say", "[POLL Favorite color] Gray | Orange").
 		Contains(fedtest.Line{Type: fedtest.Quote, Text: "Favorite color"})
 	f.Settle()
 
-	vote1 := poll.Follow("📮 Vote Gray", "").OK()
+	vote1 := poll.Follow("📮 Vote Gray").OK()
 	vote2 := b.Handle(carol, poll.Links["📮 Vote Gray"]).OK()
 	vote3 := c.Handle(erin, poll.Links["📮 Vote Orange"]).OK()
 	f.Settle()
@@ -510,7 +510,7 @@ func TestFederation_Poll(t *testing.T) {
 		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "2 ████████ Gray"}).
 		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "1 ████     Orange"})
 
-	vote1.Follow("💣 Delete", "").OK()
+	vote1.Follow("💣 Delete").OK()
 	if err := poller.Run(context.Background()); err != nil {
 		t.Fatalf("Failed to process votes: %v", err)
 	}
@@ -526,7 +526,7 @@ func TestFederation_Poll(t *testing.T) {
 		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "1 ████████ Gray"}).
 		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "1 ████████ Orange"})
 
-	vote2.Follow("💣 Delete", "").OK()
+	vote2.Follow("💣 Delete").OK()
 	f.Settle()
 	if err := poller.Run(context.Background()); err != nil {
 		t.Fatalf("Failed to process votes: %v", err)
@@ -543,7 +543,7 @@ func TestFederation_Poll(t *testing.T) {
 		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "0          Gray"}).
 		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "1 ████████ Orange"})
 
-	vote3.Follow("💣 Delete", "").OK()
+	vote3.Follow("💣 Delete").OK()
 	f.Settle()
 	if err := poller.Run(context.Background()); err != nil {
 		t.Fatalf("Failed to process votes: %v", err)
