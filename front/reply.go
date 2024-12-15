@@ -24,6 +24,11 @@ import (
 )
 
 func (h *Handler) doReply(w text.Writer, r *Request, args []string, readInput inputFunc) {
+	if r.User == nil {
+		w.Redirect("/users")
+		return
+	}
+
 	postID := "https://" + args[1]
 
 	var note ap.Object

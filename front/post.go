@@ -43,11 +43,6 @@ var (
 )
 
 func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo *ap.Object, to ap.Audience, cc ap.Audience, audience string, readInput inputFunc) {
-	if r.User == nil {
-		w.Redirect("/users")
-		return
-	}
-
 	now := ap.Time{Time: time.Now()}
 
 	if oldNote == nil {
