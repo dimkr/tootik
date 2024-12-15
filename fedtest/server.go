@@ -44,6 +44,7 @@ import (
 type Server struct {
 	Test      *testing.T
 	Domain    string
+	Config    *cfg.Config
 	DB        *sql.DB
 	Resolver  ap.Resolver
 	NobodyKey httpsig.Key
@@ -90,6 +91,7 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 	cfg.RegistrationInterval = 0
+	cfg.PostThrottleUnit = 0
 	cfg.EditThrottleUnit = 0
 	cfg.MinActorEditInterval = 0
 	cfg.ResolverCacheTTL = 0
@@ -138,6 +140,7 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 	return &Server{
 		Test:      t,
 		Domain:    domain,
+		Config:    &cfg,
 		DB:        db,
 		Resolver:  resolver,
 		NobodyKey: nobodyKey,

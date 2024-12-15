@@ -462,3 +462,103 @@ func TestFederation_MovedAccount(t *testing.T) {
 	a.Handle(david, "/users/outbox/c.localdomain/user/erin").
 		Contains(fedtest.Line{Type: fedtest.Quote, Text: "hello"})
 }
+
+func TestFederation_Poll(t *testing.T) {
+	f := fedtest.NewFediverse(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer f.Stop()
+
+	a := f["a.localdomain"]
+	b := f["b.localdomain"]
+	c := f["c.localdomain"]
+
+	a.Handle(david, "/users/register").OK()
+	b.Handle(carol, "/users/register").OK()
+	c.Handle(erin, "/users/register").OK()
+
+	b.Handle(carol, "/users/resolve?david%40a.localdomain").OK()
+	b.Handle(carol, "/users/follow/a.localdomain/user/david").OK()
+	c.Handle(erin, "/users/resolve?david%40a.localdomain").OK()
+	c.Handle(erin, "/users/follow/a.localdomain/user/david").OK()
+	f.Settle()
+
+	poll := a.Handle(david, "/users/say?%5bPOLL%20Favorite%20color%5d%20Gray%20%7c%20Orange").
+		Contains(fedtest.Line{Type: fedtest.Quote, Text: "Favorite color"})
+	f.Settle()
+
+	vote1 := poll.Follow("📮 Vote Gray", "").OK()
+	vote2 := b.Handle(carol, poll.Links["📮 Vote Gray"]).OK()
+	vote3 := c.Handle(erin, poll.Links["📮 Vote Orange"]).OK()
+	f.Settle()
+
+	poller := outbox.Poller{
+		Domain: "a.localdomain",
+		DB:     a.DB,
+		Config: a.Config,
+	}
+	if err := poller.Run(context.Background()); err != nil {
+		t.Fatalf("Failed to process votes: %v", err)
+	}
+	f.Settle()
+
+	a.Handle(david, poll.Request).
+		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "2 ████████ Gray"}).
+		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "1 ████     Orange"})
+	b.Handle(carol, poll.Request).
+		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "2 ████████ Gray"}).
+		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "1 ████     Orange"})
+	c.Handle(erin, poll.Request).
+		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "2 ████████ Gray"}).
+		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "1 ████     Orange"})
+
+	vote1.Follow("💣 Delete", "").OK()
+	if err := poller.Run(context.Background()); err != nil {
+		t.Fatalf("Failed to process votes: %v", err)
+	}
+	f.Settle()
+
+	a.Handle(david, poll.Request).
+		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "1 ████████ Gray"}).
+		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "1 ████████ Orange"})
+	b.Handle(carol, poll.Request).
+		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "1 ████████ Gray"}).
+		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "1 ████████ Orange"})
+	c.Handle(erin, poll.Request).
+		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "1 ████████ Gray"}).
+		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "1 ████████ Orange"})
+
+	vote2.Follow("💣 Delete", "").OK()
+	f.Settle()
+	if err := poller.Run(context.Background()); err != nil {
+		t.Fatalf("Failed to process votes: %v", err)
+	}
+	f.Settle()
+
+	a.Handle(david, poll.Request).
+		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "0          Gray"}).
+		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "1 ████████ Orange"})
+	b.Handle(carol, poll.Request).
+		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "0          Gray"}).
+		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "1 ████████ Orange"})
+	c.Handle(erin, poll.Request).
+		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "0          Gray"}).
+		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "1 ████████ Orange"})
+
+	vote3.Follow("💣 Delete", "").OK()
+	f.Settle()
+	if err := poller.Run(context.Background()); err != nil {
+		t.Fatalf("Failed to process votes: %v", err)
+	}
+	f.Settle()
+
+	a.Handle(david, poll.Request).
+		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "0          Gray"}).
+		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "0          Orange"})
+
+	b.Handle(carol, poll.Request).
+		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "0          Gray"}).
+		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "0          Orange"})
+
+	c.Handle(erin, poll.Request).
+		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "0          Gray"}).
+		Contains(fedtest.Line{Type: fedtest.Preformatted, Text: "0          Orange"})
+}

@@ -45,13 +45,13 @@ func parseResponse(s *Server, cert tls.Certificate, req, resp string) Page {
 	lines := []Line{}
 	links := map[string]string{}
 
-	preformetted := false
+	preformatted := false
 
 	if len(resp) > end+2 {
 		for _, line := range strings.Split(resp[end+2:], "\n") {
-			if line == "```" {
-				preformetted = !preformetted
-			} else if preformetted {
+			if strings.HasPrefix(line, "```") {
+				preformatted = !preformatted
+			} else if preformatted {
 				lines = append(lines, Line{Type: Preformatted, Text: line})
 			} else if strings.HasPrefix(line, "=> ") {
 				i := strings.IndexByte(line[3:], ' ')
