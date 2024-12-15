@@ -166,7 +166,7 @@ func TestFederation_DM(t *testing.T) {
 	b.Handle(erin, "/users/register").OK()
 
 	b.HandleInput(erin, "/users/resolve", "carol@a.localdomain").OK()
-	post := b.HandleInput(erin, "/users/dm", "@carol@.localdomain hello").
+	post := b.HandleInput(erin, "/users/dm", "@carol@a.localdomain hello").
 		Contains(fedtest.Line{Type: fedtest.Quote, Text: "@carol@a.localdomain hello"})
 	f.Settle()
 
@@ -212,11 +212,11 @@ func TestFederation_PostInCommunity(t *testing.T) {
 	a.Handle(carol, "/users/follow/g.localdomain/user/stuff").OK()
 	f.Settle()
 
-	b.HandleInput(erin, "/users/resolve", "stuff@.localdomain").OK()
+	b.HandleInput(erin, "/users/resolve", "stuff@g.localdomain").OK()
 	b.Handle(erin, "/users/follow/g.localdomain/user/stuff").OK()
 	f.Settle()
 
-	post := b.HandleInput(erin, "/users/say", "@stuff@.localdomain hello").
+	post := b.HandleInput(erin, "/users/say", "@stuff@g.localdomain hello").
 		Contains(fedtest.Line{Type: fedtest.Quote, Text: "@stuff@g.localdomain hello"})
 	f.Settle()
 
@@ -384,7 +384,7 @@ func TestFederation_ShareUnshare(t *testing.T) {
 	c.HandleInput(erin, "/users/resolve", "david@a.localdomain").OK()
 	c.Handle(erin, "/users/follow/a.localdomain/user/david").OK()
 
-	c.HandleInput(erin, "/users/resolve", "carol@.localdomain").OK()
+	c.HandleInput(erin, "/users/resolve", "carol@b.localdomain").OK()
 	c.Handle(erin, "/users/follow/b.localdomain/user/carol").OK()
 
 	f.Settle()

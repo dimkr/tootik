@@ -54,8 +54,9 @@ type Server struct {
 	Incoming  *inbox.Queue
 	Outgoing  *fed.Queue
 
-	keyPair tls.Certificate
-	dbPath  string
+	listener, tlsListener net.Listener
+	socketPath            string
+	dbPath                string
 }
 
 const (
@@ -138,6 +139,21 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 		t.Fatalf("Failed to run create the federation handler: %v", err)
 	}
 
+	socketPath := fmt.Sprintf("/tmp/%s-%s.socket", t.Name(), domain)
+	os.Remove(socketPath)
+
+	listener, err := net.Listen("unix", socketPath)
+	if err != nil {
+		t.Fatalf("Failed to listen: %v", err)
+	}
+
+	serverCfg := tls.Config{
+		Certificates: []tls.Certificate{serverKeyPair},
+		ClientAuth:   tls.RequestClientCert,
+	}
+
+	tlsListener := tls.NewListener(listener, &serverCfg)
+
 	return &Server{
 		Test:      t,
 		Domain:    domain,
@@ -165,14 +181,21 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 			DB:       db,
 			Resolver: resolver,
 		},
-		keyPair: serverKeyPair,
-		dbPath:  dbPath,
+		listener:    listener,
+		tlsListener: tlsListener,
+		socketPath:  socketPath,
+		dbPath:      dbPath,
 	}
 }
 
 func (s *Server) Stop() {
 	s.DB.Close()
 	os.Remove(s.dbPath)
+
+	s.tlsListener.Close()
+
+	s.listener.Close()
+	os.Remove(s.socketPath)
 }
 
 func (s *Server) handle(cert tls.Certificate, path, input string, redirects int) Page {
@@ -180,48 +203,32 @@ func (s *Server) handle(cert tls.Certificate, path, input string, redirects int)
 		s.Test.Fatal("Too many redirects")
 	}
 
-	serverCfg := tls.Config{
-		Certificates: []tls.Certificate{s.keyPair},
-		ClientAuth:   tls.RequestClientCert,
-	}
-
 	clientCfg := tls.Config{
 		Certificates:       []tls.Certificate{cert},
 		InsecureSkipVerify: true,
 	}
 
-	socketPath := fmt.Sprintf("/tmp/%s-%d.socket", s.Test.Name(), redirects)
-
-	localListener, err := net.Listen("unix", socketPath)
-	if err != nil {
-		s.Test.Fatalf("Failed to listen: %v", err)
-	}
-	defer os.Remove(socketPath)
-
-	tlsListener := tls.NewListener(localListener, &serverCfg)
-	defer tlsListener.Close()
-
-	unixReader, err := net.Dial("unix", socketPath)
+	clientConn, err := net.Dial("unix", s.socketPath)
 	if err != nil {
 		s.Test.Fatalf("Failed to connect: %v", err)
 	}
-	defer unixReader.Close()
+	defer clientConn.Close()
 
-	tlsWriter, err := tlsListener.Accept()
+	serverTlsConn, err := s.tlsListener.Accept()
 	if err != nil {
 		s.Test.Fatalf("Failed to accept connection: %v", err)
 	}
-	defer tlsWriter.Close()
+	defer serverTlsConn.Close()
 
-	tlsReader := tls.Client(unixReader, &clientCfg)
-	defer tlsReader.Close()
+	clientTlsConn := tls.Client(clientConn, &clientCfg)
+	defer clientTlsConn.Close()
 
 	c := make(chan error)
 	go func() {
-		c <- tlsReader.Handshake()
+		c <- clientTlsConn.Handshake()
 	}()
 	go func() {
-		c <- tlsWriter.(*tls.Conn).Handshake()
+		c <- serverTlsConn.(*tls.Conn).Handshake()
 	}()
 	for i := 0; i < 2; i++ {
 		if err := <-c; err != nil {
@@ -230,20 +237,19 @@ func (s *Server) handle(cert tls.Certificate, path, input string, redirects int)
 	}
 
 	if input == "" {
-		_, err = fmt.Fprintf(tlsReader, "gemini://%s%s\r\n", s.Domain, path)
+		_, err = fmt.Fprintf(clientTlsConn, "gemini://%s%s\r\n", s.Domain, path)
 	} else {
-		_, err = fmt.Fprintf(tlsReader, "gemini://%s%s?%s\r\n", s.Domain, path, url.QueryEscape(input))
-
+		_, err = fmt.Fprintf(clientTlsConn, "gemini://%s%s?%s\r\n", s.Domain, path, url.QueryEscape(input))
 	}
 	if err != nil {
 		s.Test.Fatalf("Failed to send request: %v", err)
 	}
 
-	s.Frontend.Handle(context.Background(), tlsWriter)
+	s.Frontend.Handle(context.Background(), serverTlsConn)
 
-	tlsWriter.Close()
+	serverTlsConn.Close()
 
-	resp, err := io.ReadAll(tlsReader)
+	resp, err := io.ReadAll(clientTlsConn)
 	if err != nil {
 		s.Test.Fatalf("Failed to read response: %v", err)
 	}
