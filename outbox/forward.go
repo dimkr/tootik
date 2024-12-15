@@ -97,7 +97,7 @@ func forwardToGroup[T ap.RawActivity](ctx context.Context, domain string, tx *sq
 		return true, err
 	}
 
-	if activity.Type != ap.Create {
+	if activity.Type != ap.Create && activity.Type != ap.Update && activity.Type != ap.Delete {
 		return true, nil
 	}
 

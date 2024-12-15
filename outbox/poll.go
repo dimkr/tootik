@@ -37,7 +37,7 @@ type pollResult struct {
 }
 
 func (p *Poller) Run(ctx context.Context) error {
-	rows, err := p.DB.QueryContext(ctx, `select poll, option, count(*) from (select polls.id as poll, votes.object->>'$.name' as option, votes.author as voter from notes polls join notes votes on votes.object->>'$.inReplyTo' = polls.id where polls.object->>'$.type' = 'Question' and polls.id like $1 and polls.object->>'$.closed' is null and votes.object->>'$.name' is not null group by poll, option, voter) group by poll, option`, fmt.Sprintf("https://%s/%%", p.Domain))
+	rows, err := p.DB.QueryContext(ctx, `select poll, option, count(*) from (select polls.id as poll, votes.object->>'$.name' as option, votes.author as voter from notes polls left join notes votes on votes.object->>'$.inReplyTo' = polls.id where polls.object->>'$.type' = 'Question' and polls.id like $1 and polls.object->>'$.closed' is null and (votes.object->>'$.name' is not null or votes.id is null) group by poll, option, voter) group by poll, option`, fmt.Sprintf("https://%s/%%", p.Domain))
 	if err != nil {
 		return err
 	}
@@ -47,7 +47,8 @@ func (p *Poller) Run(ctx context.Context) error {
 	polls := map[string]*ap.Object{}
 
 	for rows.Next() {
-		var pollID, option string
+		var pollID string
+		var option sql.NullString
 		var count int64
 		if err := rows.Scan(&pollID, &option, &count); err != nil {
 			slog.Warn("Failed to scan poll result", "error", err)
@@ -55,7 +56,9 @@ func (p *Poller) Run(ctx context.Context) error {
 		}
 
 		if _, ok := polls[pollID]; ok {
-			votes[pollResult{PollID: pollID, Option: option}] = count
+			if option.Valid {
+				votes[pollResult{PollID: pollID, Option: option.String}] = count
+			}
 			continue
 		}
 
@@ -66,7 +69,9 @@ func (p *Poller) Run(ctx context.Context) error {
 		}
 
 		polls[pollID] = &obj
-		votes[pollResult{PollID: pollID, Option: option}] = count
+		if option.Valid {
+			votes[pollResult{PollID: pollID, Option: option.String}] = count
+		}
 	}
 	rows.Close()
 
