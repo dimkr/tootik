@@ -64,6 +64,7 @@ This page allows you to:
 * Set an account alias, to allow account migration to this instance
 * Notify followers about account migration from this instance
 * Upload a .png, .jpg or .gif image to serve as your avatar (use your client certificate for authentication): up to {{.Config.MaxAvatarWidth}}x{{.Config.MaxAvatarHeight}} and {{.Config.MaxAvatarSize}} bytes, downscaled to {{.Config.AvatarWidth}}x{{.Config.AvatarHeight}}
+* Manage client certificates associated with your account
 
 > 📊 Status
 
@@ -100,6 +101,18 @@ For example:
 ```
 
 Polls must have between 2 and {{.Config.PollMaxOptions}} multi-choice options, and end after {{printf "%s" .Config.PollDuration}}.
+
+## Client Certificates ("Identities")
+
+The username of a newly created account is the Common Name property of the client certificate used during registration.
+
+To associate an additional client certificate with your account:
+* Create a new client certificate with the same Common Name as your current certificate
+* Register using the new certificate: this will add the certificate to the list of certificates waiting for your approval
+* While authenticated using the old certificate, use Settings → Certificates to approve the new one
+* To secure your account, use Settings → Certificates to revoke access for certificates you don't use anymore
+
+Client certificates get rejected automatically after {{.Config.CertificateApprovalTimeout}} without approval.
 
 ## Account Migration
 
