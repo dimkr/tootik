@@ -33,15 +33,13 @@ func Undo(ctx context.Context, domain string, db *sql.DB, activity *ap.Activity)
 		return errors.New("cannot undo activity")
 	}
 
-	to := ap.Audience{}
-	to.Add(ap.Public)
-
 	undo := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      fmt.Sprintf("https://%s/undo/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", activity.ID, time.Now().UnixNano())))),
 		Type:    ap.Undo,
 		Actor:   activity.Actor,
-		To:      to,
+		To:      activity.To,
+		CC:      activity.CC,
 		Object:  activity,
 	}
 
