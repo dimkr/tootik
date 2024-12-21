@@ -27,9 +27,10 @@ import (
 type Config struct {
 	DatabaseOptions string
 
-	RegistrationInterval  time.Duration
-	UserNameRegex         string
-	CompiledUserNameRegex *regexp.Regexp `json:"-"`
+	RegistrationInterval       time.Duration
+	CertificateApprovalTimeout time.Duration
+	UserNameRegex              string
+	CompiledUserNameRegex      *regexp.Regexp `json:"-"`
 
 	MaxPostsLength     int
 	MaxPostsPerDay     int64
@@ -133,6 +134,10 @@ func (c *Config) FillDefaults() {
 
 	if c.RegistrationInterval <= 0 {
 		c.RegistrationInterval = time.Hour
+	}
+
+	if c.CertificateApprovalTimeout <= 0 {
+		c.CertificateApprovalTimeout = time.Hour * 48
 	}
 
 	if c.UserNameRegex == "" {

@@ -17,11 +17,8 @@ limitations under the License.
 package front
 
 import (
-	"crypto/sha256"
 	"crypto/tls"
 	"database/sql"
-	"fmt"
-	"net/url"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
@@ -52,59 +49,26 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 	}
 
 	clientCert := state.PeerCertificates[0]
-	certHash := fmt.Sprintf("%x", sha256.Sum256(clientCert.Raw))
-
-	var taken int
-	if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from persons where host = ? and certhash = ?)`, h.Domain, certHash).Scan(&taken); err != nil {
-		r.Log.Warn("Failed to check if cerificate hash is already in use", "hash", certHash, "error", err)
-		w.Error()
-		return
-	}
-
-	if taken == 1 {
-		r.Log.Warn("Cerificate hash is already in use", "hash", certHash)
-		w.Status(40, "Client certificate is already in use")
-		return
-	}
-
 	userName := clientCert.Subject.CommonName
 
-	if r.URL.RawQuery != "" {
-		altName, err := url.QueryUnescape(r.URL.RawQuery)
-		if err != nil {
-			r.Log.Info("Failed to decode user name", "query", r.URL.RawQuery, "error", err)
-			w.Status(40, "Bad input")
-			return
-		}
-		if altName != "" {
-			userName = altName
-		}
+	if time.Now().After(clientCert.NotAfter) {
+		r.Log.Warn("Client certificate has expired", "name", userName, "expired", clientCert.NotAfter)
+		w.Status(40, "Client certificate has expired")
+		return
 	}
 
 	if userName == "" {
-		w.Status(10, "New user name")
+		w.Status(40, "Invalid user name")
 		return
 	}
 
 	if !h.Config.CompiledUserNameRegex.MatchString(userName) {
-		w.Statusf(10, "%s is invalid, enter user name", userName)
-		return
-	}
-
-	if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from persons where actor->>'$.preferredUsername' = ? and host = ?)`, userName, h.Domain).Scan(&taken); err != nil {
-		r.Log.Warn("Failed to check if username is taken", "name", userName, "error", err)
-		w.Error()
-		return
-	}
-
-	if taken == 1 {
-		r.Log.Warn("Username is already taken", "name", userName)
-		w.Statusf(10, "%s is already taken, enter user name", userName)
+		w.Status(40, "Invalid user name")
 		return
 	}
 
 	var lastRegister sql.NullInt64
-	if err := h.DB.QueryRowContext(r.Context, `select max(inserted) from persons where host = ?`, h.Domain).Scan(&lastRegister); err != nil {
+	if err := h.DB.QueryRowContext(r.Context, `select max(inserted) from certificates`).Scan(&lastRegister); err != nil {
 		r.Log.Warn("Failed to check last registration time", "name", userName, "error", err)
 		w.Error()
 		return
@@ -120,7 +84,7 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 
 	r.Log.Info("Creating new user", "name", userName)
 
-	if _, _, err := user.Create(r.Context, h.Domain, h.DB, userName, ap.Person, &certHash); err != nil {
+	if _, _, err := user.Create(r.Context, h.Domain, h.DB, userName, ap.Person, clientCert); err != nil {
 		r.Log.Warn("Failed to create new user", "name", userName, "error", err)
 		w.Status(40, "Failed to create new user")
 		return
