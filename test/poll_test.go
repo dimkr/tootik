@@ -145,8 +145,10 @@ func TestPoll_TwoOptionsOnlyZeroVotes(t *testing.T) {
 	assert.Equal(1, n)
 
 	view := server.Handle("/users/view/127.0.0.1/poll/1", server.Alice)
-	assert.NotContains(view, "## 📊 Results")
-	assert.NotContains(strings.Split(view, "\n"), "```Results graph")
+	assert.Contains(strings.Split(view, "\n"), "## 📊 Results (0 voters)")
+	assert.Contains(strings.Split(view, "\n"), "```Results graph")
+	assert.Contains(strings.Split(view, "\n"), "0          vanilla")
+	assert.Contains(strings.Split(view, "\n"), "0          chocolate")
 }
 
 func TestPoll_OneOption(t *testing.T) {
@@ -777,8 +779,8 @@ func TestPoll_Local3OptionsAnd2VotesAndDeletedVote(t *testing.T) {
 	assert.Contains(view, "Vote Nope")
 	assert.Contains(view, "Vote Hell yeah!")
 	assert.Contains(view, "Vote I couldn't care less")
-	assert.NotContains(strings.Split(view, "\n"), "1 ████████ Hell yeah!")
-	assert.NotContains(strings.Split(view, "\n"), "0          I couldn't care less")
+	assert.Contains(strings.Split(view, "\n"), "0          Hell yeah!")
+	assert.Contains(strings.Split(view, "\n"), "0          I couldn't care less")
 
 	delete := server.Handle("/users/delete/"+reply[15:len(reply)-2], server.Carol)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Carol.ID, "https://")), delete)
