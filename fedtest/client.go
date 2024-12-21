@@ -51,7 +51,7 @@ func (w *responseWriter) WriteHeader(statusCode int) {
 func (f Client) Do(r *http.Request) (*http.Response, error) {
 	dst := f[r.URL.Host]
 	if dst == nil {
-		return nil, fmt.Errorf("Unknown server: %s", r.URL.Host)
+		return nil, fmt.Errorf("unknown server: %s", r.URL.Host)
 	}
 
 	w := responseWriter{
