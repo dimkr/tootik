@@ -19,6 +19,7 @@ package cfg
 
 import (
 	"math"
+	"regexp"
 	"time"
 )
 
@@ -27,6 +28,8 @@ type Config struct {
 	DatabaseOptions string
 
 	RegistrationInterval time.Duration
+	userNameRegex        string         `json:"UserNameRegex"`
+	UserNameRegex        *regexp.Regexp `json:"-"`
 
 	MaxPostsLength     int
 	MaxPostsPerDay     int64
@@ -131,6 +134,12 @@ func (c *Config) FillDefaults() {
 	if c.RegistrationInterval <= 0 {
 		c.RegistrationInterval = time.Hour
 	}
+
+	if c.userNameRegex == "" {
+		c.userNameRegex = `^[a-zA-Z0-9-_]{4,32}$`
+	}
+
+	c.UserNameRegex = regexp.MustCompile(c.userNameRegex)
 
 	if c.MaxPostsLength <= 0 {
 		c.MaxPostsLength = 500

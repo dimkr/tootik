@@ -21,15 +21,13 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"fmt"
+	"net/url"
+	"time"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/user"
-	"net/url"
-	"regexp"
-	"time"
 )
-
-var userNameRegex = regexp.MustCompile(`^[a-zA-Z0-9-_]{4,32}$`)
 
 func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 	if r.User != nil {
@@ -88,7 +86,7 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if !userNameRegex.MatchString(userName) {
+	if !h.Config.UserNameRegex.MatchString(userName) {
 		w.Statusf(10, "%s is invalid, enter user name", userName)
 		return
 	}

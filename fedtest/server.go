@@ -27,6 +27,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -93,6 +94,7 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 	cfg.FillDefaults()
 	cfg.MinActorAge = 0
 	cfg.RegistrationInterval = 0
+	cfg.UserNameRegex = regexp.MustCompile(`^[a-zA-Z0-9-_]{3,32}$`)
 	cfg.PostThrottleUnit = 0
 	cfg.EditThrottleUnit = 0
 	cfg.MinActorEditInterval = 0
