@@ -14,5 +14,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package fedtest contains complex tests that involve multiple servers.
 package fedtest
+
+import (
+	"crypto/tls"
+	"slices"
+)
+
+func (s *Server) AssertResponseContains(cert tls.Certificate, path string, line Line) Response {
+	resp := s.Handle(cert, path)
+
+	if !slices.Contains(resp.Lines, line) {
+		s.Test.Fatalf(`%s does not contain "%s" line`, resp.Raw, line.Text)
+	}
+
+	return resp
+}
+
+func (s *Server) AssertResponseNotContains(cert tls.Certificate, path string, line Line) {
+	resp := s.Handle(cert, path)
+
+	if slices.Contains(resp.Lines, line) {
+		s.Test.Fatalf(`%s contains "%s" line`, resp.Raw, line.Text)
+	}
+}

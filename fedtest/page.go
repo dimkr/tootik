@@ -24,11 +24,11 @@ import (
 
 // Respnonse represents a frontend page displayed to the user.
 type Page struct {
-	Request string
-	Raw     string
-	Status  string
-	Lines   []Line
-	Links   map[string]string
+	Path   string
+	Raw    string
+	Status string
+	Lines  []Line
+	Links  map[string]string
 
 	cert   tls.Certificate
 	server *Server
@@ -70,11 +70,11 @@ func parseResponse(s *Server, cert tls.Certificate, req, resp string) Page {
 	}
 
 	return Page{
-		Request: req,
-		Raw:     resp,
-		Status:  resp[:end],
-		Lines:   lines,
-		Links:   links,
+		Path:   req,
+		Raw:    resp,
+		Status: resp[:end],
+		Lines:  lines,
+		Links:  links,
 
 		cert:   cert,
 		server: s,
@@ -118,4 +118,19 @@ func (p Page) FollowInput(text, input string) Page {
 // Follow follows a link, follows redirects and returns a [Page].
 func (p Page) Follow(text string) Page {
 	return p.FollowInput(text, "")
+}
+
+// Refresh fetches the same [Page] again.
+func (p Page) Refresh() Page {
+	return p.server.Handle(p.cert, p.Path)
+}
+
+// Goto navigates to a different page by its path.
+func (p Page) Goto(path string) Page {
+	return p.server.Handle(p.cert, path)
+}
+
+// GotoInput is like [Page.Goto] but also accepts user-provided input.
+func (p Page) GotoInput(path, input string) Page {
+	return p.server.HandleInput(p.cert, path, input)
 }

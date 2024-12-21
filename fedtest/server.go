@@ -276,3 +276,7 @@ func (s *Server) HandleInput(cert tls.Certificate, path, input string) Page {
 func (s *Server) Handle(cert tls.Certificate, path string) Page {
 	return s.handle(cert, path, "", 0)
 }
+
+func (s *Server) Register(cert tls.Certificate) Page {
+	return s.Handle(cert, "/users/register").OK()
+}
