@@ -86,7 +86,7 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if !h.Config.UserNameRegex.MatchString(userName) {
+	if !h.Config.CompiledUserNameRegex.MatchString(userName) {
 		w.Statusf(10, "%s is invalid, enter user name", userName)
 		return
 	}
