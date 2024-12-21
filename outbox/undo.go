@@ -33,7 +33,7 @@ func Undo(ctx context.Context, domain string, db *sql.DB, activity *ap.Activity)
 		return errors.New("cannot undo activity")
 	}
 
-	to := ap.Audience{}
+	to := activity.To
 	to.Add(ap.Public)
 
 	undo := ap.Activity{
@@ -42,6 +42,7 @@ func Undo(ctx context.Context, domain string, db *sql.DB, activity *ap.Activity)
 		Type:    ap.Undo,
 		Actor:   activity.Actor,
 		To:      to,
+		CC:      activity.CC,
 		Object:  activity,
 	}
 
