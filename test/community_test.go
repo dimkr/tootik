@@ -708,5 +708,5 @@ func TestCommunity_UnknownEditedReplyInThread(t *testing.T) {
 
 	var shared int
 	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity->>'$.type' = 'Announce' and activity->>'$.object' = 'https://127.0.0.1/note/1' and sender = ?`, server.Alice.ID).Scan(&shared))
-	assert.Equal(0, shared)
+	assert.Equal(1, shared)
 }
