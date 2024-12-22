@@ -31,7 +31,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/front"
@@ -48,7 +47,7 @@ type Server struct {
 	Domain    string
 	Config    *cfg.Config
 	DB        *sql.DB
-	Resolver  ap.Resolver
+	Resolver  *fed.Resolver
 	NobodyKey httpsig.Key
 	Frontend  gemini.Listener
 	Backend   http.Handler
@@ -100,6 +99,7 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 	cfg.MinActorEditInterval = 0
 	cfg.ResolverCacheTTL = 0
 	cfg.ResolverRetryInterval = 0
+	cfg.FollowersSyncInterval = 1
 
 	dbPath := filepath.Join(t.TempDir(), domain+".sqlite3")
 
