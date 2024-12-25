@@ -536,7 +536,7 @@ func TestResolve_FederatedActorFirstTimeCancelled(t *testing.T) {
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
 	for i := range resolver.locks {
-		assert.NoError(resolver.locks[i].Acquire(context.Background(), 1))
+		assert.NoError(resolver.locks[i].Lock(context.Background()))
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
