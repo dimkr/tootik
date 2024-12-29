@@ -66,7 +66,7 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 		w.WriteHeader(http.StatusNotFound)
 	})
 
-	if err := addNodeInfo(mux, l.Domain, l.Closed); err != nil {
+	if err := addNodeInfo(mux, l.Domain, l.Closed, l.Config, l.DB); err != nil {
 		return err
 	}
 
