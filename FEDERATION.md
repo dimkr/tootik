@@ -73,4 +73,3 @@ Received `Collection-Synchronization` headers are saved in the tootik database a
 ## NodeInfo
 
 tootik exposes instance metadata like its version number, through NodeInfo 2.0. By default, tootik returns 0 in user and post counters unless `FillNodeInfoUsage` is changed to `true`.
-
