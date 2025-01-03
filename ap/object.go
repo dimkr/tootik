@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,10 +25,11 @@ import (
 type ObjectType string
 
 const (
-	Note     ObjectType = "Note"
-	Page     ObjectType = "Page"
-	Article  ObjectType = "Article"
-	Question ObjectType = "Question"
+	Note      ObjectType = "Note"
+	Page      ObjectType = "Page"
+	Article   ObjectType = "Article"
+	Question  ObjectType = "Question"
+	Tombstone ObjectType = "Tombstone"
 )
 
 // Object represents most ActivityPub objects.

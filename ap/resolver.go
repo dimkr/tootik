@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@ package ap
 
 import (
 	"context"
+	"net/http"
+
 	"github.com/dimkr/tootik/httpsig"
 )
 
@@ -35,4 +37,5 @@ const (
 type Resolver interface {
 	ResolveID(ctx context.Context, key httpsig.Key, id string, flags ResolverFlag) (*Actor, error)
 	Resolve(ctx context.Context, key httpsig.Key, host, name string, flags ResolverFlag) (*Actor, error)
+	Get(ctx context.Context, key httpsig.Key, url string) (*http.Response, error)
 }

@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,7 +29,9 @@ import (
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/inbox/note"
 	"github.com/dimkr/tootik/outbox"
+	"io"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -46,30 +48,41 @@ type Queue struct {
 
 const maxActivityDepth = 3
 
-var ErrActivityTooNested = errors.New("exceeded activity depth limit")
+var (
+	ErrActivityTooNested = errors.New("exceeded activity depth limit")
 
-func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity T, post *ap.Object, shared bool) error {
-	prefix := fmt.Sprintf("https://%s/", q.Domain)
-	if strings.HasPrefix(sender.ID, prefix) || strings.HasPrefix(post.ID, prefix) || strings.HasPrefix(post.AttributedTo, prefix) || strings.HasPrefix(activity.Actor, prefix) {
-		return fmt.Errorf("received invalid Create for %s by %s from %s", post.ID, post.AttributedTo, activity.Actor)
-	}
+	errMissingPost = errors.New("post is missing")
+)
 
+func (q *Queue) validatePost(post *ap.Object) error {
 	u, err := url.Parse(post.ID)
 	if err != nil {
 		return fmt.Errorf("failed to parse post ID %s: %w", post.ID, err)
 	}
 
 	if !data.IsIDValid(u) {
-		return fmt.Errorf("received invalid post ID: %s", post.ID)
+		return fmt.Errorf("invalid post ID: %s", post.ID)
+	}
+
+	if u.Host == q.Domain {
+		return errors.New("post cannot be local")
 	}
 
 	if q.BlockList != nil && q.BlockList.Contains(u.Host) {
-		return fmt.Errorf("ignoring post %s: %w", post.ID, fed.ErrBlockedDomain)
+		return fed.ErrBlockedDomain
 	}
 
-	if len(post.To.OrderedMap)+len(post.CC.OrderedMap) > q.Config.MaxRecipients {
-		log.Warn("Post has too many recipients", "to", len(post.To.OrderedMap), "cc", len(post.CC.OrderedMap))
-		return nil
+	total := len(post.To.OrderedMap) + len(post.CC.OrderedMap)
+	if total > q.Config.MaxRecipients {
+		return fmt.Errorf("post %s has too many recipients: %d", post.ID, total)
+	}
+
+	return nil
+}
+
+func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity T, post *ap.Object, shared bool) error {
+	if err := q.validatePost(post); err != nil {
+		return err
 	}
 
 	var audience sql.NullString
@@ -96,10 +109,10 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 					ctx,
 					`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
 					post.ID,
-					sender.ID,
+					activity.Actor,
 					activity.ID,
 				); err != nil {
-					return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, sender.ID, err)
+					return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, activity.Actor, err)
 				}
 			}
 
@@ -111,10 +124,10 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 				ctx,
 				`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
 				post.ID,
-				sender.ID,
+				activity.Actor,
 				activity.ID,
 			); err != nil {
-				return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, sender.ID, err)
+				return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, activity.Actor, err)
 			}
 		}
 
@@ -146,10 +159,10 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 			ctx,
 			`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
 			post.ID,
-			sender.ID,
+			activity.Actor,
 			activity.ID,
 		); err != nil {
-			return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, sender.ID, err)
+			return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, activity.Actor, err)
 		}
 	}
 
@@ -180,6 +193,202 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 	return nil
 }
 
+func (q *Queue) isRelayedActivity(activity *ap.Activity, sender *ap.Actor) (bool, error) {
+	activityUrl, err := url.Parse(activity.ID)
+	if err != nil {
+		return false, err
+	}
+
+	actorUrl, err := url.Parse(activity.Actor)
+	if err != nil {
+		return false, err
+	}
+
+	senderUrl, err := url.Parse(sender.ID)
+	if err != nil {
+		return false, err
+	}
+
+	if activityUrl.Host == q.Domain {
+		return false, errors.New("invalid activity host")
+	}
+
+	if actorUrl.Host == q.Domain {
+		return false, errors.New("invalid actor host")
+	}
+
+	if senderUrl.Host == q.Domain {
+		return false, errors.New("invalid sender host")
+	}
+
+	return activityUrl.Host != senderUrl.Host, nil
+}
+
+func shouldUpdatePost(oldPost, post *ap.Object, lastChange int64) bool {
+	// if specified, prefer post publication or editing time to insertion or last update time
+	var sec int64
+	if oldPost.Updated != nil {
+		sec = oldPost.Updated.Unix()
+	}
+	if sec == 0 {
+		sec = oldPost.Published.Unix()
+	}
+	if sec > 0 {
+		lastChange = sec
+	}
+
+	return !(post.Type == ap.Question && post.Updated != nil && lastChange >= post.Updated.Unix()) || (post.Type != ap.Question && (post.Updated == nil || lastChange >= post.Updated.Unix()))
+}
+
+func updatePost(ctx context.Context, tx *sql.Tx, post, oldPost *ap.Object) error {
+	if _, err := tx.ExecContext(
+		ctx,
+		`update notes set object = ?, updated = unixepoch() where id = ?`,
+		post,
+		post.ID,
+	); err != nil {
+		return err
+	}
+
+	if post.Content != oldPost.Content {
+		if _, err := tx.ExecContext(
+			ctx,
+			`update notesfts set content = ? where id = ?`,
+			note.Flatten(post),
+			post.ID,
+		); err != nil {
+			return err
+		}
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`update feed set note = ? where note->>'$.id' = ?`,
+		post,
+		post.ID,
+	); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (q *Queue) fetchPost(ctx context.Context, id string) (*ap.Object, error) {
+	resp, err := q.Resolver.Get(ctx, q.Key, id)
+	if err != nil {
+		if resp != nil && (resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone) {
+			return nil, errMissingPost
+		}
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.ContentLength > q.Config.MaxRequestBodySize {
+		return nil, fmt.Errorf("post is too big: %d", resp.ContentLength)
+	}
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, q.Config.MaxRequestBodySize))
+	if err != nil {
+		return nil, err
+	}
+
+	var post ap.Object
+	if err := json.Unmarshal(body, &post); err != nil {
+		return nil, err
+	}
+
+	return &post, q.validatePost(&post)
+}
+
+func (q *Queue) processFetchedPost(ctx context.Context, log *slog.Logger, post *ap.Object, activity *ap.Activity, rawActivity data.JSON) error {
+	var oldPost ap.Object
+	var lastChange int64
+	if err := q.DB.QueryRowContext(ctx, `select max(inserted, updated), object from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastChange, &oldPost); errors.Is(err, sql.ErrNoRows) {
+		tx, err := q.DB.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback()
+
+		if err := note.Insert(ctx, tx, post); err != nil {
+			return err
+		}
+
+		if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, tx, post, activity, rawActivity); err != nil {
+			return err
+		}
+
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+
+		log.Info("Received a new relayed post")
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("failed to get last update time for %s: %w", post.ID, err)
+	}
+
+	if !shouldUpdatePost(&oldPost, post, lastChange) {
+		return nil
+	}
+
+	tx, err := q.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if err := updatePost(ctx, tx, post, &oldPost); err != nil {
+		return fmt.Errorf("failed to update post %s: %w", post.ID, err)
+	}
+
+	if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, tx, post, activity, rawActivity); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	log.Info("Updated relayed post")
+	return nil
+}
+
+func deletePost[T ap.RawActivity](ctx context.Context, log *slog.Logger, q *Queue, deleted string, activity *ap.Activity, rawActivity T) error {
+	tx, err := q.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var note ap.Object
+	if err := q.DB.QueryRowContext(ctx, `select object from notes where id = ?`, deleted).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
+		log.Debug("Received delete request for non-existing post", "deleted", deleted)
+		return nil
+	} else if err != nil {
+		return err
+	}
+
+	if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, tx, &note, activity, rawActivity); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `delete from notesfts where id = ?`, deleted); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `delete from notes where id = ?`, deleted); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `delete from shares where note = ?`, deleted); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `delete from feed where note->>'$.id' = ?`, deleted); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
 func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity T, depth int, shared bool) error {
 	if depth == maxActivityDepth {
 		return ErrActivityTooNested
@@ -206,39 +415,8 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 				return fmt.Errorf("failed to delete person %s: %w", deleted, err)
 			}
 		} else {
-			tx, err := q.DB.BeginTx(ctx, nil)
-			if err != nil {
+			if err := deletePost(ctx, log, q, deleted, activity, rawActivity); err != nil {
 				return fmt.Errorf("cannot delete %s: %w", deleted, err)
-			}
-			defer tx.Rollback()
-
-			var note ap.Object
-			if err := q.DB.QueryRowContext(ctx, `select object from notes where id = $1 and (author = $2 or object->>'$.audience' = $2)`, deleted, sender.ID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
-				log.Debug("Received delete request for non-existing post", "deleted", deleted)
-				return nil
-			} else if err != nil {
-				return fmt.Errorf("failed to delete %s: %w", deleted, err)
-			}
-
-			if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, tx, &note, activity, rawActivity); err != nil {
-				return fmt.Errorf("failed to delete %s: %w", deleted, err)
-			}
-
-			if _, err := tx.ExecContext(ctx, `delete from notesfts where id = ?`, deleted); err != nil {
-				return fmt.Errorf("cannot delete %s: %w", deleted, err)
-			}
-			if _, err := tx.ExecContext(ctx, `delete from notes where id = ?`, deleted); err != nil {
-				return fmt.Errorf("cannot delete %s: %w", deleted, err)
-			}
-			if _, err := tx.ExecContext(ctx, `delete from shares where note = ?`, deleted); err != nil {
-				return fmt.Errorf("cannot delete %s: %w", deleted, err)
-			}
-			if _, err := tx.ExecContext(ctx, `delete from feed where note->>'$.id' = ?`, deleted); err != nil {
-				return fmt.Errorf("cannot delete %s: %w", deleted, err)
-			}
-
-			if err := tx.Commit(); err != nil {
-				return fmt.Errorf("failed to delete %s: %w", deleted, err)
 			}
 		}
 
@@ -317,10 +495,6 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 			return nil
 		}
 
-		if sender.ID != activity.Actor {
-			return fmt.Errorf("received an invalid undo request for %s by %s", activity.Actor, sender.ID)
-		}
-
 		follower := activity.Actor
 
 		var followed string
@@ -365,7 +539,7 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 					ctx,
 					`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
 					postID,
-					sender.ID,
+					activity.Actor,
 					activity.ID,
 				); err != nil {
 					return fmt.Errorf("cannot insert share for %s by %s: %w", postID, sender.ID, err)
@@ -390,11 +564,6 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 			return errors.New("received invalid Update")
 		}
 
-		prefix := fmt.Sprintf("https://%s/", q.Domain)
-		if strings.HasPrefix(post.ID, prefix) {
-			return fmt.Errorf("%s cannot update posts by %s", sender.ID, post.AttributedTo)
-		}
-
 		var oldPost ap.Object
 		var lastChange int64
 		if err := q.DB.QueryRowContext(ctx, `select max(inserted, updated), object from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastChange, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
@@ -404,19 +573,7 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 			return fmt.Errorf("failed to get last update time for %s: %w", post.ID, err)
 		}
 
-		// if specified, prefer post publication or editing time to insertion or last update time
-		var sec int64
-		if oldPost.Updated != nil {
-			sec = oldPost.Updated.Unix()
-		}
-		if sec == 0 {
-			sec = oldPost.Published.Unix()
-		}
-		if sec > 0 {
-			lastChange = sec
-		}
-
-		if (post.Type == ap.Question && post.Updated != nil && lastChange >= post.Updated.Unix()) || (post.Type != ap.Question && (post.Updated == nil || lastChange >= post.Updated.Unix())) {
+		if !shouldUpdatePost(&oldPost, post, lastChange) {
 			log.Debug("Received old update request for new post")
 			return nil
 		}
@@ -432,32 +589,7 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 		}
 		defer tx.Rollback()
 
-		if _, err := tx.ExecContext(
-			ctx,
-			`update notes set object = ?, updated = unixepoch() where id = ?`,
-			post,
-			post.ID,
-		); err != nil {
-			return fmt.Errorf("failed to update post %s: %w", post.ID, err)
-		}
-
-		if post.Content != oldPost.Content {
-			if _, err := tx.ExecContext(
-				ctx,
-				`update notesfts set content = ? where id = ?`,
-				note.Flatten(post),
-				post.ID,
-			); err != nil {
-				return fmt.Errorf("failed to update post %s: %w", post.ID, err)
-			}
-		}
-
-		if _, err := tx.ExecContext(
-			ctx,
-			`update feed set note = ? where note->>'$.id' = ?`,
-			post,
-			post.ID,
-		); err != nil {
+		if err := updatePost(ctx, tx, post, &oldPost); err != nil {
 			return fmt.Errorf("failed to update post %s: %w", post.ID, err)
 		}
 
@@ -481,11 +613,7 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 		log.Debug("Ignoring Dislike activity")
 
 	default:
-		if sender.ID == activity.Actor {
-			log.Warn("Received unknown request")
-		} else {
-			log.Warn("Received unknown, unauthorized request")
-		}
+		log.Warn("Received unknown request")
 	}
 
 	return nil
@@ -496,7 +624,34 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Ac
 	defer cancel()
 
 	log := slog.With("activity", activity, "sender", sender.ID)
-	if err := processActivity(ctx, q, log, sender, activity, rawActivity, 1, false); err != nil {
+
+	if relayed, err := q.isRelayedActivity(activity, sender); err != nil {
+		log.Warn("Failed to determine whether or not activity is relayed", "error", err)
+	} else if relayed {
+		post, ok := activity.Object.(*ap.Object)
+		if !ok {
+			log.Warn("Ignoring invalid relayed activity")
+			return
+		}
+
+		if !(post.Type == ap.Note || post.Type == ap.Page || post.Type == ap.Article || post.Type == ap.Question || (activity.Type == ap.Delete && post.Type == ap.Tombstone)) {
+			log.Warn("Ignoring invalid relayed object", "type", post.Type)
+			return
+		}
+
+		log.Info("Fetching relayed post")
+		if fetched, err := q.fetchPost(ctx, post.ID); errors.Is(err, errMissingPost) {
+			if err := deletePost(ctx, log, q, post.ID, activity, rawActivity); err != nil {
+				log.Warn("Failed to delete relayed post", "error", err)
+			} else {
+				log.Info("Deleted relayed post")
+			}
+		} else if err != nil {
+			log.Warn("Failed to fetch relayed post", "error", err)
+		} else if err := q.processFetchedPost(ctx, log, fetched, activity, rawActivity); err != nil {
+			log.Warn("Failed to process relayed post", "error", err)
+		}
+	} else if err := processActivity(ctx, q, log, sender, activity, rawActivity, 1, false); err != nil {
 		log.Warn("Failed to process activity", "error", err)
 	}
 }
