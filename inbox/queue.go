@@ -96,7 +96,7 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 					ctx,
 					`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
 					post.ID,
-					activity.Actor,
+					sender.ID,
 					activity.ID,
 				); err != nil {
 					return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, activity.Actor, err)
@@ -111,7 +111,7 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 				ctx,
 				`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
 				post.ID,
-				activity.Actor,
+				sender.ID,
 				activity.ID,
 			); err != nil {
 				return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, activity.Actor, err)
