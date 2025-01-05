@@ -69,7 +69,7 @@ func TestFederation_FollowersSyncMissingRemoteFollow(t *testing.T) {
 		Resolver: f["a.localdomain"].Resolver,
 		Key:      f["a.localdomain"].NobodyKey,
 	}
-	if err := syncer.Run(context.Background()); err != nil {
+	if _, err := syncer.ProcessBatch(context.Background()); err != nil {
 		t.Fatalf("Failed to synchronize followers: %v", err)
 	}
 	f.Settle()
@@ -128,7 +128,7 @@ func TestFederation_FollowersSyncMissingLocalFollow(t *testing.T) {
 		Resolver: f["a.localdomain"].Resolver,
 		Key:      f["a.localdomain"].NobodyKey,
 	}
-	if err := syncer.Run(context.Background()); err != nil {
+	if _, err := syncer.ProcessBatch(context.Background()); err != nil {
 		t.Fatalf("Failed to synchronize followers: %v", err)
 	}
 	f.Settle()

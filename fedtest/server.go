@@ -99,7 +99,7 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 	cfg.MinActorEditInterval = 0
 	cfg.ResolverCacheTTL = 0
 	cfg.ResolverRetryInterval = 0
-	cfg.FollowersSyncInterval = 1
+	cfg.FollowersSyncInterval = 0
 
 	dbPath := filepath.Join(t.TempDir(), domain+".sqlite3")
 
