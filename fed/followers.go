@@ -228,7 +228,7 @@ func (l *Listener) saveFollowersDigest(ctx context.Context, sender *ap.Actor, he
 func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, resolver *Resolver, key httpsig.Key) error {
 	if digest, err := digestFollowers(ctx, db, d.Followed, domain); err != nil {
 		return err
-	} else if err == nil && digest == d.Digest {
+	} else if digest == d.Digest {
 		slog.Debug("Follower collections are synchronized", "followed", d.Followed)
 		return nil
 	}

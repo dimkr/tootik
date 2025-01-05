@@ -66,7 +66,7 @@ func (l *Listener) NewHandler() (http.Handler, error) {
 		w.WriteHeader(http.StatusNotFound)
 	})
 
-	if err := addNodeInfo(mux, l.Domain, l.Closed); err != nil {
+	if err := addNodeInfo(mux, l.Domain, l.Closed, l.Config, l.DB); err != nil {
 		return nil, err
 	}
 

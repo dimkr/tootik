@@ -26,7 +26,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
-	"golang.org/x/sync/semaphore"
+	"github.com/dimkr/tootik/lock"
 	"hash/crc32"
 	"io"
 	"log/slog"
@@ -53,7 +53,7 @@ type Resolver struct {
 	sender
 	BlockedDomains *BlockList
 	db             *sql.DB
-	locks          []*semaphore.Weighted
+	locks          []lock.Lock
 }
 
 var (
@@ -78,10 +78,10 @@ func NewResolver(blockedDomains *BlockList, domain string, cfg *cfg.Config, clie
 		},
 		BlockedDomains: blockedDomains,
 		db:             db,
-		locks:          make([]*semaphore.Weighted, cfg.MaxResolverRequests),
+		locks:          make([]lock.Lock, cfg.MaxResolverRequests),
 	}
 	for i := 0; i < len(r.locks); i++ {
-		r.locks[i] = semaphore.NewWeighted(1)
+		r.locks[i] = lock.New()
 	}
 
 	return &r
@@ -190,10 +190,10 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 
 	if !isLocal && flags&ap.Offline == 0 {
 		lock := r.locks[crc32.ChecksumIEEE([]byte(host+name))%uint32(len(r.locks))]
-		if err := lock.Acquire(ctx, 1); err != nil {
+		if err := lock.Lock(ctx); err != nil {
 			return nil, nil, err
 		}
-		defer lock.Release(1)
+		defer lock.Unlock()
 	}
 
 	var tmp ap.Actor

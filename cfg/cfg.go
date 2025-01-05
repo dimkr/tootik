@@ -124,6 +124,8 @@ type Config struct {
 	SharesTTL         time.Duration
 	ActorTTL          time.Duration
 	FeedTTL           time.Duration
+
+	FillNodeInfoUsage bool
 }
 
 // FillDefaults replaces missing or invalid settings with defaults.
