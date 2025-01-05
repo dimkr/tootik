@@ -527,17 +527,9 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	for activityString, sender := range activities.All() {
 		var activity ap.Activity
 		if err := json.Unmarshal([]byte(activityString), &activity); err != nil {
-			// hack to handle Note object returned by Mastodon when fetching a forwarded Update
-			var object ap.Object
-			if err := json.Unmarshal([]byte(activityString), &object); err != nil {
-				slog.Error("Failed to unmarshal activity", "raw", activityString, "error", err)
-				continue
-			}
 
-			activity.Type = ap.Update
-			activity.Actor = object.AttributedTo
-			activity.Object = &object
-			slog.Warn("Simulating an Update activity", "activity", &activity, "sender", sender.ID)
+			slog.Error("Failed to unmarshal activity", "raw", activityString, "error", err)
+			continue
 		}
 
 		q.processActivityWithTimeout(ctx, sender, &activity, data.JSON(activityString))
