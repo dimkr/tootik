@@ -69,7 +69,22 @@ type RawActivity interface {
 	data.JSON | *Activity
 }
 
-var ErrInvalidActivity = errors.New("invalid activity")
+var (
+	ErrInvalidActivity = errors.New("invalid activity")
+
+	knownActivityTypes = map[ActivityType]struct{}{
+		Create:   struct{}{},
+		Follow:   struct{}{},
+		Accept:   struct{}{},
+		Undo:     struct{}{},
+		Delete:   struct{}{},
+		Announce: struct{}{},
+		Update:   struct{}{},
+		Like:     struct{}{},
+		Dislike:  struct{}{},
+		Move:     struct{}{},
+	}
+)
 
 func (a *Activity) IsPublic() bool {
 	return a.To.Contains(Public) || a.CC.Contains(Public)
@@ -81,16 +96,8 @@ func (a *Activity) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
-	if common.ID == "" {
-		return errors.New("empty ID")
-	}
-
-	if common.Actor == "" {
-		return errors.New("empty actor")
-	}
-
-	if common.Object == nil {
-		return errors.New("empty object")
+	if _, ok := knownActivityTypes[common.Type]; !ok {
+		return ErrInvalidActivity
 	}
 
 	a.Context = common.Context
