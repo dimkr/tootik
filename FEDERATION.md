@@ -50,6 +50,8 @@ The `sharedInbox` of other users points to `nobody`'s inbox, to allow wide deliv
 
 tootik [forwards](https://www.w3.org/TR/activitypub/#inbox-forwarding) replies (and replies to replies [...], until `MaxForwardingDepth`) to followers of the user who started the thread.
 
+When tootik receives a forwarded activity (the sending actor belongs to different host), tootik fetches the activity from its origin.
+
 tootik does not fetch missing posts to complete threads with "ghost replies".
 
 ## Outbox
