@@ -73,16 +73,16 @@ var (
 	ErrInvalidActivity = errors.New("invalid activity")
 
 	knownActivityTypes = map[ActivityType]struct{}{
-		Create:   struct{}{},
-		Follow:   struct{}{},
-		Accept:   struct{}{},
-		Undo:     struct{}{},
-		Delete:   struct{}{},
-		Announce: struct{}{},
-		Update:   struct{}{},
-		Like:     struct{}{},
-		Dislike:  struct{}{},
-		Move:     struct{}{},
+		Create:   {},
+		Follow:   {},
+		Accept:   {},
+		Undo:     {},
+		Delete:   {},
+		Announce: {},
+		Update:   {},
+		Like:     {},
+		Dislike:  {},
+		Move:     {},
 	}
 )
 
