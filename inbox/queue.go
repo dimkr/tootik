@@ -96,10 +96,10 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 					ctx,
 					`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
 					post.ID,
-					sender.ID,
+					activity.Actor,
 					activity.ID,
 				); err != nil {
-					return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, sender.ID, err)
+					return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, activity.Actor, err)
 				}
 			}
 
@@ -111,10 +111,10 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 				ctx,
 				`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
 				post.ID,
-				sender.ID,
+				activity.Actor,
 				activity.ID,
 			); err != nil {
-				return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, sender.ID, err)
+				return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, activity.Actor, err)
 			}
 		}
 
@@ -201,7 +201,7 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 
 		log.Info("Received delete request", "deleted", deleted)
 
-		if deleted == sender.ID {
+		if deleted == activity.Actor {
 			if _, err := q.DB.ExecContext(ctx, `delete from persons where id = ?`, deleted); err != nil {
 				return fmt.Errorf("failed to delete person %s: %w", deleted, err)
 			}
@@ -213,7 +213,7 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 			defer tx.Rollback()
 
 			var note ap.Object
-			if err := q.DB.QueryRowContext(ctx, `select object from notes where id = $1 and (author = $2 or object->>'$.audience' = $2)`, deleted, sender.ID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
+			if err := q.DB.QueryRowContext(ctx, `select object from notes where id = ?`, deleted).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
 				log.Debug("Received delete request for non-existing post", "deleted", deleted)
 				return nil
 			} else if err != nil {
@@ -243,10 +243,6 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 		}
 
 	case ap.Follow:
-		if sender.ID != activity.Actor {
-			return errors.New("received unauthorized follow request")
-		}
-
 		followed, ok := activity.Object.(string)
 		if !ok {
 			return errors.New("received a request to follow a non-link object")
@@ -272,10 +268,6 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 		}
 
 	case ap.Accept:
-		if sender.ID != activity.Actor {
-			return fmt.Errorf("received an invalid follow request for %s by %s", activity.Actor, sender.ID)
-		}
-
 		followID, ok := activity.Object.(string)
 		if ok && followID != "" {
 			log.Info("Follow is accepted", "follow", followID)
@@ -286,7 +278,7 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 			return errors.New("received an invalid accept notification")
 		}
 
-		if _, err := q.DB.ExecContext(ctx, `update follows set accepted = 1 where id = ? and followed = ?`, followID, sender.ID); err != nil {
+		if _, err := q.DB.ExecContext(ctx, `update follows set accepted = 1 where id = ? and followed = ?`, followID, activity.Actor); err != nil {
 			return fmt.Errorf("failed to accept follow %s: %w", followID, err)
 		}
 
@@ -315,10 +307,6 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 		if inner.Type != ap.Follow {
 			log.Debug("Ignoring request to undo a non-Follow activity")
 			return nil
-		}
-
-		if sender.ID != activity.Actor {
-			return fmt.Errorf("received an invalid undo request for %s by %s", activity.Actor, sender.ID)
 		}
 
 		follower := activity.Actor
@@ -381,18 +369,13 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 
 	case ap.Update:
 		post, ok := activity.Object.(*ap.Object)
-		if !ok || post.ID == sender.ID {
+		if !ok || post.ID == activity.Actor || post.ID == sender.ID {
 			log.Debug("Ignoring unsupported Update object")
 			return nil
 		}
 
 		if post.ID == "" || post.AttributedTo == "" {
 			return errors.New("received invalid Update")
-		}
-
-		prefix := fmt.Sprintf("https://%s/", q.Domain)
-		if strings.HasPrefix(post.ID, prefix) {
-			return fmt.Errorf("%s cannot update posts by %s", sender.ID, post.AttributedTo)
 		}
 
 		var oldPost ap.Object
@@ -544,8 +527,17 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	for activityString, sender := range activities.All() {
 		var activity ap.Activity
 		if err := json.Unmarshal([]byte(activityString), &activity); err != nil {
-			slog.Error("Failed to unmarshal activity", "raw", activityString, "error", err)
-			continue
+			// hack to handle Note object returned by Mastodon when fetching a forwarded Update
+			var object ap.Object
+			if err := json.Unmarshal([]byte(activityString), &object); err != nil {
+				slog.Error("Failed to unmarshal activity", "raw", activityString, "error", err)
+				continue
+			}
+
+			activity.Type = ap.Update
+			activity.Actor = object.AttributedTo
+			activity.Object = &object
+			slog.Warn("Simulating an Update activity", "activity", &activity, "sender", sender.ID)
 		}
 
 		q.processActivityWithTimeout(ctx, sender, &activity, data.JSON(activityString))

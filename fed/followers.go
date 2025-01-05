@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -240,7 +240,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 
 	slog.Info("Synchronizing followers", "followed", d.Followed)
 
-	resp, err := resolver.get(ctx, key, d.URL)
+	resp, err := resolver.Get(ctx, key, d.URL)
 	if err != nil {
 		return err
 	}

@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,13 +18,70 @@ package fed
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 )
+
+func (l *Listener) isForwardedActivity(activity *ap.Activity, sender *ap.Actor) (bool, error) {
+	activityUrl, err := url.Parse(activity.ID)
+	if err != nil {
+		return false, err
+	}
+
+	actorUrl, err := url.Parse(activity.Actor)
+	if err != nil {
+		return false, err
+	}
+
+	senderUrl, err := url.Parse(sender.ID)
+	if err != nil {
+		return false, err
+	}
+
+	if activityUrl.Host == l.Domain {
+		return false, errors.New("invalid activity host")
+	}
+
+	if actorUrl.Host == l.Domain {
+		return false, errors.New("invalid actor host")
+	}
+
+	if senderUrl.Host == l.Domain {
+		return false, errors.New("invalid sender host")
+	}
+
+	return activityUrl.Host != senderUrl.Host, nil
+}
+
+func (l *Listener) fetchActivity(ctx context.Context, id string) (bool, []byte, error) {
+	resp, err := l.Resolver.Get(ctx, l.ActorKey, id)
+	if err != nil {
+		if resp != nil && (resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone) {
+			return false, nil, err
+		}
+
+		return true, nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.ContentLength > l.Config.MaxRequestBodySize {
+		return true, nil, fmt.Errorf("post is too big: %d", resp.ContentLength)
+	}
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, l.Config.MaxRequestBodySize))
+	if err != nil {
+		return true, nil, err
+	}
+
+	return true, body, nil
+}
 
 func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 	receiver := r.PathValue("username")
@@ -87,11 +144,38 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	/*
+		if an activity wasn't sent by an actor on the same server, we must fetch it instead of trusting the sender to
+		pass the activity as-is
+	*/
+	forwarded, err := l.isForwardedActivity(&activity, sender)
+	if err != nil {
+		slog.Warn("Failed to determine whether or not activity is forwarded", "activity", activity.ID, "sender", sender.ID, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	activityString := string(body)
+
+	if forwarded {
+		slog.Info("Fetching forwarded activity", "activity", activity.ID, "sender", sender.ID)
+
+		if exists, fetched, err := l.fetchActivity(r.Context(), activity.ID); !exists && activity.Type == ap.Delete {
+			slog.Info("Activity is deleted", "activity", activity.ID, "sender", sender.ID)
+		} else if err != nil {
+			slog.Warn("Failed to unmarshal fetch activity", "activity", activity.ID, "sender", sender.ID, "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		} else {
+			activityString = string(fetched)
+		}
+	}
+
 	if _, err = l.DB.ExecContext(
 		r.Context(),
 		`INSERT OR IGNORE INTO inbox (sender, activity) VALUES(?,?)`,
 		sender.ID,
-		string(body),
+		activityString,
 	); err != nil {
 		slog.Error("Failed to insert activity", "sender", sender.ID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)

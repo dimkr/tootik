@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -79,6 +79,18 @@ func (a *Activity) UnmarshalJSON(b []byte) error {
 	var common anyActivity
 	if err := json.Unmarshal(b, &common); err != nil {
 		return err
+	}
+
+	if common.ID == "" {
+		return errors.New("empty ID")
+	}
+
+	if common.Actor == "" {
+		return errors.New("empty actor")
+	}
+
+	if common.Object == nil {
+		return errors.New("empty object")
 	}
 
 	a.Context = common.Context
