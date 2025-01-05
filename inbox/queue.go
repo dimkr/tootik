@@ -527,7 +527,6 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	for activityString, sender := range activities.All() {
 		var activity ap.Activity
 		if err := json.Unmarshal([]byte(activityString), &activity); err != nil {
-
 			slog.Error("Failed to unmarshal activity", "raw", activityString, "error", err)
 			continue
 		}
