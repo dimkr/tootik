@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ package inbox
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
@@ -42,6 +41,12 @@ type Queue struct {
 	DB        *sql.DB
 	Resolver  ap.Resolver
 	Key       httpsig.Key
+}
+
+type batchItem struct {
+	Activity    *ap.Activity
+	RawActivity string
+	Sender      *ap.Actor
 }
 
 const maxActivityDepth = 3
@@ -365,7 +370,7 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 		}
 
 		depth++
-		return processActivity(ctx, q, log.With("activity", inner, "depth", depth), sender, inner, inner, depth, true)
+		return processActivity(ctx, q, log.With("activity", inner, "depth", depth), sender, inner, rawActivity, depth, true)
 
 	case ap.Update:
 		post, ok := activity.Object.(*ap.Object)
@@ -488,13 +493,13 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Ac
 func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	slog.Debug("Polling activities queue")
 
-	rows, err := q.DB.QueryContext(ctx, `select inbox.id, persons.actor, inbox.activity from (select * from inbox limit -1 offset case when (select count(*) from inbox) >= $1 then $1/10 else 0 end) inbox left join persons on persons.id = inbox.sender order by inbox.id limit $2`, q.Config.MaxActivitiesQueueSize, q.Config.ActivitiesBatchSize)
+	rows, err := q.DB.QueryContext(ctx, `select inbox.id, persons.actor, inbox.activity, inbox.raw from (select * from inbox limit -1 offset case when (select count(*) from inbox) >= $1 then $1/10 else 0 end) inbox left join persons on persons.id = inbox.sender order by inbox.id limit $2`, q.Config.MaxActivitiesQueueSize, q.Config.ActivitiesBatchSize)
 	if err != nil {
 		return 0, fmt.Errorf("failed to fetch activities to process: %w", err)
 	}
 	defer rows.Close()
 
-	activities := data.OrderedMap[string, *ap.Actor]{}
+	batch := make([]batchItem, 0, q.Config.ActivitiesBatchSize)
 	var maxID int64
 	var rowsCount int
 
@@ -503,8 +508,9 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 		var id int64
 		var activityString string
+		var activity ap.Activity
 		var sender sql.Null[ap.Actor]
-		if err := rows.Scan(&id, &sender, &activityString); err != nil {
+		if err := rows.Scan(&id, &sender, &activity, &activityString); err != nil {
 			slog.Error("Failed to scan activity", "error", err)
 			continue
 		}
@@ -516,22 +522,20 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			continue
 		}
 
-		activities.Store(activityString, &sender.V)
+		batch = append(batch, batchItem{
+			Activity:    &activity,
+			RawActivity: activityString,
+			Sender:      &sender.V,
+		})
 	}
 	rows.Close()
 
-	if len(activities) == 0 {
+	if len(batch) == 0 {
 		return 0, nil
 	}
 
-	for activityString, sender := range activities.All() {
-		var activity ap.Activity
-		if err := json.Unmarshal([]byte(activityString), &activity); err != nil {
-			slog.Error("Failed to unmarshal activity", "raw", activityString, "error", err)
-			continue
-		}
-
-		q.processActivityWithTimeout(ctx, sender, &activity, data.JSON(activityString))
+	for _, item := range batch {
+		q.processActivityWithTimeout(ctx, item.Sender, item.Activity, data.JSON(item.RawActivity))
 	}
 
 	if _, err := q.DB.ExecContext(ctx, `delete from inbox where id <= ?`, maxID); err != nil {

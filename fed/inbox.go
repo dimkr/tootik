@@ -108,20 +108,20 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, err := io.ReadAll(io.LimitReader(r.Body, l.Config.MaxRequestBodySize))
+	rawActivity, err := io.ReadAll(io.LimitReader(r.Body, l.Config.MaxRequestBodySize))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	var activity ap.Activity
-	if err := json.Unmarshal(body, &activity); err != nil {
-		slog.Warn("Failed to unmarshal activity", "body", string(body), "error", err)
+	if err := json.Unmarshal(rawActivity, &activity); err != nil {
+		slog.Warn("Failed to unmarshal activity", "body", string(rawActivity), "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	r.Body = io.NopCloser(bytes.NewReader(body))
+	r.Body = io.NopCloser(bytes.NewReader(rawActivity))
 
 	// if actor is deleted, ignore this activity if we don't know this actor
 	var flags ap.ResolverFlag
@@ -129,7 +129,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		flags |= ap.Offline
 	}
 
-	sender, err := l.verify(r, body, flags)
+	sender, err := l.verify(r, rawActivity, flags)
 	if err != nil {
 		if errors.Is(err, ErrActorGone) {
 			w.WriteHeader(http.StatusOK)
@@ -160,7 +160,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var queued any = string(body)
+	var queued any = string(rawActivity)
 
 	if forwarded {
 		id := activity.ID
@@ -171,7 +171,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 			case string:
 				id = o
 			default:
-				slog.Warn("Invalid forwarded Delete activity", "activity", activity.ID, "sender", sender.ID)
+				slog.Warn("Ignoring invalid forwarded Delete activity", "activity", activity.ID, "sender", sender.ID)
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
@@ -184,10 +184,32 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 				Type:   ap.Delete,
 				Object: id,
 			}
+		} else if err == nil && exists && activity.Type == ap.Delete {
+			slog.Warn("Ignoring forwarded Delete activity for existing object", "activity", activity.ID, "id", id, "sender", sender.ID)
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		} else if err != nil {
 			slog.Warn("Failed to fetch forwarded object", "activity", activity.ID, "id", id, "sender", sender.ID, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
+		} else if activity.Type == ap.Update {
+			queued = string(fetched)
+
+			var tmp ap.Activity
+			if err := json.Unmarshal([]byte(fetched), &tmp); err != nil {
+				var post ap.Object
+				if err := json.Unmarshal([]byte(fetched), &post); err != nil {
+					slog.Warn("Ignoring invalid forwarded Update activity", "activity", activity.ID, "sender", sender.ID, "error", err)
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+
+				slog.Info("Wrapping forwarded Update activity", "activity", activity.ID, "sender", sender.ID)
+				queued = &ap.Activity{
+					Type:   ap.Update,
+					Object: &post,
+				}
+			}
 		} else {
 			queued = string(fetched)
 		}
@@ -195,9 +217,10 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 
 	if _, err = l.DB.ExecContext(
 		r.Context(),
-		`INSERT OR IGNORE INTO inbox (sender, activity) VALUES(?,?)`,
+		`INSERT OR IGNORE INTO inbox (sender, activity, raw) VALUES(?,?,?)`,
 		sender.ID,
 		queued,
+		string(rawActivity),
 	); err != nil {
 		slog.Error("Failed to insert activity", "sender", sender.ID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
