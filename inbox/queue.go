@@ -53,7 +53,7 @@ const maxActivityDepth = 3
 
 var ErrActivityTooNested = errors.New("exceeded activity depth limit")
 
-func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity T, post *ap.Object, shared bool) error {
+func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity string, post *ap.Object, shared bool) error {
 	prefix := fmt.Sprintf("https://%s/", q.Domain)
 	if strings.HasPrefix(sender.ID, prefix) || strings.HasPrefix(post.ID, prefix) || strings.HasPrefix(post.AttributedTo, prefix) || strings.HasPrefix(activity.Actor, prefix) {
 		return fmt.Errorf("received invalid Create for %s by %s from %s", post.ID, post.AttributedTo, activity.Actor)
@@ -185,7 +185,7 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 	return nil
 }
 
-func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity T, depth int, shared bool) error {
+func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity string, depth int, shared bool) error {
 	if depth == maxActivityDepth {
 		return ErrActivityTooNested
 	}
@@ -360,7 +360,7 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 			return errors.New("received invalid Create")
 		}
 
-		return processCreateActivity(ctx, q, log, sender, activity, rawActivity, post, shared)
+		return q.processCreateActivity(ctx, log, sender, activity, rawActivity, post, shared)
 
 	case ap.Announce:
 		inner, ok := activity.Object.(*ap.Activity)
@@ -382,7 +382,7 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 		}
 
 		depth++
-		return processActivity(ctx, q, log.With("activity", inner, "depth", depth), sender, inner, rawActivity, depth, true)
+		return q.processActivity(ctx, log.With("activity", inner, "depth", depth), sender, inner, rawActivity, depth, true)
 
 	case ap.Update:
 		post, ok := activity.Object.(*ap.Object)
@@ -399,7 +399,7 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 		var lastChange int64
 		if err := q.DB.QueryRowContext(ctx, `select max(inserted, updated), object from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastChange, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
 			log.Debug("Received Update for non-existing post")
-			return processCreateActivity(ctx, q, log, sender, activity, rawActivity, post, shared)
+			return q.processCreateActivity(ctx, log, sender, activity, rawActivity, post, shared)
 		} else if err != nil {
 			return fmt.Errorf("failed to get last update time for %s: %w", post.ID, err)
 		}
@@ -491,12 +491,12 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 	return nil
 }
 
-func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Actor, activity *ap.Activity, rawActivity data.JSON) {
+func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Actor, activity *ap.Activity, rawActivity string) {
 	ctx, cancel := context.WithTimeout(parent, q.Config.ActivityProcessingTimeout)
 	defer cancel()
 
 	log := slog.With("activity", activity, "sender", sender.ID)
-	if err := processActivity(ctx, q, log, sender, activity, rawActivity, 1, false); err != nil {
+	if err := q.processActivity(ctx, log, sender, activity, rawActivity, 1, false); err != nil {
 		log.Warn("Failed to process activity", "error", err)
 	}
 }
@@ -547,7 +547,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	}
 
 	for _, item := range batch {
-		q.processActivityWithTimeout(ctx, item.Sender, item.Activity, data.JSON(item.RawActivity))
+		q.processActivityWithTimeout(ctx, item.Sender, item.Activity, item.RawActivity)
 	}
 
 	if _, err := q.DB.ExecContext(ctx, `delete from inbox where id <= ?`, maxID); err != nil {

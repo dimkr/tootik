@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/inbox/note"
 	"time"
 )
@@ -74,7 +73,7 @@ func Create(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, pos
 		return fmt.Errorf("failed to insert Create: %w", err)
 	}
 
-	if err := ForwardActivity(ctx, domain, cfg, tx, post, &create, data.JSON(j)); err != nil {
+	if err := ForwardActivity(ctx, domain, cfg, tx, post, &create, string(j)); err != nil {
 		return err
 	}
 

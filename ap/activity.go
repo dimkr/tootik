@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dimkr/tootik/data"
 	"log/slog"
 )
 
@@ -64,11 +63,6 @@ type Activity struct {
 	To        Audience     `json:"to,omitempty"`
 	CC        Audience     `json:"cc,omitempty"`
 	Published *Time        `json:"published,omitempty"`
-}
-
-// RawActivity is a serialized or serializable [Activity]
-type RawActivity interface {
-	data.JSON | *Activity
 }
 
 var (

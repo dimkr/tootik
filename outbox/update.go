@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/data"
 	inote "github.com/dimkr/tootik/inbox/note"
 	"time"
 )
@@ -103,7 +102,7 @@ func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB,
 		}
 	}
 
-	if err := ForwardActivity(ctx, domain, cfg, tx, note, &update, data.JSON(j)); err != nil {
+	if err := ForwardActivity(ctx, domain, cfg, tx, note, &update, string(j)); err != nil {
 		return err
 	}
 
