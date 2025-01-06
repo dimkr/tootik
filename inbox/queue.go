@@ -248,6 +248,10 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 		}
 
 	case ap.Follow:
+		if sender.ID != activity.Actor {
+			return errors.New("received unauthorized follow request")
+		}
+
 		followed, ok := activity.Object.(string)
 		if !ok {
 			return errors.New("received a request to follow a non-link object")
@@ -273,6 +277,10 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 		}
 
 	case ap.Accept:
+		if sender.ID != activity.Actor {
+			return fmt.Errorf("received an invalid follow request for %s by %s", activity.Actor, sender.ID)
+		}
+
 		followID, ok := activity.Object.(string)
 		if ok && followID != "" {
 			log.Info("Follow is accepted", "follow", followID)
@@ -283,7 +291,7 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 			return errors.New("received an invalid accept notification")
 		}
 
-		if _, err := q.DB.ExecContext(ctx, `update follows set accepted = 1 where id = ? and followed = ?`, followID, activity.Actor); err != nil {
+		if _, err := q.DB.ExecContext(ctx, `update follows set accepted = 1 where id = ? and followed = ?`, followID, sender.ID); err != nil {
 			return fmt.Errorf("failed to accept follow %s: %w", followID, err)
 		}
 
@@ -312,6 +320,10 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 		if inner.Type != ap.Follow {
 			log.Debug("Ignoring request to undo a non-Follow activity")
 			return nil
+		}
+
+		if sender.ID != activity.Actor {
+			return fmt.Errorf("received an invalid undo request for %s by %s", activity.Actor, sender.ID)
 		}
 
 		follower := activity.Actor
