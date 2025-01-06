@@ -35,9 +35,11 @@ const (
 	Delete   ActivityType = "Delete"
 	Announce ActivityType = "Announce"
 	Update   ActivityType = "Update"
-	Like     ActivityType = "Like"
-	Dislike  ActivityType = "Dislike"
 	Move     ActivityType = "Move"
+
+	Like       ActivityType = "Like"
+	Dislike    ActivityType = "Dislike"
+	EmojiReact ActivityType = "EmojiReact"
 )
 
 type anyActivity struct {
@@ -73,16 +75,17 @@ var (
 	ErrInvalidActivity = errors.New("invalid activity")
 
 	knownActivityTypes = map[ActivityType]struct{}{
-		Create:   {},
-		Follow:   {},
-		Accept:   {},
-		Undo:     {},
-		Delete:   {},
-		Announce: {},
-		Update:   {},
-		Like:     {},
-		Dislike:  {},
-		Move:     {},
+		Create:     {},
+		Follow:     {},
+		Accept:     {},
+		Undo:       {},
+		Delete:     {},
+		Announce:   {},
+		Update:     {},
+		Move:       {},
+		Like:       {},
+		Dislike:    {},
+		EmojiReact: {},
 	}
 )
 
