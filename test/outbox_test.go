@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -531,7 +531,7 @@ func TestOutbox_PublicPostInGroupDeletedByAnotherUser(t *testing.T) {
 	assert.Equal(1, n)
 
 	outbox = server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
-	assert.Contains(outbox, "Hello world")
+	assert.NotContains(outbox, "Hello world")
 }
 
 func TestOutbox_PublicPostInGroupDeletedByGroup(t *testing.T) {
@@ -652,7 +652,7 @@ func TestOutbox_PublicPostInGroupForwardedDelete(t *testing.T) {
 	assert.Equal(1, n)
 
 	outbox = server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
-	assert.Contains(outbox, "Hello world")
+	assert.NotContains(outbox, "Hello world")
 }
 
 func TestOutbox_PublicPostInGroupEditedByUser(t *testing.T) {
