@@ -27,15 +27,9 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"testing"
 )
 
 func (l *Listener) isForwardedActivity(activity *ap.Activity, sender *ap.Actor) (bool, error) {
-	// TODO: fix existing tests and drop this hack
-	if testing.Testing() {
-		return false, nil
-	}
-
 	activityUrl, err := url.Parse(activity.ID)
 	if err != nil {
 		return false, err
