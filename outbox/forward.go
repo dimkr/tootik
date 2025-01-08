@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ import (
 	"strings"
 )
 
-func forwardToGroup[T ap.RawActivity](ctx context.Context, domain string, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity T, firstPostID string) (bool, error) {
+func forwardToGroup(ctx context.Context, domain string, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity, firstPostID string) (bool, error) {
 	var group ap.Actor
 	if err := tx.QueryRowContext(
 		ctx,
@@ -121,7 +121,7 @@ func forwardToGroup[T ap.RawActivity](ctx context.Context, domain string, tx *sq
 // ForwardActivity forwards an activity if needed.
 // A reply by B in a thread started by A is forwarded to all followers of A.
 // A post by a follower of a local group, which mentions the group or replies to a post in the group, is forwarded to followers of the group.
-func ForwardActivity[T ap.RawActivity](ctx context.Context, domain string, cfg *cfg.Config, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity T) error {
+func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity string) error {
 	// poll votes don't need to be forwarded
 	if note.Name != "" && note.Content == "" {
 		return nil

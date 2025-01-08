@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/data"
 )
 
 // Delete queues a Delete activity for delivery.
@@ -71,7 +70,7 @@ func Delete(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, not
 	}
 
 	// determine whether or not this activity needs to be forwarded before we potentially punch a hole in the thread
-	if err := ForwardActivity(ctx, domain, cfg, tx, note, &delete, data.JSON(j)); err != nil {
+	if err := ForwardActivity(ctx, domain, cfg, tx, note, &delete, string(j)); err != nil {
 		return fmt.Errorf("failed to insert delete activity: %w", err)
 	}
 
