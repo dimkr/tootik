@@ -18,21 +18,17 @@ package fed
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dimkr/tootik/ap"
 	"log/slog"
 	"net/http"
+
+	"github.com/dimkr/tootik/ap"
 )
 
 func (l *Listener) handleActivity(w http.ResponseWriter, r *http.Request, prefix string) {
 	activityID := fmt.Sprintf("https://%s/%s/%s", l.Domain, prefix, r.PathValue("hash"))
-
-	if _, err := l.verify(r, nil, ap.InstanceActor); err != nil {
-		slog.Warn("Failed to verify activity request", "activity", activityID, "error", err)
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
 
 	slog.Info("Fetching activity", "activity", activityID)
 
@@ -54,7 +50,12 @@ func (l *Listener) handleActivity(w http.ResponseWriter, r *http.Request, prefix
 	}
 
 	w.Header().Set("Content-Type", "application/activity+json; charset=utf-8")
-	w.Write([]byte(raw))
+
+	if activity.Type == ap.Update {
+		json.NewEncoder(w).Encode(activity.Object)
+	} else {
+		w.Write([]byte(raw))
+	}
 }
 
 func (l *Listener) handleCreate(w http.ResponseWriter, r *http.Request) {
