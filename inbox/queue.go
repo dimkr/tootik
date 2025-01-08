@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ package inbox
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dimkr/tootik/ap"
@@ -44,11 +43,17 @@ type Queue struct {
 	Key       httpsig.Key
 }
 
+type batchItem struct {
+	Activity    *ap.Activity
+	RawActivity string
+	Sender      *ap.Actor
+}
+
 const maxActivityDepth = 3
 
 var ErrActivityTooNested = errors.New("exceeded activity depth limit")
 
-func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity T, post *ap.Object, shared bool) error {
+func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity string, post *ap.Object, shared bool) error {
 	prefix := fmt.Sprintf("https://%s/", q.Domain)
 	if strings.HasPrefix(sender.ID, prefix) || strings.HasPrefix(post.ID, prefix) || strings.HasPrefix(post.AttributedTo, prefix) || strings.HasPrefix(activity.Actor, prefix) {
 		return fmt.Errorf("received invalid Create for %s by %s from %s", post.ID, post.AttributedTo, activity.Actor)
@@ -180,7 +185,7 @@ func processCreateActivity[T ap.RawActivity](ctx context.Context, q *Queue, log 
 	return nil
 }
 
-func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity T, depth int, shared bool) error {
+func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity string, depth int, shared bool) error {
 	if depth == maxActivityDepth {
 		return ErrActivityTooNested
 	}
@@ -201,7 +206,7 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 
 		log.Info("Received delete request", "deleted", deleted)
 
-		if deleted == sender.ID {
+		if deleted == activity.Actor {
 			if _, err := q.DB.ExecContext(ctx, `delete from persons where id = ?`, deleted); err != nil {
 				return fmt.Errorf("failed to delete person %s: %w", deleted, err)
 			}
@@ -213,7 +218,7 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 			defer tx.Rollback()
 
 			var note ap.Object
-			if err := q.DB.QueryRowContext(ctx, `select object from notes where id = $1 and host != $2`, deleted, q.Domain).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
+			if err := q.DB.QueryRowContext(ctx, `select object from notes where id = ?`, deleted).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
 				log.Debug("Received delete request for non-existing post", "deleted", deleted)
 				return nil
 			} else if err != nil {
@@ -355,7 +360,7 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 			return errors.New("received invalid Create")
 		}
 
-		return processCreateActivity(ctx, q, log, sender, activity, rawActivity, post, shared)
+		return q.processCreateActivity(ctx, log, sender, activity, rawActivity, post, shared)
 
 	case ap.Announce:
 		inner, ok := activity.Object.(*ap.Activity)
@@ -377,11 +382,11 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 		}
 
 		depth++
-		return processActivity(ctx, q, log.With("activity", inner, "depth", depth), sender, inner, inner, depth, true)
+		return q.processActivity(ctx, log.With("activity", inner, "depth", depth), sender, inner, rawActivity, depth, true)
 
 	case ap.Update:
 		post, ok := activity.Object.(*ap.Object)
-		if !ok || post.ID == sender.ID {
+		if !ok || post.ID == activity.Actor || post.ID == sender.ID {
 			log.Debug("Ignoring unsupported Update object")
 			return nil
 		}
@@ -390,16 +395,11 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 			return errors.New("received invalid Update")
 		}
 
-		prefix := fmt.Sprintf("https://%s/", q.Domain)
-		if strings.HasPrefix(post.ID, prefix) {
-			return fmt.Errorf("%s cannot update posts by %s", sender.ID, post.AttributedTo)
-		}
-
 		var oldPost ap.Object
 		var lastChange int64
 		if err := q.DB.QueryRowContext(ctx, `select max(inserted, updated), object from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastChange, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
 			log.Debug("Received Update for non-existing post")
-			return processCreateActivity(ctx, q, log, sender, activity, rawActivity, post, shared)
+			return q.processCreateActivity(ctx, log, sender, activity, rawActivity, post, shared)
 		} else if err != nil {
 			return fmt.Errorf("failed to get last update time for %s: %w", post.ID, err)
 		}
@@ -493,12 +493,12 @@ func processActivity[T ap.RawActivity](ctx context.Context, q *Queue, log *slog.
 	return nil
 }
 
-func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Actor, activity *ap.Activity, rawActivity data.JSON) {
+func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Actor, activity *ap.Activity, rawActivity string) {
 	ctx, cancel := context.WithTimeout(parent, q.Config.ActivityProcessingTimeout)
 	defer cancel()
 
 	log := slog.With("activity", activity, "sender", sender.ID)
-	if err := processActivity(ctx, q, log, sender, activity, rawActivity, 1, false); err != nil {
+	if err := q.processActivity(ctx, log, sender, activity, rawActivity, 1, false); err != nil {
 		log.Warn("Failed to process activity", "error", err)
 	}
 }
@@ -507,13 +507,13 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Ac
 func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	slog.Debug("Polling activities queue")
 
-	rows, err := q.DB.QueryContext(ctx, `select inbox.id, persons.actor, inbox.activity from (select * from inbox limit -1 offset case when (select count(*) from inbox) >= $1 then $1/10 else 0 end) inbox left join persons on persons.id = inbox.sender order by inbox.id limit $2`, q.Config.MaxActivitiesQueueSize, q.Config.ActivitiesBatchSize)
+	rows, err := q.DB.QueryContext(ctx, `select inbox.id, persons.actor, inbox.activity, inbox.raw from (select * from inbox limit -1 offset case when (select count(*) from inbox) >= $1 then $1/10 else 0 end) inbox left join persons on persons.id = inbox.sender order by inbox.id limit $2`, q.Config.MaxActivitiesQueueSize, q.Config.ActivitiesBatchSize)
 	if err != nil {
 		return 0, fmt.Errorf("failed to fetch activities to process: %w", err)
 	}
 	defer rows.Close()
 
-	activities := data.OrderedMap[string, *ap.Actor]{}
+	batch := make([]batchItem, 0, q.Config.ActivitiesBatchSize)
 	var maxID int64
 	var rowsCount int
 
@@ -522,8 +522,9 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 		var id int64
 		var activityString string
+		var activity ap.Activity
 		var sender sql.Null[ap.Actor]
-		if err := rows.Scan(&id, &sender, &activityString); err != nil {
+		if err := rows.Scan(&id, &sender, &activity, &activityString); err != nil {
 			slog.Error("Failed to scan activity", "error", err)
 			continue
 		}
@@ -535,22 +536,20 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			continue
 		}
 
-		activities.Store(activityString, &sender.V)
+		batch = append(batch, batchItem{
+			Activity:    &activity,
+			RawActivity: activityString,
+			Sender:      &sender.V,
+		})
 	}
 	rows.Close()
 
-	if len(activities) == 0 {
+	if len(batch) == 0 {
 		return 0, nil
 	}
 
-	for activityString, sender := range activities.All() {
-		var activity ap.Activity
-		if err := json.Unmarshal([]byte(activityString), &activity); err != nil {
-			slog.Error("Failed to unmarshal activity", "raw", activityString, "error", err)
-			continue
-		}
-
-		q.processActivityWithTimeout(ctx, sender, &activity, data.JSON(activityString))
+	for _, item := range batch {
+		q.processActivityWithTimeout(ctx, item.Sender, item.Activity, item.RawActivity)
 	}
 
 	if _, err := q.DB.ExecContext(ctx, `delete from inbox where id <= ?`, maxID); err != nil {

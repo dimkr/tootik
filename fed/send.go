@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -77,7 +77,7 @@ func (s *sender) send(key httpsig.Key, req *http.Request) (*http.Response, error
 	return resp, nil
 }
 
-func (s *sender) get(ctx context.Context, key httpsig.Key, url string) (*http.Response, error) {
+func (s *sender) Get(ctx context.Context, key httpsig.Key, url string) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request to %s: %w", url, err)

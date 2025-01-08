@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -58,6 +58,8 @@ func (l *Listener) NewHandler() (http.Handler, error) {
 	mux.HandleFunc("POST /inbox/{username}", l.handleInbox)
 	mux.HandleFunc("GET /outbox/{username}", l.handleOutbox)
 	mux.HandleFunc("GET /post/{hash}", l.handlePost)
+	mux.HandleFunc("GET /create/{hash}", l.handleCreate)
+	mux.HandleFunc("GET /update/{hash}", l.handleUpdate)
 	mux.HandleFunc("GET /followers_synchronization/{username}", l.handleFollowers)
 	mux.HandleFunc("GET /{$}", l.handleIndex)
 

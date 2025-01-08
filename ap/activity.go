@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dimkr/tootik/data"
 	"log/slog"
 )
 
@@ -35,9 +34,11 @@ const (
 	Delete   ActivityType = "Delete"
 	Announce ActivityType = "Announce"
 	Update   ActivityType = "Update"
-	Like     ActivityType = "Like"
-	Dislike  ActivityType = "Dislike"
 	Move     ActivityType = "Move"
+
+	Like       ActivityType = "Like"
+	Dislike    ActivityType = "Dislike"
+	EmojiReact ActivityType = "EmojiReact"
 )
 
 type anyActivity struct {
@@ -64,12 +65,23 @@ type Activity struct {
 	Published *Time        `json:"published,omitempty"`
 }
 
-// RawActivity is a serialized or serializable [Activity]
-type RawActivity interface {
-	data.JSON | *Activity
-}
+var (
+	ErrInvalidActivity = errors.New("invalid activity")
 
-var ErrInvalidActivity = errors.New("invalid activity")
+	knownActivityTypes = map[ActivityType]struct{}{
+		Create:     {},
+		Follow:     {},
+		Accept:     {},
+		Undo:       {},
+		Delete:     {},
+		Announce:   {},
+		Update:     {},
+		Move:       {},
+		Like:       {},
+		Dislike:    {},
+		EmojiReact: {},
+	}
+)
 
 func (a *Activity) IsPublic() bool {
 	return a.To.Contains(Public) || a.CC.Contains(Public)
@@ -79,6 +91,10 @@ func (a *Activity) UnmarshalJSON(b []byte) error {
 	var common anyActivity
 	if err := json.Unmarshal(b, &common); err != nil {
 		return err
+	}
+
+	if _, ok := knownActivityTypes[common.Type]; !ok {
+		return ErrInvalidActivity
 	}
 
 	a.Context = common.Context
