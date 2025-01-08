@@ -198,7 +198,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 
-				slog.Info("Wrapping forwarded Update activity", "activity", activity.ID, "sender", sender.ID)
+				slog.Debug("Wrapping forwarded Update activity", "activity", activity.ID, "sender", sender.ID)
 				queued = &ap.Activity{
 					Type:   ap.Update,
 					Object: &post,
