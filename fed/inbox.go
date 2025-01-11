@@ -172,6 +172,8 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 			return errors.New("announce must not be nested")
 		} else if s, ok := activity.Object.(string); !ok {
 			return fmt.Errorf("invalid object: %T", activity.Object)
+		} else if s == "" {
+			return errors.New("empty ID")
 		} else if _, err := url.Parse(s); err != nil {
 			return err
 		}
