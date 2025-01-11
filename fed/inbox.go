@@ -266,6 +266,16 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	/*
+		we have 4 activities:
+		1. the one we received, in its JSON form (rawActivity): we need it in case we're going to forward it
+		2. the one we received, parsed (activity)
+		3. the activity or object we fetched, if the activity wasn't sent to us by its origin (see later)
+		4. the activity we want to queue for processing (queued)
+
+		(if we fetch 3, we process 3, otherwise we process 2, but we always send 1 when we forward)
+	*/
+
 	queued := &activity
 
 	/*
