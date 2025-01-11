@@ -276,6 +276,8 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 	for queued.Type == ap.Announce {
 		if inner, ok := queued.Object.(*ap.Activity); ok {
 			queued = inner
+		} else {
+			break
 		}
 	}
 
