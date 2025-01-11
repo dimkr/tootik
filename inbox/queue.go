@@ -47,9 +47,8 @@ type batchItem struct {
 	Activity    *ap.Activity
 	RawActivity string
 	Sender      *ap.Actor
+	Shared      bool
 }
-
-const maxActivityDepth = 3
 
 var ErrActivityTooNested = errors.New("exceeded activity depth limit")
 
@@ -186,7 +185,7 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 }
 
 func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity string, depth int, shared bool) error {
-	if depth == maxActivityDepth {
+	if depth == ap.MaxActivityDepth {
 		return ErrActivityTooNested
 	}
 
@@ -474,11 +473,8 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 	case ap.Move:
 		log.Debug("Ignoring Move activity")
 
-	case ap.Like:
-		log.Debug("Ignoring Like activity")
-
-	case ap.Dislike:
-		log.Debug("Ignoring Dislike activity")
+	case ap.Like, ap.Dislike, ap.EmojiReact, ap.Add, ap.Remove:
+		log.Debug("Ignoring activity")
 
 	default:
 		if sender.ID == activity.Actor {
@@ -491,12 +487,12 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 	return nil
 }
 
-func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Actor, activity *ap.Activity, rawActivity string) {
+func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Actor, activity *ap.Activity, rawActivity string, shared bool) {
 	ctx, cancel := context.WithTimeout(parent, q.Config.ActivityProcessingTimeout)
 	defer cancel()
 
 	log := slog.With("activity", activity, "sender", sender.ID)
-	if err := q.processActivity(ctx, log, sender, activity, rawActivity, 1, false); err != nil {
+	if err := q.processActivity(ctx, log, sender, activity, rawActivity, 1, shared); err != nil {
 		log.Warn("Failed to process activity", "error", err)
 	}
 }
@@ -505,7 +501,7 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Ac
 func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	slog.Debug("Polling activities queue")
 
-	rows, err := q.DB.QueryContext(ctx, `select inbox.id, persons.actor, inbox.activity, inbox.raw from (select * from inbox limit -1 offset case when (select count(*) from inbox) >= $1 then $1/10 else 0 end) inbox left join persons on persons.id = inbox.sender order by inbox.id limit $2`, q.Config.MaxActivitiesQueueSize, q.Config.ActivitiesBatchSize)
+	rows, err := q.DB.QueryContext(ctx, `select inbox.id, persons.actor, inbox.activity, inbox.raw, inbox.raw->>'$.type' = 'Annonunce' as shared from (select * from inbox limit -1 offset case when (select count(*) from inbox) >= $1 then $1/10 else 0 end) inbox left join persons on persons.id = inbox.sender order by inbox.id limit $2`, q.Config.MaxActivitiesQueueSize, q.Config.ActivitiesBatchSize)
 	if err != nil {
 		return 0, fmt.Errorf("failed to fetch activities to process: %w", err)
 	}
@@ -522,7 +518,8 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		var activityString string
 		var activity ap.Activity
 		var sender sql.Null[ap.Actor]
-		if err := rows.Scan(&id, &sender, &activity, &activityString); err != nil {
+		var shared bool
+		if err := rows.Scan(&id, &sender, &activity, &activityString, &shared); err != nil {
 			slog.Error("Failed to scan activity", "error", err)
 			continue
 		}
@@ -538,6 +535,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			Activity:    &activity,
 			RawActivity: activityString,
 			Sender:      &sender.V,
+			Shared:      shared,
 		})
 	}
 	rows.Close()
@@ -547,7 +545,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	}
 
 	for _, item := range batch {
-		q.processActivityWithTimeout(ctx, item.Sender, item.Activity, item.RawActivity)
+		q.processActivityWithTimeout(ctx, item.Sender, item.Activity, item.RawActivity, item.Shared)
 	}
 
 	if _, err := q.DB.ExecContext(ctx, `delete from inbox where id <= ?`, maxID); err != nil {
