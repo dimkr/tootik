@@ -165,7 +165,7 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 	case ap.Announce:
 		// we always unwrap the outermost Announce, validate the inner activity and don't allow nested Announce
 		if _, ok := activity.Object.(*ap.Activity); ok {
-			return errors.New("Announce must not be nested")
+			return errors.New("announce must not be nested")
 		} else if s, ok := activity.Object.(string); !ok {
 			return fmt.Errorf("invalid object: %T", activity.Object)
 		} else if _, err := url.Parse(s); err != nil {
