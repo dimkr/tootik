@@ -292,7 +292,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		return
 	} else if err != nil {
-		slog.Warn("Activity is invalid", "activity", activity.ID, "sender", sender.ID, "error", err, "raw", activity)
+		slog.Warn("Activity is invalid", "activity", activity.ID, "sender", sender.ID, "error", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	} else if forwarded {
@@ -366,7 +366,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 			return
 		} else if err != nil {
-			slog.Warn("Activity is invalid", "activity", activity.ID, "sender", sender.ID, "error", err, "raw", activity)
+			slog.Warn("Activity is invalid", "activity", activity.ID, "sender", sender.ID, "error", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
