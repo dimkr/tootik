@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package cfg
 
 import (
 	"math"
+	"regexp"
 	"time"
 )
 
@@ -28,6 +29,8 @@ type Config struct {
 
 	RegistrationInterval       time.Duration
 	CertificateApprovalTimeout time.Duration
+	UserNameRegex              string
+	CompiledUserNameRegex      *regexp.Regexp `json:"-"`
 
 	MaxPostsLength     int
 	MaxPostsPerDay     int64
@@ -138,6 +141,12 @@ func (c *Config) FillDefaults() {
 	if c.CertificateApprovalTimeout <= 0 {
 		c.CertificateApprovalTimeout = time.Hour * 48
 	}
+
+	if c.UserNameRegex == "" {
+		c.UserNameRegex = `^[a-zA-Z0-9-_]{4,32}$`
+	}
+
+	c.CompiledUserNameRegex = regexp.MustCompile(c.UserNameRegex)
 
 	if c.MaxPostsLength <= 0 {
 		c.MaxPostsLength = 500

@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,11 +22,8 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/user"
-	"regexp"
 	"time"
 )
-
-var userNameRegex = regexp.MustCompile(`^[a-zA-Z0-9-_]{4,32}$`)
 
 func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 	if r.User != nil {
@@ -64,7 +61,7 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if !userNameRegex.MatchString(userName) {
+	if !h.Config.CompiledUserNameRegex.MatchString(userName) {
 		w.Status(40, "Invalid user name")
 		return
 	}
