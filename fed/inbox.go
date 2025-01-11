@@ -269,9 +269,9 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 	queued := &activity
 
 	/*
-		if this is an Announce activity that wraps another, unwrap: if the Announce and the inner activity belong to
-		different servers, we need to fetch the inner activity from its origin; in other words, the Announce that wraps
-		an activity shouldn't change the validation flow because it's not the Announce that needs to be validated
+		if this is chain of Announce activities, unwrap: if the outermost Announce and the innermost activity belong to
+		different servers, we need to fetch the latter from its origin; in other words, the Announce that wraps an
+		activity shouldn't change the validation flow because it's not the Announce that needs to be validated
 	*/
 	for queued.Type == ap.Announce {
 		if inner, ok := queued.Object.(*ap.Activity); ok {
