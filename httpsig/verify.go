@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -109,7 +109,7 @@ func Extract(r *http.Request, body []byte, domain string, now time.Time, maxAge 
 	}
 
 	if keyID == "" || headers == "" || signature == "" {
-		return nil, fmt.Errorf("invalid signature header: " + values[0])
+		return nil, errors.New("invalid signature header: " + values[0])
 	}
 
 	rawSignature, err := base64.StdEncoding.DecodeString(signature)

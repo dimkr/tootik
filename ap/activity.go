@@ -27,6 +27,8 @@ import (
 type ActivityType string
 
 const (
+	MaxActivityDepth = 3
+
 	Create   ActivityType = "Create"
 	Follow   ActivityType = "Follow"
 	Accept   ActivityType = "Accept"
@@ -39,6 +41,8 @@ const (
 	Like       ActivityType = "Like"
 	Dislike    ActivityType = "Dislike"
 	EmojiReact ActivityType = "EmojiReact"
+	Add        ActivityType = "Add"
+	Remove     ActivityType = "Remove"
 )
 
 type anyActivity struct {
@@ -66,7 +70,8 @@ type Activity struct {
 }
 
 var (
-	ErrInvalidActivity = errors.New("invalid activity")
+	ErrInvalidActivity     = errors.New("invalid activity")
+	ErrUnsupportedActivity = errors.New("unsupported activity")
 
 	knownActivityTypes = map[ActivityType]struct{}{
 		Create:     {},
@@ -80,6 +85,8 @@ var (
 		Like:       {},
 		Dislike:    {},
 		EmojiReact: {},
+		Add:        {},
+		Remove:     {},
 	}
 )
 
@@ -94,7 +101,7 @@ func (a *Activity) UnmarshalJSON(b []byte) error {
 	}
 
 	if _, ok := knownActivityTypes[common.Type]; !ok {
-		return ErrInvalidActivity
+		return fmt.Errorf("%w: %s", ErrUnsupportedActivity, common.Type)
 	}
 
 	a.Context = common.Context
