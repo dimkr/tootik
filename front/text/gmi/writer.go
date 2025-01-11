@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -57,7 +57,7 @@ func (w *writer) Error() {
 }
 
 func (w *writer) Redirect(link string) {
-	w.Statusf(30, link)
+	w.Status(30, link)
 }
 
 func (w *writer) Redirectf(format string, a ...any) {
