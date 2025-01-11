@@ -74,6 +74,7 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 
 	switch activity.Type {
 	case ap.Delete:
+		// $origin can only delete objects that belong to $origin
 		switch v := activity.Object.(type) {
 		case *ap.Object:
 			if objectUrl, err := url.Parse(v.ID); err != nil {
@@ -97,6 +98,7 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 		if inner, ok := activity.Object.(string); ok {
 			if innerUrl, err := url.Parse(inner); err != nil {
 				return err
+				// actors from $origin can only follow ours
 			} else if innerUrl.Host != l.Domain {
 				return fmt.Errorf("invalid object host: %s", innerUrl.Host)
 			}
@@ -105,6 +107,7 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 		}
 
 	case ap.Accept:
+		// $origin can only accept Follow activities that belong to us
 		switch v := activity.Object.(type) {
 		case *ap.Activity:
 			if v.Type != ap.Follow {
@@ -134,7 +137,7 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 				return fmt.Errorf("invalid inner activity: %w: %s", ap.ErrUnsupportedActivity, inner.Type)
 			}
 
-			// $origin can only undo actions performed by $origin
+			// $origin can only undo actions performed by actors from $origin
 			if err := l.validateActivity(inner, origin, depth+1); err != nil {
 				return err
 			}
@@ -143,6 +146,7 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 		}
 
 	case ap.Create, ap.Update:
+		// $origin can only create objects that belong to $origin
 		if obj, ok := activity.Object.(*ap.Object); ok {
 			if objectUrl, err := url.Parse(obj.ID); err != nil {
 				return err
