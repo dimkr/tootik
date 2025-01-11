@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ limitations under the License.
 package httpsig
 
 import (
-	"fmt"
+	"errors"
 	"net/http"
 	"net/textproto"
 	"strings"
@@ -38,14 +38,14 @@ func buildSignatureString(r *http.Request, headers []string) (string, error) {
 
 		default:
 			if h[0] == '(' {
-				return "", fmt.Errorf("unsupported header: " + h)
+				return "", errors.New("unsupported header: " + h)
 			}
 			b.WriteString(strings.ToLower(h))
 			b.WriteByte(':')
 			b.WriteByte(' ')
 			values, ok := r.Header[textproto.CanonicalMIMEHeaderKey(h)]
 			if !ok || len(values) == 0 {
-				return "", fmt.Errorf("unspecified header: " + h)
+				return "", errors.New("unspecified header: " + h)
 			}
 			for j, v := range values {
 				b.WriteString(strings.TrimSpace(v))
