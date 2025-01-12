@@ -23,7 +23,7 @@ import (
 	"github.com/dimkr/tootik/fed"
 )
 
-func TestFederation_FollowersSyncMissingRemoteFollow(t *testing.T) {
+func TestCluster_FollowersSyncMissingRemoteFollow(t *testing.T) {
 	f := NewFediverse(t, "a.localdomain", "b.localdomain")
 	defer f.Stop()
 
@@ -82,7 +82,7 @@ func TestFederation_FollowersSyncMissingRemoteFollow(t *testing.T) {
 	}
 }
 
-func TestFederation_FollowersSyncMissingLocalFollow(t *testing.T) {
+func TestCluster_FollowersSyncMissingLocalFollow(t *testing.T) {
 	f := NewFediverse(t, "a.localdomain", "b.localdomain")
 	defer f.Stop()
 

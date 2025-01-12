@@ -23,7 +23,7 @@ import (
 	"github.com/dimkr/tootik/outbox"
 )
 
-func TestFederation_MovedAccount(t *testing.T) {
+func TestCluster_MovedAccount(t *testing.T) {
 	f := NewFediverse(t, "a.localdomain", "b.localdomain", "c.localdomain")
 	defer f.Stop()
 

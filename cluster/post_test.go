@@ -25,7 +25,7 @@ import (
 	"github.com/dimkr/tootik/outbox"
 )
 
-func TestFederation_PublicPost(t *testing.T) {
+func TestCluster_PublicPost(t *testing.T) {
 	f := NewFediverse(t, "a.localdomain", "b.localdomain")
 	defer f.Stop()
 
@@ -74,7 +74,7 @@ func TestFederation_PublicPost(t *testing.T) {
 		NotContains(Line{Type: Quote, Text: "hola"})
 }
 
-func TestFederation_PostToFollowers(t *testing.T) {
+func TestCluster_PostToFollowers(t *testing.T) {
 	f := NewFediverse(t, "a.localdomain", "b.localdomain")
 	defer f.Stop()
 
@@ -119,7 +119,7 @@ func TestFederation_PostToFollowers(t *testing.T) {
 		NotContains(Line{Type: Quote, Text: "hola"})
 }
 
-func TestFederation_DM(t *testing.T) {
+func TestCluster_DM(t *testing.T) {
 	f := NewFediverse(t, "a.localdomain", "b.localdomain")
 	defer f.Stop()
 
@@ -158,7 +158,7 @@ func TestFederation_DM(t *testing.T) {
 		NotContains(Line{Type: Quote, Text: "hola"})
 }
 
-func TestFederation_PostInCommunity(t *testing.T) {
+func TestCluster_PostInCommunity(t *testing.T) {
 	f := NewFediverse(t, "a.localdomain", "b.localdomain", "g.localdomain")
 	defer f.Stop()
 
@@ -224,7 +224,7 @@ func TestFederation_PostInCommunity(t *testing.T) {
 		NotContains(Line{Type: Quote, Text: "hola"})
 }
 
-func TestFederation_ReplyInCommunity(t *testing.T) {
+func TestCluster_ReplyInCommunity(t *testing.T) {
 	f := NewFediverse(t, "a.localdomain", "b.localdomain", "g.localdomain")
 	defer f.Stop()
 
@@ -295,7 +295,7 @@ func TestFederation_ReplyInCommunity(t *testing.T) {
 		NotContains(Line{Type: Quote, Text: "hola"})
 }
 
-func TestFederation_ReplyForwarding(t *testing.T) {
+func TestCluster_ReplyForwarding(t *testing.T) {
 	f := NewFediverse(t, "a.localdomain", "b.localdomain", "c.localdomain")
 	defer f.Stop()
 
@@ -360,7 +360,7 @@ func TestFederation_ReplyForwarding(t *testing.T) {
 		NotContains(Line{Type: Quote, Text: "hola"})
 }
 
-func TestFederation_ShareUnshare(t *testing.T) {
+func TestCluster_ShareUnshare(t *testing.T) {
 	f := NewFediverse(t, "a.localdomain", "b.localdomain", "c.localdomain")
 	defer f.Stop()
 
@@ -417,7 +417,7 @@ func TestFederation_ShareUnshare(t *testing.T) {
 		NotContains(Line{Type: Quote, Text: "hello"})
 }
 
-func TestFederation_Poll(t *testing.T) {
+func TestCluster_Poll(t *testing.T) {
 	f := NewFediverse(t, "a.localdomain", "b.localdomain", "c.localdomain")
 	defer f.Stop()
 
