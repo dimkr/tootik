@@ -61,7 +61,7 @@ func Announce(ctx context.Context, domain string, tx *sql.Tx, actor *ap.Actor, n
 		ctx,
 		`
 		INSERT INTO feed (follower, note, author, sharer, inserted)
-		SELECT $1, $2, persons.actor, $3, UNIXEPOCH()
+		SELECT $1, $2, authors.actor, $3, UNIXEPOCH()
 		FROM persons authors
 		WHERE authors.id = $4
 		`,
