@@ -20,7 +20,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-
 	"github.com/dimkr/tootik/cfg"
 )
 
