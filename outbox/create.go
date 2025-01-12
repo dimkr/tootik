@@ -69,6 +69,10 @@ func Create(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, pos
 		return fmt.Errorf("failed to insert note: %w", err)
 	}
 
+	if _, err = tx.ExecContext(ctx, `insert into feed(follower, note, author, inserted) values(?, ?, ?, unixepoch())`, author.ID, post, author); err != nil {
+		return fmt.Errorf("failed to insert Create: %w", err)
+	}
+
 	if _, err = tx.ExecContext(ctx, `insert into outbox (activity, sender) values(?,?)`, string(j), author.ID); err != nil {
 		return fmt.Errorf("failed to insert Create: %w", err)
 	}

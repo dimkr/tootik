@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -55,6 +55,24 @@ func Announce(ctx context.Context, domain string, tx *sql.Tx, actor *ap.Actor, n
 		actor.ID,
 	); err != nil {
 		return fmt.Errorf("failed to insert share: %w", err)
+	}
+
+	if actor.Type == ap.Person {
+		if _, err := tx.ExecContext(
+			ctx,
+			`
+			INSERT INTO feed (follower, note, author, sharer, inserted)
+			SELECT $1, $2, authors.actor, $3, UNIXEPOCH()
+			FROM persons authors
+			WHERE authors.id = $4
+			`,
+			actor.ID,
+			note,
+			actor,
+			note.AttributedTo,
+		); err != nil {
+			return fmt.Errorf("failed to insert announce activity: %w", err)
+		}
 	}
 
 	if _, err := tx.ExecContext(
