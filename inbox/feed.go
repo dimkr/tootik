@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
 	"github.com/dimkr/tootik/cfg"
 )
 
@@ -78,7 +79,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 				notes.author != myposts.author and
 				notes.inserted >= $2 and
 				myposts.author like $1 and
-				not exists (select 1 from feed where feed.follower = notes.author and feed.note->>'$.id' = notes.id and feed.sharer is null)
+				not exists (select 1 from feed where feed.follower = myposts.author and feed.note->>'$.id' = notes.id and feed.sharer is null)
 			union all
 			select follows.follower, notes.object as note, authors.actor as author, sharers.actor as sharer, shares.inserted from
 			follows
