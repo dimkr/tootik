@@ -81,6 +81,7 @@ func (q *Queue) Process(ctx context.Context) error {
 	}
 }
 
+// ProcessBatch delivers one batch of outgoing activites in the queue.
 func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	slog.Debug("Polling delivery queue")
 
