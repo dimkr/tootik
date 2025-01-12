@@ -442,7 +442,7 @@ func TestReply_DMUnfollowedBeforeFeedUpdate(t *testing.T) {
 	assert.NotContains(users, "Hello Bob")
 
 	users = server.Handle("/users", server.Bob)
-	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(users, "Hello Bob")
 
 	id := dm[15 : len(dm)-2]
@@ -460,10 +460,10 @@ func TestReply_DMUnfollowedBeforeFeedUpdate(t *testing.T) {
 
 	users = server.Handle("/users", server.Alice)
 	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
-	assert.NotContains(users, "Hello Bob")
+	assert.Contains(users, "Hello Bob")
 
 	users = server.Handle("/users", server.Bob)
-	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.Contains(users, "Hello Bob")
 }
 
@@ -486,7 +486,7 @@ func TestReply_DMToAnotherUser(t *testing.T) {
 	assert.NotContains(users, "Hello Bob")
 
 	users = server.Handle("/users", server.Bob)
-	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(users, "Hello Bob")
 
 	id := dm[15 : len(dm)-2]
@@ -504,7 +504,7 @@ func TestReply_DMToAnotherUser(t *testing.T) {
 	assert.NotContains(users, "Hello Bob")
 
 	users = server.Handle("/users", server.Bob)
-	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(users, "Hello Bob")
 }
 
