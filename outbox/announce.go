@@ -57,20 +57,22 @@ func Announce(ctx context.Context, domain string, tx *sql.Tx, actor *ap.Actor, n
 		return fmt.Errorf("failed to insert share: %w", err)
 	}
 
-	if _, err := tx.ExecContext(
-		ctx,
-		`
+	if actor.Type == ap.Person {
+		if _, err := tx.ExecContext(
+			ctx,
+			`
 		INSERT INTO feed (follower, note, author, sharer, inserted)
 		SELECT $1, $2, authors.actor, $3, UNIXEPOCH()
 		FROM persons authors
 		WHERE authors.id = $4
 		`,
-		actor.ID,
-		note,
-		actor,
-		note.AttributedTo,
-	); err != nil {
-		return fmt.Errorf("failed to insert announce activity: %w", err)
+			actor.ID,
+			note,
+			actor,
+			note.AttributedTo,
+		); err != nil {
+			return fmt.Errorf("failed to insert announce activity: %w", err)
+		}
 	}
 
 	if _, err := tx.ExecContext(
