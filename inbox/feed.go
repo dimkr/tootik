@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
 	"github.com/dimkr/tootik/cfg"
 )
 
@@ -32,7 +33,7 @@ type FeedUpdater struct {
 func (u FeedUpdater) Run(ctx context.Context) error {
 	since := int64(0)
 	var ts sql.NullInt64
-	if err := u.DB.QueryRowContext(ctx, `select max(inserted) from feed`).Scan(&ts); err != nil {
+	if err := u.DB.QueryRowContext(ctx, `select max(inserted) from feed where follower != author->>'$.id' and (sharer is null or follower != sharer->>'$.id')`).Scan(&ts); err != nil {
 		return err
 	} else if ts.Valid {
 		since = ts.Int64

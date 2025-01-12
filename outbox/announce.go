@@ -59,6 +59,22 @@ func Announce(ctx context.Context, domain string, tx *sql.Tx, actor *ap.Actor, n
 
 	if _, err := tx.ExecContext(
 		ctx,
+		`
+		INSERT INTO feed (follower, note, author, sharer, inserted)
+		SELECT $1, $2, persons.actor, $3, UNIXEPOCH()
+		FROM persons authors
+		WHERE authors.id = $4
+		`,
+		actor.ID,
+		note,
+		actor,
+		note.AttributedTo,
+	); err != nil {
+		return fmt.Errorf("failed to insert announce activity: %w", err)
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
 		&announce,
 		actor.ID,
