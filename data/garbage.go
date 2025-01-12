@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,8 +20,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/dimkr/tootik/cfg"
 	"time"
+
+	"github.com/dimkr/tootik/cfg"
 )
 
 type GarbageCollector struct {

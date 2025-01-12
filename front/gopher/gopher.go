@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,15 +20,16 @@ package gopher
 import (
 	"context"
 	"errors"
-	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/front"
-	"github.com/dimkr/tootik/front/text/gmap"
 	"io"
 	"log/slog"
 	"net"
 	"net/url"
 	"sync"
 	"time"
+
+	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/front"
+	"github.com/dimkr/tootik/front/text/gmap"
 )
 
 type Listener struct {

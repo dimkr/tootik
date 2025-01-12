@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,9 +23,10 @@ import (
 	"fmt"
 	"strings"
 
+	"log/slog"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text/plain"
-	"log/slog"
 )
 
 // Flatten converts a post into text that can be indexed for search purposes.

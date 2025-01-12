@@ -22,11 +22,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dimkr/tootik/ap"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
+
+	"github.com/dimkr/tootik/ap"
 )
 
 func (l *Listener) getActivityOrigin(activity *ap.Activity, sender *ap.Actor) (string, bool, error) {

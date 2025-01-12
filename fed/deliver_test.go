@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,15 +20,16 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"io"
+	"net/http"
+	"os"
+	"testing"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front/user"
 	"github.com/dimkr/tootik/migrations"
 	"github.com/stretchr/testify/assert"
-	"io"
-	"net/http"
-	"os"
-	"testing"
 )
 
 func TestDeliver_TwoUsersTwoPosts(t *testing.T) {

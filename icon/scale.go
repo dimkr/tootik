@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,13 +19,14 @@ package icon
 import (
 	"bytes"
 	"errors"
-	"github.com/dimkr/tootik/cfg"
-	xdraw "golang.org/x/image/draw"
 	"image"
 	"image/draw"
 	"image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+
+	"github.com/dimkr/tootik/cfg"
+	xdraw "golang.org/x/image/draw"
 )
 
 func Scale(cfg *cfg.Config, data []byte) ([]byte, error) {

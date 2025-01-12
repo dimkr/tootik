@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,12 +17,13 @@ limitations under the License.
 package front
 
 import (
-	"github.com/dimkr/tootik/front/text"
-	"github.com/dimkr/tootik/front/text/plain"
-	"github.com/dimkr/tootik/outbox"
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/front/text/plain"
+	"github.com/dimkr/tootik/outbox"
 )
 
 func (h *Handler) doBio(w text.Writer, r *Request, readInput func(text.Writer, *Request) (string, bool)) {

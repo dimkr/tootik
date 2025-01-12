@@ -19,13 +19,14 @@ package fed
 import (
 	"context"
 	"fmt"
-	"github.com/dimkr/tootik/buildinfo"
-	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/httpsig"
 	"io"
 	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/dimkr/tootik/buildinfo"
+	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/httpsig"
 )
 
 type sender struct {

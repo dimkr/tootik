@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,13 +18,14 @@ package front
 
 import (
 	"fmt"
-	"github.com/dimkr/tootik/front/text"
-	"github.com/dimkr/tootik/icon"
-	"github.com/dimkr/tootik/outbox"
 	"io"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/icon"
+	"github.com/dimkr/tootik/outbox"
 )
 
 var supportedImageTypes = map[string]struct{}{

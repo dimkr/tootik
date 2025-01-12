@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,10 +17,11 @@ limitations under the License.
 package front
 
 import (
-	"github.com/dimkr/tootik/front/text"
 	"io"
 	"net/url"
 	"strconv"
+
+	"github.com/dimkr/tootik/front/text"
 )
 
 // inputFunc is a callback that returns user-provided text or false

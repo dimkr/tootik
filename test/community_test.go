@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,15 +19,16 @@ package test
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/outbox"
 	"github.com/stretchr/testify/assert"
-	"net/http"
-	"strings"
-	"testing"
-	"time"
 )
 
 func TestCommunity_NewThread(t *testing.T) {

@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,10 +26,11 @@ import (
 	"database/sql"
 	"encoding/pem"
 	"fmt"
+	"time"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/icon"
-	"time"
 )
 
 func gen() (*rsa.PrivateKey, []byte, []byte, error) {

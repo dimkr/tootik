@@ -21,9 +21,10 @@ import (
 	"bytes"
 	"embed"
 	"fmt"
-	"github.com/dimkr/tootik/cfg"
 	"strings"
 	"text/template"
+
+	"github.com/dimkr/tootik/cfg"
 )
 
 type data struct {

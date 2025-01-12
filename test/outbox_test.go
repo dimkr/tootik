@@ -19,12 +19,13 @@ package test
 import (
 	"context"
 	"fmt"
-	"github.com/dimkr/tootik/fed"
-	"github.com/dimkr/tootik/inbox"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/dimkr/tootik/fed"
+	"github.com/dimkr/tootik/inbox"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestOutbox_NonExistingUser(t *testing.T) {

@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,6 +27,11 @@ import (
 	"net/http"
 	"os"
 
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/buildinfo"
 	"github.com/dimkr/tootik/cfg"
@@ -44,10 +49,6 @@ import (
 	"github.com/dimkr/tootik/migrations"
 	"github.com/dimkr/tootik/outbox"
 	_ "github.com/mattn/go-sqlite3"
-	"os/signal"
-	"sync"
-	"syscall"
-	"time"
 )
 
 const (

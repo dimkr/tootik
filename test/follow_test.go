@@ -19,10 +19,11 @@ package test
 import (
 	"context"
 	"fmt"
-	"github.com/dimkr/tootik/inbox"
-	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
+
+	"github.com/dimkr/tootik/inbox"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFollow_PostToFollowers(t *testing.T) {

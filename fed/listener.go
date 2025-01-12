@@ -21,9 +21,6 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"errors"
-	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/httpsig"
-	"github.com/fsnotify/fsnotify"
 	"log/slog"
 	"math"
 	"net"
@@ -31,6 +28,10 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/httpsig"
+	"github.com/fsnotify/fsnotify"
 )
 
 type Listener struct {
