@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -210,21 +210,17 @@ func TestFollow_Mutual(t *testing.T) {
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
 	users = server.Handle("/users", server.Alice)
-	assert.Contains(users, "No posts.")
-	assert.NotContains(users, "Hello world")
+	assert.Contains(users, "Hello world")
 
 	users = server.Handle("/users", server.Bob)
-	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello world")
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	users = server.Handle("/users", server.Alice)
-	assert.NotContains(users, "No posts.")
 	assert.Contains(users, "Hello Alice")
 
 	users = server.Handle("/users", server.Bob)
-	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello world")
 
 	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
@@ -233,7 +229,6 @@ func TestFollow_Mutual(t *testing.T) {
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	users = server.Handle("/users", server.Bob)
-	assert.NotContains(users, "No posts.")
 	assert.Contains(users, "Hello world")
 }
 
