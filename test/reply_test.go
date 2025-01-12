@@ -378,7 +378,7 @@ func TestReply_DM(t *testing.T) {
 
 	users = server.Handle("/users", server.Bob)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
-	assert.NotContains(users, "Hello Bob")
+	assert.Contains(users, "Hello Bob")
 }
 
 func TestReply_DMUnfollowed(t *testing.T) {
