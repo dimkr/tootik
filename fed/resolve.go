@@ -22,11 +22,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/data"
-	"github.com/dimkr/tootik/httpsig"
-	"github.com/dimkr/tootik/lock"
 	"hash/crc32"
 	"io"
 	"log/slog"
@@ -36,6 +31,12 @@ import (
 	"path"
 	"strings"
 	"time"
+
+	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/lock"
 )
 
 type webFingerResponse struct {

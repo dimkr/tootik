@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,11 +18,12 @@ package plain
 
 import (
 	"fmt"
-	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/data"
 	"html"
 	"regexp"
 	"strings"
+
+	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/data"
 )
 
 var (

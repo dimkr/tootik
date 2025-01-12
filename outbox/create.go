@@ -23,10 +23,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/inbox/note"
-	"time"
 )
 
 const maxDeliveryQueueSize = 128

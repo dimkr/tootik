@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,11 +20,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/dimkr/tootik/ap"
 	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/dimkr/tootik/ap"
 )
 
 func (l *Listener) getCollection(w http.ResponseWriter, username string) {

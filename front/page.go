@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,9 +19,10 @@ package front
 import (
 	"database/sql"
 	"fmt"
-	"github.com/dimkr/tootik/front/text"
 	"net/url"
 	"strconv"
+
+	"github.com/dimkr/tootik/front/text"
 )
 
 func getOffset(requestUrl *url.URL) (int, error) {

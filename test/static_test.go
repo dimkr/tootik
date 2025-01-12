@@ -17,9 +17,10 @@ limitations under the License.
 package test
 
 import (
-	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHelpUnauthenticatedUser(t *testing.T) {

@@ -21,6 +21,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
+	"net/url"
+	"strings"
+	"time"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
@@ -28,10 +33,6 @@ import (
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/inbox/note"
 	"github.com/dimkr/tootik/outbox"
-	"log/slog"
-	"net/url"
-	"strings"
-	"time"
 )
 
 type Queue struct {

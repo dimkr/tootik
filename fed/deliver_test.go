@@ -20,15 +20,16 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"io"
+	"net/http"
+	"os"
+	"testing"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front/user"
 	"github.com/dimkr/tootik/migrations"
 	"github.com/stretchr/testify/assert"
-	"io"
-	"net/http"
-	"os"
-	"testing"
 )
 
 func TestDeliver_TwoUsersTwoPosts(t *testing.T) {

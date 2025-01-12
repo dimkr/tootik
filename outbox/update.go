@@ -22,10 +22,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"time"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	inote "github.com/dimkr/tootik/inbox/note"
-	"time"
 )
 
 // UpdateNote queues an Update activity for delivery.

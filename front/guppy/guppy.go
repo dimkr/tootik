@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,9 +21,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/front"
-	"github.com/dimkr/tootik/front/text/guppy"
 	"log/slog"
 	"math"
 	"math/rand/v2"
@@ -32,6 +29,10 @@ import (
 	"slices"
 	"sync"
 	"time"
+
+	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/front"
+	"github.com/dimkr/tootik/front/text/guppy"
 )
 
 type Listener struct {

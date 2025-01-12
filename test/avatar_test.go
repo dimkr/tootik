@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,11 +18,12 @@ package test
 
 import (
 	"fmt"
-	"github.com/dimkr/tootik/ap"
-	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/dimkr/tootik/ap"
+	"github.com/stretchr/testify/assert"
 )
 
 var avatar = []byte("\x47\x49\x46\x38\x37\x61\x10\x00\x10\x00\xf0\x00\x00\x00\x00\x00\xff\x00\x00\x2c\x00\x00\x00\x00\x10\x00\x10\x00\x00\x02\x1e\x8c\x8f\xa9\xab\xe0\x0f\x1d\x8a\x14\xcc\x0a\x2f\x96\x67\x3f\xbd\x81\x98\x58\x91\x94\x19\xa1\x59\xe7\x59\xcc\x0b\x2b\x05\x00\x3b")

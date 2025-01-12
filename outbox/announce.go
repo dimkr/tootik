@@ -21,8 +21,9 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"fmt"
-	"github.com/dimkr/tootik/ap"
 	"time"
+
+	"github.com/dimkr/tootik/ap"
 )
 
 // Announce queues an Announce activity for delivery.

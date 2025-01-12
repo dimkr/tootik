@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,10 +20,11 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/httpsig"
 	"net/http"
 	"time"
+
+	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/httpsig"
 )
 
 func (l *Listener) verify(r *http.Request, body []byte, flags ap.ResolverFlag) (*ap.Actor, error) {

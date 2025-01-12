@@ -23,10 +23,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/httpsig"
-	"github.com/dimkr/tootik/outbox"
 	"io"
 	"log/slog"
 	"net/http"
@@ -34,6 +30,11 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/outbox"
 )
 
 type partialFollowers map[string]map[string]string

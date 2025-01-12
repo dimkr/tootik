@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,10 +19,11 @@ package test
 import (
 	"context"
 	"fmt"
-	"github.com/dimkr/tootik/inbox"
-	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
+
+	"github.com/dimkr/tootik/inbox"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestUploadReply_PostToFollowers(t *testing.T) {

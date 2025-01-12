@@ -19,8 +19,9 @@ package gmi
 
 import (
 	"fmt"
-	"github.com/dimkr/tootik/front/text"
 	"io"
+
+	"github.com/dimkr/tootik/front/text"
 )
 
 type writer struct {

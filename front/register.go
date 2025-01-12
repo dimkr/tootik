@@ -19,10 +19,11 @@ package front
 import (
 	"crypto/tls"
 	"database/sql"
+	"time"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/user"
-	"time"
 )
 
 func (h *Handler) register(w text.Writer, r *Request, args ...string) {

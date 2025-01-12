@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,12 +20,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/dimkr/tootik/buildinfo"
-	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/lock"
 	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/dimkr/tootik/buildinfo"
+	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/lock"
 )
 
 const nodeInfoUpdateInterval = time.Hour * 6
