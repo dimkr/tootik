@@ -14,5 +14,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package fedtest contains complex tests that involve multiple servers.
-package fedtest
+// Package cluster contains complex tests that involve multiple servers.
+package cluster
