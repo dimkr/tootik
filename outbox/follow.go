@@ -18,11 +18,9 @@ package outbox
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/dimkr/tootik/ap"
 )
@@ -33,7 +31,10 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 		return fmt.Errorf("%s cannot follow %s", follower.ID, followed)
 	}
 
-	followID := fmt.Sprintf("https://%s/follow/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", follower.ID, followed, time.Now().UnixNano()))))
+	followID, err := NewID(domain, "follow")
+	if err != nil {
+		return err
+	}
 
 	to := ap.Audience{}
 	to.Add(followed)

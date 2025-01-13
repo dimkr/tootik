@@ -18,16 +18,19 @@ package outbox
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
 	"fmt"
-	"time"
 
 	"github.com/dimkr/tootik/ap"
 )
 
 // Accept queues an Accept activity for delivery.
 func Accept(ctx context.Context, domain string, followed, follower, followID string, db *sql.DB) error {
+	id, err := NewID(domain, "accept")
+	if err != nil {
+		return err
+	}
+
 	recipients := ap.Audience{}
 	recipients.Add(follower)
 
@@ -40,7 +43,7 @@ func Accept(ctx context.Context, domain string, followed, follower, followID str
 	accept := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		Type:    ap.Accept,
-		ID:      fmt.Sprintf("https://%s/accept/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", followed, follower, time.Now().UnixNano())))),
+		ID:      id,
 		Actor:   followed,
 		To:      recipients,
 		Object: &ap.Activity{
