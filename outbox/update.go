@@ -18,11 +18,9 @@ package outbox
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
@@ -31,7 +29,10 @@ import (
 
 // UpdateNote queues an Update activity for delivery.
 func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, note *ap.Object) error {
-	updateID := fmt.Sprintf("https://%s/update/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", note.ID, time.Now().UnixNano()))))
+	updateID, err := NewID(domain, "update")
+	if err != nil {
+		return err
+	}
 
 	update := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
@@ -116,7 +117,10 @@ func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB,
 
 // UpdateActor queues an Update activity for delivery.
 func UpdateActor(ctx context.Context, domain string, tx *sql.Tx, actorID string) error {
-	updateID := fmt.Sprintf("https://%s/update/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", actorID, time.Now().UnixNano()))))
+	updateID, err := NewID(domain, "update")
+	if err != nil {
+		return err
+	}
 
 	to := ap.Audience{}
 	to.Add(ap.Public)

@@ -18,7 +18,6 @@ package outbox
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
 	"fmt"
 	"log/slog"
@@ -133,9 +132,14 @@ func Move(ctx context.Context, db *sql.DB, domain string, from *ap.Actor, to str
 	aud := ap.Audience{}
 	aud.Add(from.Followers)
 
+	id, err := NewID(domain, "move")
+	if err != nil {
+		return err
+	}
+
 	move := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
-		ID:      fmt.Sprintf("https://%s/move/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", from.ID, to, now.UnixNano())))),
+		ID:      id,
 		Actor:   from.ID,
 		Type:    ap.Move,
 		Object:  from.ID,

@@ -17,7 +17,6 @@ limitations under the License.
 package front
 
 import (
-	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -84,7 +83,13 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 
 	var postID string
 	if oldNote == nil {
-		postID = fmt.Sprintf("https://%s/post/%x", h.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", r.User.ID, content, now.Unix()))))
+		var err error
+		postID, err = outbox.NewID(h.Domain, "post")
+		if err != nil {
+			r.Log.Error("Failed to generate post ID", "error", err)
+			w.Error()
+			return
+		}
 	} else {
 		postID = oldNote.ID
 	}

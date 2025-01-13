@@ -18,22 +18,23 @@ package outbox
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/dimkr/tootik/ap"
 )
 
-// Unfollow queues an Unfollow activity for delivery.
+// Unfollow queues an Undo activity for delivery.
 func Unfollow(ctx context.Context, domain string, db *sql.DB, follower, followed, followID string) error {
 	if followed == follower {
 		return fmt.Errorf("%s cannot unfollow %s", follower, followed)
 	}
 
-	undoID := fmt.Sprintf("https://%s/undo/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", follower, followed, time.Now().UnixNano()))))
+	undoID, err := NewID(domain, "undo")
+	if err != nil {
+		return err
+	}
 
 	to := ap.Audience{}
 	to.Add(followed)

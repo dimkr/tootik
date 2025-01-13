@@ -18,12 +18,10 @@ package outbox
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
@@ -36,6 +34,11 @@ var ErrDeliveryQueueFull = errors.New("delivery queue is full")
 
 // Create queues a Create activity for delivery.
 func Create(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, post *ap.Object, author *ap.Actor) error {
+	id, err := NewID(domain, "create")
+	if err != nil {
+		return err
+	}
+
 	var queueSize int
 	if err := db.QueryRowContext(ctx, `select count(distinct activity->'$.id') from outbox where sent = 0 and attempts < ?`, cfg.MaxDeliveryAttempts).Scan(&queueSize); err != nil {
 		return fmt.Errorf("failed to query delivery queue size: %w", err)
@@ -48,7 +51,7 @@ func Create(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, pos
 	create := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		Type:    ap.Create,
-		ID:      fmt.Sprintf("https://%s/create/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", post.ID, time.Now().Unix())))),
+		ID:      id,
 		Actor:   author.ID,
 		Object:  post,
 		To:      post.To,

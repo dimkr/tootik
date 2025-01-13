@@ -18,11 +18,9 @@ package outbox
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/dimkr/tootik/ap"
 )
@@ -34,12 +32,17 @@ func Undo(ctx context.Context, domain string, db *sql.DB, activity *ap.Activity)
 		return errors.New("cannot undo activity")
 	}
 
+	id, err := NewID(domain, "undo")
+	if err != nil {
+		return err
+	}
+
 	to := activity.To
 	to.Add(ap.Public)
 
 	undo := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
-		ID:      fmt.Sprintf("https://%s/undo/%x", domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%d", activity.ID, time.Now().UnixNano())))),
+		ID:      id,
 		Type:    ap.Undo,
 		Actor:   activity.Actor,
 		To:      to,
