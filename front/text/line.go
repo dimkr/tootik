@@ -124,7 +124,7 @@ func LineBuffered(inner io.Writer) *LineWriter {
 			}
 		}
 
-		w.stop(nil)
+		w.done <- nil
 	}()
 
 	return w
