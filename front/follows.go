@@ -34,35 +34,31 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 	rows, err := h.DB.QueryContext(
 		r.Context,
 		`
-		select persons.actor, g.ninserted/(24*60*60) from
+		select persons.actor, g.inserted/(24*60*60) from
+		follows
+		left join
 		(
-			select followed, max(ninserted) as ninserted, max(finserted) as finserted from
+			select followed, max(inserted) as inserted from
 			(
-				select follows.followed, feed.inserted as ninserted, follows.inserted as finserted from
-				follows
-				join feed
-				on
-					feed.author->>'$.id' = follows.followed or
-					feed.sharer->>'$.id' = follows.followed
+				select coalesce(sharer->>'$.id', author->>'$.id') as followed, inserted
+				from feed
 				where
-					follows.follower = $1 and
-					feed.follower = $1 and
-					feed.inserted >= unixepoch() - 7*24*60*60
-				union all
-				select follows.followed, null as ninserted, follows.inserted as finserted from
-				follows
-				where
-					follows.follower = $1
+					follower = $1 and
+					inserted >= unixepoch() - 7*24*60*60
 			)
 			group by followed
 		) g
+		on
+			g.followed = follows.followed
 		join persons
 		on
-			persons.id = g.followed
+			persons.id = follows.followed
+		where
+			follows.follower = $1
 		order by
-			g.ninserted/(24*60*60) desc,
-			g.ninserted desc,
-			g.finserted desc
+			g.inserted/(24*60*60) desc,
+			g.inserted desc,
+			follows.inserted desc
 		`,
 		r.User.ID,
 	)
