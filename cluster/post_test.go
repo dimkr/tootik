@@ -26,24 +26,24 @@ import (
 )
 
 func TestCluster_PublicPost(t *testing.T) {
-	f := NewFediverse(t, "a.localdomain", "b.localdomain")
-	defer f.Stop()
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
+	defer cluster.Stop()
 
-	alice := f["a.localdomain"].Register(aliceKeypair).OK()
-	bob := f["a.localdomain"].Register(bobKeypair).OK()
-	carol := f["b.localdomain"].Register(carolKeypair).OK()
+	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	bob := cluster["a.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["b.localdomain"].Register(carolKeypair).OK()
 
 	alice.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
 		Follow("⚡ Follow carol").
 		OK()
-	f.Settle()
+	cluster.Settle()
 
 	post := carol.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "hello").
 		Contains(Line{Type: Quote, Text: "hello"})
-	f.Settle()
+	cluster.Settle()
 
 	alice = alice.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
@@ -54,7 +54,7 @@ func TestCluster_PublicPost(t *testing.T) {
 
 	post.FollowInput("🩹 Edit", "hola").
 		Contains(Line{Type: Quote, Text: "hola"})
-	f.Settle()
+	cluster.Settle()
 
 	alice.
 		Refresh().
@@ -64,7 +64,7 @@ func TestCluster_PublicPost(t *testing.T) {
 		Contains(Line{Type: Quote, Text: "hola"})
 
 	post.Follow("💣 Delete").OK()
-	f.Settle()
+	cluster.Settle()
 
 	alice.
 		Refresh().
@@ -75,24 +75,24 @@ func TestCluster_PublicPost(t *testing.T) {
 }
 
 func TestCluster_PostToFollowers(t *testing.T) {
-	f := NewFediverse(t, "a.localdomain", "b.localdomain")
-	defer f.Stop()
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
+	defer cluster.Stop()
 
-	alice := f["a.localdomain"].Register(aliceKeypair).OK()
-	bob := f["a.localdomain"].Register(bobKeypair).OK()
-	carol := f["b.localdomain"].Register(carolKeypair).OK()
+	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	bob := cluster["a.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["b.localdomain"].Register(carolKeypair).OK()
 
 	alice.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
 		Follow("⚡ Follow carol").
 		OK()
-	f.Settle()
+	cluster.Settle()
 
 	post := carol.
 		Follow("📣 New post").
 		FollowInput("🔔 Your followers and mentioned users", "hello").
 		Contains(Line{Type: Quote, Text: "hello"})
-	f.Settle()
+	cluster.Settle()
 
 	alice = alice.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
@@ -103,7 +103,7 @@ func TestCluster_PostToFollowers(t *testing.T) {
 		NotContains(Line{Type: Quote, Text: "hello"})
 
 	post.FollowInput("🩹 Edit", "hola").OK()
-	f.Settle()
+	cluster.Settle()
 
 	alice.Refresh().
 		Contains(Line{Type: Quote, Text: "hola"})
@@ -111,7 +111,7 @@ func TestCluster_PostToFollowers(t *testing.T) {
 		NotContains(Line{Type: Quote, Text: "hola"})
 
 	post.Follow("💣 Delete").OK()
-	f.Settle()
+	cluster.Settle()
 
 	alice.Refresh().
 		NotContains(Line{Type: Quote, Text: "hola"})
@@ -120,19 +120,19 @@ func TestCluster_PostToFollowers(t *testing.T) {
 }
 
 func TestCluster_DM(t *testing.T) {
-	f := NewFediverse(t, "a.localdomain", "b.localdomain")
-	defer f.Stop()
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
+	defer cluster.Stop()
 
-	alice := f["a.localdomain"].Register(aliceKeypair).OK()
-	bob := f["a.localdomain"].Register(bobKeypair).OK()
-	carol := f["b.localdomain"].Register(carolKeypair).OK()
+	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	bob := cluster["a.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["b.localdomain"].Register(carolKeypair).OK()
 
 	post := carol.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
 		Follow("📣 New post").
 		FollowInput("💌 Mentioned users only", "@alice@a.localdomain hello").
 		Contains(Line{Type: Quote, Text: "@alice@a.localdomain hello"})
-	f.Settle()
+	cluster.Settle()
 
 	alice = alice.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
@@ -142,7 +142,7 @@ func TestCluster_DM(t *testing.T) {
 		NotContains(Line{Type: Quote, Text: "@alice@a.localdomain hello"})
 
 	post.FollowInput("🩹 Edit", "hola").OK()
-	f.Settle()
+	cluster.Settle()
 
 	alice.Refresh().
 		Contains(Line{Type: Quote, Text: "hola"})
@@ -150,7 +150,7 @@ func TestCluster_DM(t *testing.T) {
 		NotContains(Line{Type: Quote, Text: "hola"})
 
 	post.Follow("💣 Delete").OK()
-	f.Settle()
+	cluster.Settle()
 
 	alice.Refresh().
 		NotContains(Line{Type: Quote, Text: "hola"})
@@ -159,16 +159,16 @@ func TestCluster_DM(t *testing.T) {
 }
 
 func TestCluster_PostInCommunity(t *testing.T) {
-	f := NewFediverse(t, "a.localdomain", "b.localdomain", "g.localdomain")
-	defer f.Stop()
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "g.localdomain")
+	defer cluster.Stop()
 
-	if _, _, err := user.Create(context.Background(), "g.localdomain", f["g.localdomain"].DB, "stuff", ap.Group, nil); err != nil {
+	if _, _, err := user.Create(context.Background(), "g.localdomain", cluster["g.localdomain"].DB, "stuff", ap.Group, nil); err != nil {
 		t.Fatal("Failed to create community")
 	}
 
-	alice := f["a.localdomain"].Register(aliceKeypair).OK()
-	bob := f["a.localdomain"].Register(bobKeypair).OK()
-	carol := f["b.localdomain"].Register(carolKeypair).OK()
+	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	bob := cluster["a.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["b.localdomain"].Register(carolKeypair).OK()
 
 	alice = alice.
 		FollowInput("🔭 View profile", "stuff@g.localdomain").
@@ -179,13 +179,13 @@ func TestCluster_PostInCommunity(t *testing.T) {
 		FollowInput("🔭 View profile", "stuff@g.localdomain").
 		Follow("⚡ Follow stuff").
 		OK()
-	f.Settle()
+	cluster.Settle()
 
 	post := carol.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "@stuff@g.localdomain hello").
 		Contains(Line{Type: Quote, Text: "@stuff@g.localdomain hello"})
-	f.Settle()
+	cluster.Settle()
 
 	alice.
 		Refresh().
@@ -198,7 +198,7 @@ func TestCluster_PostInCommunity(t *testing.T) {
 		Contains(Line{Type: Quote, Text: "@stuff@g.localdomain hello"})
 
 	post.FollowInput("🩹 Edit", "hola").OK()
-	f.Settle()
+	cluster.Settle()
 
 	alice.
 		Refresh().
@@ -211,7 +211,7 @@ func TestCluster_PostInCommunity(t *testing.T) {
 		Contains(Line{Type: Quote, Text: "hola"})
 
 	post.Follow("💣 Delete").OK()
-	f.Settle()
+	cluster.Settle()
 
 	alice.
 		Refresh().
@@ -225,16 +225,16 @@ func TestCluster_PostInCommunity(t *testing.T) {
 }
 
 func TestCluster_ReplyInCommunity(t *testing.T) {
-	f := NewFediverse(t, "a.localdomain", "b.localdomain", "g.localdomain")
-	defer f.Stop()
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "g.localdomain")
+	defer cluster.Stop()
 
-	if _, _, err := user.Create(context.Background(), "g.localdomain", f["g.localdomain"].DB, "stuff", ap.Group, nil); err != nil {
+	if _, _, err := user.Create(context.Background(), "g.localdomain", cluster["g.localdomain"].DB, "stuff", ap.Group, nil); err != nil {
 		t.Fatal("Failed to create community")
 	}
 
-	alice := f["a.localdomain"].Register(aliceKeypair).OK()
-	bob := f["a.localdomain"].Register(bobKeypair).OK()
-	carol := f["b.localdomain"].Register(carolKeypair).OK()
+	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	bob := cluster["a.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["b.localdomain"].Register(carolKeypair).OK()
 
 	alice.
 		FollowInput("🔭 View profile", "stuff@g.localdomain").
@@ -245,18 +245,18 @@ func TestCluster_ReplyInCommunity(t *testing.T) {
 		FollowInput("🔭 View profile", "stuff@g.localdomain").
 		Follow("⚡ Follow stuff").
 		OK()
-	f.Settle()
+	cluster.Settle()
 
 	post := carol.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "@stuff@g.localdomain hello").
 		Contains(Line{Type: Quote, Text: "@stuff@g.localdomain hello"})
-	f.Settle()
+	cluster.Settle()
 
 	reply := alice.
 		GotoInput(post.Links["💬 Reply"], "hi").
 		Contains(Line{Type: Quote, Text: "hi"})
-	f.Settle()
+	cluster.Settle()
 
 	alice.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
@@ -269,7 +269,7 @@ func TestCluster_ReplyInCommunity(t *testing.T) {
 		Contains(Line{Type: Quote, Text: "hi"})
 
 	reply.FollowInput("🩹 Edit", "hola").OK()
-	f.Settle()
+	cluster.Settle()
 
 	alice.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
@@ -282,7 +282,7 @@ func TestCluster_ReplyInCommunity(t *testing.T) {
 		Contains(Line{Type: Quote, Text: "hola"})
 
 	reply.Follow("💣 Delete").OK()
-	f.Settle()
+	cluster.Settle()
 
 	alice.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
@@ -296,12 +296,12 @@ func TestCluster_ReplyInCommunity(t *testing.T) {
 }
 
 func TestCluster_ReplyForwarding(t *testing.T) {
-	f := NewFediverse(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer f.Stop()
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
 
-	bob := f["a.localdomain"].Register(bobKeypair).OK()
-	alice := f["b.localdomain"].Register(aliceKeypair).OK()
-	carol := f["c.localdomain"].Register(carolKeypair).OK()
+	bob := cluster["a.localdomain"].Register(bobKeypair).OK()
+	alice := cluster["b.localdomain"].Register(aliceKeypair).OK()
+	carol := cluster["c.localdomain"].Register(carolKeypair).OK()
 
 	alice.
 		FollowInput("🔭 View profile", "bob@a.localdomain").
@@ -311,17 +311,17 @@ func TestCluster_ReplyForwarding(t *testing.T) {
 		FollowInput("🔭 View profile", "bob@a.localdomain").
 		Follow("⚡ Follow bob").
 		OK()
-	f.Settle()
+	cluster.Settle()
 
 	post := bob.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "hello").
 		OK()
-	f.Settle()
+	cluster.Settle()
 
 	reply := alice.GotoInput(post.Links["💬 Reply"], "hi").
 		Contains(Line{Type: Quote, Text: "hi"})
-	f.Settle()
+	cluster.Settle()
 
 	bob = bob.
 		FollowInput("🔭 View profile", "alice@b.localdomain").
@@ -334,7 +334,7 @@ func TestCluster_ReplyForwarding(t *testing.T) {
 		Contains(Line{Type: Quote, Text: "hi"})
 
 	reply.FollowInput("🩹 Edit", "hola").OK()
-	f.Settle()
+	cluster.Settle()
 
 	bob.
 		Refresh().
@@ -347,7 +347,7 @@ func TestCluster_ReplyForwarding(t *testing.T) {
 		Contains(Line{Type: Quote, Text: "hola"})
 
 	reply.Follow("💣 Delete").OK()
-	f.Settle()
+	cluster.Settle()
 
 	bob.
 		Refresh().
@@ -361,12 +361,12 @@ func TestCluster_ReplyForwarding(t *testing.T) {
 }
 
 func TestCluster_ShareUnshare(t *testing.T) {
-	f := NewFediverse(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer f.Stop()
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
 
-	alice := f["a.localdomain"].Register(aliceKeypair).OK()
-	bob := f["b.localdomain"].Register(bobKeypair).OK()
-	carol := f["c.localdomain"].Register(carolKeypair).OK()
+	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["c.localdomain"].Register(carolKeypair).OK()
 
 	alice = alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
@@ -380,18 +380,18 @@ func TestCluster_ShareUnshare(t *testing.T) {
 		FollowInput("🔭 View profile", "alice@a.localdomain").
 		Follow("⚡ Follow alice").
 		OK()
-	f.Settle()
+	cluster.Settle()
 
 	post := bob.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "hello").
 		OK()
-	f.Settle()
+	cluster.Settle()
 
 	share := alice.Goto(post.Path).
 		Follow("🔁 Share").
 		OK()
-	f.Settle()
+	cluster.Settle()
 
 	bob = bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
@@ -404,7 +404,7 @@ func TestCluster_ShareUnshare(t *testing.T) {
 		Contains(Line{Type: Quote, Text: "hello"})
 
 	share.Follow("🔄️ Unshare").OK()
-	f.Settle()
+	cluster.Settle()
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
@@ -418,12 +418,12 @@ func TestCluster_ShareUnshare(t *testing.T) {
 }
 
 func TestCluster_Poll(t *testing.T) {
-	f := NewFediverse(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer f.Stop()
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
 
-	alice := f["a.localdomain"].Register(aliceKeypair).OK()
-	bob := f["b.localdomain"].Register(bobKeypair).OK()
-	carol := f["c.localdomain"].Register(carolKeypair).OK()
+	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["c.localdomain"].Register(carolKeypair).OK()
 
 	alice = alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
@@ -433,13 +433,13 @@ func TestCluster_Poll(t *testing.T) {
 		FollowInput("🔭 View profile", "bob@b.localdomain").
 		Follow("⚡ Follow bob").
 		OK()
-	f.Settle()
+	cluster.Settle()
 
 	poll := bob.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "[POLL Favorite color] Gray | Orange").
 		OK()
-	f.Settle()
+	cluster.Settle()
 
 	bob = poll.Follow("📮 Vote Orange").OK()
 	alice = alice.
@@ -448,17 +448,17 @@ func TestCluster_Poll(t *testing.T) {
 	carol = carol.
 		Goto(poll.Links["📮 Vote Gray"]).
 		OK()
-	f.Settle()
+	cluster.Settle()
 
 	poller := outbox.Poller{
 		Domain: "b.localdomain",
-		DB:     f["b.localdomain"].DB,
-		Config: f["b.localdomain"].Config,
+		DB:     cluster["b.localdomain"].DB,
+		Config: cluster["b.localdomain"].Config,
 	}
 	if err := poller.Run(context.Background()); err != nil {
 		t.Fatalf("Failed to process votes: %v", err)
 	}
-	f.Settle()
+	cluster.Settle()
 
 	bob.
 		Goto(poll.Path).
@@ -474,11 +474,11 @@ func TestCluster_Poll(t *testing.T) {
 		Contains(Line{Type: Preformatted, Text: "1 ████     Orange"})
 
 	alice.Follow("💣 Delete").OK()
-	f.Settle()
+	cluster.Settle()
 	if err := poller.Run(context.Background()); err != nil {
 		t.Fatalf("Failed to process votes: %v", err)
 	}
-	f.Settle()
+	cluster.Settle()
 
 	bob.
 		Goto(poll.Path).
@@ -494,11 +494,11 @@ func TestCluster_Poll(t *testing.T) {
 		Contains(Line{Type: Preformatted, Text: "1 ████████ Orange"})
 
 	carol.Follow("💣 Delete").OK()
-	f.Settle()
+	cluster.Settle()
 	if err := poller.Run(context.Background()); err != nil {
 		t.Fatalf("Failed to process votes: %v", err)
 	}
-	f.Settle()
+	cluster.Settle()
 
 	bob.
 		Goto(poll.Path).
@@ -516,11 +516,11 @@ func TestCluster_Poll(t *testing.T) {
 	bob.
 		Follow("💣 Delete").
 		OK()
-	f.Settle()
+	cluster.Settle()
 	if err := poller.Run(context.Background()); err != nil {
 		t.Fatalf("Failed to process votes: %v", err)
 	}
-	f.Settle()
+	cluster.Settle()
 
 	bob.
 		Goto(poll.Path).

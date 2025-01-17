@@ -16,3 +16,56 @@ limitations under the License.
 
 // Package cluster contains complex tests that involve multiple servers.
 package cluster
+
+import (
+	"context"
+	"testing"
+)
+
+// Cluster represents a collection of servers that talk to each other.
+type Cluster Client
+
+// NewCluster creates a collection of servers that talk to each other.
+func NewCluster(t *testing.T, domain ...string) Cluster {
+	t.Parallel()
+
+	f := Client{}
+
+	for _, d := range domain {
+		f[d] = NewServer(context.Background(), t, d, f)
+	}
+
+	return Cluster(f)
+}
+
+// Settle waits until all servers are done processing queued activities, both incoming and outgoing.
+func (f Cluster) Settle() {
+	for {
+		again := false
+
+		for d, server := range f {
+			if n, err := server.Incoming.ProcessBatch(context.Background()); err != nil {
+				server.Test.Fatalf("Failed to process incoming queue on %s: %v", d, err)
+			} else if n > 0 {
+				again = true
+			}
+
+			if n, err := server.Outgoing.ProcessBatch(context.Background()); err != nil {
+				server.Test.Fatalf("Failed to process outgoing queue on %s: %v", d, err)
+			} else if n > 0 {
+				again = true
+			}
+		}
+
+		if !again {
+			break
+		}
+	}
+}
+
+// Stop stops all servers in the cluster.
+func (f Cluster) Stop() {
+	for _, s := range f {
+		s.Stop()
+	}
+}

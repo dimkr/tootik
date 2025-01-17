@@ -24,18 +24,18 @@ import (
 )
 
 func TestCluster_MovedAccount(t *testing.T) {
-	f := NewFediverse(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer f.Stop()
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
 
-	alice := f["a.localdomain"].Register(aliceKeypair).OK()
-	bob := f["b.localdomain"].Register(bobKeypair).OK()
-	carol := f["c.localdomain"].Register(carolKeypair).OK()
+	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["c.localdomain"].Register(carolKeypair).OK()
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
 		Follow("⚡ Follow alice").
 		OK()
-	f.Settle()
+	cluster.Settle()
 
 	alice.
 		Follow("⚙️ Settings").
@@ -50,20 +50,20 @@ func TestCluster_MovedAccount(t *testing.T) {
 		Follow("⚙️ Settings").
 		FollowInput("📦 Move account", "carol@c.localdomain").
 		OK()
-	f.Settle()
+	cluster.Settle()
 
 	bob.FollowInput("🔭 View profile", "carol@c.localdomain").OK()
 
 	mover := outbox.Mover{
 		Domain:   "b.localdomain",
-		DB:       f["b.localdomain"].DB,
-		Resolver: f["b.localdomain"].Resolver,
-		Key:      f["b.localdomain"].NobodyKey,
+		DB:       cluster["b.localdomain"].DB,
+		Resolver: cluster["b.localdomain"].Resolver,
+		Key:      cluster["b.localdomain"].NobodyKey,
 	}
 	if err := mover.Run(context.Background()); err != nil {
 		t.Fatalf("Failed to process moved accounts: %v", err)
 	}
-	f.Settle()
+	cluster.Settle()
 
 	bob.
 		Follow("⚡️ Followed users").
@@ -73,7 +73,7 @@ func TestCluster_MovedAccount(t *testing.T) {
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "hello").
 		Contains(Line{Type: Quote, Text: "hello"})
-	f.Settle()
+	cluster.Settle()
 
 	bob.
 		FollowInput("🔭 View profile", "carol@c.localdomain").
