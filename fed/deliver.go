@@ -88,7 +88,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 	rows, err := q.DB.QueryContext(
 		ctx,
-		`select outbox.attempts, outbox.activity, outbox.activity, outbox.inserted, persons.actor, persons.privkey from
+		`select outbox.attempts, outbox.activity, outbox.activity, persons.actor, persons.privkey from
 		outbox
 		join persons
 		on
@@ -150,13 +150,11 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		var activity ap.Activity
 		var rawActivity, privKeyPem string
 		var actor ap.Actor
-		var inserted int64
 		var deliveryAttempts int
 		if err := rows.Scan(
 			&deliveryAttempts,
 			&activity,
 			&rawActivity,
-			&inserted,
 			&actor,
 			&privKeyPem,
 		); err != nil {
@@ -197,7 +195,6 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			job,
 			[]byte(rawActivity),
 			httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey},
-			time.Unix(inserted, 0),
 			&followers,
 			tasks,
 			events,
@@ -313,7 +310,6 @@ func (q *Queue) queueTasks(
 	job deliveryJob,
 	rawActivity []byte,
 	key httpsig.Key,
-	inserted time.Time,
 	followers *partialFollowers,
 	tasks []chan deliveryTask,
 	events chan<- deliveryEvent,
