@@ -20,6 +20,8 @@ package cluster
 import (
 	"context"
 	"testing"
+
+	"github.com/dimkr/tootik/inbox"
 )
 
 // Cluster represents a collection of servers that talk to each other.
@@ -29,21 +31,21 @@ type Cluster Client
 func NewCluster(t *testing.T, domain ...string) Cluster {
 	t.Parallel()
 
-	f := Client{}
+	c := Client{}
 
 	for _, d := range domain {
-		f[d] = NewServer(context.Background(), t, d, f)
+		c[d] = NewServer(context.Background(), t, d, c)
 	}
 
-	return Cluster(f)
+	return Cluster(c)
 }
 
 // Settle waits until all servers are done processing queued activities, both incoming and outgoing.
-func (f Cluster) Settle() {
+func (c Cluster) Settle() {
 	for {
 		again := false
 
-		for d, server := range f {
+		for d, server := range c {
 			if n, err := server.Incoming.ProcessBatch(context.Background()); err != nil {
 				server.Test.Fatalf("Failed to process incoming queue on %s: %v", d, err)
 			} else if n > 0 {
@@ -61,11 +63,17 @@ func (f Cluster) Settle() {
 			break
 		}
 	}
+
+	for d, server := range c {
+		if err := (inbox.FeedUpdater{Domain: d, Config: server.Config, DB: server.DB}).Run(context.Background()); err != nil {
+			server.Test.Fatalf("Failed to update feeds on %s: %v", d, err)
+		}
+	}
 }
 
 // Stop stops all servers in the cluster.
-func (f Cluster) Stop() {
-	for _, s := range f {
+func (c Cluster) Stop() {
+	for _, s := range c {
 		s.Stop()
 	}
 }
