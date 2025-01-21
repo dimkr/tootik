@@ -161,6 +161,9 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 	} else if err == nil && r.User == nil && r.URL.Path == "/users" {
 		w.Status(60, "Client certificate required")
 		return
+	} else if r.User == nil && gl.Config.RequireRegistration && r.URL.Path != "/" && r.URL.Path != "/help" && r.URL.Path != "/users/register" {
+		w.Status(40, "Must register first")
+		return
 	}
 
 	if r.User == nil {
