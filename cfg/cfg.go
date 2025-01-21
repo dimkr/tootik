@@ -27,6 +27,7 @@ import (
 type Config struct {
 	DatabaseOptions string
 
+	RequireRegistration        bool
 	RegistrationInterval       time.Duration
 	CertificateApprovalTimeout time.Duration
 	UserNameRegex              string
