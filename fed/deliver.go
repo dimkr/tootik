@@ -44,8 +44,9 @@ type Queue struct {
 }
 
 type deliveryJob struct {
-	Activity *ap.Activity
-	Sender   *ap.Actor
+	Activity    *ap.Activity
+	RawActivity string
+	Sender      *ap.Actor
 }
 
 type deliveryTask struct {
@@ -182,8 +183,9 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		}
 
 		job := deliveryJob{
-			Activity: &activity,
-			Sender:   &actor,
+			Activity:    &activity,
+			RawActivity: rawActivity,
+			Sender:      &actor,
 		}
 
 		// notify about the new job and mark it as successful until a worker notifies otherwise
@@ -193,7 +195,6 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		if err := q.queueTasks(
 			ctx,
 			job,
-			[]byte(rawActivity),
 			httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey},
 			&followers,
 			tasks,
@@ -308,7 +309,6 @@ func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, event
 func (q *Queue) queueTasks(
 	ctx context.Context,
 	job deliveryJob,
-	rawActivity []byte,
 	key httpsig.Key,
 	followers *partialFollowers,
 	tasks []chan deliveryTask,
@@ -371,7 +371,7 @@ func (q *Queue) queueTasks(
 		author = obj.AttributedTo
 	}
 
-	contentLength := strconv.Itoa(len(rawActivity))
+	contentLength := strconv.Itoa(len(job.RawActivity))
 
 	for actorID := range actorIDs.Keys() {
 		if actorID == author || actorID == ap.Public {
@@ -397,7 +397,7 @@ func (q *Queue) queueTasks(
 			}
 		}
 
-		req, err := http.NewRequest(http.MethodPost, inbox, bytes.NewReader(rawActivity))
+		req, err := http.NewRequest(http.MethodPost, inbox, bytes.NewReader([]byte(job.RawActivity)))
 		if err != nil {
 			slog.Warn("Failed to create new request", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
 			events <- deliveryEvent{job, false}
