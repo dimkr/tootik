@@ -97,7 +97,7 @@ func LineBuffered(inner io.Writer) *LineWriter {
 					buf = buf[i+1:]
 				}
 
-				// flush if we havea lines waiting for >=$flushInterval in the buffer
+				// flush if we have lines waiting for >=$flushInterval in the buffer
 			case <-t.C:
 				buf := w.buffer.Bytes()
 

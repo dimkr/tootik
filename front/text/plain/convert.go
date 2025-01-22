@@ -134,7 +134,7 @@ func ToHTML(text string, tags []ap.Tag) string {
 			break
 		}
 		b.WriteString(text[:loc[0]])
-		b.WriteString(fmt.Sprintf(`<a href="%s" target="_blank">%s</a>`, text[loc[0]:loc[1]], text[loc[0]:loc[1]]))
+		b.WriteString(fmt.Sprintf(`<a href="%s" target="_blank" rel="nofollow noopener noreferrer">%s</a>`, text[loc[0]:loc[1]], text[loc[0]:loc[1]]))
 		text = text[loc[1]:]
 		foundLink = true
 	}
@@ -157,7 +157,7 @@ func ToHTML(text string, tags []ap.Tag) string {
 				}
 				b.WriteString(text[:loc[0]])
 				if text[loc[0]:loc[1]] == tag.Name {
-					b.WriteString(fmt.Sprintf(`<a href="%s" rel="nofollow noopener noreferrer">%s</a>`, tag.Href, text[loc[0]:loc[1]]))
+					b.WriteString(fmt.Sprintf(`<span class="h-card" translate="no"><a href="%s" class="u-url mention">%s</a></span>`, tag.Href, text[loc[0]:loc[1]]))
 					text = text[loc[1]:]
 					break
 				}

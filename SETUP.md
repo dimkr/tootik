@@ -192,6 +192,14 @@ systemctl daemon-reload
 systemctl restart tootik
 ```
 
+For example, to restrict access to registered users:
+
+```
+jq '.RequireRegistration = true' /tootik-cfg/cfg.json > /tmp/cfg.json
+mv -f /tmp/cfg.json /tootik-cfg/cfg.json
+systemctl restart tootik
+```
+
 To update and restart tootik:
 
 ```
