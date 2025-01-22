@@ -31,9 +31,17 @@ import (
 )
 
 func (l *Listener) getActivityOrigin(activity *ap.Activity, sender *ap.Actor) (string, bool, error) {
+	if activity.ID == "" {
+		return "", false, errors.New("unspecified activity ID")
+	}
+
 	activityUrl, err := url.Parse(activity.ID)
 	if err != nil {
 		return "", false, err
+	}
+
+	if sender.ID == "" {
+		return "", false, errors.New("unspecified sender ID")
 	}
 
 	senderUrl, err := url.Parse(sender.ID)
@@ -55,6 +63,10 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 
 	slog.Debug("Validating activity origin", "activity", activity.ID, "type", activity.Type, "origin", origin, "depth", depth)
 
+	if activity.ID == "" {
+		return errors.New("unspecified activity ID")
+	}
+
 	activityUrl, err := url.Parse(activity.ID)
 	if err != nil {
 		return err
@@ -62,6 +74,10 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 
 	if activityUrl.Host != origin {
 		return fmt.Errorf("invalid activity host: %s", activityUrl.Host)
+	}
+
+	if activity.Actor == "" {
+		return errors.New("unspecified actor")
 	}
 
 	actorUrl, err := url.Parse(activity.Actor)
@@ -289,6 +305,15 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 	for queued.Type == ap.Announce {
 		if inner, ok := queued.Object.(*ap.Activity); ok {
 			queued = inner
+		} else if o, ok := queued.Object.(*ap.Object); ok {
+			slog.Debug("Wrapping object with Update activity", "activity", activity.ID, "sender", sender.ID, "object", o.ID)
+
+			queued = &ap.Activity{
+				ID:     o.ID,
+				Type:   ap.Update,
+				Actor:  o.AttributedTo,
+				Object: o,
+			}
 		} else {
 			break
 		}
