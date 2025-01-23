@@ -99,6 +99,12 @@ func (gl *Listener) handle(ctx context.Context, conn net.Conn) {
 
 // ListenAndServe handles Gopher requests.
 func (gl *Listener) ListenAndServe(ctx context.Context) error {
+	if gl.Config.RequireRegistration {
+		slog.Warn("Disabling the Gopher listener because registration is required")
+		<-ctx.Done()
+		return nil
+	}
+
 	l, err := net.Listen("tcp", gl.Addr)
 	if err != nil {
 		return err

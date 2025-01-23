@@ -183,6 +183,12 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn) {
 
 // ListenAndServe handles Finger queries.
 func (fl *Listener) ListenAndServe(ctx context.Context) error {
+	if fl.Config.RequireRegistration {
+		slog.Warn("Disabling the Finger listener because registration is required")
+		<-ctx.Done()
+		return nil
+	}
+
 	l, err := net.Listen("tcp", fl.Addr)
 	if err != nil {
 		return err
