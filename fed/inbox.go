@@ -315,6 +315,8 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 				Actor:  o.AttributedTo,
 				Object: o,
 			}
+
+			break
 		} else {
 			break
 		}
