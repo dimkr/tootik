@@ -56,9 +56,7 @@ func FromHTML(text string) (string, data.OrderedMap[string, string]) {
 
 	res = invisibleSpanTags.ReplaceAllLiteralString(res, "")
 
-	res = ellipsisSpanTags.ReplaceAllStringFunc(res, func(s string) string {
-		return s + "…"
-	})
+	res = ellipsisSpanTags.ReplaceAllString(res, "${0}…")
 
 	res = spanTags.ReplaceAllLiteralString(res, "")
 
