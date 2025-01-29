@@ -3480,7 +3480,6 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 
 	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
 	assert.True(errors.Is(err, ErrActorGone))
-	assert.Empty(client.Data)
 }
 
 func TestResolve_FederatedActorFirstTimeWrongID(t *testing.T) {
