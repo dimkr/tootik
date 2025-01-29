@@ -30,6 +30,15 @@ import (
 	"github.com/dimkr/tootik/ap"
 )
 
+var unsupportedActivityTypes = map[ap.ActivityType]struct{}{
+	ap.Like:       {},
+	ap.Dislike:    {},
+	ap.EmojiReact: {},
+	ap.Add:        {},
+	ap.Remove:     {},
+	ap.Move:       {},
+}
+
 func (l *Listener) getActivityOrigin(activity *ap.Activity, sender *ap.Actor) (string, bool, error) {
 	if activity.ID == "" {
 		return "", false, errors.New("unspecified activity ID")
@@ -61,7 +70,7 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 		return errors.New("invalid origin")
 	}
 
-	slog.Debug("Validating activity origin", "activity", activity.ID, "type", activity.Type, "origin", origin, "depth", depth)
+	slog.Debug("Validating activity origin", "activity", activity, "origin", origin, "depth", depth)
 
 	if activity.ID == "" {
 		return errors.New("unspecified activity ID")
@@ -86,7 +95,7 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 	}
 
 	if actorUrl.Host != origin {
-		return fmt.Errorf("invalid actor host: %s", activityUrl.Host)
+		return fmt.Errorf("invalid actor host: %s", actorUrl.Host)
 	}
 
 	switch activity.Type {
@@ -277,9 +286,9 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if errors.Is(err, ErrBlockedDomain) {
-			slog.Debug("Failed to verify activity", "activity", activity.ID, "type", activity.Type, "error", err)
+			slog.Debug("Failed to verify activity", "activity", &activity, "error", err)
 		} else {
-			slog.Warn("Failed to verify activity", "activity", activity.ID, "type", activity.Type, "error", err)
+			slog.Warn("Failed to verify activity", "activity", &activity, "error", err)
 		}
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -305,8 +314,8 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 	for queued.Type == ap.Announce {
 		if inner, ok := queued.Object.(*ap.Activity); ok {
 			queued = inner
-		} else if o, ok := queued.Object.(*ap.Object); ok {
-			slog.Debug("Wrapping object with Update activity", "activity", activity.ID, "sender", sender.ID, "object", o.ID)
+		} else if o, ok := queued.Object.(*ap.Object); ok && o.Type == ap.Page {
+			slog.Debug("Wrapping object with Update activity", "activity", &activity, "sender", sender.ID, "object", o.ID)
 
 			// hack for Lemmy: wrap a Page inside Announce with Update
 			queued = &ap.Activity{
@@ -322,24 +331,30 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if _, ok := unsupportedActivityTypes[queued.Type]; ok {
+		slog.Debug("Ignoring unsupported activity", "activity", &activity, "sender", sender.ID)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	/*
 		if an activity wasn't sent by an actor on the same server, we must fetch the activity from its origin instead
 		of trusting the sender to pass it as-is
 	*/
 	origin, forwarded, err := l.getActivityOrigin(queued, sender)
 	if err != nil {
-		slog.Warn("Failed to determine whether or not activity is forwarded", "activity", activity.ID, "sender", sender.ID, "error", err)
+		slog.Warn("Failed to determine whether or not activity is forwarded", "activity", &activity, "sender", sender.ID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	/* if we don't support this activity or it's invalid, we don't want to fetch it (we validate again later) */
 	if err := l.validateActivity(queued, origin, 0); errors.Is(err, ap.ErrUnsupportedActivity) {
-		slog.Debug("Activity is unsupported", "activity", activity.ID, "sender", sender.ID, "error", err)
+		slog.Debug("Activity is unsupported", "activity", &activity, "sender", sender.ID, "error", err)
 		w.WriteHeader(http.StatusOK)
 		return
 	} else if err != nil {
-		slog.Warn("Activity is invalid", "activity", activity.ID, "sender", sender.ID, "error", err)
+		slog.Warn("Activity is invalid", "activity", &activity, "sender", sender.ID, "error", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	} else if forwarded {
@@ -352,13 +367,13 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 			case string:
 				id = o
 			default:
-				slog.Warn("Ignoring invalid forwarded Delete activity", "activity", activity.ID, "sender", sender.ID)
+				slog.Warn("Ignoring invalid forwarded Delete activity", "activity", &activity, "sender", sender.ID)
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
 		}
 
-		slog.Info("Fetching forwarded object", "activity", activity.ID, "id", id, "sender", sender.ID)
+		slog.Info("Fetching forwarded object", "activity", &activity, "id", id, "sender", sender.ID)
 
 		if exists, fetched, err := l.fetchObject(r.Context(), id); !exists && queued.Type == ap.Delete {
 			queued = &ap.Activity{
@@ -368,11 +383,11 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 				Object: id,
 			}
 		} else if err == nil && exists && activity.Type == ap.Delete {
-			slog.Warn("Ignoring forwarded Delete activity for existing object", "activity", activity.ID, "id", id, "sender", sender.ID)
+			slog.Warn("Ignoring forwarded Delete activity for existing object", "activity", &activity, "id", id, "sender", sender.ID)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		} else if err != nil {
-			slog.Warn("Failed to fetch forwarded object", "activity", activity.ID, "id", id, "sender", sender.ID, "error", err)
+			slog.Warn("Failed to fetch forwarded object", "activity", &activity, "id", id, "sender", sender.ID, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		} else if queued.Type == ap.Update {
@@ -381,12 +396,12 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 				// hack for Mastodon: we get the updated Note when we fetch an Update activity
 				var post ap.Object
 				if err := json.Unmarshal([]byte(fetched), &post); err != nil {
-					slog.Warn("Ignoring invalid forwarded Update activity", "activity", activity.ID, "sender", sender.ID, "error", err)
+					slog.Warn("Ignoring invalid forwarded Update activity", "activity", &activity, "sender", sender.ID, "error", err)
 					w.WriteHeader(http.StatusBadRequest)
 					return
 				}
 
-				slog.Debug("Wrapping forwarded Update activity", "activity", activity.ID, "sender", sender.ID)
+				slog.Debug("Wrapping forwarded Update activity", "activity", &activity, "sender", sender.ID)
 				queued = &ap.Activity{
 					ID:     queued.ID,
 					Type:   ap.Update,
@@ -399,7 +414,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		} else {
 			var parsed ap.Activity
 			if err := json.Unmarshal([]byte(fetched), &parsed); err != nil {
-				slog.Warn("Ignoring invalid forwarded activity", "activity", activity.ID, "sender", sender.ID, "error", err)
+				slog.Warn("Ignoring invalid forwarded activity", "activity", &activity, "sender", sender.ID, "error", err)
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
@@ -409,11 +424,11 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 
 		// we must validate the original activity because the forwarded one can be valid while the original isn't
 		if err := l.validateActivity(queued, origin, 0); errors.Is(err, ap.ErrUnsupportedActivity) {
-			slog.Debug("Activity is unsupported", "activity", activity.ID, "sender", sender.ID, "error", err)
+			slog.Debug("Activity is unsupported", "activity", &activity, "sender", sender.ID, "error", err)
 			w.WriteHeader(http.StatusOK)
 			return
 		} else if err != nil {
-			slog.Warn("Activity is invalid", "activity", activity.ID, "sender", sender.ID, "error", err)
+			slog.Warn("Activity is invalid", "activity", &activity, "sender", sender.ID, "error", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
