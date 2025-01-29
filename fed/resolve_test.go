@@ -3475,8 +3475,12 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 	assert.Empty(client.Data)
 
 	var ok int
-	assert.NoError(db.QueryRow(`select not exists (select 1 from notes where author = 'https://0.0.0.0/user/dan') and not exists (select 1 from persons where id = 'https://0.0.0.0/user/dan')`).Scan(&ok))
+	assert.NoError(db.QueryRow(`select not exists (select 1 from notes where author = 'https://0.0.0.0/user/dan')`).Scan(&ok))
 	assert.Equal(1, ok)
+
+	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	assert.True(errors.Is(err, ErrActorGone))
+	assert.Empty(client.Data)
 }
 
 func TestResolve_FederatedActorFirstTimeWrongID(t *testing.T) {

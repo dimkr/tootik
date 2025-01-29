@@ -147,11 +147,11 @@ func deleteActor(ctx context.Context, db *sql.DB, id string) {
 		slog.Warn("Failed to delete notes by actor", "id", id, "error", err)
 	}
 
-	if _, err := db.ExecContext(ctx, `delete from shares where by = $1 or exists (select 1 from notes where notes.author = ? and notes.id = shares.note)`, id); err != nil {
+	if _, err := db.ExecContext(ctx, `delete from shares where by = $1 or exists (select 1 from notes where notes.author = $1 and notes.id = shares.note)`, id); err != nil {
 		slog.Warn("Failed to delete shares by actor", "id", id, "error", err)
 	}
 
-	if _, err := db.ExecContext(ctx, `delete from bookmarks where exists (select 1 from notes where notes.author = ? and notes.id = bookmarks.note)`, id); err != nil {
+	if _, err := db.ExecContext(ctx, `delete from bookmarks where exists (select 1 from notes where notes.author = $1 and notes.id = bookmarks.note)`, id); err != nil {
 		slog.Warn("Failed to delete bookmarks by actor", "id", id, "error", err)
 	}
 
@@ -171,7 +171,11 @@ func deleteActor(ctx context.Context, db *sql.DB, id string) {
 		slog.Warn("Failed to delete follows for actor", "id", id, "error", err)
 	}
 
-	if _, err := db.ExecContext(ctx, `delete from persons where id = ?`, id); err != nil {
+	if _, err := db.ExecContext(
+		ctx,
+		`insert into persons(id, actor, fetched) values(?, '{"deleted":true"}', unixepoch()) on conflict(id) do update set actor = json_set(actor, '$.deleted', json('true'))`,
+		id,
+	); err != nil {
 		slog.Warn("Failed to delete actor", "id", id, "error", err)
 	}
 }
@@ -184,7 +188,7 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 	}
 
 	if name == "" {
-		return nil, nil, fmt.Errorf("cannot resolve %s%s: empty name", name, host)
+		return nil, nil, fmt.Errorf("cannot resolve %s@%s: empty name", name, host)
 	}
 
 	isLocal := host == r.Domain
@@ -204,7 +208,7 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 	var fetched sql.NullInt64
 	var sinceLastUpdate time.Duration
 	if err := r.db.QueryRowContext(ctx, `select actor, updated, fetched, inserted from persons where actor->>'$.preferredUsername' = $1 and host = $2`, name, host).Scan(&tmp, &updated, &fetched, &inserted); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return nil, nil, fmt.Errorf("failed to fetch %s%s cache: %w", name, host, err)
+		return nil, nil, fmt.Errorf("failed to fetch %s@%s cache: %w", name, host, err)
 	} else if err == nil {
 		cachedActor = &tmp
 
@@ -216,6 +220,8 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 		sinceLastUpdate = time.Since(time.Unix(updated, 0))
 		if !isLocal && flags&ap.Offline == 0 && sinceLastUpdate > r.Config.ResolverCacheTTL && (!fetched.Valid || time.Since(time.Unix(fetched.Int64, 0)) >= r.Config.ResolverRetryInterval) {
 			slog.Info("Updating old cache entry for actor", "id", cachedActor.ID)
+		} else if cachedActor.Deleted {
+			return nil, nil, fmt.Errorf("not fetching %s@%s: %w", name, host, ErrActorGone)
 		} else {
 			slog.Debug("Resolved actor using cache", "id", cachedActor.ID)
 			return nil, cachedActor, nil

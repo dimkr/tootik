@@ -52,6 +52,8 @@ type Actor struct {
 	MovedTo                   string            `json:"movedTo,omitempty"`
 	Suspended                 bool              `json:"suspended,omitempty"`
 	Attachment                []Attachment      `json:"attachment,omitempty"`
+
+	Deleted bool `json:"deleted,omitempty"` // used internally
 }
 
 func (a *Actor) Scan(src any) error {
