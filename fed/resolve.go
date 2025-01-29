@@ -173,7 +173,7 @@ func deleteActor(ctx context.Context, db *sql.DB, id string) {
 
 	if _, err := db.ExecContext(
 		ctx,
-		`insert into persons(id, actor, fetched) values(?, '{"deleted":true"}', unixepoch()) on conflict(id) do update set actor = json_set(actor, '$.deleted', json('true'))`,
+		`insert into persons(id, actor, fetched) values(?, '{"deleted":true}', unixepoch()) on conflict(id) do update set actor = json_set(actor, '$.deleted', json('true'))`,
 		id,
 	); err != nil {
 		slog.Warn("Failed to delete actor", "id", id, "error", err)
