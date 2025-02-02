@@ -218,6 +218,12 @@ func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks 
 
 // ListenAndServe handles Guppy requests.
 func (gl *Listener) ListenAndServe(ctx context.Context) error {
+	if gl.Config.RequireRegistration {
+		slog.Warn("Disabling the Guppy listener because registration is required")
+		<-ctx.Done()
+		return nil
+	}
+
 	l, err := net.ListenPacket("udp", gl.Addr)
 	if err != nil {
 		return err

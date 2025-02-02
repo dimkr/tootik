@@ -48,29 +48,17 @@ func FromHTML(text string) (string, data.OrderedMap[string, string]) {
 	res := html.UnescapeString(text)
 	links := data.OrderedMap[string, string]{}
 
-	for _, m := range mentionTags.FindAllString(res, -1) {
-		res = strings.Replace(res, m, "", 1)
-	}
+	res = mentionTags.ReplaceAllLiteralString(res, "")
 
-	for _, m := range pTags.FindAllString(res, -1) {
-		res = strings.Replace(res, m, "\n\n", 1)
-	}
+	res = pTags.ReplaceAllLiteralString(res, "\n\n")
 
-	for _, m := range brTags.FindAllString(res, -1) {
-		res = strings.Replace(res, m, "\n", 1)
-	}
+	res = brTags.ReplaceAllLiteralString(res, "\n")
 
-	for _, m := range invisibleSpanTags.FindAllString(res, -1) {
-		res = strings.Replace(res, m, "", 1)
-	}
+	res = invisibleSpanTags.ReplaceAllLiteralString(res, "")
 
-	for _, m := range ellipsisSpanTags.FindAllStringSubmatch(res, -1) {
-		res = strings.Replace(res, m[0], m[0]+"…", 1)
-	}
+	res = ellipsisSpanTags.ReplaceAllString(res, "${0}…")
 
-	for _, m := range spanTags.FindAllString(res, -1) {
-		res = strings.Replace(res, m, "", 1)
-	}
+	res = spanTags.ReplaceAllLiteralString(res, "")
 
 	for _, m := range aTags.FindAllStringSubmatch(res, -1) {
 		link := m[1]
@@ -108,13 +96,9 @@ func FromHTML(text string) (string, data.OrderedMap[string, string]) {
 		}
 	}
 
-	for _, m := range openTags.FindAllString(res, -1) {
-		res = strings.Replace(res, m, "", 1)
-	}
+	res = openTags.ReplaceAllLiteralString(res, "")
 
-	for _, m := range closeTags.FindAllString(res, -1) {
-		res = strings.Replace(res, m, "", 1)
-	}
+	res = closeTags.ReplaceAllLiteralString(res, "")
 
 	return strings.TrimRight(res, " \n\r\t"), links
 }
