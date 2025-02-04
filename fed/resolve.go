@@ -247,6 +247,7 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 		return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", finger, err)
 	}
 	req.Header.Set("User-Agent", userAgent)
+	req.Header.Add("Accept", "application/json")
 
 	resp, err := r.send(key, req)
 	if err != nil {
