@@ -48,7 +48,7 @@ Welcome, fedinaut! localhost.localdomain:8443 is an instance of tootik, a federa
 
 tootik is a text-based social network.
 
-tootik is federated: users can join an existing server or [set up](SETUP.md) their own instance. A tootik user can interact with others on the same instance, users on other tootik instances, [Mastodon](https://joinmastodon.org/) users, [Lemmy](https://join-lemmy.org/) users and users of other [ActivityPub](https://www.w3.org/TR/activitypub/)-compatible server.
+tootik is federated: users can join an existing server or [set up](SETUP.md) their own instance. A tootik user can interact with others on the same instance, users on other tootik instances, [Mastodon](https://joinmastodon.org/) users, [Lemmy](https://join-lemmy.org/) users and users of other [ActivityPub](https://www.w3.org/TR/activitypub/)-compatible servers.
 
 Unlike other social networks, tootik doesn't have a browser-based interface or an app: instead, its minimalistic, text-based interface is served over [Gemini](https://geminiprotocol.net/):
 
