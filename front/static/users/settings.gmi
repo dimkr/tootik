@@ -18,10 +18,11 @@
 => /users/export?200 200-300
 => /users/export?300 300-400
 => /users/export?400 400-500
-=> /users/export?500 600-700
-=> /users/export?600 700-800
-=> /users/export?700 800-900
-=> /users/export?800 900-1000
+=> /users/export?500 500-600
+=> /users/export?600 600-700
+=> /users/export?700 700-800
+=> /users/export?800 800-900
+=> /users/export?900 900-1000
 
 ## Migration
 
