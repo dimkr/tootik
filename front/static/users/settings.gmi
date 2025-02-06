@@ -11,6 +11,18 @@
 
 => /users/certificates 🎓 Certificates
 
+## Activity Export
+
+=> /users/export 0-100
+=> /users/export?100 100-200
+=> /users/export?200 200-300
+=> /users/export?300 300-400
+=> /users/export?400 400-500
+=> /users/export?500 600-700
+=> /users/export?600 700-800
+=> /users/export?700 800-900
+=> /users/export?800 900-1000
+
 ## Migration
 
 => /users/alias 🔗 Set account alias
