@@ -10,6 +10,7 @@
 ## Account
 
 => /users/certificates 🎓 Certificates
+=> /users/export 🥡 Export recent activities
 
 ## Migration
 

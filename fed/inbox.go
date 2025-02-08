@@ -314,7 +314,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 	for queued.Type == ap.Announce {
 		if inner, ok := queued.Object.(*ap.Activity); ok {
 			queued = inner
-		} else if o, ok := queued.Object.(*ap.Object); ok && o.Type == ap.Page {
+		} else if o, ok := queued.Object.(*ap.Object); ok {
 			slog.Debug("Wrapping object with Update activity", "activity", &activity, "sender", sender.ID, "object", o.ID)
 
 			// hack for Lemmy: wrap a Page inside Announce with Update
@@ -382,7 +382,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 				Actor:  queued.Actor,
 				Object: id,
 			}
-		} else if err == nil && exists && activity.Type == ap.Delete {
+		} else if err == nil && exists && queued.Type == ap.Delete {
 			slog.Warn("Ignoring forwarded Delete activity for existing object", "activity", &activity, "id", id, "sender", sender.ID)
 			w.WriteHeader(http.StatusBadRequest)
 			return
