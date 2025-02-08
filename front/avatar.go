@@ -35,13 +35,8 @@ var supportedImageTypes = map[string]struct{}{
 }
 
 func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
-	if r.User == nil {
-		w.Redirect("/users")
-		return
-	}
-
-	if r.Body == nil {
-		w.Redirect("/users/oops")
+	if r.User == nil || r.Body == nil {
+		w.Redirectf("gemini://%s/users/oops", h.Domain)
 		return
 	}
 
