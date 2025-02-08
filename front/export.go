@@ -25,8 +25,7 @@ import (
 
 const (
 	csvBufferSize = 32 * 1024
-	csvRows       = 500
-	maxOffset     = 2000
+	csvRows       = 200
 )
 
 var csvHeader = []string{"ID", "Type", "Inserted", "Activity"}
@@ -34,18 +33,6 @@ var csvHeader = []string{"ID", "Type", "Inserted", "Activity"}
 func (h *Handler) export(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
-		return
-	}
-
-	offset, err := getOffset(r.URL)
-	if err != nil {
-		r.Log.Info("Failed to parse query", "error", err)
-		w.Status(40, "Invalid query")
-		return
-	}
-
-	if offset >= maxOffset {
-		w.Statusf(40, "Offset must be <%d", maxOffset)
 		return
 	}
 
@@ -59,11 +46,9 @@ func (h *Handler) export(w text.Writer, r *Request, args ...string) {
 			activity->>'$.actor' = ?
 		order by inserted desc
 		limit ?
-		offset ?
 		`,
 		r.User.ID,
 		csvRows,
-		offset,
 	)
 	if err != nil {
 		r.Log.Warn("Failed to fetch activities", "error", err)
