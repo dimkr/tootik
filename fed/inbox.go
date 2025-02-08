@@ -382,7 +382,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 				Actor:  queued.Actor,
 				Object: id,
 			}
-		} else if err == nil && exists && activity.Type == ap.Delete {
+		} else if err == nil && exists && queued.Type == ap.Delete {
 			slog.Warn("Ignoring forwarded Delete activity for existing object", "activity", &activity, "id", id, "sender", sender.ID)
 			w.WriteHeader(http.StatusBadRequest)
 			return
