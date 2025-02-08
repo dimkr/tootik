@@ -25,9 +25,11 @@ import (
 
 const (
 	csvBufferSize = 32 * 1024
-	maxCsvRows    = 100
-	maxOffset     = 1000
+	csvRows       = 500
+	maxOffset     = 2000
 )
+
+var csvHeader = []string{"ID", "Type", "Inserted", "Activity"}
 
 func (h *Handler) export(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
@@ -52,7 +54,7 @@ func (h *Handler) export(w text.Writer, r *Request, args ...string) {
 	rows, err := h.DB.QueryContext(
 		r.Context,
 		`
-		select activity->>'$.id', datetime(inserted, 'unixepoch'), activity from outbox
+		select activity->>'$.id', activity->>'$.type', datetime(inserted, 'unixepoch'), activity from outbox
 		where
 			activity->>'$.actor' = ?
 		order by inserted desc
@@ -60,7 +62,7 @@ func (h *Handler) export(w text.Writer, r *Request, args ...string) {
 		offset ?
 		`,
 		r.User.ID,
-		maxCsvRows,
+		csvRows,
 		offset,
 	)
 	if err != nil {
@@ -71,14 +73,17 @@ func (h *Handler) export(w text.Writer, r *Request, args ...string) {
 	defer rows.Close()
 
 	w.Status(20, "text/csv")
+	if err := output.Write(csvHeader); err != nil {
+		r.Log.Warn("Failed to write header", "error", err)
+		return
+	}
 
-	var fields [3]string
+	var fields [4]string
 	for rows.Next() {
-		if err := rows.Scan(&fields[0], &fields[1], &fields[2]); err != nil {
+		if err := rows.Scan(&fields[0], &fields[1], &fields[2], &fields[3]); err != nil {
 			r.Log.Warn("Failed to scan activity", "error", err)
 			continue
 		}
-
 		if err := output.Write(fields[:]); err != nil {
 			r.Log.Warn("Failed to write a line", "error", err)
 			return
