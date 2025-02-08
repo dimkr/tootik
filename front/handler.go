@@ -178,7 +178,11 @@ func (h *Handler) Handle(r *Request, w text.Writer) {
 
 	r.Log.Warn("Received an invalid request")
 
-	if r.User == nil {
+	if r.URL.Scheme == "titan" && r.User == nil {
+		w.Redirectf("gemini://%s/oops", h.Domain)
+	} else if r.URL.Scheme == "titan" && r.User != nil {
+		w.Redirectf("gemini://%s/users/oops", h.Domain)
+	} else if r.User == nil {
 		w.Redirect("/oops")
 	} else {
 		w.Redirect("/users/oops")
