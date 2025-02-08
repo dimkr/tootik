@@ -314,7 +314,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 	for queued.Type == ap.Announce {
 		if inner, ok := queued.Object.(*ap.Activity); ok {
 			queued = inner
-		} else if o, ok := queued.Object.(*ap.Object); ok && o.Type == ap.Page {
+		} else if o, ok := queued.Object.(*ap.Object); ok {
 			slog.Debug("Wrapping object with Update activity", "activity", &activity, "sender", sender.ID, "object", o.ID)
 
 			// hack for Lemmy: wrap a Page inside Announce with Update
