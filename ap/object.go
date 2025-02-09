@@ -25,10 +25,11 @@ import (
 type ObjectType string
 
 const (
-	Note     ObjectType = "Note"
-	Page     ObjectType = "Page"
-	Article  ObjectType = "Article"
-	Question ObjectType = "Question"
+	Note      ObjectType = "Note"
+	Page      ObjectType = "Page"
+	Article   ObjectType = "Article"
+	Question  ObjectType = "Question"
+	Tombstone ObjectType = "Tombstone"
 )
 
 // Object represents most ActivityPub objects.

@@ -383,9 +383,25 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 				Object: id,
 			}
 		} else if err == nil && exists && queued.Type == ap.Delete {
-			slog.Warn("Ignoring forwarded Delete activity for existing object", "activity", &activity, "id", id, "sender", sender.ID)
-			w.WriteHeader(http.StatusBadRequest)
-			return
+			var parsed ap.Object
+			if err := json.Unmarshal([]byte(fetched), &parsed); err != nil {
+				slog.Warn("Ignoring invalid forwarded Delete activity", "activity", &activity, "sender", sender.ID, "error", err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			} else if parsed.Type != ap.Tombstone {
+				slog.Warn("Ignoring forwarded Delete activity for existing object", "activity", &activity, "id", id, "sender", sender.ID)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
+			// hack for Mastodon: a deleted Note is replaced with a Tombstone
+			slog.Debug("Wrapping Tombstone with Delete", "activity", &activity, "sender", sender.ID)
+			queued = &ap.Activity{
+				ID:     queued.ID,
+				Type:   ap.Delete,
+				Actor:  queued.Actor,
+				Object: &parsed,
+			}
 		} else if err != nil {
 			slog.Warn("Failed to fetch forwarded object", "activity", &activity, "id", id, "sender", sender.ID, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
