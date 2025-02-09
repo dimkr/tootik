@@ -52,6 +52,16 @@ func LineBuffered(inner io.Writer) *LineWriter {
 		t := time.NewTicker(flushInterval)
 		defer t.Stop()
 
+		drain := func() {
+			for {
+				select {
+				case <-t.C:
+				default:
+					return
+				}
+			}
+		}
+
 	loop:
 		for {
 			select {
@@ -73,6 +83,7 @@ func LineBuffered(inner io.Writer) *LineWriter {
 					if i == -1 {
 						w.buffer.Write(buf)
 						t.Stop()
+						drain()
 						break
 					}
 
@@ -81,6 +92,9 @@ func LineBuffered(inner io.Writer) *LineWriter {
 
 					// flush if we have $bufferSize lines in the buffer
 					if lines == bufferSize {
+						t.Stop()
+						drain()
+
 						if _, err := w.inner.Write(w.buffer.Bytes()); err != nil {
 							w.stop(err)
 							return
@@ -88,8 +102,6 @@ func LineBuffered(inner io.Writer) *LineWriter {
 
 						w.buffer.Reset()
 						lines = 0
-
-						t.Stop()
 					} else if lines > 0 {
 						t.Reset(flushInterval)
 					}
@@ -105,6 +117,9 @@ func LineBuffered(inner io.Writer) *LineWriter {
 					continue
 				}
 
+				t.Stop()
+				drain()
+
 				if _, err := w.inner.Write(buf); err != nil {
 					w.stop(err)
 					return
@@ -112,8 +127,6 @@ func LineBuffered(inner io.Writer) *LineWriter {
 
 				w.buffer.Reset()
 				lines = 0
-
-				t.Stop()
 			}
 		}
 
