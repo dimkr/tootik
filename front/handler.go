@@ -42,6 +42,7 @@ type Handler struct {
 var (
 	ErrNotRegistered = errors.New("user is not registered")
 	ErrNotApproved   = errors.New("client certificate is not approved")
+	usersRedirect    = regexp.MustCompile(`^/users(.*)`)
 )
 
 func serveStaticFile(lines []string, w text.Writer, _ *Request, _ ...string) {
@@ -168,8 +169,10 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 
 // Handle handles a request and writes a response.
 func (h *Handler) Handle(r *Request, w text.Writer) {
+	path := usersRedirect.ReplaceAllString(r.URL.Path, `/login$1`)
+
 	for re, handler := range h.handlers {
-		m := re.FindStringSubmatch(r.URL.Path)
+		m := re.FindStringSubmatch(path)
 		if m != nil {
 			handler(w, r, m...)
 			return
