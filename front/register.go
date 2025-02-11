@@ -44,7 +44,7 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 
 	if len(state.PeerCertificates) == 0 {
 		r.Log.Warn("No client certificate")
-		w.Redirect("/users")
+		w.Redirect("/login")
 		return
 	}
 
@@ -90,5 +90,5 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.Redirect("/users")
+	w.Redirect("/login")
 }

@@ -32,25 +32,25 @@ func TestReply_AuthorNotFollowed(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say := server.Handle("/login/say?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
 	id := say[15 : len(say)-2]
 
-	view := server.Handle("/users/view/"+id, server.Bob)
+	view := server.Handle("/login/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
+	reply := server.Handle(fmt.Sprintf("/login/reply/%s?Welcome%%20Bob", id), server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, reply)
 
-	view = server.Handle("/users/view/"+id, server.Alice)
+	view = server.Handle("/login/view/"+id, server.Alice)
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users := server.Handle("/users", server.Bob)
+	users := server.Handle("/login", server.Bob)
 	assert.Contains(users, "Welcome Bob")
 
 	local := server.Handle("/local", nil)
@@ -64,28 +64,28 @@ func TestReply_AuthorFollowed(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	say := server.Handle("/users/say?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say := server.Handle("/login/say?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
 	id := say[15 : len(say)-2]
 
-	view := server.Handle("/users/view/"+id, server.Bob)
+	view := server.Handle("/login/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
+	reply := server.Handle(fmt.Sprintf("/login/reply/%s?Welcome%%20Bob", id), server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, reply)
 
-	view = server.Handle("/users/view/"+id, server.Alice)
+	view = server.Handle("/login/view/"+id, server.Alice)
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users := server.Handle("/users", server.Bob)
+	users := server.Handle("/login", server.Bob)
 	assert.Contains(users, "Welcome Bob")
 
 	local := server.Handle("/local", nil)
@@ -99,28 +99,28 @@ func TestReply_PostToFollowers(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+	whisper := server.Handle("/login/whisper?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, whisper)
 
 	id := whisper[15 : len(whisper)-2]
 
-	view := server.Handle("/users/view/"+id, server.Bob)
+	view := server.Handle("/login/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
+	reply := server.Handle(fmt.Sprintf("/login/reply/%s?Welcome%%20Bob", id), server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, reply)
 
-	view = server.Handle("/users/view/"+id, server.Alice)
+	view = server.Handle("/login/view/"+id, server.Alice)
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users := server.Handle("/users", server.Bob)
+	users := server.Handle("/login", server.Bob)
 	assert.Contains(users, "Welcome Bob")
 
 	local := server.Handle("/local", nil)
@@ -134,24 +134,24 @@ func TestReply_PostToFollowersNotFollowing(t *testing.T) {
 
 	assert := assert.New(t)
 
-	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+	whisper := server.Handle("/login/whisper?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, whisper)
 
 	id := whisper[15 : len(whisper)-2]
 
-	view := server.Handle("/users/view/"+id, server.Bob)
+	view := server.Handle("/login/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
+	reply := server.Handle(fmt.Sprintf("/login/reply/%s?Welcome%%20Bob", id), server.Alice)
 	assert.Equal("40 Post not found\r\n", reply)
 
-	view = server.Handle("/users/view/"+id, server.Alice)
+	view = server.Handle("/login/view/"+id, server.Alice)
 	assert.Equal("40 Post not found\r\n", view)
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users := server.Handle("/users", server.Bob)
+	users := server.Handle("/login", server.Bob)
 	assert.NotContains(users, "Welcome Bob")
 
 	local := server.Handle("/local", nil)
@@ -165,31 +165,31 @@ func TestReply_PostToFollowersUnfollowedBeforeReply(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+	whisper := server.Handle("/login/whisper?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, whisper)
 
 	id := whisper[15 : len(whisper)-2]
 
-	view := server.Handle("/users/view/"+id, server.Bob)
+	view := server.Handle("/login/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
-	unfollow := server.Handle("/users/unfollow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), unfollow)
+	unfollow := server.Handle("/login/unfollow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), unfollow)
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
+	reply := server.Handle(fmt.Sprintf("/login/reply/%s?Welcome%%20Bob", id), server.Alice)
 	assert.Equal("40 Post not found\r\n", reply)
 
-	view = server.Handle("/users/view/"+id, server.Alice)
+	view = server.Handle("/login/view/"+id, server.Alice)
 	assert.NotContains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users := server.Handle("/users", server.Bob)
+	users := server.Handle("/login", server.Bob)
 	assert.NotContains(users, "Welcome Bob")
 
 	local := server.Handle("/local", nil)
@@ -203,30 +203,30 @@ func TestReply_PostToFollowersUnfollowedAfterReply(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+	whisper := server.Handle("/login/whisper?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, whisper)
 
 	id := whisper[15 : len(whisper)-2]
 
-	view := server.Handle("/users/view/"+id, server.Bob)
+	view := server.Handle("/login/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
+	reply := server.Handle(fmt.Sprintf("/login/reply/%s?Welcome%%20Bob", id), server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, reply)
 
-	unfollow := server.Handle("/users/unfollow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), unfollow)
+	unfollow := server.Handle("/login/unfollow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), unfollow)
 
-	view = server.Handle("/users/view/"+id, server.Alice)
+	view = server.Handle("/login/view/"+id, server.Alice)
 	assert.Equal("40 Post not found\r\n", view)
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users := server.Handle("/users", server.Bob)
+	users := server.Handle("/login", server.Bob)
 	assert.Contains(users, "Welcome Bob")
 
 	local := server.Handle("/local", nil)
@@ -240,31 +240,31 @@ func TestReply_SelfReply(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+	whisper := server.Handle("/login/whisper?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, whisper)
 
 	id := whisper[15 : len(whisper)-2]
 
-	view := server.Handle("/users/view/"+id, server.Bob)
+	view := server.Handle("/login/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
 	_, err := server.db.Exec("update outbox set inserted = inserted - 3600 where activity->>'$.type' = 'Create'")
 	assert.NoError(err)
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20me", id), server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
+	reply := server.Handle(fmt.Sprintf("/login/reply/%s?Welcome%%20me", id), server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, reply)
 
-	view = server.Handle("/users/view/"+id, server.Alice)
+	view = server.Handle("/login/view/"+id, server.Alice)
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome me")
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users := server.Handle("/users", server.Bob)
+	users := server.Handle("/login", server.Bob)
 	assert.Contains(users, "Welcome me")
 
 	local := server.Handle("/local", nil)
@@ -278,28 +278,28 @@ func TestReply_ReplyToPublicPostByFollowedUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	say := server.Handle("/users/say?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say := server.Handle("/login/say?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
 	id := say[15 : len(say)-2]
 
-	view := server.Handle("/users/view/"+id, server.Bob)
+	view := server.Handle("/login/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Carol)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
+	reply := server.Handle(fmt.Sprintf("/login/reply/%s?Welcome%%20Bob", id), server.Carol)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, reply)
 
-	view = server.Handle("/users/view/"+id, server.Alice)
+	view = server.Handle("/login/view/"+id, server.Alice)
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users := server.Handle("/users", server.Alice)
+	users := server.Handle("/login", server.Alice)
 	assert.Contains(users, "Hello world")
 	assert.NotContains(users, "Welcome Bob")
 
@@ -314,25 +314,25 @@ func TestReply_ReplyToPublicPostByNotFollowedUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say := server.Handle("/login/say?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
 	id := say[15 : len(say)-2]
 
-	view := server.Handle("/users/view/"+id, server.Bob)
+	view := server.Handle("/login/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Bob", id), server.Carol)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
+	reply := server.Handle(fmt.Sprintf("/login/reply/%s?Welcome%%20Bob", id), server.Carol)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, reply)
 
-	view = server.Handle("/users/view/"+id, server.Alice)
+	view = server.Handle("/login/view/"+id, server.Alice)
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users := server.Handle("/users", server.Alice)
+	users := server.Handle("/login", server.Alice)
 	assert.NotContains(users, "Hello world")
 	assert.NotContains(users, "Welcome Bob")
 
@@ -347,37 +347,37 @@ func TestReply_DM(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
+	dm := server.Handle("/login/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, dm)
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users := server.Handle("/users", server.Alice)
+	users := server.Handle("/login", server.Alice)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(users, "Hello Bob")
 
-	users = server.Handle("/users", server.Bob)
+	users = server.Handle("/login", server.Bob)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(users, "Hello Bob")
 
 	id := dm[15 : len(dm)-2]
 
-	view := server.Handle("/users/view/"+id, server.Alice)
+	view := server.Handle("/login/view/"+id, server.Alice)
 	assert.Contains(view, "Hello @alice@localhost.localdomain:8443")
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hello%%20Bob", id), server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
+	reply := server.Handle(fmt.Sprintf("/login/reply/%s?Hello%%20Bob", id), server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, reply)
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users = server.Handle("/users", server.Alice)
+	users = server.Handle("/login", server.Alice)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.Contains(users, "Hello Bob")
 
-	users = server.Handle("/users", server.Bob)
+	users = server.Handle("/login", server.Bob)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.Contains(users, "Hello Bob")
 }
@@ -388,40 +388,40 @@ func TestReply_DMUnfollowed(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
+	dm := server.Handle("/login/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, dm)
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users := server.Handle("/users", server.Alice)
+	users := server.Handle("/login", server.Alice)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(users, "Hello Bob")
 
-	users = server.Handle("/users", server.Bob)
+	users = server.Handle("/login", server.Bob)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(users, "Hello Bob")
 
 	id := dm[15 : len(dm)-2]
 
-	view := server.Handle("/users/view/"+id, server.Alice)
+	view := server.Handle("/login/view/"+id, server.Alice)
 	assert.Contains(view, "Hello @alice@localhost.localdomain:8443")
 
-	unfollow := server.Handle("/users/unfollow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), unfollow)
+	unfollow := server.Handle("/login/unfollow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), unfollow)
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hello%%20Bob", id), server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
+	reply := server.Handle(fmt.Sprintf("/login/reply/%s?Hello%%20Bob", id), server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, reply)
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users = server.Handle("/users", server.Alice)
+	users = server.Handle("/login", server.Alice)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.Contains(users, "Hello Bob")
 
-	users = server.Handle("/users", server.Bob)
+	users = server.Handle("/login", server.Bob)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.Contains(users, "Hello Bob")
 }
@@ -432,38 +432,38 @@ func TestReply_DMUnfollowedBeforeFeedUpdate(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
+	dm := server.Handle("/login/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, dm)
 
-	users := server.Handle("/users", server.Alice)
+	users := server.Handle("/login", server.Alice)
 	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(users, "Hello Bob")
 
-	users = server.Handle("/users", server.Bob)
+	users = server.Handle("/login", server.Bob)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(users, "Hello Bob")
 
 	id := dm[15 : len(dm)-2]
 
-	view := server.Handle("/users/view/"+id, server.Alice)
+	view := server.Handle("/login/view/"+id, server.Alice)
 	assert.Contains(view, "Hello @alice@localhost.localdomain:8443")
 
-	unfollow := server.Handle("/users/unfollow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), unfollow)
+	unfollow := server.Handle("/login/unfollow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), unfollow)
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hello%%20Bob", id), server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
+	reply := server.Handle(fmt.Sprintf("/login/reply/%s?Hello%%20Bob", id), server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, reply)
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users = server.Handle("/users", server.Alice)
+	users = server.Handle("/login", server.Alice)
 	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.Contains(users, "Hello Bob")
 
-	users = server.Handle("/users", server.Bob)
+	users = server.Handle("/login", server.Bob)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.Contains(users, "Hello Bob")
 }
@@ -474,37 +474,37 @@ func TestReply_DMToAnotherUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
+	dm := server.Handle("/login/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, dm)
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users := server.Handle("/users", server.Alice)
+	users := server.Handle("/login", server.Alice)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(users, "Hello Bob")
 
-	users = server.Handle("/users", server.Bob)
+	users = server.Handle("/login", server.Bob)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(users, "Hello Bob")
 
 	id := dm[15 : len(dm)-2]
 
-	view := server.Handle("/users/view/"+id, server.Alice)
+	view := server.Handle("/login/view/"+id, server.Alice)
 	assert.Contains(view, "Hello @alice@localhost.localdomain:8443")
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hello%%20Bob", id), server.Carol)
+	reply := server.Handle(fmt.Sprintf("/login/reply/%s?Hello%%20Bob", id), server.Carol)
 	assert.Equal("40 Post not found\r\n", reply)
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users = server.Handle("/users", server.Alice)
+	users = server.Handle("/login", server.Alice)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(users, "Hello Bob")
 
-	users = server.Handle("/users", server.Bob)
+	users = server.Handle("/login", server.Bob)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(users, "Hello Bob")
 }
@@ -515,6 +515,6 @@ func TestReply_NoSuchPost(t *testing.T) {
 
 	assert := assert.New(t)
 
-	reply := server.Handle("/users/reply/x?Welcome%%20Bob", server.Alice)
+	reply := server.Handle("/login/reply/x?Welcome%%20Bob", server.Alice)
 	assert.Equal("40 Post not found\r\n", reply)
 }

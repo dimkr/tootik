@@ -39,6 +39,6 @@ func TestHelpAuthenticatedUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	help := server.Handle("/users/help", server.Alice)
+	help := server.Handle("/login/help", server.Alice)
 	assert.Contains(strings.Split(help, "\n"), "# 🛟 Help")
 }

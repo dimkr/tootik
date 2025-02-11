@@ -46,6 +46,6 @@ func (h *Handler) hashtag(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
 		w.Link("/search", "🔎 Posts by hashtag")
 	} else {
-		w.Link("/users/search", "🔎 Posts by hashtag")
+		w.Link("/login/search", "🔎 Posts by hashtag")
 	}
 }

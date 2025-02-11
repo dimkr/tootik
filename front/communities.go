@@ -64,7 +64,7 @@ func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
 		if r.User == nil {
 			w.Linkf("/outbox/"+strings.TrimPrefix(id, "https://"), "%s %s", time.Unix(last, 0).Format(time.DateOnly), username)
 		} else {
-			w.Linkf("/users/outbox/"+strings.TrimPrefix(id, "https://"), "%s %s", time.Unix(last, 0).Format(time.DateOnly), username)
+			w.Linkf("/login/outbox/"+strings.TrimPrefix(id, "https://"), "%s %s", time.Unix(last, 0).Format(time.DateOnly), username)
 		}
 
 		empty = false

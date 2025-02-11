@@ -32,28 +32,28 @@ func TestUploadReply_PostToFollowers(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+	whisper := server.Handle("/login/whisper?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, whisper)
 
 	id := whisper[15 : len(whisper)-2]
 
-	view := server.Handle("/users/view/"+id, server.Bob)
+	view := server.Handle("/login/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
-	reply := server.Upload(fmt.Sprintf("/users/upload/reply/%s;mime=text/plain;size=11", id), server.Alice, []byte("Welcome Bob"))
-	assert.Regexp(fmt.Sprintf("^30 gemini://%s/users/view/\\S+\r\n$", domain), reply)
+	reply := server.Upload(fmt.Sprintf("/login/upload/reply/%s;mime=text/plain;size=11", id), server.Alice, []byte("Welcome Bob"))
+	assert.Regexp(fmt.Sprintf("^30 gemini://%s/login/view/\\S+\r\n$", domain), reply)
 
-	view = server.Handle("/users/view/"+id, server.Alice)
+	view = server.Handle("/login/view/"+id, server.Alice)
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users := server.Handle("/users", server.Bob)
+	users := server.Handle("/login", server.Bob)
 	assert.Contains(users, "Welcome Bob")
 
 	local := server.Handle("/local", nil)
@@ -67,28 +67,28 @@ func TestUploadReply_NoMimeType(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+	whisper := server.Handle("/login/whisper?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, whisper)
 
 	id := whisper[15 : len(whisper)-2]
 
-	view := server.Handle("/users/view/"+id, server.Bob)
+	view := server.Handle("/login/view/"+id, server.Bob)
 	assert.Contains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
-	reply := server.Upload(fmt.Sprintf("/users/upload/reply/%s;size=11", id), server.Alice, []byte("Welcome Bob"))
-	assert.Regexp(fmt.Sprintf("^30 gemini://%s/users/view/\\S+\r\n$", domain), reply)
+	reply := server.Upload(fmt.Sprintf("/login/upload/reply/%s;size=11", id), server.Alice, []byte("Welcome Bob"))
+	assert.Regexp(fmt.Sprintf("^30 gemini://%s/login/view/\\S+\r\n$", domain), reply)
 
-	view = server.Handle("/users/view/"+id, server.Alice)
+	view = server.Handle("/login/view/"+id, server.Alice)
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users := server.Handle("/users", server.Bob)
+	users := server.Handle("/login", server.Bob)
 	assert.Contains(users, "Welcome Bob")
 
 	local := server.Handle("/local", nil)

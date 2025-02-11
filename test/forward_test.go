@@ -207,11 +207,11 @@ func TestForward_LocalReplyToLocalPublicPost(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	say := server.Handle("/users/say?Hello", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say := server.Handle("/login/say?Hello", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Alice", say[15:len(say)-2]), server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
+	reply := server.Handle(fmt.Sprintf("/login/reply/%s?Welcome%%20Alice", say[15:len(say)-2]), server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, reply)
 
 	var forwarded int
 	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity->>'$.type' = 'Create' and activity->>'$.object.id' = 'https://' || ? and sender = ?)`, reply[15:len(reply)-2], server.Alice.ID).Scan(&forwarded))
@@ -917,8 +917,8 @@ func TestForward_ReplyToLocalPostByLocalFollower(t *testing.T) {
 		),
 	)
 
-	whisper := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+	whisper := server.Handle("/login/say?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, whisper)
 
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
@@ -927,8 +927,8 @@ func TestForward_ReplyToLocalPostByLocalFollower(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Alice", whisper[15:len(whisper)-2]), server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
+	reply := server.Handle(fmt.Sprintf("/login/reply/%s?Welcome%%20Alice", whisper[15:len(whisper)-2]), server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, reply)
 
 	var forwarded int
 	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity->>'type' = 'Create' and activity->>'$.object.id' = 'https://' || ? and sender = ?)`, reply[15:len(reply)-2], server.Alice.ID).Scan(&forwarded))
@@ -952,8 +952,8 @@ func TestForward_EditedReplyToLocalPostByLocalFollower(t *testing.T) {
 		),
 	)
 
-	whisper := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+	whisper := server.Handle("/login/say?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, whisper)
 
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
@@ -962,15 +962,15 @@ func TestForward_EditedReplyToLocalPostByLocalFollower(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Alice", whisper[15:len(whisper)-2]), server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
+	reply := server.Handle(fmt.Sprintf("/login/reply/%s?Welcome%%20Alice", whisper[15:len(whisper)-2]), server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, reply)
 
 	id := reply[15 : len(reply)-2]
 
 	server.cfg.EditThrottleUnit = 0
 
-	edit := server.Handle(fmt.Sprintf("/users/edit/%s?Welcome%%20%%40alice", id), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), edit)
+	edit := server.Handle(fmt.Sprintf("/login/edit/%s?Welcome%%20%%40alice", id), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/view/%s\r\n", id), edit)
 
 	var forwarded int
 	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity->>'type' = 'Update' and activity->>'$.object.id' = 'https://' || ? and sender = ?)`, id, server.Alice.ID).Scan(&forwarded))
@@ -994,8 +994,8 @@ func TestForward_DeletedReplyToLocalPostByLocalFollower(t *testing.T) {
 		),
 	)
 
-	whisper := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+	whisper := server.Handle("/login/say?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, whisper)
 
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
@@ -1004,15 +1004,15 @@ func TestForward_DeletedReplyToLocalPostByLocalFollower(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20Alice", whisper[15:len(whisper)-2]), server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
+	reply := server.Handle(fmt.Sprintf("/login/reply/%s?Welcome%%20Alice", whisper[15:len(whisper)-2]), server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, reply)
 
 	id := reply[15 : len(reply)-2]
 
 	server.cfg.EditThrottleUnit = 0
 
-	delete := server.Handle(fmt.Sprintf("/users/delete/%s?Welcome%%20%%40alice", id), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), delete)
+	delete := server.Handle(fmt.Sprintf("/login/delete/%s?Welcome%%20%%40alice", id), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), delete)
 
 	var forwarded int
 	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity->>'$.type' = 'Delete' and activity->>'$.object.id' = 'https://' || ? and sender = ?)`, id, server.Alice.ID).Scan(&forwarded))

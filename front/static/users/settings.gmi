@@ -2,17 +2,17 @@
 
 ## Profile
 
-=> /users/name 👺 Set display name
-=> /users/bio 📜 Set bio
-=> titan://{{.Domain}}/users/upload/bio Upload bio
-=> titan://{{.Domain}}/users/upload/avatar Upload avatar
+=> /login/name 👺 Set display name
+=> /login/bio 📜 Set bio
+=> titan://{{.Domain}}/login/upload/bio Upload bio
+=> titan://{{.Domain}}/login/upload/avatar Upload avatar
 
 ## Account
 
-=> /users/certificates 🎓 Certificates
-=> /users/export 🥡 Export recent activities
+=> /login/certificates 🎓 Certificates
+=> /login/export 🥡 Export recent activities
 
 ## Migration
 
-=> /users/alias 🔗 Set account alias
-=> /users/move 📦 Move account
+=> /login/alias 🔗 Set account alias
+=> /login/move 📦 Move account

@@ -44,7 +44,7 @@ func readQuery(w text.Writer, r *Request, prompt string) (string, bool) {
 
 func (h *Handler) readBody(w text.Writer, r *Request, args []string) (string, bool) {
 	if r.Body == nil {
-		w.Redirectf("gemini://%s/users/oops", h.Domain)
+		w.Redirectf("gemini://%s/login/oops", h.Domain)
 		return "", false
 	}
 

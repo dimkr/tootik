@@ -244,19 +244,19 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 	if originalPostExists == 1 && r.User == nil {
 		w.Link("/view/"+strings.TrimPrefix(note.InReplyTo, "https://"), "View parent post")
 	} else if originalPostExists == 1 {
-		w.Link("/users/view/"+strings.TrimPrefix(note.InReplyTo, "https://"), "View parent post")
+		w.Link("/login/view/"+strings.TrimPrefix(note.InReplyTo, "https://"), "View parent post")
 	}
 
 	if threadHead.Valid && threadHead.String != note.ID && threadHead.String != note.InReplyTo && r.User == nil {
 		w.Link("/view/"+strings.TrimPrefix(threadHead.String, "https://"), "View first post in thread")
 	} else if threadHead.Valid && threadHead.String != note.ID && threadHead.String != note.InReplyTo {
-		w.Link("/users/view/"+strings.TrimPrefix(threadHead.String, "https://"), "View first post in thread")
+		w.Link("/login/view/"+strings.TrimPrefix(threadHead.String, "https://"), "View first post in thread")
 	}
 
 	if threadDepth > 2 && r.User == nil {
 		w.Link("/thread/"+strings.TrimPrefix(postID, "https://"), "View thread")
 	} else if threadDepth > 2 {
-		w.Link("/users/thread/"+strings.TrimPrefix(postID, "https://"), "View thread")
+		w.Link("/login/thread/"+strings.TrimPrefix(postID, "https://"), "View thread")
 	}
 
 	if offset > h.Config.RepliesPerPage {

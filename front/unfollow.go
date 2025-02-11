@@ -26,7 +26,7 @@ import (
 
 func (h *Handler) unfollow(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
-		w.Redirect("/users")
+		w.Redirect("/login")
 		return
 	}
 
@@ -48,5 +48,5 @@ func (h *Handler) unfollow(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.Redirect("/users/outbox/" + args[1])
+	w.Redirect("/login/outbox/" + args[1])
 }

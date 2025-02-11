@@ -29,7 +29,7 @@ import (
 
 func (h *Handler) name(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
-		w.Redirect("/users")
+		w.Redirect("/login")
 		return
 	}
 
@@ -100,5 +100,5 @@ func (h *Handler) name(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.Redirect("/users/outbox/" + strings.TrimPrefix(r.User.ID, "https://"))
+	w.Redirect("/login/outbox/" + strings.TrimPrefix(r.User.ID, "https://"))
 }

@@ -29,13 +29,13 @@ func TestSay_HappyFlow(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say := server.Handle("/login/say?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
 	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "Hello world")
 
-	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	outbox := server.Handle("/login/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Contains(outbox, "Hello world")
 
 	local := server.Handle("/local", server.Carol)
@@ -48,19 +48,19 @@ func TestSay_Throttling(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say := server.Handle("/login/say?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
 	view := server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "Hello world")
 
-	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Alice)
+	outbox := server.Handle("/login/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Alice)
 	assert.Contains(outbox, "Hello world")
 
-	say = server.Handle("/users/say?Hello%20once%20more,%20world", server.Alice)
+	say = server.Handle("/login/say?Hello%20once%20more,%20world", server.Alice)
 	assert.Regexp(`^40 Please wait for \S+\r\n$`, say)
 
-	outbox = server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	outbox = server.Handle("/login/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Contains(outbox, "Hello world")
 	assert.NotContains(outbox, "Hello once more, world")
 

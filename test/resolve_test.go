@@ -30,8 +30,8 @@ func TestResolve_LocalUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	resolve := server.Handle("/users/resolve?alice%40localhost.localdomain:8443", server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), resolve)
+	resolve := server.Handle("/login/resolve?alice%40localhost.localdomain:8443", server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), resolve)
 }
 
 func TestResolve_LocalUserByNameOnly(t *testing.T) {
@@ -40,8 +40,8 @@ func TestResolve_LocalUserByNameOnly(t *testing.T) {
 
 	assert := assert.New(t)
 
-	resolve := server.Handle("/users/resolve?alice", server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), resolve)
+	resolve := server.Handle("/login/resolve?alice", server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), resolve)
 }
 
 func TestResolve_NoSuchLocalUser(t *testing.T) {
@@ -50,7 +50,7 @@ func TestResolve_NoSuchLocalUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	resolve := server.Handle("/users/resolve?troll%40localhost.localdomain%3a8443", server.Bob)
+	resolve := server.Handle("/login/resolve?troll%40localhost.localdomain%3a8443", server.Bob)
 	assert.Equal("40 Failed to resolve troll@localhost.localdomain:8443\r\n", resolve)
 }
 
@@ -60,7 +60,7 @@ func TestResolve_NoSuchLocalUserByNameOnly(t *testing.T) {
 
 	assert := assert.New(t)
 
-	resolve := server.Handle("/users/resolve?troll", server.Bob)
+	resolve := server.Handle("/login/resolve?troll", server.Bob)
 	assert.Equal("40 Failed to resolve troll@localhost.localdomain:8443\r\n", resolve)
 }
 
@@ -70,7 +70,7 @@ func TestResolve_NoSuchFederatedUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	resolve := server.Handle("/users/resolve?troll%400.0.0.0", server.Bob)
+	resolve := server.Handle("/login/resolve?troll%400.0.0.0", server.Bob)
 	assert.Equal("40 Failed to resolve troll@0.0.0.0\r\n", resolve)
 }
 
@@ -80,7 +80,7 @@ func TestResolve_NoInput(t *testing.T) {
 
 	assert := assert.New(t)
 
-	resolve := server.Handle("/users/resolve?", server.Bob)
+	resolve := server.Handle("/login/resolve?", server.Bob)
 	assert.Equal("10 User name (name or name@domain)\r\n", resolve)
 }
 
@@ -90,7 +90,7 @@ func TestResolve_InvalidEscapeSequence(t *testing.T) {
 
 	assert := assert.New(t)
 
-	resolve := server.Handle("/users/resolve?troll%zzlocalhost.localdomain%3a8443 ", server.Bob)
+	resolve := server.Handle("/login/resolve?troll%zzlocalhost.localdomain%3a8443 ", server.Bob)
 	assert.Equal("40 Bad input\r\n", resolve)
 }
 
@@ -100,7 +100,7 @@ func TestResolve_InvalidInputFormat(t *testing.T) {
 
 	assert := assert.New(t)
 
-	resolve := server.Handle("/users/resolve?troll%40localhost.localdomain%3a8443%400.0.0.0", server.Bob)
+	resolve := server.Handle("/login/resolve?troll%40localhost.localdomain%3a8443%400.0.0.0", server.Bob)
 	assert.Equal("40 Bad input\r\n", resolve)
 }
 
@@ -110,6 +110,6 @@ func TestResolve_UnauthenticatedUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	resolve := server.Handle("/users/resolve?alice", nil)
-	assert.Equal("30 /users\r\n", resolve)
+	resolve := server.Handle("/login/resolve?alice", nil)
+	assert.Equal("30 /login\r\n", resolve)
 }
