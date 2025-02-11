@@ -23,7 +23,7 @@ import (
 
 func (h *Handler) follow(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
-		w.Redirect("/users")
+		w.Redirect("/login")
 		return
 	}
 
@@ -71,5 +71,5 @@ func (h *Handler) follow(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.Redirectf("/users/outbox/" + args[1])
+	w.Redirectf("/login/outbox/" + args[1])
 }

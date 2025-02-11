@@ -147,9 +147,9 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 	defer w.Flush()
 
 	r.User, r.Key, err = gl.getUser(ctx, tlsConn)
-	if err != nil && errors.Is(err, front.ErrNotRegistered) && r.URL.Path == "/users" {
+	if err != nil && errors.Is(err, front.ErrNotRegistered) && r.URL.Path == "/login" {
 		slog.Info("Redirecting new user")
-		w.Redirect("/users/register")
+		w.Redirect("/login/register")
 		return
 	} else if errors.Is(err, front.ErrNotApproved) {
 		w.Status(40, "Client certificate is awaiting approval")
@@ -158,10 +158,10 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 		slog.Warn("Failed to get user", "error", err)
 		w.Error()
 		return
-	} else if err == nil && r.User == nil && r.URL.Path == "/users" {
+	} else if err == nil && r.User == nil && r.URL.Path == "/login" {
 		w.Status(60, "Client certificate required")
 		return
-	} else if r.User == nil && gl.Config.RequireRegistration && r.URL.Path != "/" && r.URL.Path != "/help" && r.URL.Path != "/users/register" {
+	} else if r.User == nil && gl.Config.RequireRegistration && r.URL.Path != "/" && r.URL.Path != "/help" && r.URL.Path != "/login/register" {
 		w.Status(40, "Must register first")
 		return
 	}

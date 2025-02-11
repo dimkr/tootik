@@ -26,7 +26,7 @@ import (
 
 func (h *Handler) doReply(w text.Writer, r *Request, args []string, readInput inputFunc) {
 	if r.User == nil {
-		w.Redirect("/users")
+		w.Redirect("/login")
 		return
 	}
 

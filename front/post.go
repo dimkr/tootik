@@ -258,8 +258,8 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 	}
 
 	if r.URL.Scheme == "titan" {
-		w.Redirectf("gemini://%s/users/view/%s", h.Domain, strings.TrimPrefix(postID, "https://"))
+		w.Redirectf("gemini://%s/login/view/%s", h.Domain, strings.TrimPrefix(postID, "https://"))
 	} else {
-		w.Redirectf("/users/view/%s", strings.TrimPrefix(postID, "https://"))
+		w.Redirectf("/login/view/%s", strings.TrimPrefix(postID, "https://"))
 	}
 }

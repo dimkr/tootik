@@ -32,7 +32,7 @@ var csvHeader = []string{"ID", "Type", "Inserted", "Activity"}
 
 func (h *Handler) export(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
-		w.Redirect("/users")
+		w.Redirect("/login")
 		return
 	}
 

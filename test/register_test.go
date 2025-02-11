@@ -183,7 +183,7 @@ func TestRegister_RedirectNoCertificate(t *testing.T) {
 	}()
 	wg.Wait()
 
-	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users\r\n"))
+	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/login\r\n"))
 	assert.NoError(err)
 
 	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
@@ -266,7 +266,7 @@ func TestRegister_Redirect(t *testing.T) {
 	}()
 	wg.Wait()
 
-	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users\r\n"))
+	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/login\r\n"))
 	assert.NoError(err)
 
 	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
@@ -285,7 +285,7 @@ func TestRegister_Redirect(t *testing.T) {
 	resp, err := io.ReadAll(tlsReader)
 	assert.NoError(err)
 
-	assert.Equal("30 /users/register\r\n", string(resp))
+	assert.Equal("30 /login/register\r\n", string(resp))
 }
 
 func TestRegister_NoCertificate(t *testing.T) {
@@ -346,7 +346,7 @@ func TestRegister_NoCertificate(t *testing.T) {
 	}()
 	wg.Wait()
 
-	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
+	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/login/register\r\n"))
 	assert.NoError(err)
 
 	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
@@ -365,7 +365,7 @@ func TestRegister_NoCertificate(t *testing.T) {
 	resp, err := io.ReadAll(tlsReader)
 	assert.NoError(err)
 
-	assert.Equal("30 /users\r\n", string(resp))
+	assert.Equal("30 /login\r\n", string(resp))
 }
 
 func TestRegister_HappyFlow(t *testing.T) {
@@ -429,7 +429,7 @@ func TestRegister_HappyFlow(t *testing.T) {
 	}()
 	wg.Wait()
 
-	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
+	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/login/register\r\n"))
 	assert.NoError(err)
 
 	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
@@ -448,7 +448,7 @@ func TestRegister_HappyFlow(t *testing.T) {
 	resp, err := io.ReadAll(tlsReader)
 	assert.NoError(err)
 
-	assert.Equal("30 /users\r\n", string(resp))
+	assert.Equal("30 /login\r\n", string(resp))
 }
 
 func TestRegister_HappyFlowRegistrationClosed(t *testing.T) {
@@ -512,7 +512,7 @@ func TestRegister_HappyFlowRegistrationClosed(t *testing.T) {
 	}()
 	wg.Wait()
 
-	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
+	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/login/register\r\n"))
 	assert.NoError(err)
 
 	handler, err := front.NewHandler(domain, true, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
@@ -596,7 +596,7 @@ func TestRegister_AlreadyRegistered(t *testing.T) {
 	}()
 	wg.Wait()
 
-	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
+	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/login/register\r\n"))
 	assert.NoError(err)
 
 	_, _, err = user.Create(context.Background(), domain, db, "erin", ap.Person, erinKeyPair.Leaf)
@@ -662,7 +662,7 @@ func TestRegister_Twice(t *testing.T) {
 	defer tlsListener.Close()
 
 	for _, expected := range []string{
-		"30 /users\r\n",
+		"30 /login\r\n",
 		"40 Already registered as erin\r\n",
 	} {
 
@@ -688,7 +688,7 @@ func TestRegister_Twice(t *testing.T) {
 		}()
 		wg.Wait()
 
-		_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
+		_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/login/register\r\n"))
 		assert.NoError(err)
 
 		handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
@@ -762,7 +762,7 @@ func TestRegister_Throttling(t *testing.T) {
 		clientCfg *tls.Config
 		pattern   string
 	}{
-		{&erinCfg, "^30 /users\r\n$"},
+		{&erinCfg, "^30 /login\r\n$"},
 		{&davidCfg, "^40 Registration is closed for .+\r\n$"},
 	} {
 		unixReader, err := net.Dial("unix", socketPath)
@@ -787,7 +787,7 @@ func TestRegister_Throttling(t *testing.T) {
 		}()
 		wg.Wait()
 
-		_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
+		_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/login/register\r\n"))
 		assert.NoError(err)
 
 		handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
@@ -861,7 +861,7 @@ func TestRegister_Throttling30Minutes(t *testing.T) {
 		clientCfg *tls.Config
 		pattern   string
 	}{
-		{&erinCfg, "^30 /users\r\n$"},
+		{&erinCfg, "^30 /login\r\n$"},
 		{&davidCfg, "^40 Registration is closed for .+\r\n$"},
 	} {
 		unixReader, err := net.Dial("unix", socketPath)
@@ -886,7 +886,7 @@ func TestRegister_Throttling30Minutes(t *testing.T) {
 		}()
 		wg.Wait()
 
-		_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
+		_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/login/register\r\n"))
 		assert.NoError(err)
 
 		handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
@@ -963,8 +963,8 @@ func TestRegister_Throttling1Hour(t *testing.T) {
 		clientCfg *tls.Config
 		pattern   string
 	}{
-		{&erinCfg, "^30 /users\r\n$"},
-		{&davidCfg, "^30 /users\r\n$"},
+		{&erinCfg, "^30 /login\r\n$"},
+		{&davidCfg, "^30 /login\r\n$"},
 	} {
 		unixReader, err := net.Dial("unix", socketPath)
 		assert.NoError(err)
@@ -988,7 +988,7 @@ func TestRegister_Throttling1Hour(t *testing.T) {
 		}()
 		wg.Wait()
 
-		_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
+		_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/login/register\r\n"))
 		assert.NoError(err)
 
 		handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
@@ -1067,22 +1067,22 @@ func TestRegister_TwoCertificates(t *testing.T) {
 		expected  string
 		clientCfg *tls.Config
 	}{
-		{"gemini://localhost.localdomain:8965/users\r\n", "^30 /users/register\r\n$", &clientCfg},
-		{"gemini://localhost.localdomain:8965/users/register\r\n", "^30 /users\r\n$", &clientCfg},
-		{"gemini://localhost.localdomain:8965/users\r\n", "^20 text/gemini\r\n.+", &clientCfg},
-		{"gemini://localhost.localdomain:8965/users/register\r\n", "^40 Already registered as erin\r\n$", &clientCfg},
-		{"gemini://localhost.localdomain:8965/users\r\n", "^30 /users/register\r\n$", &otherClientCfg},
-		{"gemini://localhost.localdomain:8965/users/register\r\n", "^30 /users\r\n$", &otherClientCfg},
-		{"gemini://localhost.localdomain:8965/users\r\n", "^40 Client certificate is awaiting approval\r\n$", &otherClientCfg},
-		{"gemini://localhost.localdomain:8965/users/register\r\n", "^40 Client certificate is awaiting approval\r\n$", &otherClientCfg},
-		{fmt.Sprintf("gemini://localhost.localdomain:8965/users/certificates/approve/%s\r\n", erinOtherCertHash), "^30 /users/certificates\r\n$", &clientCfg},
-		{"gemini://localhost.localdomain:8965/users/register\r\n", "^40 Already registered as erin\r\n$", &otherClientCfg},
-		{"gemini://localhost.localdomain:8965/users\r\n", "^20 text/gemini\r\n.+", &otherClientCfg},
-		{fmt.Sprintf("gemini://localhost.localdomain:8965/users/certificates/revoke/%s\r\n", erinCertHash), "^30 /users/certificates\r\n$", &otherClientCfg},
-		{"gemini://localhost.localdomain:8965/users\r\n", "^30 /users/register\r\n$", &clientCfg},
-		{"gemini://localhost.localdomain:8965/users/register\r\n", "^30 /users\r\n$", &clientCfg},
-		{"gemini://localhost.localdomain:8965/users\r\n", "^40 Client certificate is awaiting approval\r\n$", &clientCfg},
-		{"gemini://localhost.localdomain:8965/users\r\n", "^20 text/gemini\r\n.+", &otherClientCfg},
+		{"gemini://localhost.localdomain:8965/login\r\n", "^30 /login/register\r\n$", &clientCfg},
+		{"gemini://localhost.localdomain:8965/login/register\r\n", "^30 /login\r\n$", &clientCfg},
+		{"gemini://localhost.localdomain:8965/login\r\n", "^20 text/gemini\r\n.+", &clientCfg},
+		{"gemini://localhost.localdomain:8965/login/register\r\n", "^40 Already registered as erin\r\n$", &clientCfg},
+		{"gemini://localhost.localdomain:8965/login\r\n", "^30 /login/register\r\n$", &otherClientCfg},
+		{"gemini://localhost.localdomain:8965/login/register\r\n", "^30 /login\r\n$", &otherClientCfg},
+		{"gemini://localhost.localdomain:8965/login\r\n", "^40 Client certificate is awaiting approval\r\n$", &otherClientCfg},
+		{"gemini://localhost.localdomain:8965/login/register\r\n", "^40 Client certificate is awaiting approval\r\n$", &otherClientCfg},
+		{fmt.Sprintf("gemini://localhost.localdomain:8965/login/certificates/approve/%s\r\n", erinOtherCertHash), "^30 /login/certificates\r\n$", &clientCfg},
+		{"gemini://localhost.localdomain:8965/login/register\r\n", "^40 Already registered as erin\r\n$", &otherClientCfg},
+		{"gemini://localhost.localdomain:8965/login\r\n", "^20 text/gemini\r\n.+", &otherClientCfg},
+		{fmt.Sprintf("gemini://localhost.localdomain:8965/login/certificates/revoke/%s\r\n", erinCertHash), "^30 /login/certificates\r\n$", &otherClientCfg},
+		{"gemini://localhost.localdomain:8965/login\r\n", "^30 /login/register\r\n$", &clientCfg},
+		{"gemini://localhost.localdomain:8965/login/register\r\n", "^30 /login\r\n$", &clientCfg},
+		{"gemini://localhost.localdomain:8965/login\r\n", "^40 Client certificate is awaiting approval\r\n$", &clientCfg},
+		{"gemini://localhost.localdomain:8965/login\r\n", "^20 text/gemini\r\n.+", &otherClientCfg},
 	} {
 		unixReader, err := net.Dial("unix", socketPath)
 		assert.NoError(err)

@@ -29,7 +29,7 @@ func TestHome_AuthenticatedUser(t *testing.T) {
 	assert := assert.New(t)
 
 	home := server.Handle("/", server.Alice)
-	assert.Equal("30 /users\r\n", home)
+	assert.Equal("30 /login\r\n", home)
 }
 
 func TestHome_UnauthenticatedUser(t *testing.T) {

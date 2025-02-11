@@ -24,7 +24,7 @@ import (
 
 func (h *Handler) mentions(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
-		w.Redirect("/users")
+		w.Redirect("/login")
 		return
 	}
 
