@@ -61,11 +61,11 @@ func TestCommunity_NewThread(t *testing.T) {
 		),
 	)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	say := server.Handle("/users/say?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say := server.Handle("/login/say?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
 	id := say[15 : len(say)-2]
 
@@ -108,8 +108,8 @@ func TestCommunity_NewThreadNotFollowing(t *testing.T) {
 		),
 	)
 
-	say := server.Handle("/users/say?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say := server.Handle("/login/say?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
 	id := say[15 : len(say)-2]
 
@@ -152,11 +152,11 @@ func TestCommunity_NewThreadNotPublic(t *testing.T) {
 		),
 	)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	whisper := server.Handle("/users/whisper?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+	whisper := server.Handle("/login/whisper?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, whisper)
 
 	id := whisper[15 : len(whisper)-2]
 
@@ -199,11 +199,11 @@ func TestCommunity_ReplyInThread(t *testing.T) {
 		),
 	)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	say := server.Handle("/users/say?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say := server.Handle("/login/say?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
 	id := say[15 : len(say)-2]
 
@@ -273,8 +273,8 @@ func TestCommunity_ReplyInThreadAuthorNotFollowing(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	say := server.Handle("/users/say?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say := server.Handle("/login/say?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
 	id := say[15 : len(say)-2]
 
@@ -362,8 +362,8 @@ func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	say := server.Handle("/users/say?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say := server.Handle("/login/say?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
 	id := say[15 : len(say)-2]
 
@@ -444,11 +444,11 @@ func TestCommunity_DuplicateReplyInThread(t *testing.T) {
 		),
 	)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	say := server.Handle("/users/say?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say := server.Handle("/login/say?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
 	id := say[15 : len(say)-2]
 
@@ -540,11 +540,11 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 		),
 	)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	say := server.Handle("/users/say?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say := server.Handle("/login/say?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
 	id := say[15 : len(say)-2]
 
@@ -657,11 +657,11 @@ func TestCommunity_UnknownEditedReplyInThread(t *testing.T) {
 		),
 	)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	say := server.Handle("/users/say?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say := server.Handle("/login/say?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
 	id := say[15 : len(say)-2]
 

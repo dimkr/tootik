@@ -108,7 +108,7 @@ func (h *Handler) thread(w text.Writer, r *Request, args ...string) {
 		if r.User == nil {
 			w.Link("/view/"+strings.TrimPrefix(node.PostID, "https://"), b.String())
 		} else {
-			w.Link("/users/view/"+strings.TrimPrefix(node.PostID, "https://"), b.String())
+			w.Link("/login/view/"+strings.TrimPrefix(node.PostID, "https://"), b.String())
 		}
 
 		if count == 0 {
@@ -131,7 +131,7 @@ func (h *Handler) thread(w text.Writer, r *Request, args ...string) {
 	if threadHead.Valid && count > 0 && threadHead.String != firstNodeID && r.User == nil {
 		w.Link("/view/"+strings.TrimPrefix(threadHead.String, "https://"), "View first post in thread")
 	} else if threadHead.Valid && count > 0 && threadHead.String != firstNodeID {
-		w.Link("/users/view/"+strings.TrimPrefix(threadHead.String, "https://"), "View first post in thread")
+		w.Link("/login/view/"+strings.TrimPrefix(threadHead.String, "https://"), "View first post in thread")
 	}
 
 	if offset > h.Config.PostsPerPage {

@@ -321,7 +321,7 @@ func TestMove_LocalToLocalAliasThrottled(t *testing.T) {
 
 	assert := assert.New(t)
 
-	alias := server.Handle("/users/alias?bob%40localhost.localdomain%3a8443", server.Alice)
+	alias := server.Handle("/login/alias?bob%40localhost.localdomain%3a8443", server.Alice)
 	assert.Regexp(`^40 Please wait for \S+\r\n$`, alias)
 }
 
@@ -343,16 +343,16 @@ func TestMove_LocalToLocal(t *testing.T) {
 
 	server.cfg.MinActorEditInterval = 1
 
-	alias := server.Handle("/users/alias?bob%40localhost.localdomain%3a8443", server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), alias)
+	alias := server.Handle("/login/alias?bob%40localhost.localdomain%3a8443", server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), alias)
 
-	alias = server.Handle("/users/alias?alice%40localhost.localdomain%3a8443", server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), alias)
+	alias = server.Handle("/login/alias?alice%40localhost.localdomain%3a8443", server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), alias)
 
 	assert.NoError(server.db.QueryRow(`select actor from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
 
-	move := server.Handle("/users/move?bob%40localhost.localdomain%3a8443", server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), move)
+	move := server.Handle("/login/move?bob%40localhost.localdomain%3a8443", server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), move)
 
 	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db)
 
@@ -377,16 +377,16 @@ func TestMove_LocalToLocalNoFollowers(t *testing.T) {
 
 	server.cfg.MinActorEditInterval = 1
 
-	alias := server.Handle("/users/alias?bob%40localhost.localdomain%3a8443", server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), alias)
+	alias := server.Handle("/login/alias?bob%40localhost.localdomain%3a8443", server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), alias)
 
-	alias = server.Handle("/users/alias?alice%40localhost.localdomain%3a8443", server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), alias)
+	alias = server.Handle("/login/alias?alice%40localhost.localdomain%3a8443", server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), alias)
 
 	assert.NoError(server.db.QueryRow(`select actor from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
 
-	move := server.Handle("/users/move?bob%40localhost.localdomain%3a8443", server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), move)
+	move := server.Handle("/login/move?bob%40localhost.localdomain%3a8443", server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), move)
 
 	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db)
 
@@ -428,13 +428,13 @@ func TestMove_LocalToFederated(t *testing.T) {
 
 	server.cfg.MinActorEditInterval = 1
 
-	alias := server.Handle("/users/alias?alice%40127.0.0.1", server.Alice)
-	assert.Equal("30 /users/outbox/127.0.0.1/user/alice\r\n", alias)
+	alias := server.Handle("/login/alias?alice%40127.0.0.1", server.Alice)
+	assert.Equal("30 /login/outbox/127.0.0.1/user/alice\r\n", alias)
 
 	assert.NoError(server.db.QueryRow(`select actor from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
 
-	move := server.Handle("/users/move?alice%40127.0.0.1", server.Alice)
-	assert.Equal("30 /users/outbox/127.0.0.1/user/alice\r\n", move)
+	move := server.Handle("/login/move?alice%40127.0.0.1", server.Alice)
+	assert.Equal("30 /login/outbox/127.0.0.1/user/alice\r\n", move)
 
 	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db)
 
@@ -476,7 +476,7 @@ func TestMove_LocalToFederatedNoSourceToTargetAlias(t *testing.T) {
 
 	server.cfg.MinActorEditInterval = 1
 
-	move := server.Handle("/users/move?alice%40127.0.0.1", server.Alice)
+	move := server.Handle("/login/move?alice%40127.0.0.1", server.Alice)
 	assert.Equal("40 https://localhost.localdomain:8443/user/alice is not an alias for https://127.0.0.1/user/alice\r\n", move)
 }
 
@@ -505,12 +505,12 @@ func TestMove_LocalToFederatedNoTargetToSourceAlias(t *testing.T) {
 
 	server.cfg.MinActorEditInterval = 1
 
-	alias := server.Handle("/users/alias?alice%40127.0.0.1", server.Alice)
-	assert.Equal("30 /users/outbox/127.0.0.1/user/alice\r\n", alias)
+	alias := server.Handle("/login/alias?alice%40127.0.0.1", server.Alice)
+	assert.Equal("30 /login/outbox/127.0.0.1/user/alice\r\n", alias)
 
 	assert.NoError(server.db.QueryRow(`select actor from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
 
-	move := server.Handle("/users/move?alice%40127.0.0.1", server.Alice)
+	move := server.Handle("/login/move?alice%40127.0.0.1", server.Alice)
 	assert.Equal("40 https://127.0.0.1/user/alice is not an alias for https://localhost.localdomain:8443/user/alice\r\n", move)
 }
 
@@ -539,13 +539,13 @@ func TestMove_LocalToFederatedAlreadyMoved(t *testing.T) {
 
 	server.cfg.MinActorEditInterval = 1
 
-	alias := server.Handle("/users/alias?alice%40127.0.0.1", server.Alice)
-	assert.Equal("30 /users/outbox/127.0.0.1/user/alice\r\n", alias)
+	alias := server.Handle("/login/alias?alice%40127.0.0.1", server.Alice)
+	assert.Equal("30 /login/outbox/127.0.0.1/user/alice\r\n", alias)
 
 	assert.NoError(server.db.QueryRow(`select actor from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
 
-	move := server.Handle("/users/move?alice%40127.0.0.1", server.Alice)
-	assert.Equal("30 /users/outbox/127.0.0.1/user/alice\r\n", move)
+	move := server.Handle("/login/move?alice%40127.0.0.1", server.Alice)
+	assert.Equal("30 /login/outbox/127.0.0.1/user/alice\r\n", move)
 
 	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db)
 
@@ -563,6 +563,6 @@ func TestMove_LocalToFederatedAlreadyMoved(t *testing.T) {
 
 	assert.NoError(server.db.QueryRow(`select actor from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
 
-	move = server.Handle("/users/move?alice%40%3a%3a1", server.Alice)
+	move = server.Handle("/login/move?alice%40%3a%3a1", server.Alice)
 	assert.Equal("40 Already moved to https://127.0.0.1/user/alice\r\n", move)
 }

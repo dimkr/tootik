@@ -233,7 +233,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 	}
 
 	if offset == 0 && actor.MovedTo != "" {
-		w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.MovedTo, "https://"), "Moved to %s", actor.MovedTo)
+		w.Linkf("/login/outbox/"+strings.TrimPrefix(actor.MovedTo, "https://"), "Moved to %s", actor.MovedTo)
 		showSeparator = true
 	}
 
@@ -321,10 +321,10 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 			r.Log.Warn("Failed to check if user is followed", "actor", actorID, "error", err)
 		} else if followed == 0 {
 			w.Separator()
-			w.Linkf("/users/follow/"+strings.TrimPrefix(actorID, "https://"), "⚡ Follow %s", actor.PreferredUsername)
+			w.Linkf("/login/follow/"+strings.TrimPrefix(actorID, "https://"), "⚡ Follow %s", actor.PreferredUsername)
 		} else {
 			w.Separator()
-			w.Linkf("/users/unfollow/"+strings.TrimPrefix(actorID, "https://"), "🔌 Unfollow %s", actor.PreferredUsername)
+			w.Linkf("/login/unfollow/"+strings.TrimPrefix(actorID, "https://"), "🔌 Unfollow %s", actor.PreferredUsername)
 		}
 	}
 }

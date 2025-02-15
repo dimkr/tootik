@@ -23,7 +23,7 @@ import (
 
 func (h *Handler) say(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
-		w.Redirect("/users")
+		w.Redirect("/login")
 		return
 	}
 
@@ -40,7 +40,7 @@ func (h *Handler) say(w text.Writer, r *Request, args ...string) {
 
 func (h *Handler) uploadSay(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
-		w.Redirect("/users")
+		w.Redirect("/login")
 		return
 	}
 

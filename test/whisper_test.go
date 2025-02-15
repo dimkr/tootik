@@ -30,16 +30,16 @@ func TestWhisper_HappyFlow(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+	whisper := server.Handle("/login/whisper?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, whisper)
 
 	view := server.Handle(whisper[3:len(whisper)-2], server.Bob)
 	assert.Contains(view, "Hello world")
 
-	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	outbox := server.Handle("/login/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Contains(outbox, "Hello world")
 
 	local := server.Handle("/local", server.Carol)
@@ -52,19 +52,19 @@ func TestWhisper_FollowAfterPost(t *testing.T) {
 
 	assert := assert.New(t)
 
-	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+	whisper := server.Handle("/login/whisper?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, whisper)
 
 	view := server.Handle(whisper[3:len(whisper)-2], server.Bob)
 	assert.Equal("40 Post not found\r\n", view)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
 	view = server.Handle(whisper[3:len(whisper)-2], server.Bob)
 	assert.Contains(view, "Hello world")
 
-	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	outbox := server.Handle("/login/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Contains(outbox, "Hello world")
 
 	local := server.Handle("/local", server.Carol)
@@ -77,22 +77,22 @@ func TestWhisper_Throttling(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+	whisper := server.Handle("/login/whisper?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, whisper)
 
 	view := server.Handle(whisper[3:len(whisper)-2], server.Bob)
 	assert.Contains(view, "Hello world")
 
-	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Alice)
+	outbox := server.Handle("/login/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Alice)
 	assert.Contains(outbox, "Hello world")
 
-	whisper = server.Handle("/users/whisper?Hello%20once%20more,%20world", server.Alice)
+	whisper = server.Handle("/login/whisper?Hello%20once%20more,%20world", server.Alice)
 	assert.Regexp(`^40 Please wait for \S+\r\n$`, whisper)
 
-	outbox = server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	outbox = server.Handle("/login/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Contains(outbox, "Hello world")
 	assert.NotContains(outbox, "Hello once more, world")
 

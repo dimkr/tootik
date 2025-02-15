@@ -23,7 +23,7 @@ import (
 
 func (h *Handler) whisper(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
-		w.Redirect("/users")
+		w.Redirect("/login")
 		return
 	}
 
@@ -39,7 +39,7 @@ func (h *Handler) whisper(w text.Writer, r *Request, args ...string) {
 
 func (h *Handler) uploadWhisper(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
-		w.Redirect("/users")
+		w.Redirect("/login")
 		return
 	}
 

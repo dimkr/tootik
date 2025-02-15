@@ -30,18 +30,18 @@ func TestShare_PublicPost(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say := server.Handle("/login/say?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
 	id := say[15 : len(say)-2]
 
-	share := server.Handle("/users/share/"+id, server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), share)
+	share := server.Handle("/login/share/"+id, server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/view/%s\r\n", id), share)
 
-	outbox := strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Carol), "\n")
+	outbox := strings.Split(server.Handle("/login/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Carol), "\n")
 	assert.Contains(outbox, "> Hello world")
 
-	outbox = strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
+	outbox = strings.Split(server.Handle("/login/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
 	assert.Contains(outbox, "> Hello world")
 }
 
@@ -51,20 +51,20 @@ func TestShare_Throttling(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say := server.Handle("/login/say?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
 	id := say[15 : len(say)-2]
 
-	share := server.Handle("/users/share/"+id, server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), share)
+	share := server.Handle("/login/share/"+id, server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/view/%s\r\n", id), share)
 
-	say = server.Handle("/users/say?Hello%20world", server.Carol)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say = server.Handle("/login/say?Hello%20world", server.Carol)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
 	id = say[15 : len(say)-2]
 
-	share = server.Handle("/users/share/"+id, server.Bob)
+	share = server.Handle("/login/share/"+id, server.Bob)
 	assert.Equal("40 Please wait before sharing\r\n", share)
 }
 
@@ -74,16 +74,16 @@ func TestShare_UnshareThrottling(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say := server.Handle("/login/say?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
 	id := say[15 : len(say)-2]
 
-	share := server.Handle("/users/share/"+id, server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), share)
+	share := server.Handle("/login/share/"+id, server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/view/%s\r\n", id), share)
 
-	unshare := server.Handle("/users/unshare/"+id, server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), unshare)
+	unshare := server.Handle("/login/unshare/"+id, server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/view/%s\r\n", id), unshare)
 }
 
 func TestShare_PostToFollowers(t *testing.T) {
@@ -92,12 +92,12 @@ func TestShare_PostToFollowers(t *testing.T) {
 
 	assert := assert.New(t)
 
-	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+	whisper := server.Handle("/login/whisper?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, whisper)
 
 	id := whisper[15 : len(whisper)-2]
 
-	share := server.Handle("/users/share/"+id, server.Bob)
+	share := server.Handle("/login/share/"+id, server.Bob)
 	assert.Equal("40 Error\r\n", share)
 }
 
@@ -107,21 +107,21 @@ func TestShare_Twice(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say := server.Handle("/login/say?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
 	id := say[15 : len(say)-2]
 
-	share := server.Handle("/users/share/"+id, server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), share)
+	share := server.Handle("/login/share/"+id, server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/view/%s\r\n", id), share)
 
-	outbox := strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Carol), "\n")
+	outbox := strings.Split(server.Handle("/login/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Carol), "\n")
 	assert.Contains(outbox, "> Hello world")
 
-	outbox = strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
+	outbox = strings.Split(server.Handle("/login/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
 	assert.Contains(outbox, "> Hello world")
 
-	share = server.Handle("/users/share/"+id, server.Bob)
+	share = server.Handle("/login/share/"+id, server.Bob)
 	assert.Equal("40 Error\r\n", share)
 }
 
@@ -131,27 +131,27 @@ func TestShare_Unshare(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say := server.Handle("/login/say?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
 	id := say[15 : len(say)-2]
 
-	share := server.Handle("/users/share/"+id, server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), share)
+	share := server.Handle("/login/share/"+id, server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/view/%s\r\n", id), share)
 
-	outbox := strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Carol), "\n")
+	outbox := strings.Split(server.Handle("/login/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Carol), "\n")
 	assert.Contains(outbox, "> Hello world")
 
-	outbox = strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
+	outbox = strings.Split(server.Handle("/login/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
 	assert.Contains(outbox, "> Hello world")
 
 	_, err := server.db.Exec(`update outbox set inserted = inserted = 3600 where activity->>'$.type' = 'Announce'`)
 	assert.NoError(err)
 
-	unshare := server.Handle("/users/unshare/"+id, server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), unshare)
+	unshare := server.Handle("/login/unshare/"+id, server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/view/%s\r\n", id), unshare)
 
-	outbox = strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
+	outbox = strings.Split(server.Handle("/login/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
 	assert.NotContains(outbox, "> Hello world")
 }
 
@@ -161,35 +161,35 @@ func TestShare_ShareAfterUnshare(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say := server.Handle("/login/say?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
 	id := say[15 : len(say)-2]
 
-	share := server.Handle("/users/share/"+id, server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), share)
+	share := server.Handle("/login/share/"+id, server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/view/%s\r\n", id), share)
 
-	outbox := strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Carol), "\n")
+	outbox := strings.Split(server.Handle("/login/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Carol), "\n")
 	assert.Contains(outbox, "> Hello world")
 
-	outbox = strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
+	outbox = strings.Split(server.Handle("/login/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
 	assert.Contains(outbox, "> Hello world")
 
 	_, err := server.db.Exec(`update outbox set inserted = inserted = 3600 where activity->>'$.type' = 'Announce'`)
 	assert.NoError(err)
 
-	unshare := server.Handle("/users/unshare/"+id, server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), unshare)
+	unshare := server.Handle("/login/unshare/"+id, server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/view/%s\r\n", id), unshare)
 
-	outbox = strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
+	outbox = strings.Split(server.Handle("/login/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
 	assert.NotContains(outbox, "> Hello world")
 
 	_, err = server.db.Exec(`update outbox set inserted = inserted = 3600 where activity->>'$.type' = 'Undo'`)
 	assert.NoError(err)
 
-	share = server.Handle("/users/share/"+id, server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), share)
+	share = server.Handle("/login/share/"+id, server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/view/%s\r\n", id), share)
 
-	outbox = strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
+	outbox = strings.Split(server.Handle("/login/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
 	assert.Contains(outbox, "> Hello world")
 }

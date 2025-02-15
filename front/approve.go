@@ -20,7 +20,7 @@ import "github.com/dimkr/tootik/front/text"
 
 func (h *Handler) approve(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
-		w.Redirect("/users")
+		w.Redirect("/login")
 		return
 	}
 
@@ -50,5 +50,5 @@ func (h *Handler) approve(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.Redirect("/users/certificates")
+	w.Redirect("/login/certificates")
 }
