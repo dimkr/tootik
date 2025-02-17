@@ -47,7 +47,7 @@ func getTextAndLinks(s string, maxRunes, maxLines int) ([]string, data.OrderedMa
 		}
 	}
 
-	lines := strings.Split(raw, "\n")
+	lines := strings.SplitN(raw, "\n", maxLines+1)
 
 	if maxLines <= 0 || len(lines) <= maxLines {
 		return lines, links
