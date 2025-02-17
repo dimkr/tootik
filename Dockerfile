@@ -1,4 +1,4 @@
-# Copyright 2023, 2024 Dima Krasner
+# Copyright 2023 - 2025 Dima Krasner
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.23-alpine AS build
+FROM golang:1.24-alpine AS build
 RUN apk add --no-cache gcc musl-dev openssl
 COPY go.mod /src/
 COPY go.sum /src/
