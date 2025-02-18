@@ -42,7 +42,6 @@ type Handler struct {
 var (
 	ErrNotRegistered = errors.New("user is not registered")
 	ErrNotApproved   = errors.New("client certificate is not approved")
-	usersRedirect    = regexp.MustCompile(`^/users(.*)`)
 )
 
 func serveStaticFile(lines []string, w text.Writer, _ *Request, _ ...string) {
@@ -169,10 +168,8 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 
 // Handle handles a request and writes a response.
 func (h *Handler) Handle(r *Request, w text.Writer) {
-	path := usersRedirect.ReplaceAllString(r.URL.Path, `/(?:(login|users))$1`)
-
 	for re, handler := range h.handlers {
-		m := re.FindStringSubmatch(path)
+		m := re.FindStringSubmatch(r.URL.Path)
 		if m != nil {
 			handler(w, r, m...)
 			return
@@ -184,10 +181,10 @@ func (h *Handler) Handle(r *Request, w text.Writer) {
 	if r.URL.Scheme == "titan" && r.User == nil {
 		w.Redirectf("gemini://%s/oops", h.Domain)
 	} else if r.URL.Scheme == "titan" && r.User != nil {
-		w.Redirectf("gemini://%s/(?:(login|users))/oops", h.Domain)
+		w.Redirectf("gemini://%s/login/oops", h.Domain)
 	} else if r.User == nil {
 		w.Redirect("/oops")
 	} else {
-		w.Redirect("/(?:(login|users))/oops")
+		w.Redirect("/login/oops")
 	}
 }
