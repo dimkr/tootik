@@ -16,55 +16,55 @@
 
 Users are authenticated using TLS client certificates; see [Gemini protocol specification](https://gemini.circumlunar.space/docs/specification.html) for more details. The following pages require authentication:
 
-* /users shows posts by followed users, sorted chronologically.
-* /users/mentions is like /users but shows only posts that mention the user.
-* /users/register creates a new user.
-* /users/follows shows a list of followed users, ordered by activity.
-* /users/me redirects the user to their outbox.
-* /users/resolve looks up federated user *user@domain* or local user *user*.
-* /users/dm creates a post visible to mentioned users.
-* /users/whisper creates a post visible to followers.
-* /users/say creates a public post.
-* /users/reply replies to a post.
-* /users/edit edits a post.
-* /users/delete deletes a post.
-* /users/share shares a post.
-* /users/unshare removes a shared post.
-* /users/follow sends a follow request to a user.
-* /users/unfollow deletes a follow request.
-* /users/outbox is equivalent to /outbox but also includes a link to /users/follow or /users/unfollow.
-* /users/bio allows users to edit their bio.
-* /users/name allows users to set their display name.
-* /users/alias allows users to set an account alias, to allow migration of accounts to tootik.
-* /users/move allows users to notify followers of account migration from tootik.
+* /login shows posts by followed users, sorted chronologically.
+* /login/mentions is like /login but shows only posts that mention the user.
+* /login/register creates a new user.
+* /login/follows shows a list of followed users, ordered by activity.
+* /login/me redirects the user to their outbox.
+* /login/resolve looks up federated user *user@domain* or local user *user*.
+* /login/dm creates a post visible to mentioned users.
+* /login/whisper creates a post visible to followers.
+* /login/say creates a public post.
+* /login/reply replies to a post.
+* /login/edit edits a post.
+* /login/delete deletes a post.
+* /login/share shares a post.
+* /login/unshare removes a shared post.
+* /login/follow sends a follow request to a user.
+* /login/unfollow deletes a follow request.
+* /login/outbox is equivalent to /outbox but also includes a link to /login/follow or /login/unfollow.
+* /login/bio allows users to edit their bio.
+* /login/name allows users to set their display name.
+* /login/alias allows users to set an account alias, to allow migration of accounts to tootik.
+* /login/move allows users to notify followers of account migration from tootik.
 
-Some clients generate a certificate for / (all pages of this capsule) when /foo requests a client certificate, while others use the certificate requested by /foo only for /foo and /foo/bar. Therefore, pages that don't require authentication are also mirrored under /users:
+Some clients generate a certificate for / (all pages of this capsule) when /foo requests a client certificate, while others use the certificate requested by /foo only for /foo and /foo/bar. Therefore, pages that don't require authentication are also mirrored under /login:
 
-* /users/local
-* /users/hashtag
-* /users/hashtags
-* /users/fts
-* /users/status
-* /users/view
-* /users/thread
+* /login/local
+* /login/hashtag
+* /login/hashtags
+* /login/fts
+* /login/status
+* /login/view
+* /login/thread
 
-This way, users who prefer not to provide a client certificate when browsing to /x can reply to public posts by using /users/x instead.
+This way, users who prefer not to provide a client certificate when browsing to /x can reply to public posts by using /login/x instead.
 
-To make the transition to authenticated pages more seamless, links in the user menu at the bottom of each page point to /users/x rather than /x, if the user is authenticated.
+To make the transition to authenticated pages more seamless, links in the user menu at the bottom of each page point to /login/x rather than /x, if the user is authenticated.
 
-All pages follow the [subscription convention](https://gemini.circumlunar.space/docs/companion/subscription.gmi), so users can "subscribe" to a user, a hashtag, posts by followed users or other activity. This way, tootik can act as a personal fediverse aggregator. In addition, feeds like /users have separators between days, to interrupt the endless stream of incoming content, make the content consumption more intentional and prevent doomscrolling.
+All pages follow the [subscription convention](https://gemini.circumlunar.space/docs/companion/subscription.gmi), so users can "subscribe" to a user, a hashtag, posts by followed users or other activity. This way, tootik can act as a personal fediverse aggregator. In addition, feeds like /login have separators between days, to interrupt the endless stream of incoming content, make the content consumption more intentional and prevent doomscrolling.
 
 ## Authentication
 
-If no client certificate is provided, all pages under /users redirect the client to /users.
+If no client certificate is provided, all pages under /login redirect the client to /login.
 
-/users asks the client to provide a certificate. Well-behaved clients should generate a certificate, re-request /users, then reuse this certificate in future requests of /users and pages under it.
+/login asks the client to provide a certificate. Well-behaved clients should generate a certificate, re-request /login, then reuse this certificate in future requests of /login and pages under it.
 
-If a certificate is provided but does not belong to any user, the client is redirected to /users/register.
+If a certificate is provided but does not belong to any user, the client is redirected to /login/register.
 
-By default, the username associated with a client certificate is the common name specified in the certificate. If invalid or already in use by another user, /users/register asks the user to provide a different username. Once the user is registered, the client is redirected back to /users.
+By default, the username associated with a client certificate is the common name specified in the certificate. If invalid or already in use by another user, /login/register asks the user to provide a different username. Once the user is registered, the client is redirected back to /login.
 
-Once the client certificate is associated with a user, all pages under /users look up the authenticated user's data using the certificate hash.
+Once the client certificate is associated with a user, all pages under /login look up the authenticated user's data using the certificate hash.
 
 ## Posts
 
@@ -91,7 +91,7 @@ tootik has three kinds of posts:
 
 ## Post Editing
 
-/users/edit cannot remove recipients from the post audience, only add more. If a post that mentions only `@a` is edited to mention only `@b`, both `a` and `b` will receive the updated post.
+/login/edit cannot remove recipients from the post audience, only add more. If a post that mentions only `@a` is edited to mention only `@b`, both `a` and `b` will receive the updated post.
 
 ### Polls
 

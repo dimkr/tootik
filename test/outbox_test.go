@@ -34,7 +34,7 @@ func TestOutbox_NonExistingUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	outbox := server.Handle("/users/outbox/x", server.Bob)
+	outbox := server.Handle("/login/outbox/x", server.Bob)
 	assert.Equal("40 User not found\r\n", outbox)
 }
 
@@ -44,10 +44,10 @@ func TestOutbox_InvalidOffset(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say := server.Handle("/login/say?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
-	outbox := server.Handle(fmt.Sprintf("/users/outbox/%s?abc", strings.TrimPrefix(server.Alice.ID, "https://")), server.Bob)
+	outbox := server.Handle(fmt.Sprintf("/login/outbox/%s?abc", strings.TrimPrefix(server.Alice.ID, "https://")), server.Bob)
 	assert.Equal("40 Invalid query\r\n", outbox)
 }
 
@@ -57,10 +57,10 @@ func TestOutbox_PublicPost(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say := server.Handle("/login/say?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
-	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	outbox := server.Handle("/login/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Contains(outbox, "Hello world")
 }
 
@@ -70,8 +70,8 @@ func TestOutbox_PublicPostUnauthenticatedUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say := server.Handle("/login/say?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
 	outbox := server.Handle("/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), nil)
 	assert.Contains(outbox, "Hello world")
@@ -83,10 +83,10 @@ func TestOutbox_PublicPostSelf(t *testing.T) {
 
 	assert := assert.New(t)
 
-	say := server.Handle("/users/say?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say := server.Handle("/login/say?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
-	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Alice)
+	outbox := server.Handle("/login/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Alice)
 	assert.Contains(outbox, "Hello world")
 }
 
@@ -96,13 +96,13 @@ func TestOutbox_PostToFollowers(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+	whisper := server.Handle("/login/whisper?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, whisper)
 
-	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	outbox := server.Handle("/login/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Contains(outbox, "Hello world")
 }
 
@@ -112,10 +112,10 @@ func TestOutbox_PostToFollowersNotFollowing(t *testing.T) {
 
 	assert := assert.New(t)
 
-	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+	whisper := server.Handle("/login/whisper?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, whisper)
 
-	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	outbox := server.Handle("/login/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Contains(strings.Split(outbox, "\n"), "No posts.")
 	assert.NotContains(outbox, "Hello world")
 }
@@ -126,8 +126,8 @@ func TestOutbox_PostToFollowersUnauthentictedUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+	whisper := server.Handle("/login/whisper?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, whisper)
 
 	outbox := server.Handle("/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), nil)
 	assert.Contains(strings.Split(outbox, "\n"), "No posts.")
@@ -140,10 +140,10 @@ func TestOutbox_PostToFollowersSelf(t *testing.T) {
 
 	assert := assert.New(t)
 
-	whisper := server.Handle("/users/whisper?Hello%20world", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
+	whisper := server.Handle("/login/whisper?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, whisper)
 
-	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Alice)
+	outbox := server.Handle("/login/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Alice)
 	assert.Contains(outbox, "Hello world")
 }
 
@@ -153,13 +153,13 @@ func TestOutbox_DM(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	dm := server.Handle("/users/dm?Hello%20%40bob", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
+	dm := server.Handle("/login/dm?Hello%20%40bob", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, dm)
 
-	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	outbox := server.Handle("/login/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Contains(outbox, "Hello @bob")
 }
 
@@ -169,13 +169,13 @@ func TestOutbox_DMSelf(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	dm := server.Handle("/users/dm?Hello%20%40bob", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
+	dm := server.Handle("/login/dm?Hello%20%40bob", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, dm)
 
-	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Alice)
+	outbox := server.Handle("/login/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Alice)
 	assert.Contains(outbox, "Hello @bob")
 }
 
@@ -185,13 +185,13 @@ func TestOutbox_DMNotRecipient(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	dm := server.Handle("/users/dm?Hello%20%40bob", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
+	dm := server.Handle("/login/dm?Hello%20%40bob", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, dm)
 
-	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Carol)
+	outbox := server.Handle("/login/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Carol)
 	assert.NotContains(outbox, "Hello @bob")
 	assert.Contains(strings.Split(outbox, "\n"), "No posts.")
 }
@@ -202,11 +202,11 @@ func TestOutbox_UnauthenticatedUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	dm := server.Handle("/users/dm?Hello%20%40bob", server.Alice)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
+	dm := server.Handle("/login/dm?Hello%20%40bob", server.Alice)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, dm)
 
 	outbox := server.Handle("/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), nil)
 	assert.NotContains(outbox, "Hello @bob")
@@ -253,7 +253,7 @@ func TestOutbox_PublicPostInGroup(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(1, n)
 
-	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
+	outbox := server.Handle("/login/outbox/other.localdomain/group/people", server.Bob)
 	assert.Contains(outbox, "Hello world")
 }
 
@@ -339,7 +339,7 @@ func TestOutbox_PublicPostInGroupAudienceSetByUser(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(1, n)
 
-	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
+	outbox := server.Handle("/login/outbox/other.localdomain/group/people", server.Bob)
 	assert.NotContains(outbox, "Hello world")
 
 	_, err = server.db.Exec(
@@ -353,7 +353,7 @@ func TestOutbox_PublicPostInGroupAudienceSetByUser(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(1, n)
 
-	outbox = server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
+	outbox = server.Handle("/login/outbox/other.localdomain/group/people", server.Bob)
 	assert.Contains(outbox, "Hello world")
 }
 
@@ -396,7 +396,7 @@ func TestOutbox_PublicPostInGroupAudienceSetByGroup(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(1, n)
 
-	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
+	outbox := server.Handle("/login/outbox/other.localdomain/group/people", server.Bob)
 	assert.Contains(outbox, "Hello world")
 
 	_, err = server.db.Exec(
@@ -410,7 +410,7 @@ func TestOutbox_PublicPostInGroupAudienceSetByGroup(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(1, n)
 
-	outbox = server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
+	outbox = server.Handle("/login/outbox/other.localdomain/group/people", server.Bob)
 	assert.Contains(outbox, "Hello world")
 }
 
@@ -453,7 +453,7 @@ func TestOutbox_PublicPostInGroupDeletedByUser(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(1, n)
 
-	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
+	outbox := server.Handle("/login/outbox/other.localdomain/group/people", server.Bob)
 	assert.Contains(outbox, "Hello world")
 
 	_, err = server.db.Exec(
@@ -467,7 +467,7 @@ func TestOutbox_PublicPostInGroupDeletedByUser(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(1, n)
 
-	outbox = server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
+	outbox = server.Handle("/login/outbox/other.localdomain/group/people", server.Bob)
 	assert.NotContains(outbox, "Hello world")
 }
 
@@ -517,7 +517,7 @@ func TestOutbox_PublicPostInGroupDeletedByAnotherUser(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(1, n)
 
-	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
+	outbox := server.Handle("/login/outbox/other.localdomain/group/people", server.Bob)
 	assert.Contains(outbox, "Hello world")
 
 	_, err = server.db.Exec(
@@ -531,7 +531,7 @@ func TestOutbox_PublicPostInGroupDeletedByAnotherUser(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(1, n)
 
-	outbox = server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
+	outbox = server.Handle("/login/outbox/other.localdomain/group/people", server.Bob)
 	assert.NotContains(outbox, "Hello world")
 }
 
@@ -574,7 +574,7 @@ func TestOutbox_PublicPostInGroupDeletedByGroup(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(1, n)
 
-	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
+	outbox := server.Handle("/login/outbox/other.localdomain/group/people", server.Bob)
 	assert.Contains(outbox, "Hello world")
 
 	_, err = server.db.Exec(
@@ -588,7 +588,7 @@ func TestOutbox_PublicPostInGroupDeletedByGroup(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(1, n)
 
-	outbox = server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
+	outbox = server.Handle("/login/outbox/other.localdomain/group/people", server.Bob)
 	assert.NotContains(outbox, "Hello world")
 }
 
@@ -638,7 +638,7 @@ func TestOutbox_PublicPostInGroupForwardedDelete(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(1, n)
 
-	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
+	outbox := server.Handle("/login/outbox/other.localdomain/group/people", server.Bob)
 	assert.Contains(outbox, "Hello world")
 
 	_, err = server.db.Exec(
@@ -652,7 +652,7 @@ func TestOutbox_PublicPostInGroupForwardedDelete(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(1, n)
 
-	outbox = server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
+	outbox = server.Handle("/login/outbox/other.localdomain/group/people", server.Bob)
 	assert.NotContains(outbox, "Hello world")
 }
 
@@ -695,7 +695,7 @@ func TestOutbox_PublicPostInGroupEditedByUser(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(1, n)
 
-	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
+	outbox := server.Handle("/login/outbox/other.localdomain/group/people", server.Bob)
 	assert.Contains(outbox, "Hello world")
 
 	_, err = server.db.Exec(
@@ -709,7 +709,7 @@ func TestOutbox_PublicPostInGroupEditedByUser(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(1, n)
 
-	outbox = server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
+	outbox = server.Handle("/login/outbox/other.localdomain/group/people", server.Bob)
 	assert.Contains(outbox, "Hello again")
 }
 
@@ -733,8 +733,8 @@ func TestOutbox_PostToFollowersInGroup(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/other.localdomain/group/people", server.Alice)
-	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
+	follow := server.Handle("/login/follow/other.localdomain/group/people", server.Alice)
+	assert.Equal("30 /login/outbox/other.localdomain/group/people\r\n", follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
@@ -758,7 +758,7 @@ func TestOutbox_PostToFollowersInGroup(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(1, n)
 
-	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Alice)
+	outbox := server.Handle("/login/outbox/other.localdomain/group/people", server.Alice)
 	assert.Contains(outbox, "Hello world")
 }
 
@@ -782,8 +782,8 @@ func TestOutbox_PostToFollowersInGroupNotFollowingGroup(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/other.localdomain/group/people", server.Alice)
-	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
+	follow := server.Handle("/login/follow/other.localdomain/group/people", server.Alice)
+	assert.Equal("30 /login/outbox/other.localdomain/group/people\r\n", follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
@@ -807,7 +807,7 @@ func TestOutbox_PostToFollowersInGroupNotFollowingGroup(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(1, n)
 
-	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
+	outbox := server.Handle("/login/outbox/other.localdomain/group/people", server.Bob)
 	assert.NotContains(outbox, "Hello world")
 }
 
@@ -831,8 +831,8 @@ func TestOutbox_PostToFollowersInGroupNotAccepted(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/other.localdomain/group/people", server.Alice)
-	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
+	follow := server.Handle("/login/follow/other.localdomain/group/people", server.Alice)
+	assert.Equal("30 /login/outbox/other.localdomain/group/people\r\n", follow)
 
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
@@ -853,7 +853,7 @@ func TestOutbox_PostToFollowersInGroupNotAccepted(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(1, n)
 
-	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Alice)
+	outbox := server.Handle("/login/outbox/other.localdomain/group/people", server.Alice)
 	assert.NotContains(outbox, "Hello world")
 }
 
@@ -877,8 +877,8 @@ func TestOutbox_PostToFollowersInGroupFollowingAuthor(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/127.0.0.1/user/dan", server.Alice)
-	assert.Equal("30 /users/outbox/127.0.0.1/user/dan\r\n", follow)
+	follow := server.Handle("/login/follow/127.0.0.1/user/dan", server.Alice)
+	assert.Equal("30 /login/outbox/127.0.0.1/user/dan\r\n", follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
@@ -902,7 +902,7 @@ func TestOutbox_PostToFollowersInGroupFollowingAuthor(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(1, n)
 
-	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Alice)
+	outbox := server.Handle("/login/outbox/other.localdomain/group/people", server.Alice)
 	assert.NotContains(outbox, "Hello world")
 }
 
@@ -926,8 +926,8 @@ func TestOutbox_PostToFollowersInGroupUnauthenticatedUser(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/other.localdomain/group/people", server.Alice)
-	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
+	follow := server.Handle("/login/follow/other.localdomain/group/people", server.Alice)
+	assert.Equal("30 /login/outbox/other.localdomain/group/people\r\n", follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
@@ -951,7 +951,7 @@ func TestOutbox_PostToFollowersInGroupUnauthenticatedUser(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(1, n)
 
-	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Alice)
+	outbox := server.Handle("/login/outbox/other.localdomain/group/people", server.Alice)
 	assert.Contains(outbox, "Hello world")
 }
 
@@ -975,8 +975,8 @@ func TestOutbox_DMInGroupNotFollowingGroup(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
@@ -1000,7 +1000,7 @@ func TestOutbox_DMInGroupNotFollowingGroup(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(1, n)
 
-	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Alice)
+	outbox := server.Handle("/login/outbox/other.localdomain/group/people", server.Alice)
 	assert.NotContains(outbox, "Hello world")
 }
 
@@ -1024,11 +1024,11 @@ func TestOutbox_DMInGroupAnotherUser(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/other.localdomain/group/people", server.Alice)
-	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
+	follow := server.Handle("/login/follow/other.localdomain/group/people", server.Alice)
+	assert.Equal("30 /login/outbox/other.localdomain/group/people\r\n", follow)
 
-	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
+	follow = server.Handle("/login/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
 	_, err = server.db.Exec(`update follows set accepted = 1`)
 	assert.NoError(err)
@@ -1052,6 +1052,6 @@ func TestOutbox_DMInGroupAnotherUser(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(1, n)
 
-	outbox := server.Handle("/users/outbox/other.localdomain/group/people", server.Bob)
+	outbox := server.Handle("/login/outbox/other.localdomain/group/people", server.Bob)
 	assert.NotContains(outbox, "Hello world")
 }

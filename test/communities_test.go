@@ -37,12 +37,12 @@ func TestCommunities_OneCommunity(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	say := server.Handle("/users/say?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+	say := server.Handle("/login/say?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, say)
 
-	communities := server.Handle("/users/communities", server.Bob)
-	assert.Contains(strings.Split(communities, "\n"), fmt.Sprintf("=> /users/outbox/%s/user/alice %s alice", domain, time.Now().Format(time.DateOnly)))
+	communities := server.Handle("/login/communities", server.Bob)
+	assert.Contains(strings.Split(communities, "\n"), fmt.Sprintf("=> /login/outbox/%s/user/alice %s alice", domain, time.Now().Format(time.DateOnly)))
 }

@@ -287,7 +287,7 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 	} else if r.User == nil {
 		w.Link("/view/"+strings.TrimPrefix(note.ID, "https://"), title)
 	} else {
-		w.Link("/users/view/"+strings.TrimPrefix(note.ID, "https://"), title)
+		w.Link("/login/view/"+strings.TrimPrefix(note.ID, "https://"), title)
 	}
 
 	for _, line := range contentLines {
@@ -298,7 +298,7 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 		if r.User == nil {
 			w.Link("/outbox/"+strings.TrimPrefix(author.ID, "https://"), authorDisplayName)
 		} else {
-			w.Link("/users/outbox/"+strings.TrimPrefix(author.ID, "https://"), authorDisplayName)
+			w.Link("/login/outbox/"+strings.TrimPrefix(author.ID, "https://"), authorDisplayName)
 		}
 
 		for mentionID := range mentionedUsers.Keys() {
@@ -314,14 +314,14 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 			if r.User == nil {
 				links.Store("/outbox/"+strings.TrimPrefix(mentionID, "https://"), mentionUserName)
 			} else {
-				links.Store("/users/outbox/"+strings.TrimPrefix(mentionID, "https://"), mentionUserName)
+				links.Store("/login/outbox/"+strings.TrimPrefix(mentionID, "https://"), mentionUserName)
 			}
 		}
 
 		if r.User == nil && sharer != nil {
 			links.Store("/outbox/"+strings.TrimPrefix(sharer.ID, "https://"), "🔄 "+sharer.PreferredUsername)
 		} else if sharer != nil {
-			links.Store("/users/outbox/"+strings.TrimPrefix(sharer.ID, "https://"), "🔄️ "+sharer.PreferredUsername)
+			links.Store("/login/outbox/"+strings.TrimPrefix(sharer.ID, "https://"), "🔄️ "+sharer.PreferredUsername)
 		} else if note.IsPublic() {
 			var rows *sql.Rows
 			var err error
@@ -399,7 +399,7 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 						r.Log.Warn("Failed to scan sharer", "error", err)
 						continue
 					}
-					links.Store("/users/outbox/"+strings.TrimPrefix(sharerID, "https://"), "🔄 "+sharerName)
+					links.Store("/login/outbox/"+strings.TrimPrefix(sharerID, "https://"), "🔄 "+sharerName)
 				}
 				rows.Close()
 			}
@@ -423,16 +423,16 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 			if exists == 1 && r.User == nil {
 				w.Linkf("/hashtag/"+tag, "Posts tagged #%s", tag)
 			} else if exists == 1 {
-				w.Linkf("/users/hashtag/"+tag, "Posts tagged #%s", tag)
+				w.Linkf("/login/hashtag/"+tag, "Posts tagged #%s", tag)
 			}
 		}
 
 		if r.User != nil && note.AttributedTo == r.User.ID && note.Type != ap.Question && note.Name == "" { // polls and votes cannot be edited
-			w.Link("/users/edit/"+strings.TrimPrefix(note.ID, "https://"), "🩹 Edit")
-			w.Link(fmt.Sprintf("titan://%s/users/upload/edit/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload edited post")
+			w.Link("/login/edit/"+strings.TrimPrefix(note.ID, "https://"), "🩹 Edit")
+			w.Link(fmt.Sprintf("titan://%s/login/upload/edit/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload edited post")
 		}
 		if r.User != nil && note.AttributedTo == r.User.ID {
-			w.Link("/users/delete/"+strings.TrimPrefix(note.ID, "https://"), "💣 Delete")
+			w.Link("/login/delete/"+strings.TrimPrefix(note.ID, "https://"), "💣 Delete")
 		}
 		if r.User != nil && note.Type == ap.Question && note.Closed == nil && (note.EndTime == nil || time.Now().Before(note.EndTime.Time)) {
 			options := note.OneOf
@@ -440,7 +440,7 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 				options = note.AnyOf
 			}
 			for _, option := range options {
-				w.Linkf(fmt.Sprintf("/users/reply/%s?%s", strings.TrimPrefix(note.ID, "https://"), url.PathEscape(option.Name)), "📮 Vote %s", option.Name)
+				w.Linkf(fmt.Sprintf("/login/reply/%s?%s", strings.TrimPrefix(note.ID, "https://"), url.PathEscape(option.Name)), "📮 Vote %s", option.Name)
 			}
 		}
 
@@ -449,9 +449,9 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from shares where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&shared); err != nil {
 				r.Log.Warn("Failed to check if post is shared", "id", note.ID, "error", err)
 			} else if shared == 0 {
-				w.Link("/users/share/"+strings.TrimPrefix(note.ID, "https://"), "🔁 Share")
+				w.Link("/login/share/"+strings.TrimPrefix(note.ID, "https://"), "🔁 Share")
 			} else {
-				w.Link("/users/unshare/"+strings.TrimPrefix(note.ID, "https://"), "🔄️ Unshare")
+				w.Link("/login/unshare/"+strings.TrimPrefix(note.ID, "https://"), "🔄️ Unshare")
 			}
 		}
 
@@ -460,15 +460,15 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from bookmarks where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&bookmarked); err != nil {
 				r.Log.Warn("Failed to check if post is bookmarked", "id", note.ID, "error", err)
 			} else if bookmarked == 0 {
-				w.Link("/users/bookmark/"+strings.TrimPrefix(note.ID, "https://"), "🔖 Bookmark")
+				w.Link("/login/bookmark/"+strings.TrimPrefix(note.ID, "https://"), "🔖 Bookmark")
 			} else {
-				w.Link("/users/unbookmark/"+strings.TrimPrefix(note.ID, "https://"), "🔖 Unbookmark")
+				w.Link("/login/unbookmark/"+strings.TrimPrefix(note.ID, "https://"), "🔖 Unbookmark")
 			}
 		}
 
 		if r.User != nil {
-			w.Link("/users/reply/"+strings.TrimPrefix(note.ID, "https://"), "💬 Reply")
-			w.Link(fmt.Sprintf("titan://%s/users/upload/reply/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload reply")
+			w.Link("/login/reply/"+strings.TrimPrefix(note.ID, "https://"), "💬 Reply")
+			w.Link(fmt.Sprintf("titan://%s/login/upload/reply/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload reply")
 		}
 	}
 }

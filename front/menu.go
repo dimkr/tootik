@@ -26,14 +26,14 @@ func writeUserMenu(w text.Writer, user *ap.Actor) {
 
 	prefix := ""
 	if user != nil {
-		prefix = "/users"
+		prefix = "/login"
 	}
 
 	if user != nil {
-		w.Link("/users", "📻 My feed")
-		w.Link("/users/mentions", "📞 Mentions")
-		w.Link("/users/follows", "⚡️ Followed users")
-		w.Link("/users/me", "😈 My profile")
+		w.Link("/login", "📻 My feed")
+		w.Link("/login/mentions", "📞 Mentions")
+		w.Link("/login/follows", "⚡️ Followed users")
+		w.Link("/login/me", "😈 My profile")
 	}
 
 	w.Link(prefix+"/local", "📡 Local feed")
@@ -43,18 +43,18 @@ func writeUserMenu(w text.Writer, user *ap.Actor) {
 		w.Link("/hashtags", "🔥 Hashtags")
 		w.Link("/fts", "🔎 Search posts")
 	} else {
-		w.Link("/users/communities", "🏕️ Communities")
-		w.Link("/users/hashtags", "🔥 Hashtags")
-		w.Link("/users/resolve", "🔭 View profile")
-		w.Link("/users/bookmarks", "🔖 Bookmarks")
-		w.Link("/users/fts", "🔎 Search posts")
+		w.Link("/login/communities", "🏕️ Communities")
+		w.Link("/login/hashtags", "🔥 Hashtags")
+		w.Link("/login/resolve", "🔭 View profile")
+		w.Link("/login/bookmarks", "🔖 Bookmarks")
+		w.Link("/login/fts", "🔎 Search posts")
 	}
 
 	if user == nil {
-		w.Link("/users", "🔑 Sign in")
+		w.Link("/login", "🔑 Sign in")
 	} else {
-		w.Link("/users/post", "📣 New post")
-		w.Link("/users/settings", "⚙️ Settings")
+		w.Link("/login/post", "📣 New post")
+		w.Link("/login/settings", "⚙️ Settings")
 	}
 
 	w.Link(prefix+"/status", "📊 Status")

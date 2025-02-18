@@ -28,8 +28,8 @@ func TestSearch_Happyflow(t *testing.T) {
 
 	assert := assert.New(t)
 
-	search := server.Handle("/users/search?world", server.Bob)
-	assert.Equal("30 /users/hashtag/world\r\n", search)
+	search := server.Handle("/login/search?world", server.Bob)
+	assert.Equal("30 /login/hashtag/world\r\n", search)
 }
 
 func TestSearch_LeadingHash(t *testing.T) {
@@ -38,8 +38,8 @@ func TestSearch_LeadingHash(t *testing.T) {
 
 	assert := assert.New(t)
 
-	search := server.Handle("/users/search?%23world", server.Bob)
-	assert.Equal("30 /users/hashtag/world\r\n", search)
+	search := server.Handle("/login/search?%23world", server.Bob)
+	assert.Equal("30 /login/hashtag/world\r\n", search)
 }
 
 func TestSearch_LeadingHashUnauthenticatedUser(t *testing.T) {
@@ -58,7 +58,7 @@ func TestSearch_NoInput(t *testing.T) {
 
 	assert := assert.New(t)
 
-	search := server.Handle("/users/search?", server.Bob)
+	search := server.Handle("/login/search?", server.Bob)
 	assert.Equal("10 Hashtag\r\n", search)
 }
 
@@ -68,7 +68,7 @@ func TestSearch_EmptyInput(t *testing.T) {
 
 	assert := assert.New(t)
 
-	search := server.Handle("/users/search?", server.Bob)
+	search := server.Handle("/login/search?", server.Bob)
 	assert.Equal("10 Hashtag\r\n", search)
 }
 
@@ -78,7 +78,7 @@ func TestSearch_InvalidEscapeSequence(t *testing.T) {
 
 	assert := assert.New(t)
 
-	search := server.Handle("/users/search?%zzworld", server.Bob)
+	search := server.Handle("/login/search?%zzworld", server.Bob)
 	assert.Equal("40 Bad input\r\n", search)
 }
 

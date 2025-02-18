@@ -23,7 +23,7 @@ import (
 
 func (h *Handler) dm(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
-		w.Redirect("/users")
+		w.Redirect("/login")
 		return
 	}
 
@@ -37,7 +37,7 @@ func (h *Handler) dm(w text.Writer, r *Request, args ...string) {
 
 func (h *Handler) uploadDM(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
-		w.Redirect("/users")
+		w.Redirect("/login")
 		return
 	}
 

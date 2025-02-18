@@ -20,7 +20,7 @@ import "github.com/dimkr/tootik/front/text"
 
 func (h *Handler) home(w text.Writer, r *Request, args ...string) {
 	if r.User != nil {
-		w.Redirect("/users")
+		w.Redirect("/login")
 		return
 	}
 

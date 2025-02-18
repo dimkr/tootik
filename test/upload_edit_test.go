@@ -33,38 +33,38 @@ func TestUploadEdit_HappyFlow(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users := server.Handle("/users", server.Alice)
+	users := server.Handle("/login", server.Alice)
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello followers")
 
-	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp(`30 /users/view/(\S+)\r\n$`, whisper)
+	whisper := server.Handle("/login/whisper?Hello%20world", server.Bob)
+	assert.Regexp(`30 /login/view/(\S+)\r\n$`, whisper)
 
 	id := whisper[15 : len(whisper)-2]
 
 	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
-	edit := server.Upload(fmt.Sprintf("/users/upload/edit/%s;mime=text/plain;size=15", id), server.Bob, []byte("Hello followers"))
-	assert.Equal(fmt.Sprintf("30 gemini://%s/users/view/%s\r\n", domain, id), edit)
+	edit := server.Upload(fmt.Sprintf("/login/upload/edit/%s;mime=text/plain;size=15", id), server.Bob, []byte("Hello followers"))
+	assert.Equal(fmt.Sprintf("30 gemini://%s/login/view/%s\r\n", domain, id), edit)
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users = server.Handle("/users", server.Alice)
+	users = server.Handle("/login", server.Alice)
 	assert.NotContains(users, "No posts.")
 	assert.Contains(users, "Hello followers")
 
-	edit = server.Upload(fmt.Sprintf("/users/upload/edit/%s;mime=text/plain;size=16", id), server.Bob, []byte("Hello, followers"))
+	edit = server.Upload(fmt.Sprintf("/login/upload/edit/%s;mime=text/plain;size=16", id), server.Bob, []byte("Hello, followers"))
 	assert.Regexp(`^40 Please wait for \S+\r\n$`, edit)
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users = server.Handle("/users", server.Alice)
+	users = server.Handle("/login", server.Alice)
 	assert.NotContains(users, "No posts.")
 	assert.Contains(users, "Hello followers")
 }
@@ -75,24 +75,24 @@ func TestUploadEdit_Empty(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users := server.Handle("/users", server.Alice)
+	users := server.Handle("/login", server.Alice)
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello followers")
 
-	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/(\S+)\r\n$`, whisper)
+	whisper := server.Handle("/login/whisper?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /login/view/(\S+)\r\n$`, whisper)
 
 	id := whisper[15 : len(whisper)-2]
 
 	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
-	edit := server.Upload(fmt.Sprintf("/users/upload/edit/%s;mime=text/plain;size=0", id), server.Bob, []byte("Hello followers"))
+	edit := server.Upload(fmt.Sprintf("/login/upload/edit/%s;mime=text/plain;size=0", id), server.Bob, []byte("Hello followers"))
 	assert.Equal("40 Content is empty\r\n", edit)
 }
 
@@ -102,17 +102,17 @@ func TestUploadEdit_SizeLimit(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users := server.Handle("/users", server.Alice)
+	users := server.Handle("/login", server.Alice)
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello followers")
 
-	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/(\S+)\r\n$`, whisper)
+	whisper := server.Handle("/login/whisper?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /login/view/(\S+)\r\n$`, whisper)
 
 	id := whisper[15 : len(whisper)-2]
 
@@ -121,7 +121,7 @@ func TestUploadEdit_SizeLimit(t *testing.T) {
 
 	server.cfg.MaxPostsLength = 14
 
-	edit := server.Upload(fmt.Sprintf("/users/upload/edit/%s;mime=text/plain;size=15", id), server.Bob, []byte("Hello followers"))
+	edit := server.Upload(fmt.Sprintf("/login/upload/edit/%s;mime=text/plain;size=15", id), server.Bob, []byte("Hello followers"))
 	assert.Equal("40 Post is too long\r\n", edit)
 }
 
@@ -131,24 +131,24 @@ func TestUploadEdit_InvalidSize(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users := server.Handle("/users", server.Alice)
+	users := server.Handle("/login", server.Alice)
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello followers")
 
-	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/(\S+)\r\n$`, whisper)
+	whisper := server.Handle("/login/whisper?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /login/view/(\S+)\r\n$`, whisper)
 
 	id := whisper[15 : len(whisper)-2]
 
 	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
-	edit := server.Upload(fmt.Sprintf("/users/upload/edit/%s;mime=text/plain;size=abc", id), server.Bob, []byte("Hello followers"))
+	edit := server.Upload(fmt.Sprintf("/login/upload/edit/%s;mime=text/plain;size=abc", id), server.Bob, []byte("Hello followers"))
 	assert.Equal("40 Invalid size\r\n", edit)
 }
 
@@ -158,24 +158,24 @@ func TestUploadEdit_InvalidType(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users := server.Handle("/users", server.Alice)
+	users := server.Handle("/login", server.Alice)
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello followers")
 
-	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/(\S+)\r\n$`, whisper)
+	whisper := server.Handle("/login/whisper?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /login/view/(\S+)\r\n$`, whisper)
 
 	id := whisper[15 : len(whisper)-2]
 
 	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
-	edit := server.Upload(fmt.Sprintf("/users/upload/edit/%s;mime=text/gemini;size=15", id), server.Bob, []byte("Hello followers"))
+	edit := server.Upload(fmt.Sprintf("/login/upload/edit/%s;mime=text/gemini;size=15", id), server.Bob, []byte("Hello followers"))
 	assert.Equal("40 Only text/plain is supported\r\n", edit)
 }
 
@@ -185,24 +185,24 @@ func TestUploadEdit_NoSize(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users := server.Handle("/users", server.Alice)
+	users := server.Handle("/login", server.Alice)
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello followers")
 
-	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/(\S+)\r\n$`, whisper)
+	whisper := server.Handle("/login/whisper?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /login/view/(\S+)\r\n$`, whisper)
 
 	id := whisper[15 : len(whisper)-2]
 
 	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
-	edit := server.Upload(fmt.Sprintf("/users/upload/edit/%s;mime=text/plain;siz=15", id), server.Bob, []byte("Hello followers"))
+	edit := server.Upload(fmt.Sprintf("/login/upload/edit/%s;mime=text/plain;siz=15", id), server.Bob, []byte("Hello followers"))
 	assert.Equal("40 Invalid parameters\r\n", edit)
 }
 
@@ -212,23 +212,23 @@ func TestUploadEdit_NoType(t *testing.T) {
 
 	assert := assert.New(t)
 
-	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
+	follow := server.Handle("/login/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
+	assert.Equal(fmt.Sprintf("30 /login/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
-	users := server.Handle("/users", server.Alice)
+	users := server.Handle("/login", server.Alice)
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello followers")
 
-	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
-	assert.Regexp(`^30 /users/view/(\S+)\r\n$`, whisper)
+	whisper := server.Handle("/login/whisper?Hello%20world", server.Bob)
+	assert.Regexp(`^30 /login/view/(\S+)\r\n$`, whisper)
 
 	id := whisper[15 : len(whisper)-2]
 
 	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
-	edit := server.Upload(fmt.Sprintf("/users/upload/edit/%s;mim=text/plain;size=15", id), server.Bob, []byte("Hello followers"))
+	edit := server.Upload(fmt.Sprintf("/login/upload/edit/%s;mim=text/plain;size=15", id), server.Bob, []byte("Hello followers"))
 	assert.Equal("40 Invalid parameters\r\n", edit)
 }

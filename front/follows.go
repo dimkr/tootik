@@ -27,7 +27,7 @@ import (
 
 func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
-		w.Redirect("/users")
+		w.Redirect("/login")
 		return
 	}
 
@@ -91,9 +91,9 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 		displayName := h.getActorDisplayName(&actor)
 
 		if last.Valid {
-			w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.ID, "https://"), "%s %s", time.Unix(last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
+			w.Linkf("/login/outbox/"+strings.TrimPrefix(actor.ID, "https://"), "%s %s", time.Unix(last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
 		} else {
-			w.Link("/users/outbox/"+strings.TrimPrefix(actor.ID, "https://"), displayName)
+			w.Link("/login/outbox/"+strings.TrimPrefix(actor.ID, "https://"), displayName)
 		}
 
 		i++

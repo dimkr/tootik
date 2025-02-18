@@ -28,7 +28,7 @@ import (
 
 func (h *Handler) doBio(w text.Writer, r *Request, readInput func(text.Writer, *Request) (string, bool)) {
 	if r.User == nil {
-		w.Redirect("/users")
+		w.Redirect("/login")
 		return
 	}
 
@@ -86,7 +86,7 @@ func (h *Handler) doBio(w text.Writer, r *Request, readInput func(text.Writer, *
 		return
 	}
 
-	w.Redirect("/users/outbox/" + strings.TrimPrefix(r.User.ID, "https://"))
+	w.Redirect("/login/outbox/" + strings.TrimPrefix(r.User.ID, "https://"))
 }
 
 func (h *Handler) bio(w text.Writer, r *Request, args ...string) {

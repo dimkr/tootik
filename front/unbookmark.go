@@ -20,7 +20,7 @@ import "github.com/dimkr/tootik/front/text"
 
 func (h *Handler) unbookmark(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
-		w.Redirect("/users")
+		w.Redirect("/login")
 		return
 	}
 
@@ -32,5 +32,5 @@ func (h *Handler) unbookmark(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.Redirectf("/users/view/" + args[1])
+	w.Redirectf("/login/view/" + args[1])
 }
