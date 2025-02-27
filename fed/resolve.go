@@ -448,7 +448,7 @@ func (r *Resolver) fetchActor(ctx context.Context, key httpsig.Key, host, profil
 		return nil, fmt.Errorf("failed to unmarshal %s: %w", profile, err)
 	}
 
-	if actor.ID != profile {
+	if actor.ID != profile && actor.PublicKey.ID != profile {
 		return nil, fmt.Errorf("%s does not match %s", actor.ID, profile)
 	}
 
