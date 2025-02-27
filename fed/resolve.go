@@ -103,7 +103,7 @@ func (r *Resolver) ResolveID(ctx context.Context, key httpsig.Key, id string, fl
 		return nil, ErrInvalidScheme
 	}
 
-	if actor, err := r.tryResolveIDOrCache(ctx, key, id, u, flags); err != nil {
+	if actor, err := r.validate(func() (*ap.Actor, *ap.Actor, error) { return r.tryResolveID(ctx, key, u, id, flags) }); err != nil {
 		return nil, err
 	} else if actor.Suspended {
 		return nil, ErrSuspendedActor
@@ -112,27 +112,11 @@ func (r *Resolver) ResolveID(ctx context.Context, key httpsig.Key, id string, fl
 	} else {
 		return actor, nil
 	}
-}
-
-func (r *Resolver) tryResolveIDOrCache(ctx context.Context, key httpsig.Key, id string, u *url.URL, flags ap.ResolverFlag) (*ap.Actor, error) {
-	actor, cachedActor, err := r.tryResolveID(ctx, key, u, id, flags)
-	if err != nil && cachedActor != nil && cachedActor.Published != nil && time.Since(cachedActor.Published.Time) < r.Config.MinActorAge {
-		slog.Warn("Failed to update cached actor", "id", id, "error", err)
-		return nil, ErrYoungActor
-	} else if err != nil && cachedActor != nil {
-		slog.Warn("Using old cache entry for actor", "id", id, "error", err)
-		return cachedActor, nil
-	} else if actor == nil {
-		return cachedActor, err
-	} else if actor.Published != nil && time.Since(actor.Published.Time) < r.Config.MinActorAge {
-		return nil, ErrYoungActor
-	}
-	return actor, err
 }
 
 // Resolve retrieves an actor object by host and name.
 func (r *Resolver) Resolve(ctx context.Context, key httpsig.Key, host, name string, flags ap.ResolverFlag) (*ap.Actor, error) {
-	if actor, err := r.tryResolveOrCache(ctx, key, host, name, flags); err != nil {
+	if actor, err := r.validate(func() (*ap.Actor, *ap.Actor, error) { return r.tryResolve(ctx, key, host, name, flags) }); err != nil {
 		return nil, err
 	} else if actor.Suspended {
 		return nil, ErrSuspendedActor
@@ -143,13 +127,13 @@ func (r *Resolver) Resolve(ctx context.Context, key httpsig.Key, host, name stri
 	}
 }
 
-func (r *Resolver) tryResolveOrCache(ctx context.Context, key httpsig.Key, host, name string, flags ap.ResolverFlag) (*ap.Actor, error) {
-	actor, cachedActor, err := r.tryResolve(ctx, key, host, name, flags)
+func (r *Resolver) validate(try func() (*ap.Actor, *ap.Actor, error)) (*ap.Actor, error) {
+	actor, cachedActor, err := try()
 	if err != nil && cachedActor != nil && cachedActor.Published != nil && time.Since(cachedActor.Published.Time) < r.Config.MinActorAge {
-		slog.Warn("Failed to update cached actor", "host", host, "name", name, "error", err)
+		slog.Warn("Failed to update cached actor", "id", cachedActor.ID, "error", err)
 		return nil, ErrYoungActor
 	} else if err != nil && cachedActor != nil {
-		slog.Warn("Using old cache entry for actor", "host", host, "name", name, "error", err)
+		slog.Warn("Using old cache entry for actor", "id", cachedActor.ID, "error", err)
 		return cachedActor, nil
 	} else if actor == nil {
 		return cachedActor, err
@@ -334,18 +318,7 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 		return nil, cachedActor, fmt.Errorf("%s does not match %s", profile, cachedActor.ID)
 	}
 
-	actor, err := r.fetchActor(ctx, key, host, profile)
-	if err != nil {
-		return nil, cachedActor, err
-	}
-
-	if actor.Published == nil && cachedActor != nil && cachedActor.Published != nil {
-		actor.Published = cachedActor.Published
-	} else if actor.Published == nil && (cachedActor == nil || cachedActor.Published == nil) {
-		actor.Published = &ap.Time{Time: time.Now()}
-	}
-
-	return actor, cachedActor, nil
+	return r.fetchActor(ctx, key, host, profile, cachedActor)
 }
 
 func (r *Resolver) tryResolveID(ctx context.Context, key httpsig.Key, u *url.URL, id string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
@@ -414,32 +387,21 @@ func (r *Resolver) tryResolveID(ctx context.Context, key httpsig.Key, u *url.URL
 		}
 	}
 
-	actor, err := r.fetchActor(ctx, key, u.Host, id)
-	if err != nil {
-		return nil, cachedActor, err
-	}
-
-	if actor.Published == nil && cachedActor != nil && cachedActor.Published != nil {
-		actor.Published = cachedActor.Published
-	} else if actor.Published == nil && (cachedActor == nil || cachedActor.Published == nil) {
-		actor.Published = &ap.Time{Time: time.Now()}
-	}
-
-	return actor, cachedActor, nil
+	return r.fetchActor(ctx, key, u.Host, id, cachedActor)
 }
 
-func (r *Resolver) fetchActor(ctx context.Context, key httpsig.Key, host, profile string) (*ap.Actor, error) {
+func (r *Resolver) fetchActor(ctx context.Context, key httpsig.Key, host, profile string, cachedActor *ap.Actor) (*ap.Actor, *ap.Actor, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, profile, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send request to %s: %w", profile, err)
+		return nil, cachedActor, fmt.Errorf("failed to send request to %s: %w", profile, err)
 	}
 
 	if req.URL.Host != host && !strings.HasSuffix(req.URL.Host, "."+host) {
-		return nil, fmt.Errorf("actor link host is %s: %w", req.URL.Host, ErrInvalidHost)
+		return nil, cachedActor, fmt.Errorf("actor link host is %s: %w", req.URL.Host, ErrInvalidHost)
 	}
 
 	if !data.IsIDValid(req.URL) {
-		return nil, fmt.Errorf("cannot resolve %s: %w", profile, ErrInvalidID)
+		return nil, cachedActor, fmt.Errorf("cannot resolve %s: %w", profile, ErrInvalidID)
 	}
 
 	req.Header.Set("User-Agent", userAgent)
@@ -447,31 +409,31 @@ func (r *Resolver) fetchActor(ctx context.Context, key httpsig.Key, host, profil
 
 	resp, err := r.send(key, req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch %s: %w", profile, err)
+		return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", profile, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.ContentLength > r.Config.MaxResponseBodySize {
-		return nil, fmt.Errorf("failed to fetch %s: response is too big", profile)
+		return nil, cachedActor, fmt.Errorf("failed to fetch %s: response is too big", profile)
 	}
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, r.Config.MaxResponseBodySize))
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch %s: %w", profile, err)
+		return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", profile, err)
 	}
 
 	var actor ap.Actor
 	if err := json.Unmarshal(body, &actor); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal %s: %w", profile, err)
+		return nil, cachedActor, fmt.Errorf("failed to unmarshal %s: %w", profile, err)
 	}
 
 	if actor.ID != profile && actor.PublicKey.ID != profile {
-		return nil, fmt.Errorf("%s does not match %s", actor.ID, profile)
+		return nil, cachedActor, fmt.Errorf("%s does not match %s", actor.ID, profile)
 	}
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
+		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
 	}
 
 	if _, err := tx.ExecContext(
@@ -480,7 +442,7 @@ func (r *Resolver) fetchActor(ctx context.Context, key httpsig.Key, host, profil
 		actor.ID,
 		string(body),
 	); err != nil {
-		return nil, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
+		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
 	}
 
 	if _, err := tx.ExecContext(
@@ -489,7 +451,7 @@ func (r *Resolver) fetchActor(ctx context.Context, key httpsig.Key, host, profil
 		string(body),
 		actor.ID,
 	); err != nil {
-		return nil, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
+		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
 	}
 
 	if _, err := tx.ExecContext(
@@ -498,12 +460,18 @@ func (r *Resolver) fetchActor(ctx context.Context, key httpsig.Key, host, profil
 		string(body),
 		actor.ID,
 	); err != nil {
-		return nil, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
+		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
+		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
 	}
 
-	return &actor, nil
+	if actor.Published == nil && cachedActor != nil && cachedActor.Published != nil {
+		actor.Published = cachedActor.Published
+	} else if actor.Published == nil && (cachedActor == nil || cachedActor.Published == nil) {
+		actor.Published = &ap.Time{Time: time.Now()}
+	}
+
+	return &actor, cachedActor, nil
 }
