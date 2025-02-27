@@ -190,8 +190,10 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 
 	isLocal := host == r.Domain
 
+	var lockID uint32
 	if !isLocal && flags&ap.Offline == 0 {
-		lock := r.locks[crc32.ChecksumIEEE([]byte(host+name))%uint32(len(r.locks))]
+		lockID = crc32.ChecksumIEEE([]byte(host+name)) % uint32(len(r.locks))
+		lock := r.locks[lockID]
 		if err := lock.Lock(ctx); err != nil {
 			return nil, nil, err
 		}
@@ -232,11 +234,14 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 	}
 
 	if cachedActor != nil {
-		lock := r.locks[crc32.ChecksumIEEE([]byte(cachedActor.ID))%uint32(len(r.locks))]
-		if err := lock.Lock(ctx); err != nil {
-			return nil, nil, err
+		altLockID := crc32.ChecksumIEEE([]byte(cachedActor.ID)) % uint32(len(r.locks))
+		if altLockID != lockID {
+			lock := r.locks[altLockID]
+			if err := lock.Lock(ctx); err != nil {
+				return nil, nil, err
+			}
+			defer lock.Unlock()
 		}
-		defer lock.Unlock()
 
 		if _, err := r.db.ExecContext(
 			ctx,
