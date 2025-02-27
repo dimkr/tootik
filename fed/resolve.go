@@ -28,7 +28,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"path"
 	"strings"
 	"time"
 
@@ -90,6 +89,10 @@ func NewResolver(blockedDomains *BlockList, domain string, cfg *cfg.Config, clie
 
 // ResolveID retrieves an actor object by its ID.
 func (r *Resolver) ResolveID(ctx context.Context, key httpsig.Key, id string, flags ap.ResolverFlag) (*ap.Actor, error) {
+	if id == "" {
+		return nil, errors.New("empty ID")
+	}
+
 	u, err := url.Parse(id)
 	if err != nil {
 		return nil, fmt.Errorf("cannot resolve %s: %w", id, err)
@@ -99,20 +102,29 @@ func (r *Resolver) ResolveID(ctx context.Context, key httpsig.Key, id string, fl
 		return nil, ErrInvalidScheme
 	}
 
-	var name string
-	if flags&ap.InstanceActor == 0 {
-		name = path.Base(u.Path)
-
-		// strip the leading @ if URL follows the form https://a.b/@c
-		if name[0] == '@' {
-			name = name[1:]
-		}
+	if actor, err := r.tryResolveIDOrCache(ctx, key, id, u, flags); err != nil {
+		return nil, err
+	} else if actor.Suspended {
+		return nil, ErrSuspendedActor
 	} else {
-		// in Mastodon, domain@domain leads to the "instance actor" (domain/actor) and it's discoverable through domain@domain
-		name = u.Host
+		return actor, nil
 	}
+}
 
-	return r.Resolve(ctx, key, u.Host, name, flags)
+func (r *Resolver) tryResolveIDOrCache(ctx context.Context, key httpsig.Key, id string, u *url.URL, flags ap.ResolverFlag) (*ap.Actor, error) {
+	actor, cachedActor, err := r.tryResolveID(ctx, key, u, id, flags)
+	if err != nil && cachedActor != nil && cachedActor.Published != nil && time.Since(cachedActor.Published.Time) < r.Config.MinActorAge {
+		slog.Warn("Failed to update cached actor", "id", id, "error", err)
+		return nil, ErrYoungActor
+	} else if err != nil && cachedActor != nil {
+		slog.Warn("Using old cache entry for actor", "id", id, "error", err)
+		return cachedActor, nil
+	} else if actor == nil {
+		return cachedActor, err
+	} else if actor.Published != nil && time.Since(actor.Published.Time) < r.Config.MinActorAge {
+		return nil, ErrYoungActor
+	}
+	return actor, err
 }
 
 // Resolve retrieves an actor object by host and name.
@@ -190,7 +202,7 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 	isLocal := host == r.Domain
 
 	if !isLocal && flags&ap.Offline == 0 {
-		lock := r.locks[crc32.ChecksumIEEE([]byte(host+name))%uint32(len(r.locks))]
+		lock := r.locks[crc32.ChecksumIEEE([]byte(host))%uint32(len(r.locks))]
 		if err := lock.Lock(ctx); err != nil {
 			return nil, nil, err
 		}
@@ -301,90 +313,19 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 			profile = link.Href
 			break
 		}
+
+		if profile == "" {
+			return nil, cachedActor, fmt.Errorf("no profile link in %s response", finger)
+		}
+
+		if cachedActor != nil && profile != cachedActor.ID {
+			return nil, cachedActor, fmt.Errorf("%s does not match %s", profile, cachedActor.ID)
+		}
 	}
 
-	if profile == "" {
-		return nil, cachedActor, fmt.Errorf("no profile link in %s response", finger)
-	}
-
-	if cachedActor != nil && profile != cachedActor.ID {
-		return nil, cachedActor, fmt.Errorf("%s does not match %s", profile, cachedActor.ID)
-	}
-
-	req, err = http.NewRequestWithContext(ctx, http.MethodGet, profile, nil)
+	actor, err := r.fetchActor(ctx, key, host, profile)
 	if err != nil {
-		return nil, cachedActor, fmt.Errorf("failed to send request to %s: %w", profile, err)
-	}
-
-	if req.URL.Host != host && !strings.HasSuffix(req.URL.Host, "."+host) {
-		return nil, nil, fmt.Errorf("actor link host is %s: %w", req.URL.Host, ErrInvalidHost)
-	}
-
-	if !data.IsIDValid(req.URL) {
-		return nil, nil, fmt.Errorf("cannot resolve %s: %w", profile, ErrInvalidID)
-	}
-
-	req.Header.Set("User-Agent", userAgent)
-	req.Header.Add("Accept", "application/activity+json")
-
-	resp, err = r.send(key, req)
-	if err != nil {
-		return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", profile, err)
-	}
-	defer resp.Body.Close()
-
-	if resp.ContentLength > r.Config.MaxResponseBodySize {
-		return nil, cachedActor, fmt.Errorf("failed to fetch %s: response is too big", profile)
-	}
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, r.Config.MaxResponseBodySize))
-	if err != nil {
-		return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", profile, err)
-	}
-
-	var actor ap.Actor
-	if err := json.Unmarshal(body, &actor); err != nil {
-		return nil, cachedActor, fmt.Errorf("failed to unmarshal %s: %w", profile, err)
-	}
-
-	if actor.ID != profile {
-		return nil, cachedActor, fmt.Errorf("%s does not match %s", actor.ID, profile)
-	}
-
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`INSERT INTO persons(id, actor, fetched) VALUES($1, $2, UNIXEPOCH()) ON CONFLICT(id) DO UPDATE SET actor = $2, updated = UNIXEPOCH()`,
-		actor.ID,
-		string(body),
-	); err != nil {
-		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`UPDATE feed SET author = ? WHERE author->>'$.id' = ?`,
-		string(body),
-		actor.ID,
-	); err != nil {
-		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`UPDATE feed SET sharer = ? WHERE sharer->>'$.id' = ?`,
-		string(body),
-		actor.ID,
-	); err != nil {
-		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
+		return nil, cachedActor, err
 	}
 
 	if actor.Published == nil && cachedActor != nil && cachedActor.Published != nil {
@@ -393,5 +334,159 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 		actor.Published = &ap.Time{Time: time.Now()}
 	}
 
-	return &actor, cachedActor, nil
+	return actor, cachedActor, nil
+}
+
+func (r *Resolver) tryResolveID(ctx context.Context, key httpsig.Key, u *url.URL, id string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
+	slog.Debug("Resolving actor", "id", id)
+
+	if r.BlockedDomains != nil && r.BlockedDomains.Contains(u.Host) {
+		return nil, nil, ErrBlockedDomain
+	}
+
+	isLocal := u.Host == r.Domain
+
+	if !isLocal && flags&ap.Offline == 0 {
+		lock := r.locks[crc32.ChecksumIEEE([]byte(u.Host))%uint32(len(r.locks))]
+		if err := lock.Lock(ctx); err != nil {
+			return nil, nil, err
+		}
+		defer lock.Unlock()
+	}
+
+	var tmp ap.Actor
+	var cachedActor *ap.Actor
+
+	var updated, inserted int64
+	var fetched sql.NullInt64
+	var sinceLastUpdate time.Duration
+	if err := r.db.QueryRowContext(ctx, `select actor, updated, fetched, inserted from persons where id = $1 or actor->>'$.publicKey.id' = $1`, id).Scan(&tmp, &updated, &fetched, &inserted); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, nil, fmt.Errorf("failed to fetch %s cache: %w", id, err)
+	} else if err == nil {
+		cachedActor = &tmp
+
+		// fall back to insertion time if we don't have registration time
+		if cachedActor.Published == nil {
+			cachedActor.Published = &ap.Time{Time: time.Unix(inserted, 0)}
+		}
+
+		sinceLastUpdate = time.Since(time.Unix(updated, 0))
+		if !isLocal && flags&ap.Offline == 0 && sinceLastUpdate > r.Config.ResolverCacheTTL && (!fetched.Valid || time.Since(time.Unix(fetched.Int64, 0)) >= r.Config.ResolverRetryInterval) {
+			slog.Info("Updating old cache entry for actor", "id", cachedActor.ID)
+		} else {
+			slog.Debug("Resolved actor using cache", "id", cachedActor.ID)
+			return nil, cachedActor, nil
+		}
+	}
+
+	if isLocal {
+		return nil, nil, fmt.Errorf("cannot resolve %s: %w", id, ErrNoLocalActor)
+	}
+
+	if flags&ap.Offline != 0 {
+		return nil, nil, fmt.Errorf("cannot resolve %s: %w", id, ErrActorNotCached)
+	}
+
+	if cachedActor != nil {
+		if _, err := r.db.ExecContext(
+			ctx,
+			`UPDATE persons SET fetched = UNIXEPOCH() WHERE id = ?`,
+			cachedActor.ID,
+		); err != nil {
+			return nil, cachedActor, fmt.Errorf("failed to update last fetch time for %s: %w", cachedActor.ID, err)
+		}
+	}
+
+	actor, err := r.fetchActor(ctx, key, u.Host, id)
+	if err != nil {
+		return nil, cachedActor, err
+	}
+
+	if actor.Published == nil && cachedActor != nil && cachedActor.Published != nil {
+		actor.Published = cachedActor.Published
+	} else if actor.Published == nil && (cachedActor == nil || cachedActor.Published == nil) {
+		actor.Published = &ap.Time{Time: time.Now()}
+	}
+
+	return actor, cachedActor, nil
+}
+
+func (r *Resolver) fetchActor(ctx context.Context, key httpsig.Key, host, profile string) (*ap.Actor, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, profile, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request to %s: %w", profile, err)
+	}
+
+	if req.URL.Host != host && !strings.HasSuffix(req.URL.Host, "."+host) {
+		return nil, fmt.Errorf("actor link host is %s: %w", req.URL.Host, ErrInvalidHost)
+	}
+
+	if !data.IsIDValid(req.URL) {
+		return nil, fmt.Errorf("cannot resolve %s: %w", profile, ErrInvalidID)
+	}
+
+	req.Header.Set("User-Agent", userAgent)
+	req.Header.Add("Accept", "application/activity+json")
+
+	resp, err := r.send(key, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch %s: %w", profile, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.ContentLength > r.Config.MaxResponseBodySize {
+		return nil, fmt.Errorf("failed to fetch %s: response is too big", profile)
+	}
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, r.Config.MaxResponseBodySize))
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch %s: %w", profile, err)
+	}
+
+	var actor ap.Actor
+	if err := json.Unmarshal(body, &actor); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal %s: %w", profile, err)
+	}
+
+	if actor.ID != profile {
+		return nil, fmt.Errorf("%s does not match %s", actor.ID, profile)
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`INSERT INTO persons(id, actor, fetched) VALUES($1, $2, UNIXEPOCH()) ON CONFLICT(id) DO UPDATE SET actor = $2, updated = UNIXEPOCH()`,
+		actor.ID,
+		string(body),
+	); err != nil {
+		return nil, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`UPDATE feed SET author = ? WHERE author->>'$.id' = ?`,
+		string(body),
+		actor.ID,
+	); err != nil {
+		return nil, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`UPDATE feed SET sharer = ? WHERE sharer->>'$.id' = ?`,
+		string(body),
+		actor.ID,
+	); err != nil {
+		return nil, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
+	}
+
+	return &actor, nil
 }
