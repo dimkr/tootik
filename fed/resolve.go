@@ -202,7 +202,7 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 	isLocal := host == r.Domain
 
 	if !isLocal && flags&ap.Offline == 0 {
-		lock := r.locks[crc32.ChecksumIEEE([]byte(host))%uint32(len(r.locks))]
+		lock := r.locks[crc32.ChecksumIEEE([]byte(host+name))%uint32(len(r.locks))]
 		if err := lock.Lock(ctx); err != nil {
 			return nil, nil, err
 		}
@@ -243,6 +243,12 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 	}
 
 	if cachedActor != nil {
+		lock := r.locks[crc32.ChecksumIEEE([]byte(cachedActor.ID))%uint32(len(r.locks))]
+		if err := lock.Lock(ctx); err != nil {
+			return nil, nil, err
+		}
+		defer lock.Unlock()
+
 		if _, err := r.db.ExecContext(
 			ctx,
 			`UPDATE persons SET fetched = UNIXEPOCH() WHERE id = ?`,
@@ -388,6 +394,12 @@ func (r *Resolver) tryResolveID(ctx context.Context, key httpsig.Key, u *url.URL
 	}
 
 	if cachedActor != nil {
+		lock := r.locks[crc32.ChecksumIEEE([]byte(cachedActor.ID))%uint32(len(r.locks))]
+		if err := lock.Lock(ctx); err != nil {
+			return nil, nil, err
+		}
+		defer lock.Unlock()
+
 		if _, err := r.db.ExecContext(
 			ctx,
 			`UPDATE persons SET fetched = UNIXEPOCH() WHERE id = ?`,
