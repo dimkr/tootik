@@ -47,8 +47,10 @@ func Accept(ctx context.Context, domain string, followed, follower, followID str
 		Actor:   followed,
 		To:      recipients,
 		Object: &ap.Activity{
-			Type: ap.Follow,
-			ID:   followID,
+			Actor:  follower,
+			Type:   ap.Follow,
+			Object: followed,
+			ID:     followID,
 		},
 	}
 
