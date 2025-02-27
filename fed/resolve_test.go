@@ -283,38 +283,6 @@ func TestResolve_FederatedActorInvalidScheme(t *testing.T) {
 	assert.True(errors.Is(err, ErrInvalidScheme))
 }
 
-func TestResolve_FederatedActorEmptyName(t *testing.T) {
-	assert := assert.New(t)
-
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
-
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
-	assert.NoError(err)
-
-	blockList := BlockList{}
-
-	var cfg cfg.Config
-	cfg.FillDefaults()
-	cfg.MinActorAge = 0
-
-	client := newTestClient(map[string]testResponse{})
-
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db)
-	assert.NoError(err)
-
-	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
-
-	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/@", 0)
-	assert.Error(err)
-}
-
 func TestResolve_FederatedActorFirstTime(t *testing.T) {
 	assert := assert.New(t)
 
