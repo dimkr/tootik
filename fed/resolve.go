@@ -313,14 +313,14 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 			profile = link.Href
 			break
 		}
+	}
 
-		if profile == "" {
-			return nil, cachedActor, fmt.Errorf("no profile link in %s response", finger)
-		}
+	if profile == "" {
+		return nil, cachedActor, fmt.Errorf("no profile link in %s response", finger)
+	}
 
-		if cachedActor != nil && profile != cachedActor.ID {
-			return nil, cachedActor, fmt.Errorf("%s does not match %s", profile, cachedActor.ID)
-		}
+	if cachedActor != nil && profile != cachedActor.ID {
+		return nil, cachedActor, fmt.Errorf("%s does not match %s", profile, cachedActor.ID)
 	}
 
 	actor, err := r.fetchActor(ctx, key, host, profile)
