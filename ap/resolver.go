@@ -28,9 +28,6 @@ type ResolverFlag uint
 const (
 	// Offline disables fetching of remote actors and forces use of local or cached actors.
 	Offline ResolverFlag = 1
-
-	// InstanceActor enables discovery of the "instance actor" instead of the regular actor discovery flow.
-	InstanceActor = 2
 )
 
 // Resolver retrieves [Actor], [Object] and [Activity] objects.
