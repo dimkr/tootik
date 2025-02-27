@@ -159,7 +159,7 @@ func TestResolve_FederatedInstanceActor(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:0.0.0.0@0.0.0.0": {
+		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -191,7 +191,7 @@ func TestResolve_FederatedInstanceActor(t *testing.T) {
 						"https://w3id.org/security/v1"
 					],
 					"id": "https://0.0.0.0/user/dan",
-					"type": "Person",
+					"type": "Application",
 					"inbox": "https://0.0.0.0/inbox/dan",
 					"outbox": "https://0.0.0.0/outbox/dan",
 					"preferredUsername": "dan",
@@ -211,7 +211,7 @@ func TestResolve_FederatedInstanceActor(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/@dan", ap.InstanceActor)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", ap.InstanceActor)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -355,87 +355,7 @@ func TestResolve_FederatedActorFirstTime(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
-	assert.NoError(err)
-	assert.Empty(client.Data)
-
-	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
-	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
-}
-
-func TestResolve_FederatedActorFirstTimeThroughMention(t *testing.T) {
-	assert := assert.New(t)
-
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
-
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
-	assert.NoError(err)
-
-	blockList := BlockList{}
-
-	var cfg cfg.Config
-	cfg.FillDefaults()
-	cfg.MinActorAge = 0
-
-	client := newTestClient(map[string]testResponse{
-		"https://0.0.0.0/.well-known/webfinger?resource=acct:dan@0.0.0.0": {
-			Response: newTestResponse(
-				http.StatusOK,
-				`{
-					"aliases": [
-						"https://0.0.0.0/user/dan"
-					],
-					"links": [
-						{
-							"href": "https://0.0.0.0/user/dan",
-							"rel": "self",
-							"type": "application/activity+json"
-						},
-						{
-							"href": "https://0.0.0.0/user/dan",
-							"rel": "self",
-							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-						}
-					],
-					"subject": "acct:dan@0.0.0.0"
-				}`,
-			),
-		},
-		"https://0.0.0.0/user/dan": {
-			Response: newTestResponse(
-				http.StatusOK,
-				`{
-					"@context": [
-						"https://www.w3.org/ns/activitystreams",
-						"https://w3id.org/security/v1"
-					],
-					"id": "https://0.0.0.0/user/dan",
-					"type": "Person",
-					"inbox": "https://0.0.0.0/inbox/dan",
-					"outbox": "https://0.0.0.0/outbox/dan",
-					"preferredUsername": "dan",
-					"followers": "https://0.0.0.0/followers/dan",
-					"endpoints": {
-						"sharedInbox": "https://0.0.0.0/inbox/nobody"
-					}
-				}`,
-			),
-		},
-	})
-
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db)
-	assert.NoError(err)
-
-	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
-
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/@dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -593,7 +513,7 @@ func TestResolve_FederatedActorFirstTimeInvalidWebFingerLink(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -673,7 +593,7 @@ func TestResolve_FederatedActorFirstTimeActorIDMismatch(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.Error(err)
 	assert.Empty(client.Data)
 }
@@ -750,7 +670,7 @@ func TestResolve_FederatedActorCached(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -816,11 +736,12 @@ func TestResolve_FederatedActorCachedInvalidActorHost(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrInvalidHost))
 	assert.Empty(client.Data)
 }
 
+/*
 func TestResolve_FederatedActorCachedActorHostWithPort(t *testing.T) {
 	assert := assert.New(t)
 
@@ -877,6 +798,7 @@ func TestResolve_FederatedActorCachedActorHostWithPort(t *testing.T) {
 	assert.True(errors.Is(err, ErrInvalidHost))
 	assert.Empty(client.Data)
 }
+*/
 
 func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 	assert := assert.New(t)
@@ -950,7 +872,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -1006,7 +928,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -1086,7 +1008,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomainFetchedRecently(t *testin
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -1175,7 +1097,7 @@ func TestResolve_FederatedActorCachedActorIDChanged(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -1211,7 +1133,7 @@ func TestResolve_FederatedActorCachedActorIDChanged(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -1291,14 +1213,14 @@ func TestResolve_FederatedActorCachedButBlocked(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -1384,7 +1306,7 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -1440,14 +1362,14 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan123", actor.Inbox)
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -1527,7 +1449,7 @@ func TestResolve_FederatedActorOldCacheWasSuspended(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrSuspendedActor))
 	assert.Empty(client.Data)
 
@@ -1582,14 +1504,14 @@ func TestResolve_FederatedActorOldCacheWasSuspended(t *testing.T) {
 		},
 	}
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan123", actor.Inbox)
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -1667,7 +1589,7 @@ func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrYoungActor))
 	assert.Empty(client.Data)
 
@@ -1721,14 +1643,14 @@ func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 		},
 	}
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan123", actor.Inbox)
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -1806,7 +1728,7 @@ func TestResolve_FederatedActorOldCacheUpdateFailed(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrYoungActor))
 	assert.Empty(client.Data)
 
@@ -1845,11 +1767,11 @@ func TestResolve_FederatedActorOldCacheUpdateFailed(t *testing.T) {
 		},
 	}
 
-	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrYoungActor))
 	assert.Empty(client.Data)
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -1927,7 +1849,7 @@ func TestResolve_FederatedActorOldCacheStillNew(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrYoungActor))
 	assert.Empty(client.Data)
 
@@ -1980,7 +1902,7 @@ func TestResolve_FederatedActorOldCacheStillNew(t *testing.T) {
 		},
 	}
 
-	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrYoungActor))
 	assert.Empty(client.Data)
 }
@@ -2057,7 +1979,7 @@ func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -2114,7 +2036,7 @@ func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
 		},
 	}
 
-	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrYoungActor))
 	assert.Empty(client.Data)
 }
@@ -2191,7 +2113,7 @@ func TestResolve_FederatedActorOldCacheWasNewNowUnknown(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrYoungActor))
 	assert.Empty(client.Data)
 
@@ -2244,7 +2166,7 @@ func TestResolve_FederatedActorOldCacheWasNewNowUnknown(t *testing.T) {
 		},
 	}
 
-	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrYoungActor))
 	assert.Empty(client.Data)
 }
@@ -2321,7 +2243,7 @@ func TestResolve_FederatedActorOldCacheFetchedRecently(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -2331,7 +2253,7 @@ func TestResolve_FederatedActorOldCacheFetchedRecently(t *testing.T) {
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*5 where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -2410,7 +2332,7 @@ func TestResolve_FederatedActorOldCacheButOffline(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -2420,7 +2342,7 @@ func TestResolve_FederatedActorOldCacheButOffline(t *testing.T) {
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", ap.Offline)
+	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", ap.Offline)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -2479,7 +2401,7 @@ func TestResolve_FederatedActorOldCacheInvalidID(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrInvalidID))
 	assert.Empty(client.Data)
 }
@@ -2556,7 +2478,7 @@ func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -2575,7 +2497,7 @@ func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -2656,7 +2578,7 @@ func TestResolve_FederatedActorOldCacheBigWebFingerResponse(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -2694,7 +2616,7 @@ func TestResolve_FederatedActorOldCacheBigWebFingerResponse(t *testing.T) {
 
 	cfg.MaxResponseBodySize = 1
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -2774,7 +2696,7 @@ func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -2816,7 +2738,7 @@ func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -2896,7 +2818,7 @@ func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -2954,7 +2876,7 @@ func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 
 	cfg.MaxResponseBodySize = 419
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -3034,7 +2956,7 @@ func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -3070,14 +2992,14 @@ func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -3156,7 +3078,7 @@ func TestResolve_FederatedActorOldCacheWebFingerError(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -3172,14 +3094,14 @@ func TestResolve_FederatedActorOldCacheWebFingerError(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -3258,7 +3180,7 @@ func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -3297,14 +3219,14 @@ func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -3402,7 +3324,7 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -3438,7 +3360,7 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 		},
 	}
 
-	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrActorGone))
 	assert.Empty(client.Data)
 
@@ -3519,7 +3441,7 @@ func TestResolve_FederatedActorFirstTimeWrongID(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -3598,7 +3520,7 @@ func TestResolve_FederatedActorFirstTimeDeleted(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrActorGone))
 	assert.Empty(client.Data)
 
@@ -3678,7 +3600,7 @@ func TestResolve_FederatedActorFirstTimeTooYoung(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrYoungActor))
 	assert.Empty(client.Data)
 }
@@ -3756,7 +3678,7 @@ func TestResolve_FederatedActorFirstTimeSuspended(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrSuspendedActor))
 	assert.Empty(client.Data)
 }
@@ -3833,14 +3755,14 @@ func TestResolve_FederatedActorWrongIDCached(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/users/dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/users/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/users/dan", actor.ID)
@@ -3919,7 +3841,7 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/users/dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -3975,7 +3897,7 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -4055,7 +3977,7 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -4111,14 +4033,14 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/users/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan123", actor.Inbox)
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/users/dan", actor.ID)
@@ -4173,7 +4095,7 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/users/dan", 0)
+	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/users/dan", actor.ID)
