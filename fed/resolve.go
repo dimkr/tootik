@@ -57,15 +57,16 @@ type Resolver struct {
 }
 
 var (
-	ErrActorGone      = errors.New("actor is gone")
-	ErrNoLocalActor   = errors.New("no such local user")
-	ErrActorNotCached = errors.New("actor is not cached")
-	ErrBlockedDomain  = errors.New("domain is blocked")
-	ErrInvalidScheme  = errors.New("invalid scheme")
-	ErrInvalidHost    = errors.New("invalid host")
-	ErrInvalidID      = errors.New("invalid actor ID")
-	ErrSuspendedActor = errors.New("actor is suspended")
-	ErrYoungActor     = errors.New("actor is too young")
+	ErrActorGone        = errors.New("actor is gone")
+	ErrNoLocalActor     = errors.New("no such local user")
+	ErrActorNotCached   = errors.New("actor is not cached")
+	ErrBlockedDomain    = errors.New("domain is blocked")
+	ErrInvalidScheme    = errors.New("invalid scheme")
+	ErrInvalidHost      = errors.New("invalid host")
+	ErrInvalidID        = errors.New("invalid actor ID")
+	ErrSuspendedActor   = errors.New("actor is suspended")
+	ErrYoungActor       = errors.New("actor is too young")
+	ErrNotInstanceActor = errors.New("not application actor")
 )
 
 // NewResolver returns a new [Resolver].
@@ -106,6 +107,8 @@ func (r *Resolver) ResolveID(ctx context.Context, key httpsig.Key, id string, fl
 		return nil, err
 	} else if actor.Suspended {
 		return nil, ErrSuspendedActor
+	} else if flags&ap.InstanceActor != 0 && actor.Type != ap.Application && actor.Type != ap.Service {
+		return nil, ErrNotInstanceActor
 	} else {
 		return actor, nil
 	}
@@ -133,6 +136,8 @@ func (r *Resolver) Resolve(ctx context.Context, key httpsig.Key, host, name stri
 		return nil, err
 	} else if actor.Suspended {
 		return nil, ErrSuspendedActor
+	} else if flags&ap.InstanceActor != 0 && actor.Type != ap.Application && actor.Type != ap.Service {
+		return nil, ErrNotInstanceActor
 	} else {
 		return actor, nil
 	}
