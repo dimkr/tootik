@@ -28,7 +28,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"path"
 	"strings"
 	"time"
 
@@ -58,15 +57,16 @@ type Resolver struct {
 }
 
 var (
-	ErrActorGone      = errors.New("actor is gone")
-	ErrNoLocalActor   = errors.New("no such local user")
-	ErrActorNotCached = errors.New("actor is not cached")
-	ErrBlockedDomain  = errors.New("domain is blocked")
-	ErrInvalidScheme  = errors.New("invalid scheme")
-	ErrInvalidHost    = errors.New("invalid host")
-	ErrInvalidID      = errors.New("invalid actor ID")
-	ErrSuspendedActor = errors.New("actor is suspended")
-	ErrYoungActor     = errors.New("actor is too young")
+	ErrActorGone        = errors.New("actor is gone")
+	ErrNoLocalActor     = errors.New("no such local user")
+	ErrActorNotCached   = errors.New("actor is not cached")
+	ErrBlockedDomain    = errors.New("domain is blocked")
+	ErrInvalidScheme    = errors.New("invalid scheme")
+	ErrInvalidHost      = errors.New("invalid host")
+	ErrInvalidID        = errors.New("invalid actor ID")
+	ErrSuspendedActor   = errors.New("actor is suspended")
+	ErrYoungActor       = errors.New("actor is too young")
+	ErrNotInstanceActor = errors.New("not application actor")
 )
 
 // NewResolver returns a new [Resolver].
@@ -90,6 +90,10 @@ func NewResolver(blockedDomains *BlockList, domain string, cfg *cfg.Config, clie
 
 // ResolveID retrieves an actor object by its ID.
 func (r *Resolver) ResolveID(ctx context.Context, key httpsig.Key, id string, flags ap.ResolverFlag) (*ap.Actor, error) {
+	if id == "" {
+		return nil, errors.New("empty ID")
+	}
+
 	u, err := url.Parse(id)
 	if err != nil {
 		return nil, fmt.Errorf("cannot resolve %s: %w", id, err)
@@ -99,40 +103,37 @@ func (r *Resolver) ResolveID(ctx context.Context, key httpsig.Key, id string, fl
 		return nil, ErrInvalidScheme
 	}
 
-	var name string
-	if flags&ap.InstanceActor == 0 {
-		name = path.Base(u.Path)
-
-		// strip the leading @ if URL follows the form https://a.b/@c
-		if name[0] == '@' {
-			name = name[1:]
-		}
-	} else {
-		// in Mastodon, domain@domain leads to the "instance actor" (domain/actor) and it's discoverable through domain@domain
-		name = u.Host
-	}
-
-	return r.Resolve(ctx, key, u.Host, name, flags)
-}
-
-// Resolve retrieves an actor object by host and name.
-func (r *Resolver) Resolve(ctx context.Context, key httpsig.Key, host, name string, flags ap.ResolverFlag) (*ap.Actor, error) {
-	if actor, err := r.tryResolveOrCache(ctx, key, host, name, flags); err != nil {
+	if actor, err := r.validate(func() (*ap.Actor, *ap.Actor, error) { return r.tryResolveID(ctx, key, u, id, flags) }); err != nil {
 		return nil, err
 	} else if actor.Suspended {
 		return nil, ErrSuspendedActor
+	} else if flags&ap.InstanceActor != 0 && actor.Type != ap.Application && actor.Type != ap.Service {
+		return nil, ErrNotInstanceActor
 	} else {
 		return actor, nil
 	}
 }
 
-func (r *Resolver) tryResolveOrCache(ctx context.Context, key httpsig.Key, host, name string, flags ap.ResolverFlag) (*ap.Actor, error) {
-	actor, cachedActor, err := r.tryResolve(ctx, key, host, name, flags)
+// Resolve retrieves an actor object by host and name.
+func (r *Resolver) Resolve(ctx context.Context, key httpsig.Key, host, name string, flags ap.ResolverFlag) (*ap.Actor, error) {
+	if actor, err := r.validate(func() (*ap.Actor, *ap.Actor, error) { return r.tryResolve(ctx, key, host, name, flags) }); err != nil {
+		return nil, err
+	} else if actor.Suspended {
+		return nil, ErrSuspendedActor
+	} else if flags&ap.InstanceActor != 0 && actor.Type != ap.Application && actor.Type != ap.Service {
+		return nil, ErrNotInstanceActor
+	} else {
+		return actor, nil
+	}
+}
+
+func (r *Resolver) validate(try func() (*ap.Actor, *ap.Actor, error)) (*ap.Actor, error) {
+	actor, cachedActor, err := try()
 	if err != nil && cachedActor != nil && cachedActor.Published != nil && time.Since(cachedActor.Published.Time) < r.Config.MinActorAge {
-		slog.Warn("Failed to update cached actor", "host", host, "name", name, "error", err)
+		slog.Warn("Failed to update cached actor", "id", cachedActor.ID, "error", err)
 		return nil, ErrYoungActor
 	} else if err != nil && cachedActor != nil {
-		slog.Warn("Using old cache entry for actor", "host", host, "name", name, "error", err)
+		slog.Warn("Using old cache entry for actor", "id", cachedActor.ID, "error", err)
 		return cachedActor, nil
 	} else if actor == nil {
 		return cachedActor, err
@@ -189,8 +190,10 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 
 	isLocal := host == r.Domain
 
+	var lockID uint32
 	if !isLocal && flags&ap.Offline == 0 {
-		lock := r.locks[crc32.ChecksumIEEE([]byte(host+name))%uint32(len(r.locks))]
+		lockID = crc32.ChecksumIEEE([]byte(host+name)) % uint32(len(r.locks))
+		lock := r.locks[lockID]
 		if err := lock.Lock(ctx); err != nil {
 			return nil, nil, err
 		}
@@ -231,6 +234,15 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 	}
 
 	if cachedActor != nil {
+		altLockID := crc32.ChecksumIEEE([]byte(cachedActor.ID)) % uint32(len(r.locks))
+		if altLockID != lockID {
+			lock := r.locks[altLockID]
+			if err := lock.Lock(ctx); err != nil {
+				return nil, nil, err
+			}
+			defer lock.Unlock()
+		}
+
 		if _, err := r.db.ExecContext(
 			ctx,
 			`UPDATE persons SET fetched = UNIXEPOCH() WHERE id = ?`,
@@ -311,23 +323,103 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 		return nil, cachedActor, fmt.Errorf("%s does not match %s", profile, cachedActor.ID)
 	}
 
-	req, err = http.NewRequestWithContext(ctx, http.MethodGet, profile, nil)
+	return r.fetchActor(ctx, key, host, profile, cachedActor)
+}
+
+func (r *Resolver) tryResolveID(ctx context.Context, key httpsig.Key, u *url.URL, id string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
+	slog.Debug("Resolving actor", "id", id)
+
+	if r.BlockedDomains != nil && r.BlockedDomains.Contains(u.Host) {
+		return nil, nil, ErrBlockedDomain
+	}
+
+	isLocal := u.Host == r.Domain
+
+	var lockID uint32
+	if !isLocal && flags&ap.Offline == 0 {
+		lockID = crc32.ChecksumIEEE([]byte(id)) % uint32(len(r.locks))
+		lock := r.locks[lockID]
+		if err := lock.Lock(ctx); err != nil {
+			return nil, nil, err
+		}
+		defer lock.Unlock()
+	}
+
+	var tmp ap.Actor
+	var cachedActor *ap.Actor
+
+	var updated, inserted int64
+	var fetched sql.NullInt64
+	var sinceLastUpdate time.Duration
+	if err := r.db.QueryRowContext(ctx, `select actor, updated, fetched, inserted from persons where id = $1 or actor->>'$.publicKey.id' = $1`, id).Scan(&tmp, &updated, &fetched, &inserted); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, nil, fmt.Errorf("failed to fetch %s cache: %w", id, err)
+	} else if err == nil {
+		cachedActor = &tmp
+
+		// fall back to insertion time if we don't have registration time
+		if cachedActor.Published == nil {
+			cachedActor.Published = &ap.Time{Time: time.Unix(inserted, 0)}
+		}
+
+		sinceLastUpdate = time.Since(time.Unix(updated, 0))
+		if !isLocal && flags&ap.Offline == 0 && sinceLastUpdate > r.Config.ResolverCacheTTL && (!fetched.Valid || time.Since(time.Unix(fetched.Int64, 0)) >= r.Config.ResolverRetryInterval) {
+			slog.Info("Updating old cache entry for actor", "id", cachedActor.ID)
+		} else {
+			slog.Debug("Resolved actor using cache", "id", cachedActor.ID)
+			return nil, cachedActor, nil
+		}
+	}
+
+	if isLocal {
+		return nil, nil, fmt.Errorf("cannot resolve %s: %w", id, ErrNoLocalActor)
+	}
+
+	if flags&ap.Offline != 0 {
+		return nil, nil, fmt.Errorf("cannot resolve %s: %w", id, ErrActorNotCached)
+	}
+
+	if cachedActor != nil {
+		if cachedActor.ID != id {
+			altLockID := crc32.ChecksumIEEE([]byte(cachedActor.ID)) % uint32(len(r.locks))
+			if altLockID != lockID {
+				lock := r.locks[altLockID]
+				if err := lock.Lock(ctx); err != nil {
+					return nil, nil, err
+				}
+				defer lock.Unlock()
+			}
+		}
+
+		if _, err := r.db.ExecContext(
+			ctx,
+			`UPDATE persons SET fetched = UNIXEPOCH() WHERE id = ?`,
+			cachedActor.ID,
+		); err != nil {
+			return nil, cachedActor, fmt.Errorf("failed to update last fetch time for %s: %w", cachedActor.ID, err)
+		}
+	}
+
+	return r.fetchActor(ctx, key, u.Host, id, cachedActor)
+}
+
+func (r *Resolver) fetchActor(ctx context.Context, key httpsig.Key, host, profile string, cachedActor *ap.Actor) (*ap.Actor, *ap.Actor, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, profile, nil)
 	if err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to send request to %s: %w", profile, err)
 	}
 
 	if req.URL.Host != host && !strings.HasSuffix(req.URL.Host, "."+host) {
-		return nil, nil, fmt.Errorf("actor link host is %s: %w", req.URL.Host, ErrInvalidHost)
+		return nil, cachedActor, fmt.Errorf("actor link host is %s: %w", req.URL.Host, ErrInvalidHost)
 	}
 
 	if !data.IsIDValid(req.URL) {
-		return nil, nil, fmt.Errorf("cannot resolve %s: %w", profile, ErrInvalidID)
+		return nil, cachedActor, fmt.Errorf("cannot resolve %s: %w", profile, ErrInvalidID)
 	}
 
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Add("Accept", "application/activity+json")
 
-	resp, err = r.send(key, req)
+	resp, err := r.send(key, req)
 	if err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", profile, err)
 	}
@@ -347,7 +439,7 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 		return nil, cachedActor, fmt.Errorf("failed to unmarshal %s: %w", profile, err)
 	}
 
-	if actor.ID != profile {
+	if actor.ID != profile && actor.PublicKey.ID != profile {
 		return nil, cachedActor, fmt.Errorf("%s does not match %s", actor.ID, profile)
 	}
 
