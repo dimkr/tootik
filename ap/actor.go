@@ -28,6 +28,7 @@ const (
 	Person      ActorType = "Person"
 	Group       ActorType = "Group"
 	Application ActorType = "Application"
+	Service     ActorType = "Service"
 )
 
 // Actor represents an ActivityPub actor.
