@@ -41,9 +41,12 @@ import (
 type webFingerResponse struct {
 	Subject string `json:"subject"`
 	Links   []struct {
-		Rel  string `json:"rel"`
-		Type string `json:"type"`
-		Href string `json:"href"`
+		Rel        string `json:"rel"`
+		Type       string `json:"type"`
+		Href       string `json:"href"`
+		Properties struct {
+			Type ap.ActorType `json:"https://www.w3.org/ns/activitystreams#type"`
+		} `json:"properties"`
 	} `json:"links"`
 }
 
@@ -206,7 +209,7 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 	var updated, inserted int64
 	var fetched sql.NullInt64
 	var sinceLastUpdate time.Duration
-	if err := r.db.QueryRowContext(ctx, `select actor, updated, fetched, inserted from persons where actor->>'$.preferredUsername' = $1 and host = $2`, name, host).Scan(&tmp, &updated, &fetched, &inserted); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := r.db.QueryRowContext(ctx, `select actor, updated, fetched, inserted from persons where actor->>'$.preferredUsername' = $1 and host = $2 and ($3 or actor->>'$.type' = 'Group')`, name, host, flags&ap.GroupActor == 0).Scan(&tmp, &updated, &fetched, &inserted); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, fmt.Errorf("failed to fetch %s%s cache: %w", name, host, err)
 	} else if err == nil {
 		cachedActor = &tmp
@@ -306,6 +309,10 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 		}
 
 		if link.Type != "application/activity+json" && link.Type != `application/ld+json; profile="https://www.w3.org/ns/activitystreams"` {
+			continue
+		}
+
+		if flags&ap.GroupActor > 0 && link.Properties.Type != ap.Group {
 			continue
 		}
 
