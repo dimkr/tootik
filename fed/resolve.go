@@ -197,7 +197,13 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 	var updated, inserted int64
 	var fetched sql.NullInt64
 	var sinceLastUpdate time.Duration
-	if err := r.db.QueryRowContext(ctx, `select actor, updated, fetched, inserted from persons where actor->>'$.preferredUsername' = $1 and host = $2 and ($3 or actor->>'$.type' = 'Group')`, name, host, flags&ap.GroupActor == 0).Scan(&tmp, &updated, &fetched, &inserted); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	var err error
+	if flags&ap.GroupActor == 0 {
+		err = r.db.QueryRowContext(ctx, `select actor, updated, fetched, inserted from persons where actor->>'$.preferredUsername' = $1 and host = $2 order by actor->>'$.type' = 'Group' limit 1`, name, host).Scan(&tmp, &updated, &fetched, &inserted)
+	} else {
+		err = r.db.QueryRowContext(ctx, `select actor, updated, fetched, inserted from persons where actor->>'$.preferredUsername' = $1 and host = $2 and actor->>'$.type' = 'Group'`, name, host).Scan(&tmp, &updated, &fetched, &inserted)
+	}
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, fmt.Errorf("failed to fetch %s%s cache: %w", name, host, err)
 	} else if err == nil {
 		cachedActor = &tmp
@@ -289,7 +295,7 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 		return nil, cachedActor, fmt.Errorf("failed to decode %s response: %w", finger, err)
 	}
 
-	profile := ""
+	actors := data.OrderedMap[ap.ActorType, string]{}
 
 	for _, link := range webFingerResponse.Links {
 		if link.Rel != "self" {
@@ -300,25 +306,25 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 			continue
 		}
 
-		if flags&ap.GroupActor > 0 && link.Properties.Type != ap.Group {
-			continue
-		}
-
 		if link.Href != "" {
-			profile = link.Href
+			actors.Store(link.Properties.Type, link.Href)
 			break
 		}
 	}
 
-	if profile == "" {
-		return nil, cachedActor, fmt.Errorf("no profile link in %s response", finger)
+	for actorType, id := range actors.All() {
+		if flags&ap.GroupActor > 0 && len(actors) > 1 && actorType != ap.Group {
+			continue
+		}
+
+		if cachedActor != nil && id != cachedActor.ID {
+			return nil, cachedActor, fmt.Errorf("%s does not match %s", id, cachedActor.ID)
+		}
+
+		return r.fetchActor(ctx, key, host, id, cachedActor)
 	}
 
-	if cachedActor != nil && profile != cachedActor.ID {
-		return nil, cachedActor, fmt.Errorf("%s does not match %s", profile, cachedActor.ID)
-	}
-
-	return r.fetchActor(ctx, key, host, profile, cachedActor)
+	return nil, cachedActor, fmt.Errorf("no profile link in %s response", finger)
 }
 
 func (r *Resolver) tryResolveID(ctx context.Context, key httpsig.Key, u *url.URL, id string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
