@@ -10,7 +10,7 @@ func resolvegroup(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE UNIQUE INDEX personspreferredusernametypehost ON persons(actor->>'$.preferredUsername', actor->>'$.type', host)`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE UNIQUE INDEX personspreferredusernamehosttype ON persons(actor->>'$.preferredUsername', host, actor->>'$.type')`); err != nil {
 		return err
 	}
 

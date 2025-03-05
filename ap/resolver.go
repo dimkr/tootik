@@ -32,6 +32,7 @@ const (
 	// InstanceActor enables discovery of the "instance actor" instead of the regular actor discovery flow.
 	InstanceActor = 2
 
+	// GroupActor makes [Resolver] prefer the first [Group] actor in the WebFinger response.
 	GroupActor = 4
 )
 

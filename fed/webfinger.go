@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,7 +25,26 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+
+	"github.com/dimkr/tootik/ap"
 )
+
+type webFingerProperties struct {
+	Type ap.ActorType `json:"https://www.w3.org/ns/activitystreams#type"`
+}
+
+type webFingerLink struct {
+	Rel        string              `json:"rel"`
+	Type       string              `json:"type"`
+	Href       string              `json:"href"`
+	Properties webFingerProperties `json:"properties"`
+}
+
+type webFingerResponse struct {
+	Subject string          `json:"subject"`
+	Aliases []string        `json:"aliases"`
+	Links   []webFingerLink `json:"links"`
+}
 
 func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
@@ -77,7 +96,8 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 	slog.Info("Looking up resource", "resource", resource, "user", username)
 
 	var actorID sql.NullString
-	if err := l.DB.QueryRowContext(r.Context(), `select id from persons where actor->>'$.preferredUsername' = ? and host = ?`, username, l.Domain).Scan(&actorID); err != nil {
+	var actorType string
+	if err := l.DB.QueryRowContext(r.Context(), `select id, actor->>'$.type' from persons where actor->>'$.preferredUsername' = ? and host = ?`, username, l.Domain).Scan(&actorID, &actorType); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -88,19 +108,25 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	j, err := json.Marshal(map[string]any{
-		"subject": fmt.Sprintf("acct:%s@%s", username, l.Domain),
-		"aliases": []string{actorID.String},
-		"links": []map[string]any{
+	j, err := json.Marshal(webFingerResponse{
+		Subject: fmt.Sprintf("acct:%s@%s", username, l.Domain),
+		Aliases: []string{actorID.String},
+		Links: []webFingerLink{
 			{
-				"rel":  "self",
-				"type": "application/activity+json",
-				"href": actorID.String,
+				Rel:  "self",
+				Type: "application/activity+json",
+				Href: actorID.String,
+				Properties: webFingerProperties{
+					Type: ap.ActorType(actorType),
+				},
 			},
 			{
-				"rel":  "self",
-				"type": `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`,
-				"href": actorID.String,
+				Rel:  "self",
+				Type: `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`,
+				Href: actorID.String,
+				Properties: webFingerProperties{
+					Type: ap.ActorType(actorType),
+				},
 			},
 		},
 	})

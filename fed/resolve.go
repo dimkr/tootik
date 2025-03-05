@@ -38,18 +38,6 @@ import (
 	"github.com/dimkr/tootik/lock"
 )
 
-type webFingerResponse struct {
-	Subject string `json:"subject"`
-	Links   []struct {
-		Rel        string `json:"rel"`
-		Type       string `json:"type"`
-		Href       string `json:"href"`
-		Properties struct {
-			Type ap.ActorType `json:"https://www.w3.org/ns/activitystreams#type"`
-		} `json:"properties"`
-	} `json:"links"`
-}
-
 // Resolver retrieves actor objects given their ID.
 // Actors are cached, updated periodically and deleted if gone from the remote server.
 type Resolver struct {
