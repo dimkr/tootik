@@ -295,6 +295,7 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 		return nil, cachedActor, fmt.Errorf("failed to decode %s response: %w", finger, err)
 	}
 
+	// assumption: there can be only one actor with the same name, per type
 	actors := data.OrderedMap[ap.ActorType, string]{}
 
 	for _, link := range webFingerResponse.Links {
@@ -313,7 +314,8 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 	}
 
 	for actorType, id := range actors.All() {
-		if flags&ap.GroupActor > 0 && len(actors) > 1 && actorType != ap.Group {
+		// look for a Group actor if the same name belongs to multiple actors, otherwise a non-Group one
+		if len(actors) > 1 && ((flags&ap.GroupActor == 0 && actorType == ap.Group) || (flags&ap.GroupActor > 0 && actorType != ap.Group)) {
 			continue
 		}
 
