@@ -19,6 +19,7 @@ package fed
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -42,7 +43,6 @@ type webFingerLink struct {
 
 type webFingerResponse struct {
 	Subject string          `json:"subject"`
-	Aliases []string        `json:"aliases"`
 	Links   []webFingerLink `json:"links"`
 }
 
@@ -95,41 +95,43 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("Looking up resource", "resource", resource, "user", username)
 
-	var actorID sql.NullString
-	var actorType string
-	if err := l.DB.QueryRowContext(r.Context(), `select id, actor->>'$.type' from persons where actor->>'$.preferredUsername' = ? and host = ?`, username, l.Domain).Scan(&actorID, &actorType); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if !actorID.Valid {
+	rows, err := l.DB.QueryContext(r.Context(), `select id, actor->>'$.type' from persons where actor->>'$.preferredUsername' = ? and host = ?`, username, l.Domain)
+	if errors.Is(err, sql.ErrNoRows) {
 		slog.Info("Notifying that user does not exist", "user", username)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
+	if err != nil {
+		slog.Warn("Failed to fetch user", "user", username, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
 
-	j, err := json.Marshal(webFingerResponse{
+	resp := webFingerResponse{
 		Subject: fmt.Sprintf("acct:%s@%s", username, l.Domain),
-		Aliases: []string{actorID.String},
-		Links: []webFingerLink{
-			{
-				Rel:  "self",
-				Type: "application/activity+json",
-				Href: actorID.String,
-				Properties: webFingerProperties{
-					Type: ap.ActorType(actorType),
-				},
+	}
+
+	for rows.Next() {
+		var actorID sql.NullString
+		var actorType string
+		if err := rows.Scan(&actorID, &actorType); err != nil {
+			slog.Warn("Failed to scan user", "user", username, "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		resp.Links = append(resp.Links, webFingerLink{
+			Rel:  "self",
+			Type: "application/activity+json",
+			Href: actorID.String,
+			Properties: webFingerProperties{
+				Type: ap.ActorType(actorType),
 			},
-			{
-				Rel:  "self",
-				Type: `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`,
-				Href: actorID.String,
-				Properties: webFingerProperties{
-					Type: ap.ActorType(actorType),
-				},
-			},
-		},
-	})
+		})
+	}
+
+	j, err := json.Marshal(resp)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
