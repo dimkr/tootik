@@ -1,6 +1,6 @@
 module github.com/dimkr/tootik
 
-go 1.24.0
+go 1.24.1
 
 require (
 	github.com/fsnotify/fsnotify v1.8.0
