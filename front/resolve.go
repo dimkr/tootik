@@ -18,11 +18,14 @@ package front
 
 import (
 	"net/url"
+	"regexp"
 	"strings"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 )
+
+var resolveInputRegex = regexp.MustCompile(`^(\!{0,1})([^@]+)(?:@([^.@]+\.[^@]+)){0,1}$`)
 
 func (h *Handler) resolve(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
@@ -31,7 +34,7 @@ func (h *Handler) resolve(w text.Writer, r *Request, args ...string) {
 	}
 
 	if r.URL.RawQuery == "" {
-		w.Status(10, "User name (name or name@domain)")
+		w.Status(10, "User name (name, name@domain or !group@domain)")
 		return
 	}
 
@@ -42,25 +45,22 @@ func (h *Handler) resolve(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	var name, host string
-
-	tokens := strings.Split(query, "@")
-	switch len(tokens) {
-	case 1:
-		name = tokens[0]
-		host = h.Domain
-	case 2:
-		name = tokens[0]
-		host = tokens[1]
-	default:
+	match := resolveInputRegex.FindStringSubmatch(query)
+	if match == nil {
 		w.Status(40, "Bad input")
 		return
 	}
 
 	var flags ap.ResolverFlag
-	if name != "" && name[0] == '!' {
-		name = name[1:]
+	if match[1] == "!" {
 		flags |= ap.GroupActor
+	}
+
+	name := match[2]
+
+	host := match[3]
+	if host == "" {
+		host = h.Domain
 	}
 
 	r.Log.Info("Resolving user ID", "host", host, "name", name)
