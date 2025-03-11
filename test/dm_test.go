@@ -28,18 +28,18 @@ func TestDM_HappyFlow(t *testing.T) {
 
 	assert := assert.New(t)
 
-	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
+	dm := server.Handle("/login/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, dm)
 
 	id := dm[15 : len(dm)-2]
 
-	view := server.Handle("/users/view/"+id, server.Alice)
+	view := server.Handle("/login/view/"+id, server.Alice)
 	assert.Contains(view, "Hello @alice@localhost.localdomain:8443")
 
-	view = server.Handle("/users/view/"+id, server.Carol)
+	view = server.Handle("/login/view/"+id, server.Carol)
 	assert.Equal(view, "40 Post not found\r\n")
 
-	view = server.Handle("/users/view/"+id, server.Bob)
+	view = server.Handle("/login/view/"+id, server.Bob)
 	assert.Contains(view, "Hello @alice@localhost.localdomain:8443")
 }
 
@@ -49,8 +49,8 @@ func TestDM_UnauthenticatedUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
+	dm := server.Handle("/login/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, dm)
 
 	id := dm[15 : len(dm)-2]
 
@@ -64,7 +64,7 @@ func TestDM_Loopback(t *testing.T) {
 
 	assert := assert.New(t)
 
-	dm := server.Handle("/users/dm?Hello%20%40bob%40localhost.localdomain%3a8443", server.Bob)
+	dm := server.Handle("/login/dm?Hello%20%40bob%40localhost.localdomain%3a8443", server.Bob)
 	assert.Equal("40 Post audience is empty\r\n", dm)
 }
 
@@ -74,18 +74,18 @@ func TestDM_TwoMentions(t *testing.T) {
 
 	assert := assert.New(t)
 
-	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443%20and%20%40carol%40localhost.localdomain%3a8443", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
+	dm := server.Handle("/login/dm?Hello%20%40alice%40localhost.localdomain%3a8443%20and%20%40carol%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, dm)
 
 	id := dm[15 : len(dm)-2]
 
-	view := server.Handle("/users/view/"+id, server.Alice)
+	view := server.Handle("/login/view/"+id, server.Alice)
 	assert.Contains(view, "Hello @alice@localhost.localdomain:8443 and @carol@localhost.localdomain:8443")
 
-	view = server.Handle("/users/view/"+id, server.Carol)
+	view = server.Handle("/login/view/"+id, server.Carol)
 	assert.Contains(view, "Hello @alice@localhost.localdomain:8443 and @carol@localhost.localdomain:8443")
 
-	view = server.Handle("/users/view/"+id, server.Bob)
+	view = server.Handle("/login/view/"+id, server.Bob)
 	assert.Contains(view, "Hello @alice@localhost.localdomain:8443 and @carol@localhost.localdomain:8443")
 }
 
@@ -95,18 +95,18 @@ func TestDM_TwoMentionsOneLoopback(t *testing.T) {
 
 	assert := assert.New(t)
 
-	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443%20and%20%40bob%40localhost.localdomain%3a8443", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
+	dm := server.Handle("/login/dm?Hello%20%40alice%40localhost.localdomain%3a8443%20and%20%40bob%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, dm)
 
 	id := dm[15 : len(dm)-2]
 
-	view := server.Handle("/users/view/"+id, server.Alice)
+	view := server.Handle("/login/view/"+id, server.Alice)
 	assert.Contains(view, "Hello @alice@localhost.localdomain:8443 and @bob@localhost.localdomain:8443")
 
-	view = server.Handle("/users/view/"+id, server.Carol)
+	view = server.Handle("/login/view/"+id, server.Carol)
 	assert.Equal(view, "40 Post not found\r\n")
 
-	view = server.Handle("/users/view/"+id, server.Bob)
+	view = server.Handle("/login/view/"+id, server.Bob)
 	assert.Contains(view, "Hello @alice@localhost.localdomain:8443 and @bob@localhost.localdomain:8443")
 }
 
@@ -118,7 +118,7 @@ func TestDM_TooManyRecipients(t *testing.T) {
 
 	assert := assert.New(t)
 
-	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443%20and%20%40carol%40localhost.localdomain%3a8443", server.Bob)
+	dm := server.Handle("/login/dm?Hello%20%40alice%40localhost.localdomain%3a8443%20and%20%40carol%40localhost.localdomain%3a8443", server.Bob)
 	assert.Equal("40 Too many recipients\r\n", dm)
 }
 
@@ -130,17 +130,17 @@ func TestDM_MaxRecipients(t *testing.T) {
 
 	assert := assert.New(t)
 
-	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443%20and%20%40carol%40localhost.localdomain%3a8443", server.Bob)
-	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
+	dm := server.Handle("/login/dm?Hello%20%40alice%40localhost.localdomain%3a8443%20and%20%40carol%40localhost.localdomain%3a8443", server.Bob)
+	assert.Regexp(`^30 /login/view/\S+\r\n$`, dm)
 
 	id := dm[15 : len(dm)-2]
 
-	view := server.Handle("/users/view/"+id, server.Alice)
+	view := server.Handle("/login/view/"+id, server.Alice)
 	assert.Contains(view, "Hello @alice@localhost.localdomain:8443 and @carol@localhost.localdomain:8443")
 
-	view = server.Handle("/users/view/"+id, server.Carol)
+	view = server.Handle("/login/view/"+id, server.Carol)
 	assert.Contains(view, "Hello @alice@localhost.localdomain:8443 and @carol@localhost.localdomain:8443")
 
-	view = server.Handle("/users/view/"+id, server.Bob)
+	view = server.Handle("/login/view/"+id, server.Bob)
 	assert.Contains(view, "Hello @alice@localhost.localdomain:8443 and @carol@localhost.localdomain:8443")
 }

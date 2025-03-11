@@ -48,7 +48,7 @@ func printHashtags(w text.Writer, r *Request, title string, tags []string) {
 		if r.User == nil {
 			w.Link("/hashtag/"+tag, "#"+tag)
 		} else {
-			w.Link("/users/hashtag/"+tag, "#"+tag)
+			w.Link("/login/hashtag/"+tag, "#"+tag)
 		}
 	}
 }
@@ -203,6 +203,6 @@ func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
 		w.Link("/search", "🔎 Posts by hashtag")
 	} else {
-		w.Link("/users/search", "🔎 Posts by hashtag")
+		w.Link("/login/search", "🔎 Posts by hashtag")
 	}
 }

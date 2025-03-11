@@ -1,0 +1,12 @@
+# New Post
+
+Who should be able to see your new post?
+
+=> /login/dm 💌 Mentioned users only
+=> titan://{{.Domain}}/login/upload/dm Upload text file
+
+=> /login/whisper 🔔 Your followers and mentioned users
+=> titan://{{.Domain}}/login/upload/whisper Upload text file
+
+=> /login/say 📣 Anyone
+=> titan://{{.Domain}}/login/upload/say Upload text file

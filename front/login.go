@@ -22,7 +22,7 @@ import (
 	"github.com/dimkr/tootik/front/text"
 )
 
-func (h *Handler) users(w text.Writer, r *Request, args ...string) {
+func (h *Handler) login(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/oops")
 		return

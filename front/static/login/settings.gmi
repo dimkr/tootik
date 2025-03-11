@@ -1,0 +1,18 @@
+# ⚙️ Settings
+
+## Profile
+
+=> /login/name 👺 Set display name
+=> /login/bio 📜 Set bio
+=> titan://{{.Domain}}/login/upload/bio Upload bio
+=> titan://{{.Domain}}/login/upload/avatar Upload avatar
+
+## Account
+
+=> /login/certificates 🎓 Certificates
+=> /login/export 🥡 Export recent activities
+
+## Migration
+
+=> /login/alias 🔗 Set account alias
+=> /login/move 📦 Move account

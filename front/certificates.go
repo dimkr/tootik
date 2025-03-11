@@ -24,7 +24,7 @@ import (
 
 func (h *Handler) certificates(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
-		w.Redirect("/users")
+		w.Redirect("/login")
 		return
 	}
 
@@ -67,10 +67,10 @@ func (h *Handler) certificates(w text.Writer, r *Request, args ...string) {
 		w.Item("Expires: " + time.Unix(expires, 0).Format(time.DateOnly))
 
 		if approved == 0 {
-			w.Link("/users/certificates/approve/"+hash, "🟢 Approve")
-			w.Link("/users/certificates/revoke/"+hash, "🔴 Deny")
+			w.Link("/login/certificates/approve/"+hash, "🟢 Approve")
+			w.Link("/login/certificates/revoke/"+hash, "🔴 Deny")
 		} else {
-			w.Link("/users/certificates/revoke/"+hash, "🔴 Revoke")
+			w.Link("/login/certificates/revoke/"+hash, "🔴 Revoke")
 		}
 
 		first = false

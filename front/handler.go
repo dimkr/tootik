@@ -65,90 +65,90 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 
 	h.handlers[regexp.MustCompile(`^/$`)] = withUserMenu(h.home)
 
-	h.handlers[regexp.MustCompile(`^/users$`)] = withUserMenu(h.users)
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))$`)] = withUserMenu(h.login)
 	if closed {
-		h.handlers[regexp.MustCompile(`^/users/register$`)] = func(w text.Writer, r *Request, args ...string) {
+		h.handlers[regexp.MustCompile(`^/(?:(login|users))/register$`)] = func(w text.Writer, r *Request, args ...string) {
 			w.Status(40, "Registration is closed")
 		}
 	} else {
-		h.handlers[regexp.MustCompile(`^/users/register$`)] = h.register
+		h.handlers[regexp.MustCompile(`^/(?:(login|users))/register$`)] = h.register
 	}
 
-	h.handlers[regexp.MustCompile(`^/users/mentions$`)] = withUserMenu(h.mentions)
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/mentions$`)] = withUserMenu(h.mentions)
 
 	h.handlers[regexp.MustCompile(`^/local$`)] = withCache(withUserMenu(h.local), time.Minute*15, &cache)
-	h.handlers[regexp.MustCompile(`^/users/local$`)] = withCache(withUserMenu(h.local), time.Minute*15, &cache)
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/local$`)] = withCache(withUserMenu(h.local), time.Minute*15, &cache)
 
 	h.handlers[regexp.MustCompile(`^/outbox/(\S+)$`)] = withUserMenu(h.userOutbox)
-	h.handlers[regexp.MustCompile(`^/users/outbox/(\S+)$`)] = withUserMenu(h.userOutbox)
-	h.handlers[regexp.MustCompile(`^/users/me$`)] = withUserMenu(me)
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/outbox/(\S+)$`)] = withUserMenu(h.userOutbox)
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/me$`)] = withUserMenu(me)
 
-	h.handlers[regexp.MustCompile(`^/users/upload/avatar;([a-z]+)=([^;]+);([a-z]+)=([^;]+)`)] = h.uploadAvatar
-	h.handlers[regexp.MustCompile(`^/users/bio$`)] = h.bio
-	h.handlers[regexp.MustCompile(`^/users/upload/bio;([a-z]+)=([^;]+)(?:;([a-z]+)=([^;]+)){0,1}$`)] = h.uploadBio
-	h.handlers[regexp.MustCompile(`^/users/name$`)] = h.name
-	h.handlers[regexp.MustCompile(`^/users/alias$`)] = h.alias
-	h.handlers[regexp.MustCompile(`^/users/move$`)] = h.move
-	h.handlers[regexp.MustCompile(`^/users/certificates$`)] = withUserMenu(h.certificates)
-	h.handlers[regexp.MustCompile(`^/users/certificates/approve/(\S+)$`)] = withUserMenu(h.approve)
-	h.handlers[regexp.MustCompile(`^/users/certificates/revoke/(\S+)$`)] = withUserMenu(h.revoke)
-	h.handlers[regexp.MustCompile(`^/users/export$`)] = h.export
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/upload/avatar;([a-z]+)=([^;]+);([a-z]+)=([^;]+)`)] = h.uploadAvatar
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/bio$`)] = h.bio
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/upload/bio;([a-z]+)=([^;]+)(?:;([a-z]+)=([^;]+)){0,1}$`)] = h.uploadBio
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/name$`)] = h.name
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/alias$`)] = h.alias
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/move$`)] = h.move
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/certificates$`)] = withUserMenu(h.certificates)
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/certificates/approve/(\S+)$`)] = withUserMenu(h.approve)
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/certificates/revoke/(\S+)$`)] = withUserMenu(h.revoke)
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/export$`)] = h.export
 
 	h.handlers[regexp.MustCompile(`^/view/(\S+)$`)] = withUserMenu(h.view)
-	h.handlers[regexp.MustCompile(`^/users/view/(\S+)$`)] = withUserMenu(h.view)
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/view/(\S+)$`)] = withUserMenu(h.view)
 
 	h.handlers[regexp.MustCompile(`^/thread/(\S+)$`)] = withUserMenu(h.thread)
-	h.handlers[regexp.MustCompile(`^/users/thread/(\S+)$`)] = withUserMenu(h.thread)
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/thread/(\S+)$`)] = withUserMenu(h.thread)
 
-	h.handlers[regexp.MustCompile(`^/users/dm$`)] = h.dm
-	h.handlers[regexp.MustCompile(`^/users/whisper$`)] = h.whisper
-	h.handlers[regexp.MustCompile(`^/users/say$`)] = h.say
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/dm$`)] = h.dm
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/whisper$`)] = h.whisper
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/say$`)] = h.say
 
-	h.handlers[regexp.MustCompile(`^/users/reply/(\S+)`)] = h.reply
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/reply/(\S+)`)] = h.reply
 
-	h.handlers[regexp.MustCompile(`^/users/share/(\S+)`)] = h.share
-	h.handlers[regexp.MustCompile(`^/users/unshare/(\S+)`)] = h.unshare
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/share/(\S+)`)] = h.share
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/unshare/(\S+)`)] = h.unshare
 
-	h.handlers[regexp.MustCompile(`^/users/bookmark/(\S+)`)] = h.bookmark
-	h.handlers[regexp.MustCompile(`^/users/unbookmark/(\S+)`)] = h.unbookmark
-	h.handlers[regexp.MustCompile(`^/users/bookmarks$`)] = withUserMenu(h.bookmarks)
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/bookmark/(\S+)`)] = h.bookmark
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/unbookmark/(\S+)`)] = h.unbookmark
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/bookmarks$`)] = withUserMenu(h.bookmarks)
 
-	h.handlers[regexp.MustCompile(`^/users/edit/(\S+)`)] = h.edit
-	h.handlers[regexp.MustCompile(`^/users/delete/(\S+)`)] = h.delete
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/edit/(\S+)`)] = h.edit
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/delete/(\S+)`)] = h.delete
 
-	h.handlers[regexp.MustCompile(`^/users/upload/dm;([a-z]+)=([^;]+)(?:;([a-z]+)=([^;]+)){0,1}$`)] = h.uploadDM
-	h.handlers[regexp.MustCompile(`^/users/upload/whisper;([a-z]+)=([^;]+)(?:;([a-z]+)=([^;]+)){0,1}$`)] = h.uploadWhisper
-	h.handlers[regexp.MustCompile(`^/users/upload/say;([a-z]+)=([^;]+)(?:;([a-z]+)=([^;]+)){0,1}$`)] = h.uploadSay
-	h.handlers[regexp.MustCompile(`^/users/upload/edit/([^;]+);([a-z]+)=([^;]+)(?:;([a-z]+)=([^;]+)){0,1}$`)] = h.editUpload
-	h.handlers[regexp.MustCompile(`^/users/upload/reply/([^;]+);([a-z]+)=([^;]+)(?:;([a-z]+)=([^;]+)){0,1}$`)] = h.replyUpload
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/upload/dm;([a-z]+)=([^;]+)(?:;([a-z]+)=([^;]+)){0,1}$`)] = h.uploadDM
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/upload/whisper;([a-z]+)=([^;]+)(?:;([a-z]+)=([^;]+)){0,1}$`)] = h.uploadWhisper
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/upload/say;([a-z]+)=([^;]+)(?:;([a-z]+)=([^;]+)){0,1}$`)] = h.uploadSay
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/upload/edit/([^;]+);([a-z]+)=([^;]+)(?:;([a-z]+)=([^;]+)){0,1}$`)] = h.editUpload
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/upload/reply/([^;]+);([a-z]+)=([^;]+)(?:;([a-z]+)=([^;]+)){0,1}$`)] = h.replyUpload
 
-	h.handlers[regexp.MustCompile(`^/users/resolve$`)] = withUserMenu(h.resolve)
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/resolve$`)] = withUserMenu(h.resolve)
 
-	h.handlers[regexp.MustCompile(`^/users/follow/(\S+)$`)] = withUserMenu(h.follow)
-	h.handlers[regexp.MustCompile(`^/users/unfollow/(\S+)$`)] = withUserMenu(h.unfollow)
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/follow/(\S+)$`)] = withUserMenu(h.follow)
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/unfollow/(\S+)$`)] = withUserMenu(h.unfollow)
 
-	h.handlers[regexp.MustCompile(`^/users/follows$`)] = withUserMenu(h.follows)
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/follows$`)] = withUserMenu(h.follows)
 
 	h.handlers[regexp.MustCompile(`^/communities$`)] = withUserMenu(h.communities)
-	h.handlers[regexp.MustCompile(`^/users/communities$`)] = withUserMenu(h.communities)
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/communities$`)] = withUserMenu(h.communities)
 
 	h.handlers[regexp.MustCompile(`^/hashtag/([a-zA-Z0-9]+)$`)] = withCache(withUserMenu(h.hashtag), time.Minute*5, &cache)
-	h.handlers[regexp.MustCompile(`^/users/hashtag/([a-zA-Z0-9]+)$`)] = withCache(withUserMenu(h.hashtag), time.Minute*5, &cache)
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/hashtag/([a-zA-Z0-9]+)$`)] = withCache(withUserMenu(h.hashtag), time.Minute*5, &cache)
 
 	h.handlers[regexp.MustCompile(`^/hashtags$`)] = withCache(withUserMenu(h.hashtags), time.Minute*30, &cache)
-	h.handlers[regexp.MustCompile(`^/users/hashtags$`)] = withCache(withUserMenu(h.hashtags), time.Minute*30, &cache)
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/hashtags$`)] = withCache(withUserMenu(h.hashtags), time.Minute*30, &cache)
 
 	h.handlers[regexp.MustCompile(`^/search$`)] = withUserMenu(search)
-	h.handlers[regexp.MustCompile(`^/users/search$`)] = withUserMenu(search)
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/search$`)] = withUserMenu(search)
 
 	h.handlers[regexp.MustCompile(`^/fts$`)] = withUserMenu(h.fts)
-	h.handlers[regexp.MustCompile(`^/users/fts$`)] = withUserMenu(h.fts)
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/fts$`)] = withUserMenu(h.fts)
 
 	h.handlers[regexp.MustCompile(`^/status$`)] = withCache(withUserMenu(h.status), time.Minute*5, &cache)
-	h.handlers[regexp.MustCompile(`^/users/status$`)] = withCache(withUserMenu(h.status), time.Minute*5, &cache)
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/status$`)] = withCache(withUserMenu(h.status), time.Minute*5, &cache)
 
 	h.handlers[regexp.MustCompile(`^/oops`)] = withUserMenu(oops)
-	h.handlers[regexp.MustCompile(`^/users/oops`)] = withUserMenu(oops)
+	h.handlers[regexp.MustCompile(`^/(?:(login|users))/oops`)] = withUserMenu(oops)
 
 	h.handlers[regexp.MustCompile(`^/robots.txt$`)] = robots
 
@@ -181,10 +181,10 @@ func (h *Handler) Handle(r *Request, w text.Writer) {
 	if r.URL.Scheme == "titan" && r.User == nil {
 		w.Redirectf("gemini://%s/oops", h.Domain)
 	} else if r.URL.Scheme == "titan" && r.User != nil {
-		w.Redirectf("gemini://%s/users/oops", h.Domain)
+		w.Redirectf("gemini://%s/login/oops", h.Domain)
 	} else if r.User == nil {
 		w.Redirect("/oops")
 	} else {
-		w.Redirect("/users/oops")
+		w.Redirect("/login/oops")
 	}
 }

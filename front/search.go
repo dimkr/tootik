@@ -40,8 +40,8 @@ func search(w text.Writer, r *Request, args ...string) {
 	} else if r.User == nil {
 		w.Redirect("/hashtag/" + hashtag)
 	} else if hashtag[0] == '#' {
-		w.Redirect("/users/hashtag/" + hashtag[1:])
+		w.Redirect("/login/hashtag/" + hashtag[1:])
 	} else {
-		w.Redirect("/users/hashtag/" + hashtag)
+		w.Redirect("/login/hashtag/" + hashtag)
 	}
 }
