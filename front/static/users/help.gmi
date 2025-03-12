@@ -39,8 +39,6 @@ This page shows popular hashtags, allowing you to discover trends and shared int
 
 Use this tool to locate a user in the fediverse and see the posts published by this user that were received by this server. The list of posts can be incomplete or even empty if nobody on this server follows this user. You can follow, unfollow or message a following user through the user's page.
 
-If the username is ambiguous because it belongs to both a user and a group on the same server, prefix it with ! to prefer the group.
-
 > 🔖 Bookmarks
 
 This page shows bookmarked posts.
