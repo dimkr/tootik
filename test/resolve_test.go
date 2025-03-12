@@ -81,7 +81,7 @@ func TestResolve_NoInput(t *testing.T) {
 	assert := assert.New(t)
 
 	resolve := server.Handle("/users/resolve?", server.Bob)
-	assert.Equal("10 User name (name or name@domain)\r\n", resolve)
+	assert.Equal("10 User name (name, name@domain or !group@domain)\r\n", resolve)
 }
 
 func TestResolve_InvalidEscapeSequence(t *testing.T) {
