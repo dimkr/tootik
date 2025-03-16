@@ -38,15 +38,6 @@ import (
 	"github.com/dimkr/tootik/lock"
 )
 
-type webFingerResponse struct {
-	Subject string `json:"subject"`
-	Links   []struct {
-		Rel  string `json:"rel"`
-		Type string `json:"type"`
-		Href string `json:"href"`
-	} `json:"links"`
-}
-
 // Resolver retrieves actor objects given their ID.
 // Actors are cached, updated periodically and deleted if gone from the remote server.
 type Resolver struct {
@@ -177,6 +168,33 @@ func deleteActor(ctx context.Context, db *sql.DB, id string) {
 	}
 }
 
+func (r *Resolver) handleFetchFailure(ctx context.Context, fetched string, cachedActor *ap.Actor, sinceLastUpdate time.Duration, resp *http.Response, err error) (*ap.Actor, *ap.Actor, error) {
+	if resp != nil && (resp.StatusCode == http.StatusGone || resp.StatusCode == http.StatusNotFound) {
+		if cachedActor != nil {
+			slog.Warn("Actor is gone, deleting associated objects", "id", cachedActor.ID)
+			deleteActor(ctx, r.db, cachedActor.ID)
+		}
+		return nil, nil, fmt.Errorf("failed to fetch %s: %w", fetched, ErrActorGone)
+	}
+
+	var (
+		urlError *url.Error
+		opError  *net.OpError
+		dnsError *net.DNSError
+	)
+	// if it's been a while since the last update and the server's domain is expired (NXDOMAIN), actor is gone
+	if sinceLastUpdate > r.Config.MaxInstanceRecoveryTime && errors.As(err, &urlError) && errors.As(urlError.Err, &opError) && errors.As(opError.Err, &dnsError) && dnsError.IsNotFound {
+		if cachedActor != nil {
+			slog.Warn("Server is probably gone, deleting associated objects", "id", cachedActor.ID)
+			deleteActor(ctx, r.db, cachedActor.ID)
+		}
+		return nil, nil, fmt.Errorf("failed to fetch %s: %w", fetched, err)
+	}
+
+	return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", fetched, err)
+
+}
+
 func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
 	slog.Debug("Resolving actor", "host", host, "name", name)
 
@@ -206,7 +224,13 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 	var updated, inserted int64
 	var fetched sql.NullInt64
 	var sinceLastUpdate time.Duration
-	if err := r.db.QueryRowContext(ctx, `select actor, updated, fetched, inserted from persons where actor->>'$.preferredUsername' = $1 and host = $2`, name, host).Scan(&tmp, &updated, &fetched, &inserted); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	var err error
+	if flags&ap.GroupActor == 0 {
+		err = r.db.QueryRowContext(ctx, `select actor, updated, fetched, inserted from persons where actor->>'$.preferredUsername' = $1 and host = $2 order by actor->>'$.type' = 'Group' limit 1`, name, host).Scan(&tmp, &updated, &fetched, &inserted)
+	} else {
+		err = r.db.QueryRowContext(ctx, `select actor, updated, fetched, inserted from persons where actor->>'$.preferredUsername' = $1 and host = $2 and actor->>'$.type' = 'Group'`, name, host).Scan(&tmp, &updated, &fetched, &inserted)
+	}
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, fmt.Errorf("failed to fetch %s%s cache: %w", name, host, err)
 	} else if err == nil {
 		cachedActor = &tmp
@@ -263,29 +287,7 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 
 	resp, err := r.send(key, req)
 	if err != nil {
-		if resp != nil && (resp.StatusCode == http.StatusGone || resp.StatusCode == http.StatusNotFound) {
-			if cachedActor != nil {
-				slog.Warn("Actor is gone, deleting associated objects", "id", cachedActor.ID)
-				deleteActor(ctx, r.db, cachedActor.ID)
-			}
-			return nil, nil, fmt.Errorf("failed to fetch %s: %w", finger, ErrActorGone)
-		}
-
-		var (
-			urlError *url.Error
-			opError  *net.OpError
-			dnsError *net.DNSError
-		)
-		// if it's been a while since the last update and the server's domain is expired (NXDOMAIN), actor is gone
-		if sinceLastUpdate > r.Config.MaxInstanceRecoveryTime && errors.As(err, &urlError) && errors.As(urlError.Err, &opError) && errors.As(opError.Err, &dnsError) && dnsError.IsNotFound {
-			if cachedActor != nil {
-				slog.Warn("Server is probably gone, deleting associated objects", "id", cachedActor.ID)
-				deleteActor(ctx, r.db, cachedActor.ID)
-			}
-			return nil, nil, fmt.Errorf("failed to fetch %s: %w", finger, err)
-		}
-
-		return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", finger, err)
+		return r.handleFetchFailure(ctx, finger, cachedActor, sinceLastUpdate, resp, err)
 	}
 	defer resp.Body.Close()
 
@@ -298,7 +300,8 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 		return nil, cachedActor, fmt.Errorf("failed to decode %s response: %w", finger, err)
 	}
 
-	profile := ""
+	// assumption: there can be only one actor with the same name, per type
+	actors := data.OrderedMap[ap.ActorType, string]{}
 
 	for _, link := range webFingerResponse.Links {
 		if link.Rel != "self" {
@@ -310,20 +313,25 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 		}
 
 		if link.Href != "" {
-			profile = link.Href
+			actors.Store(link.Properties.Type, link.Href)
 			break
 		}
 	}
 
-	if profile == "" {
-		return nil, cachedActor, fmt.Errorf("no profile link in %s response", finger)
+	for actorType, id := range actors.All() {
+		// look for a Group actor if the same name belongs to multiple actors, otherwise a non-Group one
+		if len(actors) > 1 && ((flags&ap.GroupActor == 0 && actorType == ap.Group) || (flags&ap.GroupActor > 0 && actorType != ap.Group)) {
+			continue
+		}
+
+		if cachedActor != nil && id != cachedActor.ID {
+			return nil, cachedActor, fmt.Errorf("%s does not match %s", id, cachedActor.ID)
+		}
+
+		return r.fetchActor(ctx, key, host, id, cachedActor, sinceLastUpdate)
 	}
 
-	if cachedActor != nil && profile != cachedActor.ID {
-		return nil, cachedActor, fmt.Errorf("%s does not match %s", profile, cachedActor.ID)
-	}
-
-	return r.fetchActor(ctx, key, host, profile, cachedActor)
+	return nil, cachedActor, fmt.Errorf("no profile link in %s response", finger)
 }
 
 func (r *Resolver) tryResolveID(ctx context.Context, key httpsig.Key, u *url.URL, id string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
@@ -399,10 +407,10 @@ func (r *Resolver) tryResolveID(ctx context.Context, key httpsig.Key, u *url.URL
 		}
 	}
 
-	return r.fetchActor(ctx, key, u.Host, id, cachedActor)
+	return r.fetchActor(ctx, key, u.Host, id, cachedActor, sinceLastUpdate)
 }
 
-func (r *Resolver) fetchActor(ctx context.Context, key httpsig.Key, host, profile string, cachedActor *ap.Actor) (*ap.Actor, *ap.Actor, error) {
+func (r *Resolver) fetchActor(ctx context.Context, key httpsig.Key, host, profile string, cachedActor *ap.Actor, sinceLastUpdate time.Duration) (*ap.Actor, *ap.Actor, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, profile, nil)
 	if err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to send request to %s: %w", profile, err)
@@ -421,7 +429,7 @@ func (r *Resolver) fetchActor(ctx context.Context, key httpsig.Key, host, profil
 
 	resp, err := r.send(key, req)
 	if err != nil {
-		return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", profile, err)
+		return r.handleFetchFailure(ctx, profile, cachedActor, sinceLastUpdate, resp, err)
 	}
 	defer resp.Body.Close()
 
