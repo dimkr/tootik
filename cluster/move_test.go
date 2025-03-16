@@ -79,3 +79,39 @@ func TestCluster_MovedAccount(t *testing.T) {
 		FollowInput("🔭 View profile", "carol@c.localdomain").
 		Contains(Line{Type: Quote, Text: "hello"})
 }
+
+func TestCluster_DeletedInstance(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
+
+	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+
+	alice.
+		FollowInput("🔭 View profile", "bob@b.localdomain").
+		Follow("⚡ Follow bob").
+		OK()
+	cluster.Settle()
+
+	bob.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "hello").
+		Contains(Line{Type: Quote, Text: "hello"})
+	cluster.Settle()
+
+	alice.
+		Follow("📻 My feed").
+		Contains(Line{Type: Quote, Text: "hello"})
+
+	cluster["b.localdomain"] = NewServer(context.Background(), t, "b.localdomain", Client{})
+
+	alice.
+		FollowInput("🔭 View profile", "bob@b.localdomain").
+		Error("40 Failed to resolve bob@b.localdomain")
+
+	alice.
+		Follow("📻 My feed").
+		NotContains(Line{Type: Quote, Text: "hello"})
+
+	cluster.Settle()
+}

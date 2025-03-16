@@ -89,6 +89,12 @@ func (p Page) OK() Page {
 	return p
 }
 
+func (p Page) Error(err string) {
+	if p.Status != err {
+		p.server.Test.Fatalf(`unexpected status: %s`, p.Status)
+	}
+}
+
 func (p Page) Contains(line Line) Page {
 	if !slices.Contains(p.Lines, line) {
 		p.server.Test.Fatalf(`%s does not contain "%s" line`, p.Raw, line.Text)
