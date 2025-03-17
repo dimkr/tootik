@@ -19,7 +19,6 @@ package fed
 import (
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -96,11 +95,6 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 	slog.Info("Looking up resource", "resource", resource, "user", username)
 
 	rows, err := l.DB.QueryContext(r.Context(), `select id, actor->>'$.type' from persons where actor->>'$.preferredUsername' = ? and host = ?`, username, l.Domain)
-	if errors.Is(err, sql.ErrNoRows) {
-		slog.Info("Notifying that user does not exist", "user", username)
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
 	if err != nil {
 		slog.Warn("Failed to fetch user", "user", username, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -129,6 +123,12 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 				Type: ap.ActorType(actorType),
 			},
 		})
+	}
+
+	if len(resp.Links) == 0 {
+		slog.Info("Notifying that user does not exist", "user", username)
+		w.WriteHeader(http.StatusNotFound)
+		return
 	}
 
 	j, err := json.Marshal(resp)
