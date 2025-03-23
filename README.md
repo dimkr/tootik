@@ -48,7 +48,7 @@ Welcome, fedinaut! localhost.localdomain:8443 is an instance of tootik, a federa
 
 tootik is a text-based social network.
 
-tootik is federated: users can join an existing server or [set up](SETUP.md) their own instance. A tootik user can interact with others on the same instance, users on other tootik instances, [Mastodon](https://joinmastodon.org/) users, [Lemmy](https://join-lemmy.org/) users and users of other [ActivityPub](https://www.w3.org/TR/activitypub/)-compatible servers.
+tootik is federated using [ActivityPub](https://www.w3.org/TR/activitypub/): users can join an existing instance or [set up](SETUP.md) their own, then interact with users on the same instance and users of [compatible servers](FEDERATION.md) like [Mastodon](https://joinmastodon.org/), [Lemmy](https://join-lemmy.org/), [Sharkey](https://activitypub.software/TransFem-org/Sharkey), [Friendica](https://friendi.ca/), [Akkoma](https://akkoma.dev/AkkomaGang/akkoma/), [GoToSocial](https://gotosocial.org/) and [Mitra](https://codeberg.org/silverpill/mitra).
 
 Unlike other social networks, tootik doesn't have a browser-based interface or an app: instead, its minimalistic, text-based interface is served over [Gemini](https://geminiprotocol.net/):
 
@@ -90,7 +90,7 @@ This makes tootik lightweight, private and accessible:
 * All instance data is stored in a single file, a [sqlite](https://sqlite.org/) database that is easy to backup and restore.
 * It's lightweight: a <=$5/mo VPS or a SBC is more than enough for a small instance.
 * It implements the subset of ActivityPub required for its feature set but not more, to stay small, reliable and maintainable.
-* It's written in two languages ([Go](https://go.dev/) and SQL), making the codebase suitable for educational purposes and easy to hack on.
+* It's written from scratch (not forked from some other project) in two languages ([Go](https://go.dev/) and SQL), making the codebase suitable for educational purposes and easy to hack on.
 * It's permissively-licensed.
 
 ## Features
@@ -294,7 +294,7 @@ tootik may perform automatic actions and push additional activities to `outbox`,
                   ┗━━━━━━━━━━━━━━┛
 ```
 
-[Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) is responsible for fetching [Actor](https://pkg.go.dev/github.com/dimkr/tootik/ap#Actor)s that represent users of other servers, using `user@domain` pairs and [WebFinger](https://datatracker.ietf.org/doc/html/rfc7033). The fetched objects are cached in `persons`, and contain properties like the user's inbox URL and public key.
+[Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) is responsible for fetching [Actor](https://pkg.go.dev/github.com/dimkr/tootik/ap#Actor)s that represent users of other servers, using an ID or a `user@domain` pair and [WebFinger](https://datatracker.ietf.org/doc/html/rfc7033). The fetched objects are cached in `persons`, and contain properties like the user's inbox URL and public key.
 
 [fed.Queue](https://pkg.go.dev/github.com/dimkr/tootik/fed#Queue) uses [Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) to make a list of unique inbox URLs each activity should be delivered to. If this is a wide delivery (a public post or a post to followers) and two recipients share the same `sharedInbox`, [fed.Queue](https://pkg.go.dev/github.com/dimkr/tootik/fed#Queue) delivers the activity to both recipients in a single request.
 
@@ -325,8 +325,6 @@ tootik may perform automatic actions and push additional activities to `outbox`,
 Requests from other servers are handled by [fed.Listener](https://pkg.go.dev/github.com/dimkr/tootik/fed#Listener), a HTTP server.
 
 It extracts the signature and key ID from a request using [httpsig.Extract](https://pkg.go.dev/github.com/dimkr/tootik/httpsig#Extract), uses [Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) to fetch the public key if needed, validates the request using [Verify](https://pkg.go.dev/github.com/dimkr/tootik/httpsig#Signature.Verify) and inserts the received [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) object into `inbox`.
-
-In addition, [fed.Listener](https://pkg.go.dev/github.com/dimkr/tootik/fed#Listener) allows other servers to fetch public activity (like public posts) from `outbox`, so they can fetch some past activity by a newly-followed user.
 
 ```
                                       ┌───────────────┐
