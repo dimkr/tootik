@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,14 +20,29 @@ package graph
 import (
 	"bytes"
 	"fmt"
+	"unicode"
 	"unicode/utf8"
 )
 
+var rtlLanguages = []*unicode.RangeTable{
+	unicode.Arabic,
+	unicode.Hebrew,
+}
+
 // Bars builds a bar graph.
 func Bars(keys []string, values []int64) string {
+	rtl := false
 	flip := false
 	var keyWidth int
+outer:
 	for i, key := range keys {
+		for _, r := range key {
+			if unicode.IsOneOf(rtlLanguages, r) {
+				rtl = true
+				break outer
+			}
+		}
+
 		w := utf8.RuneCountInString(key)
 		/*
 			if keys have different lengths, put them on the right: the graph is
@@ -94,7 +109,9 @@ func Bars(keys []string, values []int64) string {
 			}
 		}
 
-		if flip {
+		if rtl {
+			fmt.Fprintf(&w, "%s\n%-*s %8s\n", keys[i], valueWidth, valueStrings[i], string(bar[:]))
+		} else if flip {
 			fmt.Fprintf(&w, "%-*s %8s %s\n", valueWidth, valueStrings[i], string(bar[:]), keys[i])
 		} else {
 			fmt.Fprintf(&w, "%-*s %8s %d\n", keyWidth, keys[i], string(bar[:]), values[i])
