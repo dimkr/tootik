@@ -22,7 +22,7 @@
 
 # localhost.localdomain:8443
 
-Welcome, fedinaut! localhost.localdomain:8443 is an instance of tootik, a federated nanoblogging service.
+Welcome, fedinaut! localhost.localdomain:8443 is a text-based social network.
 
 ────
 

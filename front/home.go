@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,5 +27,5 @@ func (h *Handler) home(w text.Writer, r *Request, args ...string) {
 	w.OK()
 	w.Raw(logoAlt, logo)
 	w.Title(h.Domain)
-	w.Textf("Welcome, fedinaut! %s is an instance of tootik, a federated nanoblogging service.", h.Domain)
+	w.Textf("Welcome, fedinaut! %s is a text-based social network.", h.Domain)
 }
