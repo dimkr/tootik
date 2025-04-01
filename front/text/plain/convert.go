@@ -30,9 +30,10 @@ import (
 )
 
 var (
-	urlRegex     = regexp.MustCompile(`\b(https|http|gemini|titan|gopher|gophers|spartan|guppy):\/\/\S+\b`)
-	pDelim       = regexp.MustCompile(`([^\n])\n\n+([^\n])`)
-	mentionRegex = regexp.MustCompile(`\B@(\w+)(?:@(?:(?:\w+\.)+\w+(?::\d{1,5}){0,1})){0,1}\b`)
+	urlRegex        = regexp.MustCompile(`\b(https|http|gemini|titan|gopher|gophers|spartan|guppy):\/\/\S+\b`)
+	pDelim          = regexp.MustCompile(`([^\n])\n\n+([^\n])`)
+	mentionRegex    = regexp.MustCompile(`\B@(\w+)(?:@(?:(?:\w+\.)+\w+(?::\d{1,5}){0,1})){0,1}\b`)
+	whitespaceRegex = regexp.MustCompile(`\w+`)
 )
 
 func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
@@ -47,6 +48,7 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 	ellipsisDepth := 0
 	w := &b
 	inLink := false
+	inUl := false
 	var currentLink string
 	for {
 		tt := tok.Next()
@@ -65,7 +67,11 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 				continue
 			}
 
-			w.Write(tok.Text())
+			s := string(tok.Text())
+			l := w.Len()
+			if !(l > 0 && w.String()[l-1] == '\n' && whitespaceRegex.MatchString(s)) {
+				w.WriteString(s)
+			}
 
 		case tokenizer.EndTagToken:
 			tagBytes, _ := tok.TagName()
@@ -97,6 +103,8 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 				}
 
 				inLink = false
+			} else if inUl && tag == "ul" {
+				inUl = false
 			}
 
 			if len(openTags)+1 == ellipsisDepth {
@@ -122,6 +130,23 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 			if tag == "br" {
 				w.WriteByte('\n')
 				continue
+			}
+
+			if tag == "ul" {
+				if inUl {
+					return "", nil, errors.New("lists cannot be nested")
+				}
+
+				inUl = true
+				continue
+			}
+
+			if tag == "li" {
+				if !inUl {
+					return "", nil, errors.New("list item outside of a list")
+				}
+
+				w.WriteString("* ")
 			}
 
 			var alt, src, class, href string
