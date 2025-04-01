@@ -249,7 +249,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 			if alt == "" {
 				w.Link(link, link)
 			} else {
-				w.Linkf(link, "%s [%s]", link, alt)
+				w.Linkf(link, link, alt)
 			}
 		}
 	}
