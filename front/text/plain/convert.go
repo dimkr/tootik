@@ -30,10 +30,10 @@ import (
 )
 
 var (
-	urlRegex        = regexp.MustCompile(`\b(https|http|gemini|titan|gopher|gophers|spartan|guppy):\/\/\S+\b`)
-	pDelim          = regexp.MustCompile(`([^\n])\n\n+([^\n])`)
-	mentionRegex    = regexp.MustCompile(`\B@(\w+)(?:@(?:(?:\w+\.)+\w+(?::\d{1,5}){0,1})){0,1}\b`)
-	whitespaceRegex = regexp.MustCompile(`\w+`)
+	urlRegex                = regexp.MustCompile(`\b(https|http|gemini|titan|gopher|gophers|spartan|guppy):\/\/\S+\b`)
+	pDelim                  = regexp.MustCompile(`([^\n])\n\n+([^\n])`)
+	mentionRegex            = regexp.MustCompile(`\B@(\w+)(?:@(?:(?:\w+\.)+\w+(?::\d{1,5}){0,1})){0,1}\b`)
+	multipleLineBreaksRegex = regexp.MustCompile(`\n{3,}`)
 )
 
 func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
@@ -57,7 +57,7 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 			err := tok.Err()
 
 			if errors.Is(err, io.EOF) {
-				return strings.TrimRight(b.String(), " \n\r\t"), links, nil
+				return strings.TrimRight(multipleLineBreaksRegex.ReplaceAllLiteralString(b.String(), "\n\n"), " \n\r\t"), links, nil
 			}
 
 			return "", nil, err
@@ -67,11 +67,7 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 				continue
 			}
 
-			s := string(tok.Text())
-			l := w.Len()
-			if !(l > 0 && w.String()[l-1] == '\n' && whitespaceRegex.MatchString(s)) {
-				w.WriteString(s)
-			}
+			w.Write(tok.Text())
 
 		case tokenizer.EndTagToken:
 			tagBytes, _ := tok.TagName()
