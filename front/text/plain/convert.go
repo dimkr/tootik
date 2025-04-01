@@ -29,6 +29,8 @@ import (
 	tokenizer "golang.org/x/net/html"
 )
 
+const maxDepth = 32
+
 var (
 	urlRegex                = regexp.MustCompile(`\b(https|http|gemini|titan|gopher|gophers|spartan|guppy):\/\/\S+\b`)
 	pDelim                  = regexp.MustCompile(`([^\n])\n\n+([^\n])`)
@@ -38,18 +40,21 @@ var (
 
 func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 	links := data.OrderedMap[string, string]{}
-	var b strings.Builder
 
 	tok := tokenizer.NewTokenizer(strings.NewReader(text))
 
-	var openTags []string
-	var linkText strings.Builder
+	var (
+		b           strings.Builder
+		openTags    []string
+		linkText    strings.Builder
+		currentLink string
+	)
 	invisibleDepth := 0
 	ellipsisDepth := 0
 	w := &b
 	inLink := false
 	inUl := false
-	var currentLink string
+
 	for {
 		tt := tok.Next()
 		switch tt {
@@ -125,6 +130,10 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 			}
 
 			if tt == tokenizer.StartTagToken {
+				if len(openTags) == maxDepth {
+					return "", nil, errors.New("too nested")
+				}
+
 				openTags = append(openTags, tag)
 			}
 
