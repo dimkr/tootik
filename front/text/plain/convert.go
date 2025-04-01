@@ -17,90 +17,179 @@ limitations under the License.
 package plain
 
 import (
+	"errors"
 	"fmt"
-	"html"
+	"io"
+	"log/slog"
 	"regexp"
 	"strings"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
+	tokenizer "golang.org/x/net/html"
 )
 
 var (
-	spanTags          = regexp.MustCompile(`(?:<span(?:\s+[^>]*)*>)+`)
-	aTags             = regexp.MustCompile(`<a\s+(?:(?:[^>\s]+="[^"]*"\s+)*)href="([^"]*)"(?:\s*(?:\s+[^>\s]+="[^"]*")*\s*>)`)
-	imgTags           = regexp.MustCompile(`<img(?:\s+([a-z]+="[^"]*"))+\s*\/*>`)
-	attrs             = regexp.MustCompile(`\s+([a-z]+)="([^"]*)"`)
-	mentionTags       = regexp.MustCompile(`<a\s+(?:[^\s<]+\s+)*class="(?:[^\s"]+\s+)*mention(?:\s+[^\s"]+)*"[^>]*>`)
-	invisibleSpanTags = regexp.MustCompile(`<span class="invisible">[^<]*</span>`)
-	ellipsisSpanTags  = regexp.MustCompile(`<span class="ellipsis">[^<]*</span>`)
-	pTags             = regexp.MustCompile(`<(?:/p|\/h\d+)>`)
-	brTags            = regexp.MustCompile(`<br\s*\/*>`)
-	openTags          = regexp.MustCompile(`(?:<[a-zA-Z0-9]+\s*[^>]*>)+`)
-	closeTags         = regexp.MustCompile(`(?:<\/[a-zA-Z0-9]+\s*[^>]*>)+`)
-	urlRegex          = regexp.MustCompile(`\b(https|http|gemini|titan|gopher|gophers|spartan|guppy):\/\/\S+\b`)
-	pDelim            = regexp.MustCompile(`([^\n])\n\n+([^\n])`)
-	mentionRegex      = regexp.MustCompile(`\B@(\w+)(?:@(?:(?:\w+\.)+\w+(?::\d{1,5}){0,1})){0,1}\b`)
+	urlRegex     = regexp.MustCompile(`\b(https|http|gemini|titan|gopher|gophers|spartan|guppy):\/\/\S+\b`)
+	pDelim       = regexp.MustCompile(`([^\n])\n\n+([^\n])`)
+	mentionRegex = regexp.MustCompile(`\B@(\w+)(?:@(?:(?:\w+\.)+\w+(?::\d{1,5}){0,1})){0,1}\b`)
 )
+
+func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
+	links := data.OrderedMap[string, string]{}
+	var b strings.Builder
+
+	tok := tokenizer.NewTokenizer(strings.NewReader(text))
+
+	var openTags []string
+	var linkText strings.Builder
+	invisibleDepth := 0
+	ellipsisDepth := 0
+	w := &b
+	inLink := false
+	var currentLink string
+	for {
+		tt := tok.Next()
+		switch tt {
+		case tokenizer.ErrorToken:
+			err := tok.Err()
+
+			if errors.Is(err, io.EOF) {
+				return strings.TrimRight(b.String(), " \n\r\t"), links, nil
+			}
+
+			return "", nil, err
+
+		case tokenizer.TextToken:
+			if invisibleDepth > 0 {
+				continue
+			}
+
+			w.Write(tok.Text())
+
+		case tokenizer.EndTagToken:
+			tagBytes, _ := tok.TagName()
+			tag := string(tagBytes)
+
+			if len(openTags) > 0 && tag == openTags[len(openTags)-1] {
+				openTags = openTags[:len(openTags)-1]
+			} else {
+				return "", nil, fmt.Errorf("tag not opened: %s", tag)
+			}
+
+			if tag == "p" || (len(tag) == 2 && tag[0] == 'h' && tag[1] > '0' && tag[1] <= '9') {
+				w.WriteString("\n\n")
+				continue
+			}
+
+			if tag == "a" {
+				if currentLink != "" {
+					alt := linkText.String()
+
+					if !links.Contains(currentLink) {
+						links.Store(currentLink, alt)
+					}
+
+					b.WriteString(alt)
+					linkText.Reset()
+					currentLink = ""
+					w = &b
+				}
+
+				inLink = false
+			}
+
+			if len(openTags)+1 == ellipsisDepth {
+				if invisibleDepth == 0 {
+					w.WriteRune('…')
+				}
+
+				ellipsisDepth = 0
+			}
+
+			if len(openTags)+1 == invisibleDepth {
+				invisibleDepth = 0
+			}
+
+		case tokenizer.StartTagToken, tokenizer.SelfClosingTagToken:
+			tagBytes, hasAttrs := tok.TagName()
+			tag := string(tagBytes)
+
+			if tt == tokenizer.StartTagToken {
+				openTags = append(openTags, tag)
+			}
+
+			if tag == "br" {
+				w.WriteByte('\n')
+				continue
+			}
+
+			var alt, src, class, href string
+			if hasAttrs {
+				for {
+					attrBytes, value, more := tok.TagAttr()
+
+					attr := string(attrBytes)
+					if tt == tokenizer.StartTagToken && tag == "span" && attr == "class" {
+						if string(value) == "invisible" {
+							invisibleDepth = len(openTags)
+						} else if string(value) == "ellipsis" {
+							ellipsisDepth = len(openTags)
+						}
+					} else if tag == "a" && attr == "class" {
+						class = string(value)
+					} else if tag == "a" && attr == "href" {
+						href = string(value)
+					} else if tag == "img" && attr == "alt" {
+						alt = string(value)
+					} else if tag == "img" && attr == "src" {
+						src = string(value)
+					}
+
+					if !more {
+						break
+					}
+				}
+			}
+
+			if tag == "a" {
+				if inLink {
+					return "", nil, errors.New("links cannot be nested")
+				}
+
+				if href != "" && class != "mention" && !strings.HasPrefix(class, "mention ") && !strings.HasSuffix(class, " mention") {
+					currentLink = href
+					w = &linkText
+					continue
+				}
+
+				inLink = true
+			}
+
+			if alt != "" {
+				w.WriteString(alt)
+			} else if src != "" {
+				w.WriteString(src)
+			}
+
+			if src != "" {
+				if !links.Contains(src) {
+					links.Store(src, alt)
+				}
+			}
+		}
+	}
+}
 
 // FromHTML converts HTML to plain text and extracts links.
 func FromHTML(text string) (string, data.OrderedMap[string, string]) {
-	res := html.UnescapeString(text)
-	links := data.OrderedMap[string, string]{}
-
-	res = mentionTags.ReplaceAllLiteralString(res, "")
-
-	res = pTags.ReplaceAllLiteralString(res, "\n\n")
-
-	res = brTags.ReplaceAllLiteralString(res, "\n")
-
-	res = invisibleSpanTags.ReplaceAllLiteralString(res, "")
-
-	res = ellipsisSpanTags.ReplaceAllString(res, "${0}…")
-
-	res = spanTags.ReplaceAllLiteralString(res, "")
-
-	for _, m := range aTags.FindAllStringSubmatch(res, -1) {
-		link := m[1]
-		if !links.Contains(link) {
-			links.Store(link, "")
-		}
+	plain, links, err := fromHTML(text)
+	if err != nil {
+		slog.Warn("Failed to convert post", "error", err)
+		return text, nil
 	}
 
-	for _, img := range imgTags.FindAllStringSubmatch(res, -1) {
-		var alt, src string
-		for _, attr := range attrs.FindAllStringSubmatch(img[0], -1) {
-			if attr[1] == "alt" {
-				alt = attr[2]
-				if src != "" {
-					break
-				}
-			} else if attr[1] == "src" {
-				src = attr[2]
-				if alt != "" {
-					break
-				}
-			}
-		}
-
-		if alt != "" {
-			res = strings.Replace(res, img[0], "["+alt+"]", 1)
-		} else if src != "" {
-			res = strings.Replace(res, img[0], "["+src+"]", 1)
-		}
-
-		if src != "" {
-			if !links.Contains(src) {
-				links.Store(src, alt)
-			}
-		}
-	}
-
-	res = openTags.ReplaceAllLiteralString(res, "")
-
-	res = closeTags.ReplaceAllLiteralString(res, "")
-
-	return strings.TrimRight(res, " \n\r\t"), links
+	return plain, links
 }
 
 // ToHTML converts plain text to HTML.
