@@ -123,13 +123,13 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 			tagBytes, hasAttrs := tok.TagName()
 			tag := string(tagBytes)
 
-			if tt == tokenizer.StartTagToken {
-				openTags = append(openTags, tag)
-			}
-
 			if tag == "br" {
 				w.WriteByte('\n')
 				continue
+			}
+
+			if tt == tokenizer.StartTagToken {
+				openTags = append(openTags, tag)
 			}
 
 			if tag == "ul" {
