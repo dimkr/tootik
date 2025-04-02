@@ -22,6 +22,7 @@ import (
 	"io"
 	"log/slog"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/dimkr/tootik/ap"
@@ -54,6 +55,8 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 	w := &b
 	inLink := false
 	inUl := false
+	inOl := false
+	olIndex := 0
 
 	for {
 		tt := tok.Next()
@@ -107,6 +110,9 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 			} else if inUl && tag == "ul" {
 				w.WriteString("\n\n")
 				inUl = false
+			} else if inOl && tag == "ol" {
+				w.WriteString("\n\n")
+				inOl = false
 			}
 
 			if len(openTags)+1 == ellipsisDepth {
@@ -139,7 +145,7 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 			}
 
 			if tag == "ul" {
-				if inUl {
+				if inUl || inOl {
 					return "", nil, errors.New("lists cannot be nested")
 				}
 
@@ -147,8 +153,18 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 				continue
 			}
 
+			if tag == "ol" {
+				if inUl || inOl {
+					return "", nil, errors.New("lists cannot be nested")
+				}
+
+				inOl = true
+				olIndex = 0
+				continue
+			}
+
 			if tag == "li" {
-				if !inUl {
+				if !inUl && !inOl {
 					return "", nil, errors.New("list item outside of a list")
 				}
 
@@ -157,7 +173,13 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 					w.WriteByte('\n')
 				}
 
-				w.WriteString("* ")
+				if inOl {
+					olIndex++
+					w.WriteString(strconv.Itoa(olIndex))
+					w.WriteString(". ")
+				} else {
+					w.WriteString("* ")
+				}
 			}
 
 			var alt, src, class, href string
