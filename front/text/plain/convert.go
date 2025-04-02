@@ -105,6 +105,7 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 
 				inLink = false
 			} else if inUl && tag == "ul" {
+				w.WriteString("\n\n")
 				inUl = false
 			}
 
@@ -149,6 +150,11 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 			if tag == "li" {
 				if !inUl {
 					return "", nil, errors.New("list item outside of a list")
+				}
+
+				l := w.Len()
+				if !(l > 0 && w.String()[l-1] == '\n') {
+					w.WriteByte('\n')
 				}
 
 				w.WriteString("* ")
