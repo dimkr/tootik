@@ -19,6 +19,7 @@ package plain
 import (
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"log/slog"
 	"regexp"
@@ -256,6 +257,8 @@ func ToHTML(text string, tags []ap.Tag) string {
 		return ""
 	}
 
+	text = html.EscapeString(text)
+
 	var b strings.Builder
 
 	foundLink := false
@@ -265,7 +268,7 @@ func ToHTML(text string, tags []ap.Tag) string {
 			break
 		}
 		b.WriteString(text[:loc[0]])
-		b.WriteString(fmt.Sprintf(`<a href="%s" target="_blank" rel="nofollow noopener noreferrer">%s</a>`, text[loc[0]:loc[1]], text[loc[0]:loc[1]]))
+		b.WriteString(fmt.Sprintf(`<a href="%s" target="_blank" rel="nofollow noopener noreferrer">%s</a>`, html.UnescapeString(text[loc[0]:loc[1]]), text[loc[0]:loc[1]]))
 		text = text[loc[1]:]
 		foundLink = true
 	}
