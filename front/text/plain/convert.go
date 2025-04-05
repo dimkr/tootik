@@ -57,6 +57,7 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 	inLink := false
 	inUl := false
 	inOl := false
+	inQuote := false
 	olIndex := 0
 
 	for {
@@ -74,6 +75,13 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 		case tokenizer.TextToken:
 			if invisibleDepth > 0 {
 				continue
+			}
+
+			if inQuote {
+				l := w.Len()
+				if l > 0 && w.String()[l-1] == '\n' {
+					w.WriteString("> ")
+				}
 			}
 
 			w.Write(tok.Text())
@@ -114,6 +122,8 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 			} else if inOl && tag == "ol" {
 				w.WriteString("\n\n")
 				inOl = false
+			} else if tag == "blockquote" {
+				inQuote = false
 			}
 
 			if len(openTags)+1 == ellipsisDepth {
@@ -181,6 +191,15 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 				} else {
 					w.WriteString("* ")
 				}
+			}
+
+			if tag == "blockquote" {
+				if inQuote {
+					return "", nil, errors.New("quotes cannot be nested")
+				}
+
+				inQuote = true
+				continue
 			}
 
 			var alt, src, class, href string
