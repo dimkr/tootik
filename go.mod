@@ -3,9 +3,9 @@ module github.com/dimkr/tootik
 go 1.24.2
 
 require (
-	github.com/fsnotify/fsnotify v1.8.0
+	github.com/fsnotify/fsnotify v1.9.0
 	github.com/google/uuid v1.6.0
-	github.com/mattn/go-sqlite3 v1.14.24
+	github.com/mattn/go-sqlite3 v1.14.27
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/image v0.25.0
 	golang.org/x/net v0.38.0
