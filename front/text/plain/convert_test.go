@@ -321,6 +321,78 @@ func TestFromHTML_ImageAndSameLink(t *testing.T) {
 	}
 }
 
+func TestFromHTML_Escaping(t *testing.T) {
+	t.Parallel()
+
+	post := `<p>Things like &lt;p&gt; should be escaped</p>`
+	expected := `Things like <p> should be escaped`
+	expectedLinks := data.OrderedMap[string, string]{}
+
+	raw, links := FromHTML(post)
+
+	if raw != expected {
+		t.Fatalf("%s != %s", raw, expected)
+	}
+
+	if !maps.Equal(links, expectedLinks) {
+		t.Fatalf("%v != %v", links, expectedLinks)
+	}
+}
+
+func TestFromHTML_UnorderedList(t *testing.T) {
+	t.Parallel()
+
+	post := "<p>They said:</p><ul><li>First thing.</li><li>Second thing.</li></ul><p>And I disagree.</p>"
+	expected := "They said:\n\n* First thing.\n* Second thing.\n\nAnd I disagree."
+	expectedLinks := data.OrderedMap[string, string]{}
+
+	raw, links := FromHTML(post)
+
+	if raw != expected {
+		t.Fatalf("%s != %s", raw, expected)
+	}
+
+	if !maps.Equal(links, expectedLinks) {
+		t.Fatalf("%v != %v", links, expectedLinks)
+	}
+}
+
+func TestFromHTML_OrderedList(t *testing.T) {
+	t.Parallel()
+
+	post := "<p>They said:</p><ol><li>First thing.</li><li>Second thing.</li></ol><p>And I disagree.</p>"
+	expected := "They said:\n\n1. First thing.\n2. Second thing.\n\nAnd I disagree."
+	expectedLinks := data.OrderedMap[string, string]{}
+
+	raw, links := FromHTML(post)
+
+	if raw != expected {
+		t.Fatalf("%s != %s", raw, expected)
+	}
+
+	if !maps.Equal(links, expectedLinks) {
+		t.Fatalf("%v != %v", links, expectedLinks)
+	}
+}
+
+func TestFromHTML_Quote(t *testing.T) {
+	t.Parallel()
+
+	post := "<p>They said:</p><blockquote><p>First thing.<br/>Second thing.</p></blockquote><p>And I disagree.</p>"
+	expected := "They said:\n\n> First thing.\n> Second thing.\n\nAnd I disagree."
+	expectedLinks := data.OrderedMap[string, string]{}
+
+	raw, links := FromHTML(post)
+
+	if raw != expected {
+		t.Fatalf("%s != %s", raw, expected)
+	}
+
+	if !maps.Equal(links, expectedLinks) {
+		t.Fatalf("%v != %v", links, expectedLinks)
+	}
+}
+
 func TestToHTML_Empty(t *testing.T) {
 	t.Parallel()
 
@@ -446,7 +518,7 @@ func TestToHTML_Link(t *testing.T) {
 	t.Parallel()
 
 	post := `this is a plain post with a link: gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh`
-	expected := `<p>this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a></p>`
+	expected := `<p>this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&amp;ff=gg%20hh</a></p>`
 
 	if html := ToHTML(post, nil); html != expected {
 		t.Fatalf("%s != %s", html, expected)
@@ -457,7 +529,7 @@ func TestToHTML_OverlappingLink(t *testing.T) {
 	t.Parallel()
 
 	post := `this is a plain post with overlapping links: gemini://aa.bb.com/cc gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh`
-	expected := `<p>this is a plain post with overlapping links: <a href="gemini://aa.bb.com/cc" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc</a> <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a></p>`
+	expected := `<p>this is a plain post with overlapping links: <a href="gemini://aa.bb.com/cc" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc</a> <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&amp;ff=gg%20hh</a></p>`
 
 	if html := ToHTML(post, nil); html != expected {
 		t.Fatalf("%s != %s", html, expected)
@@ -468,7 +540,7 @@ func TestToHTML_LinkAndLineBreak(t *testing.T) {
 	t.Parallel()
 
 	post := "this is a plain post with a link: gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh\n... and a line break"
-	expected := `<p>this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a><br/>... and a line break</p>`
+	expected := `<p>this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&amp;ff=gg%20hh</a><br/>... and a line break</p>`
 
 	if html := ToHTML(post, nil); html != expected {
 		t.Fatalf("%s != %s", html, expected)
@@ -479,7 +551,7 @@ func TestToHTML_LinkStart(t *testing.T) {
 	t.Parallel()
 
 	post := `gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh is a link`
-	expected := `<p><a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a> is a link</p>`
+	expected := `<p><a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&amp;ff=gg%20hh</a> is a link</p>`
 
 	if html := ToHTML(post, nil); html != expected {
 		t.Fatalf("%s != %s", html, expected)
@@ -490,7 +562,7 @@ func TestToHTML_LinkDot(t *testing.T) {
 	t.Parallel()
 
 	post := `this is a plain post with a link: gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh.`
-	expected := `<p>this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>.</p>`
+	expected := `<p>this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&amp;ff=gg%20hh</a>.</p>`
 
 	if html := ToHTML(post, nil); html != expected {
 		t.Fatalf("%s != %s", html, expected)
@@ -501,7 +573,7 @@ func TestToHTML_Question(t *testing.T) {
 	t.Parallel()
 
 	post := `have you seen gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh?`
-	expected := `<p>have you seen <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>?</p>`
+	expected := `<p>have you seen <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&amp;ff=gg%20hh</a>?</p>`
 
 	if html := ToHTML(post, nil); html != expected {
 		t.Fatalf("%s != %s", html, expected)
@@ -512,7 +584,7 @@ func TestToHTML_LinkExclamationMark(t *testing.T) {
 	t.Parallel()
 
 	post := `this is a plain post with a link: gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh!`
-	expected := `<p>this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>!</p>`
+	expected := `<p>this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&amp;ff=gg%20hh</a>!</p>`
 
 	if html := ToHTML(post, nil); html != expected {
 		t.Fatalf("%s != %s", html, expected)
@@ -523,7 +595,7 @@ func TestToHTML_LinkParentheses(t *testing.T) {
 	t.Parallel()
 
 	post := `this is a plain post with a link: (gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh)`
-	expected := `<p>this is a plain post with a link: (<a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>)</p>`
+	expected := `<p>this is a plain post with a link: (<a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&amp;ff=gg%20hh</a>)</p>`
 
 	if html := ToHTML(post, nil); html != expected {
 		t.Fatalf("%s != %s", html, expected)
@@ -640,6 +712,17 @@ func TestToHTML_EmojiMention(t *testing.T) {
 	}
 
 	if html := ToHTML(post, mentions); html != expected {
+		t.Fatalf("%s != %s", html, expected)
+	}
+}
+
+func TestToHTML_Escaping(t *testing.T) {
+	t.Parallel()
+
+	post := `Things like <p> should be escaped`
+	expected := `<p>Things like &lt;p&gt; should be escaped</p>`
+
+	if html := ToHTML(post, nil); html != expected {
 		t.Fatalf("%s != %s", html, expected)
 	}
 }
