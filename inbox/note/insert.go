@@ -49,10 +49,10 @@ func Flatten(note *ap.Object) string {
 	b.WriteByte(' ')
 	b.WriteString(note.AttributedTo)
 	for link, alt := range links.All() {
-		if alt == "" {
-			continue
+		if alt != "" {
+			b.WriteString(alt)
+			b.WriteByte(' ')
 		}
-		b.WriteByte(' ')
 		b.WriteString(link)
 	}
 	return b.String()

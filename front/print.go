@@ -409,7 +409,12 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 			if alt == "" {
 				w.Link(link, link)
 			} else {
-				w.Link(link, alt)
+				lineBreak := strings.IndexByte(alt, '\n')
+				if lineBreak == -1 {
+					w.Link(link, alt)
+				} else {
+					w.Link(link, alt[:lineBreak]+"[…]")
+				}
 			}
 		}
 
