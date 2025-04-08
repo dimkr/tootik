@@ -80,7 +80,7 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 			if quoteDepth > 0 {
 				l := w.Len()
 				if l > 0 && w.String()[l-1] == '\n' {
-					for i := 0; i < quoteDepth; i++ {
+					for range quoteDepth {
 						w.WriteString("> ")
 					}
 				}
