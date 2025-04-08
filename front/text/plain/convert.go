@@ -264,7 +264,7 @@ func FromHTML(text string) (string, data.OrderedMap[string, string]) {
 	plain, links, err := fromHTML(text)
 	if err != nil {
 		slog.Warn("Failed to convert post", "error", err)
-		return text, nil
+		return text, data.OrderedMap[string, string]{}
 	}
 
 	return plain, links
