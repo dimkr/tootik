@@ -57,7 +57,7 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 	inLink := false
 	inUl := false
 	inOl := false
-	inQuote := false
+	quoteDepth := 0
 	olIndex := 0
 
 	for {
@@ -77,10 +77,12 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 				continue
 			}
 
-			if inQuote {
+			if quoteDepth > 0 {
 				l := w.Len()
 				if l > 0 && w.String()[l-1] == '\n' {
-					w.WriteString("> ")
+					for i := 0; i < quoteDepth; i++ {
+						w.WriteString("> ")
+					}
 				}
 			}
 
@@ -123,7 +125,7 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 				w.WriteString("\n\n")
 				inOl = false
 			} else if tag == "blockquote" {
-				inQuote = false
+				quoteDepth--
 			}
 
 			if len(openTags)+1 == ellipsisDepth {
@@ -194,11 +196,7 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 			}
 
 			if tag == "blockquote" {
-				if inQuote {
-					return "", nil, errors.New("quotes cannot be nested")
-				}
-
-				inQuote = true
+				quoteDepth++
 				continue
 			}
 
