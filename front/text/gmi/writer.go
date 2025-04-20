@@ -133,6 +133,12 @@ func (w *writer) Quote(quote string) {
 	w.Write([]byte{'\n'})
 }
 
+func (w *writer) Quotef(format string, a ...any) {
+	w.Write([]byte("> "))
+	fmt.Fprintf(w, format, a...)
+	w.Write([]byte{'\n'})
+}
+
 func (w *writer) Raw(alt, raw string) {
 	fmt.Fprintf(w, "```%s\n", alt)
 	w.Write([]byte(raw))
