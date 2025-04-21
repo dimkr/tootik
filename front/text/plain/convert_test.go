@@ -282,7 +282,7 @@ func TestToHTML_OnlyLineBreaks(t *testing.T) {
 
 func TestToHTML_Link(t *testing.T) {
 	post := `this is a plain post with a link: gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh`
-	expected := `<p>this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a></p>`
+	expected := `<p>this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&amp;ff=gg%20hh</a></p>`
 
 	html := ToHTML(post, nil)
 	assert.Equal(t, expected, html)
@@ -290,7 +290,7 @@ func TestToHTML_Link(t *testing.T) {
 
 func TestToHTML_OverlappingLink(t *testing.T) {
 	post := `this is a plain post with overlapping links: gemini://aa.bb.com/cc gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh`
-	expected := `<p>this is a plain post with overlapping links: <a href="gemini://aa.bb.com/cc" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc</a> <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a></p>`
+	expected := `<p>this is a plain post with overlapping links: <a href="gemini://aa.bb.com/cc" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc</a> <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&amp;ff=gg%20hh</a></p>`
 
 	html := ToHTML(post, nil)
 	assert.Equal(t, expected, html)
@@ -298,7 +298,7 @@ func TestToHTML_OverlappingLink(t *testing.T) {
 
 func TestToHTML_LinkAndLineBreak(t *testing.T) {
 	post := "this is a plain post with a link: gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh\n... and a line break"
-	expected := `<p>this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a><br/>... and a line break</p>`
+	expected := `<p>this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&amp;ff=gg%20hh</a><br/>... and a line break</p>`
 
 	html := ToHTML(post, nil)
 	assert.Equal(t, expected, html)
@@ -306,7 +306,7 @@ func TestToHTML_LinkAndLineBreak(t *testing.T) {
 
 func TestToHTML_LinkStart(t *testing.T) {
 	post := `gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh is a link`
-	expected := `<p><a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a> is a link</p>`
+	expected := `<p><a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&amp;ff=gg%20hh</a> is a link</p>`
 
 	html := ToHTML(post, nil)
 	assert.Equal(t, expected, html)
@@ -314,7 +314,7 @@ func TestToHTML_LinkStart(t *testing.T) {
 
 func TestToHTML_LinkDot(t *testing.T) {
 	post := `this is a plain post with a link: gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh.`
-	expected := `<p>this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>.</p>`
+	expected := `<p>this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&amp;ff=gg%20hh</a>.</p>`
 
 	html := ToHTML(post, nil)
 	assert.Equal(t, expected, html)
@@ -322,7 +322,7 @@ func TestToHTML_LinkDot(t *testing.T) {
 
 func TestToHTML_Question(t *testing.T) {
 	post := `have you seen gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh?`
-	expected := `<p>have you seen <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>?</p>`
+	expected := `<p>have you seen <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&amp;ff=gg%20hh</a>?</p>`
 
 	html := ToHTML(post, nil)
 	assert.Equal(t, expected, html)
@@ -330,7 +330,7 @@ func TestToHTML_Question(t *testing.T) {
 
 func TestToHTML_LinkExclamationMark(t *testing.T) {
 	post := `this is a plain post with a link: gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh!`
-	expected := `<p>this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>!</p>`
+	expected := `<p>this is a plain post with a link: <a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&amp;ff=gg%20hh</a>!</p>`
 
 	html := ToHTML(post, nil)
 	assert.Equal(t, expected, html)
@@ -338,7 +338,7 @@ func TestToHTML_LinkExclamationMark(t *testing.T) {
 
 func TestToHTML_LinkParentheses(t *testing.T) {
 	post := `this is a plain post with a link: (gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh)`
-	expected := `<p>this is a plain post with a link: (<a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh</a>)</p>`
+	expected := `<p>this is a plain post with a link: (<a href="gemini://aa.bb.com/cc?dd=ee&ff=gg%20hh" target="_blank" rel="nofollow noopener noreferrer">gemini://aa.bb.com/cc?dd=ee&amp;ff=gg%20hh</a>)</p>`
 
 	html := ToHTML(post, nil)
 	assert.Equal(t, expected, html)
