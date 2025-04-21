@@ -46,6 +46,7 @@ type Writer interface {
 	Item(string)
 	Itemf(string, ...any)
 	Quote(string)
+	Quotef(string, ...any)
 	Raw(string, string)
 	Separator()
 }

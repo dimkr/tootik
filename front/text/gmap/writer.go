@@ -137,6 +137,10 @@ func (w *writer) Quote(quote string) {
 	w.wrap('i', "> ", "> ", quote, "/", "0", "0")
 }
 
+func (w *writer) Quotef(format string, a ...any) {
+	w.wrap('i', "> ", "  ", fmt.Sprintf(format, a...), "/", "0", "0")
+}
+
 func (w *writer) Raw(alt, raw string) {
 	end := len(raw)
 	if raw[end-1] == '\n' {
