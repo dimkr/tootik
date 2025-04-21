@@ -71,7 +71,7 @@ func (gc *GarbageCollector) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to remove old posts: %w", err)
 	}
 
-	if _, err := gc.DB.ExecContext(ctx, `delete from follows where accepted = 0 and inserted < ?`, now.Add(-gc.Config.FollowAcceptTimeout).Unix()); err != nil {
+	if _, err := gc.DB.ExecContext(ctx, `delete from follows where accepted is null and inserted < ?`, now.Add(-gc.Config.FollowAcceptTimeout).Unix()); err != nil {
 		return fmt.Errorf("failed to remove failed follow requests: %w", err)
 	}
 

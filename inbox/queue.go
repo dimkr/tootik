@@ -278,7 +278,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 	case ap.Accept:
 		if sender.ID != activity.Actor {
-			return fmt.Errorf("received an invalid follow request for %s by %s", activity.Actor, sender.ID)
+			return fmt.Errorf("received an invalid Accept for %s by %s", activity.Actor, sender.ID)
 		}
 
 		followID, ok := activity.Object.(string)
@@ -288,11 +288,30 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			log.Info("Follow is accepted", "follow", followActivity.ID)
 			followID = followActivity.ID
 		} else {
-			return errors.New("received an invalid accept notification")
+			return errors.New("received an invalid Accept")
 		}
 
 		if _, err := q.DB.ExecContext(ctx, `update follows set accepted = 1 where id = ? and followed = ?`, followID, sender.ID); err != nil {
 			return fmt.Errorf("failed to accept follow %s: %w", followID, err)
+		}
+
+	case ap.Reject:
+		if sender.ID != activity.Actor {
+			return fmt.Errorf("received an invalid Reject for %s by %s", activity.Actor, sender.ID)
+		}
+
+		followID, ok := activity.Object.(string)
+		if ok && followID != "" {
+			log.Info("Follow is rejected", "follow", followID)
+		} else if followActivity, ok := activity.Object.(*ap.Activity); ok && followActivity.Type == ap.Follow && followActivity.ID != "" {
+			log.Info("Follow is rejected", "follow", followActivity.ID)
+			followID = followActivity.ID
+		} else {
+			return errors.New("received an invalid Reject")
+		}
+
+		if _, err := q.DB.ExecContext(ctx, `update follows set accepted = 0 where id = ? and followed = ?`, followID, sender.ID); err != nil {
+			return fmt.Errorf("failed to reject follow %s: %w", followID, err)
 		}
 
 	case ap.Undo:

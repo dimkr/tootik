@@ -267,7 +267,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 
 		if _, err := db.ExecContext(
 			ctx,
-			`UPDATE follows SET accepted = 0 WHERE follower = ? AND followed = ?`,
+			`UPDATE follows SET accepted = NULL WHERE follower = ? AND followed = ?`,
 			follower,
 			d.Followed,
 		); err != nil {

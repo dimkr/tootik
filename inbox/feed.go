@@ -55,13 +55,14 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 				notes.author = follows.followed and
 				(
 					notes.public = 1 or
-					persons.actor->>'$.followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+					persons.actor->>'$.followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2)
 					follows.follower in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
 					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers' or value = follows.follower)) or
 					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers' or value = follows.follower))
 				)
 			where
 				follows.follower like $1 and
+				follows.accepted = 1
 				notes.inserted >= $2 and
 				not exists (select 1 from feed where feed.follower = follows.follower and feed.note->>'$.id' = notes.id and feed.sharer is null)
 			union
@@ -103,6 +104,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 				notes.public = 1 and
 				shares.inserted >= $2 and
 				follows.follower like $1 and
+				follows.accepted = 1 and
 				not exists (select 1 from feed where feed.follower = follows.follower and feed.note->>'$.id' = notes.id and feed.sharer->>'$.id' = sharers.id)
 		`,
 		fmt.Sprintf("https://%s/%%", u.Domain),

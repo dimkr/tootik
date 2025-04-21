@@ -132,8 +132,8 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 			return fmt.Errorf("invalid object: %T", activity.Object)
 		}
 
-	case ap.Accept:
-		// $origin can only accept Follow activities that belong to us
+	case ap.Accept, ap.Reject:
+		// $origin can only accept or reject Follow activities that belong to us
 		switch v := activity.Object.(type) {
 		case *ap.Activity:
 			if v.Type != ap.Follow {
