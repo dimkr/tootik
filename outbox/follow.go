@@ -56,13 +56,18 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO follows
-			(id, follower, followed)
+			(
+				id,
+				follower,
+				followed,
+				accepted
+			)
 		VALUES
 			(
 				$1,
 				$2,
 				$3,
-				(SELECT CASE WHEN host = $4 AND (actor->>'$.manuallyApprovesFollowers' IS NULL OR actor->>'$.manuallyApprovesFollowers' = JSON('false')) THEN 1 ELSE NULL END FROM persons WHERE id = $2)
+				(SELECT CASE WHEN host = $4 AND (actor->>'$.manuallyApprovesFollowers' IS NULL OR actor->>'$.manuallyApprovesFollowers' = 0) THEN 1 ELSE NULL END FROM persons WHERE id = $2)
 			)
 		`,
 		followID,
