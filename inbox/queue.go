@@ -367,7 +367,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return errors.New("received an undo request on federated actor")
 		}
 
-		if _, err := q.DB.ExecContext(ctx, `delete from follows where follower = ? and followed = ?`, follower, followed); err != nil {
+		if _, err := q.DB.ExecContext(ctx, `update follows set accepted = 0 where follower = ? and followed = ?`, follower, followed); err != nil {
 			return fmt.Errorf("failed to remove follow of %s by %s: %w", followed, follower, err)
 		}
 

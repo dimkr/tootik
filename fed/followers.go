@@ -134,7 +134,7 @@ func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := l.DB.QueryContext(r.Context(), `SELECT follower FROM follows WHERE followed = 'https://' || ? || '/user/' || ? AND follower LIKE 'https://' || ? || '/' || '%'`, l.Domain, name, u.Host)
+	rows, err := l.DB.QueryContext(r.Context(), `SELECT follower FROM follows WHERE followed = 'https://' || ? || '/user/' || ? AND follower LIKE 'https://' || ? || '/' || '%' AND accepted = 1`, l.Domain, name, u.Host)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
