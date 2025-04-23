@@ -96,13 +96,13 @@ func (h *Handler) pending(w text.Writer, r *Request, args ...string) {
 	rows, err := h.DB.QueryContext(
 		r.Context,
 		`
-		select inserted, actor from
+		select inserted, actor, mine from
 		(
-			select follows.inserted, persons.actor from follows
+			select follows.inserted, persons.actor, 1 as mine from follows
 			join persons on persons.id = follows.follower
 			where follows.followed = $1 and follows.accepted is null
 			union all
-			select follows.inserted, persons.actor from follows
+			select follows.inserted, persons.actor, 0 as mine from follows
 			join persons on persons.id = follows.followed
 			where follows.follower = $1 and follows.accepted is null
 		)
@@ -120,9 +120,10 @@ func (h *Handler) pending(w text.Writer, r *Request, args ...string) {
 	empty := true
 
 	for rows.Next() {
-		var follower ap.Actor
 		var inserted int64
-		if err := rows.Scan(&follower, &inserted); err != nil {
+		var follower ap.Actor
+		var mine int
+		if err := rows.Scan(&inserted, &follower, &mine); err != nil {
 			r.Log.Warn("Failed to list a follow request", "error", err)
 			continue
 		}
@@ -136,7 +137,7 @@ func (h *Handler) pending(w text.Writer, r *Request, args ...string) {
 			h.getActorDisplayName(&follower),
 		)
 
-		if follower.ID != r.User.ID {
+		if mine == 1 {
 			w.Link("/users/follows/accept/"+param, "🟢 Accept")
 			w.Link("/users/follows/reject/"+param, "🔴 Reject")
 		}
@@ -146,8 +147,9 @@ func (h *Handler) pending(w text.Writer, r *Request, args ...string) {
 
 	if empty {
 		w.Text("No follow requests.")
-		w.Empty()
 	}
+
+	w.Empty()
 
 	if r.User.ManuallyApprovesFollowers {
 		w.Link("/users/follows/pending?disable", "Disable manual follower approval")

@@ -188,6 +188,12 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 					return fmt.Errorf("invalid author host: %s", authorUrl.Host)
 				}
 			}
+		} else if s, ok := activity.Object.(string); ok {
+			if innerUrl, err := url.Parse(s); err != nil {
+				return err
+			} else if innerUrl.Host != origin {
+				return fmt.Errorf("invalid object host: %s", innerUrl.Host)
+			}
 		} else {
 			return fmt.Errorf("invalid object: %T", obj)
 		}

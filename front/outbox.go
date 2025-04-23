@@ -319,10 +319,10 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		var accepted sql.NullInt32
 		if err := h.DB.QueryRowContext(r.Context, `select accepted from follows where follower = ? and followed = ?`, r.User.ID, actorID).Scan(&accepted); actor.ManuallyApprovesFollowers && errors.Is(err, sql.ErrNoRows) {
 			w.Separator()
-			w.Linkf("/users/follow/"+strings.TrimPrefix(actorID, "https://"), "⚡ Follow (requires approval)", actor.PreferredUsername)
+			w.Linkf("/users/follow/"+strings.TrimPrefix(actorID, "https://"), "⚡ Follow %s (requires approval)", actor.PreferredUsername)
 		} else if errors.Is(err, sql.ErrNoRows) {
 			w.Separator()
-			w.Linkf("/users/follow/"+strings.TrimPrefix(actorID, "https://"), "⚡ Follow", actor.PreferredUsername)
+			w.Linkf("/users/follow/"+strings.TrimPrefix(actorID, "https://"), "⚡ Follow %s", actor.PreferredUsername)
 		} else if err != nil {
 			r.Log.Warn("Failed to check if user is followed", "actor", actorID, "error", err)
 		} else if accepted.Valid && accepted.Int32 == 0 {

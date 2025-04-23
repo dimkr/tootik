@@ -67,7 +67,7 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 				$1,
 				$2,
 				$3,
-				(SELECT CASE WHEN host = $4 AND (actor->'$.manuallyApprovesFollowers' IS NULL OR actor->'$.manuallyApprovesFollowers' = JSON('false')) THEN 1 ELSE NULL END FROM persons WHERE id = $2)
+				(SELECT CASE WHEN host = $4 AND (actor->'$.manuallyApprovesFollowers' IS NULL OR actor->'$.manuallyApprovesFollowers' = JSON('false')) THEN 1 ELSE NULL END FROM persons WHERE id = $3)
 			)
 		`,
 		followID,

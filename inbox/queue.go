@@ -265,15 +265,30 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return fmt.Errorf("received an invalid follow request for %s by %s", followed, activity.Actor)
 		}
 
-		var from ap.Actor
-		if err := q.DB.QueryRowContext(ctx, `select actor from persons where id = ?`, followed).Scan(&from); err != nil {
+		var manual sql.NullInt32
+		if err := q.DB.QueryRowContext(ctx, `select actor->>'$.manuallyApprovesFollowers' from persons where id = ?`, followed).Scan(&manual); err != nil {
 			return fmt.Errorf("failed to fetch %s: %w", followed, err)
 		}
 
-		log.Info("Approving follow request", "follower", activity.Actor, "followed", followed)
+		if manual.Valid && manual.Int32 == 1 {
+			log.Debug("Not approving follow request", "follower", activity.Actor, "followed", followed)
 
-		if err := outbox.Accept(ctx, q.Domain, followed, activity.Actor, activity.ID, q.DB); err != nil {
-			return fmt.Errorf("failed to marshal accept response: %w", err)
+			if _, err := q.DB.ExecContext(
+				ctx,
+				`INSERT OR IGNORE INTO follows (id, follower, followed) VALUES(?, ?, ?)`,
+				activity.ID,
+				activity.Actor,
+				followed,
+			); err != nil {
+				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
+			}
+
+		} else {
+			log.Info("Approving follow request", "follower", activity.Actor, "followed", followed)
+
+			if err := outbox.Accept(ctx, q.Domain, followed, activity.Actor, activity.ID, q.DB); err != nil {
+				return fmt.Errorf("failed to accept %s: %w", activity.ID, err)
+			}
 		}
 
 	case ap.Accept:
