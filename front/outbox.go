@@ -317,17 +317,17 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 
 	if r.User != nil && actorID != r.User.ID {
 		var accepted sql.NullInt32
-		if err := h.DB.QueryRowContext(r.Context, `select accepted from follows where follower = ? and followed = ?`, r.User.ID, actorID).Scan(&accepted); errors.Is(err, sql.ErrNoRows) {
+		if err := h.DB.QueryRowContext(r.Context, `select accepted from follows where follower = ? and followed = ?`, r.User.ID, actorID).Scan(&accepted); err != nil {
+			r.Log.Warn("Failed to check if user is followed", "actor", actorID, "error", err)
+		} else if !accepted.Valid {
 			w.Separator()
 			w.Linkf("/users/follow/"+strings.TrimPrefix(actorID, "https://"), "⚡ Follow", actor.PreferredUsername)
-		} else if err != nil {
-			r.Log.Warn("Failed to check if user is followed", "actor", actorID, "error", err)
-		} else if accepted.Valid && accepted.Int32 == 1 {
-			w.Separator()
-			w.Linkf("/users/unfollow/"+strings.TrimPrefix(actorID, "https://"), "🔌 Unfollow %s", actor.PreferredUsername)
-		} else {
+		} else if accepted.Int32 == 0 {
 			w.Separator()
 			w.Linkf("/users/follow/"+strings.TrimPrefix(actorID, "https://"), "⚡ Follow %s (previously rejected)", actor.PreferredUsername)
+		} else {
+			w.Separator()
+			w.Linkf("/users/unfollow/"+strings.TrimPrefix(actorID, "https://"), "🔌 Unfollow %s", actor.PreferredUsername)
 		}
 	}
 }

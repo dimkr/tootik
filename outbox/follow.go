@@ -48,7 +48,13 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 		To:      to,
 	}
 
-	isLocal := strings.HasPrefix(followed, fmt.Sprintf("https://%s/", domain))
+	var accepted sql.NullInt32
+
+	// local follows don't need to be accepted
+	if strings.HasPrefix(followed, fmt.Sprintf("https://%s/", domain)) {
+		accepted.Valid = true
+		accepted.Int32 = 1
+	}
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -62,12 +68,12 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 		followID,
 		follower.ID,
 		followed,
-		isLocal, // local follows don't need to be accepted
+		&accepted,
 	); err != nil {
 		return fmt.Errorf("failed to insert follow: %w", err)
 	}
 
-	if !isLocal {
+	if !(accepted.Valid && accepted.Int32 == 1) {
 		if _, err := tx.ExecContext(
 			ctx,
 			`INSERT INTO outbox (activity, sender) VALUES(?,?)`,

@@ -47,8 +47,8 @@ func (h *Handler) bookmarks(w text.Writer, r *Request, args ...string) {
 					(
 						notes.author = $1 or
 						notes.public = 1 or
-						exists (select 1 from json_each(notes.object->'$.to') where exists (select 1 from follows join persons on persons.id = follows.followed where follows.follower = $1 and follows.followed = notes.author and (notes.author = value or persons.actor->>'$.followers' = value))) or
-						exists (select 1 from json_each(notes.object->'$.cc') where exists (select 1 from follows join persons on persons.id = follows.followed where follows.follower = $1 and follows.followed = notes.author and (notes.author = value or persons.actor->>'$.followers' = value))) or
+						exists (select 1 from json_each(notes.object->'$.to') where exists (select 1 from follows join persons on persons.id = follows.followed where follows.follower = $1 and follows.followed = notes.author and follows.accepted = 1 and (notes.author = value or persons.actor->>'$.followers' = value))) or
+						exists (select 1 from json_each(notes.object->'$.cc') where exists (select 1 from follows join persons on persons.id = follows.followed where follows.follower = $1 and follows.followed = notes.author and follows.accepted = 1 and (notes.author = value or persons.actor->>'$.followers' = value))) or
 						exists (select 1 from json_each(notes.object->'$.to') where value = $1) or
 						exists (select 1 from json_each(notes.object->'$.cc') where value = $1)
 					)
