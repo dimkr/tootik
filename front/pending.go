@@ -69,15 +69,21 @@ func (h *Handler) pending(w text.Writer, r *Request, args ...string) {
 	w.OK()
 	w.Title("⏳ Follow Requests")
 
-	if r.User.ManuallyApprovesFollowers {
-		w.Link("/users/pending?disable", "Disable manual follower approval")
-	} else {
-		w.Link("/users/pending?enable", "Enable manual follower approval")
-	}
-
 	rows, err := h.DB.QueryContext(
 		r.Context,
-		`select follows.inserted, persons.actor from follows join persons on persons.id = follows.follower where follows.follower = ? and follows.accepted is null order by follows.inserted desc`,
+		`
+		select inserted, actor from
+		(
+			select follows.inserted, persons.actor from follows
+			join persons on persons.id = follows.follower
+			where follows.followed = $1 and follows.accepted is null
+			union all
+			select follows.inserted, persons.actor from follows
+			join persons on persons.id = follows.followed
+			where follows.follower = $1 and follows.accepted is null
+		)
+		order by inserted desc
+		`,
 		r.User.ID,
 	)
 	if err != nil {
@@ -106,14 +112,22 @@ func (h *Handler) pending(w text.Writer, r *Request, args ...string) {
 			h.getActorDisplayName(&follower),
 		)
 
-		w.Link("/users/follows/accept/"+param, "🟢 Accept")
-		w.Link("/users/follows/reject/"+param, "🔴 Reject")
+		if follower.ID != r.User.ID {
+			w.Link("/users/follows/accept/"+param, "🟢 Accept")
+			w.Link("/users/follows/reject/"+param, "🔴 Reject")
+		}
 
 		empty = false
 	}
 
 	if empty {
 		w.Text("No follow requests.")
-		return
+		w.Empty()
+	}
+
+	if r.User.ManuallyApprovesFollowers {
+		w.Link("/users/follows/pending?disable", "Disable manual follower approval")
+	} else {
+		w.Link("/users/follows/pending?enable", "Enable manual follower approval")
 	}
 }
