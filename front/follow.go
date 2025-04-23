@@ -61,11 +61,10 @@ func (h *Handler) follow(w text.Writer, r *Request, args ...string) {
 		r.Log.Warn("Failed to check if user is already followed", "followed", followed, "error", err)
 		w.Error()
 		return
-	}
-	if accepted.Valid && accepted.Int32 == 1 {
+	} else if err == nil && accepted.Valid && accepted.Int32 == 1 {
 		w.Statusf(40, "Already following %s", followed)
 		return
-	} else if !accepted.Valid {
+	} else if err == nil && !accepted.Valid {
 		w.Statusf(40, "Waiting for approval from %s", followed)
 		return
 	}

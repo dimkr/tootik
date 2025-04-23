@@ -68,7 +68,7 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 		followID,
 		follower.ID,
 		followed,
-		&accepted,
+		accepted,
 	); err != nil {
 		return fmt.Errorf("failed to insert follow: %w", err)
 	}
