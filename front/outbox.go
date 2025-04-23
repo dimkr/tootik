@@ -317,7 +317,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 
 	if r.User != nil && actorID != r.User.ID {
 		var accepted sql.NullInt32
-		if err := h.DB.QueryRowContext(r.Context, `select accepted from follows where follower = ? and followed = ?`, r.User.ID, actorID).Scan(&accepted); err != nil && !errors.Is(sql.ErrNoRows) {
+		if err := h.DB.QueryRowContext(r.Context, `select accepted from follows where follower = ? and followed = ?`, r.User.ID, actorID).Scan(&accepted); err != nil && !errors.Is(err, sql.ErrNoRows) {
 			r.Log.Warn("Failed to check if user is followed", "actor", actorID, "error", err)
 		} else if !accepted.Valid && actor.ManuallyApprovesFollowers {
 			w.Separator()
