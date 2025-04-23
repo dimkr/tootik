@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,9 +24,9 @@ import (
 	"github.com/dimkr/tootik/ap"
 )
 
-// Accept queues an Accept activity for delivery.
-func Accept(ctx context.Context, domain string, followed, follower, followID string, db *sql.DB) error {
-	id, err := NewID(domain, "accept")
+// Reject queues an Reject activity for delivery.
+func Reject(ctx context.Context, domain string, followed, follower string, db *sql.DB) error {
+	id, err := NewID(domain, "reject")
 	if err != nil {
 		return err
 	}
@@ -36,13 +36,23 @@ func Accept(ctx context.Context, domain string, followed, follower, followID str
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
+		return fmt.Errorf("failed to reject %s: %w", follower, err)
 	}
 	defer tx.Rollback()
 
-	accept := ap.Activity{
+	var followID string
+	if err := tx.QueryRowContext(
+		ctx,
+		`SELECT id FROM follows WHERE follower = ? and followed = ? AND accepted IS NULL`,
+		follower,
+		followed,
+	).Scan(&followID); err != nil {
+		return fmt.Errorf("failed to reject %s: %w", follower, err)
+	}
+
+	reject := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
-		Type:    ap.Accept,
+		Type:    ap.Reject,
 		ID:      id,
 		Actor:   followed,
 		To:      recipients,
@@ -57,25 +67,22 @@ func Accept(ctx context.Context, domain string, followed, follower, followID str
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
-		&accept,
+		&reject,
 		followed,
 	); err != nil {
-		return fmt.Errorf("failed to insert Accept: %w", err)
+		return fmt.Errorf("failed to reject %s: %w", follower, err)
 	}
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO follows (id, follower, followed, accepted) VALUES(?,?,?,?) ON CONFLICT(follower, followed) DO UPDATE SET accepted = 1`,
+		`UPDATE follows SET accepted = 0 WHERE id = ?`,
 		followID,
-		follower,
-		followed,
-		1,
 	); err != nil {
-		return fmt.Errorf("failed to insert follow %s: %w", followID, err)
+		return fmt.Errorf("failed to reject %s: %w", follower, err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to accept follow: %w", err)
+		return fmt.Errorf("failed to reject %s: %w", follower, err)
 	}
 
 	return nil

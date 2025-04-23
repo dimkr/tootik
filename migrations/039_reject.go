@@ -34,6 +34,10 @@ func reject(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	_, err := tx.ExecContext(ctx, `CREATE INDEX followsfollowed ON follows(followed)`)
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX followsfollowed ON follows(followed)`); err != nil {
+		return err
+	}
+
+	_, err := tx.ExecContext(ctx, `CREATE UNIQUE INDEX followsfollowerfollowed ON follows(follower, followed)`)
 	return err
 }
