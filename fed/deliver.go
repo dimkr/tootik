@@ -17,7 +17,6 @@ limitations under the License.
 package fed
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -27,6 +26,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -397,7 +397,7 @@ func (q *Queue) queueTasks(
 			}
 		}
 
-		req, err := http.NewRequest(http.MethodPost, inbox, bytes.NewReader([]byte(job.RawActivity)))
+		req, err := http.NewRequest(http.MethodPost, inbox, strings.NewReader(job.RawActivity))
 		if err != nil {
 			slog.Warn("Failed to create new request", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
 			events <- deliveryEvent{job, false}
