@@ -55,10 +55,20 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO follows (id, follower, followed, accepted) VALUES($1, $2, $3, (SELECT CASE WHEN actor->>'$.manuallyApprovesFollowers' = JSON('true') THEN NULL ELSE 1 END FROM persons WHERE id = $2))`,
+		`INSERT INTO follows
+			(id, follower, followed)
+		VALUES
+			(
+				$1,
+				$2,
+				$3,
+				(SELECT CASE WHEN host = $4 AND (actor->>'$.manuallyApprovesFollowers' IS NULL OR actor->>'$.manuallyApprovesFollowers' = JSON('false')) THEN 1 ELSE NULL END FROM persons WHERE id = $2)
+			)
+		`,
 		followID,
 		follower.ID,
 		followed,
+		domain,
 	); err != nil {
 		return fmt.Errorf("failed to insert follow: %w", err)
 	}
