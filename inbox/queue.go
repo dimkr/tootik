@@ -407,16 +407,18 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		// if specified, prefer post publication or editing time to insertion or last update time
 		var sec int64
 		if oldPost.Updated != nil {
-			sec = oldPost.Updated.Unix()
+			sec = oldPost.Updated.UnixNano()
 		}
 		if sec == 0 {
-			sec = oldPost.Published.Unix()
+			sec = oldPost.Published.UnixNano()
 		}
 		if sec > 0 {
 			lastChange = sec
+		} else {
+			lastChange *= 1000000000
 		}
 
-		if (post.Type == ap.Question && post.Updated != nil && lastChange >= post.Updated.Unix()) || (post.Type != ap.Question && (post.Updated == nil || lastChange >= post.Updated.Unix())) {
+		if (post.Type == ap.Question && post.Updated != nil && lastChange >= post.Updated.UnixNano()) || (post.Type != ap.Question && (post.Updated == nil || lastChange >= post.Updated.UnixNano())) {
 			log.Debug("Received old update request for new post")
 			return nil
 		}

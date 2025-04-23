@@ -318,14 +318,14 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 	return nil
 }
 
-func (s *Syncer) processBatch(ctx context.Context) (int, error) {
+func (s *Syncer) ProcessBatch(ctx context.Context) (int, error) {
 	if _, err := s.DB.ExecContext(ctx, `DELETE FROM follows_sync WHERE NOT EXISTS (SELECT 1 FROM persons WHERE persons.id = follows_sync.actor)`); err != nil {
 		return 0, err
 	}
 
 	rows, err := s.DB.QueryContext(
 		ctx,
-		`SELECT actor, url, digest FROM follows_sync WHERE changed < $1 ORDER BY changed LIMIT $2`,
+		`SELECT actor, url, digest FROM follows_sync WHERE changed <= $1 ORDER BY changed LIMIT $2`,
 		time.Now().Add(-s.Config.FollowersSyncInterval).Unix(),
 		s.Config.FollowersSyncBatchSize,
 	)
@@ -360,7 +360,7 @@ func (s *Syncer) processBatch(ctx context.Context) (int, error) {
 
 func (s *Syncer) Run(ctx context.Context) error {
 	for {
-		if n, err := s.processBatch(ctx); err != nil {
+		if n, err := s.ProcessBatch(ctx); err != nil {
 			return err
 		} else if n == 0 {
 			break
