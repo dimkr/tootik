@@ -23,6 +23,7 @@ import (
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/outbox"
 )
 
 func (h *Handler) pending(w text.Writer, r *Request, args ...string) {
@@ -38,31 +39,54 @@ func (h *Handler) pending(w text.Writer, r *Request, args ...string) {
 			return
 		}
 
+		tx, err := h.DB.BeginTx(r.Context, nil)
+		if err != nil {
+			r.Log.Warn("Failed to toggle manual approval", "error", err)
+			w.Error()
+			return
+		}
+
 		switch action {
 		case "enable":
-			if _, err := h.DB.ExecContext(
+			if _, err := tx.ExecContext(
 				r.Context,
 				"update persons set actor = json_set(actor, '$.manuallyApprovesFollowers', json('true')) where id = ?",
 				r.User.ID,
 			); err != nil {
-				r.Log.Error("Failed to enable follower approval", "error", err)
+				r.Log.Warn("Failed to toggle manual approval", "error", err)
 				w.Error()
+				return
 			}
 
 		case "disable":
-			if _, err := h.DB.ExecContext(
+			if _, err := tx.ExecContext(
 				r.Context,
 				"update persons set actor = json_set(actor, '$.manuallyApprovesFollowers', json('false')) where id = ?",
 				r.User.ID,
 			); err != nil {
-				r.Log.Error("Failed to disable follower approval", "error", err)
+				r.Log.Warn("Failed to toggle manual approval", "error", err)
 				w.Error()
+				return
 			}
 
 		default:
 			w.Status(40, "Bad input")
+			return
 		}
 
+		if err := outbox.UpdateActor(r.Context, h.Domain, tx, r.User.ID); err != nil {
+			r.Log.Warn("Failed to toggle manual approval", "error", err)
+			w.Error()
+			return
+		}
+
+		if err := tx.Commit(); err != nil {
+			r.Log.Warn("Failed to toggle manual approval", "error", err)
+			w.Error()
+			return
+		}
+
+		w.Redirect("/users/follows/pending")
 		return
 	}
 

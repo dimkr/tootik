@@ -50,5 +50,5 @@ func (h *Handler) approve(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.Redirect("/users/certificates")
+	w.Redirect("/users/follows/pending")
 }
