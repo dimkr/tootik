@@ -192,7 +192,6 @@ func (r *Resolver) handleFetchFailure(ctx context.Context, fetched string, cache
 	}
 
 	return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", fetched, err)
-
 }
 
 func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {

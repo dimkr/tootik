@@ -2,7 +2,7 @@
 
 ## About {{.Domain}}
 
-This is an instance of tootik, a "slow", "boring" and non-addictive social network in the small internet that is also connected to the fediverse.
+This server runs tootik, a text-based social network.
 => https://github.com/dimkr/tootik The tootik project
 
 ## Menu

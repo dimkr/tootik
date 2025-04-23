@@ -249,7 +249,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 			if alt == "" {
 				w.Link(link, link)
 			} else {
-				w.Linkf(link, "%s [%s]", link, alt)
+				w.Link(link, alt)
 			}
 		}
 	}
@@ -283,7 +283,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 			}
 
 			if len(links) == 0 {
-				w.Textf("%s: %s", prop.Name, raw)
+				w.Quotef("%s: %s", prop.Name, raw)
 			} else {
 				for link := range links.Keys() {
 					w.Linkf(link, prop.Name)

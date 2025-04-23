@@ -36,6 +36,7 @@ func (h *Handler) unfollow(w text.Writer, r *Request, args ...string) {
 	if err := h.DB.QueryRowContext(r.Context, `select follows.id from persons join follows on persons.id = follows.followed where persons.id = ? and follows.follower = ?`, followed, r.User.ID).Scan(&followID); err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Cannot undo a non-existing follow", "followed", followed, "error", err)
 		w.Status(40, "No such follow")
+		return
 	} else if err != nil {
 		r.Log.Warn("Failed to find followed user", "followed", followed, "error", err)
 		w.Error()
