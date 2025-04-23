@@ -18,6 +18,10 @@ func reject(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
+	if _, err := tx.ExecContext(ctx, `INSERT INTO newfollows(id, follower, inserted, accepted, followed) SELECT id, follower, inserted, accepted, followed FROM follows`); err != nil {
+		return err
+	}
+
 	if _, err := tx.ExecContext(ctx, `DROP TABLE follows`); err != nil {
 		return err
 	}
