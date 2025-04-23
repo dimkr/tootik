@@ -20,7 +20,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 
 	"github.com/dimkr/tootik/ap"
 )
@@ -48,14 +47,6 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 		To:      to,
 	}
 
-	var accepted sql.NullInt32
-
-	// local follows don't need to be accepted
-	if strings.HasPrefix(followed, fmt.Sprintf("https://%s/", domain)) {
-		accepted.Valid = true
-		accepted.Int32 = 1
-	}
-
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -64,24 +55,21 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO follows (id, follower, followed, accepted) VALUES(?,?,?,?)`,
+		`INSERT INTO follows (id, follower, followed, accepted) VALUES($1, $2, $3, (SELECT CASE WHEN actor->>'$.manuallyApprovesFollowers' = JSON('true') THEN NULL ELSE 1 END FROM persons WHERE id = $2))`,
 		followID,
 		follower.ID,
 		followed,
-		accepted,
 	); err != nil {
 		return fmt.Errorf("failed to insert follow: %w", err)
 	}
 
-	if !(accepted.Valid && accepted.Int32 == 1) {
-		if _, err := tx.ExecContext(
-			ctx,
-			`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
-			&follow,
-			follower.ID,
-		); err != nil {
-			return fmt.Errorf("failed to insert follow activity: %w", err)
-		}
+	if _, err := tx.ExecContext(
+		ctx,
+		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
+		&follow,
+		follower.ID,
+	); err != nil {
+		return fmt.Errorf("failed to insert follow activity: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
