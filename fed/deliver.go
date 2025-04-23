@@ -17,7 +17,6 @@ limitations under the License.
 package fed
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -27,6 +26,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -44,8 +44,9 @@ type Queue struct {
 }
 
 type deliveryJob struct {
-	Activity *ap.Activity
-	Sender   *ap.Actor
+	Activity    *ap.Activity
+	RawActivity string
+	Sender      *ap.Actor
 }
 
 type deliveryTask struct {
@@ -75,19 +76,20 @@ func (q *Queue) Process(ctx context.Context) error {
 			return nil
 
 		case <-t.C:
-			if err := q.process(ctx); err != nil {
+			if _, err := q.ProcessBatch(ctx); err != nil {
 				slog.Error("Failed to deliver posts", "error", err)
 			}
 		}
 	}
 }
 
-func (q *Queue) process(ctx context.Context) error {
+// ProcessBatch delivers one batch of outgoing activites in the queue.
+func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	slog.Debug("Polling delivery queue")
 
 	rows, err := q.DB.QueryContext(
 		ctx,
-		`select outbox.attempts, outbox.activity, outbox.activity, outbox.inserted, persons.actor, persons.privkey from
+		`select outbox.attempts, outbox.activity, outbox.activity, persons.actor, persons.privkey from
 		outbox
 		join persons
 		on
@@ -110,7 +112,7 @@ func (q *Queue) process(ctx context.Context) error {
 		q.Config.DeliveryBatchSize,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to fetch posts to deliver: %w", err)
+		return 0, fmt.Errorf("failed to fetch posts to deliver: %w", err)
 	}
 	defer rows.Close()
 
@@ -144,23 +146,24 @@ func (q *Queue) process(ctx context.Context) error {
 
 	followers := partialFollowers{}
 
+	count := 0
 	for rows.Next() {
 		var activity ap.Activity
 		var rawActivity, privKeyPem string
 		var actor ap.Actor
-		var inserted int64
 		var deliveryAttempts int
 		if err := rows.Scan(
 			&deliveryAttempts,
 			&activity,
 			&rawActivity,
-			&inserted,
 			&actor,
 			&privKeyPem,
 		); err != nil {
 			slog.Error("Failed to fetch post to deliver", "error", err)
 			continue
 		}
+
+		count++
 
 		privKey, err := data.ParsePrivateKey(privKeyPem)
 		if err != nil {
@@ -180,8 +183,9 @@ func (q *Queue) process(ctx context.Context) error {
 		}
 
 		job := deliveryJob{
-			Activity: &activity,
-			Sender:   &actor,
+			Activity:    &activity,
+			RawActivity: rawActivity,
+			Sender:      &actor,
 		}
 
 		// notify about the new job and mark it as successful until a worker notifies otherwise
@@ -191,9 +195,7 @@ func (q *Queue) process(ctx context.Context) error {
 		if err := q.queueTasks(
 			ctx,
 			job,
-			[]byte(rawActivity),
 			httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey},
-			time.Unix(inserted, 0),
 			&followers,
 			tasks,
 			events,
@@ -232,7 +234,7 @@ func (q *Queue) process(ctx context.Context) error {
 		}
 	}
 
-	return nil
+	return count, nil
 }
 
 func (q *Queue) deliverWithTimeout(parent context.Context, task deliveryTask) error {
@@ -307,9 +309,7 @@ func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, event
 func (q *Queue) queueTasks(
 	ctx context.Context,
 	job deliveryJob,
-	rawActivity []byte,
 	key httpsig.Key,
-	inserted time.Time,
 	followers *partialFollowers,
 	tasks []chan deliveryTask,
 	events chan<- deliveryEvent,
@@ -339,11 +339,10 @@ func (q *Queue) queueTasks(
 	if wideDelivery {
 		followers, err := q.DB.QueryContext(
 			ctx,
-			`select distinct follower from follows where followed = ? and follower not like ? and follower not like ? and accepted = 1 and inserted < ?`,
+			`select distinct follower from follows where followed = ? and follower not like ? and follower not like ? and accepted = 1`,
 			job.Sender.ID,
 			fmt.Sprintf("https://%s/%%", q.Domain),
 			fmt.Sprintf("https://%s/%%", activityID.Host),
-			inserted.Unix(),
 		)
 		if err != nil {
 			slog.Warn("Failed to list followers", "activity", job.Activity.ID, "error", err)
@@ -372,7 +371,7 @@ func (q *Queue) queueTasks(
 		author = obj.AttributedTo
 	}
 
-	contentLength := strconv.Itoa(len(rawActivity))
+	contentLength := strconv.Itoa(len(job.RawActivity))
 
 	for actorID := range actorIDs.Keys() {
 		if actorID == author || actorID == ap.Public {
@@ -398,7 +397,7 @@ func (q *Queue) queueTasks(
 			}
 		}
 
-		req, err := http.NewRequest(http.MethodPost, inbox, bytes.NewReader(rawActivity))
+		req, err := http.NewRequest(http.MethodPost, inbox, strings.NewReader(job.RawActivity))
 		if err != nil {
 			slog.Warn("Failed to create new request", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
 			events <- deliveryEvent{job, false}

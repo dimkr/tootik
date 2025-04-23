@@ -240,7 +240,7 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 		}
 
 		sinceLastUpdate = time.Since(time.Unix(updated, 0))
-		if !isLocal && flags&ap.Offline == 0 && sinceLastUpdate > r.Config.ResolverCacheTTL && (!fetched.Valid || time.Since(time.Unix(fetched.Int64, 0)) >= r.Config.ResolverRetryInterval) {
+		if !isLocal && flags&ap.Offline == 0 && sinceLastUpdate >= r.Config.ResolverCacheTTL && (!fetched.Valid || time.Since(time.Unix(fetched.Int64, 0)) >= r.Config.ResolverRetryInterval) {
 			slog.Info("Updating old cache entry for actor", "id", cachedActor.ID)
 		} else {
 			slog.Debug("Resolved actor using cache", "id", cachedActor.ID)
