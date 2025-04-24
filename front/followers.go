@@ -122,6 +122,10 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 			continue
 		}
 
+		if !empty {
+			w.Empty()
+		}
+
 		param := strings.TrimPrefix(follower.ID, "https://")
 
 		w.Linkf(
