@@ -253,7 +253,7 @@ func TestMove_FederatedToLocalLinked(t *testing.T) {
 	assert.NoError(mover.Run(context.Background()))
 
 	var followed int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 1) and not exists (select 1 from outbox where activity->>'$.type' = 'Follow' and activity->>'$.actor' = $1 and activity->>'$.object' = $2)`, server.Alice.ID, server.Bob.ID).Scan(&followed))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 1) and exists (select 1 from outbox where activity->>'$.type' = 'Follow' and activity->>'$.actor' = $1 and activity->>'$.object' = $2)`, server.Alice.ID, server.Bob.ID).Scan(&followed))
 	assert.Equal(1, followed)
 }
 
