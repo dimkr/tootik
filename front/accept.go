@@ -17,6 +17,9 @@ limitations under the License.
 package front
 
 import (
+	"database/sql"
+	"errors"
+
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/outbox"
 )
@@ -43,13 +46,17 @@ func (h *Handler) accept(w text.Writer, r *Request, args ...string) {
 		`SELECT id FROM follows WHERE followed = ? and follower = ? AND accepted IS NULL`,
 		r.User.ID,
 		follower,
-	).Scan(&followID); err != nil {
+	).Scan(&followID); errors.Is(err, sql.ErrNoRows) {
+		r.Log.Warn("Failed to fetch follow request to approve", "follower", follower)
+		w.Status(40, "No such follow request")
+		return
+	} else if err != nil {
 		r.Log.Warn("Failed to accept follow request", "follower", follower, "error", err)
 		w.Error()
 		return
 	}
 
-	if err := outbox.Accept(r.Context, h.Domain, r.User.ID, follower, followID, h.DB); err != nil {
+	if err := outbox.Accept(r.Context, h.Domain, r.User.ID, follower, followID, tx); err != nil {
 		r.Log.Warn("Failed to accept follow request", "follower", follower, "error", err)
 		w.Error()
 		return

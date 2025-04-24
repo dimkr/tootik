@@ -39,6 +39,13 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 
 	assert := assert.New(t)
 
+	to := ap.Audience{}
+	to.Add(server.Alice.Followers)
+
+	tx, err := server.db.BeginTx(context.Background(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
@@ -46,16 +53,9 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
-			server.db,
+			tx,
 		),
 	)
-
-	to := ap.Audience{}
-	to.Add(server.Alice.Followers)
-
-	tx, err := server.db.BeginTx(context.Background(), nil)
-	assert.NoError(err)
-	defer tx.Rollback()
 
 	assert.NoError(
 		note.Insert(
@@ -112,17 +112,6 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 
 	assert := assert.New(t)
 
-	assert.NoError(
-		outbox.Accept(
-			context.Background(),
-			domain,
-			server.Alice.ID,
-			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain:8443/follow/1",
-			server.db,
-		),
-	)
-
 	to := ap.Audience{}
 	to.Add(ap.Public)
 
@@ -132,6 +121,17 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 	tx, err := server.db.BeginTx(context.Background(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
+
+	assert.NoError(
+		outbox.Accept(
+			context.Background(),
+			domain,
+			server.Alice.ID,
+			"https://127.0.0.1/user/dan",
+			"https://localhost.localdomain:8443/follow/1",
+			tx,
+		),
+	)
 
 	assert.NoError(
 		note.Insert(
@@ -189,6 +189,10 @@ func TestForward_LocalReplyToLocalPublicPost(t *testing.T) {
 
 	assert := assert.New(t)
 
+	tx, err := server.db.BeginTx(context.Background(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
@@ -196,11 +200,13 @@ func TestForward_LocalReplyToLocalPublicPost(t *testing.T) {
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
-			server.db,
+			tx,
 		),
 	)
 
-	_, err := server.db.Exec(
+	assert.NoError(tx.Commit())
+
+	_, err = server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
@@ -224,6 +230,13 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 
 	assert := assert.New(t)
 
+	to := ap.Audience{}
+	to.Add(server.Alice.Followers)
+
+	tx, err := server.db.BeginTx(context.Background(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
@@ -231,16 +244,9 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
-			server.db,
+			tx,
 		),
 	)
-
-	to := ap.Audience{}
-	to.Add(server.Alice.Followers)
-
-	tx, err := server.db.BeginTx(context.Background(), nil)
-	assert.NoError(err)
-	defer tx.Rollback()
 
 	assert.NoError(
 		note.Insert(
@@ -312,6 +318,13 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 
 	assert := assert.New(t)
 
+	to := ap.Audience{}
+	to.Add(server.Alice.Followers)
+
+	tx, err := server.db.BeginTx(context.Background(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
@@ -319,16 +332,9 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
-			server.db,
+			tx,
 		),
 	)
-
-	to := ap.Audience{}
-	to.Add(server.Alice.Followers)
-
-	tx, err := server.db.BeginTx(context.Background(), nil)
-	assert.NoError(err)
-	defer tx.Rollback()
 
 	assert.NoError(
 		note.Insert(
@@ -385,6 +391,13 @@ func TestForward_ReplyToDM(t *testing.T) {
 
 	assert := assert.New(t)
 
+	to := ap.Audience{}
+	to.Add(server.Bob.ID)
+
+	tx, err := server.db.BeginTx(context.Background(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
@@ -392,16 +405,9 @@ func TestForward_ReplyToDM(t *testing.T) {
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
-			server.db,
+			tx,
 		),
 	)
-
-	to := ap.Audience{}
-	to.Add(server.Bob.ID)
-
-	tx, err := server.db.BeginTx(context.Background(), nil)
-	assert.NoError(err)
-	defer tx.Rollback()
 
 	assert.NoError(
 		note.Insert(
@@ -520,6 +526,13 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 
 	assert := assert.New(t)
 
+	to := ap.Audience{}
+	to.Add(server.Alice.Followers)
+
+	tx, err := server.db.BeginTx(context.Background(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
@@ -527,16 +540,9 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
-			server.db,
+			tx,
 		),
 	)
-
-	to := ap.Audience{}
-	to.Add(server.Alice.Followers)
-
-	tx, err := server.db.BeginTx(context.Background(), nil)
-	assert.NoError(err)
-	defer tx.Rollback()
 
 	assert.NoError(
 		note.Insert(
@@ -655,6 +661,13 @@ func TestForward_MaxDepth(t *testing.T) {
 
 	assert := assert.New(t)
 
+	to := ap.Audience{}
+	to.Add(server.Alice.Followers)
+
+	tx, err := server.db.BeginTx(context.Background(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
@@ -662,16 +675,9 @@ func TestForward_MaxDepth(t *testing.T) {
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
-			server.db,
+			tx,
 		),
 	)
-
-	to := ap.Audience{}
-	to.Add(server.Alice.Followers)
-
-	tx, err := server.db.BeginTx(context.Background(), nil)
-	assert.NoError(err)
-	defer tx.Rollback()
 
 	assert.NoError(
 		note.Insert(
@@ -773,6 +779,13 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 
 	assert := assert.New(t)
 
+	to := ap.Audience{}
+	to.Add(server.Alice.Followers)
+
+	tx, err := server.db.BeginTx(context.Background(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
@@ -780,16 +793,9 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
-			server.db,
+			tx,
 		),
 	)
-
-	to := ap.Audience{}
-	to.Add(server.Alice.Followers)
-
-	tx, err := server.db.BeginTx(context.Background(), nil)
-	assert.NoError(err)
-	defer tx.Rollback()
 
 	assert.NoError(
 		note.Insert(
@@ -906,6 +912,10 @@ func TestForward_ReplyToLocalPostByLocalFollower(t *testing.T) {
 
 	assert := assert.New(t)
 
+	tx, err := server.db.BeginTx(context.Background(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
@@ -913,14 +923,16 @@ func TestForward_ReplyToLocalPostByLocalFollower(t *testing.T) {
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
-			server.db,
+			tx,
 		),
 	)
+
+	assert.NoError(tx.Commit())
 
 	whisper := server.Handle("/users/say?Hello%20world", server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
-	_, err := server.db.Exec(
+	_, err = server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
@@ -941,6 +953,10 @@ func TestForward_EditedReplyToLocalPostByLocalFollower(t *testing.T) {
 
 	assert := assert.New(t)
 
+	tx, err := server.db.BeginTx(context.Background(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
@@ -948,14 +964,16 @@ func TestForward_EditedReplyToLocalPostByLocalFollower(t *testing.T) {
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
-			server.db,
+			tx,
 		),
 	)
+
+	assert.NoError(tx.Commit())
 
 	whisper := server.Handle("/users/say?Hello%20world", server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
-	_, err := server.db.Exec(
+	_, err = server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
@@ -983,6 +1001,10 @@ func TestForward_DeletedReplyToLocalPostByLocalFollower(t *testing.T) {
 
 	assert := assert.New(t)
 
+	tx, err := server.db.BeginTx(context.Background(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
@@ -990,14 +1012,16 @@ func TestForward_DeletedReplyToLocalPostByLocalFollower(t *testing.T) {
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
-			server.db,
+			tx,
 		),
 	)
+
+	assert.NoError(tx.Commit())
 
 	whisper := server.Handle("/users/say?Hello%20world", server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
-	_, err := server.db.Exec(
+	_, err = server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
@@ -1025,17 +1049,6 @@ func TestForward_EditedReplyToPublicPost(t *testing.T) {
 
 	assert := assert.New(t)
 
-	assert.NoError(
-		outbox.Accept(
-			context.Background(),
-			domain,
-			server.Alice.ID,
-			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain:8443/follow/1",
-			server.db,
-		),
-	)
-
 	to := ap.Audience{}
 	to.Add(ap.Public)
 
@@ -1045,6 +1058,17 @@ func TestForward_EditedReplyToPublicPost(t *testing.T) {
 	tx, err := server.db.BeginTx(context.Background(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
+
+	assert.NoError(
+		outbox.Accept(
+			context.Background(),
+			domain,
+			server.Alice.ID,
+			"https://127.0.0.1/user/dan",
+			"https://localhost.localdomain:8443/follow/1",
+			tx,
+		),
+	)
 
 	assert.NoError(
 		note.Insert(
@@ -1133,17 +1157,6 @@ func TestForward_ResentEditedReplyToPublicPost(t *testing.T) {
 
 	assert := assert.New(t)
 
-	assert.NoError(
-		outbox.Accept(
-			context.Background(),
-			domain,
-			server.Alice.ID,
-			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain:8443/follow/1",
-			server.db,
-		),
-	)
-
 	to := ap.Audience{}
 	to.Add(ap.Public)
 
@@ -1153,6 +1166,17 @@ func TestForward_ResentEditedReplyToPublicPost(t *testing.T) {
 	tx, err := server.db.BeginTx(context.Background(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
+
+	assert.NoError(
+		outbox.Accept(
+			context.Background(),
+			domain,
+			server.Alice.ID,
+			"https://127.0.0.1/user/dan",
+			"https://localhost.localdomain:8443/follow/1",
+			tx,
+		),
+	)
 
 	assert.NoError(
 		note.Insert(
@@ -1252,17 +1276,6 @@ func TestForward_DeletedReplyToPublicPost(t *testing.T) {
 
 	assert := assert.New(t)
 
-	assert.NoError(
-		outbox.Accept(
-			context.Background(),
-			domain,
-			server.Alice.ID,
-			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain:8443/follow/1",
-			server.db,
-		),
-	)
-
 	to := ap.Audience{}
 	to.Add(ap.Public)
 
@@ -1272,6 +1285,17 @@ func TestForward_DeletedReplyToPublicPost(t *testing.T) {
 	tx, err := server.db.BeginTx(context.Background(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
+
+	assert.NoError(
+		outbox.Accept(
+			context.Background(),
+			domain,
+			server.Alice.ID,
+			"https://127.0.0.1/user/dan",
+			"https://localhost.localdomain:8443/follow/1",
+			tx,
+		),
+	)
 
 	assert.NoError(
 		note.Insert(
@@ -1338,17 +1362,6 @@ func TestForward_DeletedDeletedReplyToPublicPost(t *testing.T) {
 
 	assert := assert.New(t)
 
-	assert.NoError(
-		outbox.Accept(
-			context.Background(),
-			domain,
-			server.Alice.ID,
-			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain:8443/follow/1",
-			server.db,
-		),
-	)
-
 	to := ap.Audience{}
 	to.Add(ap.Public)
 
@@ -1358,6 +1371,17 @@ func TestForward_DeletedDeletedReplyToPublicPost(t *testing.T) {
 	tx, err := server.db.BeginTx(context.Background(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
+
+	assert.NoError(
+		outbox.Accept(
+			context.Background(),
+			domain,
+			server.Alice.ID,
+			"https://127.0.0.1/user/dan",
+			"https://localhost.localdomain:8443/follow/1",
+			tx,
+		),
+	)
 
 	assert.NoError(
 		note.Insert(

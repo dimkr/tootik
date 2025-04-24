@@ -25,7 +25,7 @@ import (
 )
 
 // Reject queues a Reject activity for delivery.
-func Reject(ctx context.Context, domain string, followed, follower string, db *sql.DB) error {
+func Reject(ctx context.Context, domain string, followed, follower, followID string, tx *sql.Tx) error {
 	id, err := NewID(domain, "reject")
 	if err != nil {
 		return err
@@ -33,22 +33,6 @@ func Reject(ctx context.Context, domain string, followed, follower string, db *s
 
 	recipients := ap.Audience{}
 	recipients.Add(follower)
-
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to reject %s: %w", follower, err)
-	}
-	defer tx.Rollback()
-
-	var followID string
-	if err := tx.QueryRowContext(
-		ctx,
-		`SELECT id FROM follows WHERE follower = ? and followed = ? AND accepted IS NULL`,
-		follower,
-		followed,
-	).Scan(&followID); err != nil {
-		return fmt.Errorf("failed to reject %s: %w", follower, err)
-	}
 
 	reject := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
@@ -73,16 +57,16 @@ func Reject(ctx context.Context, domain string, followed, follower string, db *s
 		return fmt.Errorf("failed to reject %s: %w", follower, err)
 	}
 
-	if _, err := tx.ExecContext(
+	if res, err := tx.ExecContext(
 		ctx,
-		`UPDATE follows SET accepted = 0 WHERE id = ?`,
+		`UPDATE follows SET accepted = 0 WHERE id = ? AND (accepted IS NULL OR accepted = 1)`,
 		followID,
 	); err != nil {
 		return fmt.Errorf("failed to reject %s: %w", follower, err)
-	}
-
-	if err := tx.Commit(); err != nil {
+	} else if n, err := res.RowsAffected(); err != nil {
 		return fmt.Errorf("failed to reject %s: %w", follower, err)
+	} else if n == 0 {
+		return fmt.Errorf("failed to reject %s: cannot reject", follower)
 	}
 
 	return nil

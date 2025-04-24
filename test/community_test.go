@@ -50,6 +50,10 @@ func TestCommunity_NewThread(t *testing.T) {
 	)
 	assert.NoError(err)
 
+	tx, err := server.db.BeginTx(t.Context(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
@@ -57,9 +61,11 @@ func TestCommunity_NewThread(t *testing.T) {
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
-			server.db,
+			tx,
 		),
 	)
+
+	assert.NoError(tx.Commit())
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
@@ -97,6 +103,10 @@ func TestCommunity_NewThreadNotFollowing(t *testing.T) {
 	)
 	assert.NoError(err)
 
+	tx, err := server.db.BeginTx(t.Context(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
@@ -104,9 +114,11 @@ func TestCommunity_NewThreadNotFollowing(t *testing.T) {
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
-			server.db,
+			tx,
 		),
 	)
+
+	assert.NoError(tx.Commit())
 
 	say := server.Handle("/users/say?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
@@ -141,6 +153,10 @@ func TestCommunity_NewThreadNotPublic(t *testing.T) {
 	)
 	assert.NoError(err)
 
+	tx, err := server.db.BeginTx(t.Context(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
@@ -148,9 +164,11 @@ func TestCommunity_NewThreadNotPublic(t *testing.T) {
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
-			server.db,
+			tx,
 		),
 	)
+
+	assert.NoError(tx.Commit())
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
@@ -188,6 +206,10 @@ func TestCommunity_ReplyInThread(t *testing.T) {
 	)
 	assert.NoError(err)
 
+	tx, err := server.db.BeginTx(t.Context(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
@@ -195,9 +217,11 @@ func TestCommunity_ReplyInThread(t *testing.T) {
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
-			server.db,
+			tx,
 		),
 	)
+
+	assert.NoError(tx.Commit())
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
@@ -344,6 +368,10 @@ func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
 	)
 	assert.NoError(err)
 
+	tx, err := server.db.BeginTx(t.Context(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
@@ -351,9 +379,11 @@ func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
-			server.db,
+			tx,
 		),
 	)
+
+	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
 		`insert into persons (id, actor) values(?,?)`,
@@ -433,6 +463,10 @@ func TestCommunity_DuplicateReplyInThread(t *testing.T) {
 	)
 	assert.NoError(err)
 
+	tx, err := server.db.BeginTx(t.Context(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
@@ -440,9 +474,11 @@ func TestCommunity_DuplicateReplyInThread(t *testing.T) {
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
-			server.db,
+			tx,
 		),
 	)
+
+	assert.NoError(tx.Commit())
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
@@ -529,6 +565,10 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 	)
 	assert.NoError(err)
 
+	tx, err := server.db.BeginTx(t.Context(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
@@ -536,9 +576,11 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
-			server.db,
+			tx,
 		),
 	)
+
+	assert.NoError(tx.Commit())
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
@@ -646,6 +688,10 @@ func TestCommunity_UnknownEditedReplyInThread(t *testing.T) {
 	)
 	assert.NoError(err)
 
+	tx, err := server.db.BeginTx(t.Context(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
 	assert.NoError(
 		outbox.Accept(
 			context.Background(),
@@ -653,9 +699,11 @@ func TestCommunity_UnknownEditedReplyInThread(t *testing.T) {
 			server.Alice.ID,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
-			server.db,
+			tx,
 		),
 	)
+
+	assert.NoError(tx.Commit())
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)

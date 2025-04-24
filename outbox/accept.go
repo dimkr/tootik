@@ -25,7 +25,7 @@ import (
 )
 
 // Accept queues an Accept activity for delivery.
-func Accept(ctx context.Context, domain string, followed, follower, followID string, db *sql.DB) error {
+func Accept(ctx context.Context, domain string, followed, follower, followID string, tx *sql.Tx) error {
 	id, err := NewID(domain, "accept")
 	if err != nil {
 		return err
@@ -33,12 +33,6 @@ func Accept(ctx context.Context, domain string, followed, follower, followID str
 
 	recipients := ap.Audience{}
 	recipients.Add(follower)
-
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
 
 	accept := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
@@ -60,10 +54,10 @@ func Accept(ctx context.Context, domain string, followed, follower, followID str
 		&accept,
 		followed,
 	); err != nil {
-		return fmt.Errorf("failed to insert Accept: %w", err)
+		return fmt.Errorf("failed to accept %s: %w", followID, err)
 	}
 
-	if _, err := tx.ExecContext(
+	if res, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO follows (id, follower, followed, accepted) VALUES($1, $2, $3, $4) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = 1`,
 		followID,
@@ -71,11 +65,11 @@ func Accept(ctx context.Context, domain string, followed, follower, followID str
 		followed,
 		1,
 	); err != nil {
-		return fmt.Errorf("failed to insert follow %s: %w", followID, err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to accept follow: %w", err)
+		return fmt.Errorf("failed to accept %s: %w", followID, err)
+	} else if n, err := res.RowsAffected(); err != nil {
+		return fmt.Errorf("failed to accept %s: %w", followID, err)
+	} else if n == 0 {
+		return fmt.Errorf("failed to accept %s: cannot accept", followID)
 	}
 
 	return nil

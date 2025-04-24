@@ -17,6 +17,7 @@ limitations under the License.
 package front
 
 import (
+	"database/sql"
 	"net/url"
 	"strings"
 	"time"
@@ -96,9 +97,9 @@ func (h *Handler) pending(w text.Writer, r *Request, args ...string) {
 	rows, err := h.DB.QueryContext(
 		r.Context,
 		`
-		select follows.inserted, persons.actor from follows
+		select follows.inserted, persons.actor, follows.accepted from follows
 		join persons on persons.id = follows.follower
-		where follows.followed = $1 and follows.accepted is null
+		where follows.followed = $1 and accepted is null or accepted = 1
 		order by follows.inserted desc
 		`,
 		r.User.ID,
@@ -115,7 +116,8 @@ func (h *Handler) pending(w text.Writer, r *Request, args ...string) {
 	for rows.Next() {
 		var inserted int64
 		var follower ap.Actor
-		if err := rows.Scan(&inserted, &follower); err != nil {
+		var accepted sql.NullInt32
+		if err := rows.Scan(&inserted, &follower, &accepted); err != nil {
 			r.Log.Warn("Failed to list a follow request", "error", err)
 			continue
 		}
@@ -128,8 +130,13 @@ func (h *Handler) pending(w text.Writer, r *Request, args ...string) {
 			time.Unix(inserted, 0).Format(time.DateOnly),
 			h.getActorDisplayName(&follower),
 		)
-		w.Link("/users/follows/accept/"+param, "🟢 Accept")
-		w.Link("/users/follows/reject/"+param, "🔴 Reject")
+
+		if !accepted.Valid || accepted.Int32 == 0 {
+			w.Link("/users/follows/accept/"+param, "🟢 Accept")
+		}
+		if !accepted.Valid || accepted.Int32 == 1 {
+			w.Link("/users/follows/reject/"+param, "🔴 Reject")
+		}
 
 		empty = false
 	}

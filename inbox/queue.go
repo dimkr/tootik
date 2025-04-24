@@ -287,8 +287,18 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		} else {
 			log.Info("Approving follow request", "follower", activity.Actor, "followed", followed)
 
-			if err := outbox.Accept(ctx, q.Domain, followed, activity.Actor, activity.ID, q.DB); err != nil {
+			tx, err := q.DB.BeginTx(ctx, nil)
+			if err != nil {
+				return fmt.Errorf("failed to begin transaction: %w", err)
+			}
+			defer tx.Rollback()
+
+			if err := outbox.Accept(ctx, q.Domain, followed, activity.Actor, activity.ID, tx); err != nil {
 				return fmt.Errorf("failed to accept %s: %w", activity.ID, err)
+			}
+
+			if err := tx.Commit(); err != nil {
+				return fmt.Errorf("failed to accept follow: %w", err)
 			}
 		}
 

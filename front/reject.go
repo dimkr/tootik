@@ -17,6 +17,9 @@ limitations under the License.
 package front
 
 import (
+	"database/sql"
+	"errors"
+
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/outbox"
 )
@@ -37,7 +40,23 @@ func (h *Handler) reject(w text.Writer, r *Request, args ...string) {
 	}
 	defer tx.Rollback()
 
-	if err := outbox.Reject(r.Context, h.Domain, r.User.ID, follower, h.DB); err != nil {
+	var followID string
+	if err := tx.QueryRowContext(
+		r.Context,
+		`SELECT id FROM follows WHERE follower = ? and followed = ?`,
+		follower,
+		r.User.ID,
+	).Scan(&followID); errors.Is(err, sql.ErrNoRows) {
+		r.Log.Warn("Failed to fetch follow request to reject", "follower", follower)
+		w.Status(40, "No such follow request")
+		return
+	} else if err != nil {
+		r.Log.Warn("Failed to reject follow request", "follower", follower, "error", err)
+		w.Error()
+		return
+	}
+
+	if err := outbox.Reject(r.Context, h.Domain, r.User.ID, follower, followID, tx); err != nil {
 		r.Log.Warn("Failed to reject follow request", "follower", follower, "error", err)
 		w.Error()
 		return
