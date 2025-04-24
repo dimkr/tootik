@@ -28,7 +28,8 @@ Welcome, fedinaut! localhost.localdomain:8443 is a text-based social network.
 
 📻 My feed
 📞 Mentions
-⚡️ Followed users
+⚡️ Follows
+🐕 Followers
 😈 My profile
 📡 Local feed
 🏕️ Communities

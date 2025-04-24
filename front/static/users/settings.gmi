@@ -6,7 +6,6 @@
 => /users/bio 📜 Set bio
 => titan://{{.Domain}}/users/upload/bio Upload bio
 => titan://{{.Domain}}/users/upload/avatar Upload avatar
-=> /users/follows/pending ⏳ Follow requests
 
 ## Account
 

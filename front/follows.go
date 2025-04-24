@@ -71,7 +71,7 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 	defer rows.Close()
 
 	w.OK()
-	w.Title("⚡ Followed Users")
+	w.Title("⚡ Followed")
 
 	i := 0
 	var lastDay sql.NullInt64

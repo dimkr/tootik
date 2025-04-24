@@ -15,9 +15,15 @@ This page shows posts by followed users.
 
 This page shows posts by followed users that mention you.
 
-> ⚡️ Followed users
+> ⚡️ Follows
 
 This page shows a list of users you follow, sorted by last activity.
+
+> 🐕 Follower
+
+This page shows a list of users that follow you.
+
+By default, incoming follow requests are approved automatically on your behalf. This page allows you to enable manual approval of follow requests and reject previously approved requests.
 
 > 😈 My profile
 
