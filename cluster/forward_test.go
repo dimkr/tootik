@@ -34,17 +34,17 @@ func TestCluster_ReplyForwarding(t *testing.T) {
 		FollowInput("🔭 View profile", "bob@a.localdomain").
 		Follow("⚡ Follow bob").
 		OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	post := bob.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "hello").
 		OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	reply := alice.GotoInput(post.Links["💬 Reply"], "hi").
 		Contains(Line{Type: Quote, Text: "hi"})
-	cluster.Settle()
+	cluster.Settle(t)
 
 	bob = bob.
 		FollowInput("🔭 View profile", "alice@b.localdomain").
@@ -57,7 +57,7 @@ func TestCluster_ReplyForwarding(t *testing.T) {
 		Contains(Line{Type: Quote, Text: "hi"})
 
 	reply.FollowInput("🩹 Edit", "hola").OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	bob.
 		Refresh().
@@ -70,7 +70,7 @@ func TestCluster_ReplyForwarding(t *testing.T) {
 		Contains(Line{Type: Quote, Text: "hola"})
 
 	reply.Follow("💣 Delete").OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	bob.
 		Refresh().

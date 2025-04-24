@@ -17,7 +17,6 @@ limitations under the License.
 package cluster
 
 import (
-	"context"
 	"testing"
 
 	"github.com/dimkr/tootik/fed"
@@ -40,7 +39,7 @@ func TestCluster_FollowersSyncMissingRemoteFollow(t *testing.T) {
 		FollowInput("🔭 View profile", "bob@b.localdomain").
 		Follow("⚡ Follow bob").
 		OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	// delete the Follow in b.localdomain
 	if _, err := cluster["b.localdomain"].DB.Exec(`delete from follows where follower = 'https://a.localdomain/user/alice'`); err != nil {
@@ -52,7 +51,7 @@ func TestCluster_FollowersSyncMissingRemoteFollow(t *testing.T) {
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "hello").
 		OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	var exists int
 	if err := cluster["a.localdomain"].DB.QueryRow(`select exists (select 1 from follows where follower = 'https://a.localdomain/user/alice' and followed = 'https://b.localdomain/user/bob' and accepted = 1)`).Scan(&exists); err != nil {
@@ -69,10 +68,10 @@ func TestCluster_FollowersSyncMissingRemoteFollow(t *testing.T) {
 		Resolver: cluster["a.localdomain"].Resolver,
 		Key:      cluster["a.localdomain"].NobodyKey,
 	}
-	if _, err := syncer.ProcessBatch(context.Background()); err != nil {
+	if _, err := syncer.ProcessBatch(t.Context()); err != nil {
 		t.Fatalf("Failed to synchronize followers: %v", err)
 	}
-	cluster.Settle()
+	cluster.Settle(t)
 
 	if err := cluster["a.localdomain"].DB.QueryRow(`select exists (select 1 from follows where follower = 'https://a.localdomain/user/alice' and followed = 'https://b.localdomain/user/bob' and accepted = 1)`).Scan(&exists); err != nil {
 		t.Fatalf("Failed to check if follow was removed: %v", err)
@@ -99,7 +98,7 @@ func TestCluster_FollowersSyncMissingLocalFollow(t *testing.T) {
 		FollowInput("🔭 View profile", "bob@b.localdomain").
 		Follow("⚡ Follow bob").
 		OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	// delete one Follow in a.localdomain
 	if _, err := cluster["a.localdomain"].DB.Exec(`delete from follows where follower = 'https://a.localdomain/user/alice'`); err != nil {
@@ -111,7 +110,7 @@ func TestCluster_FollowersSyncMissingLocalFollow(t *testing.T) {
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "hello").
 		OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	var exists int
 	if err := cluster["b.localdomain"].DB.QueryRow(`select exists (select 1 from follows where follower = 'https://a.localdomain/user/alice' and followed = 'https://b.localdomain/user/bob' and accepted = 1)`).Scan(&exists); err != nil {
@@ -128,10 +127,10 @@ func TestCluster_FollowersSyncMissingLocalFollow(t *testing.T) {
 		Resolver: cluster["a.localdomain"].Resolver,
 		Key:      cluster["a.localdomain"].NobodyKey,
 	}
-	if _, err := syncer.ProcessBatch(context.Background()); err != nil {
+	if _, err := syncer.ProcessBatch(t.Context()); err != nil {
 		t.Fatalf("Failed to synchronize followers: %v", err)
 	}
-	cluster.Settle()
+	cluster.Settle(t)
 
 	if err := cluster["b.localdomain"].DB.QueryRow(`select exists (select 1 from follows where follower = 'https://a.localdomain/user/alice' and followed = 'https://b.localdomain/user/bob' and accepted = 1)`).Scan(&exists); err != nil {
 		t.Fatalf("Failed to check if follow was removed: %v", err)

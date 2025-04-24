@@ -17,7 +17,6 @@ limitations under the License.
 package cluster
 
 import (
-	"context"
 	"testing"
 
 	"github.com/dimkr/tootik/outbox"
@@ -39,13 +38,13 @@ func TestCluster_Poll(t *testing.T) {
 		FollowInput("🔭 View profile", "bob@b.localdomain").
 		Follow("⚡ Follow bob").
 		OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	poll := bob.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "[POLL Favorite color] Gray | Orange").
 		OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	bob = poll.Follow("📮 Vote Orange").OK()
 	alice = alice.
@@ -54,17 +53,17 @@ func TestCluster_Poll(t *testing.T) {
 	carol = carol.
 		Goto(poll.Links["📮 Vote Gray"]).
 		OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	poller := outbox.Poller{
 		Domain: "b.localdomain",
 		DB:     cluster["b.localdomain"].DB,
 		Config: cluster["b.localdomain"].Config,
 	}
-	if err := poller.Run(context.Background()); err != nil {
+	if err := poller.Run(t.Context()); err != nil {
 		t.Fatalf("Failed to process votes: %v", err)
 	}
-	cluster.Settle()
+	cluster.Settle(t)
 
 	bob.
 		Goto(poll.Path).
@@ -80,11 +79,11 @@ func TestCluster_Poll(t *testing.T) {
 		Contains(Line{Type: Preformatted, Text: "1 ████     Orange"})
 
 	alice.Follow("💣 Delete").OK()
-	cluster.Settle()
-	if err := poller.Run(context.Background()); err != nil {
+	cluster.Settle(t)
+	if err := poller.Run(t.Context()); err != nil {
 		t.Fatalf("Failed to process votes: %v", err)
 	}
-	cluster.Settle()
+	cluster.Settle(t)
 
 	bob.
 		Goto(poll.Path).
@@ -100,11 +99,11 @@ func TestCluster_Poll(t *testing.T) {
 		Contains(Line{Type: Preformatted, Text: "1 ████████ Orange"})
 
 	carol.Follow("💣 Delete").OK()
-	cluster.Settle()
-	if err := poller.Run(context.Background()); err != nil {
+	cluster.Settle(t)
+	if err := poller.Run(t.Context()); err != nil {
 		t.Fatalf("Failed to process votes: %v", err)
 	}
-	cluster.Settle()
+	cluster.Settle(t)
 
 	bob.
 		Goto(poll.Path).
@@ -122,11 +121,11 @@ func TestCluster_Poll(t *testing.T) {
 	bob.
 		Follow("💣 Delete").
 		OK()
-	cluster.Settle()
-	if err := poller.Run(context.Background()); err != nil {
+	cluster.Settle(t)
+	if err := poller.Run(t.Context()); err != nil {
 		t.Fatalf("Failed to process votes: %v", err)
 	}
-	cluster.Settle()
+	cluster.Settle(t)
 
 	bob.
 		Goto(poll.Path).

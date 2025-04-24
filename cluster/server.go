@@ -247,7 +247,7 @@ func (s *Server) handle(cert tls.Certificate, path, input string, redirects int)
 		s.Test.Fatalf("Failed to send request: %v", err)
 	}
 
-	s.Frontend.Handle(context.Background(), serverTlsConn)
+	s.Frontend.Handle(s.Test.Context(), serverTlsConn)
 
 	serverTlsConn.Close()
 
@@ -256,7 +256,7 @@ func (s *Server) handle(cert tls.Certificate, path, input string, redirects int)
 		s.Test.Fatalf("Failed to read response: %v", err)
 	}
 
-	if _, err := s.Outgoing.ProcessBatch(context.Background()); err != nil {
+	if _, err := s.Outgoing.ProcessBatch(s.Test.Context()); err != nil {
 		s.Test.Fatalf("Failed to process outgoing activities queue: %v", err)
 	}
 
