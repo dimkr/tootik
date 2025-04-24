@@ -185,7 +185,7 @@ func TestCluster_PostToFollowers_DisabledThenAccepted(t *testing.T) {
 	carol.
 		Follow("🐕 Followers").
 		Follow("🔓 Approve new follow requests automatically").
-		Contains(Line{Type: Link, Text: "🔒 Approve new follow requests manually", URL: "/users/followers/lock"}).
+		Contains(Line{Type: Link, Text: "🔒 Approve new follow requests manually", URL: "/users/followers?lock"}).
 		Contains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
 		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"})
 	cluster.Settle()
@@ -284,7 +284,7 @@ func TestCluster_PostToFollowers_ApprovedLocally(t *testing.T) {
 		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"}).
 		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/carol"}).
 		NotContains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/carol"}).
-		Contains(Line{Type: Link, Text: "🔒 Approve new follow requests manually", URL: "/users/followers/lock"})
+		Contains(Line{Type: Link, Text: "🔒 Approve new follow requests manually", URL: "/users/followers?lock"})
 
 	carol.
 		FollowInput("🔭 View profile", "bob@a.localdomain").
