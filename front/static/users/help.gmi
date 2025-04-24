@@ -19,7 +19,7 @@ This page shows posts by followed users that mention you.
 
 This page shows a list of users you follow, sorted by last activity.
 
-> 🐕 Follower
+> 🐕 Followers
 
 This page shows a list of users that follow you.
 
