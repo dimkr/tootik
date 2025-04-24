@@ -47,7 +47,7 @@ func TestCluster_PostToFollowers_Approved(t *testing.T) {
 	carol.
 		Follow("🐕 Followers").
 		Follow("🔒 Approve new follow requests manually").
-		Contains(Line{Type: Link, Text: "🔓 Approve new follow requests automatically", URL: "/users/follows/pending?disable"}).
+		Contains(Line{Type: Link, Text: "🔓 Approve new follow requests automatically", URL: "/users/followers?unlock"}).
 		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
 		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"})
 
@@ -117,7 +117,7 @@ func TestCluster_PostToFollowers_Rejected(t *testing.T) {
 	carol.
 		Follow("🐕 Followers").
 		Follow("🔒 Approve new follow requests manually").
-		Contains(Line{Type: Link, Text: "🔓 Approve new follow requests automatically", URL: "/users/follows/pending?disable"}).
+		Contains(Line{Type: Link, Text: "🔓 Approve new follow requests automatically", URL: "/users/followers?unlock"}).
 		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
 		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"})
 
@@ -172,7 +172,7 @@ func TestCluster_PostToFollowers_DisabledThenAccepted(t *testing.T) {
 		Follow("🐕 Followers").
 		Follow("🔒 Approve new follow requests manually").
 		Contains(Line{Type: Text, Text: "No follow requests."}).
-		Contains(Line{Type: Link, Text: "🔓 Approve new follow requests automatically", URL: "/users/follows/pending?disable"})
+		Contains(Line{Type: Link, Text: "🔓 Approve new follow requests automatically", URL: "/users/followers?unlock"})
 
 	alice.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
@@ -185,7 +185,7 @@ func TestCluster_PostToFollowers_DisabledThenAccepted(t *testing.T) {
 	carol.
 		Follow("🐕 Followers").
 		Follow("🔓 Approve new follow requests automatically").
-		Contains(Line{Type: Link, Text: "🔒 Approve new follow requests manually", URL: "/users/follows/pending?enable"}).
+		Contains(Line{Type: Link, Text: "🔒 Approve new follow requests manually", URL: "/users/followers/lock"}).
 		Contains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
 		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"})
 	cluster.Settle()
@@ -243,7 +243,7 @@ func TestCluster_PostToFollowers_ApprovedLocally(t *testing.T) {
 		Follow("🐕 Followers").
 		Follow("🔒 Approve new follow requests manually").
 		Contains(Line{Type: Text, Text: "No follow requests."}).
-		Contains(Line{Type: Link, Text: "🔓 Approve new follow requests automatically", URL: "/users/follows/pending?disable"})
+		Contains(Line{Type: Link, Text: "🔓 Approve new follow requests automatically", URL: "/users/followers?unlock"})
 
 	alice.
 		FollowInput("🔭 View profile", "bob@a.localdomain").
@@ -284,7 +284,7 @@ func TestCluster_PostToFollowers_ApprovedLocally(t *testing.T) {
 		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"}).
 		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/carol"}).
 		NotContains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/carol"}).
-		Contains(Line{Type: Link, Text: "🔒 Approve new follow requests manually", URL: "/users/follows/pending?enable"})
+		Contains(Line{Type: Link, Text: "🔒 Approve new follow requests manually", URL: "/users/followers/lock"})
 
 	carol.
 		FollowInput("🔭 View profile", "bob@a.localdomain").
@@ -309,7 +309,7 @@ func TestCluster_PostToFollowers_RejectedLocally(t *testing.T) {
 		Follow("🐕 Followers").
 		Follow("🔒 Approve new follow requests manually").
 		Contains(Line{Type: Text, Text: "No follow requests."}).
-		Contains(Line{Type: Link, Text: "🔓 Approve new follow requests automatically", URL: "/users/follows/pending?disable"})
+		Contains(Line{Type: Link, Text: "🔓 Approve new follow requests automatically", URL: "/users/followers?unlock"})
 
 	alice.
 		FollowInput("🔭 View profile", "bob@a.localdomain").
