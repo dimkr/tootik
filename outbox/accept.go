@@ -59,11 +59,10 @@ func Accept(ctx context.Context, domain string, followed, follower, followID str
 
 	if res, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO follows (id, follower, followed, accepted) VALUES($1, $2, $3, $4) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = 1`,
+		`INSERT INTO follows (id, follower, followed, accepted) VALUES($1, $2, $3, 1) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = 1, inserted = UNIXEPOCH()`,
 		followID,
 		follower,
 		followed,
-		1,
 	); err != nil {
 		return fmt.Errorf("failed to accept %s: %w", followID, err)
 	} else if n, err := res.RowsAffected(); err != nil {

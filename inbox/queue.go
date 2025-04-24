@@ -275,7 +275,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 			if _, err := q.DB.ExecContext(
 				ctx,
-				`INSERT INTO follows (id, follower, followed) VALUES(?, ?, ?) ON CONFLICT(follower, followed) DO UPDATE SET id = ?`,
+				`INSERT INTO follows (id, follower, followed) VALUES(?, ?, ?) ON CONFLICT(follower, followed) DO UPDATE SET id = ?, inserted = UNIXEPOCH()`,
 				activity.ID,
 				activity.Actor,
 				followed,
