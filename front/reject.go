@@ -43,7 +43,7 @@ func (h *Handler) reject(w text.Writer, r *Request, args ...string) {
 	var followID string
 	if err := tx.QueryRowContext(
 		r.Context,
-		`SELECT id FROM follows WHERE follower = ? and followed = ?`,
+		`SELECT id FROM follows WHERE follower = ? AND followed = ?`,
 		follower,
 		r.User.ID,
 	).Scan(&followID); errors.Is(err, sql.ErrNoRows) {
