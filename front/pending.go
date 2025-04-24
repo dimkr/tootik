@@ -148,8 +148,8 @@ func (h *Handler) pending(w text.Writer, r *Request, args ...string) {
 	w.Empty()
 
 	if r.User.ManuallyApprovesFollowers {
-		w.Link("/users/follows/pending?disable", "🔒 Approve follow requests automatically")
+		w.Link("/users/follows/pending?disable", "🔓 Approve new follow requests automatically")
 	} else {
-		w.Link("/users/follows/pending?enable", "🔓 Approve follow requests manually")
+		w.Link("/users/follows/pending?enable", "🔒 Approve new follow requests manually")
 	}
 }

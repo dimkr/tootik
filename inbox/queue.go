@@ -275,11 +275,10 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 			if _, err := q.DB.ExecContext(
 				ctx,
-				`INSERT INTO follows (id, follower, followed) VALUES(?, ?, ?) ON CONFLICT(follower, followed) DO UPDATE SET id = ?, inserted = UNIXEPOCH()`,
+				`INSERT INTO follows (id, follower, followed) VALUES($1, $2, $3) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = NULL, inserted = UNIXEPOCH()`,
 				activity.ID,
 				activity.Actor,
 				followed,
-				activity.ID,
 			); err != nil {
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}

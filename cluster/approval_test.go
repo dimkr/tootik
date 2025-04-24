@@ -47,8 +47,8 @@ func TestCluster_PostToFollowers_Approved(t *testing.T) {
 	carol.
 		Follow("⚙️ Settings").
 		Follow("⏳ Follow requests").
-		Follow("🔓 Approve follow requests manually").
-		Contains(Line{Type: Link, Text: "🔒 Approve follow requests automatically", URL: "/users/follows/pending?disable"}).
+		Follow("🔒 Approve new follow requests manually").
+		Contains(Line{Type: Link, Text: "🔓 Approve new follow requests automatically", URL: "/users/follows/pending?disable"}).
 		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/follows/accept/a.localdomain/user/alice"}).
 		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/follows/reject/a.localdomain/user/alice"})
 
@@ -119,8 +119,8 @@ func TestCluster_PostToFollowers_Rejected(t *testing.T) {
 	carol.
 		Follow("⚙️ Settings").
 		Follow("⏳ Follow requests").
-		Follow("🔓 Approve follow requests manually").
-		Contains(Line{Type: Link, Text: "🔒 Approve follow requests automatically", URL: "/users/follows/pending?disable"}).
+		Follow("🔒 Approve new follow requests manually").
+		Contains(Line{Type: Link, Text: "🔓 Approve new follow requests automatically", URL: "/users/follows/pending?disable"}).
 		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/follows/accept/a.localdomain/user/alice"}).
 		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/follows/reject/a.localdomain/user/alice"})
 
@@ -175,9 +175,9 @@ func TestCluster_PostToFollowers_DisabledThenAccepted(t *testing.T) {
 	carol.
 		Follow("⚙️ Settings").
 		Follow("⏳ Follow requests").
-		Follow("🔓 Approve follow requests manually").
+		Follow("🔒 Approve new follow requests manually").
 		Contains(Line{Type: Text, Text: "No follow requests."}).
-		Contains(Line{Type: Link, Text: "🔒 Approve follow requests automatically", URL: "/users/follows/pending?disable"})
+		Contains(Line{Type: Link, Text: "🔓 Approve new follow requests automatically", URL: "/users/follows/pending?disable"})
 
 	alice.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
@@ -190,8 +190,8 @@ func TestCluster_PostToFollowers_DisabledThenAccepted(t *testing.T) {
 	carol.
 		Follow("⚙️ Settings").
 		Follow("⏳ Follow requests").
-		Follow("🔒 Approve follow requests automatically").
-		Contains(Line{Type: Link, Text: "🔓 Approve follow requests manually", URL: "/users/follows/pending?enable"}).
+		Follow("🔓 Approve new follow requests automatically").
+		Contains(Line{Type: Link, Text: "🔒 Approve new follow requests manually", URL: "/users/follows/pending?enable"}).
 		Contains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/follows/accept/a.localdomain/user/alice"}).
 		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/follows/reject/a.localdomain/user/alice"})
 	cluster.Settle()
@@ -249,9 +249,9 @@ func TestCluster_PostToFollowers_ApprovedLocally(t *testing.T) {
 	bob.
 		Follow("⚙️ Settings").
 		Follow("⏳ Follow requests").
-		Follow("🔓 Approve follow requests manually").
+		Follow("🔒 Approve new follow requests manually").
 		Contains(Line{Type: Text, Text: "No follow requests."}).
-		Contains(Line{Type: Link, Text: "🔒 Approve follow requests automatically", URL: "/users/follows/pending?disable"})
+		Contains(Line{Type: Link, Text: "🔓 Approve new follow requests automatically", URL: "/users/follows/pending?disable"})
 
 	alice.
 		FollowInput("🔭 View profile", "bob@a.localdomain").
@@ -289,12 +289,12 @@ func TestCluster_PostToFollowers_ApprovedLocally(t *testing.T) {
 	bob.
 		Follow("⚙️ Settings").
 		Follow("⏳ Follow requests").
-		Follow("🔒 Approve follow requests automatically").
+		Follow("🔓 Approve new follow requests automatically").
 		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/follows/accept/a.localdomain/user/alice"}).
 		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/follows/reject/a.localdomain/user/alice"}).
 		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/follows/accept/a.localdomain/user/carol"}).
 		NotContains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/follows/reject/a.localdomain/user/carol"}).
-		Contains(Line{Type: Link, Text: "🔓 Approve follow requests manually", URL: "/users/follows/pending?enable"})
+		Contains(Line{Type: Link, Text: "🔒 Approve new follow requests manually", URL: "/users/follows/pending?enable"})
 
 	carol.
 		FollowInput("🔭 View profile", "bob@a.localdomain").
@@ -318,9 +318,9 @@ func TestCluster_PostToFollowers_RejectedLocally(t *testing.T) {
 	bob.
 		Follow("⚙️ Settings").
 		Follow("⏳ Follow requests").
-		Follow("🔓 Approve follow requests manually").
+		Follow("🔒 Approve new follow requests manually").
 		Contains(Line{Type: Text, Text: "No follow requests."}).
-		Contains(Line{Type: Link, Text: "🔒 Approve follow requests automatically", URL: "/users/follows/pending?disable"})
+		Contains(Line{Type: Link, Text: "🔓 Approve new follow requests automatically", URL: "/users/follows/pending?disable"})
 
 	alice.
 		FollowInput("🔭 View profile", "bob@a.localdomain").
@@ -385,7 +385,7 @@ func TestCluster_PostToFollowers_AcceptTwice(t *testing.T) {
 	alice.
 		Follow("⚙️ Settings").
 		Follow("⏳ Follow requests").
-		Follow("🔓 Approve follow requests manually").
+		Follow("🔒 Approve new follow requests manually").
 		OK()
 
 	bob.
@@ -418,7 +418,7 @@ func TestCluster_PostToFollowers_RejectTwice(t *testing.T) {
 	alice.
 		Follow("⚙️ Settings").
 		Follow("⏳ Follow requests").
-		Follow("🔓 Approve follow requests manually").
+		Follow("🔒 Approve new follow requests manually").
 		OK()
 
 	bob.
@@ -451,7 +451,7 @@ func TestCluster_PostToFollowers_AcceptThenReject(t *testing.T) {
 	alice.
 		Follow("⚙️ Settings").
 		Follow("⏳ Follow requests").
-		Follow("🔓 Approve follow requests manually").
+		Follow("🔒 Approve new follow requests manually").
 		OK()
 
 	bob.
@@ -471,7 +471,7 @@ func TestCluster_PostToFollowers_AcceptThenReject(t *testing.T) {
 
 	pending.
 		Follow("🔴 Reject").
-		Error("40 No such follow request")
+		OK()
 }
 
 func TestCluster_PostToFollowers_RejectThenAccept(t *testing.T) {
@@ -484,7 +484,7 @@ func TestCluster_PostToFollowers_RejectThenAccept(t *testing.T) {
 	alice.
 		Follow("⚙️ Settings").
 		Follow("⏳ Follow requests").
-		Follow("🔓 Approve follow requests manually").
+		Follow("🔒 Approve new follow requests manually").
 		OK()
 
 	bob.
