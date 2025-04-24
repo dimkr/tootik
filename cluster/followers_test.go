@@ -32,7 +32,7 @@ func TestCluster_PostToFollowers_Approved(t *testing.T) {
 		OK().
 		Follow("⚡️ Follows").
 		Contains(Line{Type: Link, Text: "👽 carol (carol@b.localdomain) - pending approval", URL: "/users/outbox/b.localdomain/user/carol"})
-	cluster.Settle()
+	cluster.Settle(t)
 
 	alice.
 		Follow("⚡️ Follows").
@@ -42,7 +42,7 @@ func TestCluster_PostToFollowers_Approved(t *testing.T) {
 		Follow("📣 New post").
 		FollowInput("🔔 Your followers and mentioned users", "hello").
 		Contains(Line{Type: Quote, Text: "hello"})
-	cluster.Settle()
+	cluster.Settle(t)
 
 	carol.
 		Follow("🐕 Followers").
@@ -63,7 +63,7 @@ func TestCluster_PostToFollowers_Approved(t *testing.T) {
 		NotContains(Line{Type: Quote, Text: "hello"}).
 		Follow("⚡️ Follows").
 		Contains(Line{Type: Link, Text: "👽 carol (carol@b.localdomain) - pending approval", URL: "/users/outbox/b.localdomain/user/carol"})
-	cluster.Settle()
+	cluster.Settle(t)
 
 	bob.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
@@ -78,7 +78,7 @@ func TestCluster_PostToFollowers_Approved(t *testing.T) {
 		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"}).
 		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/bob"}).
 		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/bob"})
-	cluster.Settle()
+	cluster.Settle(t)
 
 	bob.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
@@ -102,7 +102,7 @@ func TestCluster_PostToFollowers_Rejected(t *testing.T) {
 		OK().
 		Follow("⚡️ Follows").
 		Contains(Line{Type: Link, Text: "👽 carol (carol@b.localdomain) - pending approval", URL: "/users/outbox/b.localdomain/user/carol"})
-	cluster.Settle()
+	cluster.Settle(t)
 
 	alice.
 		Follow("⚡️ Follows").
@@ -112,7 +112,7 @@ func TestCluster_PostToFollowers_Rejected(t *testing.T) {
 		Follow("📣 New post").
 		FollowInput("🔔 Your followers and mentioned users", "hello").
 		Contains(Line{Type: Quote, Text: "hello"})
-	cluster.Settle()
+	cluster.Settle(t)
 
 	carol.
 		Follow("🐕 Followers").
@@ -133,7 +133,7 @@ func TestCluster_PostToFollowers_Rejected(t *testing.T) {
 		NotContains(Line{Type: Quote, Text: "hello"}).
 		Follow("⚡️ Follows").
 		Contains(Line{Type: Link, Text: "👽 carol (carol@b.localdomain) - pending approval", URL: "/users/outbox/b.localdomain/user/carol"})
-	cluster.Settle()
+	cluster.Settle(t)
 
 	bob.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
@@ -148,7 +148,7 @@ func TestCluster_PostToFollowers_Rejected(t *testing.T) {
 		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"}).
 		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/bob"}).
 		NotContains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/bob"})
-	cluster.Settle()
+	cluster.Settle(t)
 
 	bob.
 		Follow("⚡️ Follows").
@@ -180,7 +180,7 @@ func TestCluster_PostToFollowers_DisabledThenAccepted(t *testing.T) {
 		OK().
 		Follow("⚡️ Follows").
 		Contains(Line{Type: Link, Text: "👽 carol (carol@b.localdomain) - pending approval", URL: "/users/outbox/b.localdomain/user/carol"})
-	cluster.Settle()
+	cluster.Settle(t)
 
 	carol.
 		Follow("🐕 Followers").
@@ -188,7 +188,7 @@ func TestCluster_PostToFollowers_DisabledThenAccepted(t *testing.T) {
 		Contains(Line{Type: Link, Text: "🔒 Approve new follow requests manually", URL: "/users/followers?lock"}).
 		Contains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
 		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"})
-	cluster.Settle()
+	cluster.Settle(t)
 
 	alice.
 		Follow("⚡️ Follows").
@@ -200,7 +200,7 @@ func TestCluster_PostToFollowers_DisabledThenAccepted(t *testing.T) {
 		OK().
 		Follow("⚡️ Follows").
 		Contains(Line{Type: Link, Text: "👽 carol (carol@b.localdomain) - pending approval", URL: "/users/outbox/b.localdomain/user/carol"})
-	cluster.Settle()
+	cluster.Settle(t)
 
 	bob.
 		Follow("⚡️ Follows").
@@ -210,7 +210,7 @@ func TestCluster_PostToFollowers_DisabledThenAccepted(t *testing.T) {
 		Follow("📣 New post").
 		FollowInput("🔔 Your followers and mentioned users", "hello").
 		Contains(Line{Type: Quote, Text: "hello"})
-	cluster.Settle()
+	cluster.Settle(t)
 
 	alice.
 		Follow("📻 My feed").
@@ -224,7 +224,7 @@ func TestCluster_PostToFollowers_DisabledThenAccepted(t *testing.T) {
 		Follow("🟢 Accept").
 		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
 		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"})
-	cluster.Settle()
+	cluster.Settle(t)
 
 	alice.
 		Follow("📻 My feed").
@@ -267,7 +267,7 @@ func TestCluster_PostToFollowers_ApprovedLocally(t *testing.T) {
 		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
 		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"})
 
-	cluster.Settle()
+	cluster.Settle(t)
 
 	alice.
 		Follow("📻 My feed").
@@ -290,7 +290,7 @@ func TestCluster_PostToFollowers_ApprovedLocally(t *testing.T) {
 		FollowInput("🔭 View profile", "bob@a.localdomain").
 		Follow("⚡ Follow bob").
 		OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	carol.
 		Follow("📻 My feed").
@@ -333,7 +333,7 @@ func TestCluster_PostToFollowers_RejectedLocally(t *testing.T) {
 		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
 		NotContains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"})
 
-	cluster.Settle()
+	cluster.Settle(t)
 
 	alice.
 		Follow("📻 My feed").
@@ -355,7 +355,7 @@ func TestCluster_PostToFollowers_RejectedLocally(t *testing.T) {
 		NotContains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"}).
 		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/carol"}).
 		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/carol"})
-	cluster.Settle()
+	cluster.Settle(t)
 
 	carol.
 		Follow("📻 My feed").
@@ -378,7 +378,7 @@ func TestCluster_PostToFollowers_AcceptTwice(t *testing.T) {
 		FollowInput("🔭 View profile", "alice@a.localdomain").
 		Follow("⚡ Follow alice (requires approval)").
 		OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	pending := alice.
 		Follow("🐕 Followers").
@@ -409,7 +409,7 @@ func TestCluster_PostToFollowers_RejectTwice(t *testing.T) {
 		FollowInput("🔭 View profile", "alice@a.localdomain").
 		Follow("⚡ Follow alice (requires approval)").
 		OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	pending := alice.
 		Follow("🐕 Followers").
@@ -440,7 +440,7 @@ func TestCluster_PostToFollowers_AcceptThenReject(t *testing.T) {
 		FollowInput("🔭 View profile", "alice@a.localdomain").
 		Follow("⚡ Follow alice (requires approval)").
 		OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	pending := alice.
 		Follow("🐕 Followers").
@@ -471,7 +471,7 @@ func TestCluster_PostToFollowers_RejectThenAccept(t *testing.T) {
 		FollowInput("🔭 View profile", "alice@a.localdomain").
 		Follow("⚡ Follow alice (requires approval)").
 		OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	pending := alice.
 		Follow("🐕 Followers").
