@@ -68,5 +68,5 @@ func (h *Handler) reject(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.Redirect("/users/follows/pending")
+	w.Redirect("/users/followers")
 }
