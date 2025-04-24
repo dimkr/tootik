@@ -65,7 +65,7 @@ func Accept(ctx context.Context, domain string, followed, follower, followID str
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO follows (id, follower, followed, accepted) VALUES(?,?,?,?) ON CONFLICT(follower, followed) DO UPDATE SET accepted = 1`,
+		`INSERT INTO follows (id, follower, followed, accepted) VALUES($1, $2, $3, $4) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = 1`,
 		followID,
 		follower,
 		followed,

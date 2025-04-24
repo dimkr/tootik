@@ -275,10 +275,11 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 			if _, err := q.DB.ExecContext(
 				ctx,
-				`INSERT OR IGNORE INTO follows (id, follower, followed) VALUES(?, ?, ?)`,
+				`INSERT INTO follows (id, follower, followed) VALUES(?, ?, ?) ON CONFLICT(follower, followed) DO UPDATE SET id = ?`,
 				activity.ID,
 				activity.Actor,
 				followed,
+				activity.ID,
 			); err != nil {
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
