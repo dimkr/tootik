@@ -38,18 +38,18 @@ func TestCluster_ShareUnshare(t *testing.T) {
 		FollowInput("🔭 View profile", "alice@a.localdomain").
 		Follow("⚡ Follow alice").
 		OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	post := bob.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "hello").
 		OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	share := alice.Goto(post.Path).
 		Follow("🔁 Share").
 		OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	bob = bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
@@ -62,7 +62,7 @@ func TestCluster_ShareUnshare(t *testing.T) {
 		Contains(Line{Type: Quote, Text: "hello"})
 
 	share.Follow("🔄️ Unshare").OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").

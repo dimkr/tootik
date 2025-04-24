@@ -32,13 +32,13 @@ func TestCluster_PublicPost(t *testing.T) {
 		FollowInput("🔭 View profile", "carol@b.localdomain").
 		Follow("⚡ Follow carol").
 		OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	post := carol.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "hello").
 		Contains(Line{Type: Quote, Text: "hello"})
-	cluster.Settle()
+	cluster.Settle(t)
 
 	alice = alice.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
@@ -49,7 +49,7 @@ func TestCluster_PublicPost(t *testing.T) {
 
 	post.FollowInput("🩹 Edit", "hola").
 		Contains(Line{Type: Quote, Text: "hola"})
-	cluster.Settle()
+	cluster.Settle(t)
 
 	alice.
 		Refresh().
@@ -59,7 +59,7 @@ func TestCluster_PublicPost(t *testing.T) {
 		Contains(Line{Type: Quote, Text: "hola"})
 
 	post.Follow("💣 Delete").OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	alice.
 		Refresh().
@@ -81,13 +81,13 @@ func TestCluster_PostToFollowers(t *testing.T) {
 		FollowInput("🔭 View profile", "carol@b.localdomain").
 		Follow("⚡ Follow carol").
 		OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	post := carol.
 		Follow("📣 New post").
 		FollowInput("🔔 Your followers and mentioned users", "hello").
 		Contains(Line{Type: Quote, Text: "hello"})
-	cluster.Settle()
+	cluster.Settle(t)
 
 	alice = alice.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
@@ -98,7 +98,7 @@ func TestCluster_PostToFollowers(t *testing.T) {
 		NotContains(Line{Type: Quote, Text: "hello"})
 
 	post.FollowInput("🩹 Edit", "hola").OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	alice.Refresh().
 		Contains(Line{Type: Quote, Text: "hola"})
@@ -106,7 +106,7 @@ func TestCluster_PostToFollowers(t *testing.T) {
 		NotContains(Line{Type: Quote, Text: "hola"})
 
 	post.Follow("💣 Delete").OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	alice.Refresh().
 		NotContains(Line{Type: Quote, Text: "hola"})
@@ -127,7 +127,7 @@ func TestCluster_DM(t *testing.T) {
 		Follow("📣 New post").
 		FollowInput("💌 Mentioned users only", "@alice@a.localdomain hello").
 		Contains(Line{Type: Quote, Text: "@alice@a.localdomain hello"})
-	cluster.Settle()
+	cluster.Settle(t)
 
 	alice = alice.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
@@ -137,7 +137,7 @@ func TestCluster_DM(t *testing.T) {
 		NotContains(Line{Type: Quote, Text: "@alice@a.localdomain hello"})
 
 	post.FollowInput("🩹 Edit", "hola").OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	alice.Refresh().
 		Contains(Line{Type: Quote, Text: "hola"})
@@ -145,7 +145,7 @@ func TestCluster_DM(t *testing.T) {
 		NotContains(Line{Type: Quote, Text: "hola"})
 
 	post.Follow("💣 Delete").OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	alice.Refresh().
 		NotContains(Line{Type: Quote, Text: "hola"})

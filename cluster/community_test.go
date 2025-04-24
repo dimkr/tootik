@@ -17,7 +17,6 @@ limitations under the License.
 package cluster
 
 import (
-	"context"
 	"testing"
 
 	"github.com/dimkr/tootik/ap"
@@ -28,7 +27,7 @@ func TestCluster_PostInCommunity(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "g.localdomain")
 	defer cluster.Stop()
 
-	if _, _, err := user.Create(context.Background(), "g.localdomain", cluster["g.localdomain"].DB, "stuff", ap.Group, nil); err != nil {
+	if _, _, err := user.Create(t.Context(), "g.localdomain", cluster["g.localdomain"].DB, "stuff", ap.Group, nil); err != nil {
 		t.Fatal("Failed to create community")
 	}
 
@@ -45,13 +44,13 @@ func TestCluster_PostInCommunity(t *testing.T) {
 		FollowInput("🔭 View profile", "stuff@g.localdomain").
 		Follow("⚡ Follow stuff").
 		OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	post := carol.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "@stuff@g.localdomain hello").
 		Contains(Line{Type: Quote, Text: "@stuff@g.localdomain hello"})
-	cluster.Settle()
+	cluster.Settle(t)
 
 	alice.
 		Refresh().
@@ -64,7 +63,7 @@ func TestCluster_PostInCommunity(t *testing.T) {
 		Contains(Line{Type: Quote, Text: "@stuff@g.localdomain hello"})
 
 	post.FollowInput("🩹 Edit", "hola").OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	alice.
 		Refresh().
@@ -77,7 +76,7 @@ func TestCluster_PostInCommunity(t *testing.T) {
 		Contains(Line{Type: Quote, Text: "hola"})
 
 	post.Follow("💣 Delete").OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	alice.
 		Refresh().
@@ -94,7 +93,7 @@ func TestCluster_ReplyInCommunity(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "g.localdomain")
 	defer cluster.Stop()
 
-	if _, _, err := user.Create(context.Background(), "g.localdomain", cluster["g.localdomain"].DB, "stuff", ap.Group, nil); err != nil {
+	if _, _, err := user.Create(t.Context(), "g.localdomain", cluster["g.localdomain"].DB, "stuff", ap.Group, nil); err != nil {
 		t.Fatal("Failed to create community")
 	}
 
@@ -111,18 +110,18 @@ func TestCluster_ReplyInCommunity(t *testing.T) {
 		FollowInput("🔭 View profile", "stuff@g.localdomain").
 		Follow("⚡ Follow stuff").
 		OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	post := carol.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "@stuff@g.localdomain hello").
 		Contains(Line{Type: Quote, Text: "@stuff@g.localdomain hello"})
-	cluster.Settle()
+	cluster.Settle(t)
 
 	reply := alice.
 		GotoInput(post.Links["💬 Reply"], "hi").
 		Contains(Line{Type: Quote, Text: "hi"})
-	cluster.Settle()
+	cluster.Settle(t)
 
 	alice.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
@@ -135,7 +134,7 @@ func TestCluster_ReplyInCommunity(t *testing.T) {
 		Contains(Line{Type: Quote, Text: "hi"})
 
 	reply.FollowInput("🩹 Edit", "hola").OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	alice.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
@@ -148,7 +147,7 @@ func TestCluster_ReplyInCommunity(t *testing.T) {
 		Contains(Line{Type: Quote, Text: "hola"})
 
 	reply.Follow("💣 Delete").OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	alice.
 		FollowInput("🔭 View profile", "alice@a.localdomain").

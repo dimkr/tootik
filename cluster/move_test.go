@@ -17,7 +17,6 @@ limitations under the License.
 package cluster
 
 import (
-	"context"
 	"testing"
 
 	"github.com/dimkr/tootik/outbox"
@@ -35,7 +34,7 @@ func TestCluster_MovedAccount(t *testing.T) {
 		FollowInput("🔭 View profile", "alice@a.localdomain").
 		Follow("⚡ Follow alice").
 		OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	alice.
 		Follow("⚙️ Settings").
@@ -50,7 +49,7 @@ func TestCluster_MovedAccount(t *testing.T) {
 		Follow("⚙️ Settings").
 		FollowInput("📦 Move account", "carol@c.localdomain").
 		OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	bob.FollowInput("🔭 View profile", "carol@c.localdomain").OK()
 
@@ -60,10 +59,10 @@ func TestCluster_MovedAccount(t *testing.T) {
 		Resolver: cluster["b.localdomain"].Resolver,
 		Key:      cluster["b.localdomain"].NobodyKey,
 	}
-	if err := mover.Run(context.Background()); err != nil {
+	if err := mover.Run(t.Context()); err != nil {
 		t.Fatalf("Failed to process moved accounts: %v", err)
 	}
-	cluster.Settle()
+	cluster.Settle(t)
 
 	bob.
 		Follow("⚡️ Follows").
@@ -73,7 +72,7 @@ func TestCluster_MovedAccount(t *testing.T) {
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "hello").
 		Contains(Line{Type: Quote, Text: "hello"})
-	cluster.Settle()
+	cluster.Settle(t)
 
 	bob.
 		FollowInput("🔭 View profile", "carol@c.localdomain").
@@ -91,19 +90,19 @@ func TestCluster_DeletedInstance(t *testing.T) {
 		FollowInput("🔭 View profile", "bob@b.localdomain").
 		Follow("⚡ Follow bob").
 		OK()
-	cluster.Settle()
+	cluster.Settle(t)
 
 	bob.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "hello").
 		Contains(Line{Type: Quote, Text: "hello"})
-	cluster.Settle()
+	cluster.Settle(t)
 
 	alice.
 		Follow("📻 My feed").
 		Contains(Line{Type: Quote, Text: "hello"})
 
-	cluster["b.localdomain"] = NewServer(context.Background(), t, "b.localdomain", Client{})
+	cluster["b.localdomain"] = NewServer(t.Context(), t, "b.localdomain", Client{})
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
@@ -113,5 +112,5 @@ func TestCluster_DeletedInstance(t *testing.T) {
 		Follow("📻 My feed").
 		NotContains(Line{Type: Quote, Text: "hello"})
 
-	cluster.Settle()
+	cluster.Settle(t)
 }

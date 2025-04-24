@@ -18,7 +18,6 @@ limitations under the License.
 package cluster
 
 import (
-	"context"
 	"testing"
 
 	"github.com/dimkr/tootik/inbox"
@@ -34,25 +33,25 @@ func NewCluster(t *testing.T, domain ...string) Cluster {
 	c := Client{}
 
 	for _, d := range domain {
-		c[d] = NewServer(context.Background(), t, d, c)
+		c[d] = NewServer(t.Context(), t, d, c)
 	}
 
 	return Cluster(c)
 }
 
 // Settle waits until all servers are done processing queued activities, both incoming and outgoing.
-func (c Cluster) Settle() {
+func (c Cluster) Settle(t *testing.T) {
 	for {
 		again := false
 
 		for d, server := range c {
-			if n, err := server.Incoming.ProcessBatch(context.Background()); err != nil {
+			if n, err := server.Incoming.ProcessBatch(t.Context()); err != nil {
 				server.Test.Fatalf("Failed to process incoming queue on %s: %v", d, err)
 			} else if n > 0 {
 				again = true
 			}
 
-			if n, err := server.Outgoing.ProcessBatch(context.Background()); err != nil {
+			if n, err := server.Outgoing.ProcessBatch(t.Context()); err != nil {
 				server.Test.Fatalf("Failed to process outgoing queue on %s: %v", d, err)
 			} else if n > 0 {
 				again = true
@@ -65,7 +64,7 @@ func (c Cluster) Settle() {
 	}
 
 	for d, server := range c {
-		if err := (inbox.FeedUpdater{Domain: d, Config: server.Config, DB: server.DB}).Run(context.Background()); err != nil {
+		if err := (inbox.FeedUpdater{Domain: d, Config: server.Config, DB: server.DB}).Run(t.Context()); err != nil {
 			server.Test.Fatalf("Failed to update feeds on %s: %v", d, err)
 		}
 	}
