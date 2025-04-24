@@ -53,6 +53,7 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 	}
 	defer tx.Rollback()
 
+	// if the followed user is local and doesn't require manual approval, we can mark as accepted
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO follows
@@ -80,7 +81,7 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
+		`INSERT INTO outbox (activity, sender) VALUES(?, ?)`,
 		&follow,
 		follower.ID,
 	); err != nil {

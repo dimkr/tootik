@@ -24,7 +24,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 )
 
-// Reject queues an Reject activity for delivery.
+// Reject queues a Reject activity for delivery.
 func Reject(ctx context.Context, domain string, followed, follower string, db *sql.DB) error {
 	id, err := NewID(domain, "reject")
 	if err != nil {
