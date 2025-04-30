@@ -62,6 +62,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 				)
 			where
 				follows.follower like $1 and
+				follows.accepted = 1 and
 				notes.inserted >= $2 and
 				not exists (select 1 from feed where feed.follower = follows.follower and feed.note->>'$.id' = notes.id and feed.sharer is null)
 			union
@@ -103,6 +104,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 				notes.public = 1 and
 				shares.inserted >= $2 and
 				follows.follower like $1 and
+				follows.accepted = 1 and
 				not exists (select 1 from feed where feed.follower = follows.follower and feed.note->>'$.id' = notes.id and feed.sharer->>'$.id' = sharers.id)
 		`,
 		fmt.Sprintf("https://%s/%%", u.Domain),

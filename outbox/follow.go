@@ -20,7 +20,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 
 	"github.com/dimkr/tootik/ap"
 )
@@ -48,34 +47,45 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 		To:      to,
 	}
 
-	isLocal := strings.HasPrefix(followed, fmt.Sprintf("https://%s/", domain))
-
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
+	// if the followed user is local and doesn't require manual approval, we can mark as accepted
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO follows (id, follower, followed, accepted) VALUES(?,?,?,?)`,
+		`INSERT INTO follows
+			(
+				id,
+				follower,
+				followed,
+				accepted
+			)
+		VALUES
+			(
+				$1,
+				$2,
+				$3,
+				(SELECT CASE WHEN host = $4 AND (actor->'$.manuallyApprovesFollowers' IS NULL OR actor->'$.manuallyApprovesFollowers' = JSON('false')) THEN 1 ELSE NULL END FROM persons WHERE id = $3)
+			)
+		`,
 		followID,
 		follower.ID,
 		followed,
-		isLocal, // local follows don't need to be accepted
+		domain,
 	); err != nil {
 		return fmt.Errorf("failed to insert follow: %w", err)
 	}
 
-	if !isLocal {
-		if _, err := tx.ExecContext(
-			ctx,
-			`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
-			&follow,
-			follower.ID,
-		); err != nil {
-			return fmt.Errorf("failed to insert follow activity: %w", err)
-		}
+	if _, err := tx.ExecContext(
+		ctx,
+		`INSERT INTO outbox (activity, sender) VALUES(?, ?)`,
+		&follow,
+		follower.ID,
+	); err != nil {
+		return fmt.Errorf("failed to insert follow activity: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {

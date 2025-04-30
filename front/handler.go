@@ -93,6 +93,7 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 	h.handlers[regexp.MustCompile(`^/users/certificates/approve/(\S+)$`)] = withUserMenu(h.approve)
 	h.handlers[regexp.MustCompile(`^/users/certificates/revoke/(\S+)$`)] = withUserMenu(h.revoke)
 	h.handlers[regexp.MustCompile(`^/users/export$`)] = h.export
+	h.handlers[regexp.MustCompile(`^/users/approve/(\S+)$`)] = withUserMenu(h.approve)
 
 	h.handlers[regexp.MustCompile(`^/view/(\S+)$`)] = withUserMenu(h.view)
 	h.handlers[regexp.MustCompile(`^/users/view/(\S+)$`)] = withUserMenu(h.view)
@@ -128,6 +129,9 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 	h.handlers[regexp.MustCompile(`^/users/unfollow/(\S+)$`)] = withUserMenu(h.unfollow)
 
 	h.handlers[regexp.MustCompile(`^/users/follows$`)] = withUserMenu(h.follows)
+	h.handlers[regexp.MustCompile(`^/users/followers$`)] = withUserMenu(h.followers)
+	h.handlers[regexp.MustCompile(`^/users/followers/accept/(\S+)$`)] = withUserMenu(h.accept)
+	h.handlers[regexp.MustCompile(`^/users/followers/reject/(\S+)$`)] = withUserMenu(h.reject)
 
 	h.handlers[regexp.MustCompile(`^/communities$`)] = withUserMenu(h.communities)
 	h.handlers[regexp.MustCompile(`^/users/communities$`)] = withUserMenu(h.communities)

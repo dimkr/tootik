@@ -65,7 +65,7 @@ func TestCluster_MovedAccount(t *testing.T) {
 	cluster.Settle(t)
 
 	bob.
-		Follow("⚡️ Followed users").
+		Follow("⚡️ Follows").
 		Contains(Line{Type: Link, Text: "👽 carol (carol@c.localdomain)", URL: "/users/outbox/c.localdomain/user/carol"})
 
 	carol.

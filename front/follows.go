@@ -34,7 +34,7 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 	rows, err := h.DB.QueryContext(
 		r.Context,
 		`
-		select persons.actor, g.inserted/(24*60*60) from
+		select persons.actor, g.inserted/(24*60*60), follows.accepted from
 		follows
 		left join
 		(
@@ -71,14 +71,15 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 	defer rows.Close()
 
 	w.OK()
-	w.Title("⚡ Followed Users")
+	w.Title("⚡ Followed")
 
 	i := 0
 	var lastDay sql.NullInt64
 	for rows.Next() {
 		var actor ap.Actor
 		var last sql.NullInt64
-		if err := rows.Scan(&actor, &last); err != nil {
+		var accepted sql.NullInt32
+		if err := rows.Scan(&actor, &last, &accepted); err != nil {
 			r.Log.Warn("Failed to list a followed user", "error", err)
 			continue
 		}
@@ -90,12 +91,19 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 
 		displayName := h.getActorDisplayName(&actor)
 
-		if last.Valid {
+		if !accepted.Valid && last.Valid {
+			w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.ID, "https://"), "%s %s - pending approval", time.Unix(last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
+		} else if !accepted.Valid {
+			w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.ID, "https://"), "%s - pending approval", displayName)
+		} else if last.Valid && accepted.Int32 == 1 {
 			w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.ID, "https://"), "%s %s", time.Unix(last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
-		} else {
+		} else if accepted.Int32 == 1 {
 			w.Link("/users/outbox/"+strings.TrimPrefix(actor.ID, "https://"), displayName)
+		} else if last.Valid {
+			w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.ID, "https://"), "%s %s - rejected", time.Unix(last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
+		} else {
+			w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.ID, "https://"), "%s - rejected", displayName)
 		}
-
 		i++
 	}
 

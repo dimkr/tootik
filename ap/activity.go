@@ -32,6 +32,7 @@ const (
 	Create   ActivityType = "Create"
 	Follow   ActivityType = "Follow"
 	Accept   ActivityType = "Accept"
+	Reject   ActivityType = "Reject"
 	Undo     ActivityType = "Undo"
 	Delete   ActivityType = "Delete"
 	Announce ActivityType = "Announce"
@@ -77,6 +78,7 @@ var (
 		Create:     {},
 		Follow:     {},
 		Accept:     {},
+		Reject:     {},
 		Undo:       {},
 		Delete:     {},
 		Announce:   {},

@@ -56,8 +56,7 @@ type Config struct {
 	AvatarHeight         int
 	MinActorEditInterval time.Duration
 
-	MaxFollowsPerUser   int
-	FollowAcceptTimeout time.Duration
+	MaxFollowsPerUser int
 
 	MaxBookmarksPerUser int
 	MinBookmarkInterval time.Duration
@@ -223,10 +222,6 @@ func (c *Config) FillDefaults() {
 
 	if c.MaxFollowsPerUser <= 0 {
 		c.MaxFollowsPerUser = 150
-	}
-
-	if c.FollowAcceptTimeout <= 0 {
-		c.FollowAcceptTimeout = time.Hour * 24 * 2
 	}
 
 	if c.MaxBookmarksPerUser <= 0 {

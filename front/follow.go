@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@ limitations under the License.
 package front
 
 import (
+	"database/sql"
+	"errors"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/outbox"
 )
@@ -54,14 +56,16 @@ func (h *Handler) follow(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	var following int
-	if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from follows where follower = ? and followed =?)`, r.User.ID, followed).Scan(&following); err != nil {
+	var accepted sql.NullInt32
+	if err := h.DB.QueryRowContext(r.Context, `select accepted from follows where follower = ? and followed = ?`, r.User.ID, followed).Scan(&accepted); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Failed to check if user is already followed", "followed", followed, "error", err)
 		w.Error()
 		return
-	}
-	if following == 1 {
+	} else if err == nil && accepted.Valid && accepted.Int32 == 1 {
 		w.Statusf(40, "Already following %s", followed)
+		return
+	} else if err == nil && !accepted.Valid {
+		w.Statusf(40, "Waiting for approval from %s", followed)
 		return
 	}
 
