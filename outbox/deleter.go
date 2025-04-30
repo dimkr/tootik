@@ -53,7 +53,7 @@ func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 	}
 	defer rows.Close()
 
-	found := false
+	count := 0
 	for rows.Next() {
 		var share ap.Activity
 		if err := rows.Scan(&share); err != nil {
@@ -64,10 +64,15 @@ func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 			return false, err
 		}
 
-		found = true
+		count++
 	}
 
-	return found, nil
+	if count > 0 {
+		slog.Info("Removed old shared posts", "count", count)
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
@@ -89,7 +94,7 @@ func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 	}
 	defer rows.Close()
 
-	found := false
+	count := 0
 	for rows.Next() {
 		var note ap.Object
 		if err := rows.Scan(&note); err != nil {
@@ -100,10 +105,15 @@ func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 			return false, err
 		}
 
-		found = true
+		count++
 	}
 
-	return found, nil
+	if count > 0 {
+		slog.Info("Deleted old posts", "count", count)
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func (d *Deleter) Run(ctx context.Context) error {
