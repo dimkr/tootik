@@ -92,6 +92,7 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 	h.handlers[regexp.MustCompile(`^/users/certificates$`)] = withUserMenu(h.certificates)
 	h.handlers[regexp.MustCompile(`^/users/certificates/approve/(\S+)$`)] = withUserMenu(h.approve)
 	h.handlers[regexp.MustCompile(`^/users/certificates/revoke/(\S+)$`)] = withUserMenu(h.revoke)
+	h.handlers[regexp.MustCompile(`^/users/ttl`)] = withUserMenu(h.ttl)
 	h.handlers[regexp.MustCompile(`^/users/export$`)] = h.export
 
 	h.handlers[regexp.MustCompile(`^/view/(\S+)$`)] = withUserMenu(h.view)

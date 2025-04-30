@@ -58,6 +58,7 @@ const (
 	garbageCollectionInterval = time.Hour * 12
 	followMoveInterval        = time.Hour * 6
 	followSyncInterval        = time.Hour * 6
+	deleterInterval           = time.Hour * 12
 )
 
 var (
@@ -472,6 +473,15 @@ func main() {
 				DB:       db,
 				Resolver: resolver,
 				Key:      nobodyKey,
+			},
+		},
+		{
+			"deleter",
+			deleterInterval,
+			&outbox.Deleter{
+				Domain: *domain,
+				Config: &cfg,
+				DB:     db,
 			},
 		},
 		{
