@@ -72,7 +72,7 @@ func TestMove_FederatedToFederated(t *testing.T) {
 	assert.NoError(mover.Run(context.Background()))
 
 	var followed int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 0) and exists (select 1 from outbox where activity->>'$.type' = 'Follow' and activity->>'$.actor' = $1 and activity->>'$.object' = $2)`, server.Alice.ID, "https://::1/user/dan").Scan(&followed))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted is null) and exists (select 1 from outbox where activity->>'$.type' = 'Follow' and activity->>'$.actor' = $1 and activity->>'$.object' = $2)`, server.Alice.ID, "https://::1/user/dan").Scan(&followed))
 	assert.Equal(1, followed)
 }
 
@@ -120,7 +120,7 @@ func TestMove_FederatedToFederatedTwoAccounts(t *testing.T) {
 	assert.NoError(mover.Run(context.Background()))
 
 	var followed int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 0) and exists (select 1 from outbox where activity->>'$.type' = 'Follow' and activity->>'$.actor' = $1 and activity->>'$.object' = $2)`, server.Alice.ID, "https://::1/user/dan").Scan(&followed))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted is null) and exists (select 1 from outbox where activity->>'$.type' = 'Follow' and activity->>'$.actor' = $1 and activity->>'$.object' = $2)`, server.Alice.ID, "https://::1/user/dan").Scan(&followed))
 	assert.Equal(1, followed)
 }
 
@@ -168,7 +168,7 @@ func TestMove_FederatedToFederatedNotLinked(t *testing.T) {
 	assert.NoError(mover.Run(context.Background()))
 
 	var followed int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 0) or exists (select 1 from outbox where activity->>'$.type' = 'Follow' and activity->>'$.actor' = $1 and activity->>'$.object' = $2)`, server.Alice.ID, "https://::1/user/dan").Scan(&followed))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted is null) or exists (select 1 from outbox where activity->>'$.type' = 'Follow' and activity->>'$.actor' = $1 and activity->>'$.object' = $2)`, server.Alice.ID, "https://::1/user/dan").Scan(&followed))
 	assert.Equal(0, followed)
 }
 
@@ -253,7 +253,7 @@ func TestMove_FederatedToLocalLinked(t *testing.T) {
 	assert.NoError(mover.Run(context.Background()))
 
 	var followed int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 1) and not exists (select 1 from outbox where activity->>'$.type' = 'Follow' and activity->>'$.actor' = $1 and activity->>'$.object' = $2)`, server.Alice.ID, server.Bob.ID).Scan(&followed))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 1) and exists (select 1 from outbox where activity->>'$.type' = 'Follow' and activity->>'$.actor' = $1 and activity->>'$.object' = $2)`, server.Alice.ID, server.Bob.ID).Scan(&followed))
 	assert.Equal(1, followed)
 }
 
@@ -447,7 +447,7 @@ func TestMove_LocalToFederated(t *testing.T) {
 	assert.NoError(mover.Run(context.Background()))
 
 	var moved int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 0) and not exists (select 1 from follows where follower = $1 and followed = $3)`, server.Carol.ID, "https://127.0.0.1/user/alice", server.Alice.ID).Scan(&moved))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted is null) and not exists (select 1 from follows where follower = $1 and followed = $3)`, server.Carol.ID, "https://127.0.0.1/user/alice", server.Alice.ID).Scan(&moved))
 	assert.Equal(1, moved)
 }
 
@@ -558,7 +558,7 @@ func TestMove_LocalToFederatedAlreadyMoved(t *testing.T) {
 	assert.NoError(mover.Run(context.Background()))
 
 	var moved int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 0) and not exists (select 1 from follows where follower = $1 and followed = $3)`, server.Carol.ID, "https://127.0.0.1/user/alice", server.Alice.ID).Scan(&moved))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted is null) and not exists (select 1 from follows where follower = $1 and followed = $3)`, server.Carol.ID, "https://127.0.0.1/user/alice", server.Alice.ID).Scan(&moved))
 	assert.Equal(1, moved)
 
 	assert.NoError(server.db.QueryRow(`select actor from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))

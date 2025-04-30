@@ -28,7 +28,8 @@ Welcome, fedinaut! localhost.localdomain:8443 is a text-based social network.
 
 📻 My feed
 📞 Mentions
-⚡️ Followed users
+⚡️ Follows
+🐕 Followers
 😈 My profile
 📡 Local feed
 🏕️ Communities
@@ -102,6 +103,7 @@ This makes tootik lightweight, private and accessible:
   * To mentioned users
 * Sharing of public posts
 * Users can follow each other to see non-public posts
+  * With support for manual approval of follow requests
   * With support for [Mastodon's follower synchronization mechanism](https://docs.joinmastodon.org/spec/activitypub/#follower-synchronization-mechanism), aka [FEP-8fcf](https://codeberg.org/fediverse/fep/src/branch/main/fep/8fcf/fep-8fcf.md)
 * Multi-choice polls
 * [Lemmy](https://join-lemmy.org/)-style communities

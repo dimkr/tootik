@@ -71,10 +71,6 @@ func (gc *GarbageCollector) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to remove old posts: %w", err)
 	}
 
-	if _, err := gc.DB.ExecContext(ctx, `delete from follows where accepted = 0 and inserted < ?`, now.Add(-gc.Config.FollowAcceptTimeout).Unix()); err != nil {
-		return fmt.Errorf("failed to remove failed follow requests: %w", err)
-	}
-
 	if _, err := gc.DB.ExecContext(ctx, `delete from persons where updated < ? and host != ? and not exists (select 1 from follows where followed = persons.id) and not exists (select 1 from follows where follower = persons.id) and not exists (select 1 from notes where notes.author = persons.id) and not exists (select 1 from shares where shares.by = persons.id)`, now.Add(-gc.Config.ActorTTL).Unix(), gc.Domain); err != nil {
 		return fmt.Errorf("failed to remove idle actors: %w", err)
 	}

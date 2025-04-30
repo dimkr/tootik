@@ -134,7 +134,7 @@ func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := l.DB.QueryContext(r.Context(), `SELECT follower FROM follows WHERE followed = 'https://' || ? || '/user/' || ? AND follower LIKE 'https://' || ? || '/' || '%'`, l.Domain, name, u.Host)
+	rows, err := l.DB.QueryContext(r.Context(), `SELECT follower FROM follows WHERE followed = 'https://' || ? || '/user/' || ? AND follower LIKE 'https://' || ? || '/' || '%' AND accepted = 1`, l.Domain, name, u.Host)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -267,7 +267,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 
 		if _, err := db.ExecContext(
 			ctx,
-			`UPDATE follows SET accepted = 0 WHERE follower = ? AND followed = ?`,
+			`UPDATE follows SET accepted = NULL WHERE follower = ? AND followed = ?`,
 			follower,
 			d.Followed,
 		); err != nil {

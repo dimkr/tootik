@@ -76,8 +76,8 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 							select persons.id, persons.actor->>'$.followers' as followers, persons.actor->>'$.type' as type from persons
 							join follows on follows.followed = persons.id
 							where
-								follows.accepted = 1 and
-								follows.follower = $2
+								follows.follower = $2 and
+								follows.accepted = 1
 						) follows
 						where
 							follows.followers in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or

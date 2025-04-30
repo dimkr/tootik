@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,9 +24,9 @@ import (
 	"github.com/dimkr/tootik/ap"
 )
 
-// Accept queues an Accept activity for delivery.
-func Accept(ctx context.Context, domain string, followed, follower, followID string, tx *sql.Tx) error {
-	id, err := NewID(domain, "accept")
+// Reject queues a Reject activity for delivery.
+func Reject(ctx context.Context, domain string, followed, follower, followID string, tx *sql.Tx) error {
+	id, err := NewID(domain, "reject")
 	if err != nil {
 		return err
 	}
@@ -34,9 +34,9 @@ func Accept(ctx context.Context, domain string, followed, follower, followID str
 	recipients := ap.Audience{}
 	recipients.Add(follower)
 
-	accept := ap.Activity{
+	reject := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
-		Type:    ap.Accept,
+		Type:    ap.Reject,
 		ID:      id,
 		Actor:   followed,
 		To:      recipients,
@@ -51,24 +51,22 @@ func Accept(ctx context.Context, domain string, followed, follower, followID str
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
-		&accept,
+		&reject,
 		followed,
 	); err != nil {
-		return fmt.Errorf("failed to accept %s: %w", followID, err)
+		return fmt.Errorf("failed to reject %s: %w", follower, err)
 	}
 
 	if res, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO follows (id, follower, followed, accepted) VALUES($1, $2, $3, 1) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = 1, inserted = UNIXEPOCH()`,
+		`UPDATE follows SET accepted = 0 WHERE id = ? AND (accepted IS NULL OR accepted = 1)`,
 		followID,
-		follower,
-		followed,
 	); err != nil {
-		return fmt.Errorf("failed to accept %s: %w", followID, err)
+		return fmt.Errorf("failed to reject %s: %w", follower, err)
 	} else if n, err := res.RowsAffected(); err != nil {
-		return fmt.Errorf("failed to accept %s: %w", followID, err)
+		return fmt.Errorf("failed to reject %s: %w", follower, err)
 	} else if n == 0 {
-		return fmt.Errorf("failed to accept %s: cannot accept", followID)
+		return fmt.Errorf("failed to reject %s: cannot reject", follower)
 	}
 
 	return nil

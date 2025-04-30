@@ -265,20 +265,45 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return fmt.Errorf("received an invalid follow request for %s by %s", followed, activity.Actor)
 		}
 
-		var from ap.Actor
-		if err := q.DB.QueryRowContext(ctx, `select actor from persons where id = ?`, followed).Scan(&from); err != nil {
+		var manual sql.NullInt32
+		if err := q.DB.QueryRowContext(ctx, `select actor->>'$.manuallyApprovesFollowers' from persons where id = ?`, followed).Scan(&manual); err != nil {
 			return fmt.Errorf("failed to fetch %s: %w", followed, err)
 		}
 
-		log.Info("Approving follow request", "follower", activity.Actor, "followed", followed)
+		if manual.Valid && manual.Int32 == 1 {
+			log.Debug("Not approving follow request", "follower", activity.Actor, "followed", followed)
 
-		if err := outbox.Accept(ctx, q.Domain, followed, activity.Actor, activity.ID, q.DB); err != nil {
-			return fmt.Errorf("failed to marshal accept response: %w", err)
+			if _, err := q.DB.ExecContext(
+				ctx,
+				`INSERT INTO follows (id, follower, followed) VALUES($1, $2, $3) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = NULL, inserted = UNIXEPOCH()`,
+				activity.ID,
+				activity.Actor,
+				followed,
+			); err != nil {
+				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
+			}
+
+		} else {
+			log.Info("Approving follow request", "follower", activity.Actor, "followed", followed)
+
+			tx, err := q.DB.BeginTx(ctx, nil)
+			if err != nil {
+				return fmt.Errorf("failed to begin transaction: %w", err)
+			}
+			defer tx.Rollback()
+
+			if err := outbox.Accept(ctx, q.Domain, followed, activity.Actor, activity.ID, tx); err != nil {
+				return fmt.Errorf("failed to accept %s: %w", activity.ID, err)
+			}
+
+			if err := tx.Commit(); err != nil {
+				return fmt.Errorf("failed to accept follow: %w", err)
+			}
 		}
 
 	case ap.Accept:
 		if sender.ID != activity.Actor {
-			return fmt.Errorf("received an invalid follow request for %s by %s", activity.Actor, sender.ID)
+			return fmt.Errorf("received an invalid Accept for %s by %s", activity.Actor, sender.ID)
 		}
 
 		followID, ok := activity.Object.(string)
@@ -288,11 +313,30 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			log.Info("Follow is accepted", "follow", followActivity.ID)
 			followID = followActivity.ID
 		} else {
-			return errors.New("received an invalid accept notification")
+			return errors.New("received an invalid Accept")
 		}
 
 		if _, err := q.DB.ExecContext(ctx, `update follows set accepted = 1 where id = ? and followed = ?`, followID, sender.ID); err != nil {
 			return fmt.Errorf("failed to accept follow %s: %w", followID, err)
+		}
+
+	case ap.Reject:
+		if sender.ID != activity.Actor {
+			return fmt.Errorf("received an invalid Reject for %s by %s", activity.Actor, sender.ID)
+		}
+
+		followID, ok := activity.Object.(string)
+		if ok && followID != "" {
+			log.Info("Follow is rejected", "follow", followID)
+		} else if followActivity, ok := activity.Object.(*ap.Activity); ok && followActivity.Type == ap.Follow && followActivity.ID != "" {
+			log.Info("Follow is rejected", "follow", followActivity.ID)
+			followID = followActivity.ID
+		} else {
+			return errors.New("received an invalid Reject")
+		}
+
+		if _, err := q.DB.ExecContext(ctx, `update follows set accepted = 0 where id = ? and followed = ?`, followID, sender.ID); err != nil {
+			return fmt.Errorf("failed to reject follow %s: %w", followID, err)
 		}
 
 	case ap.Undo:
@@ -348,7 +392,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return errors.New("received an undo request on federated actor")
 		}
 
-		if _, err := q.DB.ExecContext(ctx, `delete from follows where follower = ? and followed = ?`, follower, followed); err != nil {
+		if _, err := q.DB.ExecContext(ctx, `update follows set accepted = 0 where follower = ? and followed = ?`, follower, followed); err != nil {
 			return fmt.Errorf("failed to remove follow of %s by %s: %w", followed, follower, err)
 		}
 

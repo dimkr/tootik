@@ -132,8 +132,8 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 			return fmt.Errorf("invalid object: %T", activity.Object)
 		}
 
-	case ap.Accept:
-		// $origin can only accept Follow activities that belong to us
+	case ap.Accept, ap.Reject:
+		// $origin can only accept or reject Follow activities that belong to us
 		switch v := activity.Object.(type) {
 		case *ap.Activity:
 			if v.Type != ap.Follow {
@@ -187,6 +187,12 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 				if authorUrl.Host != origin {
 					return fmt.Errorf("invalid author host: %s", authorUrl.Host)
 				}
+			}
+		} else if s, ok := activity.Object.(string); ok {
+			if innerUrl, err := url.Parse(s); err != nil {
+				return err
+			} else if innerUrl.Host != origin {
+				return fmt.Errorf("invalid object host: %s", innerUrl.Host)
 			}
 		} else {
 			return fmt.Errorf("invalid object: %T", obj)

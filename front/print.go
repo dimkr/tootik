@@ -372,7 +372,7 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 3 as rank from shares
 						join follows on follows.followed = shares.by
 						join persons on persons.id = follows.followed
-						where shares.note = $1 and follows.follower = $2
+						where shares.note = $1 and follows.follower = $2 and follows.accepted = 1
 						union all
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 4 as rank from shares
 						join persons on persons.id = shares.by
