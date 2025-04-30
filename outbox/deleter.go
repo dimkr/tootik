@@ -80,9 +80,7 @@ func (d *Deleter) Run(ctx context.Context) error {
 		if again, err := d.deletePosts(ctx); err != nil {
 			return err
 		} else if !again {
-			break
+			return nil
 		}
 	}
-
-	return nil
 }
