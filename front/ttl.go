@@ -69,8 +69,8 @@ func (h *Handler) ttl(w text.Writer, r *Request, args ...string) {
 			if _, err := h.DB.ExecContext(
 				r.Context,
 				`update persons set ttl = ? where id = ?`,
-				r.User.ID,
 				days,
+				r.User.ID,
 			); err != nil {
 				r.Log.Error("Failed to set TTL", "error", err)
 				w.Error()
@@ -115,6 +115,7 @@ func (h *Handler) ttl(w text.Writer, r *Request, args ...string) {
 	} else {
 		w.Text("Current setting: old posts are not deleted automatically.")
 	}
+	w.Empty()
 
 	if !ttl.Valid || ttl.Int32 != 7 {
 		w.Link("/users/ttl?7", "After a week")
