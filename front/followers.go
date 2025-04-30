@@ -149,7 +149,7 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 		w.Text("No follow requests.")
 	}
 
-	w.Empty()
+	w.Separator()
 
 	if r.User.ManuallyApprovesFollowers {
 		w.Link("/users/followers?unlock", "🔓 Approve new follow requests automatically")
