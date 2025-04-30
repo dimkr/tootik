@@ -77,13 +77,9 @@ func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 
 func (d *Deleter) Run(ctx context.Context) error {
 	for {
-		again, err := d.deletePosts(ctx)
-		if err != nil {
-			slog.Warn("Failed to delete posts", "error", err)
-			break
-		}
-
-		if !again {
+		if again, err := d.deletePosts(ctx); err != nil {
+			return err
+		} else if !again {
 			break
 		}
 	}
