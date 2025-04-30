@@ -44,6 +44,7 @@ func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 			persons.ttl is not null and
 			shares.inserted < unixepoch() - (persons.ttl * 24 * 60 * 60) and
 			outbox.activity->>'$.type' = 'Announce'
+		order by shares.inserted
 		limit ?
 		`,
 		batchSize,
@@ -85,6 +86,7 @@ func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 			persons.ttl is not null and
 			notes.inserted < unixepoch() - (persons.ttl * 24 * 60 * 60) and
 			not exists (select 1 from bookmarks where bookmarks.by = persons.id and bookmarks.note = notes.id)
+		order by notes.inserted
 		limit ?
 		`,
 		batchSize,
