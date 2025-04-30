@@ -33,49 +33,6 @@ type Deleter struct {
 	DB     *sql.DB
 }
 
-func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
-	rows, err := d.DB.QueryContext(
-		ctx,
-		`
-		select outbox.activity from persons
-		join shares on shares.by = persons.id
-		join outbox on outbox.activity->>'$.actor' = shares.by and outbox.activity->>'$.object' = shares.note
-		where
-			persons.ttl is not null and
-			shares.inserted < unixepoch() - (persons.ttl * 24 * 60 * 60) and
-			outbox.activity->>'$.type' = 'Announce'
-		order by shares.inserted
-		limit ?
-		`,
-		batchSize,
-	)
-	if err != nil {
-		return false, err
-	}
-	defer rows.Close()
-
-	count := 0
-	for rows.Next() {
-		var share ap.Activity
-		if err := rows.Scan(&share); err != nil {
-			return false, err
-		}
-
-		if err := Undo(ctx, d.Domain, d.DB, &share); err != nil {
-			return false, err
-		}
-
-		count++
-	}
-
-	if count > 0 {
-		slog.Info("Removed old shared posts", "count", count)
-		return true, nil
-	}
-
-	return false, nil
-}
-
 func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 	rows, err := d.DB.QueryContext(
 		ctx,
@@ -120,25 +77,13 @@ func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 
 func (d *Deleter) Run(ctx context.Context) error {
 	for {
-		found, err := d.undoShares(ctx)
-		if err != nil {
-			slog.Warn("Failed to undo shares", "error", err)
-			break
-		}
-
-		if !found {
-			break
-		}
-	}
-
-	for {
-		found, err := d.deletePosts(ctx)
+		again, err := d.deletePosts(ctx)
 		if err != nil {
 			slog.Warn("Failed to delete posts", "error", err)
 			break
 		}
 
-		if !found {
+		if !again {
 			break
 		}
 	}
