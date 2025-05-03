@@ -650,7 +650,7 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 			Content:      "bye",
 			To:           to,
 			Published:    ap.Time{Time: time.Now().Add(-time.Hour * 24)},
-			Updated:      &ap.Time{Time: time.Now().Add(time.Hour)},
+			Updated:      ap.Time{Time: time.Now().Add(time.Hour)},
 		},
 	}
 

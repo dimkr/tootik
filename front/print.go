@@ -232,7 +232,7 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 		title = published.Format(time.DateOnly)
 	}
 
-	if note.Updated != nil && *note.Updated != (ap.Time{}) {
+	if note.Updated != (ap.Time{}) {
 		title += " ┃ edited"
 	}
 

@@ -241,7 +241,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 			note.Summary = oldNote.Summary
 		}
 
-		note.Updated = &now
+		note.Updated = now
 
 		err = outbox.UpdateNote(r.Context, h.Domain, h.Config, h.DB, &note)
 	} else {

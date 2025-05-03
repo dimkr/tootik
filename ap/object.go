@@ -45,7 +45,7 @@ type Object struct {
 	Sensitive    bool         `json:"sensitive,omitempty"`
 	Name         string       `json:"name,omitempty"`
 	Published    Time         `json:"published,omitzero"`
-	Updated      *Time        `json:"updated,omitempty"`
+	Updated      Time         `json:"updated,omitzero"`
 	To           Audience     `json:"to,omitempty"`
 	CC           Audience     `json:"cc,omitempty"`
 	Audience     string       `json:"audience,omitempty"`
