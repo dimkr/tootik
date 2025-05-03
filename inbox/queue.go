@@ -462,7 +462,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			lastChange *= 1000000000
 		}
 
-		if (post.Type == ap.Question && post.Updated != nil && lastChange >= post.Updated.UnixNano()) || (post.Type != ap.Question && (post.Updated == (ap.Time{}) || lastChange >= post.Updated.UnixNano())) {
+		if (post.Type == ap.Question && post.Updated != (ap.Time{}) && lastChange >= post.Updated.UnixNano()) || (post.Type != ap.Question && (post.Updated == (ap.Time{}) || lastChange >= post.Updated.UnixNano())) {
 			log.Debug("Received old update request for new post")
 			return nil
 		}
