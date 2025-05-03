@@ -42,7 +42,7 @@ func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 		join outbox on outbox.activity->>'$.actor' = shares.by and outbox.activity->>'$.object' = shares.note
 		where
 			persons.ttl is not null and
-			shares.inserted < unixepoch() - (persons.ttl * 24 * 60 * 60) and
+			shares.inserted <= unixepoch() - (persons.ttl * 24 * 60 * 60) and
 			outbox.activity->>'$.type' = 'Announce'
 		order by shares.inserted
 		limit ?
@@ -84,7 +84,7 @@ func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 		join notes on notes.author = persons.id
 		where
 			persons.ttl is not null and
-			notes.inserted < unixepoch() - (persons.ttl * 24 * 60 * 60) and
+			notes.inserted <= unixepoch() - (persons.ttl * 24 * 60 * 60) and
 			not exists (select 1 from bookmarks where bookmarks.by = persons.id and bookmarks.note = notes.id)
 		order by notes.inserted
 		limit ?

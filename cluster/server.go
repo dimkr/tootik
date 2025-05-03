@@ -96,6 +96,7 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 	cfg.CompiledUserNameRegex = regexp.MustCompile(`^[a-zA-Z0-9-_]{3,32}$`)
 	cfg.PostThrottleUnit = 0
 	cfg.EditThrottleUnit = 0
+	cfg.ShareThrottleUnit = 0
 	cfg.MinActorEditInterval = 0
 	cfg.ResolverCacheTTL = 0
 	cfg.ResolverRetryInterval = 0
