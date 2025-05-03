@@ -65,8 +65,8 @@ type Activity struct {
 	Actor     string       `json:"actor"`
 	Object    any          `json:"object"`
 	Target    string       `json:"target,omitempty"`
-	To        Audience     `json:"to,omitempty"`
-	CC        Audience     `json:"cc,omitempty"`
+	To        Audience     `json:"to,omitzero"`
+	CC        Audience     `json:"cc,omitzero"`
 	Published Time         `json:"published,omitzero"`
 }
 
