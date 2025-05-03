@@ -72,6 +72,7 @@ This page allows you to:
 * Notify followers about account migration from this instance
 * Upload a .png, .jpg or .gif image to serve as your avatar (use your client certificate for authentication): up to {{.Config.MaxAvatarWidth}}x{{.Config.MaxAvatarHeight}} and {{.Config.MaxAvatarSize}} bytes, downscaled to {{.Config.AvatarWidth}}x{{.Config.AvatarHeight}}
 * Manage client certificates associated with your account
+* Enable automatic deletion of old posts; bookmarked posts are not deleted
 * Export your 200 most recent activities to a CSV file containing raw ActivityPub data
 
 > 📊 Status

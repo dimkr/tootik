@@ -113,6 +113,7 @@ This makes tootik lightweight, private and accessible:
 * Bookmarks
 * Full-text search within posts
 * Upload of posts and user avatars, over [Titan](gemini://transjovian.org/titan)
+* Automatic deletion of old posts
 * Account migration, in both directions
 * Support for multiple client certificates
 

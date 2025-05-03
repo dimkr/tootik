@@ -10,6 +10,7 @@
 ## Account
 
 => /users/certificates 🎓 Certificates
+=> /users/ttl ⏳ Post deletion policy
 => /users/export 🥡 Export recent activities
 
 ## Migration
