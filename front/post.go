@@ -158,7 +158,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 
 			for _, option := range options {
 				if option.Name == note.Content {
-					if inReplyTo.Closed != nil || inReplyTo.EndTime != nil && time.Now().After(inReplyTo.EndTime.Time) {
+					if inReplyTo.Closed != (ap.Time{}) || (inReplyTo.EndTime != (ap.Time{}) && time.Now().After(inReplyTo.EndTime.Time)) {
 						w.Status(40, "Cannot vote in a closed poll")
 						return
 					}
@@ -224,8 +224,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 
 		note.Type = ap.Question
 		note.Content = note.Content[m[2]:m[3]]
-		endTime := ap.Time{Time: time.Now().Add(h.Config.PollDuration)}
-		note.EndTime = &endTime
+		note.EndTime = ap.Time{Time: time.Now().Add(h.Config.PollDuration)}
 	}
 
 	if inReplyTo == nil || inReplyTo.Type != ap.Question {

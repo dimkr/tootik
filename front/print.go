@@ -439,7 +439,7 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 		if r.User != nil && note.AttributedTo == r.User.ID {
 			w.Link("/users/delete/"+strings.TrimPrefix(note.ID, "https://"), "💣 Delete")
 		}
-		if r.User != nil && note.Type == ap.Question && note.Closed == nil && (note.EndTime == nil || time.Now().Before(note.EndTime.Time)) {
+		if r.User != nil && note.Type == ap.Question && note.Closed == (ap.Time{}) && (note.EndTime == (ap.Time{}) || time.Now().Before(note.EndTime.Time)) {
 			options := note.OneOf
 			if len(options) == 0 {
 				options = note.AnyOf
