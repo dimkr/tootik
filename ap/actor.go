@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -48,8 +48,8 @@ type Actor struct {
 	Image                     *Attachment       `json:"image,omitempty"`
 	ManuallyApprovesFollowers bool              `json:"manuallyApprovesFollowers"`
 	AlsoKnownAs               Audience          `json:"alsoKnownAs,omitempty"`
-	Published                 *Time             `json:"published"`
-	Updated                   *Time             `json:"updated,omitempty"`
+	Published                 Time              `json:"published,omitzero"`
+	Updated                   Time              `json:"updated,omitzero"`
 	MovedTo                   string            `json:"movedTo,omitempty"`
 	Suspended                 bool              `json:"suspended,omitempty"`
 	Attachment                []Attachment      `json:"attachment,omitempty"`

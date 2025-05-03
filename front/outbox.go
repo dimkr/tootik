@@ -257,7 +257,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 	if offset == 0 {
 		firstProperty := true
 
-		if actor.Published != nil {
+		if actor.Published != (ap.Time{}) {
 			if showSeparator {
 				w.Empty()
 			}

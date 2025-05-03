@@ -100,7 +100,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 			PublicKeyPem: string(pubPem),
 		},
 		ManuallyApprovesFollowers: false,
-		Published:                 &ap.Time{Time: time.Now()},
+		Published:                 ap.Time{Time: time.Now()},
 	}
 
 	key := httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: priv}
