@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/outbox"
 )
@@ -40,7 +41,7 @@ func (h *Handler) move(w text.Writer, r *Request, args ...string) {
 	now := time.Now()
 
 	can := r.User.Published.Time.Add(h.Config.MinActorEditInterval)
-	if r.User.Updated != nil {
+	if r.User.Updated != (ap.Time{}) {
 		can = r.User.Updated.Time.Add(h.Config.MinActorEditInterval)
 	}
 	if now.Before(can) {

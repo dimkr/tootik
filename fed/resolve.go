@@ -120,7 +120,7 @@ func (r *Resolver) Resolve(ctx context.Context, key httpsig.Key, host, name stri
 
 func (r *Resolver) validate(try func() (*ap.Actor, *ap.Actor, error)) (*ap.Actor, error) {
 	actor, cachedActor, err := try()
-	if err != nil && cachedActor != nil && cachedActor.Published != nil && time.Since(cachedActor.Published.Time) < r.Config.MinActorAge {
+	if err != nil && cachedActor != nil && cachedActor.Published != (ap.Time{}) && time.Since(cachedActor.Published.Time) < r.Config.MinActorAge {
 		slog.Warn("Failed to update cached actor", "id", cachedActor.ID, "error", err)
 		return nil, ErrYoungActor
 	} else if err != nil && cachedActor != nil {
@@ -128,7 +128,7 @@ func (r *Resolver) validate(try func() (*ap.Actor, *ap.Actor, error)) (*ap.Actor
 		return cachedActor, nil
 	} else if actor == nil {
 		return cachedActor, err
-	} else if actor.Published != nil && time.Since(actor.Published.Time) < r.Config.MinActorAge {
+	} else if actor.Published != (ap.Time{}) && time.Since(actor.Published.Time) < r.Config.MinActorAge {
 		return nil, ErrYoungActor
 	}
 	return actor, err
@@ -235,8 +235,8 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 		cachedActor = &tmp
 
 		// fall back to insertion time if we don't have registration time
-		if cachedActor.Published == nil {
-			cachedActor.Published = &ap.Time{Time: time.Unix(inserted, 0)}
+		if cachedActor.Published == (ap.Time{}) {
+			cachedActor.Published = ap.Time{Time: time.Unix(inserted, 0)}
 		}
 
 		sinceLastUpdate = time.Since(time.Unix(updated, 0))
@@ -364,8 +364,8 @@ func (r *Resolver) tryResolveID(ctx context.Context, key httpsig.Key, u *url.URL
 		cachedActor = &tmp
 
 		// fall back to insertion time if we don't have registration time
-		if cachedActor.Published == nil {
-			cachedActor.Published = &ap.Time{Time: time.Unix(inserted, 0)}
+		if cachedActor.Published == (ap.Time{}) {
+			cachedActor.Published = ap.Time{Time: time.Unix(inserted, 0)}
 		}
 
 		sinceLastUpdate = time.Since(time.Unix(updated, 0))
@@ -486,10 +486,10 @@ func (r *Resolver) fetchActor(ctx context.Context, key httpsig.Key, host, profil
 		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
 	}
 
-	if actor.Published == nil && cachedActor != nil && cachedActor.Published != nil {
+	if actor.Published == (ap.Time{}) && cachedActor != nil && cachedActor.Published != (ap.Time{}) {
 		actor.Published = cachedActor.Published
-	} else if actor.Published == nil && (cachedActor == nil || cachedActor.Published == nil) {
-		actor.Published = &ap.Time{Time: time.Now()}
+	} else if actor.Published == (ap.Time{}) && (cachedActor == nil || cachedActor.Published == (ap.Time{})) {
+		actor.Published = ap.Time{Time: time.Now()}
 	}
 
 	return &actor, cachedActor, nil

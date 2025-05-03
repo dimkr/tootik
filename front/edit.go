@@ -59,8 +59,8 @@ func (h *Handler) doEdit(w text.Writer, r *Request, args []string, readInput inp
 	}
 
 	lastEditTime := note.Published
-	if note.Updated != nil && *note.Updated != (ap.Time{}) {
-		lastEditTime = *note.Updated
+	if note.Updated != (ap.Time{}) {
+		lastEditTime = note.Updated
 	}
 
 	canEdit := lastEditTime.Add(h.Config.EditThrottleUnit * time.Duration(math.Pow(h.Config.EditThrottleFactor, float64(edits))))

@@ -96,8 +96,8 @@ func (p *Poller) Run(ctx context.Context) error {
 			poll.VotersCount += count
 		}
 
-		if poll.EndTime == nil || now.After(poll.EndTime.Time) {
-			poll.Closed = &now
+		if poll.EndTime == (ap.Time{}) || now.After(poll.EndTime.Time) {
+			poll.Closed = now
 			changed = true
 		}
 

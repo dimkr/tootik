@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -44,8 +44,8 @@ type Object struct {
 	Summary      string       `json:"summary,omitempty"`
 	Sensitive    bool         `json:"sensitive,omitempty"`
 	Name         string       `json:"name,omitempty"`
-	Published    Time         `json:"published"`
-	Updated      *Time        `json:"updated,omitempty"`
+	Published    Time         `json:"published,omitzero"`
+	Updated      Time         `json:"updated,omitzero"`
 	To           Audience     `json:"to,omitempty"`
 	CC           Audience     `json:"cc,omitempty"`
 	Audience     string       `json:"audience,omitempty"`
@@ -57,8 +57,8 @@ type Object struct {
 	VotersCount int64        `json:"votersCount,omitempty"`
 	OneOf       []PollOption `json:"oneOf,omitempty"`
 	AnyOf       []PollOption `json:"anyOf,omitempty"`
-	EndTime     *Time        `json:"endTime,omitempty"`
-	Closed      *Time        `json:"closed,omitempty"`
+	EndTime     Time         `json:"endTime,omitzero"`
+	Closed      Time         `json:"closed,omitzero"`
 }
 
 func (o *Object) IsPublic() bool {
