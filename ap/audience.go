@@ -52,8 +52,11 @@ func (a *Audience) UnmarshalJSON(b []byte) error {
 		return nil
 	}
 
-	a.OrderedMap = make(data.OrderedMap[string, struct{}], len(l))
+	if len(l) == 0 {
+		return nil
+	}
 
+	a.OrderedMap = make(data.OrderedMap[string, struct{}], len(l))
 	for _, s := range l {
 		a.Add(s)
 	}
@@ -62,7 +65,7 @@ func (a *Audience) UnmarshalJSON(b []byte) error {
 }
 
 func (a Audience) MarshalJSON() ([]byte, error) {
-	if a.OrderedMap == nil {
+	if len(a.OrderedMap) == 0 {
 		return []byte("[]"), nil
 	}
 
@@ -71,7 +74,6 @@ func (a Audience) MarshalJSON() ([]byte, error) {
 
 func (a *Audience) Scan(src any) error {
 	if src == nil {
-		a.OrderedMap = data.OrderedMap[string, struct{}]{}
 		return nil
 	}
 
