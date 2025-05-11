@@ -2,9 +2,6 @@ name: build
 
 on:
   workflow_call:
-    inputs:
-      version:
-        type: string
 
 jobs:
   static:
@@ -38,6 +35,6 @@ jobs:
           CGO_CFLAGS="-O2 -fomit-frame-pointer -ffunction-sections -fdata-sections -fmerge-all-constants" GOARCH=386 CGO_ENABLED=1 go build -tags netgo,sqlite_omit_load_extension,fts5 -ldflags "-w -s -linkmode external -extldflags '-static -Wl,--gc-sections'" -trimpath -o tootik-386 ./cmd/tootik
       - uses: actions/upload-artifact@v4
         with:
-          name: tootik-${{ inputs.version }}
+          name: tootik
           path: tootik-*
           retention-days: 1
