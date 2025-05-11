@@ -31,7 +31,7 @@ type Audience struct {
 
 func (a *Audience) Add(s string) {
 	if a.OrderedMap == nil {
-		a.OrderedMap = data.OrderedMap[string, struct{}]{}
+		a.OrderedMap = make(data.OrderedMap[string, struct{}], 1)
 	}
 
 	a.OrderedMap.Store(s, struct{}{})
@@ -46,13 +46,13 @@ func (a *Audience) UnmarshalJSON(b []byte) error {
 			return err
 		}
 
-		a.OrderedMap = data.OrderedMap[string, struct{}]{}
+		a.OrderedMap = make(data.OrderedMap[string, struct{}], 1)
 		a.Add(s)
 
 		return nil
 	}
 
-	a.OrderedMap = data.OrderedMap[string, struct{}]{}
+	a.OrderedMap = make(data.OrderedMap[string, struct{}], len(l))
 
 	for _, s := range l {
 		a.Add(s)
