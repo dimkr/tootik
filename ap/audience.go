@@ -29,6 +29,10 @@ type Audience struct {
 	data.OrderedMap[string, struct{}]
 }
 
+func (a *Audience) IsZero() bool {
+	return len(a.OrderedMap) == 0
+}
+
 func (a *Audience) Add(s string) {
 	if a.OrderedMap == nil {
 		a.OrderedMap = make(data.OrderedMap[string, struct{}], 1)
