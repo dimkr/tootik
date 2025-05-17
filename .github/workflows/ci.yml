@@ -10,5 +10,3 @@ on:
 jobs:
   build:
     uses: ./.github/workflows/build.yml
-    with:
-      version: 99.99.${{ github.run_number }}

@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,4 +16,17 @@ limitations under the License.
 
 package buildinfo
 
+import (
+	"regexp"
+	"runtime/debug"
+)
+
 var Version = "?"
+
+func init() {
+	if info, ok := debug.ReadBuildInfo(); ok {
+		if ver := regexp.MustCompile(`^v(\d+\.\d+\.\d+).*`).FindStringSubmatch(info.Main.Version); ver != nil {
+			Version = ver[1]
+		}
+	}
+}
