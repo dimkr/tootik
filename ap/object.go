@@ -46,8 +46,8 @@ type Object struct {
 	Name         string       `json:"name,omitempty"`
 	Published    Time         `json:"published,omitzero"`
 	Updated      Time         `json:"updated,omitzero"`
-	To           Audience     `json:"to,omitempty"`
-	CC           Audience     `json:"cc,omitempty"`
+	To           Audience     `json:"to,omitzero"`
+	CC           Audience     `json:"cc,omitzero"`
 	Audience     string       `json:"audience,omitempty"`
 	Tag          Array[Tag]   `json:"tag,omitempty"`
 	Attachment   []Attachment `json:"attachment,omitempty"`
