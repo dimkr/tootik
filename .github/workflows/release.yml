@@ -8,8 +8,6 @@ on:
 jobs:
   build:
     uses: ./.github/workflows/build.yml
-    with:
-      version: ${{ github.ref_name }}
   upload:
     needs: build
     runs-on: ubuntu-latest
