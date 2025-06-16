@@ -32,7 +32,7 @@ import (
 func CreateNobody(ctx context.Context, domain string, db *sql.DB) (*ap.Actor, httpsig.Key, error) {
 	var actor ap.Actor
 	var privKeyPem string
-	if err := db.QueryRowContext(ctx, `select actor, privkey from persons where actor->>'$.preferredUsername' = 'nobody' and host = ?`, domain).Scan(&actor, &privKeyPem); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := db.QueryRowContext(ctx, `select json(actor), privkey from persons where actor->>'$.preferredUsername' = 'nobody' and host = ?`, domain).Scan(&actor, &privKeyPem); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, httpsig.Key{}, fmt.Errorf("failed to create nobody user: %w", err)
 	} else if err == nil {
 		privKey, err := data.ParsePrivateKey(privKeyPem)

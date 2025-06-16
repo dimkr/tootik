@@ -93,7 +93,7 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn) {
 	}
 
 	var actor ap.Actor
-	if err := fl.DB.QueryRowContext(ctx, `select actor from persons where actor->>'$.preferredUsername' = ? and host = ?`, user, fl.Domain).Scan(&actor); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := fl.DB.QueryRowContext(ctx, `select json(actor) from persons where actor->>'$.preferredUsername' = ? and host = ?`, user, fl.Domain).Scan(&actor); err != nil && errors.Is(err, sql.ErrNoRows) {
 		log.Info("User does not exist")
 		fmt.Fprintf(conn, "Login: %s\r\nPlan:\r\nNo Plan.\r\n", user)
 		return
