@@ -75,7 +75,7 @@ func (m *Mover) Run(ctx context.Context) error {
 	rows, err := m.DB.QueryContext(
 		ctx,
 		`
-			select persons.actor, old.id, new.id, follows.id, new.id = follows.follower or exists (select 1 from follows where follower = persons.id and followed = new.id) from
+			select json(persons.actor), old.id, new.id, follows.id, new.id = follows.follower or exists (select 1 from follows where follower = persons.id and followed = new.id) from
 			persons old
 			join
 			persons new
