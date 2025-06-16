@@ -36,7 +36,7 @@ func TestPoll_TwoOptions(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -45,7 +45,7 @@ func TestPoll_TwoOptions(t *testing.T) {
 	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":4}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":6}}],"votersCount":10,"endTime":"2099-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		poll,
 	)
@@ -77,7 +77,7 @@ func TestPoll_TwoOptionsZeroVotes(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -86,7 +86,7 @@ func TestPoll_TwoOptionsZeroVotes(t *testing.T) {
 	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":0}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":6}}],"votersCount":6,"endTime":"2099-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		poll,
 	)
@@ -118,7 +118,7 @@ func TestPoll_TwoOptionsOnlyZeroVotes(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -127,7 +127,7 @@ func TestPoll_TwoOptionsOnlyZeroVotes(t *testing.T) {
 	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":0}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":0}}],"votersCount":0,"endTime":"2099-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		poll,
 	)
@@ -159,7 +159,7 @@ func TestPoll_OneOption(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -168,7 +168,7 @@ func TestPoll_OneOption(t *testing.T) {
 	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":4}}],"votersCount":4,"endTime":"2099-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		poll,
 	)
@@ -199,7 +199,7 @@ func TestPoll_Vote(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -208,7 +208,7 @@ func TestPoll_Vote(t *testing.T) {
 	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":4}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":6}}],"votersCount":10,"endTime":"2099-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		poll,
 	)
@@ -247,7 +247,7 @@ func TestPoll_VoteClosedPoll(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -256,7 +256,7 @@ func TestPoll_VoteClosedPoll(t *testing.T) {
 	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":4}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":6}}],"closed":"2020-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		poll,
 	)
@@ -289,7 +289,7 @@ func TestPoll_VoteEndedPoll(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -298,7 +298,7 @@ func TestPoll_VoteEndedPoll(t *testing.T) {
 	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":4}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":6}}],"votersCount":10,"endTime":"2020-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		poll,
 	)
@@ -331,7 +331,7 @@ func TestPoll_Reply(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -340,7 +340,7 @@ func TestPoll_Reply(t *testing.T) {
 	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":4}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":6}}],"votersCount":10,"endTime":"2099-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		poll,
 	)
@@ -379,7 +379,7 @@ func TestPoll_ReplyClosedPoll(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -388,7 +388,7 @@ func TestPoll_ReplyClosedPoll(t *testing.T) {
 	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":4}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":6}}],"votersCount":10,"endTime":"2099-10-01T05:35:36Z","closed":"2020-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		poll,
 	)
@@ -427,7 +427,7 @@ func TestPoll_EditVote(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -436,7 +436,7 @@ func TestPoll_EditVote(t *testing.T) {
 	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":4}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":6}}],"votersCount":10,"endTime":"2099-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		poll,
 	)
@@ -478,7 +478,7 @@ func TestPoll_DeleteReply(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -487,7 +487,7 @@ func TestPoll_DeleteReply(t *testing.T) {
 	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":4}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":6}}],"votersCount":10,"endTime":"2099-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		poll,
 	)
@@ -529,7 +529,7 @@ func TestPoll_Update(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -538,7 +538,7 @@ func TestPoll_Update(t *testing.T) {
 	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":4}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":6}}],"votersCount":10,"endTime":"2099-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		poll,
 	)
@@ -565,7 +565,7 @@ func TestPoll_Update(t *testing.T) {
 	update := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/update/1","type":"Update","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":8}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":10}}],"votersCount":18,"endTime":"2099-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		update,
 	)
@@ -589,7 +589,7 @@ func TestPoll_OldUpdate(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -598,7 +598,7 @@ func TestPoll_OldUpdate(t *testing.T) {
 	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":4}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":6}}],"votersCount":10,"endTime":"2099-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		poll,
 	)
@@ -625,7 +625,7 @@ func TestPoll_OldUpdate(t *testing.T) {
 	update := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/update/1","type":"Update","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":8}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":10}}],"votersCount":18,"endTime":"2099-10-01T05:35:36Z","updated":"2020-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		update,
 	)

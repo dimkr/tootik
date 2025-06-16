@@ -310,7 +310,7 @@ func TestView_Update(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
@@ -319,7 +319,7 @@ func TestView_Update(t *testing.T) {
 	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/1","type":"Announce","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://127.0.0.1/followers/people"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		create,
 	)
@@ -345,7 +345,7 @@ func TestView_Update(t *testing.T) {
 	update := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/update/1","type":"Update","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"bye","updated":"2099-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		update,
 	)
@@ -368,7 +368,7 @@ func TestView_OldUpdate(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
@@ -377,7 +377,7 @@ func TestView_OldUpdate(t *testing.T) {
 	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/1","type":"Announce","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://127.0.0.1/followers/people"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		create,
 	)
@@ -403,7 +403,7 @@ func TestView_OldUpdate(t *testing.T) {
 	update := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/update/1","type":"Update","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"bye","updated":"2020-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		update,
 	)
@@ -526,14 +526,14 @@ func TestView_PostInGroupPublicAndGroupFollowed(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/group/people",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
@@ -542,7 +542,7 @@ func TestView_PostInGroupPublicAndGroupFollowed(t *testing.T) {
 	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/1","type":"Announce","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people","https://www.w3.org/ns/activitystreams#Public"],"audience":"https://127.0.0.1/group/people","tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people","https://www.w3.org/ns/activitystreams#Public"]},"to":["https://127.0.0.1/followers/people"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		create,
 	)
@@ -577,14 +577,14 @@ func TestView_PostInGroupNotPublicAndGroupFollowed(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/group/people",
 		`{"id":"https://127.0.0.1/group/people","type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
@@ -593,7 +593,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowed(t *testing.T) {
 	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/1","type":"Announce","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"audience":"https://127.0.0.1/group/people","tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]},"to":["https://127.0.0.1/followers/people"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/group/people",
 		create,
 	)
@@ -628,14 +628,14 @@ func TestView_PostInGroupNotPublicAndGroupFollowedButNotAccepted(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/group/people",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
@@ -644,7 +644,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedButNotAccepted(t *testing.T) {
 	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/1","type":"Announce","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"audience":"https://127.0.0.1/group/people","tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]},"to":["https://127.0.0.1/followers/people"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		create,
 	)
@@ -676,14 +676,14 @@ func TestView_PostInGroupNotPublicAndAuthorFollowed(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/group/people",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
@@ -692,7 +692,7 @@ func TestView_PostInGroupNotPublicAndAuthorFollowed(t *testing.T) {
 	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/1","type":"Announce","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"audience":"https://127.0.0.1/group/people","tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]},"to":["https://127.0.0.1/followers/people"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		create,
 	)
@@ -727,14 +727,14 @@ func TestView_PostInGroupNotPublicAndAuthorFollowedButNotAccepted(t *testing.T) 
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/group/people",
 		`{"type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
@@ -743,7 +743,7 @@ func TestView_PostInGroupNotPublicAndAuthorFollowedButNotAccepted(t *testing.T) 
 	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/1","type":"Announce","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"audience":"https://127.0.0.1/group/people","tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]},"to":["https://127.0.0.1/followers/people"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		create,
 	)
@@ -775,21 +775,21 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithReply(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/group/people",
 		`{"id":"https://127.0.0.1/group/people","type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/erin",
 		`{"type":"Person","preferredUsername":"erin","followers":"https://127.0.0.1/followers/erin"}`,
 	)
@@ -798,7 +798,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithReply(t *testing.T) {
 	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/1","type":"Announce","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"audience":"https://127.0.0.1/group/people","tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]},"to":["https://127.0.0.1/followers/people"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/group/people",
 		create,
 	)
@@ -807,7 +807,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithReply(t *testing.T) {
 	create = `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/2","type":"Announce","object":{"id":"https://127.0.0.1/create/2","type":"Create","actor":"https://127.0.0.1/user/erin","object":{"id":"https://127.0.0.1/note/2","type":"Note","attributedTo":"https://127.0.0.1/user/erin","inReplyTo":"https://127.0.0.1/note/1","content":"hello dan","to":["https://127.0.0.1/user/dan","https://127.0.0.1/followers/erin"],"cc":["https://127.0.0.1/group/people"],"audience":"https://127.0.0.1/group/people"},"to":["https://127.0.0.1/user/dan","https://127.0.0.1/followers/erin"],"cc":["https://127.0.0.1/group/people"]},"to":["https://127.0.0.1/followers/people"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/group/people",
 		create,
 	)
@@ -843,21 +843,21 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithPrivateReply(t *testing.T)
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/group/people",
 		`{"id":"https://127.0.0.1/group/people","type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/erin",
 		`{"type":"Person","preferredUsername":"erin","followers":"https://127.0.0.1/followers/erin"}`,
 	)
@@ -866,7 +866,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithPrivateReply(t *testing.T)
 	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/1","type":"Announce","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"audience":"https://127.0.0.1/group/people","tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]},"to":["https://127.0.0.1/followers/people"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/group/people",
 		create,
 	)
@@ -875,7 +875,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithPrivateReply(t *testing.T)
 	create = `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/2","type":"Announce","object":{"id":"https://127.0.0.1/create/2","type":"Create","actor":"https://127.0.0.1/user/erin","object":{"id":"https://127.0.0.1/note/2","type":"Note","attributedTo":"https://127.0.0.1/user/erin","inReplyTo":"https://127.0.0.1/note/1","content":"hello dan","to":["https://127.0.0.1/user/dan","https://127.0.0.1/followers/erin"]},"to":["https://127.0.0.1/user/dan","https://127.0.0.1/followers/erin"]},"to":["https://127.0.0.1/followers/people"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		create,
 	)

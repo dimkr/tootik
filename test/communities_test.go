@@ -32,7 +32,7 @@ func TestCommunities_OneCommunity(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`update persons set actor = json_set(actor, '$.type', 'Group') where id = $1`,
+		`update persons set actor = jsonb_set(actor, '$.type', 'Group') where id = $1`,
 		server.Alice.ID,
 	)
 	assert.NoError(err)

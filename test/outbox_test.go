@@ -220,21 +220,21 @@ func TestOutbox_PublicPostInGroup(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://other.localdomain/group/people",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://other.localdomain/announce/1","type":"Announce","actor":"https://other.localdomain/group/people","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://other.localdomain/group/people"]}
 `,
@@ -264,21 +264,21 @@ func TestOutbox_PublicPostInGroupUnauthenticatedUser(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://other.localdomain/group/people",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://other.localdomain/announce/1","type":"Announce","actor":"https://other.localdomain/group/people","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://other.localdomain/group/people"]}`,
 	)
@@ -307,21 +307,21 @@ func TestOutbox_PublicPostInGroupAudienceSetByUser(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]}`,
 	)
@@ -343,7 +343,7 @@ func TestOutbox_PublicPostInGroupAudienceSetByUser(t *testing.T) {
 	assert.NotContains(outbox, "Hello world")
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://other.localdomain/group/people",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://other.localdomain/announce/1","type":"Announce","actor":"https://other.localdomain/group/people","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://other.localdomain/group/people"]}`,
 	)
@@ -364,21 +364,21 @@ func TestOutbox_PublicPostInGroupAudienceSetByGroup(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://other.localdomain/group/people",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://other.localdomain/announce/1","type":"Announce","actor":"https://other.localdomain/group/people","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://other.localdomain/group/people"]}`,
 	)
@@ -400,7 +400,7 @@ func TestOutbox_PublicPostInGroupAudienceSetByGroup(t *testing.T) {
 	assert.Contains(outbox, "Hello world")
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://other.localdomain/announce/2","type":"Announce","actor":"https://other.localdomain/group/people","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://other.localdomain/group/people"]}`,
 	)
@@ -421,21 +421,21 @@ func TestOutbox_PublicPostInGroupDeletedByUser(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://other.localdomain/group/people",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://other.localdomain/announce/2","type":"Announce","actor":"https://other.localdomain/group/people","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://other.localdomain/group/people"]}`,
 	)
@@ -457,7 +457,7 @@ func TestOutbox_PublicPostInGroupDeletedByUser(t *testing.T) {
 	assert.Contains(outbox, "Hello world")
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/delete/1","type":"Delete","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note"},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]}`,
 	)
@@ -478,28 +478,28 @@ func TestOutbox_PublicPostInGroupDeletedByAnotherUser(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/erin",
 		`{"id":"https://127.0.0.1/user/erin","type":"Person","preferredUsername":"erin","followers":"https://127.0.0.1/followers/erin"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://other.localdomain/group/people",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://other.localdomain/announce/2","type":"Announce","actor":"https://other.localdomain/group/people","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://other.localdomain/group/people"]}`,
 	)
@@ -521,7 +521,7 @@ func TestOutbox_PublicPostInGroupDeletedByAnotherUser(t *testing.T) {
 	assert.Contains(outbox, "Hello world")
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/erin",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/delete/1","type":"Delete","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note"},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]}`,
 	)
@@ -542,21 +542,21 @@ func TestOutbox_PublicPostInGroupDeletedByGroup(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://other.localdomain/group/people",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://other.localdomain/announce/2","type":"Announce","actor":"https://other.localdomain/group/people","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://other.localdomain/group/people"]}`,
 	)
@@ -578,7 +578,7 @@ func TestOutbox_PublicPostInGroupDeletedByGroup(t *testing.T) {
 	assert.Contains(outbox, "Hello world")
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/announce/1","type":"Announce","object":{"id":"https://127.0.0.1/delete/1","type":"Delete","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note"},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"audience":"https://other.localdomain/group/people"}`,
 	)
@@ -599,28 +599,28 @@ func TestOutbox_PublicPostInGroupForwardedDelete(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/erin",
 		`{"type":"Person","preferredUsername":"erin","followers":"https://127.0.0.1/followers/erin"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://other.localdomain/group/people",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://other.localdomain/announce/1","type":"Announce","actor":"https://other.localdomain/group/people","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://other.localdomain/group/people"]}`,
 	)
@@ -642,7 +642,7 @@ func TestOutbox_PublicPostInGroupForwardedDelete(t *testing.T) {
 	assert.Contains(outbox, "Hello world")
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/erin",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://https://127.0.0.1/announce/2","type":"Announce","object":{"id":"https://127.0.0.1/delete/1","type":"Delete","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note"},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"audience":"https://other.localdomain/group/people"}`,
 	)
@@ -663,21 +663,21 @@ func TestOutbox_PublicPostInGroupEditedByUser(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://other.localdomain/group/people",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://other.localdomain/announce/1","type":"Announce","actor":"https://other.localdomain/group/people","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","published":"2018-08-18T00:00:00Z","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://other.localdomain/group/people"]}`,
 	)
@@ -699,7 +699,7 @@ func TestOutbox_PublicPostInGroupEditedByUser(t *testing.T) {
 	assert.Contains(outbox, "Hello world")
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/update/1","type":"Update","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello again","published":"2018-08-18T00:00:00Z","updated":"2088-08-18T00:00:00Z","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]}`,
 	)
@@ -720,14 +720,14 @@ func TestOutbox_PostToFollowersInGroup(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
@@ -740,7 +740,7 @@ func TestOutbox_PostToFollowersInGroup(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://other.localdomain/group/people",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://other.localdomain/announce/1","type":"Announce","actor":"https://other.localdomain/group/people","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":[],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":[],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://other.localdomain/group/people"]}`,
 	)
@@ -769,14 +769,14 @@ func TestOutbox_PostToFollowersInGroupNotFollowingGroup(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
@@ -789,7 +789,7 @@ func TestOutbox_PostToFollowersInGroupNotFollowingGroup(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://other.localdomain/group/people",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://other.localdomain/announce/1","type":"Announce","actor":"https://other.localdomain/group/people","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":[],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":[],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://other.localdomain/group/people"]}`,
 	)
@@ -818,14 +818,14 @@ func TestOutbox_PostToFollowersInGroupNotAccepted(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
@@ -835,7 +835,7 @@ func TestOutbox_PostToFollowersInGroupNotAccepted(t *testing.T) {
 	assert.Equal("30 /users/outbox/other.localdomain/group/people\r\n", follow)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://other.localdomain/group/people",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://other.localdomain/announce/1","type":"Announce","actor":"https://other.localdomain/group/people","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":[],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":[],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://other.localdomain/group/people"]}`,
 	)
@@ -864,14 +864,14 @@ func TestOutbox_PostToFollowersInGroupFollowingAuthor(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
@@ -884,7 +884,7 @@ func TestOutbox_PostToFollowersInGroupFollowingAuthor(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://other.localdomain/group/people",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://other.localdomain/announce/1","type":"Announce","actor":"https://other.localdomain/group/people","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":[],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":[],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://other.localdomain/group/people"]}`,
 	)
@@ -913,14 +913,14 @@ func TestOutbox_PostToFollowersInGroupUnauthenticatedUser(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
@@ -933,7 +933,7 @@ func TestOutbox_PostToFollowersInGroupUnauthenticatedUser(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://other.localdomain/group/people",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://other.localdomain/announce/1","type":"Announce","actor":"https://other.localdomain/group/people","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":[],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":[],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://other.localdomain/group/people"]}`,
 	)
@@ -962,14 +962,14 @@ func TestOutbox_DMInGroupNotFollowingGroup(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
@@ -982,7 +982,7 @@ func TestOutbox_DMInGroupNotFollowingGroup(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://other.localdomain/group/people",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://other.localdomain/announce/1","type":"Announce","actor":"https://other.localdomain/group/people","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://other.localdomain/group/people"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://other.localdomain/group/people"]}`,
 	)
@@ -1011,14 +1011,14 @@ func TestOutbox_DMInGroupAnotherUser(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
@@ -1034,7 +1034,7 @@ func TestOutbox_DMInGroupAnotherUser(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://other.localdomain/group/people",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://other.localdomain/announce/1","type":"Announce","actor":"https://other.localdomain/group/people","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://other.localdomain/group/people"],"audience":"https://other.localdomain/group/people"},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://other.localdomain/group/people"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://other.localdomain/group/people"]}`,
 	)

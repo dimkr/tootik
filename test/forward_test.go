@@ -74,7 +74,7 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -83,7 +83,7 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/1","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
@@ -151,7 +151,7 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -160,7 +160,7 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/1","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
@@ -207,7 +207,7 @@ func TestForward_LocalReplyToLocalPublicPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -280,7 +280,7 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -289,7 +289,7 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/2","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/bob"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/bob"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
@@ -353,7 +353,7 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -362,7 +362,7 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/3","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
@@ -426,7 +426,7 @@ func TestForward_ReplyToDM(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -435,7 +435,7 @@ func TestForward_ReplyToDM(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/1","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
@@ -488,7 +488,7 @@ func TestForward_NotFollowingAuthor(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -497,7 +497,7 @@ func TestForward_NotFollowingAuthor(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/1","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
@@ -561,7 +561,7 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -570,7 +570,7 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://127.0.0.1/note/2","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
@@ -623,7 +623,7 @@ func TestForward_ReplyToFederatedPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -632,7 +632,7 @@ func TestForward_ReplyToFederatedPost(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://127.0.0.1/note/1","content":"bye","to":["https://127.0.0.1/user/erin"],"cc":["https://127.0.0.1/followers/erin"]},"to":["https://127.0.0.1/user/erin"],"cc":["https://127.0.0.1/followers/erin"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
@@ -741,7 +741,7 @@ func TestForward_MaxDepth(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -750,7 +750,7 @@ func TestForward_MaxDepth(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/4","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/bob"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/bob"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
@@ -874,7 +874,7 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -883,7 +883,7 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/5","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/bob"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/bob"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
@@ -933,7 +933,7 @@ func TestForward_ReplyToLocalPostByLocalFollower(t *testing.T) {
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -974,7 +974,7 @@ func TestForward_EditedReplyToLocalPostByLocalFollower(t *testing.T) {
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -1022,7 +1022,7 @@ func TestForward_DeletedReplyToLocalPostByLocalFollower(t *testing.T) {
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -1088,7 +1088,7 @@ func TestForward_EditedReplyToPublicPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","id":"https://127.0.0.1/user/dan","preferredUsername":"dan"}`,
 	)
@@ -1097,7 +1097,7 @@ func TestForward_EditedReplyToPublicPost(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/1","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
@@ -1136,7 +1136,7 @@ func TestForward_EditedReplyToPublicPost(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		string(update),
 	)
@@ -1196,7 +1196,7 @@ func TestForward_ResentEditedReplyToPublicPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","id":"https://127.0.0.1/user/dan","preferredUsername":"dan"}`,
 	)
@@ -1205,7 +1205,7 @@ func TestForward_ResentEditedReplyToPublicPost(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/1","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
@@ -1244,7 +1244,7 @@ func TestForward_ResentEditedReplyToPublicPost(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		string(update),
 	)
@@ -1255,7 +1255,7 @@ func TestForward_ResentEditedReplyToPublicPost(t *testing.T) {
 	assert.Equal(1, n)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		string(update),
 	)
@@ -1315,7 +1315,7 @@ func TestForward_DeletedReplyToPublicPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","id":"https://127.0.0.1/user/dan","preferredUsername":"dan"}`,
 	)
@@ -1324,7 +1324,7 @@ func TestForward_DeletedReplyToPublicPost(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/1","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
@@ -1333,7 +1333,7 @@ func TestForward_DeletedReplyToPublicPost(t *testing.T) {
 	delete := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/delete/1","type":"Delete","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note"},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		delete,
 	)
@@ -1401,7 +1401,7 @@ func TestForward_DeletedDeletedReplyToPublicPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","id":"https://127.0.0.1/user/dan","preferredUsername":"dan"}`,
 	)
@@ -1410,7 +1410,7 @@ func TestForward_DeletedDeletedReplyToPublicPost(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/1","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
@@ -1419,7 +1419,7 @@ func TestForward_DeletedDeletedReplyToPublicPost(t *testing.T) {
 	delete := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/delete/1","type":"Delete","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note"},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		delete,
 	)
@@ -1438,7 +1438,7 @@ func TestForward_DeletedDeletedReplyToPublicPost(t *testing.T) {
 	assert.Equal(2, n)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
 		"https://127.0.0.1/user/dan",
 		delete,
 	)

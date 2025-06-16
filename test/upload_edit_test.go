@@ -47,7 +47,7 @@ func TestUploadEdit_HappyFlow(t *testing.T) {
 
 	id := whisper[15 : len(whisper)-2]
 
-	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = jsonb_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	edit := server.Upload(fmt.Sprintf("/users/upload/edit/%s;mime=text/plain;size=15", id), server.Bob, []byte("Hello followers"))
@@ -89,7 +89,7 @@ func TestUploadEdit_Empty(t *testing.T) {
 
 	id := whisper[15 : len(whisper)-2]
 
-	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = jsonb_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	edit := server.Upload(fmt.Sprintf("/users/upload/edit/%s;mime=text/plain;size=0", id), server.Bob, []byte("Hello followers"))
@@ -116,7 +116,7 @@ func TestUploadEdit_SizeLimit(t *testing.T) {
 
 	id := whisper[15 : len(whisper)-2]
 
-	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = jsonb_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	server.cfg.MaxPostsLength = 14
@@ -145,7 +145,7 @@ func TestUploadEdit_InvalidSize(t *testing.T) {
 
 	id := whisper[15 : len(whisper)-2]
 
-	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = jsonb_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	edit := server.Upload(fmt.Sprintf("/users/upload/edit/%s;mime=text/plain;size=abc", id), server.Bob, []byte("Hello followers"))
@@ -172,7 +172,7 @@ func TestUploadEdit_InvalidType(t *testing.T) {
 
 	id := whisper[15 : len(whisper)-2]
 
-	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = jsonb_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	edit := server.Upload(fmt.Sprintf("/users/upload/edit/%s;mime=text/gemini;size=15", id), server.Bob, []byte("Hello followers"))
@@ -199,7 +199,7 @@ func TestUploadEdit_NoSize(t *testing.T) {
 
 	id := whisper[15 : len(whisper)-2]
 
-	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = jsonb_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	edit := server.Upload(fmt.Sprintf("/users/upload/edit/%s;mime=text/plain;siz=15", id), server.Bob, []byte("Hello followers"))
@@ -226,7 +226,7 @@ func TestUploadEdit_NoType(t *testing.T) {
 
 	id := whisper[15 : len(whisper)-2]
 
-	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = json_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = jsonb_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	edit := server.Upload(fmt.Sprintf("/users/upload/edit/%s;mim=text/plain;size=15", id), server.Bob, []byte("Hello followers"))
