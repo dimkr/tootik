@@ -33,7 +33,7 @@ func forwardToGroup(ctx context.Context, domain string, tx *sql.Tx, note *ap.Obj
 	if err := tx.QueryRowContext(
 		ctx,
 		`
-			select actor from
+			select json(actor) from
 			(
 				select persons.actor, 1 as rank
 				from persons
