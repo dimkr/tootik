@@ -35,7 +35,7 @@ func (h *Handler) users(w text.Writer, r *Request, args ...string) {
 		func(offset int) (*sql.Rows, error) {
 			return h.DB.QueryContext(
 				r.Context,
-				`select note, author, sharer, inserted from
+				`select json(note), json(author), json(sharer), inserted from
 				feed
 				where
 					follower = $1
