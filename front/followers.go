@@ -97,7 +97,7 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 	rows, err := h.DB.QueryContext(
 		r.Context,
 		`
-		select follows.inserted, persons.actor, follows.accepted from follows
+		select follows.inserted, json(persons.actor), follows.accepted from follows
 		join persons on persons.id = follows.follower
 		where follows.followed = $1 and (accepted is null or accepted = 1)
 		order by follows.inserted desc
