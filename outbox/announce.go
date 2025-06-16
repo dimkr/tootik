@@ -65,7 +65,7 @@ func Announce(ctx context.Context, domain string, tx *sql.Tx, actor *ap.Actor, n
 			ctx,
 			`
 			INSERT INTO feed (follower, note, author, sharer, inserted)
-			SELECT $1, $2, authors.actor, $3, UNIXEPOCH()
+			SELECT $1, JSONB($2), authors.actor, JSONB($3), UNIXEPOCH()
 			FROM persons authors
 			WHERE authors.id = $4
 			`,
@@ -80,7 +80,7 @@ func Announce(ctx context.Context, domain string, tx *sql.Tx, actor *ap.Actor, n
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
+		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
 		&announce,
 		actor.ID,
 	); err != nil {

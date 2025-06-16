@@ -238,7 +238,7 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 
 	var parentAuthor sql.Null[ap.Actor]
 	if note.InReplyTo != "" {
-		if err := h.DB.QueryRowContext(r.Context, `select persons.actor from notes join persons on persons.id = notes.author where notes.id = ?`, note.InReplyTo).Scan(&parentAuthor); err != nil && errors.Is(err, sql.ErrNoRows) {
+		if err := h.DB.QueryRowContext(r.Context, `select json(persons.actor) from notes join persons on persons.id = notes.author where notes.id = ?`, note.InReplyTo).Scan(&parentAuthor); err != nil && errors.Is(err, sql.ErrNoRows) {
 			r.Log.Info("Parent post or author is missing", "id", note.InReplyTo)
 		} else if err != nil {
 			r.Log.Warn("Failed to query parent post author", "id", note.InReplyTo, "error", err)

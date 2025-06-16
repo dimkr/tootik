@@ -170,7 +170,7 @@ func Move(ctx context.Context, db *sql.DB, domain string, from *ap.Actor, to str
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`insert into outbox (activity, sender) values (?, ?)`,
+		`insert into outbox (activity, sender) values (jsonb(?), ?)`,
 		&move,
 		from.ID,
 	); err != nil {

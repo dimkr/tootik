@@ -91,7 +91,7 @@ func forwardToGroup(ctx context.Context, domain string, tx *sql.Tx, note *ap.Obj
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`insert into outbox(activity, sender) values(?, ?)`,
+		`insert into outbox(activity, sender) values(jsonb(?), ?)`,
 		rawActivity,
 		group.ID,
 	); err != nil {
