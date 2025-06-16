@@ -125,7 +125,8 @@ func (h *Handler) thread(w text.Writer, r *Request, args ...string) {
 	}
 
 	if (threadHead.Valid && count > 0 && threadHead.String != firstNodeID) || offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
-		w.Separator()
+		w.Empty()
+		w.Subtitle("Navigation")
 	}
 
 	if threadHead.Valid && count > 0 && threadHead.String != firstNodeID && r.User == nil {

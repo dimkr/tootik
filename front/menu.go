@@ -22,7 +22,8 @@ import (
 )
 
 func writeUserMenu(w text.Writer, user *ap.Actor) {
-	w.Separator()
+	w.Empty()
+	w.Subtitle("Menu")
 
 	prefix := ""
 	if user != nil {

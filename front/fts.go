@@ -163,7 +163,8 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 	rows.Close()
 
 	if offset > 0 || count == h.Config.PostsPerPage {
-		w.Separator()
+		w.Empty()
+		w.Subtitle("Navigation")
 	}
 
 	if offset >= h.Config.PostsPerPage {

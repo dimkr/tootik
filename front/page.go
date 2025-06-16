@@ -76,7 +76,8 @@ func (h *Handler) showFeedPage(w text.Writer, r *Request, title string, query fu
 	rows.Close()
 
 	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
-		w.Separator()
+		w.Empty()
+		w.Subtitle("Navigation")
 	}
 
 	if offset >= h.Config.PostsPerPage {

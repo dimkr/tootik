@@ -238,7 +238,8 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 	}
 
 	if originalPostExists == 1 || (threadHead.Valid && threadHead.String != note.ID && threadHead.String != note.InReplyTo) || threadDepth > 2 || offset > h.Config.RepliesPerPage || offset >= h.Config.RepliesPerPage || count == h.Config.RepliesPerPage {
-		w.Separator()
+		w.Empty()
+		w.Subtitle("Navigation")
 	}
 
 	if originalPostExists == 1 && r.User == nil {
