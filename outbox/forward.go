@@ -109,7 +109,7 @@ func forwardToGroup(ctx context.Context, domain string, tx *sql.Tx, note *ap.Obj
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`update notes set object = json_set(object, '$.audience', $1) where id = $2`,
+		`update notes set object = jsonb_set(object, '$.audience', $1) where id = $2`,
 		group.ID,
 		note.ID,
 	); err != nil {
@@ -175,7 +175,7 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, tx *sq
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT OR IGNORE INTO outbox (activity, sender) VALUES(?,?)`,
+		`INSERT OR IGNORE INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
 		rawActivity,
 		threadStarterID,
 	); err != nil {

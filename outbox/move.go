@@ -156,7 +156,7 @@ func Move(ctx context.Context, db *sql.DB, domain string, from *ap.Actor, to str
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`update persons set actor = json_set(actor, '$.movedTo', $1, '$.updated', $2) where id = $3`,
+		`update persons set actor = jsonb_set(actor, '$.movedTo', $1, '$.updated', $2) where id = $3`,
 		to,
 		now.Format(time.RFC3339Nano),
 		from.ID,

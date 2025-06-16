@@ -31,7 +31,7 @@ func (h *Handler) local(w text.Writer, r *Request, args ...string) {
 			return h.DB.QueryContext(
 				r.Context,
 				`
-					select object, actor, sharer, inserted from
+					select json(object), json(actor), json(sharer), inserted from
 					(
 						select notes.object, persons.actor, null as sharer, notes.inserted from persons
 						join notes

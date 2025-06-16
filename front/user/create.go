@@ -108,7 +108,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 	if cert == nil {
 		if _, err = db.ExecContext(
 			ctx,
-			`INSERT INTO persons (id, actor, privkey) VALUES(?,?,?)`,
+			`INSERT INTO persons (id, actor, privkey) VALUES (?, JSONB(?), ?)`,
 			id,
 			&actor,
 			string(privPem),
@@ -127,7 +127,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 
 	if _, err = tx.ExecContext(
 		ctx,
-		`INSERT OR IGNORE INTO persons (id, actor, privkey) VALUES(?,?,?)`,
+		`INSERT OR IGNORE INTO persons (id, actor, privkey) VALUES (?, JSONB(?), ?)`,
 		id,
 		&actor,
 		string(privPem),

@@ -225,9 +225,9 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 	var sinceLastUpdate time.Duration
 	var err error
 	if flags&ap.GroupActor == 0 {
-		err = r.db.QueryRowContext(ctx, `select actor, updated, fetched, inserted from persons where actor->>'$.preferredUsername' = $1 and host = $2 order by actor->>'$.type' = 'Group' limit 1`, name, host).Scan(&tmp, &updated, &fetched, &inserted)
+		err = r.db.QueryRowContext(ctx, `select json(actor), updated, fetched, inserted from persons where actor->>'$.preferredUsername' = $1 and host = $2 order by actor->>'$.type' = 'Group' limit 1`, name, host).Scan(&tmp, &updated, &fetched, &inserted)
 	} else {
-		err = r.db.QueryRowContext(ctx, `select actor, updated, fetched, inserted from persons where actor->>'$.preferredUsername' = $1 and host = $2 and actor->>'$.type' = 'Group'`, name, host).Scan(&tmp, &updated, &fetched, &inserted)
+		err = r.db.QueryRowContext(ctx, `select json(actor), updated, fetched, inserted from persons where actor->>'$.preferredUsername' = $1 and host = $2 and actor->>'$.type' = 'Group'`, name, host).Scan(&tmp, &updated, &fetched, &inserted)
 	}
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, fmt.Errorf("failed to fetch %s%s cache: %w", name, host, err)
@@ -358,7 +358,7 @@ func (r *Resolver) tryResolveID(ctx context.Context, key httpsig.Key, u *url.URL
 	var updated, inserted int64
 	var fetched sql.NullInt64
 	var sinceLastUpdate time.Duration
-	if err := r.db.QueryRowContext(ctx, `select actor, updated, fetched, inserted from persons where id = $1 or actor->>'$.publicKey.id' = $1`, id).Scan(&tmp, &updated, &fetched, &inserted); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := r.db.QueryRowContext(ctx, `select json(actor), updated, fetched, inserted from persons where id = $1 or actor->>'$.publicKey.id' = $1`, id).Scan(&tmp, &updated, &fetched, &inserted); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, fmt.Errorf("failed to fetch %s cache: %w", id, err)
 	} else if err == nil {
 		cachedActor = &tmp
@@ -457,7 +457,7 @@ func (r *Resolver) fetchActor(ctx context.Context, key httpsig.Key, host, profil
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO persons(id, actor, fetched) VALUES($1, $2, UNIXEPOCH()) ON CONFLICT(id) DO UPDATE SET actor = $2, updated = UNIXEPOCH()`,
+		`INSERT INTO persons(id, actor, fetched) VALUES ($1, JSONB($2), UNIXEPOCH()) ON CONFLICT(id) DO UPDATE SET actor = JSONB($2), updated = UNIXEPOCH()`,
 		actor.ID,
 		string(body),
 	); err != nil {
@@ -466,7 +466,7 @@ func (r *Resolver) fetchActor(ctx context.Context, key httpsig.Key, host, profil
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`UPDATE feed SET author = ? WHERE author->>'$.id' = ?`,
+		`UPDATE feed SET author = JSONB(?) WHERE author->>'$.id' = ?`,
 		string(body),
 		actor.ID,
 	); err != nil {
@@ -475,7 +475,7 @@ func (r *Resolver) fetchActor(ctx context.Context, key httpsig.Key, host, profil
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`UPDATE feed SET sharer = ? WHERE sharer->>'$.id' = ?`,
+		`UPDATE feed SET sharer = JSONB(?) WHERE sharer->>'$.id' = ?`,
 		string(body),
 		actor.ID,
 	); err != nil {

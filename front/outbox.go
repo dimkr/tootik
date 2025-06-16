@@ -57,7 +57,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// unauthenticated users can only see public posts in a group
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select u.object, authors.actor, null, max(u.inserted, coalesce(max(replies.inserted), 0)) from (
+			`select json(u.object), json(authors.actor), null, max(u.inserted, coalesce(max(replies.inserted), 0)) from (
 				select notes.id, notes.object, notes.author, shares.inserted from shares
 				join notes on notes.id = shares.note
 				where shares.by = $1 and notes.public = 1 and notes.object->>'$.inReplyTo' is null
@@ -77,7 +77,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// users can see public posts in a group and non-public posts if they follow the group
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select u.object, authors.actor, null, max(u.inserted, coalesce(max(replies.inserted), 0)) from (
+			`select json(u.object), json(authors.actor), null, max(u.inserted, coalesce(max(replies.inserted), 0)) from (
 				select notes.id, notes.object, notes.author, shares.inserted from shares
 				join notes on notes.id = shares.note
 				where
@@ -110,7 +110,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// unauthenticated users can only see public posts
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select object, actor, sharer, max(inserted) from (
+			`select json(object), json(actor), json(sharer), max(inserted) from (
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
 				join persons on persons.id = $1
 				where notes.author = $1 and notes.public = 1
@@ -132,7 +132,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// users can see all their posts
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select object, actor, sharer, max(inserted) from (
+			`select json(object), json(actor), json(sharer), max(inserted) from (
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
 				join persons on persons.id = notes.author
 				where notes.author = $1
@@ -153,7 +153,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// users can see only public posts by others, posts to followers if following, and DMs
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select object, actor, sharer, max(inserted) from (
+			`select json(object), json(actor), json(sharer), max(inserted) from (
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
 				join persons on persons.id = $1
 				where notes.author = $1 and notes.public = 1

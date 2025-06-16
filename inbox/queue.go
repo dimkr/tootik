@@ -88,11 +88,11 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 			}
 			defer tx.Rollback()
 
-			if _, err := tx.ExecContext(ctx, `update notes set object = json_set(object, '$.audience', ?) where id = ? and object->>'$.audience' is null`, post.Audience, post.ID); err != nil {
+			if _, err := tx.ExecContext(ctx, `update notes set object = jsonb_set(object, '$.audience', ?) where id = ? and object->>'$.audience' is null`, post.Audience, post.ID); err != nil {
 				return fmt.Errorf("failed to set %s audience to %s: %w", post.ID, audience.String, err)
 			}
 
-			if _, err := tx.ExecContext(ctx, `update feed set note = json_set(note, '$.audience', ?) where note->>'$.id' = ? and note->>'$.audience' is null`, post.Audience, post.ID); err != nil {
+			if _, err := tx.ExecContext(ctx, `update feed set note = jsonb_set(note, '$.audience', ?) where note->>'$.id' = ? and note->>'$.audience' is null`, post.Audience, post.ID); err != nil {
 				return fmt.Errorf("failed to set %s audience to %s: %w", post.ID, audience.String, err)
 			}
 

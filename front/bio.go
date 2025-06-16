@@ -65,7 +65,7 @@ func (h *Handler) doBio(w text.Writer, r *Request, readInput func(text.Writer, *
 
 	if _, err := tx.ExecContext(
 		r.Context,
-		"update persons set actor = json_set(actor, '$.summary', $1, '$.updated', $2) where id = $3",
+		"update persons set actor = jsonb_set(actor, '$.summary', $1, '$.updated', $2) where id = $3",
 		plain.ToHTML(summary, nil),
 		now.Format(time.RFC3339Nano),
 		r.User.ID,
