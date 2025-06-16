@@ -185,7 +185,7 @@ func TestUsers_PublicPostShared(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/erin",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/1","type":"Announce","actor":"https://127.0.0.1/user/erin","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/erin"]}`,
 	)
@@ -236,7 +236,7 @@ func TestUsers_PublicPostSharedNotFollowing(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/erin",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/1","type":"Announce","actor":"https://127.0.0.1/user/erin","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/erin"]}`,
 	)

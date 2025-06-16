@@ -251,7 +251,7 @@ func TestCommunity_ReplyInThread(t *testing.T) {
 	}
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		&reply,
 	)
@@ -322,7 +322,7 @@ func TestCommunity_ReplyInThreadAuthorNotFollowing(t *testing.T) {
 	}
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		&reply,
 	)
@@ -417,7 +417,7 @@ func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
 	}
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/erin",
 		&reply,
 	)
@@ -508,7 +508,7 @@ func TestCommunity_DuplicateReplyInThread(t *testing.T) {
 	}
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		&reply,
 	)
@@ -527,7 +527,7 @@ func TestCommunity_DuplicateReplyInThread(t *testing.T) {
 	assert.Equal(1, n)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		&reply,
 	)
@@ -611,7 +611,7 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 	}
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		&reply,
 	)
@@ -655,7 +655,7 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 	}
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		&update,
 	)
@@ -733,7 +733,7 @@ func TestCommunity_UnknownEditedReplyInThread(t *testing.T) {
 	}
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2),
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		&update,
 	)
