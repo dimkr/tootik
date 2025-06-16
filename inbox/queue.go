@@ -218,7 +218,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			defer tx.Rollback()
 
 			var note ap.Object
-			if err := q.DB.QueryRowContext(ctx, `select object from notes where id = ?`, deleted).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
+			if err := q.DB.QueryRowContext(ctx, `select json(object) from notes where id = ?`, deleted).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
 				log.Debug("Received delete request for non-existing post", "deleted", deleted)
 				return nil
 			} else if err != nil {
@@ -441,7 +441,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 		var oldPost ap.Object
 		var lastChange int64
-		if err := q.DB.QueryRowContext(ctx, `select max(inserted, updated), object from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastChange, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
+		if err := q.DB.QueryRowContext(ctx, `select max(inserted, updated), json(object) from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastChange, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
 			log.Debug("Received Update for non-existing post")
 			return q.processCreateActivity(ctx, log, sender, activity, rawActivity, post, shared)
 		} else if err != nil {
@@ -480,7 +480,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 		if _, err := tx.ExecContext(
 			ctx,
-			`update notes set object = ?, updated = unixepoch() where id = ?`,
+			`update notes set object = jsonb(?), updated = unixepoch() where id = ?`,
 			post,
 			post.ID,
 		); err != nil {
@@ -500,7 +500,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 		if _, err := tx.ExecContext(
 			ctx,
-			`update feed set note = ? where note->>'$.id' = ?`,
+			`update feed set note = jsonb(?) where note->>'$.id' = ?`,
 			post,
 			post.ID,
 		); err != nil {
