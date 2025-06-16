@@ -66,11 +66,14 @@ func (o *Object) IsPublic() bool {
 }
 
 func (o *Object) Scan(src any) error {
-	s, ok := src.(string)
-	if !ok {
+	switch v := src.(type) {
+	case []byte:
+		return json.Unmarshal(v, o)
+	case string:
+		return json.Unmarshal([]byte(v), o)
+	default:
 		return fmt.Errorf("unsupported conversion from %T to %T", src, o)
 	}
-	return json.Unmarshal([]byte(s), o)
 }
 
 func (o *Object) Value() (driver.Value, error) {
