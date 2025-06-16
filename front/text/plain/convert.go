@@ -149,7 +149,7 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 				continue
 			}
 
-			if tt == tokenizer.StartTagToken {
+			if tt == tokenizer.StartTagToken && tag != "img" {
 				if len(openTags) == maxDepth {
 					return "", nil, errors.New("too nested")
 				}
