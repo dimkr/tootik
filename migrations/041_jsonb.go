@@ -6,7 +6,7 @@ import (
 )
 
 func jsonb(ctx context.Context, domain string, tx *sql.Tx) error {
-	if _, err := tx.ExecContext(ctx, `CREATE TABLE newnotes(id STRING NOT NULL PRIMARY KEY, author STRING NOT NULL, object JSONB NOT NULL, public INTEGER NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()), updated INTEGER DEFAULT 0, host TEXT AS (substr(substr(author, 9), 0, instr(substr(author, 9), '/'))), to0 STRING AS (object->>'$.to[0]'), to1 STRING AS (object->>'$.to[1]'), to2 STRING AS (object->>'$.to[2]'), cc0 STRING AS (object->>'$.cc[0]'), cc1 STRING AS (object->>'$.cc[1]'), cc2 STRING AS (object->>'$.cc[2]'))`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE TABLE newnotes(id TEXT NOT NULL PRIMARY KEY, author TEXT NOT NULL, object JSONB NOT NULL, public INTEGER NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()), updated INTEGER DEFAULT 0, host TEXT AS (substr(substr(author, 9), 0, instr(substr(author, 9), '/'))), to0 TEXT AS (object->>'$.to[0]'), to1 TEXT AS (object->>'$.to[1]'), to2 TEXT AS (object->>'$.to[2]'), cc0 TEXT AS (object->>'$.cc[0]'), cc1 TEXT AS (object->>'$.cc[1]'), cc2 TEXT AS (object->>'$.cc[2]'))`); err != nil {
 		return err
 	}
 
@@ -46,7 +46,7 @@ func jsonb(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE TABLE newpersons(id STRING NOT NULL PRIMARY KEY, actor JSONB NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()), updated INTEGER DEFAULT (UNIXEPOCH()), privkey STRING, host TEXT AS (substr(substr(id, 9), 0, instr(substr(id, 9), '/'))), fetched INTEGER, ttl INTEGER)`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE TABLE newpersons(id TEXT NOT NULL PRIMARY KEY, actor JSONB NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()), updated INTEGER DEFAULT (UNIXEPOCH()), privkey STRING, host TEXT AS (substr(substr(id, 9), 0, instr(substr(id, 9), '/'))), fetched INTEGER, ttl INTEGER)`); err != nil {
 		return err
 	}
 
@@ -114,7 +114,7 @@ func jsonb(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE TABLE newfeed(follower STRING NOT NULL, note JSONB NOT NULL, author JSONB NOT NULL, sharer JSONB, inserted INTEGER NOT NULL)`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE TABLE newfeed(follower TEXT NOT NULL, note JSONB NOT NULL, author JSONB NOT NULL, sharer JSONB, inserted INTEGER NOT NULL)`); err != nil {
 		return err
 	}
 
@@ -150,7 +150,7 @@ func jsonb(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE TABLE newinbox(id INTEGER PRIMARY KEY, sender STRING NOT NULL, activity JSONB NOT NULL, raw STRING NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()))`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE TABLE newinbox(id INTEGER PRIMARY KEY, sender TEXT NOT NULL, activity JSONB NOT NULL, raw TEXT NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()))`); err != nil {
 		return err
 	}
 
