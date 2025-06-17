@@ -349,7 +349,7 @@ func TestMove_LocalToLocal(t *testing.T) {
 	alias = server.Handle("/users/alias?alice%40localhost.localdomain%3a8443", server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), alias)
 
-	assert.NoError(server.db.QueryRow(`select actor from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
+	assert.NoError(server.db.QueryRow(`select json(actor) from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
 
 	move := server.Handle("/users/move?bob%40localhost.localdomain%3a8443", server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), move)
@@ -383,7 +383,7 @@ func TestMove_LocalToLocalNoFollowers(t *testing.T) {
 	alias = server.Handle("/users/alias?alice%40localhost.localdomain%3a8443", server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), alias)
 
-	assert.NoError(server.db.QueryRow(`select actor from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
+	assert.NoError(server.db.QueryRow(`select json(actor) from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
 
 	move := server.Handle("/users/move?bob%40localhost.localdomain%3a8443", server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), move)
@@ -431,7 +431,7 @@ func TestMove_LocalToFederated(t *testing.T) {
 	alias := server.Handle("/users/alias?alice%40127.0.0.1", server.Alice)
 	assert.Equal("30 /users/outbox/127.0.0.1/user/alice\r\n", alias)
 
-	assert.NoError(server.db.QueryRow(`select actor from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
+	assert.NoError(server.db.QueryRow(`select json(actor) from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
 
 	move := server.Handle("/users/move?alice%40127.0.0.1", server.Alice)
 	assert.Equal("30 /users/outbox/127.0.0.1/user/alice\r\n", move)
@@ -508,7 +508,7 @@ func TestMove_LocalToFederatedNoTargetToSourceAlias(t *testing.T) {
 	alias := server.Handle("/users/alias?alice%40127.0.0.1", server.Alice)
 	assert.Equal("30 /users/outbox/127.0.0.1/user/alice\r\n", alias)
 
-	assert.NoError(server.db.QueryRow(`select actor from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
+	assert.NoError(server.db.QueryRow(`select json(actor) from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
 
 	move := server.Handle("/users/move?alice%40127.0.0.1", server.Alice)
 	assert.Equal("40 https://127.0.0.1/user/alice is not an alias for https://localhost.localdomain:8443/user/alice\r\n", move)
@@ -542,7 +542,7 @@ func TestMove_LocalToFederatedAlreadyMoved(t *testing.T) {
 	alias := server.Handle("/users/alias?alice%40127.0.0.1", server.Alice)
 	assert.Equal("30 /users/outbox/127.0.0.1/user/alice\r\n", alias)
 
-	assert.NoError(server.db.QueryRow(`select actor from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
+	assert.NoError(server.db.QueryRow(`select json(actor) from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
 
 	move := server.Handle("/users/move?alice%40127.0.0.1", server.Alice)
 	assert.Equal("30 /users/outbox/127.0.0.1/user/alice\r\n", move)
@@ -561,7 +561,7 @@ func TestMove_LocalToFederatedAlreadyMoved(t *testing.T) {
 	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted is null) and not exists (select 1 from follows where follower = $1 and followed = $3)`, server.Carol.ID, "https://127.0.0.1/user/alice", server.Alice.ID).Scan(&moved))
 	assert.Equal(1, moved)
 
-	assert.NoError(server.db.QueryRow(`select actor from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
+	assert.NoError(server.db.QueryRow(`select json(actor) from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
 
 	move = server.Handle("/users/move?alice%40%3a%3a1", server.Alice)
 	assert.Equal("40 Already moved to https://127.0.0.1/user/alice\r\n", move)
