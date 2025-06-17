@@ -50,7 +50,7 @@ func jsonb(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `INSERT INTO persons(id, actor, inserted, updated, privkey, fetched, ttl) SELECT id, JSONB(actor), inserted, updated, privkey, fetched, ttl FROM persons`); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO newpersons(id, actor, inserted, updated, privkey, fetched, ttl) SELECT id, JSONB(actor), inserted, updated, privkey, fetched, ttl FROM persons`); err != nil {
 		return err
 	}
 
@@ -118,7 +118,7 @@ func jsonb(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `INSERT INTO feed(follower, note, author, sharer, inserted) SELECT follower, JSONB(note), JSONB(author), JSONB(sharer), inserted FROM feed`); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO newfeed(follower, note, author, sharer, inserted) SELECT follower, JSONB(note), JSONB(author), JSONB(sharer), inserted FROM feed`); err != nil {
 		return err
 	}
 
