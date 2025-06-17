@@ -170,5 +170,9 @@ func jsonb(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
+	if _, err := tx.ExecContext(ctx, `ANALYZE`); err != nil {
+		return err
+	}
+
 	return nil
 }
