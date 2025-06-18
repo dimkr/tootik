@@ -4,6 +4,7 @@
 
 => /users/name 👺 Set display name
 => /users/bio 📜 Set bio
+=> /users/metadata 💳 Metadata
 => titan://{{.Domain}}/users/upload/bio Upload bio
 => titan://{{.Domain}}/users/upload/avatar Upload avatar
 
