@@ -17,7 +17,6 @@ limitations under the License.
 package front
 
 import (
-	"encoding/json"
 	"fmt"
 	"html"
 	"net/url"
@@ -55,7 +54,7 @@ func (h *Handler) metadata(w text.Writer, r *Request, args ...string) {
 				w.Empty()
 			}
 
-			raw, links := plain.FromHTML(field.Value)
+			raw, links := plain.FromHTML(field.Val)
 			if len(links) > 1 {
 				w.Quotef("%s: %s", field.Name, raw)
 			} else if len(links) == 0 {
@@ -128,9 +127,9 @@ func (h *Handler) metadataAdd(w text.Writer, r *Request, args ...string) {
 	}
 
 	attachment := ap.Attachment{
-		Type:  ap.PropertyValue,
-		Name:  html.EscapeString(m[1]),
-		Value: plain.ToHTML(m[2], nil),
+		Type: ap.PropertyValue,
+		Name: html.EscapeString(m[1]),
+		Val:  plain.ToHTML(m[2], nil),
 	}
 
 	for _, field := range r.User.Attachment {
@@ -138,13 +137,6 @@ func (h *Handler) metadataAdd(w text.Writer, r *Request, args ...string) {
 			w.Status(40, "Field already exists")
 			return
 		}
-	}
-
-	j, err := json.Marshal(attachment)
-	if err != nil {
-		r.Log.Warn("Failed to add metadata field", "name", attachment.Name, "error", err)
-		w.Error()
-		return
 	}
 
 	tx, err := h.DB.BeginTx(r.Context, nil)
@@ -165,7 +157,7 @@ func (h *Handler) metadataAdd(w text.Writer, r *Request, args ...string) {
 			coalesce(json_array_length(actor->>'$.attachment'), 0) < $4 and
 			not exists (select 1 from json_each(actor->'$.attachment') where value = $5)
 		`,
-		string(j),
+		&attachment,
 		now.Format(time.RFC3339Nano),
 		r.User.ID,
 		h.Config.MaxMetadataFields,

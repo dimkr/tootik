@@ -269,11 +269,11 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		}
 
 		for _, prop := range actor.Attachment {
-			if prop.Type != ap.PropertyValue || prop.Name == "" || prop.Value == "" {
+			if prop.Type != ap.PropertyValue || prop.Name == "" || prop.Val == "" {
 				continue
 			}
 
-			raw, links := plain.FromHTML(prop.Value)
+			raw, links := plain.FromHTML(prop.Val)
 			if len(links) > 1 {
 				continue
 			}
