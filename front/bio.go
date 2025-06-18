@@ -17,7 +17,7 @@ limitations under the License.
 package front
 
 import (
-	"strings"
+	"fmt"
 	"time"
 	"unicode/utf8"
 
@@ -27,7 +27,42 @@ import (
 	"github.com/dimkr/tootik/outbox"
 )
 
-func (h *Handler) doBio(w text.Writer, r *Request, readInput func(text.Writer, *Request) (string, bool)) {
+func (h *Handler) bio(w text.Writer, r *Request, args ...string) {
+	if r.User == nil {
+		w.Redirect("/users")
+		return
+	}
+
+	w.OK()
+
+	w.Title("📜 Bio")
+
+	if len(r.User.Summary) == 0 {
+		w.Text("Bio is empty.")
+	} else {
+		summary, links := getTextAndLinks(r.User.Summary, -1, -1)
+
+		for _, line := range summary {
+			w.Quote(line)
+		}
+
+		for link, alt := range links.All() {
+			if alt == "" {
+				w.Link(link, link)
+			} else {
+				w.Link(link, alt)
+			}
+		}
+	}
+
+	w.Empty()
+	w.Subtitle("Actions")
+
+	w.Link("/users/bio/set", "Set")
+	w.Link(fmt.Sprintf("titan://%s/users/bio/upload", h.Domain), "Upload")
+}
+
+func (h *Handler) doSetBio(w text.Writer, r *Request, readInput func(text.Writer, *Request) (string, bool)) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -87,11 +122,11 @@ func (h *Handler) doBio(w text.Writer, r *Request, readInput func(text.Writer, *
 		return
 	}
 
-	w.Redirect("/users/outbox/" + strings.TrimPrefix(r.User.ID, "https://"))
+	w.Redirect("/users/bio")
 }
 
-func (h *Handler) bio(w text.Writer, r *Request, args ...string) {
-	h.doBio(
+func (h *Handler) setBio(w text.Writer, r *Request, args ...string) {
+	h.doSetBio(
 		w,
 		r,
 		func(w text.Writer, r *Request) (string, bool) {
@@ -101,7 +136,7 @@ func (h *Handler) bio(w text.Writer, r *Request, args ...string) {
 }
 
 func (h *Handler) uploadBio(w text.Writer, r *Request, args ...string) {
-	h.doBio(
+	h.doSetBio(
 		w,
 		r,
 		func(w text.Writer, r *Request) (string, bool) {
