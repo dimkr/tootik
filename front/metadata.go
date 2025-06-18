@@ -171,7 +171,7 @@ func (h *Handler) metadataAdd(w text.Writer, r *Request, args ...string) {
 		w.Error()
 		return
 	} else if one < 1 {
-		r.Log.Error("Failed to add metadata field", "name", attachment.Name, "error", err)
+		r.Log.Error("Failed to add metadata field", "name", attachment.Name)
 		w.Error()
 		return
 	}
@@ -299,30 +299,39 @@ func (h *Handler) metadataClear(w text.Writer, r *Request, args ...string) {
 
 	r.Log.Info("Clearing metadata fields")
 
-	if _, err := tx.ExecContext(
+	if res, err := tx.ExecContext(
 		r.Context,
 		`
 		update persons
 		set actor = jsonb_set(jsonb_remove(actor, '$.attachment'), '$.updated', $1)
 		where
-			id = $2
+			id = $2 and
+			coalesce(json_array_length(actor->>'$.attachment'), 0) > 0
 		`,
 		now.Format(time.RFC3339Nano),
 		r.User.ID,
 	); err != nil {
-		r.Log.Error("Failed to clear metadta fields", "error", err)
+		r.Log.Error("Failed to clear metadata fields", "error", err)
+		w.Error()
+		return
+	} else if one, err := res.RowsAffected(); err != nil {
+		r.Log.Error("Failed to clear metadata fields", "error", err)
+		w.Error()
+		return
+	} else if one < 1 {
+		r.Log.Error("Failed to clear metadata fields")
 		w.Error()
 		return
 	}
 
 	if err := outbox.UpdateActor(r.Context, h.Domain, tx, r.User.ID); err != nil {
-		r.Log.Error("Failed to clear metadta fields", "error", err)
+		r.Log.Error("Failed to clear metadata fields", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := tx.Commit(); err != nil {
-		r.Log.Error("Failed to clear metadta fields", "error", err)
+		r.Log.Error("Failed to clear metadata fields", "error", err)
 		w.Error()
 		return
 	}
