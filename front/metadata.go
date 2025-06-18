@@ -31,8 +31,6 @@ import (
 	"github.com/dimkr/tootik/outbox"
 )
 
-const maxMetadataFields = 4
-
 var metadataRegex = regexp.MustCompile(`^^([^\p{Cc}\p{Cs}\s=\r\n]{1,16}(?: *[^\p{Cc}\p{Cs}\s=\r\n]{1,16}){0,3})=([^\p{Cc}\p{Cs}\r\n]{1,64})$`)
 
 func (h *Handler) metadata(w text.Writer, r *Request, args ...string) {
@@ -73,12 +71,12 @@ func (h *Handler) metadata(w text.Writer, r *Request, args ...string) {
 		}
 	}
 
-	if len(r.User.Attachment) < maxMetadataFields || len(r.User.Attachment) > 0 {
+	if len(r.User.Attachment) < h.Config.MaxMetadataFields || len(r.User.Attachment) > 0 {
 		w.Empty()
 		w.Subtitle("Actions")
 	}
 
-	if len(r.User.Attachment) < maxMetadataFields {
+	if len(r.User.Attachment) < h.Config.MaxMetadataFields {
 		w.Link("/users/metadata/add", "➕ Add")
 	}
 
@@ -105,7 +103,7 @@ func (h *Handler) metadataAdd(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if len(r.User.Attachment) >= maxMetadataFields {
+	if len(r.User.Attachment) >= h.Config.MaxMetadataFields {
 		w.Status(40, "Reached the maximum number of metadata fields")
 		return
 	}
@@ -170,7 +168,7 @@ func (h *Handler) metadataAdd(w text.Writer, r *Request, args ...string) {
 		string(j),
 		now.Format(time.RFC3339Nano),
 		r.User.ID,
-		maxMetadataFields,
+		h.Config.MaxMetadataFields,
 		attachment.Name,
 	); err != nil {
 		r.Log.Error("Failed to add metadata field", "name", attachment.Name, "error", err)
