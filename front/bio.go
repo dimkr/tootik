@@ -40,6 +40,9 @@ func (h *Handler) bio(w text.Writer, r *Request, args ...string) {
 	if len(r.User.Summary) == 0 {
 		w.Text("Bio is empty.")
 	} else {
+		w.Text("Current bio:")
+		w.Empty()
+
 		summary, links := getTextAndLinks(r.User.Summary, -1, -1)
 
 		for _, line := range summary {
