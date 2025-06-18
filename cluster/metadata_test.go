@@ -27,7 +27,7 @@ func TestMetadata_Whitespace(t *testing.T) {
 
 	bob.
 		Follow("⚙️ Settings").
-		Follow("💳 Set metadata").
+		Follow("💳 Metadata").
 		FollowInput("➕ Add", "a=b").
 		Contains(Line{Type: Quote, Text: "a: b"}).
 		FollowInput("➕ Add", "c=d\ne").
@@ -47,7 +47,7 @@ func TestMetadata_Link(t *testing.T) {
 
 	bob.
 		Follow("⚙️ Settings").
-		Follow("💳 Set metadata").
+		Follow("💳 Metadata").
 		FollowInput("➕ Add", "my website=http://localhost.localdomain/index.html").
 		Contains(Line{Type: Link, Text: "my website", URL: "http://localhost.localdomain/index.html"})
 
@@ -65,13 +65,31 @@ func TestMetadata_HTML(t *testing.T) {
 
 	bob.
 		Follow("⚙️ Settings").
-		Follow("💳 Set metadata").
+		Follow("💳 Metadata").
 		FollowInput("➕ Add", `HTML tags like <p>=<a>link</a><br/>`).
 		Contains(Line{Type: Quote, Text: "HTML tags like &lt;p&gt;: <a>link</a><br/>"})
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
 		Contains(Line{Type: Quote, Text: "HTML tags like &lt;p&gt;: <a>link</a><br/>"})
+}
+
+func TestMetadata_Equals(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
+	defer cluster.Stop()
+
+	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+
+	bob.
+		Follow("⚙️ Settings").
+		Follow("💳 Metadata").
+		FollowInput("➕ Add", "a=b=c").
+		Contains(Line{Type: Quote, Text: "a: b=c"})
+
+	alice.
+		FollowInput("🔭 View profile", "bob@b.localdomain").
+		Contains(Line{Type: Quote, Text: "a: b=c"})
 }
 
 func TestMetadata_Add(t *testing.T) {
@@ -83,7 +101,7 @@ func TestMetadata_Add(t *testing.T) {
 
 	bob.
 		Follow("⚙️ Settings").
-		Follow("💳 Set metadata").
+		Follow("💳 Metadata").
 		FollowInput("➕ Add", "a=b").
 		Contains(Line{Type: Quote, Text: "a: b"}).
 		FollowInput("➕ Add", "c=d").
@@ -105,7 +123,7 @@ func TestMetadata_Maximum(t *testing.T) {
 
 	bob.
 		Follow("⚙️ Settings").
-		Follow("💳 Set metadata").
+		Follow("💳 Metadata").
 		FollowInput("➕ Add", "a=b").
 		Contains(Line{Type: Quote, Text: "a: b"}).
 		FollowInput("➕ Add", "c=d").
@@ -138,7 +156,7 @@ func TestMetadata_Remove(t *testing.T) {
 
 	bob.
 		Follow("⚙️ Settings").
-		Follow("💳 Set metadata").
+		Follow("💳 Metadata").
 		FollowInput("➕ Add", "a=b").
 		FollowInput("➕ Add", "c=d").
 		FollowInput("➕ Add", "e=f").
@@ -154,7 +172,7 @@ func TestMetadata_Remove(t *testing.T) {
 
 	list := bob.
 		Follow("⚙️ Settings").
-		Follow("💳 Set metadata").
+		Follow("💳 Metadata").
 		OK()
 
 	list = bob.
@@ -205,7 +223,7 @@ func TestMetadata_Clear(t *testing.T) {
 
 	list := bob.
 		Follow("⚙️ Settings").
-		Follow("💳 Set metadata").
+		Follow("💳 Metadata").
 		FollowInput("➕ Add", "a=b").
 		Contains(Line{Type: Quote, Text: "a: b"}).
 		FollowInput("➕ Add", "c=d").
@@ -229,7 +247,7 @@ func TestMetadata_Clear(t *testing.T) {
 
 	bob.
 		Follow("⚙️ Settings").
-		Follow("💳 Set metadata").
+		Follow("💳 Metadata").
 		FollowInput("➕ Add", "a=b").
 		Contains(Line{Type: Quote, Text: "a: b"})
 
