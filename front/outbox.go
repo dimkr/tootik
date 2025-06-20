@@ -220,52 +220,50 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		w.Title(displayName)
 	}
 
-	showSeparator := false
-
 	if offset == 0 && len(actor.Icon) > 0 && actor.Icon[0].URL != "" {
 		w.Link(actor.Icon[0].URL, "Avatar")
-		showSeparator = true
+	} else if offset == 0 {
+		w.Text("No avatar.")
 	}
 
 	if offset == 0 && actor.Image != nil && actor.Image.URL != "" {
 		w.Link(actor.Image.URL, "Header")
-		showSeparator = true
+	} else if offset == 0 {
+		w.Text("No header.")
 	}
 
 	if offset == 0 && actor.MovedTo != "" {
 		w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.MovedTo, "https://"), "Moved to %s", actor.MovedTo)
-		showSeparator = true
-	}
-
-	if len(summary) > 0 {
-		if showSeparator {
-			w.Empty()
-		}
-
-		for _, line := range summary {
-			w.Quote(line)
-		}
-		for link, alt := range links.All() {
-			if alt == "" {
-				w.Link(link, link)
-			} else {
-				w.Link(link, alt)
-			}
-		}
 	}
 
 	if offset == 0 {
-		firstProperty := true
+		w.Empty()
+		w.Subtitle("Bio")
+
+		if len(summary) > 0 {
+			for _, line := range summary {
+				w.Quote(line)
+			}
+			for link, alt := range links.All() {
+				if alt == "" {
+					w.Link(link, link)
+				} else {
+					w.Link(link, alt)
+				}
+			}
+		} else {
+			w.Text("No bio.")
+		}
+
+		w.Empty()
+		w.Subtitle("Metadata")
+
+		noMetadata := true
 
 		if actor.Published != (ap.Time{}) {
-			if showSeparator {
-				w.Empty()
-			}
-
 			w.Textf("Joined: %s", actor.Published.Format(time.DateOnly))
 
-			firstProperty = false
-			showSeparator = true
+			noMetadata = false
 		}
 
 		for _, prop := range actor.Attachment {
@@ -278,10 +276,6 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 				continue
 			}
 
-			if len(summary) > 0 && firstProperty {
-				w.Empty()
-			}
-
 			if len(links) == 0 {
 				w.Quotef("%s: %s", prop.Name, raw)
 			} else {
@@ -291,14 +285,16 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 				}
 			}
 
-			firstProperty = false
-			showSeparator = true
+			noMetadata = false
+		}
+
+		if noMetadata {
+			w.Text("No metadata.")
 		}
 	}
 
-	if showSeparator {
-		w.Separator()
-	}
+	w.Empty()
+	w.Subtitle("Posts")
 
 	count := h.PrintNotes(w, r, rows, true, actor.Type != ap.Group, "No posts.")
 	rows.Close()
