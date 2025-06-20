@@ -222,6 +222,8 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 
 	if offset == 0 && len(actor.Icon) > 0 && actor.Icon[0].URL != "" {
 		w.Link(actor.Icon[0].URL, "Avatar")
+	} else if offset == 0 {
+		w.Text("No avatar.")
 	}
 
 	if offset == 0 && actor.Image != nil && actor.Image.URL != "" {
