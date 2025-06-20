@@ -228,8 +228,6 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 
 	if offset == 0 && actor.Image != nil && actor.Image.URL != "" {
 		w.Link(actor.Image.URL, "Header")
-	} else if offset == 0 {
-		w.Text("No header.")
 	}
 
 	if offset == 0 && actor.MovedTo != "" {
