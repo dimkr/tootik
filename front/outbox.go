@@ -256,12 +256,10 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		w.Empty()
 		w.Subtitle("Metadata")
 
-		noMetadata := true
-
-		if actor.Published != (ap.Time{}) {
+		if actor.Published == (ap.Time{}) {
+			w.Text("Joined: unknown")
+		} else {
 			w.Textf("Joined: %s", actor.Published.Format(time.DateOnly))
-
-			noMetadata = false
 		}
 
 		for _, prop := range actor.Attachment {
@@ -282,12 +280,6 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 					break
 				}
 			}
-
-			noMetadata = false
-		}
-
-		if noMetadata {
-			w.Text("No metadata.")
 		}
 	}
 
