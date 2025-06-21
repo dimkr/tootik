@@ -5,7 +5,7 @@
 => /users/name 👺 Display name
 => /users/bio 📜 Bio
 => /users/metadata 💳 Metadata
-=> titan://{{.Domain}}/users/upload/avatar Upload avatar
+=> /users/avatar 🖼️ Avatar
 
 ## Account
 

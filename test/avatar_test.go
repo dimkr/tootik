@@ -35,7 +35,7 @@ func TestAvatar_HappyFlow(t *testing.T) {
 	assert := assert.New(t)
 
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
-	assert.Equal(fmt.Sprintf("30 gemini://localhost.localdomain:8443/users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), server.Upload("/users/upload/avatar;mime=image/gif;size=63", server.Alice, avatar))
+	assert.Equal(fmt.Sprintf("30 gemini://localhost.localdomain:8443/users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), server.Upload("/users/avatar/upload;mime=image/gif;size=63", server.Alice, avatar))
 }
 
 func TestAvatar_NewUser(t *testing.T) {
@@ -45,7 +45,7 @@ func TestAvatar_NewUser(t *testing.T) {
 	assert := assert.New(t)
 
 	server.Alice.Published = ap.Time{Time: time.Now().Add(-time.Second * 5)}
-	assert.Regexp(`^40 Please wait for \S+\r\n$`, server.Upload("/users/upload/avatar;mime=image/gif;size=63", server.Alice, avatar))
+	assert.Regexp(`^40 Please wait for \S+\r\n$`, server.Upload("/users/avatar/upload;mime=image/gif;size=63", server.Alice, avatar))
 }
 
 func TestAvatar_ChangedRecently(t *testing.T) {
@@ -56,7 +56,7 @@ func TestAvatar_ChangedRecently(t *testing.T) {
 
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
 	server.Alice.Updated = ap.Time{Time: time.Now().Add(-time.Second * 5)}
-	assert.Regexp(`^40 Please wait for \S+\r\n$`, server.Upload("/users/upload/avatar;mime=image/gif;size=63", server.Alice, avatar))
+	assert.Regexp(`^40 Please wait for \S+\r\n$`, server.Upload("/users/avatar/upload;mime=image/gif;size=63", server.Alice, avatar))
 }
 
 func TestAvatar_HappyFlowSizeFirst(t *testing.T) {
@@ -66,7 +66,7 @@ func TestAvatar_HappyFlowSizeFirst(t *testing.T) {
 	assert := assert.New(t)
 
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
-	assert.Equal(fmt.Sprintf("30 gemini://localhost.localdomain:8443/users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), server.Upload("/users/upload/avatar;size=63;mime=image/gif", server.Alice, avatar))
+	assert.Equal(fmt.Sprintf("30 gemini://localhost.localdomain:8443/users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), server.Upload("/users/avatar/upload;size=63;mime=image/gif", server.Alice, avatar))
 }
 
 func TestAvatar_InvalidSize(t *testing.T) {
@@ -76,7 +76,7 @@ func TestAvatar_InvalidSize(t *testing.T) {
 	assert := assert.New(t)
 
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
-	assert.Equal("40 Invalid size\r\n", server.Upload("/users/upload/avatar;mime=image/gif;size=abc", server.Alice, avatar))
+	assert.Equal("40 Invalid size\r\n", server.Upload("/users/avatar/upload;mime=image/gif;size=abc", server.Alice, avatar))
 }
 
 func TestAvatar_InvalidType(t *testing.T) {
@@ -86,7 +86,7 @@ func TestAvatar_InvalidType(t *testing.T) {
 	assert := assert.New(t)
 
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
-	assert.Equal("40 Unsupported image type\r\n", server.Upload("/users/upload/avatar;mime=text/plain;size=63", server.Alice, avatar))
+	assert.Equal("40 Unsupported image type\r\n", server.Upload("/users/avatar/upload;mime=text/plain;size=63", server.Alice, avatar))
 }
 
 func TestAvatar_NoSize(t *testing.T) {
@@ -96,7 +96,7 @@ func TestAvatar_NoSize(t *testing.T) {
 	assert := assert.New(t)
 
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
-	assert.Equal("40 Error\r\n", server.Upload("/users/upload/avatar;mime=image/gif;ize=63", server.Alice, avatar))
+	assert.Equal("40 Error\r\n", server.Upload("/users/avatar/upload;mime=image/gif;ize=63", server.Alice, avatar))
 }
 
 func TestAvatar_NoType(t *testing.T) {
@@ -106,7 +106,7 @@ func TestAvatar_NoType(t *testing.T) {
 	assert := assert.New(t)
 
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
-	assert.Equal("40 Error\r\n", server.Upload("/users/upload/avatar;mim=image/gif;size=63", server.Alice, avatar))
+	assert.Equal("40 Error\r\n", server.Upload("/users/avatar/upload;mim=image/gif;size=63", server.Alice, avatar))
 }
 
 func TestAvatar_InvalidImage(t *testing.T) {
@@ -116,7 +116,7 @@ func TestAvatar_InvalidImage(t *testing.T) {
 	assert := assert.New(t)
 
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
-	assert.Equal("40 Error\r\n", server.Upload("/users/upload/avatar;mime=image/gif;size=3", server.Alice, []byte("abc")))
+	assert.Equal("40 Error\r\n", server.Upload("/users/avatar/upload;mime=image/gif;size=3", server.Alice, []byte("abc")))
 }
 
 func TestAvatar_TooSmallSize(t *testing.T) {
@@ -126,7 +126,7 @@ func TestAvatar_TooSmallSize(t *testing.T) {
 	assert := assert.New(t)
 
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
-	assert.Equal("40 Error\r\n", server.Upload("/users/upload/avatar;mime=image/gif;size=10", server.Alice, avatar))
+	assert.Equal("40 Error\r\n", server.Upload("/users/avatar/upload;mime=image/gif;size=10", server.Alice, avatar))
 }
 
 func TestAvatar_TooBigSize(t *testing.T) {
@@ -136,7 +136,7 @@ func TestAvatar_TooBigSize(t *testing.T) {
 	assert := assert.New(t)
 
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
-	assert.Equal("40 Error\r\n", server.Upload("/users/upload/avatar;mime=image/gif;size=64", server.Alice, avatar))
+	assert.Equal("40 Error\r\n", server.Upload("/users/avatar/upload;mime=image/gif;size=64", server.Alice, avatar))
 }
 
 func TestAvatar_SizeLimit(t *testing.T) {
@@ -147,7 +147,7 @@ func TestAvatar_SizeLimit(t *testing.T) {
 
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
 	server.cfg.MaxAvatarSize = 62
-	assert.Equal("40 Image is too big\r\n", server.Upload("/users/upload/avatar;mime=image/gif;size=63", server.Alice, avatar))
+	assert.Equal("40 Image is too big\r\n", server.Upload("/users/avatar/upload;mime=image/gif;size=63", server.Alice, avatar))
 }
 
 func TestAvatar_ExactlySizeLimit(t *testing.T) {
@@ -158,5 +158,5 @@ func TestAvatar_ExactlySizeLimit(t *testing.T) {
 
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
 	server.cfg.MaxAvatarSize = 63
-	assert.Equal(fmt.Sprintf("30 gemini://localhost.localdomain:8443/users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), server.Upload("/users/upload/avatar;mime=image/gif;size=63", server.Alice, avatar))
+	assert.Equal(fmt.Sprintf("30 gemini://localhost.localdomain:8443/users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), server.Upload("/users/avatar/upload;mime=image/gif;size=63", server.Alice, avatar))
 }
