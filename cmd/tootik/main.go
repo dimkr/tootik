@@ -237,7 +237,7 @@ func main() {
 
 		if _, err := tx.ExecContext(
 			ctx,
-			`update persons set actor = json_set(actor, '$.summary', ?, '$.updated', ?) where id = ?`,
+			`update persons set actor = jsonb_set(actor, '$.summary', ?, '$.updated', ?) where id = ?`,
 			tplain.ToHTML(string(summary), nil),
 			time.Now().Format(time.RFC3339Nano),
 			actorID,
@@ -288,7 +288,7 @@ func main() {
 
 		if _, err := tx.ExecContext(
 			ctx,
-			"update persons set actor = json_set(actor, '$.icon.url', $1, '$.icon[0].url', $1, '$.updated', $2) where id = $3",
+			"update persons set actor = jsonb_set(actor, '$.icon.url', $1, '$.icon[0].url', $1, '$.updated', $2) where id = $3",
 			fmt.Sprintf("https://%s/icon/%s%s#%d", *domain, userName, icon.FileNameExtension, now.UnixNano()),
 			now.Format(time.RFC3339Nano),
 			actorID,

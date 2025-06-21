@@ -47,7 +47,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		err = h.DB.QueryRowContext(
 			r.Context,
 			`
-			select notes.object, persons.actor, groups.actor from notes
+			select json(notes.object), json(persons.actor), json(groups.actor) from notes
 			join persons on persons.id = notes.author
 			left join (select id, actor from persons where actor->>'$.type' = 'Group') groups on exists (select 1 from shares where shares.by = groups.id and shares.note = $1)
 			where
@@ -60,7 +60,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		err = h.DB.QueryRowContext(
 			r.Context,
 			`
-			select notes.object, persons.actor, groups.actor from notes
+			select json(notes.object), json(persons.actor), json(groups.actor) from notes
 			join persons on persons.id = notes.author
 			left join (select id, actor from persons where actor->>'$.type' = 'Group') groups on exists (select 1 from shares where shares.by = groups.id and shares.note = $1)
 			where
@@ -106,7 +106,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		rows, err = h.DB.QueryContext(
 			r.Context,
 			`
-			select replies.object, persons.actor, null as sharer, replies.inserted from notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
+			select json(replies.object), json(persons.actor), null as sharer, replies.inserted from notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
 			left join persons on persons.id = replies.author
 			where
 				notes.id = $1 and
@@ -121,7 +121,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		rows, err = h.DB.QueryContext(
 			r.Context,
 			`
-			select replies.object, persons.actor, null as sharer, replies.inserted from
+			select json(replies.object), json(persons.actor), null as sharer, replies.inserted from
 			notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
 			left join persons on persons.id = replies.author
 			where

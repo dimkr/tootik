@@ -38,13 +38,13 @@ func TestCommunity_NewThread(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`update persons set actor = json_set(actor, '$.type', 'Group') where id = $1`,
+		`update persons set actor = jsonb_set(actor, '$.type', 'Group') where id = $1`,
 		server.Alice.ID,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -91,13 +91,13 @@ func TestCommunity_NewThreadNotFollowing(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`update persons set actor = json_set(actor, '$.type', 'Group') where id = $1`,
+		`update persons set actor = jsonb_set(actor, '$.type', 'Group') where id = $1`,
 		server.Alice.ID,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -141,13 +141,13 @@ func TestCommunity_NewThreadNotPublic(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`update persons set actor = json_set(actor, '$.type', 'Group') where id = $1`,
+		`update persons set actor = jsonb_set(actor, '$.type', 'Group') where id = $1`,
 		server.Alice.ID,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -194,13 +194,13 @@ func TestCommunity_ReplyInThread(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`update persons set actor = json_set(actor, '$.type', 'Group') where id = $1`,
+		`update persons set actor = jsonb_set(actor, '$.type', 'Group') where id = $1`,
 		server.Alice.ID,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -251,7 +251,7 @@ func TestCommunity_ReplyInThread(t *testing.T) {
 	}
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		&reply,
 	)
@@ -270,7 +270,7 @@ func TestCommunity_ReplyInThread(t *testing.T) {
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where cast(activity as text) = ? and sender = ?`, &reply, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity = jsonb(?) and sender = ?`, &reply, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 
 	var shared int
@@ -285,13 +285,13 @@ func TestCommunity_ReplyInThreadAuthorNotFollowing(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`update persons set actor = json_set(actor, '$.type', 'Group') where id = $1`,
+		`update persons set actor = jsonb_set(actor, '$.type', 'Group') where id = $1`,
 		server.Alice.ID,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -322,7 +322,7 @@ func TestCommunity_ReplyInThreadAuthorNotFollowing(t *testing.T) {
 	}
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		&reply,
 	)
@@ -341,7 +341,7 @@ func TestCommunity_ReplyInThreadAuthorNotFollowing(t *testing.T) {
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity = ? and sender = ?`, &reply, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity = jsonb(?) and sender = ?`, &reply, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(0, forwarded)
 
 	var shared int
@@ -356,13 +356,13 @@ func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`update persons set actor = json_set(actor, '$.type', 'Group') where id = $1`,
+		`update persons set actor = jsonb_set(actor, '$.type', 'Group') where id = $1`,
 		server.Alice.ID,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -386,7 +386,7 @@ func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/erin",
 		`{"type":"Person","preferredUsername":"erin"}`,
 	)
@@ -417,7 +417,7 @@ func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
 	}
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/erin",
 		&reply,
 	)
@@ -436,7 +436,7 @@ func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity = ? and sender = ?`, &reply, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity = jsonb(?) and sender = ?`, &reply, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 
 	var shared int
@@ -451,13 +451,13 @@ func TestCommunity_DuplicateReplyInThread(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`update persons set actor = json_set(actor, '$.type', 'Group') where id = $1`,
+		`update persons set actor = jsonb_set(actor, '$.type', 'Group') where id = $1`,
 		server.Alice.ID,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -508,7 +508,7 @@ func TestCommunity_DuplicateReplyInThread(t *testing.T) {
 	}
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		&reply,
 	)
@@ -527,7 +527,7 @@ func TestCommunity_DuplicateReplyInThread(t *testing.T) {
 	assert.Equal(1, n)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		&reply,
 	)
@@ -538,7 +538,7 @@ func TestCommunity_DuplicateReplyInThread(t *testing.T) {
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where cast(activity as text) = ? and sender = ?`, &reply, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity = jsonb(?) and sender = ?`, &reply, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 
 	var shared int
@@ -553,13 +553,13 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`update persons set actor = json_set(actor, '$.type', 'Group') where id = $1`,
+		`update persons set actor = jsonb_set(actor, '$.type', 'Group') where id = $1`,
 		server.Alice.ID,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -611,7 +611,7 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 	}
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		&reply,
 	)
@@ -655,7 +655,7 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 	}
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		&update,
 	)
@@ -665,7 +665,7 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(1, n)
 
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where cast(activity as text) = ? and sender = ?`, &update, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity = jsonb(?) and sender = ?`, &update, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 }
 
@@ -676,13 +676,13 @@ func TestCommunity_UnknownEditedReplyInThread(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`update persons set actor = json_set(actor, '$.type', 'Group') where id = $1`,
+		`update persons set actor = jsonb_set(actor, '$.type', 'Group') where id = $1`,
 		server.Alice.ID,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -733,7 +733,7 @@ func TestCommunity_UnknownEditedReplyInThread(t *testing.T) {
 	}
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values($1, $2, $2)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		&update,
 	)

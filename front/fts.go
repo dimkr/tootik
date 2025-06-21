@@ -59,7 +59,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 		rows, err = h.DB.QueryContext(
 			r.Context,
 			`
-				select notes.object, authors.actor, groups.actor, notes.inserted from
+				select json(notes.object), json(authors.actor), json(groups.actor), notes.inserted from
 				notesfts
 				join notes on
 					notes.id = notesfts.id
@@ -82,7 +82,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 		rows, err = h.DB.QueryContext(
 			r.Context,
 			`
-				select u.object, authors.actor, groups.actor, u.inserted from
+				select json(u.object), json(authors.actor), json(groups.actor), u.inserted from
 				(
 					select notes.id, notes.object, notes.author, notes.inserted, rank, 2 as aud from
 					notesfts

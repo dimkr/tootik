@@ -64,7 +64,7 @@ func (p *Poller) Run(ctx context.Context) error {
 		}
 
 		var obj ap.Object
-		if err := p.DB.QueryRowContext(ctx, "select object from notes where id = ?", pollID).Scan(&obj); err != nil {
+		if err := p.DB.QueryRowContext(ctx, "select json(object) from notes where id = ?", pollID).Scan(&obj); err != nil {
 			slog.Warn("Failed to fetch poll", "poll", pollID, "error", err)
 			continue
 		}

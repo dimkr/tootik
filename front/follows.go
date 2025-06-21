@@ -34,7 +34,7 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 	rows, err := h.DB.QueryContext(
 		r.Context,
 		`
-		select persons.actor, g.inserted/(24*60*60), follows.accepted from
+		select json(persons.actor), g.inserted/(24*60*60), follows.accepted from
 		follows
 		left join
 		(

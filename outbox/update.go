@@ -57,7 +57,7 @@ func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB,
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`UPDATE notes SET object = ? WHERE id = ?`,
+		`UPDATE notes SET object = JSONB(?) WHERE id = ?`,
 		&note,
 		note.ID,
 	); err != nil {
@@ -75,7 +75,7 @@ func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB,
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`UPDATE feed SET note = ? WHERE note->>'$.id' = ?`,
+		`UPDATE feed SET note = JSONB(?) WHERE note->>'$.id' = ?`,
 		&note,
 		note.ID,
 	); err != nil {
@@ -84,7 +84,7 @@ func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB,
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
+		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
 		string(j),
 		note.AttributedTo,
 	); err != nil {
@@ -136,7 +136,7 @@ func UpdateActor(ctx context.Context, domain string, tx *sql.Tx, actorID string)
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
+		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
 		&update,
 		actorID,
 	); err != nil {

@@ -89,7 +89,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 	rows, err := q.DB.QueryContext(
 		ctx,
-		`select outbox.attempts, outbox.activity, outbox.activity, persons.actor, persons.privkey from
+		`select outbox.attempts, json(outbox.activity), json(outbox.activity), json(persons.actor), persons.privkey from
 		outbox
 		join persons
 		on

@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ func (h *Handler) bookmarks(w text.Writer, r *Request, args ...string) {
 		func(offset int) (*sql.Rows, error) {
 			return h.DB.QueryContext(
 				r.Context,
-				`select notes.object, persons.actor, null as sharer, notes.inserted from bookmarks
+				`select json(notes.object), json(persons.actor), null as sharer, notes.inserted from bookmarks
 				join notes
 				on
 					notes.id = bookmarks.note

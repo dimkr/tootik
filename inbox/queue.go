@@ -88,11 +88,11 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 			}
 			defer tx.Rollback()
 
-			if _, err := tx.ExecContext(ctx, `update notes set object = json_set(object, '$.audience', ?) where id = ? and object->>'$.audience' is null`, post.Audience, post.ID); err != nil {
+			if _, err := tx.ExecContext(ctx, `update notes set object = jsonb_set(object, '$.audience', ?) where id = ? and object->>'$.audience' is null`, post.Audience, post.ID); err != nil {
 				return fmt.Errorf("failed to set %s audience to %s: %w", post.ID, audience.String, err)
 			}
 
-			if _, err := tx.ExecContext(ctx, `update feed set note = json_set(note, '$.audience', ?) where note->>'$.id' = ? and note->>'$.audience' is null`, post.Audience, post.ID); err != nil {
+			if _, err := tx.ExecContext(ctx, `update feed set note = jsonb_set(note, '$.audience', ?) where note->>'$.id' = ? and note->>'$.audience' is null`, post.Audience, post.ID); err != nil {
 				return fmt.Errorf("failed to set %s audience to %s: %w", post.ID, audience.String, err)
 			}
 
@@ -218,7 +218,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			defer tx.Rollback()
 
 			var note ap.Object
-			if err := q.DB.QueryRowContext(ctx, `select object from notes where id = ?`, deleted).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
+			if err := q.DB.QueryRowContext(ctx, `select json(object) from notes where id = ?`, deleted).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
 				log.Debug("Received delete request for non-existing post", "deleted", deleted)
 				return nil
 			} else if err != nil {
@@ -441,7 +441,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 		var oldPost ap.Object
 		var lastChange int64
-		if err := q.DB.QueryRowContext(ctx, `select max(inserted, updated), object from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastChange, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
+		if err := q.DB.QueryRowContext(ctx, `select max(inserted, updated), json(object) from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastChange, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
 			log.Debug("Received Update for non-existing post")
 			return q.processCreateActivity(ctx, log, sender, activity, rawActivity, post, shared)
 		} else if err != nil {
@@ -480,7 +480,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 		if _, err := tx.ExecContext(
 			ctx,
-			`update notes set object = ?, updated = unixepoch() where id = ?`,
+			`update notes set object = jsonb(?), updated = unixepoch() where id = ?`,
 			post,
 			post.ID,
 		); err != nil {
@@ -500,7 +500,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 		if _, err := tx.ExecContext(
 			ctx,
-			`update feed set note = ? where note->>'$.id' = ?`,
+			`update feed set note = jsonb(?) where note->>'$.id' = ?`,
 			post,
 			post.ID,
 		); err != nil {
@@ -548,7 +548,7 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Ac
 func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	slog.Debug("Polling activities queue")
 
-	rows, err := q.DB.QueryContext(ctx, `select inbox.id, persons.actor, inbox.activity, inbox.raw, inbox.raw->>'$.type' = 'Announce' as shared from (select * from inbox limit -1 offset case when (select count(*) from inbox) >= $1 then $1/10 else 0 end) inbox left join persons on persons.id = inbox.sender order by inbox.id limit $2`, q.Config.MaxActivitiesQueueSize, q.Config.ActivitiesBatchSize)
+	rows, err := q.DB.QueryContext(ctx, `select inbox.id, json(persons.actor), json(inbox.activity), inbox.raw, inbox.raw->>'$.type' = 'Announce' as shared from (select * from inbox limit -1 offset case when (select count(*) from inbox) >= $1 then $1/10 else 0 end) inbox left join persons on persons.id = inbox.sender order by inbox.id limit $2`, q.Config.MaxActivitiesQueueSize, q.Config.ActivitiesBatchSize)
 	if err != nil {
 		return 0, fmt.Errorf("failed to fetch activities to process: %w", err)
 	}

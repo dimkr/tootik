@@ -36,7 +36,7 @@ func (h *Handler) doReply(w text.Writer, r *Request, args []string, readInput in
 	if err := h.DB.QueryRowContext(
 		r.Context,
 		`
-		select notes.object from notes
+		select json(notes.object) from notes
 		join persons on persons.id = notes.author
 		where
 			notes.id = $1 and

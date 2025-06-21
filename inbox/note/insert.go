@@ -85,7 +85,7 @@ func Insert(ctx context.Context, tx *sql.Tx, note *ap.Object) error {
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO notes (id, author, object, public) VALUES(?,?,?,?)`,
+		`INSERT INTO notes (id, author, object, public) VALUES (?, ?, JSONB(?), ?)`,
 		note.ID,
 		note.AttributedTo,
 		&note,

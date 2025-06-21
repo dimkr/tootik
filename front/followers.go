@@ -51,7 +51,7 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 		case "lock":
 			if _, err := tx.ExecContext(
 				r.Context,
-				"update persons set actor = json_set(actor, '$.manuallyApprovesFollowers', json('true')) where id = ?",
+				"update persons set actor = jsonb_set(actor, '$.manuallyApprovesFollowers', jsonb('true')) where id = ?",
 				r.User.ID,
 			); err != nil {
 				r.Log.Warn("Failed to toggle manual approval", "error", err)
@@ -62,7 +62,7 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 		case "unlock":
 			if _, err := tx.ExecContext(
 				r.Context,
-				"update persons set actor = json_set(actor, '$.manuallyApprovesFollowers', json('false')) where id = ?",
+				"update persons set actor = jsonb_set(actor, '$.manuallyApprovesFollowers', jsonb('false')) where id = ?",
 				r.User.ID,
 			); err != nil {
 				r.Log.Warn("Failed to toggle manual approval", "error", err)
@@ -97,7 +97,7 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 	rows, err := h.DB.QueryContext(
 		r.Context,
 		`
-		select follows.inserted, persons.actor, follows.accepted from follows
+		select follows.inserted, json(persons.actor), follows.accepted from follows
 		join persons on persons.id = follows.follower
 		where follows.followed = $1 and (accepted is null or accepted = 1)
 		order by follows.inserted desc

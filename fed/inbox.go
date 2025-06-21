@@ -458,7 +458,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 
 	if _, err = l.DB.ExecContext(
 		r.Context(),
-		`INSERT OR IGNORE INTO inbox (sender, activity, raw) VALUES(?,?,?)`,
+		`INSERT OR IGNORE INTO inbox (sender, activity, raw) VALUES (?, JSONB(?), ?)`,
 		sender.ID,
 		queued,
 		string(rawActivity),

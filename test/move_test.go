@@ -48,14 +48,14 @@ func TestMove_FederatedToFederated(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://::1/user/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://::1/user/dan",
 		`{"id":"https://::1/user/dan","type":"Person","preferredUsername":"dan","alsoKnownAs":"https://127.0.0.1/user/dan"}`,
 	)
@@ -96,14 +96,14 @@ func TestMove_FederatedToFederatedTwoAccounts(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://::1/user/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://::1/user/dan",
 		`{"id":"https://::1/user/dan","type":"Person","preferredUsername":"dan","alsoKnownAs":["https://::1/user/dan","https://127.0.0.1/user/dan"]}`,
 	)
@@ -144,14 +144,14 @@ func TestMove_FederatedToFederatedNotLinked(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://::1/user/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://::1/user/dan",
 		`{"id":"https://::1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
@@ -192,7 +192,7 @@ func TestMove_FederatedToLocal(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://localhost.localdomain:8443/user/bob"}`,
 	)
@@ -233,13 +233,13 @@ func TestMove_FederatedToLocalLinked(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://localhost.localdomain:8443/user/bob"}`,
 	)
 	assert.NoError(err)
 
-	_, err = server.db.Exec(`UPDATE persons SET actor = json_set(actor, '$.alsoKnownAs', $1) WHERE id = $2`, "https://127.0.0.1/user/dan", server.Bob.ID)
+	_, err = server.db.Exec(`UPDATE persons SET actor = jsonb_set(actor, '$.alsoKnownAs', $1) WHERE id = $2`, "https://127.0.0.1/user/dan", server.Bob.ID)
 	assert.NoError(err)
 
 	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db)
@@ -287,14 +287,14 @@ func TestMove_FollowingBoth(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://::1/user/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://::1/user/dan",
 		`{"id":"https://::1/user/dan","type":"Person","preferredUsername":"dan","alsoKnownAs":"https://127.0.0.1/user/dan"}`,
 	)
@@ -349,7 +349,7 @@ func TestMove_LocalToLocal(t *testing.T) {
 	alias = server.Handle("/users/alias?alice%40localhost.localdomain%3a8443", server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), alias)
 
-	assert.NoError(server.db.QueryRow(`select actor from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
+	assert.NoError(server.db.QueryRow(`select json(actor) from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
 
 	move := server.Handle("/users/move?bob%40localhost.localdomain%3a8443", server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), move)
@@ -383,7 +383,7 @@ func TestMove_LocalToLocalNoFollowers(t *testing.T) {
 	alias = server.Handle("/users/alias?alice%40localhost.localdomain%3a8443", server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), alias)
 
-	assert.NoError(server.db.QueryRow(`select actor from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
+	assert.NoError(server.db.QueryRow(`select json(actor) from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
 
 	move := server.Handle("/users/move?bob%40localhost.localdomain%3a8443", server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), move)
@@ -410,7 +410,7 @@ func TestMove_LocalToFederated(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/alice",
 		`{"id":"https://127.0.0.1/user/alice","type":"Person","preferredUsername":"alice","alsoKnownAs":["https://localhost.localdomain:8443/user/alice"]}`,
 	)
@@ -431,7 +431,7 @@ func TestMove_LocalToFederated(t *testing.T) {
 	alias := server.Handle("/users/alias?alice%40127.0.0.1", server.Alice)
 	assert.Equal("30 /users/outbox/127.0.0.1/user/alice\r\n", alias)
 
-	assert.NoError(server.db.QueryRow(`select actor from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
+	assert.NoError(server.db.QueryRow(`select json(actor) from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
 
 	move := server.Handle("/users/move?alice%40127.0.0.1", server.Alice)
 	assert.Equal("30 /users/outbox/127.0.0.1/user/alice\r\n", move)
@@ -458,7 +458,7 @@ func TestMove_LocalToFederatedNoSourceToTargetAlias(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/alice",
 		`{"id":"https://127.0.0.1/user/alice","type":"Person","preferredUsername":"alice","alsoKnownAs":["https://localhost.localdomain:8443/user/alice"]}`,
 	)
@@ -487,7 +487,7 @@ func TestMove_LocalToFederatedNoTargetToSourceAlias(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/alice",
 		`{"id":"https://127.0.0.1/user/alice","type":"Person","preferredUsername":"alice","alsoKnownAs":[]}`,
 	)
@@ -508,7 +508,7 @@ func TestMove_LocalToFederatedNoTargetToSourceAlias(t *testing.T) {
 	alias := server.Handle("/users/alias?alice%40127.0.0.1", server.Alice)
 	assert.Equal("30 /users/outbox/127.0.0.1/user/alice\r\n", alias)
 
-	assert.NoError(server.db.QueryRow(`select actor from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
+	assert.NoError(server.db.QueryRow(`select json(actor) from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
 
 	move := server.Handle("/users/move?alice%40127.0.0.1", server.Alice)
 	assert.Equal("40 https://127.0.0.1/user/alice is not an alias for https://localhost.localdomain:8443/user/alice\r\n", move)
@@ -521,7 +521,7 @@ func TestMove_LocalToFederatedAlreadyMoved(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/alice",
 		`{"id":"https://127.0.0.1/user/alice","type":"Person","preferredUsername":"alice","alsoKnownAs":["https://localhost.localdomain:8443/user/alice"]}`,
 	)
@@ -542,7 +542,7 @@ func TestMove_LocalToFederatedAlreadyMoved(t *testing.T) {
 	alias := server.Handle("/users/alias?alice%40127.0.0.1", server.Alice)
 	assert.Equal("30 /users/outbox/127.0.0.1/user/alice\r\n", alias)
 
-	assert.NoError(server.db.QueryRow(`select actor from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
+	assert.NoError(server.db.QueryRow(`select json(actor) from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
 
 	move := server.Handle("/users/move?alice%40127.0.0.1", server.Alice)
 	assert.Equal("30 /users/outbox/127.0.0.1/user/alice\r\n", move)
@@ -561,7 +561,7 @@ func TestMove_LocalToFederatedAlreadyMoved(t *testing.T) {
 	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted is null) and not exists (select 1 from follows where follower = $1 and followed = $3)`, server.Carol.ID, "https://127.0.0.1/user/alice", server.Alice.ID).Scan(&moved))
 	assert.Equal(1, moved)
 
-	assert.NoError(server.db.QueryRow(`select actor from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
+	assert.NoError(server.db.QueryRow(`select json(actor) from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
 
 	move = server.Handle("/users/move?alice%40%3a%3a1", server.Alice)
 	assert.Equal("40 Already moved to https://127.0.0.1/user/alice\r\n", move)

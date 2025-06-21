@@ -67,7 +67,7 @@ func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn) (*ap.Actor, 
 	var id, privKeyPem string
 	var actor ap.Actor
 	var approved int
-	if err := gl.DB.QueryRowContext(ctx, `select persons.id, persons.actor, persons.privkey, certificates.approved from certificates join persons on persons.actor->>'$.preferredUsername' = certificates.user where persons.host = ? and certificates.hash = ? and certificates.expires > unixepoch()`, gl.Domain, certHash).Scan(&id, &actor, &privKeyPem, &approved); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := gl.DB.QueryRowContext(ctx, `select persons.id, json(persons.actor), persons.privkey, certificates.approved from certificates join persons on persons.actor->>'$.preferredUsername' = certificates.user where persons.host = ? and certificates.hash = ? and certificates.expires > unixepoch()`, gl.Domain, certHash).Scan(&id, &actor, &privKeyPem, &approved); err != nil && errors.Is(err, sql.ErrNoRows) {
 		return nil, httpsig.Key{}, front.ErrNotRegistered
 	} else if err != nil {
 		return nil, httpsig.Key{}, fmt.Errorf("failed to fetch user for %s: %w", certHash, err)

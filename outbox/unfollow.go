@@ -70,7 +70,7 @@ func Unfollow(ctx context.Context, domain string, db *sql.DB, follower, followed
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
+		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
 		&unfollow,
 		follower,
 	); err != nil {

@@ -76,7 +76,7 @@ func Undo(ctx context.Context, domain string, db *sql.DB, activity *ap.Activity)
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES(?,?)`,
+		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
 		&undo,
 		activity.Actor,
 	); err != nil {
