@@ -17,8 +17,6 @@ limitations under the License.
 package test
 
 import (
-	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -35,7 +33,7 @@ func TestAvatar_HappyFlow(t *testing.T) {
 	assert := assert.New(t)
 
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
-	assert.Equal(fmt.Sprintf("30 gemini://localhost.localdomain:8443/users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), server.Upload("/users/avatar/upload;mime=image/gif;size=63", server.Alice, avatar))
+	assert.Equal("30 /users/avatar\r\n", server.Upload("/users/avatar/upload;mime=image/gif;size=63", server.Alice, avatar))
 }
 
 func TestAvatar_NewUser(t *testing.T) {
@@ -66,7 +64,7 @@ func TestAvatar_HappyFlowSizeFirst(t *testing.T) {
 	assert := assert.New(t)
 
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
-	assert.Equal(fmt.Sprintf("30 gemini://localhost.localdomain:8443/users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), server.Upload("/users/avatar/upload;size=63;mime=image/gif", server.Alice, avatar))
+	assert.Equal("30 /users/avatar\r\n", server.Upload("/users/avatar/upload;size=63;mime=image/gif", server.Alice, avatar))
 }
 
 func TestAvatar_InvalidSize(t *testing.T) {
@@ -158,5 +156,5 @@ func TestAvatar_ExactlySizeLimit(t *testing.T) {
 
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
 	server.cfg.MaxAvatarSize = 63
-	assert.Equal(fmt.Sprintf("30 gemini://localhost.localdomain:8443/users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), server.Upload("/users/avatar/upload;mime=image/gif;size=63", server.Alice, avatar))
+	assert.Equal("30 /users/avatar\r\n", server.Upload("/users/avatar/upload;mime=image/gif;size=63", server.Alice, avatar))
 }
