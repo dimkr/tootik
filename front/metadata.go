@@ -28,7 +28,7 @@ import (
 	"github.com/dimkr/tootik/outbox"
 )
 
-var metadataRegex = regexp.MustCompile(`^^([^\p{Cc}\p{Cs}\s=\r\n]{1,16}(?: *[^\p{Cc}\p{Cs}\s=\r\n]{1,16}){0,3})=([^\p{Cc}\p{Cs}\r\n]{1,64})$`)
+var metadataRegex = regexp.MustCompile(`^([^\p{Cc}\p{Cs}\s=\r\n]{1,16}(?: *[^\p{Cc}\p{Cs}\s=\r\n]{1,16}){0,3})=([^\p{Cc}\p{Cs}\r\n]{1,64})$`)
 
 func (h *Handler) metadata(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {

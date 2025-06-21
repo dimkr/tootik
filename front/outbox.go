@@ -26,22 +26,26 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
-	"github.com/dimkr/tootik/front/text/plain"
 )
 
 func writeMetadataField(field ap.Attachment, w text.Writer) {
-	raw, links := plain.FromHTML(field.Val)
+	raw, links := getTextAndLinks(field.Val, 64, 2)
+
+	if len(raw) > 1 {
+		w.Quotef("%s: %s […]", field.Name, raw[0])
+		return
+	}
 
 	if len(links) == 0 || len(links) > 1 {
-		w.Quotef("%s: %s", field.Name, raw)
+		w.Quotef("%s: %s", field.Name, raw[0])
 		return
 	}
 
 	for link := range links.Keys() {
-		if link == raw {
+		if link == raw[0] {
 			w.Link(link, field.Name)
 		} else {
-			w.Linkf(link, "%s: %s", field.Name, raw)
+			w.Linkf(link, "%s: %s", field.Name, raw[0])
 		}
 		break
 	}
