@@ -257,7 +257,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		w.Subtitle("Metadata")
 
 		if actor.Published == (ap.Time{}) {
-			w.Text("Joined: unknown")
+			w.Text("Joined: ?")
 		} else {
 			w.Textf("Joined: %s", actor.Published.Format(time.DateOnly))
 		}
