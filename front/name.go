@@ -36,7 +36,7 @@ func (h *Handler) name(w text.Writer, r *Request, args ...string) {
 
 	w.OK()
 
-	w.Title("👺 Display name")
+	w.Title("📛 Display name")
 
 	if len(r.User.Name) == 0 {
 		w.Text("Display name is not set.")

@@ -27,7 +27,7 @@ func TestName_Set(t *testing.T) {
 
 	bob.
 		Follow("⚙️ Settings").
-		Follow("👺 Display name").
+		Follow("📛 Display name").
 		Contains(Line{Type: Text, Text: "Display name is not set."}).
 		FollowInput("Set", "bobby").
 		NotContains(Line{Type: Text, Text: "Display name: bobby."})

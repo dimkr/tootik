@@ -2,10 +2,10 @@
 
 ## Profile
 
-=> /users/name 👺 Display name
+=> /users/name 📛 Display name
 => /users/bio 📜 Bio
 => /users/metadata 💳 Metadata
-=> /users/avatar 🖼️ Avatar
+=> /users/avatar 🗿 Avatar
 
 ## Account
 
