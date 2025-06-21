@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
@@ -150,5 +149,26 @@ func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.Redirectf("gemini://%s/users/outbox/%s", h.Domain, strings.TrimPrefix(r.User.ID, "https://"))
+	w.Redirect("/users/avatar")
+}
+
+func (h *Handler) avatar(w text.Writer, r *Request, args ...string) {
+	if r.User == nil {
+		w.Redirect("/users")
+		return
+	}
+
+	w.OK()
+
+	w.Title("🗿 Avatar")
+
+	if len(r.User.Icon) == 0 || r.User.Icon[0].URL == "" {
+		w.Text("Avatar is not set.")
+	} else {
+		w.Link(r.User.Icon[0].URL, "Current avatar")
+	}
+
+	w.Empty()
+
+	w.Link(fmt.Sprintf("titan://%s/users/avatar/upload", h.Domain), "Upload")
 }

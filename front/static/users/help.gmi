@@ -67,6 +67,7 @@ You can upload a plain text file over Titan, instead of typing your post in the 
 This page allows you to:
 * Set your display name (up to {{.Config.MaxDisplayNameLength}} characters long)
 * Set the short (up to {{.Config.MaxBioLength}} characters long) description that appears at the top of your profile
+* Define up to {{.Config.MaxMetadataFields}} profile metadata fields
 * Enable manual approval of follow requests and manage pending ones
 * Set an account alias, to allow account migration to this instance
 * Notify followers about account migration from this instance

@@ -2,10 +2,10 @@
 
 ## Profile
 
-=> /users/name 👺 Set display name
-=> /users/bio 📜 Set bio
-=> titan://{{.Domain}}/users/upload/bio Upload bio
-=> titan://{{.Domain}}/users/upload/avatar Upload avatar
+=> /users/name 📛 Display name
+=> /users/bio 📜 Bio
+=> /users/metadata 💳 Metadata
+=> /users/avatar 🗿 Avatar
 
 ## Account
 

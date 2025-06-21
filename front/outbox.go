@@ -26,8 +26,30 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
-	"github.com/dimkr/tootik/front/text/plain"
 )
+
+func writeMetadataField(field ap.Attachment, w text.Writer) {
+	raw, links := getTextAndLinks(field.Val, 64, 2)
+
+	if len(raw) > 1 {
+		w.Quotef("%s: %s […]", field.Name, raw[0])
+		return
+	}
+
+	if len(links) == 0 || len(links) > 1 {
+		w.Quotef("%s: %s", field.Name, raw[0])
+		return
+	}
+
+	for link := range links.Keys() {
+		if link == raw[0] {
+			w.Link(link, field.Name)
+		} else {
+			w.Linkf(link, "%s: %s", field.Name, raw[0])
+		}
+		break
+	}
+}
 
 func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 	actorID := "https://" + args[1]
@@ -263,20 +285,11 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		}
 
 		for _, prop := range actor.Attachment {
-			if prop.Type != ap.PropertyValue || prop.Name == "" || prop.Value == "" {
+			if prop.Type != ap.PropertyValue || prop.Name == "" {
 				continue
 			}
 
-			raw, links := plain.FromHTML(prop.Value)
-
-			if len(links) == 0 || len(links) > 1 {
-				w.Quotef("%s: %s", prop.Name, raw)
-			} else {
-				for link := range links.Keys() {
-					w.Linkf(link, prop.Name)
-					break
-				}
-			}
+			writeMetadataField(prop, w)
 		}
 	}
 
