@@ -117,8 +117,6 @@ func (h *Handler) ttl(w text.Writer, r *Request, args ...string) {
 	}
 	w.Empty()
 
-	w.Subtitle("Change")
-
 	if !ttl.Valid || ttl.Int32 != 7 {
 		w.Link("/users/ttl?7", "After a week")
 	}
