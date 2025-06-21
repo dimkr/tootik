@@ -121,12 +121,7 @@ func (h *Handler) metadataAdd(w text.Writer, r *Request, args ...string) {
 		Val:  plain.ToHTML(m[2], nil),
 	}
 
-	for _, field := range r.User.Attachment {
-		if attachment.Name == field.Name {
-			w.Status(40, "Field already exists")
-			return
-		}
-	}
+	r.Log.Info("Adding metadata field", "name", attachment.Name)
 
 	tx, err := h.DB.BeginTx(r.Context, nil)
 	if err != nil {
@@ -144,7 +139,7 @@ func (h *Handler) metadataAdd(w text.Writer, r *Request, args ...string) {
 		where
 			id = $3 and
 			coalesce(json_array_length(actor->>'$.attachment'), 0) < $4 and
-			not exists (select 1 from json_each(actor->'$.attachment') where value->'$.name' = $5)
+			not exists (select 1 from json_each(actor->'$.attachment') where value->>'$.name' = $5)
 		`,
 		&attachment,
 		now.Format(time.RFC3339Nano),
@@ -211,6 +206,8 @@ func (h *Handler) metadataRemove(w text.Writer, r *Request, args ...string) {
 	return
 
 found:
+	r.Log.Info("Removing metadata field", "key", key)
+
 	tx, err := h.DB.BeginTx(r.Context, nil)
 	if err != nil {
 		r.Log.Warn("Failed to remove metadata field", "key", key, "error", err)
@@ -218,8 +215,6 @@ found:
 		return
 	}
 	defer tx.Rollback()
-
-	r.Log.Info("Removing metadata field", "key", key)
 
 	if res, err := tx.ExecContext(
 		r.Context,
