@@ -163,10 +163,10 @@ func (h *Handler) avatar(w text.Writer, r *Request, args ...string) {
 
 	w.Title("🖼️ Avatar")
 
-	if len(r.User.Icon) == 0 || r.User.Icon[0].Href == "" {
+	if len(r.User.Icon) == 0 || r.User.Icon[0].URL == "" {
 		w.Text("Avatar is not set.")
 	} else {
-		w.Link(r.User.Icon[0].Href, "Current avatar")
+		w.Link(r.User.Icon[0].URL, "Current avatar")
 	}
 
 	w.Empty()
