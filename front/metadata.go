@@ -53,6 +53,7 @@ func (h *Handler) metadata(w text.Writer, r *Request, args ...string) {
 			}
 
 			raw, links := plain.FromHTML(field.Val)
+
 			if len(links) == 0 || len(links) > 1 {
 				w.Quotef("%s: %s", field.Name, raw)
 			} else {
