@@ -268,11 +268,8 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 			}
 
 			raw, links := plain.FromHTML(prop.Val)
-			if len(links) > 1 {
-				continue
-			}
 
-			if len(links) == 0 {
+			if len(links) == 0 || len(links) > 1 {
 				w.Quotef("%s: %s", prop.Name, raw)
 			} else {
 				for link := range links.Keys() {
