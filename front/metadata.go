@@ -44,7 +44,7 @@ func (h *Handler) metadata(w text.Writer, r *Request, args ...string) {
 		w.Text("No metadata fields are defined.")
 	} else {
 		for i, field := range r.User.Attachment {
-			if field.Type != ap.PropertyValue {
+			if field.Type != ap.PropertyValue || field.Name == "" {
 				continue
 			}
 

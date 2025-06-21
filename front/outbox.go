@@ -285,7 +285,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		}
 
 		for _, prop := range actor.Attachment {
-			if prop.Type != ap.PropertyValue || prop.Name == "" || prop.Val == "" {
+			if prop.Type != ap.PropertyValue || prop.Name == "" {
 				continue
 			}
 
