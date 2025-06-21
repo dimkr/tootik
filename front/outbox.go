@@ -220,52 +220,46 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		w.Title(displayName)
 	}
 
-	showSeparator := false
-
 	if offset == 0 && len(actor.Icon) > 0 && actor.Icon[0].URL != "" {
 		w.Link(actor.Icon[0].URL, "Avatar")
-		showSeparator = true
+	} else if offset == 0 {
+		w.Text("No avatar.")
 	}
 
 	if offset == 0 && actor.Image != nil && actor.Image.URL != "" {
 		w.Link(actor.Image.URL, "Header")
-		showSeparator = true
 	}
 
 	if offset == 0 && actor.MovedTo != "" {
 		w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.MovedTo, "https://"), "Moved to %s", actor.MovedTo)
-		showSeparator = true
-	}
-
-	if len(summary) > 0 {
-		if showSeparator {
-			w.Empty()
-		}
-
-		for _, line := range summary {
-			w.Quote(line)
-		}
-		for link, alt := range links.All() {
-			if alt == "" {
-				w.Link(link, link)
-			} else {
-				w.Link(link, alt)
-			}
-		}
 	}
 
 	if offset == 0 {
-		firstProperty := true
+		w.Empty()
+		w.Subtitle("Bio")
 
-		if actor.Published != (ap.Time{}) {
-			if showSeparator {
-				w.Empty()
+		if len(summary) > 0 {
+			for _, line := range summary {
+				w.Quote(line)
 			}
+			for link, alt := range links.All() {
+				if alt == "" {
+					w.Link(link, link)
+				} else {
+					w.Link(link, alt)
+				}
+			}
+		} else {
+			w.Text("No bio.")
+		}
 
+		w.Empty()
+		w.Subtitle("Metadata")
+
+		if actor.Published == (ap.Time{}) {
+			w.Text("Joined: ?")
+		} else {
 			w.Textf("Joined: %s", actor.Published.Format(time.DateOnly))
-
-			firstProperty = false
-			showSeparator = true
 		}
 
 		for _, prop := range actor.Attachment {
@@ -274,15 +268,8 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 			}
 
 			raw, links := plain.FromHTML(prop.Value)
-			if len(links) > 1 {
-				continue
-			}
 
-			if len(summary) > 0 && firstProperty {
-				w.Empty()
-			}
-
-			if len(links) == 0 {
+			if len(links) == 0 || len(links) > 1 {
 				w.Quotef("%s: %s", prop.Name, raw)
 			} else {
 				for link := range links.Keys() {
@@ -290,15 +277,11 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 					break
 				}
 			}
-
-			firstProperty = false
-			showSeparator = true
 		}
 	}
 
-	if showSeparator {
-		w.Separator()
-	}
+	w.Empty()
+	w.Subtitle("Posts")
 
 	count := h.PrintNotes(w, r, rows, true, actor.Type != ap.Group, "No posts.")
 	rows.Close()
