@@ -106,7 +106,8 @@ func TestMetadata_Add(t *testing.T) {
 		Contains(Line{Type: Quote, Text: "a: b"}).
 		FollowInput("➕ Add", "c=d").
 		Contains(Line{Type: Quote, Text: "c: d"}).
-		OK()
+		FollowInput("➕ Add", "c=d").
+		Error("40 Field already exists")
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
