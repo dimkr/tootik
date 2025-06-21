@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
@@ -150,7 +149,7 @@ func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.Redirectf("gemini://%s/users/outbox/%s", h.Domain, strings.TrimPrefix(r.User.ID, "https://"))
+	w.Redirect("/users/avatar")
 }
 
 func (h *Handler) avatar(w text.Writer, r *Request, args ...string) {
