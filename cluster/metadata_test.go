@@ -28,6 +28,34 @@ func TestMetadata_Whitespace(t *testing.T) {
 	bob.
 		Follow("⚙️ Settings").
 		Follow("💳 Metadata").
+		FollowInput("➕ Add", "my website=it's http://localhost.localdomain").
+		Contains(Line{Type: Quote, Text: "my website: it's http://localhost.localdomain"})
+
+	alice.
+		FollowInput("🔭 View profile", "bob@b.localdomain").
+		Contains(Line{Type: Quote, Text: "my website: it's http://localhost.localdomain"})
+
+	bob.
+		Follow("⚙️ Settings").
+		Follow("💳 Metadata").
+		Follow("➖ Remove").
+		NotContains(Line{Type: Quote, Text: "my website: it's http://localhost.localdomain"})
+
+	alice.
+		FollowInput("🔭 View profile", "bob@b.localdomain").
+		NotContains(Line{Type: Quote, Text: "my website: it's http://localhost.localdomain"})
+}
+
+func TestMetadata_LineBreak(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
+	defer cluster.Stop()
+
+	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+
+	bob.
+		Follow("⚙️ Settings").
+		Follow("💳 Metadata").
 		FollowInput("➕ Add", "a=b").
 		Contains(Line{Type: Quote, Text: "a: b"}).
 		FollowInput("➕ Add", "c=d\ne").

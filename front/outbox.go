@@ -29,6 +29,24 @@ import (
 	"github.com/dimkr/tootik/front/text/plain"
 )
 
+func writeMetadataField(field ap.Attachment, w text.Writer) {
+	raw, links := plain.FromHTML(field.Val)
+
+	if len(links) == 0 || len(links) > 1 {
+		w.Quotef("%s: %s", field.Name, raw)
+	} else {
+		for link := range links.Keys() {
+			if link == raw {
+				w.Linkf(link, field.Name)
+			} else {
+				w.Quotef("%s: %s", field.Name, raw)
+				w.Linkf(link, link)
+			}
+			break
+		}
+	}
+}
+
 func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 	actorID := "https://" + args[1]
 
@@ -267,16 +285,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 				continue
 			}
 
-			raw, links := plain.FromHTML(prop.Val)
-
-			if len(links) == 0 || len(links) > 1 {
-				w.Quotef("%s: %s", prop.Name, raw)
-			} else {
-				for link := range links.Keys() {
-					w.Linkf(link, prop.Name)
-					break
-				}
-			}
+			writeMetadataField(prop, w)
 		}
 	}
 

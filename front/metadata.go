@@ -52,17 +52,7 @@ func (h *Handler) metadata(w text.Writer, r *Request, args ...string) {
 				w.Empty()
 			}
 
-			raw, links := plain.FromHTML(field.Val)
-
-			if len(links) == 0 || len(links) > 1 {
-				w.Quotef("%s: %s", field.Name, raw)
-			} else {
-				for link := range links.Keys() {
-					w.Linkf(link, field.Name)
-					break
-				}
-			}
-
+			writeMetadataField(field, w)
 			w.Link("/users/metadata/remove?"+url.QueryEscape(field.Name), "➖ Remove")
 		}
 	}
