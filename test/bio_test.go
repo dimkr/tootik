@@ -17,7 +17,6 @@ limitations under the License.
 package test
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -31,8 +30,8 @@ func TestBio_Throttled(t *testing.T) {
 
 	assert := assert.New(t)
 
-	summary := server.Handle("/users/bio/set?Hello%20world", server.Alice)
-	assert.Regexp(`^40 Please wait for \S+\r\n$`, summary)
+	bio := server.Handle("/users/bio/set?Hello%20world", server.Alice)
+	assert.Regexp(`^40 Please wait for \S+\r\n$`, bio)
 }
 
 func TestBio_HappyFlow(t *testing.T) {
@@ -43,8 +42,8 @@ func TestBio_HappyFlow(t *testing.T) {
 
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
 
-	summary := server.Handle("/users/bio/set?Hello%20world", server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), summary)
+	bio := server.Handle("/users/bio/set?Hello%20world", server.Alice)
+	assert.Equal("30 /users/bio\r\n", bio)
 
 	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Contains(strings.Split(outbox, "\n"), "> Hello world")
@@ -58,8 +57,8 @@ func TestBio_TooLong(t *testing.T) {
 
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
 
-	summary := server.Handle("/users/bio/set?aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", server.Alice)
-	assert.Equal("40 Summary is too long\r\n", summary)
+	bio := server.Handle("/users/bio/set?aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", server.Alice)
+	assert.Equal("40 Bio is too long\r\n", bio)
 }
 
 func TestBio_MultiLine(t *testing.T) {
@@ -70,8 +69,8 @@ func TestBio_MultiLine(t *testing.T) {
 
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
 
-	summary := server.Handle("/users/bio/set?Hello%0Aworld", server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), summary)
+	bio := server.Handle("/users/bio/set?Hello%0Aworld", server.Alice)
+	assert.Equal("30 /users/bio\r\n", bio)
 
 	outbox := strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob), "\n")
 	assert.Contains(outbox, "> Hello")
@@ -86,8 +85,8 @@ func TestBio_MultiLineWithLink(t *testing.T) {
 
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
 
-	summary := server.Handle("/users/bio/set?Hi%21%0A%0AI%27m%20a%20friend%20of%20https%3a%2f%2flocalhost.localdomain%3a8443%2fuser%2fbob", server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), summary)
+	bio := server.Handle("/users/bio/set?Hi%21%0A%0AI%27m%20a%20friend%20of%20https%3a%2f%2flocalhost.localdomain%3a8443%2fuser%2fbob", server.Alice)
+	assert.Equal("30 /users/bio\r\n", bio)
 
 	outbox := strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob), "\n")
 	assert.Contains(outbox, "> Hi!")
