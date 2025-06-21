@@ -175,11 +175,13 @@ func TestMetadata_Remove(t *testing.T) {
 		Follow("💳 Metadata").
 		OK()
 
-	list = bob.
-		Goto("/users/metadata/remove/3").
+	list = list.
+		Goto("/users/metadata/remove/3")
+
+	list.
 		OK()
 
-	bob.
+	list.
 		Goto("/users/metadata/remove/3").
 		Error("40 Error")
 
