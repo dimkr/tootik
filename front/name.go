@@ -45,7 +45,6 @@ func (h *Handler) name(w text.Writer, r *Request, args ...string) {
 	}
 
 	w.Empty()
-	w.Subtitle("Actions")
 
 	w.Link("/users/name/set", "Set")
 }

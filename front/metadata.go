@@ -17,11 +17,9 @@ limitations under the License.
 package front
 
 import (
-	"fmt"
 	"html"
 	"net/url"
 	"regexp"
-	"strconv"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
@@ -66,21 +64,13 @@ func (h *Handler) metadata(w text.Writer, r *Request, args ...string) {
 				}
 			}
 
-			w.Link(fmt.Sprintf("/users/metadata/remove/%d", i), "➖ Remove")
+			w.Link("/users/metadata/remove?"+url.QueryEscape(field.Name), "➖ Remove")
 		}
 	}
 
-	if len(r.User.Attachment) < h.Config.MaxMetadataFields || len(r.User.Attachment) > 0 {
-		w.Empty()
-		w.Subtitle("Actions")
-	}
-
 	if len(r.User.Attachment) < h.Config.MaxMetadataFields {
+		w.Empty()
 		w.Link("/users/metadata/add", "➕ Add")
-	}
-
-	if len(r.User.Attachment) > 0 {
-		w.Link("/users/metadata/clear", "➖ Clear")
 	}
 }
 
@@ -155,7 +145,7 @@ func (h *Handler) metadataAdd(w text.Writer, r *Request, args ...string) {
 		where
 			id = $3 and
 			coalesce(json_array_length(actor->>'$.attachment'), 0) < $4 and
-			not exists (select 1 from json_each(actor->'$.attachment') where value = $5)
+			not exists (select 1 from json_each(actor->'$.attachment') where value->'$.name' = $5)
 		`,
 		&attachment,
 		now.Format(time.RFC3339Nano),
@@ -171,8 +161,8 @@ func (h *Handler) metadataAdd(w text.Writer, r *Request, args ...string) {
 		w.Error()
 		return
 	} else if one < 1 {
-		r.Log.Error("Failed to add metadata field", "name", attachment.Name)
-		w.Error()
+		r.Log.Error("Cannot add metadata field", "name", attachment.Name)
+		w.Status(40, "Cannot add metadata field")
 		return
 	}
 
@@ -197,38 +187,40 @@ func (h *Handler) metadataRemove(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	now := time.Now()
-
-	can := r.User.Published.Time.Add(h.Config.MinActorEditInterval)
-	if r.User.Updated != (ap.Time{}) {
-		can = r.User.Updated.Time.Add(h.Config.MinActorEditInterval)
-	}
-	if now.Before(can) {
-		r.Log.Warn("Throttled request to remove metadata field", "can", can)
-		w.Statusf(40, "Please wait for %s", time.Until(can).Truncate(time.Second).String())
+	if r.URL.RawQuery == "" {
+		w.Status(10, "Metadata field (key)")
 		return
 	}
 
-	id, err := strconv.Atoi(args[1])
+	key, err := url.QueryUnescape(r.URL.RawQuery)
 	if err != nil {
+		r.Log.Warn("Failed to parse metadata field key", "raw", r.URL.RawQuery, "error", err)
 		w.Status(40, "Bad input")
 		return
 	}
 
-	if id < 0 || id > len(r.User.Attachment) {
-		w.Status(40, "Bad input")
-		return
+	id := 0
+	for i, field := range r.User.Attachment {
+		if field.Name == key {
+			id = i
+			goto found
+		}
 	}
 
+	r.Log.Warn("Metadata field key does not exist", "raw", r.URL.RawQuery)
+	w.Status(40, "Field does not exist")
+	return
+
+found:
 	tx, err := h.DB.BeginTx(r.Context, nil)
 	if err != nil {
-		r.Log.Warn("Failed to remove metadata field", "id", id, "error", err)
+		r.Log.Warn("Failed to remove metadata field", "key", key, "error", err)
 		w.Error()
 		return
 	}
 	defer tx.Rollback()
 
-	r.Log.Info("Removing metadata field", "id", id)
+	r.Log.Info("Removing metadata field", "key", key)
 
 	if res, err := tx.ExecContext(
 		r.Context,
@@ -237,101 +229,34 @@ func (h *Handler) metadataRemove(w text.Writer, r *Request, args ...string) {
 		set actor = jsonb_set(jsonb_remove(actor, '$.attachment[' || $1 || ']'), '$.updated', $2)
 		where
 			id = $3 and
-			coalesce(json_array_length(actor->>'$.attachment'), 0) > $1
+			json_extract(actor, '$.attachment[' || $1 || '].name') = $4
 		`,
 		id,
-		now.Format(time.RFC3339Nano),
+		time.Now().Format(time.RFC3339Nano),
 		r.User.ID,
+		key,
 	); err != nil {
-		r.Log.Error("Failed to remove metadata field", "id", id, "error", err)
+		r.Log.Error("Failed to remove metadata field", "key", key, "id", id, "error", err)
 		w.Error()
 		return
 	} else if one, err := res.RowsAffected(); err != nil {
-		r.Log.Error("Failed to remove metadata field", "id", id, "error", err)
+		r.Log.Error("Failed to remove metadata field", "key", key, "id", id, "error", err)
 		w.Error()
 		return
 	} else if one < 1 {
-		r.Log.Error("Failed to remove metadata field", "id", id)
-		w.Error()
+		r.Log.Error("Failed to remove metadata field", "key", key, "id", id)
+		w.Status(40, "Field does not exist")
 		return
 	}
 
 	if err := outbox.UpdateActor(r.Context, h.Domain, tx, r.User.ID); err != nil {
-		r.Log.Error("Failed to remove metadata field", "id", id, "error", err)
+		r.Log.Error("Failed to remove metadata field", "key", key, "id", id, "error", err)
 		w.Error()
 		return
 	}
 
 	if err := tx.Commit(); err != nil {
-		r.Log.Error("Failed to remove metadata field", "id", id, "error", err)
-		w.Error()
-		return
-	}
-
-	w.Redirect("/users/metadata")
-}
-
-func (h *Handler) metadataClear(w text.Writer, r *Request, args ...string) {
-	if r.User == nil {
-		w.Redirect("/users")
-		return
-	}
-
-	now := time.Now()
-
-	can := r.User.Published.Time.Add(h.Config.MinActorEditInterval)
-	if r.User.Updated != (ap.Time{}) {
-		can = r.User.Updated.Time.Add(h.Config.MinActorEditInterval)
-	}
-	if now.Before(can) {
-		r.Log.Warn("Throttled request to clear metadata fields", "can", can)
-		w.Statusf(40, "Please wait for %s", time.Until(can).Truncate(time.Second).String())
-		return
-	}
-
-	tx, err := h.DB.BeginTx(r.Context, nil)
-	if err != nil {
-		r.Log.Warn("Failed to clear metadata fields", "error", err)
-		w.Error()
-		return
-	}
-	defer tx.Rollback()
-
-	r.Log.Info("Clearing metadata fields")
-
-	if res, err := tx.ExecContext(
-		r.Context,
-		`
-		update persons
-		set actor = jsonb_set(jsonb_remove(actor, '$.attachment'), '$.updated', $1)
-		where
-			id = $2 and
-			coalesce(json_array_length(actor->>'$.attachment'), 0) > 0
-		`,
-		now.Format(time.RFC3339Nano),
-		r.User.ID,
-	); err != nil {
-		r.Log.Error("Failed to clear metadata fields", "error", err)
-		w.Error()
-		return
-	} else if one, err := res.RowsAffected(); err != nil {
-		r.Log.Error("Failed to clear metadata fields", "error", err)
-		w.Error()
-		return
-	} else if one < 1 {
-		r.Log.Error("Failed to clear metadata fields")
-		w.Error()
-		return
-	}
-
-	if err := outbox.UpdateActor(r.Context, h.Domain, tx, r.User.ID); err != nil {
-		r.Log.Error("Failed to clear metadata fields", "error", err)
-		w.Error()
-		return
-	}
-
-	if err := tx.Commit(); err != nil {
-		r.Log.Error("Failed to clear metadata fields", "error", err)
+		r.Log.Error("Failed to remove metadata field", "key", key, "id", id, "error", err)
 		w.Error()
 		return
 	}

@@ -169,7 +169,6 @@ func (h *Handler) avatar(w text.Writer, r *Request, args ...string) {
 	}
 
 	w.Empty()
-	w.Subtitle("Actions")
 
 	w.Link(fmt.Sprintf("titan://%s/users/avatar/upload", h.Domain), "Upload")
 }

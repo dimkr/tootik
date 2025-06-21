@@ -90,8 +90,7 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 	h.handlers[regexp.MustCompile(`^/users/bio/upload;([a-z]+)=([^;]+)(?:;([a-z]+)=([^;]+)){0,1}$`)] = h.uploadBio
 	h.handlers[regexp.MustCompile(`^/users/metadata$`)] = withUserMenu(h.metadata)
 	h.handlers[regexp.MustCompile(`^/users/metadata/add$`)] = h.metadataAdd
-	h.handlers[regexp.MustCompile(`^/users/metadata/remove/(\d+)$`)] = h.metadataRemove
-	h.handlers[regexp.MustCompile(`^/users/metadata/clear$`)] = h.metadataClear
+	h.handlers[regexp.MustCompile(`^/users/metadata/remove$`)] = h.metadataRemove
 	h.handlers[regexp.MustCompile(`^/users/name$`)] = withUserMenu(h.name)
 	h.handlers[regexp.MustCompile(`^/users/name/set$`)] = h.setName
 	h.handlers[regexp.MustCompile(`^/users/alias$`)] = h.alias

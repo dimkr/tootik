@@ -43,9 +43,9 @@ func (h *Handler) bio(w text.Writer, r *Request, args ...string) {
 		w.Text("Current bio:")
 		w.Empty()
 
-		summary, links := getTextAndLinks(r.User.Summary, -1, -1)
+		bio, links := getTextAndLinks(r.User.Summary, -1, -1)
 
-		for _, line := range summary {
+		for _, line := range bio {
 			w.Quote(line)
 		}
 
@@ -59,7 +59,6 @@ func (h *Handler) bio(w text.Writer, r *Request, args ...string) {
 	}
 
 	w.Empty()
-	w.Subtitle("Actions")
 
 	w.Link("/users/bio/set", "Set")
 	w.Link(fmt.Sprintf("titan://%s/users/bio/upload", h.Domain), "Upload")
@@ -78,24 +77,24 @@ func (h *Handler) doSetBio(w text.Writer, r *Request, readInput func(text.Writer
 		can = r.User.Updated.Time.Add(h.Config.MinActorEditInterval)
 	}
 	if now.Before(can) {
-		r.Log.Warn("Throttled request to set summary", "can", can)
+		r.Log.Warn("Throttled request to set bio", "can", can)
 		w.Statusf(40, "Please wait for %s", time.Until(can).Truncate(time.Second).String())
 		return
 	}
 
-	summary, ok := readInput(w, r)
+	bio, ok := readInput(w, r)
 	if !ok {
 		return
 	}
 
-	if utf8.RuneCountInString(summary) > h.Config.MaxBioLength {
-		w.Status(40, "Summary is too long")
+	if utf8.RuneCountInString(bio) > h.Config.MaxBioLength {
+		w.Status(40, "Bio is too long")
 		return
 	}
 
 	tx, err := h.DB.BeginTx(r.Context, nil)
 	if err != nil {
-		r.Log.Warn("Failed to update summary", "error", err)
+		r.Log.Warn("Failed to update bio", "error", err)
 		w.Error()
 		return
 	}
@@ -104,23 +103,23 @@ func (h *Handler) doSetBio(w text.Writer, r *Request, readInput func(text.Writer
 	if _, err := tx.ExecContext(
 		r.Context,
 		"update persons set actor = jsonb_set(actor, '$.summary', $1, '$.updated', $2) where id = $3",
-		plain.ToHTML(summary, nil),
+		plain.ToHTML(bio, nil),
 		now.Format(time.RFC3339Nano),
 		r.User.ID,
 	); err != nil {
-		r.Log.Error("Failed to update summary", "error", err)
+		r.Log.Error("Failed to update bio", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := outbox.UpdateActor(r.Context, h.Domain, tx, r.User.ID); err != nil {
-		r.Log.Error("Failed to update summary", "error", err)
+		r.Log.Error("Failed to update bio", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := tx.Commit(); err != nil {
-		r.Log.Error("Failed to update summary", "error", err)
+		r.Log.Error("Failed to update bio", "error", err)
 		w.Error()
 		return
 	}

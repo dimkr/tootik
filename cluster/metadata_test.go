@@ -176,14 +176,14 @@ func TestMetadata_Remove(t *testing.T) {
 		OK()
 
 	list = list.
-		Goto("/users/metadata/remove/3")
+		Goto("/users/metadata/remove?g")
 
 	list.
 		OK()
 
 	list.
-		Goto("/users/metadata/remove/3").
-		Error("40 Error")
+		Goto("/users/metadata/remove?g").
+		Error("40 Field does not exist")
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
@@ -214,46 +214,4 @@ func TestMetadata_Remove(t *testing.T) {
 		NotContains(Line{Type: Quote, Text: "c: d"}).
 		NotContains(Line{Type: Quote, Text: "e: f"}).
 		NotContains(Line{Type: Quote, Text: "g: h"})
-}
-
-func TestMetadata_Clear(t *testing.T) {
-	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
-
-	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
-	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
-
-	list := bob.
-		Follow("⚙️ Settings").
-		Follow("💳 Metadata").
-		FollowInput("➕ Add", "a=b").
-		Contains(Line{Type: Quote, Text: "a: b"}).
-		FollowInput("➕ Add", "c=d").
-		Contains(Line{Type: Quote, Text: "c: d"}).
-		OK()
-
-	alice.
-		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(Line{Type: Quote, Text: "a: b"}).
-		Contains(Line{Type: Quote, Text: "c: d"})
-
-	list.
-		Follow("➖ Clear").
-		NotContains(Line{Type: Quote, Text: "a: b"}).
-		NotContains(Line{Type: Quote, Text: "c: d"})
-
-	alice.
-		FollowInput("🔭 View profile", "bob@b.localdomain").
-		NotContains(Line{Type: Quote, Text: "a: b"}).
-		NotContains(Line{Type: Quote, Text: "c: d"})
-
-	bob.
-		Follow("⚙️ Settings").
-		Follow("💳 Metadata").
-		FollowInput("➕ Add", "a=b").
-		Contains(Line{Type: Quote, Text: "a: b"})
-
-	alice.
-		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(Line{Type: Quote, Text: "a: b"})
 }
