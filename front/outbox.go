@@ -37,10 +37,9 @@ func writeMetadataField(field ap.Attachment, w text.Writer) {
 	} else {
 		for link := range links.Keys() {
 			if link == raw {
-				w.Linkf(link, field.Name)
+				w.Link(link, field.Name)
 			} else {
-				w.Quotef("%s: %s", field.Name, raw)
-				w.Linkf(link, link)
+				w.Linkf(link, "%s: %s", field.Name, raw)
 			}
 			break
 		}
