@@ -67,6 +67,11 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
+	if h.Config.CompiledForbiddenUserNameRegex.MatchString(userName) {
+		w.Status(40, "Forbidden user name")
+		return
+	}
+
 	var lastRegister sql.NullInt64
 	if err := h.DB.QueryRowContext(r.Context, `select max(inserted) from certificates`).Scan(&lastRegister); err != nil {
 		r.Log.Warn("Failed to check last registration time", "name", userName, "error", err)

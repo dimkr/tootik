@@ -25,6 +25,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"regexp"
 	"sync"
 	"testing"
 
@@ -1127,4 +1128,88 @@ func TestRegister_TwoCertificates(t *testing.T) {
 
 		assert.Regexp(data.expected, string(resp))
 	}
+}
+
+func TestRegister_ForbiddenUserName(t *testing.T) {
+	assert := assert.New(t)
+
+	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_journal_mode=WAL", t.Name())
+	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
+	db, err := sql.Open("sqlite3", dbPath)
+	assert.NoError(err)
+
+	var cfg cfg.Config
+	cfg.FillDefaults()
+	cfg.CompiledForbiddenUserNameRegex = regexp.MustCompile(`^(root|localhost|erin.*|ip6-.*|.*(admin|tootik).*)$`)
+
+	assert.NoError(migrations.Run(context.Background(), domain, db))
+
+	serverKeyPair, err := tls.X509KeyPair([]byte(serverCert), []byte(serverKey))
+	assert.NoError(err)
+
+	serverCfg := tls.Config{
+		Certificates: []tls.Certificate{serverKeyPair},
+		MinVersion:   tls.VersionTLS12,
+		ClientAuth:   tls.RequestClientCert,
+	}
+
+	erinKeyPair, err := tls.X509KeyPair([]byte(erinCert), []byte(erinKey))
+	assert.NoError(err)
+
+	clientCfg := tls.Config{
+		Certificates:       []tls.Certificate{erinKeyPair},
+		InsecureSkipVerify: true,
+	}
+
+	socketPath := fmt.Sprintf("/tmp/%s.socket", t.Name())
+
+	localListener, err := net.Listen("unix", socketPath)
+	assert.NoError(err)
+	defer os.Remove(socketPath)
+
+	tlsListener := tls.NewListener(localListener, &serverCfg)
+	defer tlsListener.Close()
+
+	unixReader, err := net.Dial("unix", socketPath)
+	assert.NoError(err)
+	defer unixReader.Close()
+
+	tlsWriter, err := tlsListener.Accept()
+	assert.NoError(err)
+
+	tlsReader := tls.Client(unixReader, &clientCfg)
+	defer tlsReader.Close()
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		assert.NoError(tlsReader.Handshake())
+		wg.Done()
+	}()
+	go func() {
+		assert.NoError(tlsWriter.(*tls.Conn).Handshake())
+		wg.Done()
+	}()
+	wg.Wait()
+
+	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
+	assert.NoError(err)
+
+	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
+	assert.NoError(err)
+
+	l := gemini.Listener{
+		Domain:  domain,
+		Config:  &cfg,
+		Handler: handler,
+		DB:      db,
+	}
+	l.Handle(context.Background(), tlsWriter)
+
+	tlsWriter.Close()
+
+	resp, err := io.ReadAll(tlsReader)
+	assert.NoError(err)
+
+	assert.Equal("40 Forbidden user name\r\n", string(resp))
 }
