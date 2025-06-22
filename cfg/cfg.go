@@ -27,11 +27,13 @@ import (
 type Config struct {
 	DatabaseOptions string
 
-	RequireRegistration        bool
-	RegistrationInterval       time.Duration
-	CertificateApprovalTimeout time.Duration
-	UserNameRegex              string
-	CompiledUserNameRegex      *regexp.Regexp `json:"-"`
+	RequireRegistration            bool
+	RegistrationInterval           time.Duration
+	CertificateApprovalTimeout     time.Duration
+	UserNameRegex                  string
+	CompiledUserNameRegex          *regexp.Regexp `json:"-"`
+	ForbiddenUserNameRegex         string
+	CompiledForbiddenUserNameRegex *regexp.Regexp `json:"-"`
 
 	MaxPostsLength     int
 	MaxPostsPerDay     int64
@@ -146,6 +148,12 @@ func (c *Config) FillDefaults() {
 	}
 
 	c.CompiledUserNameRegex = regexp.MustCompile(c.UserNameRegex)
+
+	if c.ForbiddenUserNameRegex == "" {
+		c.ForbiddenUserNameRegex = `^(root|localhost|ip6-.*|.*(admin|tootik).*)$`
+	}
+
+	c.CompiledForbiddenUserNameRegex = regexp.MustCompile(c.ForbiddenUserNameRegex)
 
 	if c.MaxPostsLength <= 0 {
 		c.MaxPostsLength = 500
