@@ -51,6 +51,7 @@ type Config struct {
 
 	MaxDisplayNameLength int
 	MaxBioLength         int
+	MaxMetadataFields    int
 	MaxAvatarSize        int64
 	MaxAvatarWidth       int
 	MaxAvatarHeight      int
@@ -201,6 +202,10 @@ func (c *Config) FillDefaults() {
 
 	if c.MaxBioLength <= 0 {
 		c.MaxBioLength = 500
+	}
+
+	if c.MaxMetadataFields <= 0 {
+		c.MaxMetadataFields = 4
 	}
 
 	if c.MaxAvatarSize <= 0 {
