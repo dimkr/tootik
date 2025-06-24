@@ -175,7 +175,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			w.Titlef("💬 Reply by %s", author.PreferredUsername)
 
 			if parent.Valid {
-				w.Subtitle("Context:")
+				w.Subtitle("Parent post:")
 
 				lines, _ := h.getNoteContent(&parent.V, true)
 				for _, line := range lines {
