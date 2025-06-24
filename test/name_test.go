@@ -17,7 +17,6 @@ limitations under the License.
 package test
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -31,7 +30,7 @@ func TestName_Throttled(t *testing.T) {
 
 	assert := assert.New(t)
 
-	summary := server.Handle("/users/name?Jane%20Doe", server.Alice)
+	summary := server.Handle("/users/name/set?Jane%20Doe", server.Alice)
 	assert.Regexp(`^40 Please wait for \S+\r\n$`, summary)
 }
 
@@ -43,8 +42,8 @@ func TestName_HappyFlow(t *testing.T) {
 
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
 
-	summary := server.Handle("/users/name?Jane%20Doe", server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), summary)
+	summary := server.Handle("/users/name/set?Jane%20Doe", server.Alice)
+	assert.Equal("30 /users/name\r\n", summary)
 
 	outbox := server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Contains(strings.Split(outbox, "\n"), "# 😈 Jane Doe (alice@localhost.localdomain:8443)")
@@ -58,7 +57,7 @@ func TestName_TooLong(t *testing.T) {
 
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
 
-	summary := server.Handle("/users/name?aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", server.Alice)
+	summary := server.Handle("/users/name/set?aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", server.Alice)
 	assert.Equal("40 Display name is too long\r\n", summary)
 }
 
@@ -70,8 +69,8 @@ func TestName_MultiLine(t *testing.T) {
 
 	server.Alice.Published.Time = server.Alice.Published.Time.Add(-time.Hour)
 
-	summary := server.Handle("/users/name?Jane%0A%0A%0A%0ADoe", server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), summary)
+	summary := server.Handle("/users/name/set?Jane%0A%0A%0A%0ADoe", server.Alice)
+	assert.Equal("30 /users/name\r\n", summary)
 
 	outbox := strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob), "\n")
 	assert.Contains(outbox, "# 😈 Jane Doe (alice@localhost.localdomain:8443)")

@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,6 +16,12 @@ limitations under the License.
 
 package ap
 
+import (
+	"database/sql/driver"
+	"encoding/json"
+	"fmt"
+)
+
 type AttachmentType string
 
 const (
@@ -29,5 +35,21 @@ type Attachment struct {
 	URL       string         `json:"url,omitempty"`
 	Href      string         `json:"href,omitempty"`
 	Name      string         `json:"name,omitempty"`
-	Value     string         `json:"value,omitempty"`
+	Val       string         `json:"value,omitempty"`
+}
+
+func (a *Attachment) Scan(src any) error {
+	switch v := src.(type) {
+	case []byte:
+		return json.Unmarshal(v, a)
+	case string:
+		return json.Unmarshal([]byte(v), a)
+	default:
+		return fmt.Errorf("unsupported conversion from %T to %T", src, a)
+	}
+}
+
+func (a *Attachment) Value() (driver.Value, error) {
+	buf, err := json.Marshal(a)
+	return string(buf), err
 }

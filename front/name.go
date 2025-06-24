@@ -34,6 +34,27 @@ func (h *Handler) name(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
+	w.OK()
+
+	w.Title("📛 Display name")
+
+	if len(r.User.Name) == 0 {
+		w.Text("Display name is not set.")
+	} else {
+		w.Textf("Current display name: %s.", r.User.Name)
+	}
+
+	w.Empty()
+
+	w.Link("/users/name/set", "Set")
+}
+
+func (h *Handler) setName(w text.Writer, r *Request, args ...string) {
+	if r.User == nil {
+		w.Redirect("/users")
+		return
+	}
+
 	now := time.Now()
 
 	can := r.User.Published.Time.Add(h.Config.MinActorEditInterval)
@@ -101,5 +122,5 @@ func (h *Handler) name(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.Redirect("/users/outbox/" + strings.TrimPrefix(r.User.ID, "https://"))
+	w.Redirect("/users/name")
 }
