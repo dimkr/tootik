@@ -70,9 +70,11 @@ func addNodeInfo20Stub(mux *http.ServeMux, closed bool) error {
 
 func addNodeInfo(mux *http.ServeMux, domain string, closed bool, cfg *cfg.Config, db *sql.DB) error {
 	if body, err := json.Marshal(map[string]any{
-		"links": map[string]any{
-			"rel":  "http://nodeinfo.diaspora.software/ns/schema/2.0",
-			"href": fmt.Sprintf("https://%s/nodeinfo/2.0", domain),
+		"links": []map[string]any{
+			{
+				"rel":  "http://nodeinfo.diaspora.software/ns/schema/2.0",
+				"href": fmt.Sprintf("https://%s/nodeinfo/2.0", domain),
+			},
 		},
 	}); err != nil {
 		return err
