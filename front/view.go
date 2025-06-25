@@ -39,30 +39,36 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 
 	r.Log.Info("Viewing post", "post", postID)
 
-	var note ap.Object
-	var author ap.Actor
-	var group sql.Null[ap.Actor]
+	var (
+		note   ap.Object
+		author ap.Actor
+		group  sql.Null[ap.Actor]
+
+		parent sql.Null[ap.Object]
+	)
 
 	if r.User == nil {
 		err = h.DB.QueryRowContext(
 			r.Context,
 			`
-			select json(notes.object), json(persons.actor), json(groups.actor) from notes
+			select json(notes.object), json(persons.actor), json(groups.actor), json(parents.object) from notes
 			join persons on persons.id = notes.author
 			left join (select id, actor from persons where actor->>'$.type' = 'Group') groups on exists (select 1 from shares where shares.by = groups.id and shares.note = $1)
+			left join notes parents on parents.id = notes.object->>'$.inReplyTo'
 			where
 				notes.id = $1 and
 				notes.public = 1
 			`,
 			postID,
-		).Scan(&note, &author, &group)
+		).Scan(&note, &author, &group, &parent)
 	} else {
 		err = h.DB.QueryRowContext(
 			r.Context,
 			`
-			select json(notes.object), json(persons.actor), json(groups.actor) from notes
+			select json(notes.object), json(persons.actor), json(groups.actor), json(parents.object) from notes
 			join persons on persons.id = notes.author
 			left join (select id, actor from persons where actor->>'$.type' = 'Group') groups on exists (select 1 from shares where shares.by = groups.id and shares.note = $1)
+			left join notes parents on parents.id = notes.object->>'$.inReplyTo'
 			where
 				notes.id = $1 and
 				(
@@ -89,7 +95,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			`,
 			postID,
 			r.User.ID,
-		).Scan(&note, &author, &group)
+		).Scan(&note, &author, &group, &parent)
 	}
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Info("Post was not found", "post", postID)
@@ -167,6 +173,18 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 	} else {
 		if note.InReplyTo != "" {
 			w.Titlef("💬 Reply by %s", author.PreferredUsername)
+
+			if parent.Valid {
+				w.Subtitle("Parent post:")
+
+				lines, _ := h.getNoteContent(&parent.V, true)
+				for _, line := range lines {
+					w.Quote(line)
+				}
+
+				w.Empty()
+				w.Subtitlef("%s replied:", author.PreferredUsername)
+			}
 		} else if note.IsPublic() {
 			w.Titlef("📣 Post by %s", author.PreferredUsername)
 		} else {
@@ -218,13 +236,8 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 	count := h.PrintNotes(w, r, rows, false, false, "No replies.")
 	rows.Close()
 
-	var originalPostExists int
 	var threadHead sql.NullString
 	if note.InReplyTo != "" {
-		if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from notes where id = ?)`, note.InReplyTo).Scan(&originalPostExists); err != nil {
-			r.Log.Warn("Failed to check if parent post exists", "error", err)
-		}
-
 		if err := h.DB.QueryRowContext(r.Context, `with recursive thread(id, parent, depth) as (select notes.id, notes.object->>'$.inReplyTo' as parent, 1 as depth from notes where id = ? union all select notes.id, notes.object->>'$.inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent) select id from thread order by depth desc limit 1`, note.InReplyTo).Scan(&threadHead); err != nil && errors.Is(err, sql.ErrNoRows) {
 			r.Log.Debug("First post in thread is missing")
 		} else if err != nil {
@@ -237,14 +250,14 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		r.Log.Warn("Failed to query thread depth", "error", err)
 	}
 
-	if originalPostExists == 1 || (threadHead.Valid && threadHead.String != note.ID && threadHead.String != note.InReplyTo) || threadDepth > 2 || offset > h.Config.RepliesPerPage || offset >= h.Config.RepliesPerPage || count == h.Config.RepliesPerPage {
+	if parent.Valid || (threadHead.Valid && threadHead.String != note.ID && threadHead.String != note.InReplyTo) || threadDepth > 2 || offset > h.Config.RepliesPerPage || offset >= h.Config.RepliesPerPage || count == h.Config.RepliesPerPage {
 		w.Empty()
 		w.Subtitle("Navigation")
 	}
 
-	if originalPostExists == 1 && r.User == nil {
+	if parent.Valid && r.User == nil {
 		w.Link("/view/"+strings.TrimPrefix(note.InReplyTo, "https://"), "View parent post")
-	} else if originalPostExists == 1 {
+	} else if parent.Valid {
 		w.Link("/users/view/"+strings.TrimPrefix(note.InReplyTo, "https://"), "View parent post")
 	}
 
