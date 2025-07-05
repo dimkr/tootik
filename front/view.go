@@ -163,6 +163,8 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 
 	w.OK()
 
+	var threadHead sql.NullString
+
 	if offset > 0 {
 		w.Titlef("💬 Replies to %s (%d-%d)", author.PreferredUsername, offset, offset+h.Config.RepliesPerPage)
 	} else {
@@ -227,6 +229,11 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 					}
 
 					first = false
+
+					if parent.InReplyTo == "" {
+						threadHead.Valid = true
+						threadHead.String = parent.ID
+					}
 				}
 
 				if err := parents.Err(); err != nil {
@@ -293,8 +300,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 	count := h.PrintNotes(w, r, replies, false, false, "No replies.")
 	replies.Close()
 
-	var threadHead sql.NullString
-	if note.InReplyTo != "" {
+	if note.InReplyTo != "" && !threadHead.Valid {
 		if err := h.DB.QueryRowContext(r.Context, `with recursive thread(id, parent, depth) as (select notes.id, notes.object->>'$.inReplyTo' as parent, 1 as depth from notes where id = ? union all select notes.id, notes.object->>'$.inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent) select id from thread order by depth desc limit 1`, note.InReplyTo).Scan(&threadHead); err != nil && errors.Is(err, sql.ErrNoRows) {
 			r.Log.Debug("First post in thread is missing")
 		} else if err != nil {
