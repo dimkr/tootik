@@ -175,18 +175,22 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			if parents, err := h.DB.QueryContext(
 				r.Context,
 				`
-				with recursive thread(note, author, depth) as (
-					select notes.object as note, persons.actor as author, 1 as depth
-					from notes
-					join persons on persons.id = notes.author
-					where notes.id = ?
-					union all
-					select notes.object as note, persons.actor as author, t.depth + 1
-					from thread t
-					join notes on notes.id = t.note->>'$.inReplyTo'
-					join persons on persons.id = notes.author
+				select json(note), json(author) from
+				(
+					with recursive thread(note, author, depth) as (
+						select notes.object as note, persons.actor as author, 1 as depth
+						from notes
+						join persons on persons.id = notes.author
+						where notes.id = ?
+						union all
+						select notes.object as note, persons.actor as author, t.depth + 1
+						from thread t
+						join notes on notes.id = t.note->>'$.inReplyTo'
+						join persons on persons.id = notes.author
+					)
+					select * from thread order by depth limit ?
 				)
-				select json(note), json(author) from thread order by depth desc limit ?
+				order by depth desc
 				`,
 				note.InReplyTo,
 				h.Config.PostContextDepth,
