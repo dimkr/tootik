@@ -128,12 +128,7 @@ func (h *Handler) getActorDisplayName(actor *ap.Actor) string {
 	return h.getDisplayName(actor.ID, userName, name, actor.Type)
 }
 
-func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *ap.Actor, sharer *ap.Actor, published time.Time, compact, printAuthor, printParentAuthor, titleIsLink bool) {
-	if note.AttributedTo == "" {
-		r.Log.Warn("Note has no author", "id", note.ID)
-		return
-	}
-
+func (h *Handler) getNoteContent(note *ap.Object, compact bool) ([]string, data.OrderedMap[string, string]) {
 	maxLines := -1
 	maxRunes := -1
 	if compact {
@@ -164,7 +159,16 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 		}
 	}
 
-	contentLines, inlineLinks := getTextAndLinks(noteBody, maxRunes, maxLines)
+	return getTextAndLinks(noteBody, maxRunes, maxLines)
+}
+
+func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *ap.Actor, sharer *ap.Actor, published time.Time, compact, printAuthor, printParentAuthor, titleIsLink bool) {
+	if note.AttributedTo == "" {
+		r.Log.Warn("Note has no author", "id", note.ID)
+		return
+	}
+
+	contentLines, inlineLinks := h.getNoteContent(note, compact)
 
 	links := data.OrderedMap[string, string]{}
 
