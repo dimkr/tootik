@@ -386,7 +386,7 @@ func (r *Resolver) tryResolveID(ctx context.Context, key httpsig.Key, u *url.URL
 	}
 
 	if cachedActor == nil {
-		return r.fetchActor(ctx, key, u.Host, id, cachedActor, sinceLastUpdate)
+		return r.fetchActor(ctx, key, u.Host, id, nil, sinceLastUpdate)
 	}
 
 	if cachedActor.ID != id {
