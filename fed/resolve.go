@@ -385,30 +385,30 @@ func (r *Resolver) tryResolveID(ctx context.Context, key httpsig.Key, u *url.URL
 		return nil, nil, fmt.Errorf("cannot resolve %s: %w", id, ErrActorNotCached)
 	}
 
-	if cachedActor == nil {
-		return r.fetchActor(ctx, key, u.Host, id, nil, sinceLastUpdate)
-	}
-
-	if cachedActor.ID != id {
-		altLockID := crc32.ChecksumIEEE([]byte(cachedActor.ID)) % uint32(len(r.locks))
-		if altLockID != lockID {
-			lock := r.locks[altLockID]
-			if err := lock.Lock(ctx); err != nil {
-				return nil, nil, err
+	if cachedActor != nil {
+		if cachedActor.ID != id {
+			altLockID := crc32.ChecksumIEEE([]byte(cachedActor.ID)) % uint32(len(r.locks))
+			if altLockID != lockID {
+				lock := r.locks[altLockID]
+				if err := lock.Lock(ctx); err != nil {
+					return nil, nil, err
+				}
+				defer lock.Unlock()
 			}
-			defer lock.Unlock()
 		}
+
+		if _, err := r.db.ExecContext(
+			ctx,
+			`UPDATE persons SET fetched = UNIXEPOCH() WHERE id = ?`,
+			cachedActor.ID,
+		); err != nil {
+			return nil, cachedActor, fmt.Errorf("failed to update last fetch time for %s: %w", cachedActor.ID, err)
+		}
+
+		return r.fetchActor(ctx, key, u.Host, cachedActor.ID, cachedActor, sinceLastUpdate)
 	}
 
-	if _, err := r.db.ExecContext(
-		ctx,
-		`UPDATE persons SET fetched = UNIXEPOCH() WHERE id = ?`,
-		cachedActor.ID,
-	); err != nil {
-		return nil, cachedActor, fmt.Errorf("failed to update last fetch time for %s: %w", cachedActor.ID, err)
-	}
-
-	return r.fetchActor(ctx, key, u.Host, cachedActor.ID, cachedActor, sinceLastUpdate)
+	return r.fetchActor(ctx, key, u.Host, id, nil, sinceLastUpdate)
 }
 
 func (r *Resolver) fetchActor(ctx context.Context, key httpsig.Key, host, profile string, cachedActor *ap.Actor, sinceLastUpdate time.Duration) (*ap.Actor, *ap.Actor, error) {
