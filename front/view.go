@@ -204,7 +204,10 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						return
 					}
 
-					if !first {
+					if first && parent.InReplyTo != "" {
+						w.Text("[…]")
+						w.Empty()
+					} else if !first {
 						w.Empty()
 					}
 
