@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/graph"
@@ -101,9 +102,9 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	var rows *sql.Rows
+	var replies *sql.Rows
 	if r.User == nil {
-		rows, err = h.DB.QueryContext(
+		replies, err = h.DB.QueryContext(
 			r.Context,
 			`
 			select json(replies.object), json(persons.actor), null as sharer, replies.inserted from notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
@@ -118,7 +119,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			offset,
 		)
 	} else {
-		rows, err = h.DB.QueryContext(
+		replies, err = h.DB.QueryContext(
 			r.Context,
 			`
 			select json(replies.object), json(persons.actor), null as sharer, replies.inserted from
@@ -167,6 +168,73 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 	} else {
 		if note.InReplyTo != "" {
 			w.Titlef("💬 Reply by %s", author.PreferredUsername)
+
+			w.Subtitle("Context")
+
+			first := true
+			if parents, err := h.DB.QueryContext(
+				r.Context,
+				`
+				with recursive thread(note, author, depth) as (
+					select notes.object as note, persons.actor as author, 1 as depth
+					from notes
+					join persons on persons.id = notes.author
+					where notes.id = ?
+					union all
+					select notes.object as note, persons.actor as author, t.depth + 1
+					from thread t
+					join notes on notes.id = t.note->>'$.inReplyTo'
+					join persons on persons.id = notes.author
+				)
+				select json(note), json(author) from thread order by depth desc limit ?
+				`,
+				note.InReplyTo,
+				h.Config.PostContextDepth,
+			); err != nil {
+				r.Log.Warn("Failed to fetch context", "error", err)
+			} else {
+				defer parents.Close()
+
+				for parents.Next() {
+					var parent ap.Object
+					var parentAuthor ap.Actor
+					if err := parents.Scan(&parent, &parentAuthor); err != nil {
+						r.Log.Info("Failed to fetch context", "error", err)
+						w.Error()
+						return
+					}
+
+					if !first {
+						w.Empty()
+					}
+
+					if r.User == nil {
+						w.Linkf("/view/"+strings.TrimPrefix(parent.ID, "https://"), "%s %s", parent.Published.Time.Format(time.DateOnly), parentAuthor.PreferredUsername)
+					} else {
+						w.Linkf("/users/view/"+strings.TrimPrefix(parent.ID, "https://"), "%s %s", parent.Published.Time.Format(time.DateOnly), parentAuthor.PreferredUsername)
+					}
+
+					contentLines, _ := h.getNoteContent(&parent, true)
+					for _, line := range contentLines {
+						w.Quote(line)
+					}
+
+					first = false
+				}
+
+				if err := parents.Err(); err != nil {
+					r.Log.Info("Failed to fetch context", "error", err)
+					w.Error()
+					return
+				}
+			}
+
+			if first {
+				w.Text("No context.")
+			}
+
+			w.Empty()
+			w.Subtitle("Reply")
 		} else if note.IsPublic() {
 			w.Titlef("📣 Post by %s", author.PreferredUsername)
 		} else {
@@ -174,9 +242,9 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		}
 
 		if group.Valid {
-			h.PrintNote(w, r, &note, &author, &group.V, note.Published.Time, false, false, true, false)
+			h.PrintNote(w, r, &note, &author, &group.V, note.Published.Time, false, note.InReplyTo != "", false, false)
 		} else {
-			h.PrintNote(w, r, &note, &author, nil, note.Published.Time, false, false, true, false)
+			h.PrintNote(w, r, &note, &author, nil, note.Published.Time, false, note.InReplyTo != "", false, false)
 		}
 
 		if note.Type == ap.Question && offset == 0 {
@@ -211,20 +279,15 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			w.Subtitlef("💬 Replies to %s (%d-%d)", author.PreferredUsername, offset, offset+h.Config.RepliesPerPage)
 		} else {
 			w.Empty()
-			w.Subtitle("💬 Replies")
+			w.Subtitlef("💬 Replies to %s", author.PreferredUsername)
 		}
 	}
 
-	count := h.PrintNotes(w, r, rows, false, false, "No replies.")
-	rows.Close()
+	count := h.PrintNotes(w, r, replies, false, false, "No replies.")
+	replies.Close()
 
-	var originalPostExists int
 	var threadHead sql.NullString
 	if note.InReplyTo != "" {
-		if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from notes where id = ?)`, note.InReplyTo).Scan(&originalPostExists); err != nil {
-			r.Log.Warn("Failed to check if parent post exists", "error", err)
-		}
-
 		if err := h.DB.QueryRowContext(r.Context, `with recursive thread(id, parent, depth) as (select notes.id, notes.object->>'$.inReplyTo' as parent, 1 as depth from notes where id = ? union all select notes.id, notes.object->>'$.inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent) select id from thread order by depth desc limit 1`, note.InReplyTo).Scan(&threadHead); err != nil && errors.Is(err, sql.ErrNoRows) {
 			r.Log.Debug("First post in thread is missing")
 		} else if err != nil {
@@ -237,15 +300,9 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		r.Log.Warn("Failed to query thread depth", "error", err)
 	}
 
-	if originalPostExists == 1 || (threadHead.Valid && threadHead.String != note.ID && threadHead.String != note.InReplyTo) || threadDepth > 2 || offset > h.Config.RepliesPerPage || offset >= h.Config.RepliesPerPage || count == h.Config.RepliesPerPage {
+	if (threadHead.Valid && threadHead.String != note.ID && threadHead.String != note.InReplyTo) || threadDepth > 2 || offset > h.Config.RepliesPerPage || offset >= h.Config.RepliesPerPage || count == h.Config.RepliesPerPage {
 		w.Empty()
 		w.Subtitle("Navigation")
-	}
-
-	if originalPostExists == 1 && r.User == nil {
-		w.Link("/view/"+strings.TrimPrefix(note.InReplyTo, "https://"), "View parent post")
-	} else if originalPostExists == 1 {
-		w.Link("/users/view/"+strings.TrimPrefix(note.InReplyTo, "https://"), "View parent post")
 	}
 
 	if threadHead.Valid && threadHead.String != note.ID && threadHead.String != note.InReplyTo && r.User == nil {

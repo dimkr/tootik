@@ -64,9 +64,10 @@ type Config struct {
 	MaxBookmarksPerUser int
 	MinBookmarkInterval time.Duration
 
-	PostsPerPage   int
-	RepliesPerPage int
-	MaxOffset      int
+	PostsPerPage     int
+	PostContextDepth int
+	RepliesPerPage   int
+	MaxOffset        int
 
 	SharesPerPost int
 
@@ -246,6 +247,10 @@ func (c *Config) FillDefaults() {
 
 	if c.PostsPerPage <= 0 {
 		c.PostsPerPage = 30
+	}
+
+	if c.PostContextDepth <= 0 {
+		c.PostContextDepth = 5
 	}
 
 	if c.RepliesPerPage <= 0 {
