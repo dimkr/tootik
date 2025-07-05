@@ -163,7 +163,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 
 	w.OK()
 
-	var threadHead sql.NullString
+	linkToHead := true
 
 	if offset > 0 {
 		w.Titlef("💬 Replies to %s (%d-%d)", author.PreferredUsername, offset, offset+h.Config.RepliesPerPage)
@@ -231,8 +231,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 					first = false
 
 					if parent.InReplyTo == "" {
-						threadHead.Valid = true
-						threadHead.String = parent.ID
+						linkToHead = false
 					}
 				}
 
@@ -300,17 +299,20 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 	count := h.PrintNotes(w, r, replies, false, false, "No replies.")
 	replies.Close()
 
-	if note.InReplyTo != "" && !threadHead.Valid {
-		if err := h.DB.QueryRowContext(r.Context, `with recursive thread(id, parent, depth) as (select notes.id, notes.object->>'$.inReplyTo' as parent, 1 as depth from notes where id = ? union all select notes.id, notes.object->>'$.inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent) select id from thread order by depth desc limit 1`, note.InReplyTo).Scan(&threadHead); err != nil && errors.Is(err, sql.ErrNoRows) {
-			r.Log.Debug("First post in thread is missing")
-		} else if err != nil {
-			r.Log.Warn("Failed to fetch first post in thread", "error", err)
-		}
-	}
-
+	var threadHead sql.NullString
 	var threadDepth int
-	if err := h.DB.QueryRowContext(r.Context, `with recursive thread(id, depth) as (select notes.id, 0 as depth from notes where id = ? union all select notes.id, t.depth + 1 from thread t join notes on notes.object->>'$.inReplyTo' = t.id where t.depth <= 3) select max(thread.depth) from thread`, note.ID).Scan(&threadDepth); err != nil {
-		r.Log.Warn("Failed to query thread depth", "error", err)
+	if linkToHead {
+		if note.InReplyTo != "" {
+			if err := h.DB.QueryRowContext(r.Context, `with recursive thread(id, parent, depth) as (select notes.id, notes.object->>'$.inReplyTo' as parent, 1 as depth from notes where id = ? union all select notes.id, notes.object->>'$.inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent) select id from thread order by depth desc limit 1`, note.InReplyTo).Scan(&threadHead); err != nil && errors.Is(err, sql.ErrNoRows) {
+				r.Log.Debug("First post in thread is missing")
+			} else if err != nil {
+				r.Log.Warn("Failed to fetch first post in thread", "error", err)
+			}
+		}
+
+		if err := h.DB.QueryRowContext(r.Context, `with recursive thread(id, depth) as (select notes.id, 0 as depth from notes where id = ? union all select notes.id, t.depth + 1 from thread t join notes on notes.object->>'$.inReplyTo' = t.id where t.depth <= 3) select max(thread.depth) from thread`, note.ID).Scan(&threadDepth); err != nil {
+			r.Log.Warn("Failed to query thread depth", "error", err)
+		}
 	}
 
 	if (threadHead.Valid && threadHead.String != note.ID && threadHead.String != note.InReplyTo) || threadDepth > 2 || offset > h.Config.RepliesPerPage || offset >= h.Config.RepliesPerPage || count == h.Config.RepliesPerPage {
