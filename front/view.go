@@ -163,8 +163,6 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 
 	w.OK()
 
-	linkToHead := true
-
 	if offset > 0 {
 		w.Titlef("💬 Replies to %s (%d-%d)", author.PreferredUsername, offset, offset+h.Config.RepliesPerPage)
 	} else {
@@ -173,11 +171,11 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 
 			w.Subtitle("Context")
 
-			first := true
+			contextPosts := 0
 			if parents, err := h.DB.QueryContext(
 				r.Context,
 				`
-				select json(note), json(author) from
+				select json(note), json(author), depth from
 				(
 					with recursive thread(note, author, depth) as (
 						select notes.object as note, persons.actor as author, 1 as depth
@@ -190,7 +188,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						join notes on notes.id = t.note->>'$.inReplyTo'
 						join persons on persons.id = notes.author
 					)
-					select * from thread order by depth limit ?
+					select * from thread order by note->'$.inReplyTo' is null desc, depth limit ?
 				)
 				order by depth desc
 				`,
@@ -201,19 +199,29 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			} else {
 				defer parents.Close()
 
+				headDepth := 0
 				for parents.Next() {
 					var parent ap.Object
 					var parentAuthor ap.Actor
-					if err := parents.Scan(&parent, &parentAuthor); err != nil {
+					var depth int
+					if err := parents.Scan(&parent, &parentAuthor, &depth); err != nil {
 						r.Log.Info("Failed to fetch context", "error", err)
 						w.Error()
 						return
 					}
 
-					if first && parent.InReplyTo != "" {
+					if contextPosts == 0 && parent.InReplyTo != "" {
 						w.Text("[…]")
 						w.Empty()
-					} else if !first {
+					} else if contextPosts == 1 && headDepth-depth == 2 {
+						w.Empty()
+						w.Text("[1 reply]")
+						w.Empty()
+					} else if contextPosts == 1 && depth < headDepth-1 {
+						w.Empty()
+						w.Textf("[%d replies]", headDepth-depth-1)
+						w.Empty()
+					} else if contextPosts > 0 {
 						w.Empty()
 					}
 
@@ -228,10 +236,10 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						w.Quote(line)
 					}
 
-					first = false
+					contextPosts++
 
 					if parent.InReplyTo == "" {
-						linkToHead = false
+						headDepth = depth
 					}
 				}
 
@@ -242,7 +250,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				}
 			}
 
-			if first {
+			if contextPosts == 0 {
 				w.Text("No context.")
 			}
 
@@ -299,31 +307,16 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 	count := h.PrintNotes(w, r, replies, false, false, "No replies.")
 	replies.Close()
 
-	var threadHead sql.NullString
 	var threadDepth int
-	if linkToHead {
-		if note.InReplyTo != "" {
-			if err := h.DB.QueryRowContext(r.Context, `with recursive thread(id, parent, depth) as (select notes.id, notes.object->>'$.inReplyTo' as parent, 1 as depth from notes where id = ? union all select notes.id, notes.object->>'$.inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent) select id from thread order by depth desc limit 1`, note.InReplyTo).Scan(&threadHead); err != nil && errors.Is(err, sql.ErrNoRows) {
-				r.Log.Debug("First post in thread is missing")
-			} else if err != nil {
-				r.Log.Warn("Failed to fetch first post in thread", "error", err)
-			}
-		}
-
+	if note.InReplyTo != "" {
 		if err := h.DB.QueryRowContext(r.Context, `with recursive thread(id, depth) as (select notes.id, 0 as depth from notes where id = ? union all select notes.id, t.depth + 1 from thread t join notes on notes.object->>'$.inReplyTo' = t.id where t.depth <= 3) select max(thread.depth) from thread`, note.ID).Scan(&threadDepth); err != nil {
 			r.Log.Warn("Failed to query thread depth", "error", err)
 		}
 	}
 
-	if (threadHead.Valid && threadHead.String != note.ID && threadHead.String != note.InReplyTo) || threadDepth > 2 || offset > h.Config.RepliesPerPage || offset >= h.Config.RepliesPerPage || count == h.Config.RepliesPerPage {
+	if threadDepth > 2 || offset > h.Config.RepliesPerPage || offset >= h.Config.RepliesPerPage || count == h.Config.RepliesPerPage {
 		w.Empty()
 		w.Subtitle("Navigation")
-	}
-
-	if threadHead.Valid && threadHead.String != note.ID && threadHead.String != note.InReplyTo && r.User == nil {
-		w.Link("/view/"+strings.TrimPrefix(threadHead.String, "https://"), "View first post in thread")
-	} else if threadHead.Valid && threadHead.String != note.ID && threadHead.String != note.InReplyTo {
-		w.Link("/users/view/"+strings.TrimPrefix(threadHead.String, "https://"), "View first post in thread")
 	}
 
 	if threadDepth > 2 && r.User == nil {
