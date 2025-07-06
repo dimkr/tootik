@@ -217,11 +217,24 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 					} else if contextPosts == 1 && headDepth-currentDepth == 2 {
 						// show the number of hidden replies if we only display the head and the bottom replies
 						w.Empty()
+
+						if r.User == nil {
+							w.Link("/view/"+strings.TrimPrefix(parent.InReplyTo, "https://"), "[1 reply]")
+						} else {
+							w.Link("/users/view/"+strings.TrimPrefix(parent.InReplyTo, "https://"), "[1 reply]")
+						}
+
 						w.Text("[1 reply]")
 						w.Empty()
 					} else if contextPosts == 1 && currentDepth < headDepth-1 {
 						w.Empty()
-						w.Textf("[%d replies]", headDepth-currentDepth-1)
+
+						if r.User == nil {
+							w.Linkf("/view/"+strings.TrimPrefix(parent.InReplyTo, "https://"), "[%d replies]", headDepth-currentDepth-1)
+						} else {
+							w.Linkf("/users/view/"+strings.TrimPrefix(parent.InReplyTo, "https://"), "[%d replies]", headDepth-currentDepth-1)
+						}
+
 						w.Empty()
 					} else if contextPosts > 0 {
 						// put an empty line between replies
@@ -310,22 +323,9 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 	count := h.PrintNotes(w, r, replies, false, false, "No replies.")
 	replies.Close()
 
-	var threadDepth int
-	if note.InReplyTo != "" {
-		if err := h.DB.QueryRowContext(r.Context, `with recursive thread(id, depth) as (select notes.id, 0 as depth from notes where id = ? union all select notes.id, t.depth + 1 from thread t join notes on notes.object->>'$.inReplyTo' = t.id where t.depth <= 3) select max(thread.depth) from thread`, note.ID).Scan(&threadDepth); err != nil {
-			r.Log.Warn("Failed to query thread depth", "error", err)
-		}
-	}
-
-	if threadDepth > 2 || offset > h.Config.RepliesPerPage || offset >= h.Config.RepliesPerPage || count == h.Config.RepliesPerPage {
+	if offset > h.Config.RepliesPerPage || offset >= h.Config.RepliesPerPage || count == h.Config.RepliesPerPage {
 		w.Empty()
 		w.Subtitle("Navigation")
-	}
-
-	if threadDepth > 2 && r.User == nil {
-		w.Link("/thread/"+strings.TrimPrefix(postID, "https://"), "View thread")
-	} else if threadDepth > 2 {
-		w.Link("/users/thread/"+strings.TrimPrefix(postID, "https://"), "View thread")
 	}
 
 	if offset > h.Config.RepliesPerPage {

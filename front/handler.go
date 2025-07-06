@@ -105,9 +105,6 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 	h.handlers[regexp.MustCompile(`^/view/(\S+)$`)] = withUserMenu(h.view)
 	h.handlers[regexp.MustCompile(`^/users/view/(\S+)$`)] = withUserMenu(h.view)
 
-	h.handlers[regexp.MustCompile(`^/thread/(\S+)$`)] = withUserMenu(h.thread)
-	h.handlers[regexp.MustCompile(`^/users/thread/(\S+)$`)] = withUserMenu(h.thread)
-
 	h.handlers[regexp.MustCompile(`^/users/dm$`)] = h.dm
 	h.handlers[regexp.MustCompile(`^/users/whisper$`)] = h.whisper
 	h.handlers[regexp.MustCompile(`^/users/say$`)] = h.say
