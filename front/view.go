@@ -224,7 +224,6 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 							w.Link("/users/view/"+strings.TrimPrefix(parent.InReplyTo, "https://"), "[1 reply]")
 						}
 
-						w.Text("[1 reply]")
 						w.Empty()
 					} else if contextPosts == 1 && currentDepth < headDepth-1 {
 						w.Empty()
