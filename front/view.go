@@ -203,25 +203,28 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				for parents.Next() {
 					var parent ap.Object
 					var parentAuthor ap.Actor
-					var depth int
-					if err := parents.Scan(&parent, &parentAuthor, &depth); err != nil {
+					var currentDepth int
+					if err := parents.Scan(&parent, &parentAuthor, &currentDepth); err != nil {
 						r.Log.Info("Failed to fetch context", "error", err)
 						w.Error()
 						return
 					}
 
 					if contextPosts == 0 && parent.InReplyTo != "" {
+						// show a marker if the thread head is a reply (i.e. we don't have the actual head)
 						w.Text("[…]")
 						w.Empty()
-					} else if contextPosts == 1 && headDepth-depth == 2 {
+					} else if contextPosts == 1 && headDepth-currentDepth == 2 {
+						// show the number of hidden replies if we only display the head and the bottom replies
 						w.Empty()
 						w.Text("[1 reply]")
 						w.Empty()
-					} else if contextPosts == 1 && depth < headDepth-1 {
+					} else if contextPosts == 1 && currentDepth < headDepth-1 {
 						w.Empty()
-						w.Textf("[%d replies]", headDepth-depth-1)
+						w.Textf("[%d replies]", headDepth-currentDepth-1)
 						w.Empty()
 					} else if contextPosts > 0 {
+						// put an empty line between replies
 						w.Empty()
 					}
 
@@ -239,7 +242,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 					contextPosts++
 
 					if parent.InReplyTo == "" {
-						headDepth = depth
+						headDepth = currentDepth
 					}
 				}
 
