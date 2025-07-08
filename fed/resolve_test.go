@@ -2884,6 +2884,105 @@ func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 }
 
+func TestResolve_FederatedActorFirstTimeThroughKey(t *testing.T) {
+	assert := assert.New(t)
+
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	assert.NoError(err)
+	f.Close()
+
+	path := f.Name()
+	defer os.Remove(path)
+
+	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	assert.NoError(err)
+
+	blockList := BlockList{}
+
+	var cfg cfg.Config
+	cfg.FillDefaults()
+	cfg.MinActorAge = 0
+
+	client := newTestClient(map[string]testResponse{
+		"https://0.0.0.0/user/dan#main-key": {
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
+					}
+				}`,
+			),
+		},
+	})
+
+	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
+
+	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db)
+	assert.NoError(err)
+
+	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
+
+	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan#main-key", 0)
+	assert.NoError(err)
+	assert.Empty(client.Data)
+
+	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
+	assert.Empty(actor.Inbox)
+
+	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
+	assert.NoError(err)
+
+	client.Data = map[string]testResponse{
+		"https://0.0.0.0/user/dan": {
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://0.0.0.0/user/dan",
+					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
+					"outbox": "https://0.0.0.0/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://0.0.0.0/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
+					}
+				}`,
+			),
+		},
+	}
+
+	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan#main-key", 0)
+	assert.NoError(err)
+	assert.Empty(client.Data)
+
+	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
+	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
+
+	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	assert.NoError(err)
+
+	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
+	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
+}
+
 func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 	assert := assert.New(t)
 
