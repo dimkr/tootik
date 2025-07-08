@@ -404,9 +404,11 @@ func (r *Resolver) tryResolveID(ctx context.Context, key httpsig.Key, u *url.URL
 		); err != nil {
 			return nil, cachedActor, fmt.Errorf("failed to update last fetch time for %s: %w", cachedActor.ID, err)
 		}
+
+		return r.fetchActor(ctx, key, u.Host, cachedActor.ID, cachedActor, sinceLastUpdate)
 	}
 
-	return r.fetchActor(ctx, key, u.Host, id, cachedActor, sinceLastUpdate)
+	return r.fetchActor(ctx, key, u.Host, id, nil, sinceLastUpdate)
 }
 
 func (r *Resolver) fetchActor(ctx context.Context, key httpsig.Key, host, profile string, cachedActor *ap.Actor, sinceLastUpdate time.Duration) (*ap.Actor, *ap.Actor, error) {
