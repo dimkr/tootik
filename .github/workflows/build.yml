@@ -8,7 +8,7 @@ on:
 
 jobs:
   static:
-    permissions:
+    permissions: {}
     runs-on: ubuntu-latest
     container:
       image: debian:bookworm-slim
