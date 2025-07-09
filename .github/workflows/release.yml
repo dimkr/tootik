@@ -7,10 +7,13 @@ on:
 
 jobs:
   build:
+    permissions:
     uses: ./.github/workflows/build.yml
     with:
       version: ${{ github.ref_name }}
   upload:
+    permissions:
+      contents: write
     needs: build
     runs-on: ubuntu-latest
     steps:
