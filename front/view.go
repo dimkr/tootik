@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/graph"
 	"github.com/dimkr/tootik/front/text"
 )
@@ -188,7 +187,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						w.Linkf("/users/view/"+strings.TrimPrefix(parent.ID, "https://"), "%s %s", parent.Published.Time.Format(time.DateOnly), parentAuthor.PreferredUsername)
 					}
 
-					contentLines, _ := h.getNoteContent(&parent, true)
+					contentLines, _, _, _ := h.getNoteContent(&parent, true)
 					for _, line := range contentLines {
 						w.Quote(line)
 					}
@@ -217,55 +216,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			w.Titlef("🔔 Post by %s", author.PreferredUsername)
 		}
 
-		contentLines, inlineLinks := h.getNoteContent(&note, false)
-
-		links := data.OrderedMap[string, string]{}
-
-		if note.URL != "" {
-			links.Store(note.URL, "")
-		}
-
-		hashtags := data.OrderedMap[string, string]{}
-		mentionedUsers := ap.Audience{}
-
-		for _, tag := range note.Tag {
-			switch tag.Type {
-			case ap.Hashtag:
-				if tag.Name == "" {
-					continue
-				}
-				if tag.Name[0] == '#' {
-					hashtags.Store(strings.ToLower(tag.Name[1:]), tag.Name[1:])
-				} else {
-					hashtags.Store(strings.ToLower(tag.Name), tag.Name)
-				}
-
-			case ap.Mention:
-				mentionedUsers.Add(tag.Href)
-
-			case ap.Emoji:
-				if tag.Icon != nil && tag.Name != "" && tag.Icon.URL != "" {
-					links.Store(tag.Icon.URL, tag.Name)
-				}
-
-			default:
-				r.Log.Warn("Skipping unsupported mention type", "post", note.ID, "type", tag.Type)
-			}
-		}
-
-		for link, alt := range inlineLinks.All() {
-			if !mentionedUsers.Contains(link) {
-				links.Store(link, alt)
-			}
-		}
-
-		for _, attachment := range note.Attachment {
-			if attachment.URL != "" {
-				links.Store(attachment.URL, "")
-			} else if attachment.Href != "" {
-				links.Store(attachment.Href, "")
-			}
-		}
+		contentLines, links, hashtags, mentionedUsers := h.getNoteContent(&note, false)
 
 		for mentionID := range mentionedUsers.Keys() {
 			var mentionUserName string

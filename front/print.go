@@ -128,7 +128,7 @@ func (h *Handler) getActorDisplayName(actor *ap.Actor) string {
 	return h.getDisplayName(actor.ID, userName, name, actor.Type)
 }
 
-func (h *Handler) getNoteContent(note *ap.Object, compact bool) ([]string, data.OrderedMap[string, string]) {
+func (h *Handler) getNoteContent(note *ap.Object, compact bool) ([]string, data.OrderedMap[string, string], data.OrderedMap[string, string], ap.Audience) {
 	maxLines := -1
 	maxRunes := -1
 	if compact {
@@ -159,16 +159,7 @@ func (h *Handler) getNoteContent(note *ap.Object, compact bool) ([]string, data.
 		}
 	}
 
-	return getTextAndLinks(noteBody, maxRunes, maxLines)
-}
-
-func (h *Handler) printCompactNote(w text.Writer, r *Request, note *ap.Object, author *ap.Actor, sharer *ap.Actor, published time.Time, printParentAuthor bool) {
-	if note.AttributedTo == "" {
-		r.Log.Warn("Note has no author", "id", note.ID)
-		return
-	}
-
-	contentLines, inlineLinks := h.getNoteContent(note, true)
+	content, inlineLinks := getTextAndLinks(noteBody, maxRunes, maxLines)
 
 	links := data.OrderedMap[string, string]{}
 
@@ -200,7 +191,7 @@ func (h *Handler) printCompactNote(w text.Writer, r *Request, note *ap.Object, a
 			}
 
 		default:
-			r.Log.Warn("Skipping unsupported mention type", "post", note.ID, "type", tag.Type)
+			slog.Warn("Skipping unsupported mention type", "post", note.ID, "type", tag.Type)
 		}
 	}
 
@@ -218,6 +209,17 @@ func (h *Handler) printCompactNote(w text.Writer, r *Request, note *ap.Object, a
 		}
 	}
 
+	return content, links, hashtags, mentionedUsers
+}
+
+func (h *Handler) printCompactNote(w text.Writer, r *Request, note *ap.Object, author *ap.Actor, sharer *ap.Actor, published time.Time, printParentAuthor bool) {
+	if note.AttributedTo == "" {
+		r.Log.Warn("Note has no author", "id", note.ID)
+		return
+	}
+
+	contentLines, links, hashtags, mentionedUsers := h.getNoteContent(note, true)
+
 	var replies int
 	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where object->>'$.inReplyTo' = ?`, note.ID).Scan(&replies); err != nil {
 		r.Log.Warn("Failed to count replies", "id", note.ID, "error", err)
@@ -226,14 +228,10 @@ func (h *Handler) printCompactNote(w text.Writer, r *Request, note *ap.Object, a
 	authorDisplayName := author.PreferredUsername
 
 	var title string
-	if sharer == nil {
-		title = fmt.Sprintf("%s %s", published.Format(time.DateOnly), authorDisplayName)
-	} else if sharer != nil {
+	if sharer != nil {
 		title = fmt.Sprintf("%s %s ┃ 🔄 %s", published.Format(time.DateOnly), authorDisplayName, sharer.PreferredUsername)
-	} else if sharer != nil {
-		title = fmt.Sprintf("%s 🔄 %s", published.Format(time.DateOnly), sharer.PreferredUsername)
 	} else {
-		title = published.Format(time.DateOnly)
+		title = fmt.Sprintf("%s %s", published.Format(time.DateOnly), authorDisplayName)
 	}
 
 	if note.Updated != (ap.Time{}) {
