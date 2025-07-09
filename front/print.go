@@ -128,26 +128,29 @@ func (h *Handler) getActorDisplayName(actor *ap.Actor) string {
 	return h.getDisplayName(actor.ID, userName, name, actor.Type)
 }
 
-func (h *Handler) getNoteContent(note *ap.Object, compact bool) ([]string, data.OrderedMap[string, string], data.OrderedMap[string, string], ap.Audience) {
-	maxLines := -1
-	maxRunes := -1
-	if compact {
-		maxLines = h.Config.CompactViewMaxLines
-		maxRunes = h.Config.CompactViewMaxRunes
+func (h *Handler) getCompactNoteContent(note *ap.Object) ([]string, data.OrderedMap[string, string]) {
+	noteBody := note.Content
+	if note.Sensitive && note.Summary != "" {
+		noteBody = fmt.Sprintf("[%s]", note.Summary)
+	} else if note.Sensitive {
+		noteBody = "[Content warning]"
+	} else if note.Name != "" { // Page has a title, or this Note is a poll vote
+		noteBody = note.Name
+	} else if note.Summary != "" {
+		noteBody = note.Summary
 	}
 
-	noteBody := note.Content
+	return getTextAndLinks(noteBody, h.Config.CompactViewMaxRunes, h.Config.CompactViewMaxLines)
+}
+
+func (h *Handler) getNoteContent(note *ap.Object, compact bool) ([]string, data.OrderedMap[string, string], data.OrderedMap[string, string], ap.Audience) {
+	var content []string
+	var inlineLinks data.OrderedMap[string, string]
 	if compact {
-		if note.Sensitive && note.Summary != "" {
-			noteBody = fmt.Sprintf("[%s]", note.Summary)
-		} else if note.Sensitive {
-			noteBody = "[Content warning]"
-		} else if note.Name != "" { // Page has a title, or this Note is a poll vote
-			noteBody = note.Name
-		} else if note.Summary != "" {
-			noteBody = note.Summary
-		}
+		content, inlineLinks = h.getCompactNoteContent(note)
 	} else {
+		noteBody := note.Content
+
 		if note.Sensitive && note.Summary != "" {
 			noteBody = fmt.Sprintf("[%s]<br>%s", note.Summary, note.Content)
 		} else if note.Sensitive {
@@ -157,9 +160,9 @@ func (h *Handler) getNoteContent(note *ap.Object, compact bool) ([]string, data.
 		} else if note.Name != "" {
 			noteBody = note.Name
 		}
-	}
 
-	content, inlineLinks := getTextAndLinks(noteBody, maxRunes, maxLines)
+		content, inlineLinks = getTextAndLinks(noteBody, -1, -1)
+	}
 
 	links := data.OrderedMap[string, string]{}
 

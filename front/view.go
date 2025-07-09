@@ -187,7 +187,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						w.Linkf("/users/view/"+strings.TrimPrefix(parent.ID, "https://"), "%s %s", parent.Published.Time.Format(time.DateOnly), parentAuthor.PreferredUsername)
 					}
 
-					contentLines, _, _, _ := h.getNoteContent(&parent, true)
+					contentLines, _ := h.getCompactNoteContent(&parent)
 					for _, line := range contentLines {
 						w.Quote(line)
 					}
