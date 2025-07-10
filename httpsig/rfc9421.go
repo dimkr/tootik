@@ -42,6 +42,7 @@ var (
 	defaultPostComponents = []string{"@method", "@target-uri", "content-type", "content-digest"}
 
 	signatureInputAttrRegex = regexp.MustCompile(`\b([^=;]+)=([^;]+)`)
+	componentsRegex         = regexp.MustCompile(`^\((?:"([^" ]+)")(?: "[^"]+")*\);`)
 )
 
 func buildSignatureBase(r *http.Request, params string, components []string) (string, error) {
@@ -214,8 +215,83 @@ func rfc9421Extract(
 		return nil, errors.New("more than one Signature")
 	}
 
-	var keyID, components, created, expires string
-	for _, m := range signatureInputAttrRegex.FindAllStringSubmatch(input, -1) {
+	sep := strings.IndexByte(sigs[0], '=')
+	if sep == -1 {
+		return nil, fmt.Errorf("no separator in signature %s", sigs[0])
+	}
+
+	sigLabel := sigs[0][:sep]
+
+	sep = strings.IndexByte(input, '=')
+	if sep == -1 {
+		return nil, fmt.Errorf("no separator in input %s", input)
+	}
+
+	if input[:sep] != sigLabel {
+		return nil, fmt.Errorf("input label %s does not match %s", input[:sep], sigLabel)
+	}
+
+	if len(sigs[0]) <= sep+3 {
+		return nil, fmt.Errorf("signature is empty")
+	}
+
+	if sigs[0][sep+1] != ':' {
+		return nil, fmt.Errorf("signature %s does not begin with :", sigs[0])
+	}
+
+	if sigs[0][len(sigs[0])-1] != ':' {
+		return nil, fmt.Errorf("signature %s does not end with :", sigs[0])
+	}
+
+	rawSignature, err := base64.StdEncoding.DecodeString(sigs[0][sep+2 : len(sigs[0])-1])
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode signature %s: %w", sigs[0], err)
+	}
+
+	components := input[sep+1:]
+
+	if components == "" {
+		return nil, errors.New("empty list of components")
+	}
+
+	if components[0] != '(' {
+		return nil, errors.New("components list does not begin with (")
+	}
+
+	end := strings.IndexByte(components, ')')
+	if end == -1 {
+		return nil, errors.New("components list does not end with )")
+	}
+
+	components = components[1:end]
+
+	if components == "" {
+		return nil, errors.New("empty components list")
+	}
+
+	uniqueComponents := data.OrderedMap[string, struct{}]{}
+	for c := range strings.SplitSeq(components, " ") {
+		if c[0] != '"' || c[len(c)-1] != '"' {
+			return nil, errors.New("invalid component: " + c)
+		}
+
+		c = c[1 : len(c)-1]
+
+		if _, dup := uniqueComponents[c]; dup {
+			return nil, errors.New("duplicate component: " + c)
+		}
+
+		uniqueComponents.Store(c, struct{}{})
+	}
+
+	for _, c := range requiredComponents {
+		if !uniqueComponents.Contains(c) {
+			return nil, errors.New(c + " is not signed")
+		}
+	}
+
+	var keyID, created, expires, alg string
+	for _, m := range signatureInputAttrRegex.FindAllStringSubmatch(input[sep+1:], -1) {
 		switch m[1] {
 		case "keyid":
 			if keyID != "" {
@@ -254,27 +330,29 @@ func rfc9421Extract(
 			}
 
 		case "alg":
-			if m[2] != `"rsa-v1_5-sha256"` && m[2] != "ed25519" {
-				return nil, errors.New("unsupported alg: " + m[2])
+			if alg != "" {
+				return nil, errors.New("more than one alg")
 			}
+
+			alg = m[2]
+
+			if alg[0] != '"' || alg[len(alg)-1] != '"' {
+				return nil, errors.New("alg is not quoted")
+			}
+
+			alg = alg[1 : len(alg)-1]
 
 		default:
-			if components != "" {
-				return nil, errors.New("more than one set of components")
-			}
-
-			components = m[2]
-
-			if components[0] != '(' || components[len(components)-1] != ')' {
-				return nil, errors.New("components is not parenthesized")
-			}
-
-			components = components[1 : len(components)-1]
+			continue
 		}
 	}
 
-	if keyID == "" || components == "" || created == "" {
+	if keyID == "" || created == "" {
 		return nil, errors.New("invalid signature input: " + input)
+	}
+
+	if alg != "" && alg != "rsa-v1_5-sha256" && alg != "ed25519" {
+		return nil, errors.New("unsupported alg: " + alg)
 	}
 
 	createdSec, err := strconv.ParseInt(created, 10, 64)
@@ -291,49 +369,10 @@ func rfc9421Extract(
 		return nil, errors.New("date is too new")
 	}
 
-	sep := strings.IndexByte(sigs[0], '=')
-	if sep == -1 {
-		return nil, fmt.Errorf("no separator in signature %s", sigs[0])
-	}
-
-	if len(sigs[0]) < sep+2 {
-		return nil, fmt.Errorf("invalid signature %s", sigs[0])
-	}
-
-	rawSignature, err := base64.StdEncoding.DecodeString(sigs[0][sep+2 : len(sigs[0])-1])
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode signature %s: %w", sigs[0], err)
-	}
-
-	uniqueComponents := data.OrderedMap[string, struct{}]{}
-	for c := range strings.FieldsSeq(components) {
-		if c[0] != '"' || c[len(c)-1] != '"' {
-			return nil, errors.New("invalid component: " + c)
-		}
-
-		c = c[1 : len(c)-1]
-
-		if _, dup := uniqueComponents[c]; dup {
-			return nil, errors.New("duplicate component: " + c)
-		}
-
-		uniqueComponents.Store(c, struct{}{})
-	}
-
-	if len(uniqueComponents) == 0 {
-		return nil, errors.New("empty components list")
-	}
-
-	for _, c := range requiredComponents {
-		if !uniqueComponents.Contains(c) {
-			return nil, errors.New(c + " is not signed")
-		}
-	}
-
 	if body != nil {
 		digests := r.Header.Values("Content-Digest")
 		if len(digests) == 0 {
-			return nil, errors.New("multiple Content-Digest values")
+			return nil, errors.New("Content-Digest is unspecified")
 		} else if len(digests) > 1 {
 			return nil, errors.New("multiple Content-Digest values")
 		}
@@ -372,14 +411,11 @@ func rfc9421Extract(
 				return nil, errors.New("digest mismatch")
 			}
 		} else {
-			return nil, errors.New("invalid digest algorithm: " + digest)
+			return nil, errors.New("invalid digest: " + digest)
 		}
 	}
 
-	// TODO
-	inputSep := strings.IndexByte(input, '=')
-
-	s, err := buildSignatureBase(r, input[inputSep+1:], uniqueComponents.CollectKeys())
+	s, err := buildSignatureBase(r, input[sep+1:], uniqueComponents.CollectKeys())
 	if err != nil {
 		return nil, err
 	}
