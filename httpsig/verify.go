@@ -48,7 +48,7 @@ var signatureAttrRegex = regexp.MustCompile(`\b([^"=]+)="([^"]+)"`)
 func Extract(r *http.Request, body []byte, domain string, now time.Time, maxAge time.Duration) (*Signature, error) {
 	input := r.Header.Values("Signature-Input")
 	if len(input) == 1 {
-		return httpbisExtract(r, input[0], body, domain, now, maxAge)
+		return rfc9421Extract(r, input[0], body, domain, now, maxAge)
 	} else if len(input) > 1 {
 		return nil, errors.New("more than one Signature-Input")
 	}

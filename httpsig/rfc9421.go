@@ -146,7 +146,7 @@ func SignRFC9421(r *http.Request, key Key, now time.Time) error {
 	return nil
 }
 
-func httpbisExtract(r *http.Request, input string, body []byte, domain string, now time.Time, maxAge time.Duration) (*Signature, error) {
+func rfc9421Extract(r *http.Request, input string, body []byte, domain string, now time.Time, maxAge time.Duration) (*Signature, error) {
 	if r.URL.Host != domain {
 		return nil, errors.New("wrong host: " + r.URL.Host)
 	}
