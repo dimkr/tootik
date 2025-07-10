@@ -41,8 +41,11 @@ var (
 	defaultComponents     = []string{"@method", "@target-uri"}
 	defaultPostComponents = []string{"@method", "@target-uri", "content-type", "content-digest"}
 
+	signatureRegex          = regexp.MustCompile(`^([^=\s]+)=:([0-9a-zA-Z\/+]+={0,3}):$`)
+	signatureInputRegex     = regexp.MustCompile(`^([^=\s]+)=\(("[^"\s]+"(?: "[^"\s]+")*)\);([^=;\s]+=[^;\s]+(?:;[^=;\s]+=[^;\s]+)*)$`)
 	signatureInputAttrRegex = regexp.MustCompile(`\b([^=;]+)=([^;]+)`)
 	componentsRegex         = regexp.MustCompile(`^\((?:"([^" ]+)")(?: "[^"]+")*\);`)
+	digestRegex             = regexp.MustCompile(`^(sha-(?:256|512))=:([0-9a-zA-Z\/+]+={0,3}):$`)
 )
 
 func buildSignatureBase(r *http.Request, params string, components []string) (string, error) {
@@ -210,71 +213,34 @@ func rfc9421Extract(
 		return nil, errors.New("wrong host: " + r.URL.Host)
 	}
 
+	inputMatch := signatureInputRegex.FindStringSubmatchIndex(input)
+	if inputMatch == nil {
+		return nil, errors.New("invalid input: " + input)
+	}
+
 	sigs := r.Header.Values("Signature")
 	if len(sigs) > 1 {
 		return nil, errors.New("more than one Signature")
 	}
 
-	sep := strings.IndexByte(sigs[0], '=')
-	if sep == -1 {
-		return nil, fmt.Errorf("no separator in signature %s", sigs[0])
+	sigMatch := signatureRegex.FindStringSubmatch(sigs[0])
+	if sigMatch == nil {
+		return nil, errors.New("invalid signature: " + sigs[0])
 	}
 
-	sigLabel := sigs[0][:sep]
+	sigLabel := sigMatch[1]
 
-	sep = strings.IndexByte(input, '=')
-	if sep == -1 {
-		return nil, fmt.Errorf("no separator in input %s", input)
+	if input[inputMatch[2]:inputMatch[3]] != sigLabel {
+		return nil, fmt.Errorf("input label %s does not match %s", input[inputMatch[2]:inputMatch[3]], sigLabel)
 	}
 
-	if input[:sep] != sigLabel {
-		return nil, fmt.Errorf("input label %s does not match %s", input[:sep], sigLabel)
-	}
-
-	if len(sigs[0]) <= sep+3 {
-		return nil, fmt.Errorf("signature is empty")
-	}
-
-	if sigs[0][sep+1] != ':' {
-		return nil, fmt.Errorf("signature %s does not begin with :", sigs[0])
-	}
-
-	if sigs[0][len(sigs[0])-1] != ':' {
-		return nil, fmt.Errorf("signature %s does not end with :", sigs[0])
-	}
-
-	rawSignature, err := base64.StdEncoding.DecodeString(sigs[0][sep+2 : len(sigs[0])-1])
+	rawSignature, err := base64.StdEncoding.DecodeString(sigMatch[2])
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode signature %s: %w", sigs[0], err)
 	}
 
-	components := input[sep+1:]
-
-	if components == "" {
-		return nil, errors.New("empty list of components")
-	}
-
-	if components[0] != '(' {
-		return nil, errors.New("components list does not begin with (")
-	}
-
-	end := strings.IndexByte(components, ')')
-	if end == -1 {
-		return nil, errors.New("components list does not end with )")
-	}
-
-	components = components[1:end]
-
-	if components == "" {
-		return nil, errors.New("empty components list")
-	}
-
 	uniqueComponents := data.OrderedMap[string, struct{}]{}
-	for c := range strings.SplitSeq(components, " ") {
-		if c[0] != '"' || c[len(c)-1] != '"' {
-			return nil, errors.New("invalid component: " + c)
-		}
-
+	for c := range strings.SplitSeq(input[inputMatch[4]:inputMatch[5]], " ") {
 		c = c[1 : len(c)-1]
 
 		if _, dup := uniqueComponents[c]; dup {
@@ -291,7 +257,7 @@ func rfc9421Extract(
 	}
 
 	var keyID, created, expires, alg string
-	for _, m := range signatureInputAttrRegex.FindAllStringSubmatch(input[sep+1:], -1) {
+	for _, m := range signatureInputAttrRegex.FindAllStringSubmatch(input[inputMatch[6]:inputMatch[7]], -1) {
 		switch m[1] {
 		case "keyid":
 			if keyID != "" {
@@ -382,12 +348,18 @@ func rfc9421Extract(
 			return nil, errors.New("Content-Digest is empty")
 		}
 
-		if len(digest) > len("sha-256=:") && strings.HasPrefix(digest, "sha-256=:") && digest[len(digest)-1] == ':' {
-			rawDigest, err := base64.StdEncoding.DecodeString(digest[len("sha-256=:") : len(digest)-1])
-			if err != nil {
-				return nil, fmt.Errorf("invalid digest: %w", err)
-			}
+		digestMatch := digestRegex.FindStringSubmatch(digest)
+		if digestMatch == nil {
+			return nil, errors.New("Content-Digest is invalid: " + digest)
+		}
 
+		rawDigest, err := base64.StdEncoding.DecodeString(digestMatch[2])
+		if err != nil {
+			return nil, fmt.Errorf("invalid digest %s: %w", digestMatch[2], err)
+		}
+
+		switch digestMatch[1] {
+		case "sha-256":
 			if len(rawDigest) != sha256.Size {
 				return nil, errors.New("invalid digest size")
 			}
@@ -396,12 +368,8 @@ func rfc9421Extract(
 			if !bytes.Equal(hash[:], rawDigest) {
 				return nil, errors.New("digest mismatch")
 			}
-		} else if len(digest) > len("sha-512=:") && strings.HasPrefix(digest, "sha-512=:") && digest[len(digest)-1] == ':' {
-			rawDigest, err := base64.StdEncoding.DecodeString(digest[len("sha-512=:") : len(digest)-1])
-			if err != nil {
-				return nil, fmt.Errorf("invalid digest: %w", err)
-			}
 
+		case "sha-512":
 			if len(rawDigest) != sha512.Size {
 				return nil, errors.New("invalid digest size")
 			}
@@ -410,12 +378,13 @@ func rfc9421Extract(
 			if !bytes.Equal(hash[:], rawDigest) {
 				return nil, errors.New("digest mismatch")
 			}
-		} else {
+
+		default:
 			return nil, errors.New("invalid digest: " + digest)
 		}
 	}
 
-	s, err := buildSignatureBase(r, input[sep+1:], uniqueComponents.CollectKeys())
+	s, err := buildSignatureBase(r, input[inputMatch[3]+1:], uniqueComponents.CollectKeys())
 	if err != nil {
 		return nil, err
 	}
