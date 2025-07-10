@@ -128,6 +128,8 @@ type Config struct {
 	FeedTTL           time.Duration
 
 	FillNodeInfoUsage bool
+
+	SignWithRFC9421 bool
 }
 
 // FillDefaults replaces missing or invalid settings with defaults.

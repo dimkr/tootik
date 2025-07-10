@@ -46,6 +46,13 @@ var signatureAttrRegex = regexp.MustCompile(`\b([^"=]+)="([^"]+)"`)
 // Extract extracts signature attributes, validates them and returns a [Signature].
 // Caller should obtain the key and pass it to [Signature.Verify].
 func Extract(r *http.Request, body []byte, domain string, now time.Time, maxAge time.Duration) (*Signature, error) {
+	input := r.Header.Values("Signature-Input")
+	if len(input) == 1 {
+		return httpbisExtract(r, input[0], body, domain, now, maxAge)
+	} else if len(input) > 1 {
+		return nil, errors.New("more than one Signature-Input")
+	}
+
 	host := r.Header.Get("Host")
 	if host == "" {
 		if r.Host == "" {

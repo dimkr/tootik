@@ -52,7 +52,11 @@ func (s *sender) send(key httpsig.Key, req *http.Request) (*http.Response, error
 
 	slog.Debug("Sending request", "url", urlString)
 
-	if err := httpsig.Sign(req, key, time.Now()); err != nil {
+	if s.Config.SignWithRFC9421 {
+		if err := httpsig.SignRFC9421(req, key, time.Now()); err != nil {
+			return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
+		}
+	} else if err := httpsig.Sign(req, key, time.Now()); err != nil {
 		return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
 	}
 
