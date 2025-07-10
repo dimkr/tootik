@@ -254,7 +254,7 @@ func rfc9421Extract(
 			}
 
 		case "alg":
-			if m[2] != `"rsa-v1_5-sha256"` {
+			if m[2] != `"rsa-v1_5-sha256"` && m[2] != "ed25519" {
 				return nil, errors.New("unsupported alg: " + m[2])
 			}
 
