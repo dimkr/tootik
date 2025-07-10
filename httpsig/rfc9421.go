@@ -19,8 +19,10 @@ package httpsig
 import (
 	"bytes"
 	"crypto"
+	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -55,6 +57,14 @@ func buildSignatureBase(r *http.Request, params string, components []string) (st
 			b.WriteString(`"@target-uri": `)
 			b.WriteString(r.URL.String())
 
+		case "@path":
+			b.WriteString(`"@path": `)
+			b.WriteString(r.URL.Path)
+
+		case "@authority":
+			b.WriteString(`"@authority": `)
+			b.WriteString(r.URL.Host)
+
 		default:
 			if c[0] == '@' {
 				return "", errors.New("unsupported component: " + c)
@@ -87,12 +97,17 @@ func buildSignatureBase(r *http.Request, params string, components []string) (st
 }
 
 // SignRFC9421 adds a signature to an outgoing HTTP request.
-func SignRFC9421(r *http.Request, key Key, now time.Time) error {
+func SignRFC9421(
+	r *http.Request,
+	key Key,
+	now, expires time.Time,
+	digestAlg, sigAlg string,
+	components []string,
+) error {
 	if key.ID == "" {
 		return errors.New("empty key ID")
 	}
 
-	components := defaultComponents
 	if r.Method == http.MethodPost {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -100,15 +115,24 @@ func SignRFC9421(r *http.Request, key Key, now time.Time) error {
 		}
 
 		r.Body = io.NopCloser(bytes.NewReader(body))
-		hash := sha256.Sum256(body)
-		r.Header.Set("Content-Digest", "sha-256:"+base64.StdEncoding.EncodeToString(hash[:])+":")
+		switch digestAlg {
+		case "sha-256":
+			hash := sha256.Sum256(body)
+			r.Header.Set("Content-Digest", "sha-256=:"+base64.StdEncoding.EncodeToString(hash[:])+":")
 
-		components = defaultPostComponents
-	}
+		case "sha-512":
+			hash := sha512.Sum512(body)
+			r.Header.Set("Content-Digest", "sha-512=:"+base64.StdEncoding.EncodeToString(hash[:])+":")
 
-	rsaKey, ok := key.PrivateKey.(*rsa.PrivateKey)
-	if !ok {
-		return errors.New("invalid private key")
+		default:
+			return errors.New("invalid digest: " + digestAlg)
+		}
+
+		if components == nil {
+			components = defaultPostComponents
+		}
+	} else if components == nil {
+		components = defaultComponents
 	}
 
 	var params strings.Builder
@@ -122,20 +146,44 @@ func SignRFC9421(r *http.Request, key Key, now time.Time) error {
 		params.WriteString(comp)
 		params.WriteByte('"')
 	}
-	params.WriteString(`);alg="rsa-v1_5-sha256";created=`)
+
+	params.WriteString(`);`)
+
+	params.WriteString(`created=`)
 	params.WriteString(strconv.FormatInt(now.Unix(), 10))
 	params.WriteString(`;keyid="`)
 	params.WriteString(key.ID)
 	params.WriteByte('"')
+
+	if sigAlg != "" {
+		params.WriteString(`;alg="`)
+		params.WriteString(sigAlg)
+		params.WriteString(`"`)
+	}
+
+	if expires != (time.Time{}) {
+		params.WriteString(`;expires=`)
+		params.WriteString(strconv.FormatInt(expires.Unix(), 10))
+	}
 
 	s, err := buildSignatureBase(r, params.String(), components)
 	if err != nil {
 		return err
 	}
 
-	hash := sha256.Sum256([]byte(s))
+	var sig []byte
+	switch v := key.PrivateKey.(type) {
+	case *rsa.PrivateKey:
+		hash := sha256.Sum256([]byte(s))
+		sig, err = rsa.SignPKCS1v15(nil, v, crypto.SHA256, hash[:])
 
-	sig, err := rsa.SignPKCS1v15(nil, rsaKey, crypto.SHA256, hash[:])
+	case ed25519.PrivateKey:
+		sig = ed25519.Sign(v, []byte(s))
+
+	default:
+		return errors.New("invalid private key")
+	}
+
 	if err != nil {
 		return err
 	}
@@ -146,7 +194,15 @@ func SignRFC9421(r *http.Request, key Key, now time.Time) error {
 	return nil
 }
 
-func rfc9421Extract(r *http.Request, input string, body []byte, domain string, now time.Time, maxAge time.Duration) (*Signature, error) {
+func rfc9421Extract(
+	r *http.Request,
+	input string,
+	body []byte,
+	domain string,
+	now time.Time,
+	maxAge time.Duration,
+	requiredComponents []string,
+) (*Signature, error) {
 	if r.URL.Host != domain {
 		return nil, errors.New("wrong host: " + r.URL.Host)
 	}
@@ -266,15 +322,13 @@ func rfc9421Extract(r *http.Request, input string, body []byte, domain string, n
 		return nil, errors.New("empty components list")
 	}
 
-	if !uniqueComponents.Contains("@target-uri") {
-		return nil, errors.New("@target-uri is not signed")
+	for _, c := range requiredComponents {
+		if !uniqueComponents.Contains(c) {
+			return nil, errors.New(c + " is not signed")
+		}
 	}
 
 	if body != nil {
-		if _, ok := uniqueComponents["content-digest"]; !ok {
-			return nil, errors.New("content-digest is not signed")
-		}
-
 		digests := r.Header.Values("Content-Digest")
 		if len(digests) == 0 {
 			return nil, errors.New("multiple Content-Digest values")
@@ -287,22 +341,36 @@ func rfc9421Extract(r *http.Request, input string, body []byte, domain string, n
 			return nil, errors.New("Content-Digest is empty")
 		}
 
-		if len(digest) <= len("sha-256:") || !strings.HasPrefix(digest, "sha-256:") || digest[len(digest)-1] != ':' {
+		if len(digest) > len("sha-256=:") && strings.HasPrefix(digest, "sha-256=:") && digest[len(digest)-1] == ':' {
+			rawDigest, err := base64.StdEncoding.DecodeString(digest[len("sha-256=:") : len(digest)-1])
+			if err != nil {
+				return nil, fmt.Errorf("invalid digest: %w", err)
+			}
+
+			if len(rawDigest) != sha256.Size {
+				return nil, errors.New("invalid digest size")
+			}
+
+			hash := sha256.Sum256(body)
+			if !bytes.Equal(hash[:], rawDigest) {
+				return nil, errors.New("digest mismatch")
+			}
+		} else if len(digest) > len("sha-512=:") && strings.HasPrefix(digest, "sha-512=:") && digest[len(digest)-1] == ':' {
+			rawDigest, err := base64.StdEncoding.DecodeString(digest[len("sha-512=:") : len(digest)-1])
+			if err != nil {
+				return nil, fmt.Errorf("invalid digest: %w", err)
+			}
+
+			if len(rawDigest) != sha512.Size {
+				return nil, errors.New("invalid digest size")
+			}
+
+			hash := sha512.Sum512(body)
+			if !bytes.Equal(hash[:], rawDigest) {
+				return nil, errors.New("digest mismatch")
+			}
+		} else {
 			return nil, errors.New("invalid digest algorithm: " + digest)
-		}
-
-		rawDigest, err := base64.StdEncoding.DecodeString(digest[len("sha-256:") : len(digest)-1])
-		if err != nil {
-			return nil, fmt.Errorf("invalid digest: %w", err)
-		}
-
-		if len(rawDigest) != sha256.Size {
-			return nil, errors.New("invalid digest size")
-		}
-
-		hash := sha256.Sum256(body)
-		if !bytes.Equal(hash[:], rawDigest) {
-			return nil, errors.New("digest mismatch")
 		}
 	}
 

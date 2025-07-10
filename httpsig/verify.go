@@ -19,6 +19,7 @@ package httpsig
 import (
 	"bytes"
 	"crypto"
+	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
@@ -41,14 +42,24 @@ const (
 	maxKeyBits = 8192
 )
 
-var signatureAttrRegex = regexp.MustCompile(`\b([^"=]+)="([^"]+)"`)
+var (
+	signatureAttrRegex        = regexp.MustCompile(`\b([^"=]+)="([^"]+)"`)
+	defaultRequiredComponents = []string{"@target-uri"}
+	requiredPostComponents    = []string{"@target-uri", "content-digest"}
+)
 
 // Extract extracts signature attributes, validates them and returns a [Signature].
 // Caller should obtain the key and pass it to [Signature.Verify].
 func Extract(r *http.Request, body []byte, domain string, now time.Time, maxAge time.Duration) (*Signature, error) {
 	input := r.Header.Values("Signature-Input")
 	if len(input) == 1 {
-		return rfc9421Extract(r, input[0], body, domain, now, maxAge)
+		required := defaultRequiredComponents
+
+		if r.Method == http.MethodPost {
+			required = requiredPostComponents
+		}
+
+		return rfc9421Extract(r, input[0], body, domain, now, maxAge, required)
 	} else if len(input) > 1 {
 		return nil, errors.New("more than one Signature-Input")
 	}
@@ -192,19 +203,25 @@ func Extract(r *http.Request, body []byte, domain string, now time.Time, maxAge 
 
 // Verify verifies a signature.
 func (s *Signature) Verify(key any) error {
-	rsaKey, ok := key.(*rsa.PublicKey)
-	if !ok {
+	switch v := key.(type) {
+	case *rsa.PublicKey:
+		bits := v.N.BitLen()
+		if bits < minKeyBits || bits > maxKeyBits {
+			return fmt.Errorf("invalid key size: %d", bits)
+		}
+
+		hash := sha256.Sum256([]byte(s.s))
+		if err := rsa.VerifyPKCS1v15(v, crypto.SHA256, hash[:], s.signature); err != nil {
+			return err
+		}
+
+	case ed25519.PublicKey:
+		if !ed25519.Verify(v, []byte(s.s), s.signature) {
+			return errors.New("invalid ed25519 signature")
+		}
+
+	default:
 		return errors.New("invalid public key")
-	}
-
-	bits := rsaKey.N.BitLen()
-	if bits < minKeyBits || bits > maxKeyBits {
-		return fmt.Errorf("invalid key size: %d", bits)
-	}
-
-	hash := sha256.Sum256([]byte(s.s))
-	if err := rsa.VerifyPKCS1v15(rsaKey, crypto.SHA256, hash[:], s.signature); err != nil {
-		return err
 	}
 
 	return nil
