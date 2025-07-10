@@ -32,6 +32,11 @@ tootik implements [draft-cavage-http-signatures-12](https://datatracker.ietf.org
 * Outgoing `POST` requests have `headers="(request-target) host date content-type digest"`
 * All other outgoing requests have `headers="(request-target) host date"`
 
+In addition, tootik implements [RFC9421](https://datatracker.ietf.org/doc/rfc9421/):
+* It validates `rsa-v1_5-sha256` and `ed25519` signatures
+* Outgoing requests don't use RFC9421 signatures, unless `SignWithRFC9421` is enabled
+* If `SignWithRFC9421` is enabled, outgoing requests are signed with `rsa-v1_5-sha256`
+
 ## Application Actor
 
 tootik creates a special user named `nobody`, which acts as an [Application Actor](https://codeberg.org/fediverse/fep/src/branch/main/fep/2677/fep-2677.md). Its key is used to sign outgoing requests not initiated by a particular user.

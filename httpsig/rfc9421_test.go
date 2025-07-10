@@ -136,7 +136,7 @@ func TestRFC9421_RSASign(t *testing.T) {
 		},
 		time.Unix(1618884480, 0),
 		time.Unix(1618884540, 0),
-		"sha-512",
+		RFC9421DigestSHA512,
 		"rsa-v1_5-sha256",
 		[]string{"@method", "@authority", "@path", "content-digest", "content-type", "content-length", "forwarded"},
 	); err != nil {
@@ -173,7 +173,7 @@ func TestRFC9421_ED25519Sign(t *testing.T) {
 		},
 		time.Unix(1618884473, 0),
 		time.Time{},
-		"sha-256",
+		RFC9421DigestSHA256,
 		"",
 		[]string{"date", "@method", "@path", "@authority", "content-type", "content-length"},
 	); err != nil {

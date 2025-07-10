@@ -96,12 +96,25 @@ func buildSignatureBase(r *http.Request, params string, components []string) (st
 	return b.String(), nil
 }
 
-// SignRFC9421 adds a signature to an outgoing HTTP request.
+// RFC9421DigestSHA256 adds the Content-Digest header using SHA-256.
+func RFC9421DigestSHA256(r *http.Request, body []byte) {
+	hash := sha256.Sum256(body)
+	r.Header.Set("Content-Digest", "sha-256=:"+base64.StdEncoding.EncodeToString(hash[:])+":")
+}
+
+// RFC9421DigestSHA256 adds the Content-Digest header using SHA-512.
+func RFC9421DigestSHA512(r *http.Request, body []byte) {
+	hash := sha512.Sum512(body)
+	r.Header.Set("Content-Digest", "sha-512=:"+base64.StdEncoding.EncodeToString(hash[:])+":")
+}
+
+// SignRFC9421 adds a RFC9421 signature to an outgoing HTTP request.
 func SignRFC9421(
 	r *http.Request,
 	key Key,
 	now, expires time.Time,
-	digestAlg, sigAlg string,
+	digest func(*http.Request, []byte),
+	sigAlg string,
 	components []string,
 ) error {
 	if key.ID == "" {
@@ -115,18 +128,7 @@ func SignRFC9421(
 		}
 
 		r.Body = io.NopCloser(bytes.NewReader(body))
-		switch digestAlg {
-		case "sha-256":
-			hash := sha256.Sum256(body)
-			r.Header.Set("Content-Digest", "sha-256=:"+base64.StdEncoding.EncodeToString(hash[:])+":")
-
-		case "sha-512":
-			hash := sha512.Sum512(body)
-			r.Header.Set("Content-Digest", "sha-512=:"+base64.StdEncoding.EncodeToString(hash[:])+":")
-
-		default:
-			return errors.New("invalid digest: " + digestAlg)
-		}
+		digest(r, body)
 
 		if components == nil {
 			components = defaultPostComponents

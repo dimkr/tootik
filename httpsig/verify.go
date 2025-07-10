@@ -50,6 +50,7 @@ var (
 
 // Extract extracts signature attributes, validates them and returns a [Signature].
 // Caller should obtain the key and pass it to [Signature.Verify].
+// It supports RFC9421 and falls back to draft-cavage-http-signatures.
 func Extract(r *http.Request, body []byte, domain string, now time.Time, maxAge time.Duration) (*Signature, error) {
 	input := r.Header.Values("Signature-Input")
 	if len(input) == 1 {
