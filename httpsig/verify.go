@@ -33,6 +33,7 @@ import (
 
 type Signature struct {
 	KeyID     string
+	alg       string
 	s         string
 	signature []byte
 }
@@ -46,6 +47,12 @@ var (
 	signatureAttrRegex        = regexp.MustCompile(`\b([^"=]+)="([^"]+)"`)
 	defaultRequiredComponents = []string{"@target-uri"}
 	requiredPostComponents    = []string{"@target-uri", "content-digest"}
+
+	rsaAlgorithms = map[string]struct{}{
+		"rsa-v1_5-sha256": {},
+		"rsa-sha256":      {},
+		"hs2019":          {},
+	}
 )
 
 // Extract extracts signature attributes, validates them and returns a [Signature].
@@ -102,7 +109,7 @@ func Extract(r *http.Request, body []byte, domain string, now time.Time, maxAge 
 		return nil, errors.New("more than one signature")
 	}
 
-	var keyID, headers, signature string
+	var keyID, headers, signature, algorithm string
 	for _, m := range signatureAttrRegex.FindAllStringSubmatch(values[0], -1) {
 		switch m[1] {
 		case "keyId":
@@ -121,7 +128,16 @@ func Extract(r *http.Request, body []byte, domain string, now time.Time, maxAge 
 			}
 			signature = m[2]
 		case "algorithm":
-			continue
+			if algorithm != "" {
+				return nil, errors.New("more than one algorithm")
+			}
+
+			algorithm = m[2]
+
+			if algorithm != "rsa-sha256" && algorithm != "hs2019" {
+				return nil, errors.New("unsupported algorithm: " + algorithm)
+			}
+
 		default:
 			return nil, errors.New("unsupported atribute: " + m[1])
 		}
@@ -197,6 +213,7 @@ func Extract(r *http.Request, body []byte, domain string, now time.Time, maxAge 
 
 	return &Signature{
 		KeyID:     keyID,
+		alg:       algorithm,
 		s:         s,
 		signature: rawSignature,
 	}, nil
@@ -206,9 +223,15 @@ func Extract(r *http.Request, body []byte, domain string, now time.Time, maxAge 
 func (s *Signature) Verify(key any) error {
 	switch v := key.(type) {
 	case *rsa.PublicKey:
+		if s.alg != "" {
+			if _, ok := rsaAlgorithms[s.alg]; !ok {
+				return errors.New("alg is not RSA")
+			}
+		}
+
 		bits := v.N.BitLen()
 		if bits < minKeyBits || bits > maxKeyBits {
-			return fmt.Errorf("invalid key size: %d", bits)
+			return fmt.Errorf("invalid RSA key size: %d", bits)
 		}
 
 		hash := sha256.Sum256([]byte(s.s))
@@ -217,12 +240,16 @@ func (s *Signature) Verify(key any) error {
 		}
 
 	case ed25519.PublicKey:
+		if s.alg != "" && s.alg != "ed25519" {
+			return errors.New("alg is not ED25519")
+		}
+
 		if !ed25519.Verify(v, []byte(s.s), s.signature) {
 			return errors.New("invalid ed25519 signature")
 		}
 
 	default:
-		return errors.New("invalid public key")
+		return fmt.Errorf(`cannot verify alg="%s" with %T`, s.alg, key)
 	}
 
 	return nil

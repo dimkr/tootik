@@ -407,6 +407,7 @@ func rfc9421Extract(
 
 	return &Signature{
 		KeyID:     keyID,
+		alg:       alg,
 		s:         s,
 		signature: rawSignature,
 	}, nil
