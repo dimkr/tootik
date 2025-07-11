@@ -204,7 +204,7 @@ func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks 
 			if sent == gl.Config.MaxSentGuppyChunks {
 				break
 			}
-			if chunks[i].Sent == (time.Time{}) {
+			if chunks[i].Sent.IsZero() {
 				slog.Debug("Sending packet", "path", r.URL.Path, "from", from, "seq", chunks[i].Seq)
 			} else {
 				slog.Debug("Resending packet", "path", r.URL.Path, "from", from, "seq", chunks[i].Seq)
