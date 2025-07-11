@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +20,10 @@ import "encoding/json"
 
 // Array is an array or a single item.
 type Array[T any] []T
+
+func (a Array[T]) IsZero() bool {
+	return len(a) == 0
+}
 
 func (a *Array[T]) UnmarshalJSON(b []byte) error {
 	var tmp []T
