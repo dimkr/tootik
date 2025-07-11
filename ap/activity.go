@@ -50,7 +50,7 @@ type anyActivity struct {
 	Context any             `json:"@context"`
 	ID      string          `json:"id"`
 	Type    ActivityType    `json:"type"`
-	Actor   string          `json:"actor"`
+	Actor   json.RawMessage `json:"actor"`
 	Object  json.RawMessage `json:"object"`
 	To      Audience        `json:"to"`
 	CC      Audience        `json:"cc"`
@@ -109,9 +109,18 @@ func (a *Activity) UnmarshalJSON(b []byte) error {
 	a.Context = common.Context
 	a.ID = common.ID
 	a.Type = common.Type
-	a.Actor = common.Actor
 	a.To = common.To
 	a.CC = common.CC
+
+	var actor Actor
+	var actorID string
+	if err := json.Unmarshal(common.Actor, &actor); err == nil {
+		a.Actor = actor.ID
+	} else if err := json.Unmarshal(common.Actor, &actorID); err == nil {
+		a.Actor = actorID
+	} else {
+		return ErrInvalidActivity
+	}
 
 	var object Object
 	var activity Activity

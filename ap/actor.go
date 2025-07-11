@@ -37,7 +37,7 @@ type Actor struct {
 	ID                        string            `json:"id"`
 	Type                      ActorType         `json:"type"`
 	Inbox                     string            `json:"inbox"`
-	Outbox                    string            `json:"outbox"`
+	Outbox                    any               `json:"outbox"`
 	Endpoints                 map[string]string `json:"endpoints,omitempty"`
 	PreferredUsername         string            `json:"preferredUsername"`
 	Name                      string            `json:"name,omitempty"`
