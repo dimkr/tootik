@@ -16,11 +16,13 @@ limitations under the License.
 
 package ap
 
+// QuotePolicy describes quote policies for an [Object].
 type QuotePolicy struct {
 	AutomaticApproval Audience `json:"automaticApproval,omitzero"`
 	ManualApproval    Audience `json:"manualApproval,omitzero"`
 }
 
+// InteractionPolicy describes interaction policies for an [Object].
 type InteractionPolicy struct {
 	CanQuote QuotePolicy `json:"canQuote,omitzero"`
 }
