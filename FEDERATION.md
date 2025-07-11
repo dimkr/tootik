@@ -36,7 +36,7 @@ tootik implements [draft-cavage-http-signatures-12](https://datatracker.ietf.org
 In addition, tootik partially implements [RFC9421](https://datatracker.ietf.org/doc/rfc9421/):
 * It supports `rsa-v1_5-sha256` and `ed25519` signatures
 * If `alg` is specified, tootik validates the signature only if the key type matches `alg`
-* It obeys `expires` but also validates `created` using `MaxRequestAge`
+* It obeys `expires` if specified, but also validates `created` using `MaxRequestAge`
 * Incoming `POST` requests must have at least `("@method" "@target-uri" "content-type" "content-digest")`
 * All other incoming requests must have at least `("@method" "@target-uri")`
 * If query is not empty, `@query` must be signed
