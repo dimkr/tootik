@@ -67,6 +67,11 @@ func (o *Object) IsPublic() bool {
 	return o.To.Contains(Public) || o.CC.Contains(Public)
 }
 
+// CanQuote determines whether or not a post can be quoted.
+func (o *Object) CanQuote() bool {
+	return o.IsPublic() && o.InteractionPolicy.CanQuote.AutomaticApproval.Contains(Public) && o.InteractionPolicy.CanQuote.ManualApproval.IsZero()
+}
+
 func (o *Object) Scan(src any) error {
 	switch v := src.(type) {
 	case []byte:

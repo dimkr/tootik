@@ -80,7 +80,7 @@ func (h *Handler) replyOrQuote(w text.Writer, r *Request, args []string, quote b
 	if quote {
 		r.Log.Info("Quoting post", "post", note.ID)
 
-		if !note.InteractionPolicy.CanQuote.AutomaticApproval.Contains(ap.Public) && note.InteractionPolicy.CanQuote.ManualApproval.IsZero() {
+		if !note.CanQuote() {
 			r.Log.Warn("Post cannot be quoted", "post", postID)
 			w.Status(40, "Post cannot be quoted")
 			return
