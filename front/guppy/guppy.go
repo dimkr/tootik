@@ -128,7 +128,7 @@ func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks 
 	// TODO: something less ugly
 	space := bytes.IndexByte(chunk, ' ')
 	if string(chunk[:space]) != "1" && string(chunk[:space]) != "3" && string(chunk[:space]) != "4" {
-		chunks[0].Data = append([]byte(fmt.Sprintf("%d", seq)), chunk[space:]...)
+		chunks[0].Data = append(fmt.Appendf(nil, "%d", seq), chunk[space:]...)
 	}
 
 	retry := time.NewTicker(retryInterval)

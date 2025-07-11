@@ -233,7 +233,7 @@ func (s *Server) handle(cert tls.Certificate, path, input string, redirects int)
 	go func() {
 		c <- serverTlsConn.(*tls.Conn).Handshake()
 	}()
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		if err := <-c; err != nil {
 			s.Test.Fatalf("Failed to perform TLS handshake: %v", err)
 		}
