@@ -12,7 +12,7 @@ tootik supports quote posts using the `quote` property proposed by [FEP-044f](ht
 
 ## Interaction Policies
 
-tootik doesn't support interaction policies. It marks all public posts with `"automaticApproval": ["https://www.w3.org/ns/activitystreams#Public"]` and allows quoting of all posts with this policy.
+tootik doesn't support interaction policies. It marks all public posts with `"automaticApproval": ["https://www.w3.org/ns/activitystreams#Public"]` and allows quoting of all public posts with this policy.
 
 ## Users
 
