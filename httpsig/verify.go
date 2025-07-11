@@ -49,9 +49,10 @@ var (
 	requiredPostComponents    = []string{"@target-uri", "content-digest"}
 
 	rsaAlgorithms = map[string]struct{}{
-		"rsa-v1_5-sha256": {},
+		"":                {},
 		"rsa-sha256":      {},
 		"hs2019":          {},
+		"rsa-v1_5-sha256": {},
 	}
 )
 
@@ -223,10 +224,8 @@ func Extract(r *http.Request, body []byte, domain string, now time.Time, maxAge 
 func (s *Signature) Verify(key any) error {
 	switch v := key.(type) {
 	case *rsa.PublicKey:
-		if s.alg != "" {
-			if _, ok := rsaAlgorithms[s.alg]; !ok {
-				return errors.New("alg is not RSA")
-			}
+		if _, ok := rsaAlgorithms[s.alg]; !ok {
+			return errors.New("alg is not RSA")
 		}
 
 		bits := v.N.BitLen()
