@@ -53,7 +53,12 @@ func (s *sender) send(key httpsig.Key, req *http.Request) (*http.Response, error
 	slog.Debug("Sending request", "url", urlString)
 
 	if s.Config.SignWithRFC9421 {
-		if err := httpsig.SignRFC9421(req, key, time.Now(), time.Time{}, httpsig.RFC9421DigestSHA256, "rsa-v1_5-sha256", nil); err != nil {
+		alg := "rsa-v1_5-sha256"
+		if s.Config.UseED25519Keys {
+			alg = "ed25519"
+		}
+
+		if err := httpsig.SignRFC9421(req, key, time.Now(), time.Time{}, httpsig.RFC9421DigestSHA256, alg, nil); err != nil {
 			return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
 		}
 	} else if err := httpsig.Sign(req, key, time.Now()); err != nil {

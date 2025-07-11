@@ -432,6 +432,20 @@ func TestRFC9421_RSAVerifyFailure(t *testing.T) {
 			},
 			Now: time.Unix(1618884481, 0),
 		},
+		{
+			Name: "UnspecifiedAlg",
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Signature-Input", `sig1=("@method" "@authority" "@path" "content-digest" "content-type" "content-length" "forwarded");created=1618884480;keyid="test-key-rsa";expires=1618884540`)
+			},
+			Now: time.Unix(1618884481, 0),
+		},
+		{
+			Name: "WrongAlg",
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Signature-Input", `sig1=("@method" "@authority" "@path" "content-digest" "content-type" "content-length" "forwarded");created=1618884480;keyid="test-key-rsa";alg="ed25519";expires=1618884540`)
+			},
+			Now: time.Unix(1618884481, 0),
+		},
 	} {
 		t.Run(data.Name, func(tt *testing.T) {
 			tt.Parallel()

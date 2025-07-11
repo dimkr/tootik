@@ -233,14 +233,23 @@ func (s *Signature) Verify(key any) error {
 			return fmt.Errorf("invalid RSA key size: %d", bits)
 		}
 
+		sigBits := len(s.signature) * 8
+		if sigBits != bits {
+			return fmt.Errorf("invalid RSA signature size: %d", sigBits)
+		}
+
 		hash := sha256.Sum256([]byte(s.s))
 		if err := rsa.VerifyPKCS1v15(v, crypto.SHA256, hash[:], s.signature); err != nil {
-			return err
+			return fmt.Errorf("invalid RSA signature: %w", err)
 		}
 
 	case ed25519.PublicKey:
 		if s.alg != "" && s.alg != "ed25519" {
-			return errors.New("alg is not ED25519")
+			return errors.New("alg is not ED25519: " + s.alg)
+		}
+
+		if len(s.signature) != ed25519.SignatureSize {
+			return fmt.Errorf("invalid signature size size: %d", len(s.signature))
 		}
 
 		if !ed25519.Verify(v, []byte(s.s), s.signature) {
