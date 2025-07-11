@@ -61,6 +61,15 @@ func buildSignatureBase(r *http.Request, params string, components []string) (st
 			b.WriteString(`"@target-uri": `)
 			b.WriteString(r.URL.String())
 
+		case "@request-target":
+			b.WriteString(`"@request-target": `)
+			b.WriteString(r.URL.Path)
+
+			if r.URL.RawQuery != "" {
+				b.WriteByte('?')
+				b.WriteString(r.URL.RawQuery)
+			}
+
 		case "@path":
 			b.WriteString(`"@path": `)
 			b.WriteString(r.URL.Path)
@@ -312,8 +321,11 @@ func rfc9421Extract(
 
 			alg = alg[1 : len(alg)-1]
 
-		default:
+		case "tag":
 			continue
+
+		default:
+			return nil, errors.New("unsupported parameter: " + m[1])
 		}
 	}
 
