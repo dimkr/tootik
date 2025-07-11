@@ -200,14 +200,19 @@ func main() {
 		panic(err)
 	}
 
-	_, nobodyKey, err := user.CreateNobody(ctx, *domain, db)
+	generateKey := user.GenerateRSAKey
+	if cfg.UseED25519Keys {
+		generateKey = user.GenerateED25519Key
+	}
+
+	_, nobodyKey, err := user.CreateNobody(ctx, *domain, db, generateKey)
 	if err != nil {
 		panic(err)
 	}
 
 	switch cmd {
 	case "add-community":
-		_, _, err := user.Create(ctx, *domain, db, flag.Arg(1), ap.Group, nil)
+		_, _, err := user.Create(ctx, *domain, db, flag.Arg(1), ap.Group, nil, generateKey)
 		if err != nil {
 			panic(err)
 		}
@@ -316,7 +321,7 @@ func main() {
 		return
 	}
 
-	handler, err := front.NewHandler(*domain, *closed, &cfg, resolver, db)
+	handler, err := front.NewHandler(*domain, *closed, &cfg, resolver, db, generateKey)
 	if err != nil {
 		panic(err)
 	}

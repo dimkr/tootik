@@ -89,7 +89,7 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 
 	r.Log.Info("Creating new user", "name", userName)
 
-	if _, _, err := user.Create(r.Context, h.Domain, h.DB, userName, ap.Person, clientCert); err != nil {
+	if _, _, err := user.Create(r.Context, h.Domain, h.DB, userName, ap.Person, clientCert, h.KeyGenerator); err != nil {
 		r.Log.Warn("Failed to create new user", "name", userName, "error", err)
 		w.Status(40, "Failed to create new user")
 		return

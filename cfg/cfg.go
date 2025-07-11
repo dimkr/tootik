@@ -131,6 +131,7 @@ type Config struct {
 	FillNodeInfoUsage bool
 
 	SignWithRFC9421 bool
+	UseED25519Keys  bool
 }
 
 // FillDefaults replaces missing or invalid settings with defaults.

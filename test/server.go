@@ -75,27 +75,27 @@ func newTestServer() *server {
 		panic(err)
 	}
 
-	alice, _, err := user.Create(context.Background(), domain, db, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), domain, db, "alice", ap.Person, nil, user.GenerateRSAKey)
 	if err != nil {
 		panic(err)
 	}
 
-	bob, _, err := user.Create(context.Background(), domain, db, "bob", ap.Person, nil)
+	bob, _, err := user.Create(context.Background(), domain, db, "bob", ap.Person, nil, user.GenerateRSAKey)
 	if err != nil {
 		panic(err)
 	}
 
-	carol, _, err := user.Create(context.Background(), domain, db, "carol", ap.Person, nil)
+	carol, _, err := user.Create(context.Background(), domain, db, "carol", ap.Person, nil, user.GenerateRSAKey)
 	if err != nil {
 		panic(err)
 	}
 
-	_, nobodyKey, err := user.CreateNobody(context.Background(), domain, db)
+	_, nobodyKey, err := user.CreateNobody(context.Background(), domain, db, user.GenerateRSAKey)
 	if err != nil {
 		panic(err)
 	}
 
-	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
+	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, user.GenerateRSAKey)
 	if err != nil {
 		panic(err)
 	}

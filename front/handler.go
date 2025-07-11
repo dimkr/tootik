@@ -28,15 +28,17 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front/static"
 	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/front/user"
 )
 
 // Handler handles frontend (client-to-server) requests.
 type Handler struct {
-	handlers map[*regexp.Regexp]func(text.Writer, *Request, ...string)
-	Domain   string
-	Config   *cfg.Config
-	Resolver ap.Resolver
-	DB       *sql.DB
+	handlers     map[*regexp.Regexp]func(text.Writer, *Request, ...string)
+	Domain       string
+	Config       *cfg.Config
+	Resolver     ap.Resolver
+	DB           *sql.DB
+	KeyGenerator user.KeyGenerator
 }
 
 var (
@@ -53,13 +55,14 @@ func serveStaticFile(lines []string, w text.Writer, _ *Request, _ ...string) {
 }
 
 // NewHandler returns a new [Handler].
-func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolver, db *sql.DB) (Handler, error) {
+func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolver, db *sql.DB, gen user.KeyGenerator) (Handler, error) {
 	h := Handler{
-		handlers: map[*regexp.Regexp]func(text.Writer, *Request, ...string){},
-		Domain:   domain,
-		Config:   cfg,
-		Resolver: resolver,
-		DB:       db,
+		handlers:     map[*regexp.Regexp]func(text.Writer, *Request, ...string){},
+		Domain:       domain,
+		Config:       cfg,
+		Resolver:     resolver,
+		DB:           db,
+		KeyGenerator: gen,
 	}
 	var cache sync.Map
 

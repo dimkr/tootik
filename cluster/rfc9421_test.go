@@ -68,3 +68,55 @@ func TestCluster_RFC9421Verification(t *testing.T) {
 		Refresh().
 		NotContains(Line{Type: Quote, Text: "hola"})
 }
+
+func TestCluster_ED25519(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
+	defer cluster.Stop()
+
+	cluster["a.localdomain"].Config.SignWithRFC9421 = true
+	cluster["a.localdomain"].Config.UseED25519Keys = true
+
+	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	bob := cluster["a.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["b.localdomain"].Register(carolKeypair).OK()
+
+	alice.
+		FollowInput("🔭 View profile", "carol@b.localdomain").
+		Follow("⚡ Follow carol").
+		OK()
+	cluster.Settle(t)
+
+	post := carol.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "hello").
+		Contains(Line{Type: Quote, Text: "hello"})
+	cluster.Settle(t)
+
+	alice = alice.
+		FollowInput("🔭 View profile", "carol@b.localdomain").
+		Contains(Line{Type: Quote, Text: "hello"})
+	bob = bob.
+		FollowInput("🔭 View profile", "carol@b.localdomain").
+		Contains(Line{Type: Quote, Text: "hello"})
+
+	post.FollowInput("🩹 Edit", "hola").
+		Contains(Line{Type: Quote, Text: "hola"})
+	cluster.Settle(t)
+
+	alice.
+		Refresh().
+		Contains(Line{Type: Quote, Text: "hola"})
+	bob.
+		Refresh().
+		Contains(Line{Type: Quote, Text: "hola"})
+
+	post.Follow("💣 Delete").OK()
+	cluster.Settle(t)
+
+	alice.
+		Refresh().
+		NotContains(Line{Type: Quote, Text: "hola"})
+	bob.
+		Refresh().
+		NotContains(Line{Type: Quote, Text: "hola"})
+}

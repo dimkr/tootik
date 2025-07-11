@@ -17,14 +17,10 @@ limitations under the License.
 package user
 
 import (
-	"bytes"
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
 	"database/sql"
-	"encoding/pem"
 	"fmt"
 	"time"
 
@@ -33,39 +29,8 @@ import (
 	"github.com/dimkr/tootik/icon"
 )
 
-func gen() (*rsa.PrivateKey, []byte, []byte, error) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to generate private key: %w", err)
-	}
-
-	var privPem bytes.Buffer
-	if err := pem.Encode(
-		&privPem,
-		&pem.Block{
-			Type:  "RSA PRIVATE KEY",
-			Bytes: x509.MarshalPKCS1PrivateKey(priv),
-		},
-	); err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to generate private key: %w", err)
-	}
-
-	var pubPem bytes.Buffer
-	if err := pem.Encode(
-		&pubPem,
-		&pem.Block{
-			Type:  "RSA PUBLIC KEY",
-			Bytes: x509.MarshalPKCS1PublicKey(&priv.PublicKey),
-		},
-	); err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to generate public key: %w", err)
-	}
-
-	return priv, privPem.Bytes(), pubPem.Bytes(), nil
-}
-
 // Create creates a new user.
-func Create(ctx context.Context, domain string, db *sql.DB, name string, actorType ap.ActorType, cert *x509.Certificate) (*ap.Actor, httpsig.Key, error) {
+func Create(ctx context.Context, domain string, db *sql.DB, name string, actorType ap.ActorType, cert *x509.Certificate, gen KeyGenerator) (*ap.Actor, httpsig.Key, error) {
 	priv, privPem, pubPem, err := gen()
 	if err != nil {
 		return nil, httpsig.Key{}, fmt.Errorf("failed to generate key pair: %w", err)
