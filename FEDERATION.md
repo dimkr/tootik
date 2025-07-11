@@ -35,7 +35,8 @@ tootik implements [draft-cavage-http-signatures-12](https://datatracker.ietf.org
 In addition, tootik implements [RFC9421](https://datatracker.ietf.org/doc/rfc9421/):
 * It validates `rsa-v1_5-sha256` and `ed25519` signatures
 * Outgoing requests don't use RFC9421 signatures, unless `SignWithRFC9421` is enabled
-* If `SignWithRFC9421` is enabled, outgoing requests are signed with `rsa-v1_5-sha256`
+* If `SignWithRFC9421` is enabled, outgoing requests are signed with `alg="rsa-v1_5-sha256"`
+* If `UseED25519Keys` is enabled, newly created users are assigned ED25519 keys and outgoing requests are signed with `alg="ed25519"`
 
 ## Application Actor
 

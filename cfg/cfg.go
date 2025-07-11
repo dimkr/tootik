@@ -434,4 +434,8 @@ func (c *Config) FillDefaults() {
 	if c.FeedTTL <= 0 {
 		c.FeedTTL = time.Hour * 24 * 7
 	}
+
+	if c.UseED25519Keys && !c.SignWithRFC9421 {
+		panic("UseED25519Keys requires SignWithRFC9421")
+	}
 }
