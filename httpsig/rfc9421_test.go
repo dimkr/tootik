@@ -208,7 +208,7 @@ func TestRFC9421_RSAVerifyHappyFlow(t *testing.T) {
 	r.Header.Set("Signature-Input", sigInput)
 	r.Header.Set("Signature", "sig1=:S6ZzPXSdAMOPjN/6KXfXWNO/f7V6cHm7BXYUh3YD/fRad4BCaRZxP+JH+8XY1I6+8Cy+CM5g92iHgxtRPz+MjniOaYmdkDcnL9cCpXJleXsOckpURl49GwiyUpZ10KHgOEe11sx3G2gxI8S0jnxQB+Pu68U9vVcasqOWAEObtNKKZd8tSFu7LB5YAv0RAGhB8tmpv7sFnIm9y+7X5kXQfi8NMaZaA8i2ZHwpBdg7a6CMfwnnrtflzvZdXAsD3LH2TwevU+/PBPv0B6NMNk93wUs/vfJvye+YuI87HU38lZHowtznbLVdp770I6VHR6WfgS9ddzirrswsE1w5o0LV/g==:")
 
-	sig, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "origin.host.internal.example", time.Unix(1618884539, 0), time.Second, nil)
+	sig, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "origin.host.internal.example", time.Unix(1618884539, 0), time.Minute, nil)
 	if err != nil {
 		t.Fatalf("Failed to extract: %v", err)
 	}

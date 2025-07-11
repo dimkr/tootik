@@ -24,7 +24,8 @@ tootik's UI treats `Group` actors differently: `/outbox/$group` hides replies an
 
 tootik implements [draft-cavage-http-signatures-12](https://datatracker.ietf.org/doc/html/draft-cavage-http-signatures) but only partially:
 * It ignores query
-* It always uses `rsa-sha256`, ignores `algorithm` and puts `algorithm="rsa-sha256"` in outgoing requests
+* It always uses `rsa-sha256` and puts `algorithm="rsa-sha256"` in outgoing requests
+* It `algorithm` is specified in an incoming request, it must be `rsa-sha256` or `hs2019`
 * It validates `Host`, `Date` (see `MaxRequestAge`) and `Digest`
 * Validation ensures that key size is between 2048 and 8192
 * Incoming `POST` requests must have at least `headers="(request-target) host date digest"`
@@ -33,8 +34,9 @@ tootik implements [draft-cavage-http-signatures-12](https://datatracker.ietf.org
 * All other outgoing requests have `headers="(request-target) host date"`
 
 In addition, tootik partially implements [RFC9421](https://datatracker.ietf.org/doc/rfc9421/):
-* It validates `rsa-v1_5-sha256` and `ed25519` signatures
+* It supports `rsa-v1_5-sha256` and `ed25519` signatures
 * If `alg` is specified, tootik validates the signature only if the key type matches `alg`
+* It obeys `expires` but also validates `created` using `MaxRequestAge`
 * Incoming `POST` requests must have at least `("@method" "@target-uri" "content-type" "content-digest")`
 * All other incoming requests must have at least `("@method" "@target-uri")`
 * If query is not empty, `@query` must be signed

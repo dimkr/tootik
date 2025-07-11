@@ -152,7 +152,7 @@ func SignRFC9421(
 
 		if components == nil && r.URL.RawQuery != "" {
 			components = defaultPostComponentsWithQuery
-		} else {
+		} else if components == nil {
 			components = defaultPostComponents
 		}
 	} else if components == nil && r.URL.RawQuery != "" {
@@ -351,7 +351,7 @@ func rfc9421Extract(
 
 	t := time.Unix(createdSec, 0)
 
-	if expires == "" && now.Sub(t) > maxAge {
+	if now.Sub(t) > maxAge {
 		return nil, errors.New("date is too old")
 	}
 	if t.Sub(now) > maxAge {
