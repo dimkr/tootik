@@ -467,3 +467,22 @@ func TestRFC9421_RSAVerifyFailure(t *testing.T) {
 		})
 	}
 }
+
+func TestRFC9421_Query(t *testing.T) {
+	t.Parallel()
+
+	r, err := http.NewRequest(http.MethodPost, "http://origin.host.internal.example/foo?param=value&foo=bar&baz=bat%2Dman", nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	const expected = `"@path": /foo
+"@query": ?param=value&foo=bar&baz=bat%2Dman
+"@signature-params": abc`
+
+	if base, err := buildSignatureBase(r, "abc", []string{"@path", "@query"}); err != nil {
+		t.Fatalf("Failed to build base: %v", err)
+	} else if base != expected {
+		t.Fatalf("Wrong base: %s", base)
+	}
+}

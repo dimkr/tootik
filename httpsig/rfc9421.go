@@ -69,6 +69,10 @@ func buildSignatureBase(r *http.Request, params string, components []string) (st
 			b.WriteString(`"@authority": `)
 			b.WriteString(r.URL.Host)
 
+		case "@query":
+			b.WriteString(`"@query": ?`)
+			b.WriteString(r.URL.RawQuery)
+
 		default:
 			if c[0] == '@' {
 				return "", errors.New("unsupported component: " + c)
