@@ -110,6 +110,7 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 	h.handlers[regexp.MustCompile(`^/users/say$`)] = h.say
 
 	h.handlers[regexp.MustCompile(`^/users/reply/(\S+)`)] = h.reply
+	h.handlers[regexp.MustCompile(`^/users/quote/(\S+)`)] = h.quote
 
 	h.handlers[regexp.MustCompile(`^/users/share/(\S+)`)] = h.share
 	h.handlers[regexp.MustCompile(`^/users/unshare/(\S+)`)] = h.unshare
@@ -126,6 +127,7 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 	h.handlers[regexp.MustCompile(`^/users/upload/say;([a-z]+)=([^;]+)(?:;([a-z]+)=([^;]+)){0,1}$`)] = h.uploadSay
 	h.handlers[regexp.MustCompile(`^/users/upload/edit/([^;]+);([a-z]+)=([^;]+)(?:;([a-z]+)=([^;]+)){0,1}$`)] = h.editUpload
 	h.handlers[regexp.MustCompile(`^/users/upload/reply/([^;]+);([a-z]+)=([^;]+)(?:;([a-z]+)=([^;]+)){0,1}$`)] = h.replyUpload
+	h.handlers[regexp.MustCompile(`^/users/upload/quote/([^;]+);([a-z]+)=([^;]+)(?:;([a-z]+)=([^;]+)){0,1}$`)] = h.quoteUpload
 
 	h.handlers[regexp.MustCompile(`^/users/resolve$`)] = withUserMenu(h.resolve)
 

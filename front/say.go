@@ -33,7 +33,7 @@ func (h *Handler) say(w text.Writer, r *Request, args ...string) {
 	to.Add(ap.Public)
 	cc.Add(r.User.Followers)
 
-	h.post(w, r, nil, nil, to, cc, "", func() (string, bool) {
+	h.post(w, r, nil, nil, "", to, cc, "", func() (string, bool) {
 		return readQuery(w, r, "Post content")
 	})
 }
@@ -50,7 +50,7 @@ func (h *Handler) uploadSay(w text.Writer, r *Request, args ...string) {
 	to.Add(ap.Public)
 	cc.Add(r.User.Followers)
 
-	h.post(w, r, nil, nil, to, cc, "", func() (string, bool) {
+	h.post(w, r, nil, nil, "", to, cc, "", func() (string, bool) {
 		return h.readBody(w, r, args)
 	})
 }

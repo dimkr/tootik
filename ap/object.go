@@ -52,6 +52,7 @@ type Object struct {
 	Tag          Array[Tag]   `json:"tag,omitempty"`
 	Attachment   []Attachment `json:"attachment,omitempty"`
 	URL          string       `json:"url,omitempty"`
+	Quote        string       `json:"quote,omitempty"`
 
 	// polls
 	VotersCount int64        `json:"votersCount,omitempty"`
