@@ -32,7 +32,7 @@ tootik implements [draft-cavage-http-signatures-12](https://datatracker.ietf.org
 * Outgoing `POST` requests have `headers="(request-target) host date content-type digest"`
 * All other outgoing requests have `headers="(request-target) host date"`
 
-In addition, tootik implements [RFC9421](https://datatracker.ietf.org/doc/rfc9421/):
+In addition, tootik partially implements [RFC9421](https://datatracker.ietf.org/doc/rfc9421/):
 * It validates `rsa-v1_5-sha256` and `ed25519` signatures
 * If `alg` is specified, tootik validates the signature only if the key type matches `alg`
 * Outgoing requests don't use RFC9421 signatures, unless `SignWithRFC9421` is enabled
