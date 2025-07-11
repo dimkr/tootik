@@ -35,24 +35,25 @@ const (
 // Object represents most ActivityPub objects.
 // Actors are represented by [Actor].
 type Object struct {
-	Context      any          `json:"@context,omitempty"`
-	ID           string       `json:"id"`
-	Type         ObjectType   `json:"type"`
-	AttributedTo string       `json:"attributedTo,omitempty"`
-	InReplyTo    string       `json:"inReplyTo,omitempty"`
-	Content      string       `json:"content,omitempty"`
-	Summary      string       `json:"summary,omitempty"`
-	Sensitive    bool         `json:"sensitive,omitempty"`
-	Name         string       `json:"name,omitempty"`
-	Published    Time         `json:"published,omitzero"`
-	Updated      Time         `json:"updated,omitzero"`
-	To           Audience     `json:"to,omitempty"`
-	CC           Audience     `json:"cc,omitempty"`
-	Audience     string       `json:"audience,omitempty"`
-	Tag          Array[Tag]   `json:"tag,omitempty"`
-	Attachment   []Attachment `json:"attachment,omitempty"`
-	URL          string       `json:"url,omitempty"`
-	Quote        string       `json:"quote,omitempty"`
+	Context           any               `json:"@context,omitempty"`
+	ID                string            `json:"id"`
+	Type              ObjectType        `json:"type"`
+	AttributedTo      string            `json:"attributedTo,omitempty"`
+	InReplyTo         string            `json:"inReplyTo,omitempty"`
+	Content           string            `json:"content,omitempty"`
+	Summary           string            `json:"summary,omitempty"`
+	Sensitive         bool              `json:"sensitive,omitempty"`
+	Name              string            `json:"name,omitempty"`
+	Published         Time              `json:"published,omitzero"`
+	Updated           Time              `json:"updated,omitzero"`
+	To                Audience          `json:"to,omitzero"`
+	CC                Audience          `json:"cc,omitzero"`
+	Audience          string            `json:"audience,omitempty"`
+	Tag               Array[Tag]        `json:"tag,omitzero"`
+	Attachment        []Attachment      `json:"attachment,omitempty"`
+	URL               string            `json:"url,omitempty"`
+	Quote             string            `json:"quote,omitempty"`
+	InteractionPolicy InteractionPolicy `json:"interactionPolicy,omitzero"`
 
 	// polls
 	VotersCount int64        `json:"votersCount,omitempty"`

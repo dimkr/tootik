@@ -232,6 +232,10 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 		note.Content = plain.ToHTML(note.Content, note.Tag)
 	}
 
+	if note.IsPublic() {
+		note.InteractionPolicy.CanQuote.AutomaticApproval.Add(ap.Public)
+	}
+
 	var err error
 	if oldNote != nil {
 		note.Published = oldNote.Published

@@ -442,7 +442,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			w.Link("/users/reply/"+strings.TrimPrefix(note.ID, "https://"), "💬 Reply")
 			w.Link(fmt.Sprintf("titan://%s/users/upload/reply/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload reply")
 
-			if note.IsPublic() {
+			if note.InteractionPolicy.CanQuote.AutomaticApproval.Contains(ap.Public) && note.InteractionPolicy.CanQuote.ManualApproval.IsZero() {
 				w.Link("/users/quote/"+strings.TrimPrefix(note.ID, "https://"), "♻️ Quote")
 				w.Link(fmt.Sprintf("titan://%s/users/upload/quote/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload quote")
 			}
