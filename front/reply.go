@@ -24,7 +24,7 @@ import (
 	"github.com/dimkr/tootik/front/text"
 )
 
-func (h *Handler) doReply(w text.Writer, r *Request, args []string, quote bool, readInput inputFunc) {
+func (h *Handler) replyOrQuote(w text.Writer, r *Request, args []string, quote bool, readInput inputFunc) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -123,25 +123,25 @@ func (h *Handler) doReply(w text.Writer, r *Request, args []string, quote bool, 
 }
 
 func (h *Handler) reply(w text.Writer, r *Request, args ...string) {
-	h.doReply(w, r, args, false, func() (string, bool) {
+	h.replyOrQuote(w, r, args, false, func() (string, bool) {
 		return readQuery(w, r, "Reply content")
 	})
 }
 
 func (h *Handler) replyUpload(w text.Writer, r *Request, args ...string) {
-	h.doReply(w, r, args, false, func() (string, bool) {
+	h.replyOrQuote(w, r, args, false, func() (string, bool) {
 		return h.readBody(w, r, args[1:])
 	})
 }
 
 func (h *Handler) quote(w text.Writer, r *Request, args ...string) {
-	h.doReply(w, r, args, true, func() (string, bool) {
+	h.replyOrQuote(w, r, args, true, func() (string, bool) {
 		return readQuery(w, r, "Reply content")
 	})
 }
 
 func (h *Handler) quoteUpload(w text.Writer, r *Request, args ...string) {
-	h.doReply(w, r, args, true, func() (string, bool) {
+	h.replyOrQuote(w, r, args, true, func() (string, bool) {
 		return h.readBody(w, r, args[1:])
 	})
 }
