@@ -38,8 +38,11 @@ import (
 )
 
 var (
-	defaultComponents     = []string{"@method", "@target-uri"}
-	defaultPostComponents = []string{"@method", "@target-uri", "content-type", "content-digest"}
+	defaultComponents          = []string{"@method", "@target-uri"}
+	defaultComponentsWithQuery = []string{"@method", "@target-uri", "@query"}
+
+	defaultPostComponents          = []string{"@method", "@target-uri", "content-type", "content-digest"}
+	defaultPostComponentsWithQuery = []string{"@method", "@target-uri", "@query", "content-type", "content-digest"}
 
 	signatureRegex          = regexp.MustCompile(`^([^=\s]+)=:([0-9a-zA-Z\/+]+={0,3}):$`)
 	signatureInputRegex     = regexp.MustCompile(`^([^=\s]+)=\(("[^"\s]+"(?: "[^"\s]+")*)\);([^=;\s]+=[^;\s]+(?:;[^=;\s]+=[^;\s]+)*)$`)
@@ -147,9 +150,13 @@ func SignRFC9421(
 		r.Body = io.NopCloser(bytes.NewReader(body))
 		digest(r, body)
 
-		if components == nil {
+		if components == nil && r.URL.RawQuery != "" {
+			components = defaultPostComponentsWithQuery
+		} else {
 			components = defaultPostComponents
 		}
+	} else if components == nil && r.URL.RawQuery != "" {
+		components = defaultComponentsWithQuery
 	} else if components == nil {
 		components = defaultComponents
 	}

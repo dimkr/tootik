@@ -44,9 +44,13 @@ const (
 )
 
 var (
-	signatureAttrRegex        = regexp.MustCompile(`\b([^"=]+)="([^"]+)"`)
-	defaultRequiredComponents = []string{"@target-uri"}
-	requiredPostComponents    = []string{"@target-uri", "content-digest"}
+	signatureAttrRegex = regexp.MustCompile(`\b([^"=]+)="([^"]+)"`)
+
+	defaultRequiredComponents          = []string{"@target-uri"}
+	defaultRequiredComponentsWithQuery = []string{"@target-uri", "@query"}
+
+	requiredPostComponents          = []string{"@target-uri", "content-digest"}
+	requiredPostComponentsWithQuery = []string{"@target-uri", "@query", "content-digest"}
 
 	rsaAlgorithms = map[string]struct{}{
 		"":                {},
@@ -64,8 +68,12 @@ func Extract(r *http.Request, body []byte, domain string, now time.Time, maxAge 
 	if len(input) == 1 {
 		required := defaultRequiredComponents
 
-		if r.Method == http.MethodPost {
+		if r.Method == http.MethodPost && r.URL.RawQuery != "" {
+			required = requiredPostComponentsWithQuery
+		} else if r.Method == http.MethodPost {
 			required = requiredPostComponents
+		} else if r.URL.RawQuery != "" {
+			required = defaultRequiredComponentsWithQuery
 		}
 
 		return rfc9421Extract(r, input[0], body, domain, now, maxAge, required)
