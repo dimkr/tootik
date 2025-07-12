@@ -406,7 +406,7 @@ func (q *Queue) queueTasks(
 				return fmt.Errorf("failed to query server capabilities for %s: %w", actorID, err)
 			}
 
-			if rand.Float32() > q.Config.Ed25519Threshold {
+			if capabilities&ap.RFC9421Ed25519Signatures != ap.RFC9421Ed25519Signatures && rand.Float32() > q.Config.Ed25519Threshold {
 				capabilities |= ap.RFC9421Ed25519Signatures
 			}
 		}
