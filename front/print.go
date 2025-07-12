@@ -47,9 +47,13 @@ func getTextAndLinks(s string, maxRunes, maxLines int) ([]string, data.OrderedMa
 		}
 	}
 
-	lines := strings.Split(raw, "\n")
+	if maxLines <= 0 {
+		return strings.Split(raw, "\n"), links
+	}
 
-	if maxLines <= 0 || len(lines) <= maxLines {
+	lines := strings.SplitN(raw, "\n", maxLines+1)
+
+	if len(lines) <= maxLines {
 		return lines, links
 	}
 
@@ -228,6 +232,11 @@ func (h *Handler) printCompactNote(w text.Writer, r *Request, note *ap.Object, a
 		r.Log.Warn("Failed to count replies", "id", note.ID, "error", err)
 	}
 
+	var quotes int
+	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where object->>'$.quote' = ?`, note.ID).Scan(&quotes); err != nil {
+		r.Log.Warn("Failed to count quotes", "id", note.ID, "error", err)
+	}
+
 	authorDisplayName := author.PreferredUsername
 
 	var title string
@@ -273,6 +282,10 @@ func (h *Handler) printCompactNote(w text.Writer, r *Request, note *ap.Object, a
 
 	if replies > 0 {
 		meta += fmt.Sprintf(" %d💬", replies)
+	}
+
+	if quotes > 0 {
+		meta += fmt.Sprintf(" %d♻️", quotes)
 	}
 
 	if meta != "" {

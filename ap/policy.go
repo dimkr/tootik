@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,32 +16,13 @@ limitations under the License.
 
 package ap
 
-import "encoding/json"
-
-// Array is an array or a single item.
-type Array[T any] []T
-
-func (a Array[T]) IsZero() bool {
-	return len(a) == 0
+// QuotePolicy describes quote policies for an [Object].
+type QuotePolicy struct {
+	AutomaticApproval Audience `json:"automaticApproval,omitzero"`
+	ManualApproval    Audience `json:"manualApproval,omitzero"`
 }
 
-func (a *Array[T]) UnmarshalJSON(b []byte) error {
-	var tmp []T
-	if err := json.Unmarshal(b, &tmp); err != nil {
-		tmp = make([]T, 1)
-		if err := json.Unmarshal(b, &tmp[0]); err != nil {
-			return err
-		}
-	}
-
-	*a = tmp
-	return nil
-}
-
-func (a Array[T]) MarshalJSON() ([]byte, error) {
-	if a == nil {
-		return []byte("[]"), nil
-	}
-
-	return json.Marshal(([]T)(a))
+// InteractionPolicy describes interaction policies for an [Object].
+type InteractionPolicy struct {
+	CanQuote QuotePolicy `json:"canQuote,omitzero"`
 }

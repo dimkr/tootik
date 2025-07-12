@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ func (h *Handler) whisper(w text.Writer, r *Request, args ...string) {
 
 	to.Add(r.User.Followers)
 
-	h.post(w, r, nil, nil, to, cc, "", func() (string, bool) {
+	h.post(w, r, nil, nil, "", to, cc, "", func() (string, bool) {
 		return readQuery(w, r, "Post content")
 	})
 }
@@ -48,7 +48,7 @@ func (h *Handler) uploadWhisper(w text.Writer, r *Request, args ...string) {
 
 	to.Add(r.User.Followers)
 
-	h.post(w, r, nil, nil, to, cc, "", func() (string, bool) {
+	h.post(w, r, nil, nil, "", to, cc, "", func() (string, bool) {
 		return h.readBody(w, r, args)
 	})
 }

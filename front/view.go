@@ -322,6 +322,34 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			}
 		}
 
+		if quotes, err := h.DB.QueryContext(
+			r.Context,
+			`
+			select notes.id, persons.actor->>'$.preferredUsername' from
+			notes join persons on persons.id = notes.author
+			where notes.object->>'$.quote' = ?
+			order by notes.inserted desc
+			limit ?
+			`,
+			note.ID,
+			h.Config.QuotesPerPost,
+		); err != nil {
+			r.Log.Warn("Failed to query quotes", "error", err)
+		} else {
+			for quotes.Next() {
+				var quoteID, quoter string
+				if err := quotes.Scan(&quoteID, &quoter); err != nil {
+					r.Log.Warn("Failed to scan quoter", "error", err)
+				} else if r.User == nil {
+					links.Store("/view/"+strings.TrimPrefix(quoteID, "https://"), "♻️ "+quoter)
+				} else {
+					links.Store("/users/view/"+strings.TrimPrefix(quoteID, "https://"), "♻️ "+quoter)
+				}
+			}
+
+			quotes.Close()
+		}
+
 		title := note.Published.Format(time.DateOnly)
 		if note.Updated != (ap.Time{}) {
 			title += " ┃ edited"
@@ -411,6 +439,11 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		}
 
 		if r.User != nil {
+			if note.CanQuote() {
+				w.Link("/users/quote/"+strings.TrimPrefix(note.ID, "https://"), "♻️ Quote")
+				w.Link(fmt.Sprintf("titan://%s/users/upload/quote/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload quote")
+			}
+
 			w.Link("/users/reply/"+strings.TrimPrefix(note.ID, "https://"), "💬 Reply")
 			w.Link(fmt.Sprintf("titan://%s/users/upload/reply/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload reply")
 		}
@@ -439,6 +472,39 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				}
 
 				w.Raw("Results graph", graph.Bars(labels, votes))
+			}
+		}
+
+		if note.Quote != "" {
+			w.Empty()
+			w.Subtitle("Quote")
+
+			var quote ap.Object
+			var quoteAuthor string
+			if err := h.DB.QueryRowContext(
+				r.Context,
+				`
+				select json(notes.object), persons.actor->>'$.preferredUsername' from notes
+				join persons on persons.id = notes.author
+				where notes.id = ?
+				`,
+				note.Quote,
+			).Scan(&quote, &quoteAuthor); errors.Is(err, sql.ErrNoRows) {
+				w.Text("[Missing]")
+			} else if err != nil {
+				r.Log.Warn("Failed to scan quote", "error", err)
+				w.Text("[Error]")
+			} else {
+				if r.User == nil {
+					w.Linkf("/view/"+strings.TrimPrefix(quote.ID, "https://"), "%s %s", quote.Published.Time.Format(time.DateOnly), quoteAuthor)
+				} else {
+					w.Linkf("/users/view/"+strings.TrimPrefix(quote.ID, "https://"), "%s %s", quote.Published.Time.Format(time.DateOnly), quoteAuthor)
+				}
+
+				quoteLines, _ := h.getCompactNoteContent(&quote)
+				for _, line := range quoteLines {
+					w.Quote(line)
+				}
 			}
 		}
 

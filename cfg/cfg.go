@@ -70,6 +70,7 @@ type Config struct {
 	MaxOffset        int
 
 	SharesPerPost int
+	QuotesPerPost int
 
 	MaxRequestBodySize int64
 	MaxRequestAge      time.Duration
@@ -265,6 +266,10 @@ func (c *Config) FillDefaults() {
 
 	if c.SharesPerPost <= 0 {
 		c.SharesPerPost = 10
+	}
+
+	if c.QuotesPerPost <= 0 {
+		c.QuotesPerPost = 10
 	}
 
 	if c.MaxRequestBodySize <= 0 {
