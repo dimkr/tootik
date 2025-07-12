@@ -476,24 +476,22 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var capabilities ap.Capability
-
-	if sig.Alg == "ed25519" {
+	switch sig.Alg {
+	case "ed25519":
 		capabilities = ap.RFC9421Signatures | ap.RFC9421ED25519Signatures
-	} else if sig.Alg == "rsa-v1_5-sha256" {
+	case "rsa-v1_5-sha256":
 		capabilities = ap.RFC9421Signatures
 	}
 
-	if capabilities != 0 {
-		if _, err = l.DB.ExecContext(
-			r.Context(),
-			`INSERT INTO servers (host, capabilities) VALUES ($1, $2) ON CONFLICT(host) DO UPDATE SET capabilities = capabilities | $2`,
-			origin,
-			capabilities,
-		); err != nil {
-			slog.Error("Failed to record server capabilities", "servers", origin, "error", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
+	if _, err = l.DB.ExecContext(
+		r.Context(),
+		`INSERT INTO servers (host, capabilities) VALUES ($1, $2) ON CONFLICT(host) DO UPDATE SET capabilities = capabilities | $2`,
+		origin,
+		capabilities,
+	); err != nil {
+		slog.Error("Failed to record server capabilities", "servers", origin, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)

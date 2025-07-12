@@ -87,6 +87,23 @@ func (h *Handler) getActiveUsersGraph(r *Request) string {
 	return h.getGraph(r, `select strftime('%Y-%m-%d', datetime(day, 'unixepoch')), count(distinct author) from (select notes.inserted/(60*60*24)*60*60*24 as day, persons.id as author from notes join persons on persons.id = notes.author where notes.inserted>unixepoch()-60*60*24*7 and notes.inserted<unixepoch()/(60*60*24)*60*60*24) group by day`, keys, values)
 }
 
+func (h *Handler) getInstanceCapabilitiesGraph(r *Request) string {
+	keys := make([]string, 3)
+	values := make([]int64, 3)
+	return h.getGraph(
+		r,
+		`
+		select 'RFC9421+ED25519', (select count(*) from servers where capabilities & 2 > 0)
+		union all
+		select 'RFC9421', (select count(*) from servers where capabilities & 1 > 0)
+		union all
+		select 'None', (select count(*) from servers where capabilities & 1 = 0)
+		`,
+		keys,
+		values,
+	)
+}
+
 func (h *Handler) status(w text.Writer, r *Request, args ...string) {
 	var usersCount, postsCount, postsToday, federatedPostsCount, federatedPostsToday int64
 	var lastPost, lastFederatedPost, lastRegister, lastFederatedUser sql.NullInt64
@@ -165,6 +182,7 @@ func (h *Handler) status(w text.Writer, r *Request, args ...string) {
 	activeUsersGraph := h.getActiveUsersGraph(r)
 	knownInstancesGraph := h.getKnownInstancesGraph(r)
 	activeInstancesGraph := h.getActiveInstancesGraph(r)
+	instanceCapabilitiesGraph := h.getInstanceCapabilitiesGraph(r)
 
 	w.OK()
 
@@ -209,6 +227,12 @@ func (h *Handler) status(w text.Writer, r *Request, args ...string) {
 	if activeInstancesGraph != "" {
 		w.Subtitle("Average Daily Posts By Instance")
 		w.Raw("Average daily posts graph", activeInstancesGraph)
+		w.Empty()
+	}
+
+	if instanceCapabilitiesGraph != "" {
+		w.Subtitle("Instance Capabilities")
+		w.Raw("Instance capabilities graph", instanceCapabilitiesGraph)
 		w.Empty()
 	}
 
