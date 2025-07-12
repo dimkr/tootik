@@ -42,7 +42,7 @@ var (
 	pollRegex    = regexp.MustCompile(`^\[(?:(?i)POLL)\s+(.+)\s*\]\s*(.+)`)
 )
 
-func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo *ap.Object, to ap.Audience, cc ap.Audience, audience string, readInput inputFunc) {
+func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo *ap.Object, quoteID string, to ap.Audience, cc ap.Audience, audience string, readInput inputFunc) {
 	now := ap.Time{Time: time.Now()}
 
 	if oldNote == nil {
@@ -138,6 +138,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 		CC:           cc,
 		Audience:     audience,
 		Tag:          tags,
+		Quote:        quoteID,
 	}
 
 	anyRecipient := false
@@ -229,6 +230,10 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 
 	if inReplyTo == nil || inReplyTo.Type != ap.Question {
 		note.Content = plain.ToHTML(note.Content, note.Tag)
+	}
+
+	if note.IsPublic() {
+		note.InteractionPolicy.CanQuote.AutomaticApproval.Add(ap.Public)
 	}
 
 	var err error

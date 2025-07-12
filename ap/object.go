@@ -35,23 +35,25 @@ const (
 // Object represents most ActivityPub objects.
 // Actors are represented by [Actor].
 type Object struct {
-	Context      any          `json:"@context,omitempty"`
-	ID           string       `json:"id"`
-	Type         ObjectType   `json:"type"`
-	AttributedTo string       `json:"attributedTo,omitempty"`
-	InReplyTo    string       `json:"inReplyTo,omitempty"`
-	Content      string       `json:"content,omitempty"`
-	Summary      string       `json:"summary,omitempty"`
-	Sensitive    bool         `json:"sensitive,omitempty"`
-	Name         string       `json:"name,omitempty"`
-	Published    Time         `json:"published,omitzero"`
-	Updated      Time         `json:"updated,omitzero"`
-	To           Audience     `json:"to,omitzero"`
-	CC           Audience     `json:"cc,omitzero"`
-	Audience     string       `json:"audience,omitempty"`
-	Tag          Array[Tag]   `json:"tag,omitzero"`
-	Attachment   []Attachment `json:"attachment,omitempty"`
-	URL          string       `json:"url,omitempty"`
+	Context           any               `json:"@context,omitempty"`
+	ID                string            `json:"id"`
+	Type              ObjectType        `json:"type"`
+	AttributedTo      string            `json:"attributedTo,omitempty"`
+	InReplyTo         string            `json:"inReplyTo,omitempty"`
+	Content           string            `json:"content,omitempty"`
+	Summary           string            `json:"summary,omitempty"`
+	Sensitive         bool              `json:"sensitive,omitempty"`
+	Name              string            `json:"name,omitempty"`
+	Published         Time              `json:"published,omitzero"`
+	Updated           Time              `json:"updated,omitzero"`
+	To                Audience          `json:"to,omitzero"`
+	CC                Audience          `json:"cc,omitzero"`
+	Audience          string            `json:"audience,omitempty"`
+	Tag               Array[Tag]        `json:"tag,omitzero"`
+	Attachment        []Attachment      `json:"attachment,omitempty"`
+	URL               string            `json:"url,omitempty"`
+	Quote             string            `json:"quote,omitempty"`
+	InteractionPolicy InteractionPolicy `json:"interactionPolicy,omitzero"`
 
 	// polls
 	VotersCount int64        `json:"votersCount,omitempty"`
@@ -63,6 +65,11 @@ type Object struct {
 
 func (o *Object) IsPublic() bool {
 	return o.To.Contains(Public) || o.CC.Contains(Public)
+}
+
+// CanQuote determines whether or not a post can be quoted.
+func (o *Object) CanQuote() bool {
+	return o.InReplyTo == "" && o.IsPublic() && o.InteractionPolicy.CanQuote.AutomaticApproval.Contains(Public) && o.InteractionPolicy.CanQuote.ManualApproval.IsZero()
 }
 
 func (o *Object) Scan(src any) error {

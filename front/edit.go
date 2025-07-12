@@ -72,7 +72,7 @@ func (h *Handler) doEdit(w text.Writer, r *Request, args []string, readInput inp
 	}
 
 	if note.InReplyTo == "" {
-		h.post(w, r, &note, nil, note.To, note.CC, note.Audience, readInput)
+		h.post(w, r, &note, nil, note.Quote, note.To, note.CC, note.Audience, readInput)
 		return
 	}
 
@@ -86,7 +86,7 @@ func (h *Handler) doEdit(w text.Writer, r *Request, args []string, readInput inp
 	}
 
 	// the starting point is the original value of to and cc: recipients can be added but not removed when editing
-	h.post(w, r, &note, &parent, note.To, note.CC, note.Audience, readInput)
+	h.post(w, r, &note, &parent, note.Quote, note.To, note.CC, note.Audience, readInput)
 }
 
 func (h *Handler) edit(w text.Writer, r *Request, args ...string) {
