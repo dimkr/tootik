@@ -17,10 +17,6 @@ func rfc9421(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE UNIQUE INDEX personsed25519publickeyid ON persons(actor->>'$.assertionMethod[0].id') WHERE actor->>'$.assertionMethod[0].id' IS NOT NULL`); err != nil {
-		return err
-	}
-
 	if _, err := tx.ExecContext(ctx, `CREATE TABLE servers(host TEXT NOT NULL, capabilities INTEGER NOT NULL)`); err != nil {
 		return err
 	}
@@ -33,7 +29,7 @@ func rfc9421(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if rows, err := tx.QueryContext(ctx, `SELECT actor FROM persons WHERE host = ?`, domain); err != nil {
+	if rows, err := tx.QueryContext(ctx, `SELECT actor FROM persons WHERE host = ? AND actor->>'$.assertionMethod[0].id' IS NULL`, domain); err != nil {
 		return err
 	} else {
 		defer rows.Close()
@@ -66,10 +62,6 @@ func rfc9421(ctx context.Context, domain string, tx *sql.Tx) error {
 				return err
 			}
 
-			if len(actor.AssertionMethod) > 0 {
-				continue
-			}
-
 			actor.AssertionMethod = []ap.AssertionMethod{
 				{
 					ID:                 actor.ID + "#ed25519-key",
@@ -87,7 +79,10 @@ func rfc9421(ctx context.Context, domain string, tx *sql.Tx) error {
 		if err := rows.Err(); err != nil {
 			return err
 		}
+	}
 
+	if _, err := tx.ExecContext(ctx, `CREATE UNIQUE INDEX personsed25519publickeyid ON persons(actor->>'$.assertionMethod[0].id') WHERE actor->>'$.assertionMethod[0].id' IS NOT NULL`); err != nil {
+		return err
 	}
 
 	return nil
