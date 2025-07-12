@@ -36,7 +36,7 @@ func (l *Listener) verify(r *http.Request, body []byte, flags ap.ResolverFlag) (
 		return nil, nil, fmt.Errorf("failed to verify message: %w", err)
 	}
 
-	actor, err := l.Resolver.ResolveID(r.Context(), l.ActorKey, sig.KeyID, flags)
+	actor, err := l.Resolver.ResolveID(r.Context(), l.ActorKeys, sig.KeyID, flags)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get key %s to verify message: %w", sig.KeyID, err)
 	}

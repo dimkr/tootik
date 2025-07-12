@@ -35,16 +35,16 @@ import (
 )
 
 type Listener struct {
-	Domain   string
-	Closed   bool
-	Config   *cfg.Config
-	DB       *sql.DB
-	Resolver *Resolver
-	ActorKey [2]httpsig.Key
-	Addr     string
-	Cert     string
-	Key      string
-	Plain    bool
+	Domain    string
+	Closed    bool
+	Config    *cfg.Config
+	DB        *sql.DB
+	Resolver  *Resolver
+	ActorKeys [2]httpsig.Key
+	Addr      string
+	Cert      string
+	Key       string
+	Plain     bool
 }
 
 const certReloadDelay = time.Second * 5

@@ -218,7 +218,7 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 }
 
 func (l *Listener) fetchObject(ctx context.Context, id string) (bool, []byte, error) {
-	resp, err := l.Resolver.Get(ctx, l.ActorKey, id)
+	resp, err := l.Resolver.Get(ctx, l.ActorKeys, id)
 	if err != nil {
 		if resp != nil && (resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone) {
 			return false, nil, err
