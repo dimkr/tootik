@@ -130,8 +130,7 @@ type Config struct {
 
 	FillNodeInfoUsage bool
 
-	SignWithRFC9421 bool
-	UseED25519Keys  bool
+	ForceED25519 bool
 }
 
 // FillDefaults replaces missing or invalid settings with defaults.
@@ -433,9 +432,5 @@ func (c *Config) FillDefaults() {
 
 	if c.FeedTTL <= 0 {
 		c.FeedTTL = time.Hour * 24 * 7
-	}
-
-	if c.UseED25519Keys && !c.SignWithRFC9421 {
-		panic("UseED25519Keys requires SignWithRFC9421")
 	}
 }

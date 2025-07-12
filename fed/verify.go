@@ -30,15 +30,15 @@ import (
 	"github.com/dimkr/tootik/httpsig"
 )
 
-func (l *Listener) verify(r *http.Request, body []byte, flags ap.ResolverFlag) (*ap.Actor, error) {
+func (l *Listener) verify(r *http.Request, body []byte, flags ap.ResolverFlag) (*httpsig.Signature, *ap.Actor, error) {
 	sig, err := httpsig.Extract(r, body, l.Domain, time.Now(), l.Config.MaxRequestAge)
 	if err != nil {
-		return nil, fmt.Errorf("failed to verify message: %w", err)
+		return nil, nil, fmt.Errorf("failed to verify message: %w", err)
 	}
 
 	actor, err := l.Resolver.ResolveID(r.Context(), l.ActorKey, sig.KeyID, flags)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get key %s to verify message: %w", sig.KeyID, err)
+		return nil, nil, fmt.Errorf("failed to get key %s to verify message: %w", sig.KeyID, err)
 	}
 
 	var publicKey any
@@ -50,7 +50,7 @@ func (l *Listener) verify(r *http.Request, body []byte, flags ap.ResolverFlag) (
 		if err != nil {
 			publicKey, err = x509.ParsePKCS1PublicKey(publicKeyPem.Bytes)
 			if err != nil {
-				return nil, fmt.Errorf("failed to verify message using %s: %w", sig.KeyID, err)
+				return nil, nil, fmt.Errorf("failed to verify message using %s: %w", sig.KeyID, err)
 			}
 		}
 	} else {
@@ -68,21 +68,21 @@ func (l *Listener) verify(r *http.Request, body []byte, flags ap.ResolverFlag) (
 			}
 
 			if len(key.PublicKeyMultibase) == 0 {
-				return nil, fmt.Errorf("key %s is empty", key.ID)
+				return nil, nil, fmt.Errorf("key %s is empty", key.ID)
 			}
 
 			if key.PublicKeyMultibase[0] != 'z' {
-				return nil, fmt.Errorf("invalid prefix for %s: %c", key.ID, key.PublicKeyMultibase[0])
+				return nil, nil, fmt.Errorf("invalid prefix for %s: %c", key.ID, key.PublicKeyMultibase[0])
 			}
 
 			rawKey := base58.Decode(key.PublicKeyMultibase[1:])
 
 			if len(rawKey) != ed25519.PublicKeySize+2 {
-				return nil, fmt.Errorf("invalid key length for %s: %d", key.ID, len(rawKey))
+				return nil, nil, fmt.Errorf("invalid key length for %s: %d", key.ID, len(rawKey))
 			}
 
 			if rawKey[0] != 0xed || rawKey[1] != 0x01 {
-				return nil, fmt.Errorf("invalid prefix for %s: %x%x", rawKey[0], rawKey[1])
+				return nil, nil, fmt.Errorf("invalid prefix for %s: %x%x", rawKey[0], rawKey[1])
 			}
 
 			publicKey = ed25519.PublicKey(rawKey[2:])
@@ -90,12 +90,12 @@ func (l *Listener) verify(r *http.Request, body []byte, flags ap.ResolverFlag) (
 	}
 
 	if publicKey == nil {
-		return nil, errors.New("cannot verify message using non-existing key " + sig.KeyID)
+		return nil, nil, errors.New("cannot verify message using non-existing key " + sig.KeyID)
 	}
 
 	if err := sig.Verify(publicKey); err != nil {
-		return nil, fmt.Errorf("failed to verify message using %s: %w", sig.KeyID, err)
+		return nil, nil, fmt.Errorf("failed to verify message using %s: %w", sig.KeyID, err)
 	}
 
-	return actor, nil
+	return sig, actor, nil
 }

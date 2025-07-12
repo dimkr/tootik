@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"log/slog"
+	"math/rand/v2"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -60,6 +61,8 @@ type deliveryEvent struct {
 	Job  deliveryJob
 	Done bool
 }
+
+const ed25519Threshold = 0.95
 
 // Process polls the queue of outgoing activities and delivers them to other servers.
 // Delivery happens in batches, with multiple workers, timeout and retries.
@@ -149,8 +152,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	count := 0
 	for rows.Next() {
 		var activity ap.Activity
-		var rawActivity, rsaPrivKeyPem string
-		var ed25519PrivKeyPem sql.NullString
+		var rawActivity, rsaPrivKeyPem, ed25519PrivKeyPem string
 		var actor ap.Actor
 		var deliveryAttempts int
 		if err := rows.Scan(
@@ -167,16 +169,15 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 		count++
 
-		keyID := actor.PublicKey.ID
-		privKeyPem := rsaPrivKeyPem
-		if q.Config.UseED25519Keys && ed25519PrivKeyPem.Valid {
-			privKeyPem = ed25519PrivKeyPem.String
-			keyID = actor.AssertionMethod[0].ID
+		rsaPrivKey, err := data.ParsePrivateKey(rsaPrivKeyPem)
+		if err != nil {
+			slog.Error("Failed to parse RSA private key", "error", err)
+			continue
 		}
 
-		privKey, err := data.ParsePrivateKey(privKeyPem)
+		ed25519PrivKey, err := data.ParsePrivateKey(ed25519PrivKeyPem)
 		if err != nil {
-			slog.Error("Failed to parse private key", "error", err)
+			slog.Error("Failed to parse ED25519 private key", "error", err)
 			continue
 		}
 
@@ -204,7 +205,8 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		if err := q.queueTasks(
 			ctx,
 			job,
-			httpsig.Key{ID: keyID, PrivateKey: privKey},
+			httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
+			httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey},
 			&followers,
 			tasks,
 			events,
@@ -318,7 +320,8 @@ func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, event
 func (q *Queue) queueTasks(
 	ctx context.Context,
 	job deliveryJob,
-	key httpsig.Key,
+	rsaKey httpsig.Key,
+	ed25519Key httpsig.Key,
 	followers *partialFollowers,
 	tasks []chan deliveryTask,
 	events chan<- deliveryEvent,
@@ -388,7 +391,25 @@ func (q *Queue) queueTasks(
 			continue
 		}
 
-		to, err := q.Resolver.ResolveID(ctx, key, actorID, ap.Offline)
+		var capabilities ap.Capability
+		if q.Config.ForceED25519 {
+			capabilities = ap.RFC9421ED25519Signatures
+		} else if err := q.DB.QueryRowContext(
+			ctx,
+			`select capabilities from servers where host = substr($1, 9, instr(substr($1, 9), '/') - 1)`,
+			actorID,
+		).Scan(&capabilities); errors.Is(err, sql.ErrNoRows) {
+			capabilities = 0
+		} else if err != nil {
+			return fmt.Errorf("failed to query server capabilities for %s: %w", actorID, err)
+		}
+
+		chosenKey := rsaKey
+		if capabilities&ap.RFC9421ED25519Signatures > 0 || rand.Float32() > ed25519Threshold {
+			chosenKey = ed25519Key
+		}
+
+		to, err := q.Resolver.ResolveID(ctx, chosenKey, actorID, ap.Offline)
 		if err != nil {
 			slog.Warn("Failed to resolve a recipient", "to", actorID, "activity", job.Activity.ID, "error", err)
 			if !errors.Is(err, ErrActorGone) && !errors.Is(err, ErrBlockedDomain) {
@@ -435,7 +456,7 @@ func (q *Queue) queueTasks(
 		// assign a task to a random worker but use one worker per inbox, so activities are delivered once per inbox
 		tasks[crc32.ChecksumIEEE([]byte(inbox))%uint32(len(tasks))] <- deliveryTask{
 			Job:     job,
-			Key:     key,
+			Key:     chosenKey,
 			Request: req,
 			Inbox:   inbox,
 		}

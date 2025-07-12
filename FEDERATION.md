@@ -36,14 +36,14 @@ tootik implements [draft-cavage-http-signatures-12](https://datatracker.ietf.org
 In addition, tootik partially implements [RFC9421](https://datatracker.ietf.org/doc/rfc9421/):
 * It supports `rsa-v1_5-sha256` and `ed25519` signatures
 * Actors have a traditional RSA key under `publicKey` and an ED25519 key under `assertionMethod`, as described in [FEP-521a](https://codeberg.org/fediverse/fep/src/branch/main/fep/521a/fep-521a.md)
+* It remembers which servers sent valid requests signed with RFC9421 and ED25519, then starts to sign outgoing requests to these servers like this
+* Randomly (see `ed25519Threshold`), tootik tries RFC9421 and ED25519 against servers that still haven't sent such requests, to prevent deadlock
 * If `alg` is specified, tootik validates the signature only if the key type matches `alg`
 * It obeys `expires` if specified, but also validates `created` using `MaxRequestAge`
 * Incoming `POST` requests must have at least `("@method" "@target-uri" "content-type" "content-digest")`
 * All other incoming requests must have at least `("@method" "@target-uri")`
 * If query is not empty, `@query` must be signed
-* Outgoing requests don't use RFC9421 signatures, unless `SignWithRFC9421` is enabled
-* If `SignWithRFC9421` is enabled, outgoing requests are signed with `alg="rsa-v1_5-sha256"`
-* If `UseED25519Keys` is enabled, newly created users are assigned ED25519 keys and outgoing requests are signed with `alg="ed25519"`
+* If `ForceED25519` is enabled, outgoing requests are signed with `alg="ed25519"`
 
 ## Application Actor
 

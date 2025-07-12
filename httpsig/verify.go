@@ -33,7 +33,7 @@ import (
 
 type Signature struct {
 	KeyID     string
-	alg       string
+	Alg       string
 	s         string
 	signature []byte
 }
@@ -222,7 +222,7 @@ func Extract(r *http.Request, body []byte, domain string, now time.Time, maxAge 
 
 	return &Signature{
 		KeyID:     keyID,
-		alg:       algorithm,
+		Alg:       algorithm,
 		s:         s,
 		signature: rawSignature,
 	}, nil
@@ -232,7 +232,7 @@ func Extract(r *http.Request, body []byte, domain string, now time.Time, maxAge 
 func (s *Signature) Verify(key any) error {
 	switch v := key.(type) {
 	case *rsa.PublicKey:
-		if _, ok := rsaAlgorithms[s.alg]; !ok {
+		if _, ok := rsaAlgorithms[s.Alg]; !ok {
 			return errors.New("alg is not RSA")
 		}
 
@@ -252,8 +252,8 @@ func (s *Signature) Verify(key any) error {
 		}
 
 	case ed25519.PublicKey:
-		if s.alg != "" && s.alg != "ed25519" {
-			return errors.New("alg is not ED25519: " + s.alg)
+		if s.Alg != "" && s.Alg != "ed25519" {
+			return errors.New("alg is not ED25519: " + s.Alg)
 		}
 
 		if len(s.signature) != ed25519.SignatureSize {
@@ -265,7 +265,7 @@ func (s *Signature) Verify(key any) error {
 		}
 
 	default:
-		return fmt.Errorf(`cannot verify alg="%s" with %T`, s.alg, key)
+		return fmt.Errorf(`cannot verify alg="%s" with %T`, s.Alg, key)
 	}
 
 	return nil
