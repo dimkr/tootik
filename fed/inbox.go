@@ -39,26 +39,26 @@ var unsupportedActivityTypes = map[ap.ActivityType]struct{}{
 	ap.Move:       {},
 }
 
-func (l *Listener) getActivityOrigin(activity *ap.Activity, sender *ap.Actor) (string, bool, error) {
+func (l *Listener) getActivityOrigin(activity *ap.Activity, sender *ap.Actor) (string, string, error) {
 	if activity.ID == "" {
-		return "", false, errors.New("unspecified activity ID")
+		return "", "", errors.New("unspecified activity ID")
 	}
 
 	activityUrl, err := url.Parse(activity.ID)
 	if err != nil {
-		return "", false, err
+		return "", "", err
 	}
 
 	if sender.ID == "" {
-		return "", false, errors.New("unspecified sender ID")
+		return "", "", errors.New("unspecified sender ID")
 	}
 
 	senderUrl, err := url.Parse(sender.ID)
 	if err != nil {
-		return "", false, err
+		return "", "", err
 	}
 
-	return activityUrl.Host, activityUrl.Host != senderUrl.Host, nil
+	return activityUrl.Host, senderUrl.Host, nil
 }
 
 func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth uint) error {
@@ -347,12 +347,14 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		if an activity wasn't sent by an actor on the same server, we must fetch the activity from its origin instead
 		of trusting the sender to pass it as-is
 	*/
-	origin, forwarded, err := l.getActivityOrigin(queued, sender)
+	origin, senderOrigin, err := l.getActivityOrigin(queued, sender)
 	if err != nil {
 		slog.Warn("Failed to determine whether or not activity is forwarded", "activity", &activity, "sender", sender.ID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
+	forwarded := origin != senderOrigin
 
 	/* if we don't support this activity or it's invalid, we don't want to fetch it (we validate again later) */
 	if err := l.validateActivity(queued, origin, 0); errors.Is(err, ap.ErrUnsupportedActivity) {
@@ -498,7 +500,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		origin,
 		capabilities,
 	); err != nil {
-		slog.Error("Failed to record server capabilities", "server", origin, "error", err)
+		slog.Error("Failed to record server capabilities", "server", senderOrigin, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
