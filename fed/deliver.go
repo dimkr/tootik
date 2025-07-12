@@ -51,10 +51,11 @@ type deliveryJob struct {
 }
 
 type deliveryTask struct {
-	Job     deliveryJob
-	Key     httpsig.Key
-	Request *http.Request
-	Inbox   string
+	Job        deliveryJob
+	Key        httpsig.Key
+	UseRFC9421 bool
+	Request    *http.Request
+	Inbox      string
 }
 
 type deliveryEvent struct {
@@ -255,7 +256,7 @@ func (q *Queue) deliverWithTimeout(parent context.Context, task deliveryTask) er
 
 	req := task.Request.WithContext(ctx)
 
-	resp, err := q.Resolver.send(task.Key, req)
+	resp, err := q.Resolver.send(task.Key, req, task.UseRFC9421)
 	if err == nil {
 		resp.Body.Close()
 	}
@@ -462,10 +463,11 @@ func (q *Queue) queueTasks(
 
 		// assign a task to a random worker but use one worker per inbox, so activities are delivered once per inbox
 		tasks[crc32.ChecksumIEEE([]byte(inbox))%uint32(len(tasks))] <- deliveryTask{
-			Job:     job,
-			Key:     chosenKey,
-			Request: req,
-			Inbox:   inbox,
+			Job:        job,
+			Key:        chosenKey,
+			Request:    req,
+			Inbox:      inbox,
+			UseRFC9421: capabilities&ap.RFC9421Signatures == ap.RFC9421Signatures,
 		}
 	}
 

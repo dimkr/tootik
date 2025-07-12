@@ -38,7 +38,7 @@ type sender struct {
 
 var userAgent = "tootik/" + buildinfo.Version
 
-func (s *sender) send(key httpsig.Key, req *http.Request) (*http.Response, error) {
+func (s *sender) send(key httpsig.Key, req *http.Request, useRFC9421 bool) (*http.Response, error) {
 	urlString := req.URL.String()
 
 	if req.URL.Scheme != "https" {
@@ -55,6 +55,10 @@ func (s *sender) send(key httpsig.Key, req *http.Request) (*http.Response, error
 
 	if _, ok := key.PrivateKey.(ed25519.PrivateKey); ok {
 		if err := httpsig.SignRFC9421(req, key, time.Now(), time.Time{}, httpsig.RFC9421DigestSHA256, "ed25519", nil); err != nil {
+			return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
+		}
+	} else if useRFC9421 {
+		if err := httpsig.SignRFC9421(req, key, time.Now(), time.Time{}, httpsig.RFC9421DigestSHA256, "rsa-v1_5-sha256", nil); err != nil {
 			return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
 		}
 	} else if err := httpsig.Sign(req, key, time.Now()); err != nil {
@@ -92,5 +96,5 @@ func (s *sender) Get(ctx context.Context, key httpsig.Key, url string) (*http.Re
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
-	return s.send(key, req)
+	return s.send(key, req, false)
 }

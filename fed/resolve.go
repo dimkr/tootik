@@ -284,7 +284,7 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Add("Accept", "application/json")
 
-	resp, err := r.send(key, req)
+	resp, err := r.send(key, req, false)
 	if err != nil {
 		return r.handleFetchFailure(ctx, finger, cachedActor, sinceLastUpdate, resp, err)
 	}
@@ -428,7 +428,7 @@ func (r *Resolver) fetchActor(ctx context.Context, key httpsig.Key, host, profil
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Add("Accept", "application/activity+json")
 
-	resp, err := r.send(key, req)
+	resp, err := r.send(key, req, false)
 	if err != nil {
 		return r.handleFetchFailure(ctx, profile, cachedActor, sinceLastUpdate, resp, err)
 	}
