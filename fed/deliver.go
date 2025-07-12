@@ -62,8 +62,6 @@ type deliveryEvent struct {
 	Done bool
 }
 
-const Ed25519Threshold = 0.95
-
 // Process polls the queue of outgoing activities and delivers them to other servers.
 // Delivery happens in batches, with multiple workers, timeout and retries.
 // The listing of additional activities and recipients runs in parallel with delivery.
