@@ -79,7 +79,7 @@ outer:
 
 	var w bytes.Buffer
 
-	for i := 0; i < len(keys); i++ {
+	for i := range keys {
 		if keys[i] == "" {
 			continue
 		}
