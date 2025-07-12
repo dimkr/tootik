@@ -35,10 +35,10 @@ import (
 	"github.com/dimkr/tootik/icon"
 )
 
-func generateRSAKey() (any, []byte, []byte, error) {
+func generateRSAKey() (any, string, []byte, error) {
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to generate key: %w", err)
+		return nil, "", nil, fmt.Errorf("failed to generate key: %w", err)
 	}
 
 	var privPem bytes.Buffer
@@ -49,7 +49,7 @@ func generateRSAKey() (any, []byte, []byte, error) {
 			Bytes: x509.MarshalPKCS1PrivateKey(priv),
 		},
 	); err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to generate private key PEM: %w", err)
+		return nil, "", nil, fmt.Errorf("failed to generate private key PEM: %w", err)
 	}
 
 	var pubPem bytes.Buffer
@@ -60,21 +60,21 @@ func generateRSAKey() (any, []byte, []byte, error) {
 			Bytes: x509.MarshalPKCS1PublicKey(&priv.PublicKey),
 		},
 	); err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to generate public key PEM: %w", err)
+		return nil, "", nil, fmt.Errorf("failed to generate public key PEM: %w", err)
 	}
 
-	return priv, privPem.Bytes(), pubPem.Bytes(), nil
+	return priv, privPem.String(), pubPem.Bytes(), nil
 }
 
-func generateED25519Key() (any, []byte, []byte, error) {
+func generateED25519Key() (any, string, []byte, error) {
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to generate private key: %w", err)
+		return nil, "", nil, fmt.Errorf("failed to generate private key: %w", err)
 	}
 
 	privPkcs8, err := x509.MarshalPKCS8PrivateKey(priv)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to marshal private key: %w", err)
+		return nil, "", nil, fmt.Errorf("failed to marshal private key: %w", err)
 	}
 
 	var privPem bytes.Buffer
@@ -85,10 +85,10 @@ func generateED25519Key() (any, []byte, []byte, error) {
 			Bytes: privPkcs8,
 		},
 	); err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to generate private key PEM: %w", err)
+		return nil, "", nil, fmt.Errorf("failed to generate private key PEM: %w", err)
 	}
 
-	return priv, privPem.Bytes(), pub, nil
+	return priv, privPem.String(), pub, nil
 }
 
 // Create creates a new user.
@@ -151,8 +151,8 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 			`INSERT INTO persons (id, actor, privkey, ed25519privkey) VALUES (?, JSONB(?), ?, ?)`,
 			id,
 			&actor,
-			string(rsaPrivPem),
-			string(ed25519PrivPem),
+			rsaPrivPem,
+			ed25519PrivPem,
 		); err != nil {
 			return nil, httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 		}
@@ -171,8 +171,8 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 		`INSERT OR IGNORE INTO persons (id, actor, privkey, ed25519privkey) VALUES (?, JSONB(?), ?, ?)`,
 		id,
 		&actor,
-		string(rsaPrivPem),
-		string(ed25519PrivPem),
+		rsaPrivPem,
+		ed25519PrivPem,
 	); err != nil {
 		return nil, httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 	}
