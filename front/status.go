@@ -97,7 +97,7 @@ func (h *Handler) getInstanceCapabilitiesGraph(r *Request) string {
 		union all
 		select 'RFC9421', (select count(*) from servers where capabilities & 0x1000 = 0x1000)
 		union all
-		select 'draft-cavage-http-signatures', (select count(*) from servers where capabilities & 0x1000 = 0)
+		select 'draft-cavage-http-signatures', (select count(*) from servers where capabilities & 0x100 = 0x100)
 		`,
 		keys,
 		values,

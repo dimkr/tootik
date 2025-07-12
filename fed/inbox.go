@@ -479,6 +479,8 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 
 	var capabilities ap.Capability
 	switch sig.Alg {
+	case "rsa-256", "hs2019":
+		capabilities = ap.CavageDraftSignatures
 	case "ed25519":
 		capabilities = ap.RFC9421Ed25519Signatures
 	case "rsa-v1_5-sha256":
