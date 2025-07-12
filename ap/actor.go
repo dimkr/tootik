@@ -54,6 +54,7 @@ type Actor struct {
 	Suspended                 bool              `json:"suspended,omitempty"`
 	Attachment                []Attachment      `json:"attachment,omitempty"`
 	AssertionMethod           []AssertionMethod `json:"assertionMethod,omitempty"`
+	Generator                 Generator         `json:"generator,omitzero"`
 }
 
 func (a *Actor) Scan(src any) error {

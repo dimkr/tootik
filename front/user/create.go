@@ -143,6 +143,20 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 		Published:                 ap.Time{Time: time.Now()},
 	}
 
+	if actorType == ap.Application {
+		actor.Generator.Type = ap.Application
+		actor.Generator.Implements = []ap.Implement{
+			{
+				Name: "RFC-9421: HTTP Message Signatures",
+				Href: "https://datatracker.ietf.org/doc/html/rfc9421",
+			},
+			{
+				Name: "RFC-9421 signatures using the Ed25519 algorithm",
+				Href: "https://datatracker.ietf.org/doc/html/rfc9421#name-eddsa-using-curve-edwards25",
+			},
+		}
+	}
+
 	key := httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: rsaPriv}
 
 	if cert == nil {
