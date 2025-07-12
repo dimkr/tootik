@@ -422,7 +422,6 @@ func (q *Queue) queueTasks(
 			continue
 		}
 
-		req.Header.Set("User-Agent", userAgent)
 		req.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 		req.Header.Set("Content-Length", contentLength)
 

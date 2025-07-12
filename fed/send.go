@@ -53,6 +53,7 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request) (*http.Response, e
 		return nil, fmt.Errorf("invalid host in %s: %s", urlString, req.URL.Host)
 	}
 
+	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	slog.Debug("Sending request", "url", urlString)
@@ -111,7 +112,6 @@ func (s *sender) Get(ctx context.Context, keys [2]httpsig.Key, url string) (*htt
 		return nil, fmt.Errorf("failed to send request to %s: %w", url, err)
 	}
 
-	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	return s.send(keys, req)

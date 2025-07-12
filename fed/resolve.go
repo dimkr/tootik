@@ -282,7 +282,6 @@ func (r *Resolver) tryResolve(ctx context.Context, keys [2]httpsig.Key, host, na
 	if err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", finger, err)
 	}
-	req.Header.Set("User-Agent", userAgent)
 	req.Header.Add("Accept", "application/json")
 
 	resp, err := r.send(keys, req)
@@ -426,7 +425,6 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 		return nil, cachedActor, fmt.Errorf("cannot resolve %s: %w", profile, ErrInvalidID)
 	}
 
-	req.Header.Set("User-Agent", userAgent)
 	req.Header.Add("Accept", "application/activity+json")
 
 	resp, err := r.send(keys, req)
