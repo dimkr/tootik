@@ -20,7 +20,7 @@ package ap
 type Capability uint
 
 const (
-	// RFC9421Signatures is support for RFC9421 HTTP signatures.
+	// RFC9421Signatures is support for RFC9421 HTTP signatures, with rsa-v1_5-sha256.
 	RFC9421Signatures Capability = 0x1000
 
 	// RFC9421Ed25519Signatures is support for RFC9421 HTTP signatures, with Ed25119 keys.
