@@ -439,13 +439,13 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		}
 
 		if r.User != nil {
-			w.Link("/users/reply/"+strings.TrimPrefix(note.ID, "https://"), "💬 Reply")
-			w.Link(fmt.Sprintf("titan://%s/users/upload/reply/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload reply")
-
 			if note.CanQuote() {
 				w.Link("/users/quote/"+strings.TrimPrefix(note.ID, "https://"), "♻️ Quote")
 				w.Link(fmt.Sprintf("titan://%s/users/upload/quote/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload quote")
 			}
+
+			w.Link("/users/reply/"+strings.TrimPrefix(note.ID, "https://"), "💬 Reply")
+			w.Link(fmt.Sprintf("titan://%s/users/upload/reply/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload reply")
 		}
 
 		if note.Type == ap.Question && offset == 0 {
