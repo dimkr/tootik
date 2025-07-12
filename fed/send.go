@@ -58,19 +58,17 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request) (*http.Response, e
 	slog.Debug("Sending request", "url", urlString)
 
 	var capabilities ap.Capability
-	if s.Config.Ed25519Threshold == 0 {
-		capabilities = ap.RFC9421Ed25519Signatures
-	} else {
-		if err := s.DB.QueryRowContext(req.Context(), `select capabilities from servers where host = ?`, req.URL.Host).Scan(&capabilities); errors.Is(err, sql.ErrNoRows) {
-			capabilities = 0
-		} else if err != nil {
-			return nil, fmt.Errorf("failed to query server capabilities for %s: %w", req.URL.Host, err)
-		}
 
-		if capabilities&ap.RFC9421Ed25519Signatures != ap.RFC9421Ed25519Signatures && rand.Float32() > s.Config.Ed25519Threshold {
-			slog.Debug("Randomly enabling RFC9421 with Ed25519", "url", urlString)
-			capabilities |= ap.RFC9421Ed25519Signatures
-		}
+	if err := s.DB.QueryRowContext(req.Context(), `select capabilities from servers where host = ?`, req.URL.Host).Scan(&capabilities); errors.Is(err, sql.ErrNoRows) {
+		slog.Debug("Server capabilities are unknown", "url", urlString)
+		capabilities = 0
+	} else if err != nil {
+		return nil, fmt.Errorf("failed to query server capabilities for %s: %w", req.URL.Host, err)
+	}
+
+	if capabilities&ap.RFC9421Ed25519Signatures != ap.RFC9421Ed25519Signatures && rand.Float32() > s.Config.Ed25519Threshold {
+		slog.Debug("Randomly enabling RFC9421 with Ed25519", "url", urlString)
+		capabilities |= ap.RFC9421Ed25519Signatures
 	}
 
 	if capabilities&ap.RFC9421Ed25519Signatures == ap.RFC9421Ed25519Signatures {
