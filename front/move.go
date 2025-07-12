@@ -69,7 +69,7 @@ func (h *Handler) move(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	actor, err := h.Resolver.Resolve(r.Context, r.Key, tokens[1], tokens[0], 0)
+	actor, err := h.Resolver.Resolve(r.Context, r.Keys, tokens[1], tokens[0], 0)
 	if err != nil {
 		r.Log.Warn("Failed to resolve target", "target", target, "error", err)
 		w.Status(40, "Failed to resolve "+target)

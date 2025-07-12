@@ -177,7 +177,7 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 			Config:   &cfg,
 			DB:       db,
 			Resolver: resolver,
-			Key:      nobodyKey,
+			Keys:     nobodyKey,
 		},
 		Outgoing: &fed.Queue{
 			Domain:   domain,

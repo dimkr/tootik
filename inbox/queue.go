@@ -41,7 +41,7 @@ type Queue struct {
 	BlockList *fed.BlockList
 	DB        *sql.DB
 	Resolver  ap.Resolver
-	Key       httpsig.Key
+	Keys      [2]httpsig.Key
 }
 
 type batchItem struct {
@@ -127,7 +127,7 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 		return nil
 	}
 
-	if _, err := q.Resolver.ResolveID(ctx, q.Key, post.AttributedTo, 0); err != nil {
+	if _, err := q.Resolver.ResolveID(ctx, q.Keys, post.AttributedTo, 0); err != nil {
 		return fmt.Errorf("failed to resolve %s: %w", post.AttributedTo, err)
 	}
 
@@ -177,7 +177,7 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 	}
 
 	for id := range mentionedUsers.Keys() {
-		if _, err := q.Resolver.ResolveID(ctx, q.Key, id, 0); err != nil {
+		if _, err := q.Resolver.ResolveID(ctx, q.Keys, id, 0); err != nil {
 			log.Warn("Failed to resolve mention", "mention", id, "error", err)
 		}
 	}

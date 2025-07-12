@@ -92,15 +92,15 @@ func generateEd25519Key() (any, string, []byte, error) {
 }
 
 // Create creates a new user.
-func Create(ctx context.Context, domain string, db *sql.DB, name string, actorType ap.ActorType, cert *x509.Certificate) (*ap.Actor, httpsig.Key, error) {
+func Create(ctx context.Context, domain string, db *sql.DB, name string, actorType ap.ActorType, cert *x509.Certificate) (*ap.Actor, [2]httpsig.Key, error) {
 	rsaPriv, rsaPrivPem, rsaPubPem, err := generateRSAKey()
 	if err != nil {
-		return nil, httpsig.Key{}, fmt.Errorf("failed to generate RSA key pair: %w", err)
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate RSA key pair: %w", err)
 	}
 
-	_, ed25519PrivPem, ed25519Pub, err := generateEd25519Key()
+	ed25519Priv, ed25519PrivPem, ed25519Pub, err := generateEd25519Key()
 	if err != nil {
-		return nil, httpsig.Key{}, fmt.Errorf("failed to generate Ed25519 key pair: %w", err)
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate Ed25519 key pair: %w", err)
 	}
 
 	id := fmt.Sprintf("https://%s/user/%s", domain, name)
@@ -157,7 +157,10 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 		}
 	}
 
-	key := httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: rsaPriv}
+	keys := [2]httpsig.Key{
+		{ID: actor.PublicKey.ID, PrivateKey: rsaPriv},
+		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519Priv},
+	}
 
 	if cert == nil {
 		if _, err = db.ExecContext(
@@ -168,15 +171,15 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 			rsaPrivPem,
 			ed25519PrivPem,
 		); err != nil {
-			return nil, httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
+			return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 		}
 
-		return &actor, key, nil
+		return &actor, keys, nil
 	}
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 	}
 	defer tx.Rollback()
 
@@ -188,7 +191,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 		rsaPrivPem,
 		ed25519PrivPem,
 	); err != nil {
-		return nil, httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 	}
 
 	if _, err = tx.ExecContext(
@@ -198,12 +201,12 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 		fmt.Sprintf("%X", sha256.Sum256(cert.Raw)),
 		cert.NotAfter.Unix(),
 	); err != nil {
-		return nil, httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 	}
 
-	return &actor, key, nil
+	return &actor, keys, nil
 }

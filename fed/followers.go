@@ -44,7 +44,7 @@ type Syncer struct {
 	Config   *cfg.Config
 	DB       *sql.DB
 	Resolver *Resolver
-	Key      httpsig.Key
+	Keys     [2]httpsig.Key
 }
 
 type followersDigest struct {
@@ -226,7 +226,7 @@ func (l *Listener) saveFollowersDigest(ctx context.Context, sender *ap.Actor, he
 	return nil
 }
 
-func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, resolver *Resolver, key httpsig.Key) error {
+func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, resolver *Resolver, keys [2]httpsig.Key) error {
 	if digest, err := digestFollowers(ctx, db, d.Followed, domain); err != nil {
 		return err
 	} else if digest == d.Digest {
@@ -241,7 +241,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 
 	slog.Info("Synchronizing followers", "followed", d.Followed)
 
-	resp, err := resolver.Get(ctx, key, d.URL)
+	resp, err := resolver.Get(ctx, keys, d.URL)
 	if err != nil {
 		return err
 	}
@@ -346,7 +346,7 @@ func (s *Syncer) ProcessBatch(ctx context.Context) (int, error) {
 	rows.Close()
 
 	for _, job := range jobs {
-		if err := job.Sync(ctx, s.Domain, s.Config, s.DB, s.Resolver, s.Key); err != nil {
+		if err := job.Sync(ctx, s.Domain, s.Config, s.DB, s.Resolver, s.Keys); err != nil {
 			slog.Warn("Failed to sync followers", "actor", job.Followed, "error", err)
 		}
 

@@ -18,13 +18,16 @@ package fed
 
 import (
 	"context"
-	"crypto/ed25519"
+	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"math/rand/v2"
 	"net/http"
 	"time"
 
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/buildinfo"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/httpsig"
@@ -34,11 +37,12 @@ type sender struct {
 	Domain string
 	Config *cfg.Config
 	client Client
+	DB     *sql.DB
 }
 
 var userAgent = "tootik/" + buildinfo.Version
 
-func (s *sender) send(key httpsig.Key, req *http.Request, useRFC9421 bool) (*http.Response, error) {
+func (s *sender) send(keys [2]httpsig.Key, req *http.Request) (*http.Response, error) {
 	urlString := req.URL.String()
 
 	if req.URL.Scheme != "https" {
@@ -53,15 +57,31 @@ func (s *sender) send(key httpsig.Key, req *http.Request, useRFC9421 bool) (*htt
 
 	slog.Debug("Sending request", "url", urlString)
 
-	if _, ok := key.PrivateKey.(ed25519.PrivateKey); ok {
-		if err := httpsig.SignRFC9421(req, key, time.Now(), time.Time{}, httpsig.RFC9421DigestSHA256, "ed25519", nil); err != nil {
+	var capabilities ap.Capability
+	if s.Config.Ed25519Threshold == 0 {
+		capabilities = ap.RFC9421Ed25519Signatures
+	} else {
+		if err := s.DB.QueryRowContext(req.Context(), `select capabilities from servers where host = ?`, req.URL.Host).Scan(&capabilities); errors.Is(err, sql.ErrNoRows) {
+			capabilities = 0
+		} else if err != nil {
+			return nil, fmt.Errorf("failed to query server capabilities for %s: %w", req.URL.Host, err)
+		}
+
+		if capabilities&ap.RFC9421Ed25519Signatures != ap.RFC9421Ed25519Signatures && rand.Float32() > s.Config.Ed25519Threshold {
+			slog.Debug("Randomly enabling RFC9421 with Ed25519", "url", urlString)
+			capabilities |= ap.RFC9421Ed25519Signatures
+		}
+	}
+
+	if capabilities&ap.RFC9421Ed25519Signatures == ap.RFC9421Ed25519Signatures {
+		if err := httpsig.SignRFC9421(req, keys[1], time.Now(), time.Time{}, httpsig.RFC9421DigestSHA256, "ed25519", nil); err != nil {
 			return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
 		}
-	} else if useRFC9421 {
-		if err := httpsig.SignRFC9421(req, key, time.Now(), time.Time{}, httpsig.RFC9421DigestSHA256, "rsa-v1_5-sha256", nil); err != nil {
+	} else if capabilities&ap.RFC9421Signatures == ap.RFC9421Signatures {
+		if err := httpsig.SignRFC9421(req, keys[0], time.Now(), time.Time{}, httpsig.RFC9421DigestSHA256, "rsa-v1_5-sha256", nil); err != nil {
 			return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
 		}
-	} else if err := httpsig.Sign(req, key, time.Now()); err != nil {
+	} else if err := httpsig.Sign(req, keys[0], time.Now()); err != nil {
 		return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
 	}
 
@@ -87,7 +107,7 @@ func (s *sender) send(key httpsig.Key, req *http.Request, useRFC9421 bool) (*htt
 	return resp, nil
 }
 
-func (s *sender) Get(ctx context.Context, key httpsig.Key, url string) (*http.Response, error) {
+func (s *sender) Get(ctx context.Context, keys [2]httpsig.Key, url string) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request to %s: %w", url, err)
@@ -96,5 +116,5 @@ func (s *sender) Get(ctx context.Context, key httpsig.Key, url string) (*http.Re
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
-	return s.send(key, req, false)
+	return s.send(keys, req)
 }

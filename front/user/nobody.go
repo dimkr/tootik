@@ -29,14 +29,26 @@ import (
 
 // CreateNobody creates the special "nobdoy" user.
 // This user is used to sign outgoing requests not initiated by a particular user.
-func CreateNobody(ctx context.Context, domain string, db *sql.DB) (*ap.Actor, httpsig.Key, error) {
+func CreateNobody(ctx context.Context, domain string, db *sql.DB) (*ap.Actor, [2]httpsig.Key, error) {
 	var actor ap.Actor
-	var privKeyPem string
-	if err := db.QueryRowContext(ctx, `select json(actor), rsaprivkey from persons where actor->>'$.preferredUsername' = 'nobody' and host = ?`, domain).Scan(&actor, &privKeyPem); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return nil, httpsig.Key{}, fmt.Errorf("failed to create nobody user: %w", err)
+	var rsaPrivKeyPem, ed25519PrivKeyPem string
+	if err := db.QueryRowContext(ctx, `select json(actor), rsaprivkey, ed25519privkey from persons where actor->>'$.preferredUsername' = 'nobody' and host = ?`, domain).Scan(&actor, &rsaPrivKeyPem, &ed25519PrivKeyPem); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to create nobody user: %w", err)
 	} else if err == nil {
-		privKey, err := data.ParsePrivateKey(privKeyPem)
-		return &actor, httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, err
+		rsaPrivKey, err := data.ParsePrivateKey(rsaPrivKeyPem)
+		if err != nil {
+			return nil, [2]httpsig.Key{}, err
+		}
+
+		ed25519PrivKey, err := data.ParsePrivateKey(ed25519PrivKeyPem)
+		if err != nil {
+			return nil, [2]httpsig.Key{}, err
+		}
+
+		return &actor, [2]httpsig.Key{
+			{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
+			{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey},
+		}, err
 	}
 
 	return Create(ctx, domain, db, "nobody", ap.Application, nil)

@@ -247,7 +247,7 @@ func TestOutbox_PublicPostInGroup(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -290,7 +290,7 @@ func TestOutbox_PublicPostInGroupUnauthenticatedUser(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -333,7 +333,7 @@ func TestOutbox_PublicPostInGroupAudienceSetByUser(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -390,7 +390,7 @@ func TestOutbox_PublicPostInGroupAudienceSetByGroup(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -447,7 +447,7 @@ func TestOutbox_PublicPostInGroupDeletedByUser(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -511,7 +511,7 @@ func TestOutbox_PublicPostInGroupDeletedByAnotherUser(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -568,7 +568,7 @@ func TestOutbox_PublicPostInGroupDeletedByGroup(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -632,7 +632,7 @@ func TestOutbox_PublicPostInGroupForwardedDelete(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -689,7 +689,7 @@ func TestOutbox_PublicPostInGroupEditedByUser(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -752,7 +752,7 @@ func TestOutbox_PostToFollowersInGroup(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -801,7 +801,7 @@ func TestOutbox_PostToFollowersInGroupNotFollowingGroup(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -847,7 +847,7 @@ func TestOutbox_PostToFollowersInGroupNotAccepted(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -896,7 +896,7 @@ func TestOutbox_PostToFollowersInGroupFollowingAuthor(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -945,7 +945,7 @@ func TestOutbox_PostToFollowersInGroupUnauthenticatedUser(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -994,7 +994,7 @@ func TestOutbox_DMInGroupNotFollowingGroup(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -1046,7 +1046,7 @@ func TestOutbox_DMInGroupAnotherUser(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)

@@ -40,7 +40,7 @@ type Listener struct {
 	Config   *cfg.Config
 	DB       *sql.DB
 	Resolver *Resolver
-	ActorKey httpsig.Key
+	ActorKey [2]httpsig.Key
 	Addr     string
 	Cert     string
 	Key      string

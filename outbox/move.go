@@ -31,7 +31,7 @@ type Mover struct {
 	Domain   string
 	DB       *sql.DB
 	Resolver ap.Resolver
-	Key      httpsig.Key
+	Keys     [2]httpsig.Key
 }
 
 func (m *Mover) updatedMoveTargets(ctx context.Context, prefix string) error {
@@ -48,7 +48,7 @@ func (m *Mover) updatedMoveTargets(ctx context.Context, prefix string) error {
 			continue
 		}
 
-		actor, err := m.Resolver.ResolveID(ctx, m.Key, newID, 0)
+		actor, err := m.Resolver.ResolveID(ctx, m.Keys, newID, 0)
 		if err != nil {
 			slog.Warn("Failed to resolve move target", "old", oldID, "new", newID, "error", err)
 			continue

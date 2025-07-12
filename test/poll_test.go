@@ -57,7 +57,7 @@ func TestPoll_TwoOptions(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -98,7 +98,7 @@ func TestPoll_TwoOptionsZeroVotes(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -139,7 +139,7 @@ func TestPoll_TwoOptionsOnlyZeroVotes(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -180,7 +180,7 @@ func TestPoll_OneOption(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -220,7 +220,7 @@ func TestPoll_Vote(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -268,7 +268,7 @@ func TestPoll_VoteClosedPoll(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -310,7 +310,7 @@ func TestPoll_VoteEndedPoll(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -352,7 +352,7 @@ func TestPoll_Reply(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -400,7 +400,7 @@ func TestPoll_ReplyClosedPoll(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -448,7 +448,7 @@ func TestPoll_EditVote(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -499,7 +499,7 @@ func TestPoll_DeleteReply(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -550,7 +550,7 @@ func TestPoll_Update(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -610,7 +610,7 @@ func TestPoll_OldUpdate(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)

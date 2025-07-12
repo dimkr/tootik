@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"hash/crc32"
 	"log/slog"
-	"math/rand/v2"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -51,11 +50,10 @@ type deliveryJob struct {
 }
 
 type deliveryTask struct {
-	Job        deliveryJob
-	Key        httpsig.Key
-	UseRFC9421 bool
-	Request    *http.Request
-	Inbox      string
+	Job     deliveryJob
+	Keys    [2]httpsig.Key
+	Request *http.Request
+	Inbox   string
 }
 
 type deliveryEvent struct {
@@ -207,8 +205,10 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		if err := q.queueTasks(
 			ctx,
 			job,
-			httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
-			httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey},
+			[2]httpsig.Key{
+				{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
+				{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey},
+			},
 			&followers,
 			tasks,
 			events,
@@ -256,7 +256,7 @@ func (q *Queue) deliverWithTimeout(parent context.Context, task deliveryTask) er
 
 	req := task.Request.WithContext(ctx)
 
-	resp, err := q.Resolver.send(task.Key, req, task.UseRFC9421)
+	resp, err := q.Resolver.send(task.Keys, req)
 	if err == nil {
 		resp.Body.Close()
 	}
@@ -322,8 +322,7 @@ func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, event
 func (q *Queue) queueTasks(
 	ctx context.Context,
 	job deliveryJob,
-	rsaKey httpsig.Key,
-	ed25519Key httpsig.Key,
+	keys [2]httpsig.Key,
 	followers *partialFollowers,
 	tasks []chan deliveryTask,
 	events chan<- deliveryEvent,
@@ -393,31 +392,7 @@ func (q *Queue) queueTasks(
 			continue
 		}
 
-		var capabilities ap.Capability
-		if q.Config.Ed25519Threshold == 0 {
-			capabilities = ap.RFC9421Ed25519Signatures
-		} else {
-			if err := q.DB.QueryRowContext(
-				ctx,
-				`select capabilities from servers where host = substr($1, 9, instr(substr($1, 9), '/') - 1)`,
-				actorID,
-			).Scan(&capabilities); errors.Is(err, sql.ErrNoRows) {
-				capabilities = 0
-			} else if err != nil {
-				return fmt.Errorf("failed to query server capabilities for %s: %w", actorID, err)
-			}
-
-			if capabilities&ap.RFC9421Ed25519Signatures != ap.RFC9421Ed25519Signatures && rand.Float32() > q.Config.Ed25519Threshold {
-				capabilities |= ap.RFC9421Ed25519Signatures
-			}
-		}
-
-		chosenKey := rsaKey
-		if capabilities&ap.RFC9421Ed25519Signatures == ap.RFC9421Ed25519Signatures {
-			chosenKey = ed25519Key
-		}
-
-		to, err := q.Resolver.ResolveID(ctx, chosenKey, actorID, ap.Offline)
+		to, err := q.Resolver.ResolveID(ctx, keys, actorID, ap.Offline)
 		if err != nil {
 			slog.Warn("Failed to resolve a recipient", "to", actorID, "activity", job.Activity.ID, "error", err)
 			if !errors.Is(err, ErrActorGone) && !errors.Is(err, ErrBlockedDomain) {
@@ -463,11 +438,10 @@ func (q *Queue) queueTasks(
 
 		// assign a task to a random worker but use one worker per inbox, so activities are delivered once per inbox
 		tasks[crc32.ChecksumIEEE([]byte(inbox))%uint32(len(tasks))] <- deliveryTask{
-			Job:        job,
-			Key:        chosenKey,
-			Request:    req,
-			Inbox:      inbox,
-			UseRFC9421: capabilities&ap.RFC9421Signatures == ap.RFC9421Signatures,
+			Job:     job,
+			Keys:    keys,
+			Request: req,
+			Inbox:   inbox,
 		}
 	}
 
