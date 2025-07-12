@@ -46,7 +46,7 @@ func parseResponse(s *Server, cert tls.Certificate, req, resp string) Page {
 	preformatted := false
 
 	if len(resp) > end+2 {
-		for _, line := range strings.Split(resp[end+2:], "\n") {
+		for line := range strings.SplitSeq(resp[end+2:], "\n") {
 			if strings.HasPrefix(line, "```") {
 				preformatted = !preformatted
 			} else if preformatted {

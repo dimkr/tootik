@@ -47,7 +47,7 @@ type Actor struct {
 	Icon                      Array[Attachment] `json:"icon,omitempty"`
 	Image                     *Attachment       `json:"image,omitempty"`
 	ManuallyApprovesFollowers bool              `json:"manuallyApprovesFollowers"`
-	AlsoKnownAs               Audience          `json:"alsoKnownAs,omitempty"`
+	AlsoKnownAs               Audience          `json:"alsoKnownAs,omitzero"`
 	Published                 Time              `json:"published,omitzero"`
 	Updated                   Time              `json:"updated,omitzero"`
 	MovedTo                   string            `json:"movedTo,omitempty"`

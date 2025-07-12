@@ -128,7 +128,7 @@ func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks 
 	// TODO: something less ugly
 	space := bytes.IndexByte(chunk, ' ')
 	if string(chunk[:space]) != "1" && string(chunk[:space]) != "3" && string(chunk[:space]) != "4" {
-		chunks[0].Data = append([]byte(fmt.Sprintf("%d", seq)), chunk[space:]...)
+		chunks[0].Data = append(fmt.Appendf(nil, "%d", seq), chunk[space:]...)
 	}
 
 	retry := time.NewTicker(retryInterval)
@@ -204,7 +204,7 @@ func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks 
 			if sent == gl.Config.MaxSentGuppyChunks {
 				break
 			}
-			if chunks[i].Sent == (time.Time{}) {
+			if chunks[i].Sent.IsZero() {
 				slog.Debug("Sending packet", "path", r.URL.Path, "from", from, "seq", chunks[i].Seq)
 			} else {
 				slog.Debug("Resending packet", "path", r.URL.Path, "from", from, "seq", chunks[i].Seq)

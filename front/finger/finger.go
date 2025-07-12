@@ -126,7 +126,7 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn) {
 
 	fmt.Fprintf(conn, "Login: %s\r\nPlan:\r\n", user)
 
-	for _, line := range strings.Split(summary, "\n") {
+	for line := range strings.SplitSeq(summary, "\n") {
 		conn.Write([]byte(line))
 		conn.Write([]byte{'\r', '\n'})
 	}
@@ -153,7 +153,7 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn) {
 
 		conn.Write([]byte(time.Unix(inserted, 0).Format(time.DateOnly)))
 		conn.Write([]byte{'\r', '\n'})
-		for _, line := range strings.Split(text, "\n") {
+		for line := range strings.SplitSeq(text, "\n") {
 			conn.Write([]byte(line))
 			conn.Write([]byte{'\r', '\n'})
 		}
