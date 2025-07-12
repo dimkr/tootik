@@ -102,6 +102,7 @@ This makes tootik lightweight, private and accessible:
   * To followers
   * To mentioned users
 * Sharing of public posts
+* [FEP-044f](https://codeberg.org/fediverse/fep/src/branch/main/fep/044f/fep-044f.md) quote posts, without support for approval
 * Users can follow each other to see non-public posts
   * With support for manual approval of follow requests
   * With support for [Mastodon's follower synchronization mechanism](https://docs.joinmastodon.org/spec/activitypub/#follower-synchronization-mechanism), aka [FEP-8fcf](https://codeberg.org/fediverse/fep/src/branch/main/fep/8fcf/fep-8fcf.md)
