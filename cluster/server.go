@@ -115,20 +115,12 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 		t.Fatalf("Failed to run migrations: %v", err)
 	}
 
-	gen := func() (any, []byte, []byte, error) {
-		if cfg.UseED25519Keys {
-			return user.GenerateED25519Key()
-		}
-
-		return user.GenerateRSAKey()
-	}
-
-	_, nobodyKey, err := user.CreateNobody(ctx, domain, db, gen)
+	_, nobodyKey, err := user.CreateNobody(ctx, domain, db)
 	if err != nil {
 		t.Fatalf("Failed to run create the nobody user: %v", err)
 	}
 
-	handler, err := front.NewHandler(domain, false, &cfg, resolver, db, gen)
+	handler, err := front.NewHandler(domain, false, &cfg, resolver, db)
 	if err != nil {
 		t.Fatalf("Failed to run create a Handler: %v", err)
 	}

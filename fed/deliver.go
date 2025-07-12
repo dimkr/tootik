@@ -89,7 +89,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 	rows, err := q.DB.QueryContext(
 		ctx,
-		`select outbox.attempts, json(outbox.activity), json(outbox.activity), json(persons.actor), persons.privkey from
+		`select outbox.attempts, json(outbox.activity), json(outbox.activity), json(persons.actor), persons.privkey, persons.ed25519privkey from
 		outbox
 		join persons
 		on
@@ -149,7 +149,8 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	count := 0
 	for rows.Next() {
 		var activity ap.Activity
-		var rawActivity, privKeyPem string
+		var rawActivity, rsaPrivKeyPem string
+		var ed25519PrivKeyPem sql.NullString
 		var actor ap.Actor
 		var deliveryAttempts int
 		if err := rows.Scan(
@@ -157,13 +158,21 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			&activity,
 			&rawActivity,
 			&actor,
-			&privKeyPem,
+			&rsaPrivKeyPem,
+			&ed25519PrivKeyPem,
 		); err != nil {
 			slog.Error("Failed to fetch post to deliver", "error", err)
 			continue
 		}
 
 		count++
+
+		keyID := actor.PublicKey.ID
+		privKeyPem := rsaPrivKeyPem
+		if q.Config.UseED25519Keys && ed25519PrivKeyPem.Valid {
+			privKeyPem = ed25519PrivKeyPem.String
+			keyID = actor.AssertionMethod[0].ID
+		}
 
 		privKey, err := data.ParsePrivateKey(privKeyPem)
 		if err != nil {
@@ -195,7 +204,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		if err := q.queueTasks(
 			ctx,
 			job,
-			httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey},
+			httpsig.Key{ID: keyID, PrivateKey: privKey},
 			&followers,
 			tasks,
 			events,

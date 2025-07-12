@@ -23,6 +23,7 @@ func TestCluster_RFC9421Verification(t *testing.T) {
 	defer cluster.Stop()
 
 	cluster["a.localdomain"].Config.SignWithRFC9421 = true
+	cluster["a.localdomain"].Config.UseED25519Keys = true
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["a.localdomain"].Register(bobKeypair).OK()

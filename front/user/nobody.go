@@ -29,7 +29,7 @@ import (
 
 // CreateNobody creates the special "nobdoy" user.
 // This user is used to sign outgoing requests not initiated by a particular user.
-func CreateNobody(ctx context.Context, domain string, db *sql.DB, gen KeyGenerator) (*ap.Actor, httpsig.Key, error) {
+func CreateNobody(ctx context.Context, domain string, db *sql.DB) (*ap.Actor, httpsig.Key, error) {
 	var actor ap.Actor
 	var privKeyPem string
 	if err := db.QueryRowContext(ctx, `select json(actor), privkey from persons where actor->>'$.preferredUsername' = 'nobody' and host = ?`, domain).Scan(&actor, &privKeyPem); err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -39,5 +39,5 @@ func CreateNobody(ctx context.Context, domain string, db *sql.DB, gen KeyGenerat
 		return &actor, httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, err
 	}
 
-	return Create(ctx, domain, db, "nobody", ap.Application, nil, gen)
+	return Create(ctx, domain, db, "nobody", ap.Application, nil)
 }

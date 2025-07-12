@@ -53,6 +53,7 @@ type Actor struct {
 	MovedTo                   string            `json:"movedTo,omitempty"`
 	Suspended                 bool              `json:"suspended,omitempty"`
 	Attachment                []Attachment      `json:"attachment,omitempty"`
+	AssertionMethod           []AssertionMethod `json:"assertionMethod,omitempty"`
 }
 
 func (a *Actor) Scan(src any) error {
