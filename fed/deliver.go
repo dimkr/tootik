@@ -62,7 +62,7 @@ type deliveryEvent struct {
 	Done bool
 }
 
-const ed25519Threshold = 0.95
+const Ed25519Threshold = 0.95
 
 // Process polls the queue of outgoing activities and delivers them to other servers.
 // Delivery happens in batches, with multiple workers, timeout and retries.
@@ -392,20 +392,26 @@ func (q *Queue) queueTasks(
 		}
 
 		var capabilities ap.Capability
-		if q.Config.ForceED25519 {
+		if q.Config.Ed25519Threshold == 0 {
 			capabilities = ap.RFC9421ED25519Signatures
-		} else if err := q.DB.QueryRowContext(
-			ctx,
-			`select capabilities from servers where host = substr($1, 9, instr(substr($1, 9), '/') - 1)`,
-			actorID,
-		).Scan(&capabilities); errors.Is(err, sql.ErrNoRows) {
-			capabilities = 0
-		} else if err != nil {
-			return fmt.Errorf("failed to query server capabilities for %s: %w", actorID, err)
+		} else {
+			if err := q.DB.QueryRowContext(
+				ctx,
+				`select capabilities from servers where host = substr($1, 9, instr(substr($1, 9), '/') - 1)`,
+				actorID,
+			).Scan(&capabilities); errors.Is(err, sql.ErrNoRows) {
+				capabilities = 0
+			} else if err != nil {
+				return fmt.Errorf("failed to query server capabilities for %s: %w", actorID, err)
+			}
+
+			if rand.Float32() > q.Config.Ed25519Threshold {
+				capabilities |= ap.RFC9421ED25519Signatures
+			}
 		}
 
 		chosenKey := rsaKey
-		if capabilities&ap.RFC9421ED25519Signatures > 0 || rand.Float32() > ed25519Threshold {
+		if capabilities&ap.RFC9421ED25519Signatures > 0 {
 			chosenKey = ed25519Key
 		}
 

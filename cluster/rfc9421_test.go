@@ -22,7 +22,7 @@ func TestCluster_RFC9421Verification(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
 	defer cluster.Stop()
 
-	cluster["a.localdomain"].Config.ForceED25519 = true
+	cluster["a.localdomain"].Config.Ed25519Threshold = 0
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["a.localdomain"].Register(bobKeypair).OK()
