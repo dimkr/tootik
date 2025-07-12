@@ -440,6 +440,6 @@ func (c *Config) FillDefaults() {
 	}
 
 	if c.Ed25519Threshold <= 0 || c.Ed25519Threshold > 1 {
-		c.Ed25519Threshold = 0.95
+		c.Ed25519Threshold = 0.98
 	}
 }
