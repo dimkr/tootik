@@ -29,7 +29,7 @@ func rfc9421(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if rows, err := tx.QueryContext(ctx, `SELECT actor FROM persons WHERE host = ? AND actor->>'$.assertionMethod[0].id' IS NULL`, domain); err != nil {
+	if rows, err := tx.QueryContext(ctx, `SELECT id, JSON(actor) FROM persons WHERE host = ? AND actor->>'$.assertionMethod' IS NULL`, domain); err != nil {
 		return err
 	} else {
 		defer rows.Close()
