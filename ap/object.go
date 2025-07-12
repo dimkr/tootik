@@ -69,7 +69,7 @@ func (o *Object) IsPublic() bool {
 
 // CanQuote determines whether or not a post can be quoted.
 func (o *Object) CanQuote() bool {
-	return o.IsPublic() && o.InteractionPolicy.CanQuote.AutomaticApproval.Contains(Public) && o.InteractionPolicy.CanQuote.ManualApproval.IsZero()
+	return o.InReplyTo == "" && o.IsPublic() && o.InteractionPolicy.CanQuote.AutomaticApproval.Contains(Public) && o.InteractionPolicy.CanQuote.ManualApproval.IsZero()
 }
 
 func (o *Object) Scan(src any) error {
