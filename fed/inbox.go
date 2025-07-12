@@ -478,7 +478,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 	var capabilities ap.Capability
 	switch sig.Alg {
 	case "ed25519":
-		capabilities = ap.RFC9421Signatures | ap.RFC9421Ed25519Signatures
+		capabilities = ap.RFC9421Ed25519Signatures
 	case "rsa-v1_5-sha256":
 		capabilities = ap.RFC9421Signatures
 	default:
@@ -487,7 +487,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 			case "https://datatracker.ietf.org/doc/html/rfc9421":
 				capabilities = ap.RFC9421Signatures
 			case "https://datatracker.ietf.org/doc/html/rfc9421#name-eddsa-using-curve-edwards25":
-				capabilities = ap.RFC9421Signatures | ap.RFC9421Ed25519Signatures
+				capabilities = ap.RFC9421Ed25519Signatures
 			}
 		}
 	}
