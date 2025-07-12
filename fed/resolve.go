@@ -358,7 +358,7 @@ func (r *Resolver) tryResolveID(ctx context.Context, key httpsig.Key, u *url.URL
 	var updated, inserted int64
 	var fetched sql.NullInt64
 	var sinceLastUpdate time.Duration
-	if err := r.db.QueryRowContext(ctx, `select json(actor), updated, fetched, inserted from persons where id = $1 or actor->>'$.publicKey.id' = $1`, id).Scan(&tmp, &updated, &fetched, &inserted); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := r.db.QueryRowContext(ctx, `select json(actor), updated, fetched, inserted from persons where id = $1 or actor->>'$.publicKey.id' = $1 or exists (select 1 from json_each(actor->'$.assertionMethod') where value->>'$.id' = $1)`, id).Scan(&tmp, &updated, &fetched, &inserted); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, fmt.Errorf("failed to fetch %s cache: %w", id, err)
 	} else if err == nil {
 		cachedActor = &tmp
@@ -449,7 +449,18 @@ func (r *Resolver) fetchActor(ctx context.Context, key httpsig.Key, host, profil
 	}
 
 	if actor.ID != profile && actor.PublicKey.ID != profile {
-		return nil, cachedActor, fmt.Errorf("%s does not match %s", actor.ID, profile)
+		found := false
+
+		for _, key := range actor.AssertionMethod {
+			if key.ID == profile {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return nil, cachedActor, fmt.Errorf("%s does not match %s", actor.ID, profile)
+		}
 	}
 
 	tx, err := r.db.BeginTx(ctx, nil)

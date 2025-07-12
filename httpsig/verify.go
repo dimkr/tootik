@@ -19,6 +19,7 @@ package httpsig
 import (
 	"bytes"
 	"crypto"
+	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
@@ -32,6 +33,7 @@ import (
 
 type Signature struct {
 	KeyID     string
+	Alg       string
 	s         string
 	signature []byte
 }
@@ -41,11 +43,44 @@ const (
 	maxKeyBits = 8192
 )
 
-var signatureAttrRegex = regexp.MustCompile(`\b([^"=]+)="([^"]+)"`)
+var (
+	signatureAttrRegex = regexp.MustCompile(`\b([^"=]+)="([^"]+)"`)
+
+	defaultRequiredComponents          = []string{"@target-uri"}
+	defaultRequiredComponentsWithQuery = []string{"@target-uri", "@query"}
+
+	requiredPostComponents          = []string{"@target-uri", "content-digest"}
+	requiredPostComponentsWithQuery = []string{"@target-uri", "@query", "content-digest"}
+
+	rsaAlgorithms = map[string]struct{}{
+		"":                {},
+		"rsa-sha256":      {},
+		"hs2019":          {},
+		"rsa-v1_5-sha256": {},
+	}
+)
 
 // Extract extracts signature attributes, validates them and returns a [Signature].
 // Caller should obtain the key and pass it to [Signature.Verify].
+// It supports RFC9421 and falls back to draft-cavage-http-signatures.
 func Extract(r *http.Request, body []byte, domain string, now time.Time, maxAge time.Duration) (*Signature, error) {
+	input := r.Header.Values("Signature-Input")
+	if len(input) == 1 {
+		required := defaultRequiredComponents
+
+		if r.Method == http.MethodPost && r.URL.RawQuery != "" {
+			required = requiredPostComponentsWithQuery
+		} else if r.Method == http.MethodPost {
+			required = requiredPostComponents
+		} else if r.URL.RawQuery != "" {
+			required = defaultRequiredComponentsWithQuery
+		}
+
+		return rfc9421Extract(r, input[0], body, domain, now, maxAge, required)
+	} else if len(input) > 1 {
+		return nil, errors.New("more than one Signature-Input")
+	}
+
 	host := r.Header.Get("Host")
 	if host == "" {
 		if r.Host == "" {
@@ -83,7 +118,7 @@ func Extract(r *http.Request, body []byte, domain string, now time.Time, maxAge 
 		return nil, errors.New("more than one signature")
 	}
 
-	var keyID, headers, signature string
+	var keyID, headers, signature, algorithm string
 	for _, m := range signatureAttrRegex.FindAllStringSubmatch(values[0], -1) {
 		switch m[1] {
 		case "keyId":
@@ -102,7 +137,16 @@ func Extract(r *http.Request, body []byte, domain string, now time.Time, maxAge 
 			}
 			signature = m[2]
 		case "algorithm":
-			continue
+			if algorithm != "" {
+				return nil, errors.New("more than one algorithm")
+			}
+
+			algorithm = m[2]
+
+			if algorithm != "rsa-sha256" && algorithm != "hs2019" {
+				return nil, errors.New("unsupported algorithm: " + algorithm)
+			}
+
 		default:
 			return nil, errors.New("unsupported atribute: " + m[1])
 		}
@@ -178,6 +222,7 @@ func Extract(r *http.Request, body []byte, domain string, now time.Time, maxAge 
 
 	return &Signature{
 		KeyID:     keyID,
+		Alg:       algorithm,
 		s:         s,
 		signature: rawSignature,
 	}, nil
@@ -185,19 +230,42 @@ func Extract(r *http.Request, body []byte, domain string, now time.Time, maxAge 
 
 // Verify verifies a signature.
 func (s *Signature) Verify(key any) error {
-	rsaKey, ok := key.(*rsa.PublicKey)
-	if !ok {
-		return errors.New("invalid public key")
-	}
+	switch v := key.(type) {
+	case *rsa.PublicKey:
+		if _, ok := rsaAlgorithms[s.Alg]; !ok {
+			return errors.New("alg is not RSA")
+		}
 
-	bits := rsaKey.N.BitLen()
-	if bits < minKeyBits || bits > maxKeyBits {
-		return fmt.Errorf("invalid key size: %d", bits)
-	}
+		bits := v.N.BitLen()
+		if bits < minKeyBits || bits > maxKeyBits {
+			return fmt.Errorf("invalid RSA key size: %d", bits)
+		}
 
-	hash := sha256.Sum256([]byte(s.s))
-	if err := rsa.VerifyPKCS1v15(rsaKey, crypto.SHA256, hash[:], s.signature); err != nil {
-		return err
+		sigBits := len(s.signature) * 8
+		if sigBits != bits {
+			return fmt.Errorf("invalid RSA signature size: %d", sigBits)
+		}
+
+		hash := sha256.Sum256([]byte(s.s))
+		if err := rsa.VerifyPKCS1v15(v, crypto.SHA256, hash[:], s.signature); err != nil {
+			return fmt.Errorf("invalid RSA signature: %w", err)
+		}
+
+	case ed25519.PublicKey:
+		if s.Alg != "" && s.Alg != "ed25519" {
+			return errors.New("alg is not Ed25519: " + s.Alg)
+		}
+
+		if len(s.signature) != ed25519.SignatureSize {
+			return fmt.Errorf("invalid signature size size: %d", len(s.signature))
+		}
+
+		if !ed25519.Verify(v, []byte(s.s), s.signature) {
+			return errors.New("invalid ed25519 signature")
+		}
+
+	default:
+		return fmt.Errorf(`cannot verify alg="%s" with %T`, s.Alg, key)
 	}
 
 	return nil

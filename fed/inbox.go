@@ -280,7 +280,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		flags |= ap.Offline
 	}
 
-	sender, err := l.verify(r, rawActivity, flags)
+	sig, sender, err := l.verify(r, rawActivity, flags)
 	if err != nil {
 		if errors.Is(err, ErrActorGone) {
 			w.WriteHeader(http.StatusOK)
@@ -473,6 +473,34 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		if err := l.saveFollowersDigest(r.Context(), sender, followersSync); err != nil {
 			slog.Warn("Failed to save followers sync header", "sender", sender.ID, "header", followersSync, "error", err)
 		}
+	}
+
+	var capabilities ap.Capability
+	switch sig.Alg {
+	case "ed25519":
+		capabilities = ap.RFC9421Ed25519Signatures
+	case "rsa-v1_5-sha256":
+		capabilities = ap.RFC9421Signatures
+	default:
+		for _, imp := range sender.Generator.Implements {
+			switch imp.Href {
+			case "https://datatracker.ietf.org/doc/html/rfc9421":
+				capabilities |= ap.RFC9421Signatures
+			case "https://datatracker.ietf.org/doc/html/rfc9421#name-eddsa-using-curve-edwards25":
+				capabilities |= ap.RFC9421Ed25519Signatures
+			}
+		}
+	}
+
+	if _, err = l.DB.ExecContext(
+		r.Context(),
+		`INSERT INTO servers (host, capabilities) VALUES ($1, $2) ON CONFLICT(host) DO UPDATE SET capabilities = capabilities | $2, updated = UNIXEPOCH()`,
+		origin,
+		capabilities,
+	); err != nil {
+		slog.Error("Failed to record server capabilities", "server", origin, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)
