@@ -493,7 +493,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				w.Text("[Missing]")
 			} else if err != nil {
 				r.Log.Warn("Failed to scan quote", "error", err)
-				w.Text("[No quote]")
+				w.Text("[Error]")
 			} else {
 				if r.User == nil {
 					w.Linkf("/view/"+strings.TrimPrefix(quote.ID, "https://"), "%s %s", quote.Published.Time.Format(time.DateOnly), quoteAuthor)
