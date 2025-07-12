@@ -485,9 +485,9 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		for _, imp := range sender.Generator.Implements {
 			switch imp.Href {
 			case "https://datatracker.ietf.org/doc/html/rfc9421":
-				capabilities = ap.RFC9421Signatures
+				capabilities |= ap.RFC9421Signatures
 			case "https://datatracker.ietf.org/doc/html/rfc9421#name-eddsa-using-curve-edwards25":
-				capabilities = ap.RFC9421Ed25519Signatures
+				capabilities |= ap.RFC9421Ed25519Signatures
 			}
 		}
 	}
@@ -498,7 +498,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		origin,
 		capabilities,
 	); err != nil {
-		slog.Error("Failed to record server capabilities", "servers", origin, "error", err)
+		slog.Error("Failed to record server capabilities", "server", origin, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

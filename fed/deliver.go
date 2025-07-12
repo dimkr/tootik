@@ -412,7 +412,7 @@ func (q *Queue) queueTasks(
 		}
 
 		chosenKey := rsaKey
-		if capabilities&ap.RFC9421Ed25519Signatures > 0 {
+		if capabilities&ap.RFC9421Ed25519Signatures == ap.RFC9421Ed25519Signatures {
 			chosenKey = ed25519Key
 		}
 

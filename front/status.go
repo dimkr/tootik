@@ -93,9 +93,9 @@ func (h *Handler) getInstanceCapabilitiesGraph(r *Request) string {
 	return h.getGraph(
 		r,
 		`
-		select 'RFC9421+Ed25519', (select count(*) from servers where capabilities & 0x1001 > 0)
+		select 'RFC9421+Ed25519', (select count(*) from servers where capabilities & 0x1001 = 0x1001)
 		union all
-		select 'RFC9421', (select count(*) from servers where capabilities & 0x1000 > 0)
+		select 'RFC9421', (select count(*) from servers where capabilities & 0x1000 = 0x1000)
 		union all
 		select 'None', (select count(*) from servers where capabilities & 0x1000 = 0)
 		`,

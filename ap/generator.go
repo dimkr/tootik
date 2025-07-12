@@ -24,6 +24,6 @@ type Implement struct {
 
 // Generator generates [Object] objects.
 type Generator struct {
-	Type       ActorType   `json:"type"`
-	Implements []Implement `json:"implements,omitempty"`
+	Type       ActorType        `json:"type"`
+	Implements Array[Implement] `json:"implements,omitzero"`
 }
