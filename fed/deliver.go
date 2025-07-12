@@ -163,6 +163,9 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		); err != nil {
 			slog.Error("Failed to fetch post to deliver", "error", err)
 			continue
+		} else if len(actor.AssertionMethod) == 0 {
+			slog.Error("Actor has no Ed25519 key", "error", err)
+			continue
 		}
 
 		count++
