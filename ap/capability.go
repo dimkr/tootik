@@ -23,6 +23,6 @@ const (
 	// RFC9421Signatures is support for RFC9421 HTTP signatures.
 	RFC9421Signatures Capability = 0x1000
 
-	// RFC9421ED25519Signatures is support for RFC9421 HTTP signatures, with Ed25119 keys.
-	RFC9421ED25519Signatures Capability = 0x1001
+	// RFC9421Ed25519Signatures is support for RFC9421 HTTP signatures, with Ed25119 keys.
+	RFC9421Ed25519Signatures Capability = 0x1001
 )

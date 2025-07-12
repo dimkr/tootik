@@ -13,6 +13,10 @@ import (
 )
 
 func rfc9421(ctx context.Context, domain string, tx *sql.Tx) error {
+	if _, err := tx.ExecContext(ctx, `ALTER TABLE persons RENAME COLUMN privkey TO rsaprivkey`); err != nil {
+		return err
+	}
+
 	if _, err := tx.ExecContext(ctx, `ALTER TABLE persons ADD COLUMN ed25519privkey TEXT`); err != nil {
 		return err
 	}

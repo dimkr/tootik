@@ -41,9 +41,9 @@ tootik implements [draft-cavage-http-signatures-12](https://datatracker.ietf.org
 
 In addition, tootik partially implements [RFC9421](https://datatracker.ietf.org/doc/rfc9421/):
 * It supports `rsa-v1_5-sha256` and `ed25519` signatures
-* Actors have a traditional RSA key under `publicKey` and an ED25519 key under `assertionMethod`, as described in [FEP-521a](https://codeberg.org/fediverse/fep/src/branch/main/fep/521a/fep-521a.md)
-* It remembers which servers sent at least one valid request signed with RFC9421 and ED25519, then starts to sign outgoing requests to these servers like this
-* Randomly (see `Ed25519Threshold`), tootik tries RFC9421 and ED25519 against servers that still haven't sent such requests, to prevent deadlock if these servers are waiting too
+* Actors have a traditional RSA key under `publicKey` and an Ed25519 key under `assertionMethod`, as described in [FEP-521a](https://codeberg.org/fediverse/fep/src/branch/main/fep/521a/fep-521a.md)
+* It remembers which servers sent at least one valid request signed with RFC9421 and Ed25519, then starts to sign outgoing requests to these servers like this
+* Randomly (see `Ed25519Threshold`), tootik tries RFC9421 and Ed25519 against servers that still haven't sent such requests, to prevent deadlock if these servers are waiting too
 * If `alg` is specified, tootik validates the signature only if the key type matches `alg`
 * It obeys `expires` if specified, but also validates `created` using `MaxRequestAge`
 * Incoming `POST` requests must have at least `("@method" "@target-uri" "content-type" "content-digest")`

@@ -90,7 +90,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 	rows, err := q.DB.QueryContext(
 		ctx,
-		`select outbox.attempts, json(outbox.activity), json(outbox.activity), json(persons.actor), persons.privkey, persons.ed25519privkey from
+		`select outbox.attempts, json(outbox.activity), json(outbox.activity), json(persons.actor), persons.rsaprivkey, persons.ed25519privkey from
 		outbox
 		join persons
 		on
@@ -175,7 +175,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 		ed25519PrivKey, err := data.ParsePrivateKey(ed25519PrivKeyPem)
 		if err != nil {
-			slog.Error("Failed to parse ED25519 private key", "error", err)
+			slog.Error("Failed to parse Ed25519 private key", "error", err)
 			continue
 		}
 
@@ -391,7 +391,7 @@ func (q *Queue) queueTasks(
 
 		var capabilities ap.Capability
 		if q.Config.Ed25519Threshold == 0 {
-			capabilities = ap.RFC9421ED25519Signatures
+			capabilities = ap.RFC9421Ed25519Signatures
 		} else {
 			if err := q.DB.QueryRowContext(
 				ctx,
@@ -404,12 +404,12 @@ func (q *Queue) queueTasks(
 			}
 
 			if rand.Float32() > q.Config.Ed25519Threshold {
-				capabilities |= ap.RFC9421ED25519Signatures
+				capabilities |= ap.RFC9421Ed25519Signatures
 			}
 		}
 
 		chosenKey := rsaKey
-		if capabilities&ap.RFC9421ED25519Signatures > 0 {
+		if capabilities&ap.RFC9421Ed25519Signatures > 0 {
 			chosenKey = ed25519Key
 		}
 

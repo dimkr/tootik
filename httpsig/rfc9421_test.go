@@ -152,7 +152,7 @@ func TestRFC9421_RSASign(t *testing.T) {
 	}
 }
 
-func TestRFC9421_ED25519Sign(t *testing.T) {
+func TestRFC9421_Ed25519Sign(t *testing.T) {
 	t.Parallel()
 
 	// B.2.6.  Signing a Request Using ed25519
@@ -218,7 +218,7 @@ func TestRFC9421_RSAVerifyHappyFlow(t *testing.T) {
 	}
 }
 
-func TestRFC9421_ED25519VerifyHappyFlow(t *testing.T) {
+func TestRFC9421_Ed25519VerifyHappyFlow(t *testing.T) {
 	t.Parallel()
 
 	// B.2.6.  Signing a Request Using ed25519

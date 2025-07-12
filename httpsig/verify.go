@@ -253,7 +253,7 @@ func (s *Signature) Verify(key any) error {
 
 	case ed25519.PublicKey:
 		if s.Alg != "" && s.Alg != "ed25519" {
-			return errors.New("alg is not ED25519: " + s.Alg)
+			return errors.New("alg is not Ed25519: " + s.Alg)
 		}
 
 		if len(s.signature) != ed25519.SignatureSize {

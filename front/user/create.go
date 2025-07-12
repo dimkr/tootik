@@ -66,7 +66,7 @@ func generateRSAKey() (any, string, []byte, error) {
 	return priv, privPem.String(), pubPem.Bytes(), nil
 }
 
-func generateED25519Key() (any, string, []byte, error) {
+func generateEd25519Key() (any, string, []byte, error) {
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("failed to generate private key: %w", err)
@@ -98,9 +98,9 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 		return nil, httpsig.Key{}, fmt.Errorf("failed to generate RSA key pair: %w", err)
 	}
 
-	_, ed25519PrivPem, ed25519Pub, err := generateED25519Key()
+	_, ed25519PrivPem, ed25519Pub, err := generateEd25519Key()
 	if err != nil {
-		return nil, httpsig.Key{}, fmt.Errorf("failed to generate ED25519 key pair: %w", err)
+		return nil, httpsig.Key{}, fmt.Errorf("failed to generate Ed25519 key pair: %w", err)
 	}
 
 	id := fmt.Sprintf("https://%s/user/%s", domain, name)
@@ -148,7 +148,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 	if cert == nil {
 		if _, err = db.ExecContext(
 			ctx,
-			`INSERT INTO persons (id, actor, privkey, ed25519privkey) VALUES (?, JSONB(?), ?, ?)`,
+			`INSERT INTO persons (id, actor, rsaprivkey, ed25519privkey) VALUES (?, JSONB(?), ?, ?)`,
 			id,
 			&actor,
 			rsaPrivPem,
@@ -168,7 +168,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 
 	if _, err = tx.ExecContext(
 		ctx,
-		`INSERT OR IGNORE INTO persons (id, actor, privkey, ed25519privkey) VALUES (?, JSONB(?), ?, ?)`,
+		`INSERT OR IGNORE INTO persons (id, actor, rsaprivkey, ed25519privkey) VALUES (?, JSONB(?), ?, ?)`,
 		id,
 		&actor,
 		rsaPrivPem,
