@@ -22,7 +22,7 @@ func rfc9421(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE TABLE servers(host TEXT NOT NULL, capabilities INTEGER NOT NULL)`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE TABLE servers(host TEXT NOT NULL, capabilities INTEGER NOT NULL, updated INTEGER NOT NULL DEFAULT (UNIXEPOCH()))`); err != nil {
 		return err
 	}
 
