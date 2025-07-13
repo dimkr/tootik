@@ -62,7 +62,6 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request) (*http.Response, e
 
 	if err := s.DB.QueryRowContext(req.Context(), `select capabilities from servers where host = ?`, req.URL.Host).Scan(&capabilities); errors.Is(err, sql.ErrNoRows) {
 		slog.Debug("Server capabilities are unknown", "url", urlString)
-		capabilities = 0
 	} else if err != nil {
 		return nil, fmt.Errorf("failed to query server capabilities for %s: %w", req.URL.Host, err)
 	}
