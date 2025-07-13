@@ -89,8 +89,8 @@ func (h *Handler) getActiveUsersGraph(r *Request) string {
 }
 
 func (h *Handler) getInstanceCapabilitiesGraph(r *Request) string {
-	keys := make([]string, 7)
-	values := make([]int64, 7)
+	keys := make([]string, 6)
+	values := make([]int64, 6)
 	return h.getGraph(
 		r,
 		keys,
@@ -99,8 +99,6 @@ func (h *Handler) getInstanceCapabilitiesGraph(r *Request) string {
 		select 'RFC9421 with Ed25519', (select count(*) from servers where capabilities & $1 > 0)
 		union all
 		select 'RFC9421 with RSA but without Ed25519', (select count(*) from servers where capabilities & ($1 | $2) = $2)
-		union all
-		select 'RFC9421 with RSA', (select count(*) from servers where capabilities & $2 > 0)
 		union all
 		select 'RFC9421 without draft-cavage-http-signatures', (select count(*) from servers where capabilities & $3 = 0 and capabilities & ($1 | $2) > 0)
 		union all
