@@ -479,17 +479,17 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 
 	capabilities := ap.CavageDraftSignatures
 	switch sig.Alg {
+	case "rsa-v1_5-sha256":
+		capabilities = ap.RFC9421RSASignatures
 	case "ed25519":
 		capabilities = ap.RFC9421Ed25519Signatures
-	case "rsa-v1_5-sha256":
-		capabilities = ap.RFC9421Signatures
 	default:
 		for _, imp := range sender.Generator.Implements {
 			switch imp.Href {
 			case "https://datatracker.ietf.org/doc/html/rfc9421":
-				capabilities |= ap.RFC9421Signatures
+				capabilities = ap.RFC9421RSASignatures
 			case "https://datatracker.ietf.org/doc/html/rfc9421#name-eddsa-using-curve-edwards25":
-				capabilities |= ap.RFC9421Ed25519Signatures
+				capabilities = ap.RFC9421Ed25519Signatures
 			}
 		}
 	}

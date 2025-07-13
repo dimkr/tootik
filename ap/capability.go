@@ -21,11 +21,11 @@ type Capability uint
 
 const (
 	// CavageDraftSignatures is support for draft-cavage-http-signatures, with rsa-sha256.
-	CavageDraftSignatures Capability = 0x100
+	CavageDraftSignatures Capability = 1 << iota
 
-	// RFC9421Signatures is support for RFC9421 HTTP signatures, with rsa-v1_5-sha256.
-	RFC9421Signatures Capability = 0x1000
+	// RFC9421RSASignatures is support for RFC9421 HTTP signatures, with rsa-v1_5-sha256.
+	RFC9421RSASignatures
 
 	// RFC9421Ed25519Signatures is support for RFC9421 HTTP signatures, with Ed25119 keys.
-	RFC9421Ed25519Signatures Capability = 0x1001
+	RFC9421Ed25519Signatures
 )

@@ -66,19 +66,19 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request) (*http.Response, e
 		return nil, fmt.Errorf("failed to query server capabilities for %s: %w", req.URL.Host, err)
 	}
 
-	if capabilities&ap.RFC9421Ed25519Signatures != ap.RFC9421Ed25519Signatures && rand.Float32() > s.Config.Ed25519Threshold {
+	if capabilities&ap.RFC9421Ed25519Signatures == 0 && rand.Float32() > s.Config.Ed25519Threshold {
 		slog.Debug("Randomly enabling RFC9421 with Ed25519", "url", urlString)
 		capabilities = ap.RFC9421Ed25519Signatures
-	} else if capabilities&ap.RFC9421Signatures != ap.RFC9421Signatures && rand.Float32() > s.Config.RFC9421Threshold {
+	} else if capabilities&ap.RFC9421RSASignatures == 0 && rand.Float32() > s.Config.RFC9421Threshold {
 		slog.Debug("Randomly enabling RFC9421 with RSA", "url", urlString)
-		capabilities = ap.RFC9421Signatures
+		capabilities = ap.RFC9421RSASignatures
 	}
 
-	if capabilities&ap.RFC9421Ed25519Signatures == ap.RFC9421Ed25519Signatures {
+	if capabilities&ap.RFC9421Ed25519Signatures > 0 {
 		if err := httpsig.SignRFC9421(req, keys[1], time.Now(), time.Time{}, httpsig.RFC9421DigestSHA256, "ed25519", nil); err != nil {
 			return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
 		}
-	} else if capabilities&ap.RFC9421Signatures == ap.RFC9421Signatures {
+	} else if capabilities&ap.RFC9421RSASignatures > 0 {
 		if err := httpsig.SignRFC9421(req, keys[0], time.Now(), time.Time{}, httpsig.RFC9421DigestSHA256, "rsa-v1_5-sha256", nil); err != nil {
 			return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
 		}

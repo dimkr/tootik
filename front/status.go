@@ -93,11 +93,13 @@ func (h *Handler) getInstanceCapabilitiesGraph(r *Request) string {
 	return h.getGraph(
 		r,
 		`
-		select 'RFC9421+Ed25519', (select count(*) from servers where capabilities & 0x1001 = 0x1001)
+		select 'RFC9421 with Ed25519', (select count(*) from servers where capabilities & 4 = 4)
 		union all
-		select 'RFC9421', (select count(*) from servers where capabilities & 0x1000 = 0x1000)
+		select 'RFC9421 with RSA but without Ed25519', (select count(*) from servers where capabilities & (2 | 4) = 2)
 		union all
-		select 'draft-cavage-http-signatures', (select count(*) from servers where capabilities & 0x100 = 0x100)
+		select 'RFC9421 without draft-cavage-http-signatures', (select count(*) from servers where capabilities & 1 = 0 & capabilities & (2 | 4) != 0)
+		union all
+		select 'draft-cavage-http-signatures without RFC9421', (select count(*) from servers where capabilities & 1 = 1 & capabilities & (2 | 4) = 0)
 		union all
 		select 'Total', (select count(*) from servers)
 		`,
