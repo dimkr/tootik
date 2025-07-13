@@ -58,7 +58,7 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request) (*http.Response, e
 
 	slog.Debug("Sending request", "url", urlString)
 
-	var capabilities ap.Capability
+	capabilities := ap.CavageDraftSignatures
 
 	if err := s.DB.QueryRowContext(req.Context(), `select capabilities from servers where host = ?`, req.URL.Host).Scan(&capabilities); errors.Is(err, sql.ErrNoRows) {
 		slog.Debug("Server capabilities are unknown", "url", urlString)
@@ -69,7 +69,7 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request) (*http.Response, e
 
 	if capabilities&ap.RFC9421Ed25519Signatures != ap.RFC9421Ed25519Signatures && rand.Float32() > s.Config.Ed25519Threshold {
 		slog.Debug("Randomly enabling RFC9421 with Ed25519", "url", urlString)
-		capabilities |= ap.RFC9421Ed25519Signatures
+		capabilities = ap.RFC9421Ed25519Signatures
 	}
 
 	if capabilities&ap.RFC9421Ed25519Signatures == ap.RFC9421Ed25519Signatures {
@@ -101,6 +101,15 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request) (*http.Response, e
 			return resp, fmt.Errorf("failed to send request to %s: %d, %w", urlString, resp.StatusCode, err)
 		}
 		return resp, fmt.Errorf("failed to send request to %s: %d, %s", urlString, resp.StatusCode, string(body))
+	}
+
+	if _, err = s.DB.ExecContext(
+		req.Context(),
+		`INSERT INTO servers (host, capabilities) VALUES ($1, $2) ON CONFLICT(host) DO UPDATE SET capabilities = capabilities | $2, updated = UNIXEPOCH()`,
+		req.URL.Host,
+		capabilities,
+	); err != nil {
+		slog.Warn("Failed to record server capabilities", "server", req.URL.Host, "error", err)
 	}
 
 	return resp, nil
