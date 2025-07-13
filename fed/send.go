@@ -69,6 +69,9 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request) (*http.Response, e
 	if capabilities&ap.RFC9421Ed25519Signatures != ap.RFC9421Ed25519Signatures && rand.Float32() > s.Config.Ed25519Threshold {
 		slog.Debug("Randomly enabling RFC9421 with Ed25519", "url", urlString)
 		capabilities = ap.RFC9421Ed25519Signatures
+	} else if capabilities&ap.RFC9421Signatures != ap.RFC9421Signatures && rand.Float32() > s.Config.RFC9421Threshold {
+		slog.Debug("Randomly enabling RFC9421 with RSA", "url", urlString)
+		capabilities = ap.RFC9421Signatures
 	}
 
 	if capabilities&ap.RFC9421Ed25519Signatures == ap.RFC9421Ed25519Signatures {

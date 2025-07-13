@@ -28,7 +28,7 @@ tootik's UI treats `Group` actors differently: `/outbox/$group` hides replies an
 
 ## HTTP Signatures
 
-tootik implements [draft-cavage-http-signatures-12](https://datatracker.ietf.org/doc/html/draft-cavage-http-signatures) but only partially:
+tootik implements [draft-cavage-http-signatures](https://datatracker.ietf.org/doc/html/draft-cavage-http-signatures) but only partially:
 * It ignores query
 * It always uses `rsa-sha256` and puts `algorithm="rsa-sha256"` in outgoing requests
 * It `algorithm` is specified in an incoming request, it must be `rsa-sha256` or `hs2019`
@@ -41,15 +41,19 @@ tootik implements [draft-cavage-http-signatures-12](https://datatracker.ietf.org
 
 In addition, tootik partially implements [RFC9421](https://datatracker.ietf.org/doc/rfc9421/):
 * It supports `rsa-v1_5-sha256` and `ed25519` signatures
-* Actors have a traditional RSA key under `publicKey` and an Ed25519 key under `assertionMethod`, as described in [FEP-521a](https://codeberg.org/fediverse/fep/src/branch/main/fep/521a/fep-521a.md)
-* It advertises RFC9421 and Ed25519 support through [FEP-844e](https://codeberg.org/fediverse/fep/src/branch/main/fep/844e/fep-844e.md) and enables these capabilities when signing outgoing requests to servers that advertise support
-* It remembers which servers sent at least one valid request signed with RFC9421 and what kind of keys were used, then uses this list to enable these capabilities when talking to servers that don't support FEP-844e
-* It does **not** implement ['double-knocking'](https://swicg.github.io/activitypub-http-signature/#how-to-upgrade-supported-versions) to detect RFC9421 support, because it's uncommon and this mechanism is very likely to double the number of outgoing requests; instead, tootik randomly (see `Ed25519Threshold`) tries RFC9421 with Ed25519 against servers that still haven't sent such requests, to prevent deadlock if these servers are waiting too
 * If `alg` is specified, tootik validates the signature only if the key type matches `alg`
 * It obeys `expires` if specified, but also validates `created` using `MaxRequestAge`
 * Incoming `POST` requests must have at least `("@method" "@target-uri" "content-type" "content-digest")`
 * All other incoming requests must have at least `("@method" "@target-uri")`
 * If query is not empty, `@query` must be signed
+
+tootik's actors have a traditional RSA key under `publicKey` and an Ed25519 key under `assertionMethod`, as described in [FEP-521a](https://codeberg.org/fediverse/fep/src/branch/main/fep/521a/fep-521a.md), and it advertises support for RFC9421 using [FEP-844e](https://codeberg.org/fediverse/fep/src/branch/main/fep/844e/fep-844e.md) through `nobody`.
+
+tootik uses `draft-cavage-http-signatures` when it talks to another server for the first time. It 'upgrades' outgoing requests to RFC9421 (with Ed25519, if possible) once these capabilities are 'discovered' in one of several ways:
+* When at least one actor on the server advertises support for these capabilities using FEP-844e
+* It remembers which servers accepted at least one request (200 or 202) signed with RFC9421, with or without Ed25519
+* When it accepts a RFC9421-signed (with or without Ed25519) request from another server, it assumes this server also supports incoming requests signed like this
+* It does **not** implement ['double-knocking'](https://swicg.github.io/activitypub-http-signature/#how-to-upgrade-supported-versions) to detect RFC9421 support, because it's uncommon and this mechanism is very likely to double the number of outgoing requests; instead, tootik randomly (see `RFC9421Threshold` and `Ed25519Threshold`) tries RFC9421 and Ed25519 against servers that still haven't demonstrated support, to prevent deadlock if these servers are waiting too
 
 ## Application Actor
 
