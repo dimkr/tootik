@@ -20,12 +20,13 @@ import (
 	"database/sql"
 	"time"
 
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/graph"
 	"github.com/dimkr/tootik/front/text"
 )
 
-func (h *Handler) getGraph(r *Request, query string, keys []string, values []int64) string {
-	rows, err := h.DB.QueryContext(r.Context, query)
+func (h *Handler) getGraph(r *Request, keys []string, values []int64, query string, args ...any) string {
+	rows, err := h.DB.QueryContext(r.Context, query, args...)
 	if err != nil {
 		r.Log.Warn("Failed to data points", "query", query, "error", err)
 		return ""
@@ -48,63 +49,70 @@ func (h *Handler) getGraph(r *Request, query string, keys []string, values []int
 func (h *Handler) getDailyPostsGraph(r *Request) string {
 	keys := make([]string, 24)
 	values := make([]int64, 24)
-	return h.getGraph(r, `select strftime('%Y-%m-%d %H:%M', datetime(inserted*60*60, 'unixepoch')), count(*) from (select inserted/(60*60) as inserted from notes where inserted>unixepoch()-60*60*24 and inserted<unixepoch()/(60*60)*60*60) group by inserted order by inserted`, keys, values)
+	return h.getGraph(r, keys, values, `select strftime('%Y-%m-%d %H:%M', datetime(inserted*60*60, 'unixepoch')), count(*) from (select inserted/(60*60) as inserted from notes where inserted>unixepoch()-60*60*24 and inserted<unixepoch()/(60*60)*60*60) group by inserted order by inserted`)
 }
 
 func (h *Handler) getWeeklyPostsGraph(r *Request) string {
 	keys := make([]string, 7)
 	values := make([]int64, 7)
-	return h.getGraph(r, `select strftime('%Y-%m-%d', datetime(inserted*60*60*24, 'unixepoch')), count(*) from (select inserted/(60*60*24) as inserted from notes where inserted>unixepoch()-60*60*24*7 and inserted<unixepoch()/(60*60*24)*(60*60*24)) group by inserted order by inserted`, keys, values)
+	return h.getGraph(r, keys, values, `select strftime('%Y-%m-%d', datetime(inserted*60*60*24, 'unixepoch')), count(*) from (select inserted/(60*60*24) as inserted from notes where inserted>unixepoch()-60*60*24*7 and inserted<unixepoch()/(60*60*24)*(60*60*24)) group by inserted order by inserted`)
 }
 
 func (h *Handler) getWeeklyFailedDeliveriesGraph(r *Request) string {
 	keys := make([]string, 7)
 	values := make([]int64, 7)
-	return h.getGraph(r, `select strftime('%Y-%m-%d %H:%M', datetime(day*60*60*24, 'unixepoch')), count(*) from (select inserted/(60*60*24) as day from outbox where sent = 0 and inserted>unixepoch()-60*60*24*7 and inserted<unixepoch()/(60*60*24)*60*60*24) group by day order by day`, keys, values)
+	return h.getGraph(r, keys, values, `select strftime('%Y-%m-%d %H:%M', datetime(day*60*60*24, 'unixepoch')), count(*) from (select inserted/(60*60*24) as day from outbox where sent = 0 and inserted>unixepoch()-60*60*24*7 and inserted<unixepoch()/(60*60*24)*60*60*24) group by day order by day`)
 }
 
 func (h *Handler) getUsersGraph(r *Request) string {
 	keys := make([]string, 24)
 	values := make([]int64, 24)
-	return h.getGraph(r, `select strftime('%Y-%m-%d %H:%M', datetime(inserted*60*60, 'unixepoch')), count(*) from (select inserted/(60*60) as inserted from persons where inserted>unixepoch()-60*60*24 and inserted<unixepoch()/(60*60)*60*60) group by inserted order by inserted`, keys, values)
+	return h.getGraph(r, keys, values, `select strftime('%Y-%m-%d %H:%M', datetime(inserted*60*60, 'unixepoch')), count(*) from (select inserted/(60*60) as inserted from persons where inserted>unixepoch()-60*60*24 and inserted<unixepoch()/(60*60)*60*60) group by inserted order by inserted`)
 }
 
 func (h *Handler) getKnownInstancesGraph(r *Request) string {
 	keys := make([]string, 7)
 	values := make([]int64, 7)
-	return h.getGraph(r, `select strftime('%Y-%m-%d', datetime(days.day, 'unixepoch')), count(*) from (select host, min(inserted/(60*60*24)*60*60*24) as day from persons group by host) hosts join (select distinct inserted/(60*60*24)*60*60*24 as day from persons where inserted>unixepoch()-60*60*24*7 and inserted<unixepoch()/(60*60*24)*60*60*24) days on hosts.day < days.day group by days.day`, keys, values)
+	return h.getGraph(r, keys, values, `select strftime('%Y-%m-%d', datetime(days.day, 'unixepoch')), count(*) from (select host, min(inserted/(60*60*24)*60*60*24) as day from persons group by host) hosts join (select distinct inserted/(60*60*24)*60*60*24 as day from persons where inserted>unixepoch()-60*60*24*7 and inserted<unixepoch()/(60*60*24)*60*60*24) days on hosts.day < days.day group by days.day`)
 }
 
 func (h *Handler) getActiveInstancesGraph(r *Request) string {
 	keys := make([]string, 10)
 	values := make([]int64, 10)
-	return h.getGraph(r, `select host, (cast(round(avg(posts)) as int)) as daily from (select host, day, count(*) as posts from (select host, inserted/(60*60*24) as day from notes where inserted > unixepoch()-60*60*24*7) group by host, day) group by host order by daily desc limit 10`, keys, values)
+	return h.getGraph(r, keys, values, `select host, (cast(round(avg(posts)) as int)) as daily from (select host, day, count(*) as posts from (select host, inserted/(60*60*24) as day from notes where inserted > unixepoch()-60*60*24*7) group by host, day) group by host order by daily desc limit 10`)
 }
 
 func (h *Handler) getActiveUsersGraph(r *Request) string {
 	keys := make([]string, 7)
 	values := make([]int64, 7)
-	return h.getGraph(r, `select strftime('%Y-%m-%d', datetime(day, 'unixepoch')), count(distinct author) from (select notes.inserted/(60*60*24)*60*60*24 as day, persons.id as author from notes join persons on persons.id = notes.author where notes.inserted>unixepoch()-60*60*24*7 and notes.inserted<unixepoch()/(60*60*24)*60*60*24) group by day`, keys, values)
+	return h.getGraph(r, keys, values, `select strftime('%Y-%m-%d', datetime(day, 'unixepoch')), count(distinct author) from (select notes.inserted/(60*60*24)*60*60*24 as day, persons.id as author from notes join persons on persons.id = notes.author where notes.inserted>unixepoch()-60*60*24*7 and notes.inserted<unixepoch()/(60*60*24)*60*60*24) group by day`)
 }
 
 func (h *Handler) getInstanceCapabilitiesGraph(r *Request) string {
-	keys := make([]string, 4)
-	values := make([]int64, 4)
+	keys := make([]string, 7)
+	values := make([]int64, 7)
 	return h.getGraph(
 		r,
+		keys,
+		values,
 		`
-		select 'RFC9421 with Ed25519', (select count(*) from servers where capabilities & 4 = 4)
+		select 'RFC9421 with Ed25519', (select count(*) from servers where capabilities & $1 > 0)
 		union all
-		select 'RFC9421 with RSA but without Ed25519', (select count(*) from servers where capabilities & (2 | 4) = 2)
+		select 'RFC9421 with RSA but without Ed25519', (select count(*) from servers where capabilities & ($1 | $2) = $2)
 		union all
-		select 'RFC9421 without draft-cavage-http-signatures', (select count(*) from servers where capabilities & 1 = 0 & capabilities & (2 | 4) != 0)
+		select 'RFC9421 with RSA', (select count(*) from servers where capabilities & $2 > 0)
 		union all
-		select 'draft-cavage-http-signatures without RFC9421', (select count(*) from servers where capabilities & 1 = 1 & capabilities & (2 | 4) = 0)
+		select 'RFC9421 without draft-cavage-http-signatures', (select count(*) from servers where capabilities & $3 = 0 and capabilities & ($1 | $2) > 0)
+		union all
+		select 'draft-cavage-http-signatures without RFC9421', (select count(*) from servers where capabilities & $3 > 0 and capabilities & ($1 | $2) = 0)
+		union all
+		select 'draft-cavage-http-signatures', (select count(*) from servers where capabilities & $3 > 0)
 		union all
 		select 'Total', (select count(*) from servers)
 		`,
-		keys,
-		values,
+		ap.RFC9421Ed25519Signatures,
+		ap.RFC9421RSASignatures,
+		ap.CavageDraftSignatures,
 	)
 }
 
@@ -235,8 +243,8 @@ func (h *Handler) status(w text.Writer, r *Request, args ...string) {
 	}
 
 	if instanceCapabilitiesGraph != "" {
-		w.Subtitle("Instance Capabilities")
-		w.Raw("Instance capabilities graph", instanceCapabilitiesGraph)
+		w.Subtitle("Discovered Instance Capabilities")
+		w.Raw("Discovered instance capabilities graph", instanceCapabilitiesGraph)
 		w.Empty()
 	}
 

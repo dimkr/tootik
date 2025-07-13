@@ -53,7 +53,7 @@ tootik uses `draft-cavage-http-signatures` when it talks to another server for t
 * When at least one actor on the server advertises support for these capabilities using FEP-844e
 * It remembers which servers accepted at least one request (200 or 202) signed with RFC9421, with or without Ed25519
 * When it accepts a RFC9421-signed (with or without Ed25519) request from another server, it assumes this server also supports incoming requests signed like this
-* It does **not** implement ['double-knocking'](https://swicg.github.io/activitypub-http-signature/#how-to-upgrade-supported-versions) to detect RFC9421 support, because it's uncommon and this mechanism is very likely to double the number of outgoing requests; instead, tootik randomly (see `RFC9421Threshold` and `Ed25519Threshold`) tries RFC9421 and Ed25519 against servers that still haven't demonstrated support, to prevent deadlock if these servers are waiting too
+* It does **not** implement ['double-knocking'](https://swicg.github.io/activitypub-http-signature/#how-to-upgrade-supported-versions) to detect RFC9421 support, because it's uncommon and this mechanism is very likely to double the number of outgoing requests; instead, tootik randomly (see `RFC9421Threshold` and `Ed25519Threshold`) tries RFC9421 and Ed25519 in `POST` requests to servers that still haven't demonstrated support, to prevent deadlock if these servers are waiting too
 
 ## Application Actor
 
