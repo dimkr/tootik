@@ -67,22 +67,28 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request) (*http.Response, e
 	}
 
 	if capabilities&ap.RFC9421Ed25519Signatures == 0 && req.Method == http.MethodPost && rand.Float32() > s.Config.Ed25519Threshold {
-		slog.Debug("Randomly enabling RFC9421 with Ed25519", "url", urlString)
+		slog.Debug("Randomly enabling RFC9421 with Ed25519", "server", req.URL.Host)
 		capabilities = ap.RFC9421Ed25519Signatures
 	} else if capabilities&ap.RFC9421RSASignatures == 0 && req.Method == http.MethodPost && rand.Float32() > s.Config.RFC9421Threshold {
-		slog.Debug("Randomly enabling RFC9421 with RSA", "url", urlString)
+		slog.Debug("Randomly enabling RFC9421 with RSA", "server", req.URL.Host)
 		capabilities = ap.RFC9421RSASignatures
 	}
 
 	if capabilities&ap.RFC9421Ed25519Signatures > 0 {
+		slog.Debug("Signing request using RFC9421 with Ed25519", "method", req.Method, "url", urlString, "key", keys[1].ID)
+
 		if err := httpsig.SignRFC9421(req, keys[1], time.Now(), time.Time{}, httpsig.RFC9421DigestSHA256, "ed25519", nil); err != nil {
 			return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
 		}
 	} else if capabilities&ap.RFC9421RSASignatures > 0 {
+		slog.Debug("Signing request using RFC9421 with RSA", "method", req.Method, "url", urlString, "key", keys[0].ID)
+
 		if err := httpsig.SignRFC9421(req, keys[0], time.Now(), time.Time{}, httpsig.RFC9421DigestSHA256, "rsa-v1_5-sha256", nil); err != nil {
 			return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
 		}
 	} else if err := httpsig.Sign(req, keys[0], time.Now()); err != nil {
+		slog.Debug("Signing request using draft-cavage-http-signatures", "method", req.Method, "url", urlString, "key", keys[0].ID)
+
 		return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
 	}
 
