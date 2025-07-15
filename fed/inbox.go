@@ -297,6 +297,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 			slog.Warn("Failed to verify activity", "activity", &activity, "error", err)
 		}
 		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(err.Error()))
 		return
 	}
 
