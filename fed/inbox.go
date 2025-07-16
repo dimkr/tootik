@@ -286,11 +286,13 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
+
 		if errors.Is(err, ErrActorNotCached) {
 			slog.Debug("Ignoring Delete activity for unknown actor", "error", err)
 			w.WriteHeader(http.StatusOK)
 			return
 		}
+
 		if errors.Is(err, ErrBlockedDomain) {
 			slog.Debug("Failed to verify activity", "activity", &activity, "error", err)
 		} else {
@@ -300,6 +302,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+
 		return
 	}
 
