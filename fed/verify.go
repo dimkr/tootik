@@ -82,7 +82,7 @@ func (l *Listener) verify(r *http.Request, body []byte, flags ap.ResolverFlag) (
 			}
 
 			if rawKey[0] != 0xed || rawKey[1] != 0x01 {
-				return nil, nil, fmt.Errorf("invalid prefix for %s: %x%x", rawKey[0], rawKey[1])
+				return nil, nil, fmt.Errorf("invalid prefix for %s: %x%x", key.ID, rawKey[0], rawKey[1])
 			}
 
 			publicKey = ed25519.PublicKey(rawKey[2:])
