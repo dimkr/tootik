@@ -492,12 +492,728 @@ func TestRFC9421_DerivedComponents(t *testing.T) {
 
 	const expected = `"@path": /foo
 "@query": ?param=value&foo=bar&baz=bat%2Dman
+"@target-uri": http://origin.host.internal.example/foo?param=value&foo=bar&baz=bat%2Dman
 "@request-target": /foo?param=value&foo=bar&baz=bat%2Dman
 "@signature-params": abc`
 
-	if base, err := buildSignatureBase(r, "abc", []string{"@path", "@query", "@request-target"}); err != nil {
+	if base, err := buildSignatureBase(r, "abc", []string{"@path", "@query", "@target-uri", "@request-target"}); err != nil {
 		t.Fatalf("Failed to build base: %v", err)
 	} else if base != expected {
 		t.Fatalf("Wrong base: %s", base)
+	}
+}
+
+func TestRFC9421_MultipleValues(t *testing.T) {
+	t.Parallel()
+
+	r, err := http.NewRequest(http.MethodPost, "http://origin.host.internal.example/foo?param=value&foo=bar&baz=bat%2Dman", nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	r.Header.Add("Host", "a ")
+	r.Header.Add("Host", " b")
+
+	const expected = `"host": a, b
+"@signature-params": abc`
+
+	if base, err := buildSignatureBase(r, "abc", []string{"host"}); err != nil {
+		t.Fatalf("Failed to build base: %v", err)
+	} else if base != expected {
+		t.Fatalf("Wrong base: %s", base)
+	}
+}
+
+func TestRFC9421_MissingHeader(t *testing.T) {
+	t.Parallel()
+
+	r, err := http.NewRequest(http.MethodPost, "http://origin.host.internal.example/foo?param=value&foo=bar&baz=bat%2Dman", nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	if _, err := buildSignatureBase(r, "abc", []string{"host"}); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestRFC9421_UnsupportedComponent(t *testing.T) {
+	t.Parallel()
+
+	r, err := http.NewRequest(http.MethodPost, "http://origin.host.internal.example/foo?param=value&foo=bar&baz=bat%2Dman", nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	r.Header.Set("Host", "a ")
+
+	if _, err := buildSignatureBase(r, "abc", []string{"@host"}); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestRFC9421_SignEmptyKeyID(t *testing.T) {
+	t.Parallel()
+
+	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Length", "18")
+
+	if err := SignRFC9421(
+		r,
+		Key{
+			ID:         "",
+			PrivateKey: ed25519Private,
+		},
+		time.Unix(1618884473, 0),
+		time.Time{},
+		RFC9421DigestSHA256,
+		"",
+		[]string{"date", "@method", "@path", "@authority", "content-type", "content-length"},
+	); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestRFC9421_SignDefaultComponentsPostWithQuery(t *testing.T) {
+	t.Parallel()
+
+	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo?a=b", strings.NewReader(`{"hello": "world"}`))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Length", "18")
+
+	if err := SignRFC9421(
+		r,
+		Key{
+			ID:         "test-key-ed25519",
+			PrivateKey: ed25519Private,
+		},
+		time.Unix(1618884473, 0),
+		time.Time{},
+		RFC9421DigestSHA256,
+		"",
+		nil,
+	); err != nil {
+		t.Fatalf("Failed to sign: %v", err)
+	}
+
+	if s := r.Header.Get("Content-Digest"); s != "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:" {
+		t.Fatalf("Wrong digest: %s", s)
+	}
+
+	if s := r.Header.Get("Signature-Input"); s != `sig1=("@method" "@target-uri" "@query" "content-type" "content-digest");created=1618884473;keyid="test-key-ed25519"` {
+		t.Fatalf("Wrong input: %s", s)
+	}
+
+	if s := r.Header.Get("Signature"); s != "sig1=:r9CLTnSBs9DptOTMZIIxYR+0WyR3dkRfYPdukkFcUkBILhqIldLAf0AxWXMo7fS9pF9iOc2FWhXrupjvTaS9Aw==:" {
+		t.Fatalf("Wrong signature: %s", s)
+	}
+}
+
+func TestRFC9421_SignDefaultComponentsPostWithoutQuery(t *testing.T) {
+	t.Parallel()
+
+	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Length", "18")
+
+	if err := SignRFC9421(
+		r,
+		Key{
+			ID:         "test-key-ed25519",
+			PrivateKey: ed25519Private,
+		},
+		time.Unix(1618884473, 0),
+		time.Time{},
+		RFC9421DigestSHA256,
+		"",
+		nil,
+	); err != nil {
+		t.Fatalf("Failed to sign: %v", err)
+	}
+
+	if s := r.Header.Get("Content-Digest"); s != "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:" {
+		t.Fatalf("Wrong digest: %s", s)
+	}
+
+	if s := r.Header.Get("Signature-Input"); s != `sig1=("@method" "@target-uri" "content-type" "content-digest");created=1618884473;keyid="test-key-ed25519"` {
+		t.Fatalf("Wrong input: %s", s)
+	}
+
+	if s := r.Header.Get("Signature"); s != "sig1=:hxRBa6+EN30jMm8FHHCdksP89LHnQRM47LqdewNSNwQOPDT1NWCatNlL5ew3iMHoTD3iDianApepcmTGxXFxDg==:" {
+		t.Fatalf("Wrong signature: %s", s)
+	}
+}
+
+func TestRFC9421_SignDefaultComponentsGetWithQuery(t *testing.T) {
+	t.Parallel()
+
+	r, err := http.NewRequest(http.MethodGet, "http://example.com/foo?a=b", nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+
+	if err := SignRFC9421(
+		r,
+		Key{
+			ID:         "test-key-ed25519",
+			PrivateKey: ed25519Private,
+		},
+		time.Unix(1618884473, 0),
+		time.Time{},
+		RFC9421DigestSHA256,
+		"",
+		nil,
+	); err != nil {
+		t.Fatalf("Failed to sign: %v", err)
+	}
+
+	if s := r.Header.Get("Signature-Input"); s != `sig1=("@method" "@target-uri" "@query");created=1618884473;keyid="test-key-ed25519"` {
+		t.Fatalf("Wrong input: %s", s)
+	}
+
+	if s := r.Header.Get("Signature"); s != "sig1=:hUN/1cXurzP2kE30k5hhl46XUnFYiTWhbabGChyzUQV2aWSobjHCtY+qLyru3UJC/p04i6WQYsXNtlYT+T89AQ==:" {
+		t.Fatalf("Wrong signature: %s", s)
+	}
+}
+
+func TestRFC9421_SignDefaultComponentsGetWithoutQuery(t *testing.T) {
+	t.Parallel()
+
+	r, err := http.NewRequest(http.MethodGet, "http://example.com/foo", nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+
+	if err := SignRFC9421(
+		r,
+		Key{
+			ID:         "test-key-ed25519",
+			PrivateKey: ed25519Private,
+		},
+		time.Unix(1618884473, 0),
+		time.Time{},
+		RFC9421DigestSHA256,
+		"",
+		nil,
+	); err != nil {
+		t.Fatalf("Failed to sign: %v", err)
+	}
+
+	if s := r.Header.Get("Signature-Input"); s != `sig1=("@method" "@target-uri");created=1618884473;keyid="test-key-ed25519"` {
+		t.Fatalf("Wrong input: %s", s)
+	}
+
+	if s := r.Header.Get("Signature"); s != "sig1=:hxZ3eAZwW0a0OuyAWd+U+k8WBhzESrnmP+9HZoSNX46JFsc4bJ0Nib5OXq4tINosJI4ACR8J0Ogi+5h4F5YkDA==:" {
+		t.Fatalf("Wrong signature: %s", s)
+	}
+}
+
+func TestRFC9421_SignInvalidKeyType(t *testing.T) {
+	t.Parallel()
+
+	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Length", "18")
+
+	if err := SignRFC9421(
+		r,
+		Key{
+			ID:         "test-key-ed25519",
+			PrivateKey: "a",
+		},
+		time.Unix(1618884473, 0),
+		time.Time{},
+		RFC9421DigestSHA256,
+		"",
+		[]string{"date", "@method", "@path", "@authority", "content-type", "content-length"},
+	); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestRFC9421_VerifyTwoSignatures(t *testing.T) {
+	t.Parallel()
+
+	// B.2.6.  Signing a Request Using ed25519
+	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`
+
+	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Length", "18")
+	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
+	r.Header.Set("Signature-Input", sigInput)
+	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
+	r.Header.Add("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
+
+	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestRFC9421_VerifyInvalidBase64(t *testing.T) {
+	t.Parallel()
+
+	// B.2.6.  Signing a Request Using ed25519
+	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`
+
+	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Length", "18")
+	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
+	r.Header.Set("Signature-Input", sigInput)
+	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw=:")
+
+	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestRFC9421_VerifyNoKeyIDQuotes(t *testing.T) {
+	t.Parallel()
+
+	// B.2.6.  Signing a Request Using ed25519
+	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519`
+
+	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Length", "18")
+	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
+	r.Header.Set("Signature-Input", sigInput)
+	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
+
+	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestRFC9421_VerifyCreatedNotNumber(t *testing.T) {
+	t.Parallel()
+
+	// B.2.6.  Signing a Request Using ed25519
+	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=16188a84473;keyid="test-key-ed25519"`
+
+	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Length", "18")
+	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
+	r.Header.Set("Signature-Input", sigInput)
+	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
+
+	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestRFC9421_VerifyExpiresNotNumber(t *testing.T) {
+	t.Parallel()
+
+	// B.2.6.  Signing a Request Using ed25519
+	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519";expires=16188a84540`
+
+	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Length", "18")
+	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
+	r.Header.Set("Signature-Input", sigInput)
+	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
+
+	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestRFC9421_VerifyTwoAlg(t *testing.T) {
+	t.Parallel()
+
+	// B.2.6.  Signing a Request Using ed25519
+	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519";alg="ed5519";alg="ed5519"`
+
+	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Length", "18")
+	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
+	r.Header.Set("Signature-Input", sigInput)
+	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
+
+	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestRFC9421_VerifyAlgQuotes(t *testing.T) {
+	t.Parallel()
+
+	// B.2.6.  Signing a Request Using ed25519
+	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519";alg="ed5519`
+
+	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Length", "18")
+	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
+	r.Header.Set("Signature-Input", sigInput)
+	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
+
+	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestRFC9421_VerifyInvalidAlg(t *testing.T) {
+	t.Parallel()
+
+	// B.2.6.  Signing a Request Using ed25519
+	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519";alg="rc4"`
+
+	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Length", "18")
+	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
+	r.Header.Set("Signature-Input", sigInput)
+	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
+
+	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestRFC9421_VerifyUnknownParameter(t *testing.T) {
+	t.Parallel()
+
+	// B.2.6.  Signing a Request Using ed25519
+	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyida="test-key-ed25519"`
+
+	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Length", "18")
+	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
+	r.Header.Set("Signature-Input", sigInput)
+	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
+
+	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestRFC9421_VerifyNoKeyID(t *testing.T) {
+	t.Parallel()
+
+	// B.2.6.  Signing a Request Using ed25519
+	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473`
+
+	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Length", "18")
+	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
+	r.Header.Set("Signature-Input", sigInput)
+	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
+
+	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestRFC9421_VerifyNoCreated(t *testing.T) {
+	t.Parallel()
+
+	// B.2.6.  Signing a Request Using ed25519
+	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");keyid="test-key-ed25519"`
+
+	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Length", "18")
+	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
+	r.Header.Set("Signature-Input", sigInput)
+	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
+
+	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestRFC9421_VerifyTwoContentDigest(t *testing.T) {
+	t.Parallel()
+
+	// B.2.6.  Signing a Request Using ed25519
+	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`
+
+	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Length", "18")
+	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
+	r.Header.Add("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
+	r.Header.Set("Signature-Input", sigInput)
+	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
+
+	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestRFC9421_VerifyEmptyContentDigest(t *testing.T) {
+	t.Parallel()
+
+	// B.2.6.  Signing a Request Using ed25519
+	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`
+
+	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Length", "18")
+	r.Header.Set("Content-Digest", "")
+	r.Header.Set("Signature-Input", sigInput)
+	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
+
+	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestRFC9421_VerifyInvalidContentDigest(t *testing.T) {
+	t.Parallel()
+
+	// B.2.6.  Signing a Request Using ed25519
+	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`
+
+	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Length", "18")
+	r.Header.Set("Content-Digest", "X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=")
+	r.Header.Set("Signature-Input", sigInput)
+	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
+
+	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestRFC9421_VerifyInvalidContentDigestBase64(t *testing.T) {
+	t.Parallel()
+
+	// B.2.6.  Signing a Request Using ed25519
+	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`
+
+	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Length", "18")
+	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE:")
+	r.Header.Set("Signature-Input", sigInput)
+	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
+
+	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestRFC9421_VerifyInvalidContentDigestAlgo(t *testing.T) {
+	t.Parallel()
+
+	// B.2.6.  Signing a Request Using ed25519
+	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`
+
+	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Length", "18")
+	r.Header.Set("Content-Digest", "sha1=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
+	r.Header.Set("Signature-Input", sigInput)
+	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
+
+	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestRFC9421_VerifyInvalidContentDigestSha256Size(t *testing.T) {
+	t.Parallel()
+
+	// B.2.6.  Signing a Request Using ed25519
+	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`
+
+	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Length", "18")
+	r.Header.Set("Content-Digest", "sha-256=:H0D8ktokFpR1CXnubPWC8tXX0o4YM13gWrxU0FYOD1MChgxlK/CNVgJSql50IQVG82n7u86MEs/HlXsmUv6adQ==:")
+	r.Header.Set("Signature-Input", sigInput)
+	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
+
+	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestRFC9421_VerifyInvalidContentDigestSha512Size(t *testing.T) {
+	t.Parallel()
+
+	// B.2.6.  Signing a Request Using ed25519
+	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`
+
+	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Length", "18")
+	r.Header.Set("Content-Digest", "sha-512=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
+	r.Header.Set("Signature-Input", sigInput)
+	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
+
+	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestRFC9421_VerifyInvalidContentDigestSha256Mismatch(t *testing.T) {
+	t.Parallel()
+
+	// B.2.6.  Signing a Request Using ed25519
+	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`
+
+	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Length", "18")
+	r.Header.Set("Content-Digest", "sha-256=:ypeBEsobvcr6wjGzmiPcTaeG7/gUfE5yuYB3ha/uSLs=:")
+	r.Header.Set("Signature-Input", sigInput)
+	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
+
+	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
+		t.Fatal("Expected error")
+	}
+}
+
+func TestRFC9421_VerifyInvalidContentDigestSha512Mismatch(t *testing.T) {
+	t.Parallel()
+
+	// B.2.6.  Signing a Request Using ed25519
+	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`
+
+	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Length", "18")
+	r.Header.Set("Content-Digest", "sha-512=:H0D8ktokFpR1CXnubPWC8tXX0o4YM13gWrxU0FYOD1MChgxlK/CNVgJSql50IQVG82n7u86MEs/HlXsmUv6adQ==:")
+	r.Header.Set("Signature-Input", sigInput)
+	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
+
+	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
+		t.Fatal("Expected error")
 	}
 }

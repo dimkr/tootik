@@ -48,7 +48,7 @@ var (
 	signatureInputRegex     = regexp.MustCompile(`^([^=\s]+)=\(("[^"\s]+"(?: "[^"\s]+")*)\);([^=;\s]+=[^;\s]+(?:;[^=;\s]+=[^;\s]+)*)$`)
 	signatureInputAttrRegex = regexp.MustCompile(`\b([^=;]+)=([^;]+)`)
 	componentsRegex         = regexp.MustCompile(`^\((?:"([^" ]+)")(?: "[^"]+")*\);`)
-	digestRegex             = regexp.MustCompile(`^(sha-(?:256|512))=:([0-9a-zA-Z\/+]+={0,3}):$`)
+	digestRegex             = regexp.MustCompile(`^([^=]+)=:([0-9a-zA-Z\/+]+={0,3}):$`)
 )
 
 func buildSignatureBase(r *http.Request, params string, components []string) (string, error) {
