@@ -21,6 +21,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/rsa"
+	"math/big"
 	"net/http"
 	"testing"
 	"time"
@@ -107,4 +108,30 @@ func TestSign_MissingHeader(t *testing.T) {
 
 	now := time.Now()
 	assert.Error(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+}
+
+func TestSign_ReadFailure(t *testing.T) {
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodPost, "http://localhost/inbox/nobody", &closedPipe{})
+	assert.NoError(t, err)
+
+	req.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
+	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
+
+	now := time.Now()
+	assert.Error(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+}
+
+func TestSign_SignFailure(t *testing.T) {
+	body := []byte(`{"id":"a"}`)
+	req, err := http.NewRequest(http.MethodPost, "http://localhost/inbox/nobody", bytes.NewReader(body))
+	assert.NoError(t, err)
+
+	req.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
+	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
+
+	now := time.Now()
+	assert.Error(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: &rsa.PrivateKey{PublicKey: rsa.PublicKey{N: big.NewInt(1)}}}, now))
 }
