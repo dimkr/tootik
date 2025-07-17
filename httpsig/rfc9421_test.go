@@ -20,11 +20,19 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"io"
+	"math/big"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
 )
+
+type closedPipe struct{}
+
+func (*closedPipe) Read(p []byte) (int, error) {
+	return 0, io.ErrClosedPipe
+}
 
 // B.1.4.  Example Ed25519 Test Key
 const (
@@ -114,242 +122,6 @@ func init() {
 	}
 }
 
-func TestRFC9421_RSAVerifyFailure(t *testing.T) {
-	for _, data := range []struct {
-		Name   string
-		Mutate func(*http.Request)
-		Now    time.Time
-	}{
-		{
-			Name: "WrongMethod",
-			Mutate: func(r *http.Request) {
-				r.Method = http.MethodGet
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-		{
-			Name: "WrongAuthority",
-			Mutate: func(r *http.Request) {
-				r.URL.Host = "a"
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-		{
-			Name: "WrongPath",
-			Mutate: func(r *http.Request) {
-				r.URL.Path = "/a"
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-		{
-			Name: "NoContentDigest",
-			Mutate: func(r *http.Request) {
-				r.Header.Del("Content-Digest")
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-		{
-			Name: "WrongContentDigest",
-			Mutate: func(r *http.Request) {
-				r.Header.Set("Content-Digest", "sha-512=:WZDPaVn/7XgHaAy8pmojAkGWoRx2UFChF41A2svX+TaPm+AbwAgBWnrIiYllu7BNNyealdVLvRwEmTHWXvjwew==:")
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-		{
-			Name: "WrongContentType",
-			Mutate: func(r *http.Request) {
-				r.Header.Set("Content-Type", "a")
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-		{
-			Name: "WrongContentLength",
-			Mutate: func(r *http.Request) {
-				r.Header.Set("Content-Length", "19")
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-		{
-			Name: "WrongForwarded",
-			Mutate: func(r *http.Request) {
-				r.Header.Set("Forwarded", "a")
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-		{
-			Name:   "Expired",
-			Mutate: func(r *http.Request) {},
-			Now:    time.Unix(1618884541, 0),
-		},
-		{
-			Name: "NoSeparator",
-			Mutate: func(r *http.Request) {
-				r.Header.Set("Signature-Input", `sig1`)
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-		{
-			Name: "NoComponents",
-			Mutate: func(r *http.Request) {
-				r.Header.Set("Signature-Input", `sig1=`)
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-		{
-			Name: "EmptyComponents",
-			Mutate: func(r *http.Request) {
-				r.Header.Set("Signature-Input", `sig1=();created=1618884480;keyid="test-key-rsa";alg="rsa-v1_5-sha256";expires=1618884540`)
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-		{
-			Name: "NoLeftParenthesis",
-			Mutate: func(r *http.Request) {
-				r.Header.Set("Signature-Input", `sig1="@method" "@authority" "@path" "content-digest" "content-type" "content-length" "forwarded");created=1618884480;keyid="test-key-rsa";alg="rsa-v1_5-sha256";expires=1618884540`)
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-		{
-			Name: "NoRightParenthesis",
-			Mutate: func(r *http.Request) {
-				r.Header.Set("Signature-Input", `sig1=("@method" "@authority" "@path" "content-digest" "content-type" "content-length" "forwarded";created=1618884480;keyid="test-key-rsa";alg="rsa-v1_5-sha256";expires=1618884540`)
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-		{
-			Name: "NoLeftQuotes",
-			Mutate: func(r *http.Request) {
-				r.Header.Set("Signature-Input", `sig1=("@method" @authority" "@path" "content-digest" "content-type" "content-length" "forwarded");created=1618884480;keyid="test-key-rsa";alg="rsa-v1_5-sha256";expires=1618884540`)
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-		{
-			Name: "NoRightQuotes",
-			Mutate: func(r *http.Request) {
-				r.Header.Set("Signature-Input", `sig1=("@method" "@authority "@path" "content-digest" "content-type" "content-length" "forwarded");created=1618884480;keyid="test-key-rsa";alg="rsa-v1_5-sha256";expires=1618884540`)
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-		{
-			Name: "DuplicateComponent",
-			Mutate: func(r *http.Request) {
-				r.Header.Set("Signature-Input", `sig1=("@method" "@authority" "@path" "content-digest" "content-type" "content-length" "forwarded" "@path");created=1618884480;keyid="test-key-rsa";alg="rsa-v1_5-sha256";expires=1618884540`)
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-		{
-			Name: "MissingRequiredComponent",
-			Mutate: func(r *http.Request) {
-				r.Header.Set("Signature-Input", `sig1=("@method" "@path" "content-digest" "content-type" "content-length" "forwarded");created=1618884480;keyid="test-key-rsa";alg="rsa-v1_5-sha256";expires=1618884540`)
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-		{
-			Name: "NoSignature",
-			Mutate: func(r *http.Request) {
-				r.Header.Set("Signature", `sig1=`)
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-		{
-			Name: "NoLeftColon",
-			Mutate: func(r *http.Request) {
-				r.Header.Set("Signature", "sig1=S6ZzPXSdAMOPjN/6KXfXWNO/f7V6cHm7BXYUh3YD/fRad4BCaRZxP+JH+8XY1I6+8Cy+CM5g92iHgxtRPz+MjniOaYmdkDcnL9cCpXJleXsOckpURl49GwiyUpZ10KHgOEe11sx3G2gxI8S0jnxQB+Pu68U9vVcasqOWAEObtNKKZd8tSFu7LB5YAv0RAGhB8tmpv7sFnIm9y+7X5kXQfi8NMaZaA8i2ZHwpBdg7a6CMfwnnrtflzvZdXAsD3LH2TwevU+/PBPv0B6NMNk93wUs/vfJvye+YuI87HU38lZHowtznbLVdp770I6VHR6WfgS9ddzirrswsE1w5o0LV/g==:")
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-		{
-			Name: "NothingBetweenColons",
-			Mutate: func(r *http.Request) {
-				r.Header.Set("Signature", "sig1=::")
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-		{
-			Name: "NoRightColon",
-			Mutate: func(r *http.Request) {
-				r.Header.Set("Signature", "sig1=:S6ZzPXSdAMOPjN/6KXfXWNO/f7V6cHm7BXYUh3YD/fRad4BCaRZxP+JH+8XY1I6+8Cy+CM5g92iHgxtRPz+MjniOaYmdkDcnL9cCpXJleXsOckpURl49GwiyUpZ10KHgOEe11sx3G2gxI8S0jnxQB+Pu68U9vVcasqOWAEObtNKKZd8tSFu7LB5YAv0RAGhB8tmpv7sFnIm9y+7X5kXQfi8NMaZaA8i2ZHwpBdg7a6CMfwnnrtflzvZdXAsD3LH2TwevU+/PBPv0B6NMNk93wUs/vfJvye+YuI87HU38lZHowtznbLVdp770I6VHR6WfgS9ddzirrswsE1w5o0LV/g==")
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-		{
-			Name: "WrongLabel",
-			Mutate: func(r *http.Request) {
-				r.Header.Set("Signature-Input", `sig2=("@method" "@authority" "@path" "content-digest" "content-type" "content-length" "forwarded");created=1618884480;keyid="test-key-rsa";alg="rsa-v1_5-sha256";expires=1618884540`)
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-		{
-			Name: "DuplicateKeyID",
-			Mutate: func(r *http.Request) {
-				r.Header.Set("Signature-Input", `sig1=("@method" "@authority" "@path" "content-digest" "content-type" "content-length" "forwarded");created=1618884480;keyid="test-key-rsa";alg="rsa-v1_5-sha256";expires=1618884540;keyid="test-key-rsa"`)
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-		{
-			Name: "DuplicateCreated",
-			Mutate: func(r *http.Request) {
-				r.Header.Set("Signature-Input", `sig1=("@method" "@authority" "@path" "content-digest" "content-type" "content-length" "forwarded");created=1618884480;keyid="test-key-rsa";alg="rsa-v1_5-sha256";expires=1618884540;created=1618884480`)
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-		{
-			Name: "DuplicateExpires",
-			Mutate: func(r *http.Request) {
-				r.Header.Set("Signature-Input", `sig1=("@method" "@authority" "@path" "content-digest" "content-type" "content-length" "forwarded");created=1618884480;keyid="test-key-rsa";alg="rsa-v1_5-sha256";expires=1618884540;expires=1618884540`)
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-		{
-			Name: "UnspecifiedAlg",
-			Mutate: func(r *http.Request) {
-				r.Header.Set("Signature-Input", `sig1=("@method" "@authority" "@path" "content-digest" "content-type" "content-length" "forwarded");created=1618884480;keyid="test-key-rsa";expires=1618884540`)
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-		{
-			Name: "WrongAlg",
-			Mutate: func(r *http.Request) {
-				r.Header.Set("Signature-Input", `sig1=("@method" "@authority" "@path" "content-digest" "content-type" "content-length" "forwarded");created=1618884480;keyid="test-key-rsa";alg="ed25519";expires=1618884540`)
-			},
-			Now: time.Unix(1618884481, 0),
-		},
-	} {
-		t.Run(data.Name, func(tt *testing.T) {
-			tt.Parallel()
-
-			r, err := http.NewRequest(http.MethodPost, "http://origin.host.internal.example/foo", strings.NewReader(`{"hello": "world"}`))
-			if err != nil {
-				t.Fatalf("Failed to create request: %v", err)
-			}
-
-			r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:56 GMT")
-			r.Header.Set("Content-Type", "application/json")
-			r.Header.Set("Content-Length", "18")
-			r.Header.Set("Forwarded", "for=192.0.2.123;host=example.com;proto=https")
-			r.Header.Set("Content-Digest", "sha-512=:WZDPaVn/7XgHaAy8pmojAkGWoRx2UFChF41A2svX+TaPm+AbwAgBWnrIiYllu7BNNyealdVLvRwEmTHWXvJwew==:")
-			r.Header.Set("Signature-Input", `sig1=("@method" "@authority" "@path" "content-digest" "content-type" "content-length" "forwarded");created=1618884480;keyid="test-key-rsa";alg="rsa-v1_5-sha256";expires=1618884540`)
-			r.Header.Set("Signature", "sig1=:S6ZzPXSdAMOPjN/6KXfXWNO/f7V6cHm7BXYUh3YD/fRad4BCaRZxP+JH+8XY1I6+8Cy+CM5g92iHgxtRPz+MjniOaYmdkDcnL9cCpXJleXsOckpURl49GwiyUpZ10KHgOEe11sx3G2gxI8S0jnxQB+Pu68U9vVcasqOWAEObtNKKZd8tSFu7LB5YAv0RAGhB8tmpv7sFnIm9y+7X5kXQfi8NMaZaA8i2ZHwpBdg7a6CMfwnnrtflzvZdXAsD3LH2TwevU+/PBPv0B6NMNk93wUs/vfJvye+YuI87HU38lZHowtznbLVdp770I6VHR6WfgS9ddzirrswsE1w5o0LV/g==:")
-
-			data.Mutate(r)
-
-			if sig, err := rfc9421Extract(
-				r,
-				r.Header.Get("Signature-Input"),
-				[]byte(`{"hello": "world"}`),
-				"origin.host.internal.example",
-				data.Now,
-				time.Second,
-				[]string{"@method", "@authority"},
-			); err != nil {
-				return
-			} else if err := sig.Verify(rsaPublic); err == nil {
-				t.Fatal("Verification was supposed to fail")
-			}
-		})
-	}
-}
-
 func TestRFC9421_BuildSignatureBase(t *testing.T) {
 	for _, data := range []struct {
 		Name       string
@@ -409,6 +181,7 @@ func TestRFC9421_Sign(t *testing.T) {
 		Name                             string
 		Key                              Key
 		Method, URL                      string
+		Body                             io.Reader
 		Components                       []string
 		Alg                              string
 		Digest                           func(*http.Request, []byte)
@@ -420,6 +193,7 @@ func TestRFC9421_Sign(t *testing.T) {
 			Key:               Key{ID: "test-key-rsa", PrivateKey: rsaPrivate},
 			Method:            http.MethodPost,
 			URL:               "http://origin.host.internal.example/foo",
+			Body:              strings.NewReader(`{"hello": "world"}`),
 			Components:        []string{"@method", "@authority", "@path", "content-digest", "content-type", "content-length", "forwarded"},
 			Alg:               "rsa-v1_5-sha256",
 			Digest:            RFC9421DigestSHA512,
@@ -433,6 +207,7 @@ func TestRFC9421_Sign(t *testing.T) {
 			Key:               Key{ID: "test-key-ed25519", PrivateKey: ed25519Private},
 			Method:            http.MethodPost,
 			URL:               "http://example.com/foo",
+			Body:              strings.NewReader(`{"hello": "world"}`),
 			Components:        []string{"date", "@method", "@path", "@authority", "content-type", "content-length"},
 			Digest:            RFC9421DigestSHA256,
 			Now:               time.Unix(1618884473, 0),
@@ -440,10 +215,23 @@ func TestRFC9421_Sign(t *testing.T) {
 			ExpectedSignature: "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:",
 		},
 		{
+			Name:       "BodyReadFailure",
+			Key:        Key{ID: "test-key-rsa", PrivateKey: rsaPrivate},
+			Method:     http.MethodPost,
+			URL:        "http://origin.host.internal.example/foo",
+			Body:       &closedPipe{},
+			Components: []string{"@method", "@authority", "@path", "content-digest", "content-type", "content-length", "forwarded"},
+			Alg:        "rsa-v1_5-sha256",
+			Digest:     RFC9421DigestSHA512,
+			Now:        time.Unix(1618884480, 0),
+			Expires:    time.Unix(1618884540, 0),
+		},
+		{
 			Name:       "EmptyKeyID",
 			Key:        Key{PrivateKey: ed25519Private},
 			Method:     http.MethodPost,
 			URL:        "http://example.com/foo",
+			Body:       strings.NewReader(`{"hello": "world"}`),
 			Components: []string{"date", "@method", "@path", "@authority", "content-type", "content-length"},
 			Digest:     RFC9421DigestSHA256,
 			Now:        time.Unix(1618884473, 0),
@@ -453,14 +241,40 @@ func TestRFC9421_Sign(t *testing.T) {
 			Key:        Key{ID: "test-key-ed25519", PrivateKey: []byte{}},
 			Method:     http.MethodPost,
 			URL:        "http://example.com/foo",
+			Body:       strings.NewReader(`{"hello": "world"}`),
 			Components: []string{"date", "@method", "@path", "@authority", "content-type", "content-length"},
 			Digest:     RFC9421DigestSHA256,
 			Now:        time.Unix(1618884473, 0),
 		},
 		{
+			Name:       "SmallKey",
+			Key:        Key{ID: "test-key-rsa", PrivateKey: &rsa.PrivateKey{PublicKey: rsa.PublicKey{N: big.NewInt(512)}}},
+			Method:     http.MethodPost,
+			URL:        "http://origin.host.internal.example/foo",
+			Body:       strings.NewReader(`{"hello": "world"}`),
+			Components: []string{"@method", "@authority", "@path", "content-digest", "content-type", "content-length", "forwarded"},
+			Alg:        "rsa-v1_5-sha256",
+			Digest:     RFC9421DigestSHA512,
+			Now:        time.Unix(1618884480, 0),
+			Expires:    time.Unix(1618884540, 0),
+		},
+		{
+			Name:       "InvalidComponent",
+			Key:        Key{ID: "test-key-rsa", PrivateKey: rsaPrivate},
+			Method:     http.MethodPost,
+			URL:        "http://origin.host.internal.example/foo",
+			Body:       strings.NewReader(`{"hello": "world"}`),
+			Components: []string{"@method", "@authority", "@path", "content-digest", "content-type", "content-length", "forwarded", "@date"},
+			Alg:        "rsa-v1_5-sha256",
+			Digest:     RFC9421DigestSHA512,
+			Now:        time.Unix(1618884480, 0),
+			Expires:    time.Unix(1618884540, 0),
+		},
+		{
 			Name:              "PostWithQuery",
 			Method:            http.MethodPost,
 			URL:               "http://example.com/foo?a=b",
+			Body:              strings.NewReader(`{"hello": "world"}`),
 			Digest:            RFC9421DigestSHA256,
 			Now:               time.Unix(1618884473, 0),
 			Key:               Key{ID: "test-key-ed25519", PrivateKey: ed25519Private},
@@ -471,6 +285,7 @@ func TestRFC9421_Sign(t *testing.T) {
 			Name:              "PostWithoutQuery",
 			Method:            http.MethodPost,
 			URL:               "http://example.com/foo",
+			Body:              strings.NewReader(`{"hello": "world"}`),
 			Digest:            RFC9421DigestSHA256,
 			Now:               time.Unix(1618884473, 0),
 			Key:               Key{ID: "test-key-ed25519", PrivateKey: ed25519Private},
@@ -481,6 +296,7 @@ func TestRFC9421_Sign(t *testing.T) {
 			Name:              "GetWithQuery",
 			Method:            http.MethodGet,
 			URL:               "http://example.com/foo?a=b",
+			Body:              strings.NewReader(`{"hello": "world"}`),
 			Digest:            RFC9421DigestSHA256,
 			Now:               time.Unix(1618884473, 0),
 			Key:               Key{ID: "test-key-ed25519", PrivateKey: ed25519Private},
@@ -491,6 +307,7 @@ func TestRFC9421_Sign(t *testing.T) {
 			Name:              "GetWithoutQuery",
 			Method:            http.MethodGet,
 			URL:               "http://example.com/foo",
+			Body:              strings.NewReader(`{"hello": "world"}`),
 			Digest:            RFC9421DigestSHA256,
 			Now:               time.Unix(1618884473, 0),
 			Key:               Key{ID: "test-key-ed25519", PrivateKey: ed25519Private},
@@ -501,7 +318,7 @@ func TestRFC9421_Sign(t *testing.T) {
 		t.Run(data.Name, func(tt *testing.T) {
 			tt.Parallel()
 
-			r, err := http.NewRequest(data.Method, data.URL, strings.NewReader(`{"hello": "world"}`))
+			r, err := http.NewRequest(data.Method, data.URL, data.Body)
 			if err != nil {
 				t.Fatalf("Failed to create request: %v", err)
 			}
@@ -536,7 +353,7 @@ func TestRFC9421_Sign(t *testing.T) {
 	}
 }
 
-func TestRFC9421_Verify(t *testing.T) {
+func TestRFC9421_VerifyHappyFlow(t *testing.T) {
 	t.Parallel()
 
 	for _, data := range []struct {
@@ -547,7 +364,7 @@ func TestRFC9421_Verify(t *testing.T) {
 		ContentDigest, Input, Signature string
 	}{
 		{
-			Name:          "RSAHappyFlow",
+			Name:          "RSA",
 			URL:           "http://origin.host.internal.example/foo",
 			Key:           rsaPublic,
 			Now:           time.Unix(1618884539, 0),
@@ -556,7 +373,7 @@ func TestRFC9421_Verify(t *testing.T) {
 			Signature:     "sig1=:S6ZzPXSdAMOPjN/6KXfXWNO/f7V6cHm7BXYUh3YD/fRad4BCaRZxP+JH+8XY1I6+8Cy+CM5g92iHgxtRPz+MjniOaYmdkDcnL9cCpXJleXsOckpURl49GwiyUpZ10KHgOEe11sx3G2gxI8S0jnxQB+Pu68U9vVcasqOWAEObtNKKZd8tSFu7LB5YAv0RAGhB8tmpv7sFnIm9y+7X5kXQfi8NMaZaA8i2ZHwpBdg7a6CMfwnnrtflzvZdXAsD3LH2TwevU+/PBPv0B6NMNk93wUs/vfJvye+YuI87HU38lZHowtznbLVdp770I6VHR6WfgS9ddzirrswsE1w5o0LV/g==:",
 		},
 		{
-			Name:          "Ed25519HappyFlow",
+			Name:          "Ed25519",
 			URL:           "http://example.com/foo",
 			Key:           ed25519Public,
 			Now:           time.Unix(1618884474, 0),
@@ -592,464 +409,323 @@ func TestRFC9421_Verify(t *testing.T) {
 	}
 }
 
-func TestRFC9421_VerifyTwoSignatures(t *testing.T) {
+func TestRFC9421_VerifyFailure(t *testing.T) {
 	t.Parallel()
 
-	// B.2.6.  Signing a Request Using ed25519
-	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
+	for _, data := range []struct {
+		Name   string
+		Key    any
+		Mutate func(r *http.Request)
+	}{
+		{
+			Name: "TwoSignatures",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Add("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
+			},
+		},
+		{
+			Name: "TwoContentDigest",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Add("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
+			},
+		},
+		{
+			Name: "InvalidBase64",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw=:")
+			},
+		},
+		{
+			Name: "CreatedNotNumber",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Signature-Input", `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=16188a84473;keyid="test-key-ed25519"`)
+			},
+		},
+		{
+			Name: "Expired",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Signature-Input", `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519";expires=1618884474`)
+			},
+		},
+		{
+			Name: "ExpiresNotNumber",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Signature-Input", `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519";expires=23834a95214`)
+			},
+		},
+		{
+			Name: "TwoAlg",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Signature-Input", `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519";alg="ed25519";alg="ed25519"`)
+			},
+		},
+		{
+			Name: "InvalidAlg",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Signature-Input", `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519";alg="rc4"`)
+			},
+		},
+		{
+			Name: "AlgNoQuotes",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Signature-Input", `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519";alg=ed25519"`)
+			},
+		},
+		{
+			Name: "InvalidHost",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.URL.Host = "example.org"
+			},
+		},
+		{
+			Name: "InvalidSignatureInput",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Signature-Input", `=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519";alg="rc4"`)
+			},
+		},
+		{
+			Name: "InvalidSignature",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Signature", "=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
+			},
+		},
+		{
+			Name: "LabelMismatch",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Signature-Input", `sig2=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519";alg="rc4"`)
+			},
+		},
+		{
+			Name: "DuplicateComponent",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Signature-Input", `sig1=("date" "@method" "@path" "date" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519";alg="rc4"`)
+			},
+		},
+		{
+			Name: "MissingRequiredComponent",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Signature-Input", `sig1=("date" "@method" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519";alg="rc4"`)
+			},
+		},
+		{
+			Name: "TwoKeyIDs",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Signature-Input", `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519";keyid="test-key-ed25519"`)
+			},
+		},
+		{
+			Name: "KeyIDNoQuotes",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Signature-Input", `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid=test-key-ed25519"`)
+			},
+		},
+		{
+			Name: "TwoCreated",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Signature-Input", `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;created=1618884473;keyid="test-key-ed25519"`)
+			},
+		},
+		{
+			Name: "TwoExpires",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Signature-Input", `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519";expires=2383495214;expires=2383495214`)
+			},
+		},
+		{
+			Name: "AddedTag",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Signature-Input", `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519";tag="a"`)
+			},
+		},
+		{
+			Name: "InvalidParameter",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Signature-Input", `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519";invalid="a"`)
+			},
+		},
+		{
+			Name: "NoKeyId",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Signature-Input", `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473`)
+			},
+		},
+		{
+			Name: "NoCreated",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Signature-Input", `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");keyid="test-key-ed25519"`)
+			},
+		},
+		{
+			Name: "NoContentDigest",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Del("Content-Digest")
+			},
+		},
+		{
+			Name: "EmptyContentDigest",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Content-Digest", "")
+			},
+		},
+		{
+			Name: "InvalidContentDigest",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Content-Digest", "=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
+			},
+		},
+		{
+			Name: "InvalidContentDigestBase64",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE:")
+			},
+		},
+		{
+			Name: "InvalidContentDigestSha256Size",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Content-Digest", "sha-256=:H0D8ktokFpR1CXnubPWC8tXX0o4YM13gWrxU0FYOD1MChgxlK/CNVgJSql50IQVG82n7u86MEs/HlXsmUv6adQ==:")
+			},
+		},
+		{
+			Name: "InvalidContentDigestSha256Mismatch",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Content-Digest", "sha-256=:ypeBEsobvcr6wjGzmiPcTaeG7/gUfE5yuYB3ha/uSLs=:")
+			},
+		},
+		{
+			Name: "InvalidContentDigestSha512Size",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Content-Digest", "sha-512=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
+			},
+		},
+		{
+			Name: "InvalidContentDigestSha512Mismatch",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Content-Digest", "sha-512=:H0D8ktokFpR1CXnubPWC8tXX0o4YM13gWrxU0FYOD1MChgxlK/CNVgJSql50IQVG82n7u86MEs/HlXsmUv6adQ==:")
+			},
+		},
+		{
+			Name: "InvalidContentDigestInvalidType",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Content-Digest", "sha-1=:hvfkN/qlp/zhXR3cuerq6jd2Z7g=:")
+			},
+		},
+		{
+			Name: "InvalidComponent",
+			Key:  ed25519Public,
+			Mutate: func(r *http.Request) {
+				r.Header.Set("Signature-Input", `sig1=("date" "@method" "@path" "@authority" "@content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`)
+			},
+		},
+	} {
+		t.Run(data.Name, func(tt *testing.T) {
+			tt.Parallel()
 
-	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`
+			r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
+			if err != nil {
+				t.Fatalf("Failed to create request: %v", err)
+			}
 
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
-	r.Header.Set("Signature-Input", sigInput)
-	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
-	r.Header.Add("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
+			r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+			r.Header.Set("Content-Type", "application/json")
+			r.Header.Set("Content-Length", "18")
+			r.Header.Set("Forwarded", "for=192.0.2.123;host=example.com;proto=https")
+			r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
+			r.Header.Set("Signature-Input", `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`)
+			r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
 
-	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
-		t.Fatal("Expected error")
+			data.Mutate(r)
+
+			sig, err := rfc9421Extract(r, r.Header.Get("Signature-Input"), []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884475, 0), time.Hour*24*365*10, []string{"@method", "@path", "date"})
+			if err != nil {
+				return
+			}
+
+			if err := sig.Verify(data.Key); err == nil {
+				t.Fatal("Expected error")
+			}
+		})
 	}
 }
 
-func TestRFC9421_VerifyInvalidBase64(t *testing.T) {
+func TestRFC9421_VerifySignatureAge(t *testing.T) {
 	t.Parallel()
 
-	// B.2.6.  Signing a Request Using ed25519
-	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
-	r.Header.Set("Signature-Input", sigInput)
-	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw=:")
-
-	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
-		t.Fatal("Expected error")
-	}
-}
-
-func TestRFC9421_VerifyNoKeyIDQuotes(t *testing.T) {
-	t.Parallel()
-
-	// B.2.6.  Signing a Request Using ed25519
-	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519`
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
-	r.Header.Set("Signature-Input", sigInput)
-	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
-
-	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
-		t.Fatal("Expected error")
-	}
-}
-
-func TestRFC9421_VerifyCreatedNotNumber(t *testing.T) {
-	t.Parallel()
-
-	// B.2.6.  Signing a Request Using ed25519
-	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=16188a84473;keyid="test-key-ed25519"`
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
-	r.Header.Set("Signature-Input", sigInput)
-	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
-
-	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
-		t.Fatal("Expected error")
-	}
-}
-
-func TestRFC9421_VerifyExpiresNotNumber(t *testing.T) {
-	t.Parallel()
-
-	// B.2.6.  Signing a Request Using ed25519
-	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519";expires=16188a84540`
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
-	r.Header.Set("Signature-Input", sigInput)
-	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
-
-	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
-		t.Fatal("Expected error")
-	}
-}
-
-func TestRFC9421_VerifyTwoAlg(t *testing.T) {
-	t.Parallel()
-
-	// B.2.6.  Signing a Request Using ed25519
-	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519";alg="ed5519";alg="ed5519"`
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
-	r.Header.Set("Signature-Input", sigInput)
-	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
-
-	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
-		t.Fatal("Expected error")
-	}
-}
-
-func TestRFC9421_VerifyAlgQuotes(t *testing.T) {
-	t.Parallel()
-
-	// B.2.6.  Signing a Request Using ed25519
-	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519";alg="ed5519`
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
-	r.Header.Set("Signature-Input", sigInput)
-	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
-
-	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
-		t.Fatal("Expected error")
-	}
-}
-
-func TestRFC9421_VerifyInvalidAlg(t *testing.T) {
-	t.Parallel()
-
-	// B.2.6.  Signing a Request Using ed25519
-	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519";alg="rc4"`
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
-	r.Header.Set("Signature-Input", sigInput)
-	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
-
-	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
-		t.Fatal("Expected error")
-	}
-}
-
-func TestRFC9421_VerifyUnknownParameter(t *testing.T) {
-	t.Parallel()
-
-	// B.2.6.  Signing a Request Using ed25519
-	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyida="test-key-ed25519"`
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
-	r.Header.Set("Signature-Input", sigInput)
-	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
-
-	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
-		t.Fatal("Expected error")
-	}
-}
-
-func TestRFC9421_VerifyNoKeyID(t *testing.T) {
-	t.Parallel()
-
-	// B.2.6.  Signing a Request Using ed25519
-	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473`
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
-	r.Header.Set("Signature-Input", sigInput)
-	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
-
-	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
-		t.Fatal("Expected error")
-	}
-}
-
-func TestRFC9421_VerifyNoCreated(t *testing.T) {
-	t.Parallel()
-
-	// B.2.6.  Signing a Request Using ed25519
-	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");keyid="test-key-ed25519"`
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
-	r.Header.Set("Signature-Input", sigInput)
-	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
-
-	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
-		t.Fatal("Expected error")
-	}
-}
-
-func TestRFC9421_VerifyTwoContentDigest(t *testing.T) {
-	t.Parallel()
-
-	// B.2.6.  Signing a Request Using ed25519
-	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
-	r.Header.Add("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
-	r.Header.Set("Signature-Input", sigInput)
-	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
-
-	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
-		t.Fatal("Expected error")
-	}
-}
-
-func TestRFC9421_VerifyEmptyContentDigest(t *testing.T) {
-	t.Parallel()
-
-	// B.2.6.  Signing a Request Using ed25519
-	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-	r.Header.Set("Content-Digest", "")
-	r.Header.Set("Signature-Input", sigInput)
-	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
-
-	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
-		t.Fatal("Expected error")
-	}
-}
-
-func TestRFC9421_VerifyInvalidContentDigest(t *testing.T) {
-	t.Parallel()
-
-	// B.2.6.  Signing a Request Using ed25519
-	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-	r.Header.Set("Content-Digest", "X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=")
-	r.Header.Set("Signature-Input", sigInput)
-	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
-
-	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
-		t.Fatal("Expected error")
-	}
-}
-
-func TestRFC9421_VerifyInvalidContentDigestBase64(t *testing.T) {
-	t.Parallel()
-
-	// B.2.6.  Signing a Request Using ed25519
-	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE:")
-	r.Header.Set("Signature-Input", sigInput)
-	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
-
-	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
-		t.Fatal("Expected error")
-	}
-}
-
-func TestRFC9421_VerifyInvalidContentDigestAlgo(t *testing.T) {
-	t.Parallel()
-
-	// B.2.6.  Signing a Request Using ed25519
-	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-	r.Header.Set("Content-Digest", "sha1=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
-	r.Header.Set("Signature-Input", sigInput)
-	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
-
-	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
-		t.Fatal("Expected error")
-	}
-}
-
-func TestRFC9421_VerifyInvalidContentDigestSha256Size(t *testing.T) {
-	t.Parallel()
-
-	// B.2.6.  Signing a Request Using ed25519
-	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-	r.Header.Set("Content-Digest", "sha-256=:H0D8ktokFpR1CXnubPWC8tXX0o4YM13gWrxU0FYOD1MChgxlK/CNVgJSql50IQVG82n7u86MEs/HlXsmUv6adQ==:")
-	r.Header.Set("Signature-Input", sigInput)
-	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
-
-	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
-		t.Fatal("Expected error")
-	}
-}
-
-func TestRFC9421_VerifyInvalidContentDigestSha512Size(t *testing.T) {
-	t.Parallel()
-
-	// B.2.6.  Signing a Request Using ed25519
-	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-	r.Header.Set("Content-Digest", "sha-512=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
-	r.Header.Set("Signature-Input", sigInput)
-	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
-
-	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
-		t.Fatal("Expected error")
-	}
-}
-
-func TestRFC9421_VerifyInvalidContentDigestSha256Mismatch(t *testing.T) {
-	t.Parallel()
-
-	// B.2.6.  Signing a Request Using ed25519
-	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-	r.Header.Set("Content-Digest", "sha-256=:ypeBEsobvcr6wjGzmiPcTaeG7/gUfE5yuYB3ha/uSLs=:")
-	r.Header.Set("Signature-Input", sigInput)
-	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
-
-	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
-		t.Fatal("Expected error")
-	}
-}
-
-func TestRFC9421_VerifyInvalidContentDigestSha512Mismatch(t *testing.T) {
-	t.Parallel()
-
-	// B.2.6.  Signing a Request Using ed25519
-	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-	r.Header.Set("Content-Digest", "sha-512=:H0D8ktokFpR1CXnubPWC8tXX0o4YM13gWrxU0FYOD1MChgxlK/CNVgJSql50IQVG82n7u86MEs/HlXsmUv6adQ==:")
-	r.Header.Set("Signature-Input", sigInput)
-	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
-
-	if _, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil); err == nil {
-		t.Fatal("Expected error")
+	for _, data := range []struct {
+		Name                            string
+		URL                             string
+		Key                             any
+		Now                             time.Time
+		ContentDigest, Input, Signature string
+	}{
+		{
+			Name:          "Ed25519",
+			URL:           "http://example.com/foo",
+			Key:           ed25519Public,
+			Now:           time.Unix(1618884473, 0).Add(time.Minute + time.Second),
+			ContentDigest: "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:",
+			Input:         `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`,
+			Signature:     "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:",
+		},
+		{
+			Name:          "Ed25519",
+			URL:           "http://example.com/foo",
+			Key:           ed25519Public,
+			Now:           time.Unix(1618884473, 0).Add(-time.Minute - time.Second),
+			ContentDigest: "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:",
+			Input:         `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`,
+			Signature:     "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:",
+		},
+	} {
+		t.Run(data.Name, func(tt *testing.T) {
+			tt.Parallel()
+
+			r, err := http.NewRequest(http.MethodPost, data.URL, strings.NewReader(`{"hello": "world"}`))
+			if err != nil {
+				t.Fatalf("Failed to create request: %v", err)
+			}
+
+			r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+			r.Header.Set("Content-Type", "application/json")
+			r.Header.Set("Content-Length", "18")
+			r.Header.Set("Forwarded", "for=192.0.2.123;host=example.com;proto=https")
+			r.Header.Set("Content-Digest", data.ContentDigest)
+			r.Header.Set("Signature", data.Signature)
+
+			if _, err := rfc9421Extract(r, data.Input, []byte(`{"hello": "world"}`), r.URL.Host, data.Now, time.Minute, nil); err == nil {
+				t.Fatal("Expected error")
+			}
+		})
 	}
 }
