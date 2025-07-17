@@ -114,138 +114,6 @@ func init() {
 	}
 }
 
-func TestRFC9421_RSASign(t *testing.T) {
-	t.Parallel()
-
-	// 4.3.  Multiple Signatures
-	r, err := http.NewRequest(http.MethodPost, "http://origin.host.internal.example/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:56 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-	r.Header.Set("Forwarded", "for=192.0.2.123;host=example.com;proto=https")
-
-	if err := SignRFC9421(
-		r,
-		Key{
-			ID:         "test-key-rsa",
-			PrivateKey: rsaPrivate,
-		},
-		time.Unix(1618884480, 0),
-		time.Unix(1618884540, 0),
-		RFC9421DigestSHA512,
-		"rsa-v1_5-sha256",
-		[]string{"@method", "@authority", "@path", "content-digest", "content-type", "content-length", "forwarded"},
-	); err != nil {
-		t.Fatalf("Failed to sign: %v", err)
-	}
-
-	if s := r.Header.Get("Content-Digest"); s != "sha-512=:WZDPaVn/7XgHaAy8pmojAkGWoRx2UFChF41A2svX+TaPm+AbwAgBWnrIiYllu7BNNyealdVLvRwEmTHWXvJwew==:" {
-		t.Fatalf("Wrong digest: %s", s)
-	}
-
-	if s := r.Header.Get("Signature"); s != "sig1=:S6ZzPXSdAMOPjN/6KXfXWNO/f7V6cHm7BXYUh3YD/fRad4BCaRZxP+JH+8XY1I6+8Cy+CM5g92iHgxtRPz+MjniOaYmdkDcnL9cCpXJleXsOckpURl49GwiyUpZ10KHgOEe11sx3G2gxI8S0jnxQB+Pu68U9vVcasqOWAEObtNKKZd8tSFu7LB5YAv0RAGhB8tmpv7sFnIm9y+7X5kXQfi8NMaZaA8i2ZHwpBdg7a6CMfwnnrtflzvZdXAsD3LH2TwevU+/PBPv0B6NMNk93wUs/vfJvye+YuI87HU38lZHowtznbLVdp770I6VHR6WfgS9ddzirrswsE1w5o0LV/g==:" {
-		t.Fatalf("Wrong signature: %s", s)
-	}
-}
-
-func TestRFC9421_Ed25519Sign(t *testing.T) {
-	t.Parallel()
-
-	// B.2.6.  Signing a Request Using ed25519
-	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-
-	if err := SignRFC9421(
-		r,
-		Key{
-			ID:         "test-key-ed25519",
-			PrivateKey: ed25519Private,
-		},
-		time.Unix(1618884473, 0),
-		time.Time{},
-		RFC9421DigestSHA256,
-		"",
-		[]string{"date", "@method", "@path", "@authority", "content-type", "content-length"},
-	); err != nil {
-		t.Fatalf("Failed to sign: %v", err)
-	}
-
-	if s := r.Header.Get("Content-Digest"); s != "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:" {
-		t.Fatalf("Wrong digest: %s", s)
-	}
-
-	if s := r.Header.Get("Signature"); s != "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:" {
-		t.Fatalf("Wrong signature: %s", s)
-	}
-}
-
-func TestRFC9421_RSAVerifyHappyFlow(t *testing.T) {
-	t.Parallel()
-
-	// 4.3.  Multiple Signatures
-	r, err := http.NewRequest(http.MethodPost, "http://origin.host.internal.example/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	sigInput := `sig1=("@method" "@authority" "@path" "content-digest" "content-type" "content-length" "forwarded");created=1618884480;keyid="test-key-rsa";alg="rsa-v1_5-sha256";expires=1618884540`
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:56 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-	r.Header.Set("Forwarded", "for=192.0.2.123;host=example.com;proto=https")
-	r.Header.Set("Content-Digest", "sha-512=:WZDPaVn/7XgHaAy8pmojAkGWoRx2UFChF41A2svX+TaPm+AbwAgBWnrIiYllu7BNNyealdVLvRwEmTHWXvJwew==:")
-	r.Header.Set("Signature-Input", sigInput)
-	r.Header.Set("Signature", "sig1=:S6ZzPXSdAMOPjN/6KXfXWNO/f7V6cHm7BXYUh3YD/fRad4BCaRZxP+JH+8XY1I6+8Cy+CM5g92iHgxtRPz+MjniOaYmdkDcnL9cCpXJleXsOckpURl49GwiyUpZ10KHgOEe11sx3G2gxI8S0jnxQB+Pu68U9vVcasqOWAEObtNKKZd8tSFu7LB5YAv0RAGhB8tmpv7sFnIm9y+7X5kXQfi8NMaZaA8i2ZHwpBdg7a6CMfwnnrtflzvZdXAsD3LH2TwevU+/PBPv0B6NMNk93wUs/vfJvye+YuI87HU38lZHowtznbLVdp770I6VHR6WfgS9ddzirrswsE1w5o0LV/g==:")
-
-	sig, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "origin.host.internal.example", time.Unix(1618884539, 0), time.Minute, nil)
-	if err != nil {
-		t.Fatalf("Failed to extract: %v", err)
-	}
-
-	if err := sig.Verify(rsaPublic); err != nil {
-		t.Fatalf("Failed to verify: %v", err)
-	}
-}
-
-func TestRFC9421_Ed25519VerifyHappyFlow(t *testing.T) {
-	t.Parallel()
-
-	// B.2.6.  Signing a Request Using ed25519
-	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	sigInput := `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-	r.Header.Set("Content-Digest", "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:")
-	r.Header.Set("Signature-Input", sigInput)
-	r.Header.Set("Signature", "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
-
-	sig, err := rfc9421Extract(r, sigInput, []byte(`{"hello": "world"}`), "example.com", time.Unix(1618884474, 0), time.Second, nil)
-	if err != nil {
-		t.Fatalf("Failed to extract: %v", err)
-	}
-
-	if err := sig.Verify(ed25519Public); err != nil {
-		t.Fatalf("Failed to verify: %v", err)
-	}
-}
-
 func TestRFC9421_RSAVerifyFailure(t *testing.T) {
 	for _, data := range []struct {
 		Name   string
@@ -482,277 +350,245 @@ func TestRFC9421_RSAVerifyFailure(t *testing.T) {
 	}
 }
 
-func TestRFC9421_DerivedComponents(t *testing.T) {
-	t.Parallel()
-
-	r, err := http.NewRequest(http.MethodPost, "http://origin.host.internal.example/foo?param=value&foo=bar&baz=bat%2Dman", nil)
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	const expected = `"@path": /foo
+func TestRFC9421_BuildSignatureBase(t *testing.T) {
+	for _, data := range []struct {
+		Name       string
+		Components []string
+		Expected   string
+	}{
+		{
+			Name:       "DerivedComponents",
+			Components: []string{"@path", "@query", "@target-uri", "@request-target"},
+			Expected: `"@path": /foo
 "@query": ?param=value&foo=bar&baz=bat%2Dman
 "@target-uri": http://origin.host.internal.example/foo?param=value&foo=bar&baz=bat%2Dman
 "@request-target": /foo?param=value&foo=bar&baz=bat%2Dman
-"@signature-params": abc`
-
-	if base, err := buildSignatureBase(r, "abc", []string{"@path", "@query", "@target-uri", "@request-target"}); err != nil {
-		t.Fatalf("Failed to build base: %v", err)
-	} else if base != expected {
-		t.Fatalf("Wrong base: %s", base)
-	}
-}
-
-func TestRFC9421_MultipleValues(t *testing.T) {
-	t.Parallel()
-
-	r, err := http.NewRequest(http.MethodPost, "http://origin.host.internal.example/foo?param=value&foo=bar&baz=bat%2Dman", nil)
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	r.Header.Add("Host", "a ")
-	r.Header.Add("Host", " b")
-
-	const expected = `"host": a, b
-"@signature-params": abc`
-
-	if base, err := buildSignatureBase(r, "abc", []string{"host"}); err != nil {
-		t.Fatalf("Failed to build base: %v", err)
-	} else if base != expected {
-		t.Fatalf("Wrong base: %s", base)
-	}
-}
-
-func TestRFC9421_MissingHeader(t *testing.T) {
-	t.Parallel()
-
-	r, err := http.NewRequest(http.MethodPost, "http://origin.host.internal.example/foo?param=value&foo=bar&baz=bat%2Dman", nil)
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	if _, err := buildSignatureBase(r, "abc", []string{"host"}); err == nil {
-		t.Fatal("Expected error")
-	}
-}
-
-func TestRFC9421_UnsupportedComponent(t *testing.T) {
-	t.Parallel()
-
-	r, err := http.NewRequest(http.MethodPost, "http://origin.host.internal.example/foo?param=value&foo=bar&baz=bat%2Dman", nil)
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	r.Header.Set("Host", "a ")
-
-	if _, err := buildSignatureBase(r, "abc", []string{"@host"}); err == nil {
-		t.Fatal("Expected error")
-	}
-}
-
-func TestRFC9421_SignEmptyKeyID(t *testing.T) {
-	t.Parallel()
-
-	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-
-	if err := SignRFC9421(
-		r,
-		Key{
-			ID:         "",
-			PrivateKey: ed25519Private,
+"@signature-params": abc`,
 		},
-		time.Unix(1618884473, 0),
-		time.Time{},
-		RFC9421DigestSHA256,
-		"",
-		[]string{"date", "@method", "@path", "@authority", "content-type", "content-length"},
-	); err == nil {
-		t.Fatal("Expected error")
+		{
+			Name:       "MultipleValues",
+			Components: []string{"host"},
+			Expected: `"host": a, b
+"@signature-params": abc`,
+		},
+		{
+			Name:       "MissingHeader",
+			Components: []string{"date"},
+		},
+		{
+			Name:       "UnsupportedComponent",
+			Components: []string{"@host"},
+		},
+	} {
+		t.Run(data.Name, func(tt *testing.T) {
+			tt.Parallel()
+
+			r, err := http.NewRequest(http.MethodPost, "http://origin.host.internal.example/foo?param=value&foo=bar&baz=bat%2Dman", nil)
+			if err != nil {
+				t.Fatalf("Failed to create request: %v", err)
+			}
+
+			r.Header.Add("Host", "a ")
+			r.Header.Add("Host", " b")
+
+			if base, err := buildSignatureBase(r, "abc", data.Components); err != nil && data.Expected == "" {
+				return
+			} else if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			} else if base != data.Expected {
+				t.Fatalf("Wrong base: %s", base)
+			}
+		})
 	}
 }
 
-func TestRFC9421_SignDefaultComponentsPostWithQuery(t *testing.T) {
+func TestRFC9421_Sign(t *testing.T) {
 	t.Parallel()
 
-	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo?a=b", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-
-	if err := SignRFC9421(
-		r,
-		Key{
-			ID:         "test-key-ed25519",
-			PrivateKey: ed25519Private,
+	for _, data := range []struct {
+		Name                             string
+		Key                              Key
+		Method, URL                      string
+		Components                       []string
+		Alg                              string
+		Digest                           func(*http.Request, []byte)
+		Now, Expires                     time.Time
+		ExpectedInput, ExpectedSignature string
+	}{
+		{
+			Name:              "RSAHappyFlow",
+			Key:               Key{ID: "test-key-rsa", PrivateKey: rsaPrivate},
+			Method:            http.MethodPost,
+			URL:               "http://origin.host.internal.example/foo",
+			Components:        []string{"@method", "@authority", "@path", "content-digest", "content-type", "content-length", "forwarded"},
+			Alg:               "rsa-v1_5-sha256",
+			Digest:            RFC9421DigestSHA512,
+			Now:               time.Unix(1618884480, 0),
+			Expires:           time.Unix(1618884540, 0),
+			ExpectedInput:     `sig1=("@method" "@authority" "@path" "content-digest" "content-type" "content-length" "forwarded");created=1618884480;keyid="test-key-rsa";alg="rsa-v1_5-sha256";expires=1618884540`,
+			ExpectedSignature: "sig1=:S6ZzPXSdAMOPjN/6KXfXWNO/f7V6cHm7BXYUh3YD/fRad4BCaRZxP+JH+8XY1I6+8Cy+CM5g92iHgxtRPz+MjniOaYmdkDcnL9cCpXJleXsOckpURl49GwiyUpZ10KHgOEe11sx3G2gxI8S0jnxQB+Pu68U9vVcasqOWAEObtNKKZd8tSFu7LB5YAv0RAGhB8tmpv7sFnIm9y+7X5kXQfi8NMaZaA8i2ZHwpBdg7a6CMfwnnrtflzvZdXAsD3LH2TwevU+/PBPv0B6NMNk93wUs/vfJvye+YuI87HU38lZHowtznbLVdp770I6VHR6WfgS9ddzirrswsE1w5o0LV/g==:",
 		},
-		time.Unix(1618884473, 0),
-		time.Time{},
-		RFC9421DigestSHA256,
-		"",
-		nil,
-	); err != nil {
-		t.Fatalf("Failed to sign: %v", err)
-	}
+		{
+			Name:              "Ed25519HappyFlow",
+			Key:               Key{ID: "test-key-ed25519", PrivateKey: ed25519Private},
+			Method:            http.MethodPost,
+			URL:               "http://example.com/foo",
+			Components:        []string{"date", "@method", "@path", "@authority", "content-type", "content-length"},
+			Digest:            RFC9421DigestSHA256,
+			Now:               time.Unix(1618884473, 0),
+			ExpectedInput:     `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`,
+			ExpectedSignature: "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:",
+		},
+		{
+			Name:       "EmptyKeyID",
+			Key:        Key{PrivateKey: ed25519Private},
+			Method:     http.MethodPost,
+			URL:        "http://example.com/foo",
+			Components: []string{"date", "@method", "@path", "@authority", "content-type", "content-length"},
+			Digest:     RFC9421DigestSHA256,
+			Now:        time.Unix(1618884473, 0),
+		},
+		{
+			Name:       "InvalidKeyType",
+			Key:        Key{ID: "test-key-ed25519", PrivateKey: []byte{}},
+			Method:     http.MethodPost,
+			URL:        "http://example.com/foo",
+			Components: []string{"date", "@method", "@path", "@authority", "content-type", "content-length"},
+			Digest:     RFC9421DigestSHA256,
+			Now:        time.Unix(1618884473, 0),
+		},
+		{
+			Name:              "PostWithQuery",
+			Method:            http.MethodPost,
+			URL:               "http://example.com/foo?a=b",
+			Digest:            RFC9421DigestSHA256,
+			Now:               time.Unix(1618884473, 0),
+			Key:               Key{ID: "test-key-ed25519", PrivateKey: ed25519Private},
+			ExpectedInput:     `sig1=("@method" "@target-uri" "@query" "content-type" "content-digest");created=1618884473;keyid="test-key-ed25519"`,
+			ExpectedSignature: "sig1=:r9CLTnSBs9DptOTMZIIxYR+0WyR3dkRfYPdukkFcUkBILhqIldLAf0AxWXMo7fS9pF9iOc2FWhXrupjvTaS9Aw==:",
+		},
+		{
+			Name:              "PostWithoutQuery",
+			Method:            http.MethodPost,
+			URL:               "http://example.com/foo",
+			Digest:            RFC9421DigestSHA256,
+			Now:               time.Unix(1618884473, 0),
+			Key:               Key{ID: "test-key-ed25519", PrivateKey: ed25519Private},
+			ExpectedInput:     `sig1=("@method" "@target-uri" "content-type" "content-digest");created=1618884473;keyid="test-key-ed25519"`,
+			ExpectedSignature: "sig1=:hxRBa6+EN30jMm8FHHCdksP89LHnQRM47LqdewNSNwQOPDT1NWCatNlL5ew3iMHoTD3iDianApepcmTGxXFxDg==:",
+		},
+		{
+			Name:              "GetWithQuery",
+			Method:            http.MethodGet,
+			URL:               "http://example.com/foo?a=b",
+			Digest:            RFC9421DigestSHA256,
+			Now:               time.Unix(1618884473, 0),
+			Key:               Key{ID: "test-key-ed25519", PrivateKey: ed25519Private},
+			ExpectedInput:     `sig1=("@method" "@target-uri" "@query");created=1618884473;keyid="test-key-ed25519"`,
+			ExpectedSignature: "sig1=:hUN/1cXurzP2kE30k5hhl46XUnFYiTWhbabGChyzUQV2aWSobjHCtY+qLyru3UJC/p04i6WQYsXNtlYT+T89AQ==:",
+		},
+		{
+			Name:              "GetWithoutQuery",
+			Method:            http.MethodGet,
+			URL:               "http://example.com/foo",
+			Digest:            RFC9421DigestSHA256,
+			Now:               time.Unix(1618884473, 0),
+			Key:               Key{ID: "test-key-ed25519", PrivateKey: ed25519Private},
+			ExpectedInput:     `sig1=("@method" "@target-uri");created=1618884473;keyid="test-key-ed25519"`,
+			ExpectedSignature: "sig1=:hxZ3eAZwW0a0OuyAWd+U+k8WBhzESrnmP+9HZoSNX46JFsc4bJ0Nib5OXq4tINosJI4ACR8J0Ogi+5h4F5YkDA==:",
+		},
+	} {
+		t.Run(data.Name, func(tt *testing.T) {
+			tt.Parallel()
 
-	if s := r.Header.Get("Content-Digest"); s != "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:" {
-		t.Fatalf("Wrong digest: %s", s)
-	}
+			r, err := http.NewRequest(data.Method, data.URL, strings.NewReader(`{"hello": "world"}`))
+			if err != nil {
+				t.Fatalf("Failed to create request: %v", err)
+			}
 
-	if s := r.Header.Get("Signature-Input"); s != `sig1=("@method" "@target-uri" "@query" "content-type" "content-digest");created=1618884473;keyid="test-key-ed25519"` {
-		t.Fatalf("Wrong input: %s", s)
-	}
+			r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+			r.Header.Set("Content-Type", "application/json")
+			r.Header.Set("Content-Length", "18")
+			r.Header.Set("Forwarded", "for=192.0.2.123;host=example.com;proto=https")
 
-	if s := r.Header.Get("Signature"); s != "sig1=:r9CLTnSBs9DptOTMZIIxYR+0WyR3dkRfYPdukkFcUkBILhqIldLAf0AxWXMo7fS9pF9iOc2FWhXrupjvTaS9Aw==:" {
-		t.Fatalf("Wrong signature: %s", s)
+			if err := SignRFC9421(
+				r,
+				data.Key,
+				data.Now,
+				data.Expires,
+				data.Digest,
+				data.Alg,
+				data.Components,
+			); err != nil && data.ExpectedInput == "" {
+				return
+			} else if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if s := r.Header.Get("Signature-Input"); s != data.ExpectedInput {
+				t.Fatalf("Wrong signature input: %s", s)
+			}
+
+			if s := r.Header.Get("Signature"); s != data.ExpectedSignature {
+				t.Fatalf("Wrong signature: %s", s)
+			}
+		})
 	}
 }
 
-func TestRFC9421_SignDefaultComponentsPostWithoutQuery(t *testing.T) {
+func TestRFC9421_Verify(t *testing.T) {
 	t.Parallel()
 
-	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-
-	if err := SignRFC9421(
-		r,
-		Key{
-			ID:         "test-key-ed25519",
-			PrivateKey: ed25519Private,
+	for _, data := range []struct {
+		Name                            string
+		URL                             string
+		Key                             any
+		Now                             time.Time
+		ContentDigest, Input, Signature string
+	}{
+		{
+			Name:          "RSAHappyFlow",
+			URL:           "http://origin.host.internal.example/foo",
+			Key:           rsaPublic,
+			Now:           time.Unix(1618884539, 0),
+			ContentDigest: "sha-512=:WZDPaVn/7XgHaAy8pmojAkGWoRx2UFChF41A2svX+TaPm+AbwAgBWnrIiYllu7BNNyealdVLvRwEmTHWXvJwew==:",
+			Input:         `sig1=("@method" "@authority" "@path" "content-digest" "content-type" "content-length" "forwarded");created=1618884480;keyid="test-key-rsa";alg="rsa-v1_5-sha256";expires=1618884540`,
+			Signature:     "sig1=:S6ZzPXSdAMOPjN/6KXfXWNO/f7V6cHm7BXYUh3YD/fRad4BCaRZxP+JH+8XY1I6+8Cy+CM5g92iHgxtRPz+MjniOaYmdkDcnL9cCpXJleXsOckpURl49GwiyUpZ10KHgOEe11sx3G2gxI8S0jnxQB+Pu68U9vVcasqOWAEObtNKKZd8tSFu7LB5YAv0RAGhB8tmpv7sFnIm9y+7X5kXQfi8NMaZaA8i2ZHwpBdg7a6CMfwnnrtflzvZdXAsD3LH2TwevU+/PBPv0B6NMNk93wUs/vfJvye+YuI87HU38lZHowtznbLVdp770I6VHR6WfgS9ddzirrswsE1w5o0LV/g==:",
 		},
-		time.Unix(1618884473, 0),
-		time.Time{},
-		RFC9421DigestSHA256,
-		"",
-		nil,
-	); err != nil {
-		t.Fatalf("Failed to sign: %v", err)
-	}
-
-	if s := r.Header.Get("Content-Digest"); s != "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:" {
-		t.Fatalf("Wrong digest: %s", s)
-	}
-
-	if s := r.Header.Get("Signature-Input"); s != `sig1=("@method" "@target-uri" "content-type" "content-digest");created=1618884473;keyid="test-key-ed25519"` {
-		t.Fatalf("Wrong input: %s", s)
-	}
-
-	if s := r.Header.Get("Signature"); s != "sig1=:hxRBa6+EN30jMm8FHHCdksP89LHnQRM47LqdewNSNwQOPDT1NWCatNlL5ew3iMHoTD3iDianApepcmTGxXFxDg==:" {
-		t.Fatalf("Wrong signature: %s", s)
-	}
-}
-
-func TestRFC9421_SignDefaultComponentsGetWithQuery(t *testing.T) {
-	t.Parallel()
-
-	r, err := http.NewRequest(http.MethodGet, "http://example.com/foo?a=b", nil)
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-
-	if err := SignRFC9421(
-		r,
-		Key{
-			ID:         "test-key-ed25519",
-			PrivateKey: ed25519Private,
+		{
+			Name:          "Ed25519HappyFlow",
+			URL:           "http://example.com/foo",
+			Key:           ed25519Public,
+			Now:           time.Unix(1618884474, 0),
+			ContentDigest: "sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:",
+			Input:         `sig1=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"`,
+			Signature:     "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:",
 		},
-		time.Unix(1618884473, 0),
-		time.Time{},
-		RFC9421DigestSHA256,
-		"",
-		nil,
-	); err != nil {
-		t.Fatalf("Failed to sign: %v", err)
-	}
+	} {
+		t.Run(data.Name, func(tt *testing.T) {
+			tt.Parallel()
 
-	if s := r.Header.Get("Signature-Input"); s != `sig1=("@method" "@target-uri" "@query");created=1618884473;keyid="test-key-ed25519"` {
-		t.Fatalf("Wrong input: %s", s)
-	}
+			r, err := http.NewRequest(http.MethodPost, data.URL, strings.NewReader(`{"hello": "world"}`))
+			if err != nil {
+				t.Fatalf("Failed to create request: %v", err)
+			}
 
-	if s := r.Header.Get("Signature"); s != "sig1=:hUN/1cXurzP2kE30k5hhl46XUnFYiTWhbabGChyzUQV2aWSobjHCtY+qLyru3UJC/p04i6WQYsXNtlYT+T89AQ==:" {
-		t.Fatalf("Wrong signature: %s", s)
-	}
-}
+			r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
+			r.Header.Set("Content-Type", "application/json")
+			r.Header.Set("Content-Length", "18")
+			r.Header.Set("Forwarded", "for=192.0.2.123;host=example.com;proto=https")
+			r.Header.Set("Content-Digest", data.ContentDigest)
+			r.Header.Set("Signature", data.Signature)
 
-func TestRFC9421_SignDefaultComponentsGetWithoutQuery(t *testing.T) {
-	t.Parallel()
+			sig, err := rfc9421Extract(r, data.Input, []byte(`{"hello": "world"}`), r.URL.Host, data.Now, time.Minute, nil)
+			if err != nil {
+				t.Fatalf("Failed to extract: %v", err)
+			}
 
-	r, err := http.NewRequest(http.MethodGet, "http://example.com/foo", nil)
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-
-	if err := SignRFC9421(
-		r,
-		Key{
-			ID:         "test-key-ed25519",
-			PrivateKey: ed25519Private,
-		},
-		time.Unix(1618884473, 0),
-		time.Time{},
-		RFC9421DigestSHA256,
-		"",
-		nil,
-	); err != nil {
-		t.Fatalf("Failed to sign: %v", err)
-	}
-
-	if s := r.Header.Get("Signature-Input"); s != `sig1=("@method" "@target-uri");created=1618884473;keyid="test-key-ed25519"` {
-		t.Fatalf("Wrong input: %s", s)
-	}
-
-	if s := r.Header.Get("Signature"); s != "sig1=:hxZ3eAZwW0a0OuyAWd+U+k8WBhzESrnmP+9HZoSNX46JFsc4bJ0Nib5OXq4tINosJI4ACR8J0Ogi+5h4F5YkDA==:" {
-		t.Fatalf("Wrong signature: %s", s)
-	}
-}
-
-func TestRFC9421_SignInvalidKeyType(t *testing.T) {
-	t.Parallel()
-
-	r, err := http.NewRequest(http.MethodPost, "http://example.com/foo", strings.NewReader(`{"hello": "world"}`))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Length", "18")
-
-	if err := SignRFC9421(
-		r,
-		Key{
-			ID:         "test-key-ed25519",
-			PrivateKey: "a",
-		},
-		time.Unix(1618884473, 0),
-		time.Time{},
-		RFC9421DigestSHA256,
-		"",
-		[]string{"date", "@method", "@path", "@authority", "content-type", "content-length"},
-	); err == nil {
-		t.Fatal("Expected error")
+			if err := sig.Verify(data.Key); err != nil {
+				t.Fatalf("Failed to verify: %v", err)
+			}
+		})
 	}
 }
 
