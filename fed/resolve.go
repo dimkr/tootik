@@ -467,6 +467,7 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 	}
 
 	keyIDs := make(map[string]struct{}, 2)
+
 	if u, err := url.Parse(actor.PublicKey.ID); err != nil {
 		slog.Debug("Failed to parse public key ID", "actor", actor.ID, "key", actor.PublicKey.ID, "error", err)
 	} else if u.Host == host {
