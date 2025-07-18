@@ -164,6 +164,10 @@ func deleteActor(ctx context.Context, db *sql.DB, id string) {
 		slog.Warn("Failed to delete follows for actor", "id", id, "error", err)
 	}
 
+	if _, err := db.ExecContext(ctx, `delete from keys where actor = ?`, id); err != nil {
+		slog.Warn("Failed to delete keys for actor", "id", id, "error", err)
+	}
+
 	if _, err := db.ExecContext(ctx, `delete from persons where id = ?`, id); err != nil {
 		slog.Warn("Failed to delete actor", "id", id, "error", err)
 	}
@@ -358,7 +362,7 @@ func (r *Resolver) tryResolveID(ctx context.Context, keys [2]httpsig.Key, u *url
 	var updated, inserted int64
 	var fetched sql.NullInt64
 	var sinceLastUpdate time.Duration
-	if err := r.db.QueryRowContext(ctx, `select json(actor), updated, fetched, inserted from persons where id = $1 or actor->>'$.publicKey.id' = $1 or exists (select 1 from json_each(actor->'$.assertionMethod') where value->>'$.id' = $1)`, id).Scan(&tmp, &updated, &fetched, &inserted); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := r.db.QueryRowContext(ctx, `select json(actor), updated, fetched, inserted from persons where id = $1 or id in (select actor from keys where id = $1)`, id).Scan(&tmp, &updated, &fetched, &inserted); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, fmt.Errorf("failed to fetch %s cache: %w", id, err)
 	} else if err == nil {
 		cachedActor = &tmp
@@ -462,6 +466,29 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 		}
 	}
 
+	keyIDs := make(map[string]struct{}, 2)
+	if u, err := url.Parse(actor.PublicKey.ID); err != nil {
+		slog.Debug("Failed to parse public key ID", "actor", actor.ID, "key", actor.PublicKey.ID, "error", err)
+	} else if u.Host == host {
+		keyIDs[actor.PublicKey.ID] = struct{}{}
+	} else {
+		slog.Warn("Public key ID belongs to a different host", "actor", actor.ID, "key", actor.PublicKey.ID)
+	}
+
+	for _, method := range actor.AssertionMethod {
+		if method.Type != "Multikey" {
+			continue
+		}
+
+		if u, err := url.Parse(method.ID); err != nil {
+			slog.Debug("Failed to parse assertion method ID", "actor", actor.ID, "key", method.ID, "error", err)
+		} else if u.Host == host {
+			keyIDs[method.ID] = struct{}{}
+		} else {
+			slog.Warn("Assertion method ID belongs to a different host", "actor", actor.ID, "key", method.ID)
+		}
+	}
+
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
@@ -474,6 +501,17 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 		string(body),
 	); err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
+	}
+
+	for keyID := range keyIDs {
+		if _, err := tx.ExecContext(
+			ctx,
+			`INSERT OR IGNORE INTO keys (id, actor) VALUES (?, ?)`,
+			keyID,
+			actor.ID,
+		); err != nil {
+			return nil, cachedActor, fmt.Errorf("failed to associate %s with %s: %w", keyID, actor.ID, err)
+		}
 	}
 
 	if _, err := tx.ExecContext(
