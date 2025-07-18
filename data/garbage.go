@@ -59,11 +59,11 @@ func (gc *GarbageCollector) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to remove old posts: %w", err)
 	}
 
-	if _, err := gc.DB.ExecContext(ctx, `delete from hashtags where not exists (select 1 from notes where notes.id = hashtags.note)`); err != nil {
+	if _, err := gc.DB.ExecContext(ctx, `delete from hashtags where note not in (select id from notes)`); err != nil {
 		return fmt.Errorf("failed to remove old hashtags: %w", err)
 	}
 
-	if _, err := gc.DB.ExecContext(ctx, `delete from shares where not exists (select 1 from persons where persons.id = shares.by) or not exists (select 1 from notes where notes.id = shares.note)`); err != nil {
+	if _, err := gc.DB.ExecContext(ctx, `delete from shares where by not in (select id from persons) or note not in (select id from notes)`); err != nil {
 		return fmt.Errorf("failed to remove old shares: %w", err)
 	}
 
@@ -79,7 +79,7 @@ func (gc *GarbageCollector) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to trim feed: %w", err)
 	}
 
-	if _, err := gc.DB.ExecContext(ctx, `delete from bookmarks where not exists (select 1 from persons where persons.id = bookmarks.by)`); err != nil {
+	if _, err := gc.DB.ExecContext(ctx, `delete from bookmarks where by not in (select id from persons)`); err != nil {
 		return fmt.Errorf("failed to remove bookmarks by deleted users: %w", err)
 	}
 
