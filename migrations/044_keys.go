@@ -10,19 +10,19 @@ func keys(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `INSERT INTO keys(id, actor) SELECT persons.id, actor->>'$.publicKey.id' FROM persons WHERE actor->>'$.publicKey.id' IS NOT NULL AND host != ? AND actor->>'$.publicKey.id' LIKE 'https://' || host || '/%'`, domain); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO keys(actor, id) SELECT persons.id, actor->>'$.publicKey.id' FROM persons WHERE actor->>'$.publicKey.id' IS NOT NULL AND host != ? AND actor->>'$.publicKey.id' LIKE 'https://' || host || '/%'`, domain); err != nil {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO keys(id, actor) SELECT persons.id, actor->>'$.assertionMethod[0].id' FROM persons WHERE actor->>'$.assertionMethod[0].id' IS NOT NULL AND actor->>'$.assertionMethod[0].type' = 'Multikey' AND host != ? AND actor->>'$.assertionMethod[0].id' LIKE 'https://' || host || '/%'`, domain); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO keys(actor, id) SELECT persons.id, actor->>'$.assertionMethod[0].id' FROM persons WHERE actor->>'$.assertionMethod[0].id' IS NOT NULL AND actor->>'$.assertionMethod[0].type' = 'Multikey' AND host != ? AND actor->>'$.assertionMethod[0].id' LIKE 'https://' || host || '/%'`, domain); err != nil {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO keys(id, actor) SELECT persons.id, actor->>'$.assertionMethod[1].id' FROM persons WHERE actor->>'$.assertionMethod[1].id' IS NOT NULL AND actor->>'$.assertionMethod[1].type' = 'Multikey' AND host != ? AND actor->>'$.assertionMethod[1].id' LIKE 'https://' || host || '/%'`, domain); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO keys(actor, id) SELECT persons.id, actor->>'$.assertionMethod[1].id' FROM persons WHERE actor->>'$.assertionMethod[1].id' IS NOT NULL AND actor->>'$.assertionMethod[1].type' = 'Multikey' AND host != ? AND actor->>'$.assertionMethod[1].id' LIKE 'https://' || host || '/%'`, domain); err != nil {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO keys(id, actor) SELECT persons.id, actor->>'$.assertionMethod[2].id' FROM persons WHERE actor->>'$.assertionMethod[2].id' IS NOT NULL AND actor->>'$.assertionMethod[2].type' = 'Multikey' AND host != ? AND actor->>'$.assertionMethod[2].id' LIKE 'https://' || host || '/%'`, domain); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO keys(actor, id) SELECT persons.id, actor->>'$.assertionMethod[2].id' FROM persons WHERE actor->>'$.assertionMethod[2].id' IS NOT NULL AND actor->>'$.assertionMethod[2].type' = 'Multikey' AND host != ? AND actor->>'$.assertionMethod[2].id' LIKE 'https://' || host || '/%'`, domain); err != nil {
 		return err
 	}
 
