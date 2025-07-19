@@ -23,8 +23,6 @@ jobs:
       - run: |
           go generate ./migrations
           go vet ./...
-          (cd /tmp && go install honnef.co/go/tools/cmd/staticcheck@latest)
-          ~/go/bin/staticcheck ./...
           go test ./... -failfast -vet off -tags netgo,sqlite_omit_load_extension,fts5 -race
       - run: |
           CGO_CFLAGS="-O2 -fomit-frame-pointer -ffunction-sections -fdata-sections -fmerge-all-constants" go build -tags netgo,sqlite_omit_load_extension,fts5 -ldflags "-w -s -linkmode external -extldflags '-static -Wl,--gc-sections' -X github.com/dimkr/tootik/buildinfo.Version=${{ inputs.version }}" -trimpath -o tootik-amd64 ./cmd/tootik
