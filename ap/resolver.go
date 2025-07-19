@@ -38,7 +38,7 @@ const (
 
 // Resolver retrieves [Actor], [Object] and [Activity] objects.
 type Resolver interface {
-	ResolveID(ctx context.Context, key httpsig.Key, id string, flags ResolverFlag) (*Actor, error)
-	Resolve(ctx context.Context, key httpsig.Key, host, name string, flags ResolverFlag) (*Actor, error)
-	Get(ctx context.Context, key httpsig.Key, url string) (*http.Response, error)
+	ResolveID(ctx context.Context, keys [2]httpsig.Key, id string, flags ResolverFlag) (*Actor, error)
+	Resolve(ctx context.Context, keys [2]httpsig.Key, host, name string, flags ResolverFlag) (*Actor, error)
+	Get(ctx context.Context, keys [2]httpsig.Key, url string) (*http.Response, error)
 }

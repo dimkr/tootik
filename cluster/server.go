@@ -43,16 +43,16 @@ import (
 )
 
 type Server struct {
-	Test      *testing.T
-	Domain    string
-	Config    *cfg.Config
-	DB        *sql.DB
-	Resolver  *fed.Resolver
-	NobodyKey httpsig.Key
-	Frontend  gemini.Listener
-	Backend   http.Handler
-	Incoming  *inbox.Queue
-	Outgoing  *fed.Queue
+	Test       *testing.T
+	Domain     string
+	Config     *cfg.Config
+	DB         *sql.DB
+	Resolver   *fed.Resolver
+	NobodyKeys [2]httpsig.Key
+	Frontend   gemini.Listener
+	Backend    http.Handler
+	Incoming   *inbox.Queue
+	Outgoing   *fed.Queue
 
 	listener, tlsListener net.Listener
 	socketPath            string
@@ -101,6 +101,8 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 	cfg.ResolverCacheTTL = 0
 	cfg.ResolverRetryInterval = 0
 	cfg.FollowersSyncInterval = 0
+	cfg.Ed25519Threshold = 0.25
+	cfg.RFC9421Threshold = 0.5
 
 	dbPath := filepath.Join(t.TempDir(), domain+".sqlite3")
 
@@ -115,7 +117,7 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 		t.Fatalf("Failed to run migrations: %v", err)
 	}
 
-	_, nobodyKey, err := user.CreateNobody(ctx, domain, db)
+	_, nobodyKeys, err := user.CreateNobody(ctx, domain, db)
 	if err != nil {
 		t.Fatalf("Failed to run create the nobody user: %v", err)
 	}
@@ -131,12 +133,12 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 	}
 
 	backend, err := (&fed.Listener{
-		Domain:   domain,
-		Closed:   false,
-		Config:   &cfg,
-		DB:       db,
-		ActorKey: nobodyKey,
-		Resolver: resolver,
+		Domain:    domain,
+		Closed:    false,
+		Config:    &cfg,
+		DB:        db,
+		ActorKeys: nobodyKeys,
+		Resolver:  resolver,
 	}).NewHandler()
 	if err != nil {
 		t.Fatalf("Failed to run create the federation handler: %v", err)
@@ -158,12 +160,12 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 	tlsListener := tls.NewListener(listener, &serverCfg)
 
 	return &Server{
-		Test:      t,
-		Domain:    domain,
-		Config:    &cfg,
-		DB:        db,
-		Resolver:  resolver,
-		NobodyKey: nobodyKey,
+		Test:       t,
+		Domain:     domain,
+		Config:     &cfg,
+		DB:         db,
+		Resolver:   resolver,
+		NobodyKeys: nobodyKeys,
 		Frontend: gemini.Listener{
 			Domain:  domain,
 			Config:  &cfg,
@@ -176,7 +178,7 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 			Config:   &cfg,
 			DB:       db,
 			Resolver: resolver,
-			Key:      nobodyKey,
+			Keys:     nobodyKeys,
 		},
 		Outgoing: &fed.Queue{
 			Domain:   domain,

@@ -39,26 +39,26 @@ var unsupportedActivityTypes = map[ap.ActivityType]struct{}{
 	ap.Move:       {},
 }
 
-func (l *Listener) getActivityOrigin(activity *ap.Activity, sender *ap.Actor) (string, bool, error) {
+func (l *Listener) getActivityOrigin(activity *ap.Activity, sender *ap.Actor) (string, string, error) {
 	if activity.ID == "" {
-		return "", false, errors.New("unspecified activity ID")
+		return "", "", errors.New("unspecified activity ID")
 	}
 
 	activityUrl, err := url.Parse(activity.ID)
 	if err != nil {
-		return "", false, err
+		return "", "", err
 	}
 
 	if sender.ID == "" {
-		return "", false, errors.New("unspecified sender ID")
+		return "", "", errors.New("unspecified sender ID")
 	}
 
 	senderUrl, err := url.Parse(sender.ID)
 	if err != nil {
-		return "", false, err
+		return "", "", err
 	}
 
-	return activityUrl.Host, activityUrl.Host != senderUrl.Host, nil
+	return activityUrl.Host, senderUrl.Host, nil
 }
 
 func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth uint) error {
@@ -218,7 +218,7 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 }
 
 func (l *Listener) fetchObject(ctx context.Context, id string) (bool, []byte, error) {
-	resp, err := l.Resolver.Get(ctx, l.ActorKey, id)
+	resp, err := l.Resolver.Get(ctx, l.ActorKeys, id)
 	if err != nil {
 		if resp != nil && (resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone) {
 			return false, nil, err
@@ -280,23 +280,29 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		flags |= ap.Offline
 	}
 
-	sender, err := l.verify(r, rawActivity, flags)
+	sig, sender, err := l.verify(r, rawActivity, flags)
 	if err != nil {
 		if errors.Is(err, ErrActorGone) {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
+
 		if errors.Is(err, ErrActorNotCached) {
 			slog.Debug("Ignoring Delete activity for unknown actor", "error", err)
 			w.WriteHeader(http.StatusOK)
 			return
 		}
+
 		if errors.Is(err, ErrBlockedDomain) {
 			slog.Debug("Failed to verify activity", "activity", &activity, "error", err)
 		} else {
 			slog.Warn("Failed to verify activity", "activity", &activity, "error", err)
 		}
+
 		w.WriteHeader(http.StatusUnauthorized)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+
 		return
 	}
 
@@ -347,12 +353,14 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		if an activity wasn't sent by an actor on the same server, we must fetch the activity from its origin instead
 		of trusting the sender to pass it as-is
 	*/
-	origin, forwarded, err := l.getActivityOrigin(queued, sender)
+	origin, senderOrigin, err := l.getActivityOrigin(queued, sender)
 	if err != nil {
 		slog.Warn("Failed to determine whether or not activity is forwarded", "activity", &activity, "sender", sender.ID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
+	forwarded := origin != senderOrigin
 
 	/* if we don't support this activity or it's invalid, we don't want to fetch it (we validate again later) */
 	if err := l.validateActivity(queued, origin, 0); errors.Is(err, ap.ErrUnsupportedActivity) {
@@ -473,6 +481,34 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		if err := l.saveFollowersDigest(r.Context(), sender, followersSync); err != nil {
 			slog.Warn("Failed to save followers sync header", "sender", sender.ID, "header", followersSync, "error", err)
 		}
+	}
+
+	capabilities := ap.CavageDraftSignatures
+	switch sig.Alg {
+	case "rsa-v1_5-sha256":
+		capabilities = ap.RFC9421RSASignatures
+	case "ed25519":
+		capabilities = ap.RFC9421Ed25519Signatures
+	default:
+		for _, imp := range sender.Generator.Implements {
+			switch imp.Href {
+			case "https://datatracker.ietf.org/doc/html/rfc9421":
+				capabilities |= ap.RFC9421RSASignatures
+			case "https://datatracker.ietf.org/doc/html/rfc9421#name-eddsa-using-curve-edwards25":
+				capabilities |= ap.RFC9421Ed25519Signatures
+			}
+		}
+	}
+
+	if _, err = l.DB.ExecContext(
+		r.Context(),
+		`INSERT INTO servers (host, capabilities) VALUES ($1, $2) ON CONFLICT(host) DO UPDATE SET capabilities = capabilities | $2, updated = UNIXEPOCH()`,
+		origin,
+		capabilities,
+	); err != nil {
+		slog.Error("Failed to record server capabilities", "server", senderOrigin, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)

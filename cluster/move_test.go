@@ -57,7 +57,7 @@ func TestCluster_MovedAccount(t *testing.T) {
 		Domain:   "b.localdomain",
 		DB:       cluster["b.localdomain"].DB,
 		Resolver: cluster["b.localdomain"].Resolver,
-		Key:      cluster["b.localdomain"].NobodyKey,
+		Keys:     cluster["b.localdomain"].NobodyKeys,
 	}
 	if err := mover.Run(t.Context()); err != nil {
 		t.Fatalf("Failed to process moved accounts: %v", err)

@@ -19,6 +19,7 @@ package user
 import (
 	"bytes"
 	"context"
+	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -28,15 +29,16 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/btcsuite/btcutil/base58"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/icon"
 )
 
-func gen() (*rsa.PrivateKey, []byte, []byte, error) {
+func generateRSAKey() (any, string, []byte, error) {
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to generate private key: %w", err)
+		return nil, "", nil, fmt.Errorf("failed to generate key: %w", err)
 	}
 
 	var privPem bytes.Buffer
@@ -47,7 +49,7 @@ func gen() (*rsa.PrivateKey, []byte, []byte, error) {
 			Bytes: x509.MarshalPKCS1PrivateKey(priv),
 		},
 	); err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to generate private key: %w", err)
+		return nil, "", nil, fmt.Errorf("failed to generate private key PEM: %w", err)
 	}
 
 	var pubPem bytes.Buffer
@@ -58,17 +60,47 @@ func gen() (*rsa.PrivateKey, []byte, []byte, error) {
 			Bytes: x509.MarshalPKCS1PublicKey(&priv.PublicKey),
 		},
 	); err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to generate public key: %w", err)
+		return nil, "", nil, fmt.Errorf("failed to generate public key PEM: %w", err)
 	}
 
-	return priv, privPem.Bytes(), pubPem.Bytes(), nil
+	return priv, privPem.String(), pubPem.Bytes(), nil
+}
+
+func generateEd25519Key() (any, string, []byte, error) {
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		return nil, "", nil, fmt.Errorf("failed to generate private key: %w", err)
+	}
+
+	privPkcs8, err := x509.MarshalPKCS8PrivateKey(priv)
+	if err != nil {
+		return nil, "", nil, fmt.Errorf("failed to marshal private key: %w", err)
+	}
+
+	var privPem bytes.Buffer
+	if err := pem.Encode(
+		&privPem,
+		&pem.Block{
+			Type:  "BEGIN PRIVATE KEY",
+			Bytes: privPkcs8,
+		},
+	); err != nil {
+		return nil, "", nil, fmt.Errorf("failed to generate private key PEM: %w", err)
+	}
+
+	return priv, privPem.String(), pub, nil
 }
 
 // Create creates a new user.
-func Create(ctx context.Context, domain string, db *sql.DB, name string, actorType ap.ActorType, cert *x509.Certificate) (*ap.Actor, httpsig.Key, error) {
-	priv, privPem, pubPem, err := gen()
+func Create(ctx context.Context, domain string, db *sql.DB, name string, actorType ap.ActorType, cert *x509.Certificate) (*ap.Actor, [2]httpsig.Key, error) {
+	rsaPriv, rsaPrivPem, rsaPubPem, err := generateRSAKey()
 	if err != nil {
-		return nil, httpsig.Key{}, fmt.Errorf("failed to generate key pair: %w", err)
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate RSA key pair: %w", err)
+	}
+
+	ed25519Priv, ed25519PrivPem, ed25519Pub, err := generateEd25519Key()
+	if err != nil {
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate Ed25519 key pair: %w", err)
 	}
 
 	id := fmt.Sprintf("https://%s/user/%s", domain, name)
@@ -97,42 +129,69 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 		PublicKey: ap.PublicKey{
 			ID:           fmt.Sprintf("https://%s/user/%s#main-key", domain, name),
 			Owner:        id,
-			PublicKeyPem: string(pubPem),
+			PublicKeyPem: string(rsaPubPem),
+		},
+		AssertionMethod: []ap.AssertionMethod{
+			{
+				ID:                 fmt.Sprintf("https://%s/user/%s#ed25519-key", domain, name),
+				Type:               "Multikey",
+				Controller:         id,
+				PublicKeyMultibase: "z" + base58.Encode(append([]byte{0xed, 0x01}, ed25519Pub...)),
+			},
 		},
 		ManuallyApprovesFollowers: false,
 		Published:                 ap.Time{Time: time.Now()},
 	}
 
-	key := httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: priv}
+	if actorType == ap.Application {
+		actor.Generator.Type = ap.Application
+		actor.Generator.Implements = []ap.Implement{
+			{
+				Name: "RFC-9421: HTTP Message Signatures",
+				Href: "https://datatracker.ietf.org/doc/html/rfc9421",
+			},
+			{
+				Name: "RFC-9421 signatures using the Ed25519 algorithm",
+				Href: "https://datatracker.ietf.org/doc/html/rfc9421#name-eddsa-using-curve-edwards25",
+			},
+		}
+	}
+
+	keys := [2]httpsig.Key{
+		{ID: actor.PublicKey.ID, PrivateKey: rsaPriv},
+		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519Priv},
+	}
 
 	if cert == nil {
 		if _, err = db.ExecContext(
 			ctx,
-			`INSERT INTO persons (id, actor, privkey) VALUES (?, JSONB(?), ?)`,
+			`INSERT INTO persons (id, actor, rsaprivkey, ed25519privkey) VALUES (?, JSONB(?), ?, ?)`,
 			id,
 			&actor,
-			string(privPem),
+			rsaPrivPem,
+			ed25519PrivPem,
 		); err != nil {
-			return nil, httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
+			return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 		}
 
-		return &actor, key, nil
+		return &actor, keys, nil
 	}
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 	}
 	defer tx.Rollback()
 
 	if _, err = tx.ExecContext(
 		ctx,
-		`INSERT OR IGNORE INTO persons (id, actor, privkey) VALUES (?, JSONB(?), ?)`,
+		`INSERT OR IGNORE INTO persons (id, actor, rsaprivkey, ed25519privkey) VALUES (?, JSONB(?), ?, ?)`,
 		id,
 		&actor,
-		string(privPem),
+		rsaPrivPem,
+		ed25519PrivPem,
 	); err != nil {
-		return nil, httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 	}
 
 	if _, err = tx.ExecContext(
@@ -142,12 +201,12 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 		fmt.Sprintf("%X", sha256.Sum256(cert.Raw)),
 		cert.NotAfter.Unix(),
 	); err != nil {
-		return nil, httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 	}
 
-	return &actor, key, nil
+	return &actor, keys, nil
 }

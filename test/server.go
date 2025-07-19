@@ -39,14 +39,14 @@ import (
 const domain = "localhost.localdomain:8443"
 
 type server struct {
-	cfg       *cfg.Config
-	db        *sql.DB
-	dbPath    string
-	handler   front.Handler
-	Alice     *ap.Actor
-	Bob       *ap.Actor
-	Carol     *ap.Actor
-	NobodyKey httpsig.Key
+	cfg        *cfg.Config
+	db         *sql.DB
+	dbPath     string
+	handler    front.Handler
+	Alice      *ap.Actor
+	Bob        *ap.Actor
+	Carol      *ap.Actor
+	NobodyKeys [2]httpsig.Key
 }
 
 func (s *server) Shutdown() {
@@ -90,7 +90,7 @@ func newTestServer() *server {
 		panic(err)
 	}
 
-	_, nobodyKey, err := user.CreateNobody(context.Background(), domain, db)
+	_, nobodyKeys, err := user.CreateNobody(context.Background(), domain, db)
 	if err != nil {
 		panic(err)
 	}
@@ -101,14 +101,14 @@ func newTestServer() *server {
 	}
 
 	return &server{
-		cfg:       &cfg,
-		dbPath:    path,
-		db:        db,
-		handler:   handler,
-		Alice:     alice,
-		Bob:       bob,
-		Carol:     carol,
-		NobodyKey: nobodyKey,
+		cfg:        &cfg,
+		dbPath:     path,
+		db:         db,
+		handler:    handler,
+		Alice:      alice,
+		Bob:        bob,
+		Carol:      carol,
+		NobodyKeys: nobodyKeys,
 	}
 }
 

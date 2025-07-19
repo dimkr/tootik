@@ -331,7 +331,7 @@ func TestView_Update(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -389,7 +389,7 @@ func TestView_OldUpdate(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -554,7 +554,7 @@ func TestView_PostInGroupPublicAndGroupFollowed(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -605,7 +605,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowed(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -656,7 +656,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedButNotAccepted(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -704,7 +704,7 @@ func TestView_PostInGroupNotPublicAndAuthorFollowed(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -755,7 +755,7 @@ func TestView_PostInGroupNotPublicAndAuthorFollowedButNotAccepted(t *testing.T) 
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -819,7 +819,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithReply(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -887,7 +887,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithPrivateReply(t *testing.T)
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)

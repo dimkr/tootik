@@ -130,6 +130,9 @@ type Config struct {
 	FeedTTL           time.Duration
 
 	FillNodeInfoUsage bool
+
+	RFC9421Threshold float32
+	Ed25519Threshold float32
 }
 
 // FillDefaults replaces missing or invalid settings with defaults.
@@ -435,5 +438,13 @@ func (c *Config) FillDefaults() {
 
 	if c.FeedTTL <= 0 {
 		c.FeedTTL = time.Hour * 24 * 7
+	}
+
+	if c.RFC9421Threshold <= 0 || c.RFC9421Threshold > 1 {
+		c.RFC9421Threshold = 0.95
+	}
+
+	if c.Ed25519Threshold <= 0 || c.Ed25519Threshold > 1 {
+		c.Ed25519Threshold = 0.98
 	}
 }

@@ -263,7 +263,7 @@ func TestCommunity_ReplyInThread(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -334,7 +334,7 @@ func TestCommunity_ReplyInThreadAuthorNotFollowing(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -429,7 +429,7 @@ func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -520,7 +520,7 @@ func TestCommunity_DuplicateReplyInThread(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -623,7 +623,7 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -745,7 +745,7 @@ func TestCommunity_UnknownEditedReplyInThread(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)

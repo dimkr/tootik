@@ -95,7 +95,7 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -172,7 +172,7 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -301,7 +301,7 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -374,7 +374,7 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -447,7 +447,7 @@ func TestForward_ReplyToDM(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -509,7 +509,7 @@ func TestForward_NotFollowingAuthor(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -582,7 +582,7 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -644,7 +644,7 @@ func TestForward_ReplyToFederatedPost(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -762,7 +762,7 @@ func TestForward_MaxDepth(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -895,7 +895,7 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -1109,7 +1109,7 @@ func TestForward_EditedReplyToPublicPost(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -1217,7 +1217,7 @@ func TestForward_ResentEditedReplyToPublicPost(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -1345,7 +1345,7 @@ func TestForward_DeletedReplyToPublicPost(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -1431,7 +1431,7 @@ func TestForward_DeletedDeletedReplyToPublicPost(t *testing.T) {
 		BlockList: &fed.BlockList{},
 		DB:        server.db,
 		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
+		Keys:      server.NobodyKeys,
 	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)

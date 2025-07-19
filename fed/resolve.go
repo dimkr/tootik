@@ -67,6 +67,7 @@ func NewResolver(blockedDomains *BlockList, domain string, cfg *cfg.Config, clie
 			Domain: domain,
 			Config: cfg,
 			client: client,
+			DB:     db,
 		},
 		BlockedDomains: blockedDomains,
 		db:             db,
@@ -80,7 +81,7 @@ func NewResolver(blockedDomains *BlockList, domain string, cfg *cfg.Config, clie
 }
 
 // ResolveID retrieves an actor object by its ID.
-func (r *Resolver) ResolveID(ctx context.Context, key httpsig.Key, id string, flags ap.ResolverFlag) (*ap.Actor, error) {
+func (r *Resolver) ResolveID(ctx context.Context, keys [2]httpsig.Key, id string, flags ap.ResolverFlag) (*ap.Actor, error) {
 	if id == "" {
 		return nil, errors.New("empty ID")
 	}
@@ -94,7 +95,7 @@ func (r *Resolver) ResolveID(ctx context.Context, key httpsig.Key, id string, fl
 		return nil, ErrInvalidScheme
 	}
 
-	if actor, err := r.validate(func() (*ap.Actor, *ap.Actor, error) { return r.tryResolveID(ctx, key, u, id, flags) }); err != nil {
+	if actor, err := r.validate(func() (*ap.Actor, *ap.Actor, error) { return r.tryResolveID(ctx, keys, u, id, flags) }); err != nil {
 		return nil, err
 	} else if actor.Suspended {
 		return nil, ErrSuspendedActor
@@ -106,8 +107,8 @@ func (r *Resolver) ResolveID(ctx context.Context, key httpsig.Key, id string, fl
 }
 
 // Resolve retrieves an actor object by host and name.
-func (r *Resolver) Resolve(ctx context.Context, key httpsig.Key, host, name string, flags ap.ResolverFlag) (*ap.Actor, error) {
-	if actor, err := r.validate(func() (*ap.Actor, *ap.Actor, error) { return r.tryResolve(ctx, key, host, name, flags) }); err != nil {
+func (r *Resolver) Resolve(ctx context.Context, keys [2]httpsig.Key, host, name string, flags ap.ResolverFlag) (*ap.Actor, error) {
+	if actor, err := r.validate(func() (*ap.Actor, *ap.Actor, error) { return r.tryResolve(ctx, keys, host, name, flags) }); err != nil {
 		return nil, err
 	} else if actor.Suspended {
 		return nil, ErrSuspendedActor
@@ -194,7 +195,7 @@ func (r *Resolver) handleFetchFailure(ctx context.Context, fetched string, cache
 	return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", fetched, err)
 }
 
-func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
+func (r *Resolver) tryResolve(ctx context.Context, keys [2]httpsig.Key, host, name string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
 	slog.Debug("Resolving actor", "host", host, "name", name)
 
 	if r.BlockedDomains != nil && r.BlockedDomains.Contains(host) {
@@ -281,10 +282,9 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 	if err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", finger, err)
 	}
-	req.Header.Set("User-Agent", userAgent)
 	req.Header.Add("Accept", "application/json")
 
-	resp, err := r.send(key, req)
+	resp, err := r.send(keys, req)
 	if err != nil {
 		return r.handleFetchFailure(ctx, finger, cachedActor, sinceLastUpdate, resp, err)
 	}
@@ -327,13 +327,13 @@ func (r *Resolver) tryResolve(ctx context.Context, key httpsig.Key, host, name s
 			return nil, cachedActor, fmt.Errorf("%s does not match %s", id, cachedActor.ID)
 		}
 
-		return r.fetchActor(ctx, key, host, id, cachedActor, sinceLastUpdate)
+		return r.fetchActor(ctx, keys, host, id, cachedActor, sinceLastUpdate)
 	}
 
 	return nil, cachedActor, fmt.Errorf("no profile link in %s response", finger)
 }
 
-func (r *Resolver) tryResolveID(ctx context.Context, key httpsig.Key, u *url.URL, id string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
+func (r *Resolver) tryResolveID(ctx context.Context, keys [2]httpsig.Key, u *url.URL, id string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
 	slog.Debug("Resolving actor", "id", id)
 
 	if r.BlockedDomains != nil && r.BlockedDomains.Contains(u.Host) {
@@ -358,7 +358,7 @@ func (r *Resolver) tryResolveID(ctx context.Context, key httpsig.Key, u *url.URL
 	var updated, inserted int64
 	var fetched sql.NullInt64
 	var sinceLastUpdate time.Duration
-	if err := r.db.QueryRowContext(ctx, `select json(actor), updated, fetched, inserted from persons where id = $1 or actor->>'$.publicKey.id' = $1`, id).Scan(&tmp, &updated, &fetched, &inserted); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := r.db.QueryRowContext(ctx, `select json(actor), updated, fetched, inserted from persons where id = $1 or actor->>'$.publicKey.id' = $1 or exists (select 1 from json_each(actor->'$.assertionMethod') where value->>'$.id' = $1)`, id).Scan(&tmp, &updated, &fetched, &inserted); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, fmt.Errorf("failed to fetch %s cache: %w", id, err)
 	} else if err == nil {
 		cachedActor = &tmp
@@ -405,13 +405,13 @@ func (r *Resolver) tryResolveID(ctx context.Context, key httpsig.Key, u *url.URL
 			return nil, cachedActor, fmt.Errorf("failed to update last fetch time for %s: %w", cachedActor.ID, err)
 		}
 
-		return r.fetchActor(ctx, key, u.Host, cachedActor.ID, cachedActor, sinceLastUpdate)
+		return r.fetchActor(ctx, keys, u.Host, cachedActor.ID, cachedActor, sinceLastUpdate)
 	}
 
-	return r.fetchActor(ctx, key, u.Host, id, nil, sinceLastUpdate)
+	return r.fetchActor(ctx, keys, u.Host, id, nil, sinceLastUpdate)
 }
 
-func (r *Resolver) fetchActor(ctx context.Context, key httpsig.Key, host, profile string, cachedActor *ap.Actor, sinceLastUpdate time.Duration) (*ap.Actor, *ap.Actor, error) {
+func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, profile string, cachedActor *ap.Actor, sinceLastUpdate time.Duration) (*ap.Actor, *ap.Actor, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, profile, nil)
 	if err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to send request to %s: %w", profile, err)
@@ -425,10 +425,9 @@ func (r *Resolver) fetchActor(ctx context.Context, key httpsig.Key, host, profil
 		return nil, cachedActor, fmt.Errorf("cannot resolve %s: %w", profile, ErrInvalidID)
 	}
 
-	req.Header.Set("User-Agent", userAgent)
 	req.Header.Add("Accept", "application/activity+json")
 
-	resp, err := r.send(key, req)
+	resp, err := r.send(keys, req)
 	if err != nil {
 		return r.handleFetchFailure(ctx, profile, cachedActor, sinceLastUpdate, resp, err)
 	}
@@ -449,7 +448,18 @@ func (r *Resolver) fetchActor(ctx context.Context, key httpsig.Key, host, profil
 	}
 
 	if actor.ID != profile && actor.PublicKey.ID != profile {
-		return nil, cachedActor, fmt.Errorf("%s does not match %s", actor.ID, profile)
+		found := false
+
+		for _, key := range actor.AssertionMethod {
+			if key.ID == profile {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return nil, cachedActor, fmt.Errorf("%s does not match %s", actor.ID, profile)
+		}
 	}
 
 	tx, err := r.db.BeginTx(ctx, nil)

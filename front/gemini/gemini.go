@@ -49,41 +49,49 @@ type Listener struct {
 	KeyPath  string
 }
 
-func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn) (*ap.Actor, httpsig.Key, error) {
+func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn) (*ap.Actor, [2]httpsig.Key, error) {
 	state := tlsConn.ConnectionState()
 
 	if len(state.PeerCertificates) == 0 {
-		return nil, httpsig.Key{}, nil
+		return nil, [2]httpsig.Key{}, nil
 	}
 
 	clientCert := state.PeerCertificates[0]
 
 	if time.Now().After(clientCert.NotAfter) {
-		return nil, httpsig.Key{}, nil
+		return nil, [2]httpsig.Key{}, nil
 	}
 
 	certHash := fmt.Sprintf("%X", sha256.Sum256(clientCert.Raw))
 
-	var id, privKeyPem string
+	var id, rsaPrivKeyPem, ed25519PrivKeyPem string
 	var actor ap.Actor
 	var approved int
-	if err := gl.DB.QueryRowContext(ctx, `select persons.id, json(persons.actor), persons.privkey, certificates.approved from certificates join persons on persons.actor->>'$.preferredUsername' = certificates.user where persons.host = ? and certificates.hash = ? and certificates.expires > unixepoch()`, gl.Domain, certHash).Scan(&id, &actor, &privKeyPem, &approved); err != nil && errors.Is(err, sql.ErrNoRows) {
-		return nil, httpsig.Key{}, front.ErrNotRegistered
+	if err := gl.DB.QueryRowContext(ctx, `select persons.id, json(persons.actor), persons.rsaprivkey, persons.ed25519privkey, certificates.approved from certificates join persons on persons.actor->>'$.preferredUsername' = certificates.user where persons.host = ? and certificates.hash = ? and certificates.expires > unixepoch()`, gl.Domain, certHash).Scan(&id, &actor, &rsaPrivKeyPem, &ed25519PrivKeyPem, &approved); err != nil && errors.Is(err, sql.ErrNoRows) {
+		return nil, [2]httpsig.Key{}, front.ErrNotRegistered
 	} else if err != nil {
-		return nil, httpsig.Key{}, fmt.Errorf("failed to fetch user for %s: %w", certHash, err)
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to fetch user for %s: %w", certHash, err)
 	}
 
 	if approved == 0 {
-		return nil, httpsig.Key{}, fmt.Errorf("failed to fetch user for %s: %w", certHash, front.ErrNotApproved)
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to fetch user for %s: %w", certHash, front.ErrNotApproved)
 	}
 
-	privKey, err := data.ParsePrivateKey(privKeyPem)
+	rsaPrivKey, err := data.ParsePrivateKey(rsaPrivKeyPem)
 	if err != nil {
-		return nil, httpsig.Key{}, fmt.Errorf("failed to parse private key for %s: %w", certHash, err)
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to parse RSA private key for %s: %w", certHash, err)
+	}
+
+	ed25519PrivKey, err := data.ParsePrivateKey(ed25519PrivKeyPem)
+	if err != nil {
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to parse Ed15519 private key for %s: %w", certHash, err)
 	}
 
 	slog.Debug("Found existing user", "hash", certHash, "user", id)
-	return &actor, httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, nil
+	return &actor, [2]httpsig.Key{
+		{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
+		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey},
+	}, nil
 }
 
 // Handle handles a Gemini request.
@@ -146,7 +154,7 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 	w := gmi.Wrap(conn)
 	defer w.Flush()
 
-	r.User, r.Key, err = gl.getUser(ctx, tlsConn)
+	r.User, r.Keys, err = gl.getUser(ctx, tlsConn)
 	if err != nil && errors.Is(err, front.ErrNotRegistered) && r.URL.Path == "/users" {
 		slog.Info("Redirecting new user")
 		w.Redirect("/users/register")

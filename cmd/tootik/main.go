@@ -200,7 +200,7 @@ func main() {
 		panic(err)
 	}
 
-	_, nobodyKey, err := user.CreateNobody(ctx, *domain, db)
+	_, nobodyKeys, err := user.CreateNobody(ctx, *domain, db)
 	if err != nil {
 		panic(err)
 	}
@@ -330,16 +330,16 @@ func main() {
 		{
 			"HTTPS",
 			&fed.Listener{
-				Domain:   *domain,
-				Closed:   *closed,
-				Config:   &cfg,
-				DB:       db,
-				ActorKey: nobodyKey,
-				Resolver: resolver,
-				Addr:     *addr,
-				Cert:     *cert,
-				Key:      *key,
-				Plain:    *plain,
+				Domain:    *domain,
+				Closed:    *closed,
+				Config:    &cfg,
+				DB:        db,
+				ActorKeys: nobodyKeys,
+				Resolver:  resolver,
+				Addr:      *addr,
+				Cert:      *cert,
+				Key:       *key,
+				Plain:     *plain,
 			},
 		},
 		{
@@ -406,7 +406,7 @@ func main() {
 				BlockList: blockList,
 				DB:        db,
 				Resolver:  resolver,
-				Key:       nobodyKey,
+				Keys:      nobodyKeys,
 			},
 		},
 		{
@@ -461,7 +461,7 @@ func main() {
 				Domain:   *domain,
 				DB:       db,
 				Resolver: resolver,
-				Key:      nobodyKey,
+				Keys:     nobodyKeys,
 			},
 		},
 		{
@@ -472,7 +472,7 @@ func main() {
 				Config:   &cfg,
 				DB:       db,
 				Resolver: resolver,
-				Key:      nobodyKey,
+				Keys:     nobodyKeys,
 			},
 		},
 		{

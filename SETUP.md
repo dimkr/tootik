@@ -227,13 +227,13 @@ tootik -domain $domain -db /tootik-data/db.sqlite3 set-avatar fountainpens /tmp/
    * If tootik runs on `example.com` with `-addr 127.0.0.1:8080 -plain` with a reverse proxy on port 443, pass `-domain example.com`
    * If tootik runs on `example.com` with `-addr 127.0.0.1:8080 -plain` with a reverse proxy on port 8443, pass `-domain example.com:8443`
 * Forward requests from the reverse proxy to tootik.
-   * Preserve the `Signature` header when forwarding POST requests to `/inbox/$user`, otherwise tootik cannot validate incoming requests
+   * Preserve the `Signature` and `Signature-Input` headers when forwarding POST requests to `/inbox/$user`, otherwise tootik cannot validate incoming requests
    * Preserve the `Collection-Synchronization` header when forwarding POST requests to `/inbox/$user` if you want follower synchronization to work (recommended)
 
 ## Troubleshooting
 
 * If tootik's HTTPS listener uses a port other than 443 (say, tootik runs with `-addr :8888`) and this is the port other instances use to talk to tootik, `-domain` must include the port (for example, `-domain example.com:8888`).
-* If tootik is behind a proxy, make sure the proxy passes the `Signature` header to tootik.
+* If tootik is behind a proxy, make sure the proxy passes the `Signature` and `Signature-Input` headers to tootik.
 * grep logs for `actor is too young` and decrease `MinActorAge` if the federated account you're trying to talk to is newly registered.
 
 ## Restricting SSH Access

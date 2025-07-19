@@ -3,6 +3,7 @@ module github.com/dimkr/tootik
 go 1.24.5
 
 require (
+	github.com/btcsuite/btcutil v1.0.2
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/google/uuid v1.6.0
 	github.com/mattn/go-sqlite3 v1.14.28
