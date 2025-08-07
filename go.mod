@@ -8,7 +8,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/mattn/go-sqlite3 v1.14.30
 	github.com/stretchr/testify v1.10.0
-	golang.org/x/image v0.29.0
+	golang.org/x/image v0.30.0
 	golang.org/x/net v0.42.0
 )
 
