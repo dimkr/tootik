@@ -107,10 +107,10 @@ func Verify(key any, activity *ap.Activity, raw []byte) error {
 
 	cfg, err := normalizeJSON(map[string]any{
 		"@context":           activity.Context,
-		"type":               "DataIntegrityProof",
-		"cryptosuite":        "eddsa-jcs-2022",
+		"type":               activity.Proof.Type,
+		"cryptosuite":        activity.Proof.CryptoSuite,
 		"created":            activity.Proof.Created,
-		"proofPurpose":       "assertionMethod",
+		"proofPurpose":       activity.Proof.Purpose,
 		"verificationMethod": activity.Proof.VerificationMethod,
 	})
 	if err != nil {
