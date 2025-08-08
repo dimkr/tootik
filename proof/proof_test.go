@@ -86,8 +86,41 @@ func TestProof(t *testing.T) {
 	}
 }
 
+/*
+> pip3 install apsig==0.5.3
+> python3
+>>> import json
+>>> import apsig
+>>> d=json.loads('{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/security/data-integrity/v1"],"id":"https://server.example/activities/1","type":"Create","actor":"https://server.example/users/alice","object":{"id":"https://server.example/objects/1","type":"Note","attributedTo":"https://server.example/users/alice","content":"Hello world"},"to":[],"cc":[]}')
+>>> s=apsig.ProofSigner("z3u2en7t5LR2WtQH5PfFqMqwVHBeXouLzo6haApm8XHqvjxq")
+>>> s.sign(d, {"type":"DataIntegrityProof","cryptosuite":"eddsa-jcs-2022","created":"2023-02-24T23:36:38Z","verificationMethod":"https://server.example/users/alice#ed25519-key","proofPurpose":"assertionMethod"})
+*/
+func TestProof_SignVector(t *testing.T) {
+	t.Parallel()
+
+	raw := []byte(`{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/security/data-integrity/v1"],"id":"https://server.example/activities/1","type":"Create","actor":"https://server.example/users/alice","object":{"id":"https://server.example/objects/1","type":"Note","attributedTo":"https://server.example/users/alice","content":"Hello world"},"to":[],"cc":[]}`)
+
+	var a ap.Activity
+	if err := json.Unmarshal(raw, &a); err != nil {
+		t.Fatalf("Failed to unmarshal activity: %v", err)
+	}
+
+	created, err := time.Parse(time.RFC3339, "2023-02-24T23:36:38Z")
+	if err != nil {
+		t.Fatalf("Failed to parse creation timestamp: %v", err)
+	}
+
+	if proof, err := Create(httpsig.Key{ID: "https://server.example/users/alice#ed25519-key", PrivateKey: ed25519.NewKeyFromSeed(base58.Decode("3u2en7t5LR2WtQH5PfFqMqwVHBeXouLzo6haApm8XHqvjxq")[2:])}, created, &a); err != nil {
+		t.Fatalf("Failed to verify proof: %v", err)
+	} else if proof.Value != "z4BHCKd3cnJ87oEix8T2QTFt9YmB4HT8gPsne4pRNZKmjVnoy8tcsjPsA1bXnvb3NXyaCrHsN1uaSop2ZGRMiwVYH" {
+		t.Fatalf("Unexpected proof value: %v", proof.Value)
+	}
+}
+
 // https://codeberg.org/fediverse/fep/src/commit/3a5942066f989d8317befe6457b48237bc61efe0/fep/8b32/fep-8b32.feature#L67
-func TestProof_Vector(t *testing.T) {
+func TestProof_VerifyVector(t *testing.T) {
+	t.Parallel()
+
 	raw := []byte(`{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/security/data-integrity/v1"],"id":"https://server.example/activities/1","type":"Create","actor":"https://server.example/users/alice","object":{"id":"https://server.example/objects/1","type":"Note","attributedTo":"https://server.example/users/alice","content":"Hello world","location":{"type":"Place","longitude":-71.184902,"latitude":25.273962}},"proof":{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/security/data-integrity/v1"],"type":"DataIntegrityProof","cryptosuite":"eddsa-jcs-2022","verificationMethod":"https://server.example/users/alice#ed25519-key","proofPurpose":"assertionMethod","proofValue":"zLaewdp4H9kqtwyrLatK4cjY5oRHwVcw4gibPSUDYDMhi4M49v8pcYk3ZB6D69dNpAPbUmY8ocuJ3m9KhKJEEg7z","created":"2023-02-24T23:36:38Z"}}`)
 
 	var a ap.Activity

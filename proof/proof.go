@@ -49,7 +49,7 @@ func Create(key httpsig.Key, now time.Time, activity *ap.Activity) (ap.Proof, er
 		return ap.Proof{}, fmt.Errorf("wrong key type: %T", key.PrivateKey)
 	}
 
-	created := now.UTC().Format("2006-01-02T15:04:05")
+	created := now.UTC().Format(time.RFC3339)
 
 	cfg, err := normalizeJSON(map[string]any{
 		"@context":           activity.Context,
