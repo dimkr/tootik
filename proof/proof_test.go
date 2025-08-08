@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/btcsuite/btcutil/base58"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/httpsig"
 )
@@ -81,6 +82,20 @@ func TestProof(t *testing.T) {
 	}
 
 	if err := Verify(pub, &a, raw); err != nil {
+		t.Fatalf("Failed to verify proof: %v", err)
+	}
+}
+
+// https://codeberg.org/fediverse/fep/src/commit/3a5942066f989d8317befe6457b48237bc61efe0/fep/8b32/fep-8b32.feature#L67
+func TestProof_Vector(t *testing.T) {
+	raw := []byte(`{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/security/data-integrity/v1"],"id":"https://server.example/activities/1","type":"Create","actor":"https://server.example/users/alice","object":{"id":"https://server.example/objects/1","type":"Note","attributedTo":"https://server.example/users/alice","content":"Hello world","location":{"type":"Place","longitude":-71.184902,"latitude":25.273962}},"proof":{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/security/data-integrity/v1"],"type":"DataIntegrityProof","cryptosuite":"eddsa-jcs-2022","verificationMethod":"https://server.example/users/alice#ed25519-key","proofPurpose":"assertionMethod","proofValue":"zLaewdp4H9kqtwyrLatK4cjY5oRHwVcw4gibPSUDYDMhi4M49v8pcYk3ZB6D69dNpAPbUmY8ocuJ3m9KhKJEEg7z","created":"2023-02-24T23:36:38Z"}}`)
+
+	var a ap.Activity
+	if err := json.Unmarshal(raw, &a); err != nil {
+		t.Fatalf("Failed to unmarshal activity: %v", err)
+	}
+
+	if err := Verify(ed25519.PublicKey(base58.Decode("6MkrJVnaZkeFzdQyMZu1cgjg7k1pZZ6pvBQ7XJPt4swbTQ2")[2:]), &a, raw); err != nil {
 		t.Fatalf("Failed to verify proof: %v", err)
 	}
 }
