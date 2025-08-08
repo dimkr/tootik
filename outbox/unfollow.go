@@ -21,12 +21,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/proof"
 )
 
 // Unfollow queues an Undo activity for delivery.
-func Unfollow(ctx context.Context, domain string, db *sql.DB, follower, followed, followID string) error {
+func Unfollow(ctx context.Context, domain string, db *sql.DB, follower, followed, followID string, key httpsig.Key) error {
 	if followed == follower {
 		return fmt.Errorf("%s cannot unfollow %s", follower, followed)
 	}
@@ -51,6 +54,15 @@ func Unfollow(ctx context.Context, domain string, db *sql.DB, follower, followed
 			Object: followed,
 		},
 		To: to,
+	}
+
+	if key.ID != "" {
+		unfollow.Context = []string{"https://www.w3.org/ns/activitystreams", "https://w3id.org/security/data-integrity/v1"}
+
+		unfollow.Proof, err = proof.Create(key, time.Now(), &unfollow)
+		if err != nil {
+			return err
+		}
 	}
 
 	tx, err := db.BeginTx(ctx, nil)

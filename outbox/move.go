@@ -119,7 +119,7 @@ func (m *Mover) Run(ctx context.Context) error {
 				continue
 			}
 		}
-		if err := Unfollow(ctx, m.Domain, m.DB, actor.ID, oldID, oldFollowID); err != nil {
+		if err := Unfollow(ctx, m.Domain, m.DB, actor.ID, oldID, oldFollowID, httpsig.Key{}); err != nil {
 			slog.Warn("Failed to unfollow old actor", "follow", oldFollowID, "old", oldID, "new", newID, "error", err)
 		}
 	}

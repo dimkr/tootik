@@ -310,7 +310,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 			continue
 		}
 
-		if err := outbox.Unfollow(ctx, domain, db, follower, d.Followed, followID); err != nil {
+		if err := outbox.Unfollow(ctx, domain, db, follower, d.Followed, followID, httpsig.Key{}); err != nil {
 			slog.Warn("Failed to remove remote follow", "followed", d.Followed, "follower", follower, "error", err)
 		}
 	}

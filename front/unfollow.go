@@ -43,7 +43,7 @@ func (h *Handler) unfollow(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := outbox.Unfollow(r.Context, h.Domain, h.DB, r.User.ID, followed, followID); err != nil {
+	if err := outbox.Unfollow(r.Context, h.Domain, h.DB, r.User.ID, followed, followID, r.Keys[1]); err != nil {
 		r.Log.Warn("Failed undo follow", "followed", followed, "error", err)
 		w.Error()
 		return
