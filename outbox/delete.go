@@ -21,13 +21,16 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/proof"
 )
 
 // Delete queues a Delete activity for delivery.
-func Delete(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, note *ap.Object) error {
+func Delete(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, note *ap.Object, key httpsig.Key) error {
 	delete := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      note.ID + "#delete",
@@ -39,6 +42,14 @@ func Delete(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, not
 		},
 		To: note.To,
 		CC: note.CC,
+	}
+
+	if key.ID != "" {
+		var err error
+		delete.Proof, err = proof.Create(key, time.Now(), &delete)
+		if err != nil {
+			return err
+		}
 	}
 
 	j, err := json.Marshal(delete)

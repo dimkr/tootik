@@ -26,6 +26,7 @@ import (
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/fed"
+	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/outbox"
 	"github.com/stretchr/testify/assert"
@@ -62,6 +63,7 @@ func TestCommunity_NewThread(t *testing.T) {
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
+			httpsig.Key{},
 		),
 	)
 
@@ -115,6 +117,7 @@ func TestCommunity_NewThreadNotFollowing(t *testing.T) {
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
+			httpsig.Key{},
 		),
 	)
 
@@ -165,6 +168,7 @@ func TestCommunity_NewThreadNotPublic(t *testing.T) {
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
+			httpsig.Key{},
 		),
 	)
 
@@ -218,6 +222,7 @@ func TestCommunity_ReplyInThread(t *testing.T) {
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
+			httpsig.Key{},
 		),
 	)
 
@@ -380,6 +385,7 @@ func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
+			httpsig.Key{},
 		),
 	)
 
@@ -475,6 +481,7 @@ func TestCommunity_DuplicateReplyInThread(t *testing.T) {
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
+			httpsig.Key{},
 		),
 	)
 
@@ -577,6 +584,7 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
+			httpsig.Key{},
 		),
 	)
 
@@ -700,6 +708,7 @@ func TestCommunity_UnknownEditedReplyInThread(t *testing.T) {
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
+			httpsig.Key{},
 		),
 	)
 

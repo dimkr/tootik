@@ -88,7 +88,7 @@ func (h *Handler) move(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := outbox.Move(r.Context, h.DB, h.Domain, r.User, actor.ID); err != nil {
+	if err := outbox.Move(r.Context, h.DB, h.Domain, r.User, actor.ID, r.Keys[1]); err != nil {
 		r.Log.Error("Failed to move user", "error", err)
 		w.Error()
 		return

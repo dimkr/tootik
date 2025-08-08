@@ -23,6 +23,7 @@ import (
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/httpsig"
 )
 
 const batchSize = 512
@@ -103,7 +104,7 @@ func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 			return false, err
 		}
 
-		if err := Delete(ctx, d.Domain, d.Config, d.DB, &note); err != nil {
+		if err := Delete(ctx, d.Domain, d.Config, d.DB, &note, httpsig.Key{}); err != nil {
 			return false, err
 		}
 

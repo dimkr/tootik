@@ -25,6 +25,7 @@ import (
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/proof"
 )
 
 type Mover struct {
@@ -113,7 +114,7 @@ func (m *Mover) Run(ctx context.Context) error {
 			slog.Info("Removing follow of moved actor", "follow", oldFollowID, "old", oldID, "new", newID)
 		} else {
 			slog.Info("Moving follow", "follow", oldFollowID, "old", oldID, "new", newID)
-			if err := Follow(ctx, m.Domain, &actor, newID, m.DB); err != nil {
+			if err := Follow(ctx, m.Domain, &actor, newID, httpsig.Key{}, m.DB); err != nil {
 				slog.Warn("Failed to follow new actor", "follow", oldFollowID, "old", oldID, "new", newID, "error", err)
 				continue
 			}
@@ -127,7 +128,7 @@ func (m *Mover) Run(ctx context.Context) error {
 }
 
 // Move queues a Move activity for delivery.
-func Move(ctx context.Context, db *sql.DB, domain string, from *ap.Actor, to string) error {
+func Move(ctx context.Context, db *sql.DB, domain string, from *ap.Actor, to string, key httpsig.Key) error {
 	now := time.Now()
 
 	aud := ap.Audience{}
@@ -146,6 +147,11 @@ func Move(ctx context.Context, db *sql.DB, domain string, from *ap.Actor, to str
 		Object:  from.ID,
 		Target:  to,
 		To:      aud,
+	}
+
+	move.Proof, err = proof.Create(key, time.Now(), &move)
+	if err != nil {
+		return err
 	}
 
 	tx, err := db.BeginTx(ctx, nil)

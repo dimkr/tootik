@@ -21,14 +21,17 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/httpsig"
 	inote "github.com/dimkr/tootik/inbox/note"
+	"github.com/dimkr/tootik/proof"
 )
 
 // UpdateNote queues an Update activity for delivery.
-func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, note *ap.Object) error {
+func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, note *ap.Object, key httpsig.Key) error {
 	updateID, err := NewID(domain, "update")
 	if err != nil {
 		return err
@@ -42,6 +45,13 @@ func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB,
 		Object:  note,
 		To:      note.To,
 		CC:      note.CC,
+	}
+
+	if key.ID != "" {
+		update.Proof, err = proof.Create(key, time.Now(), &update)
+		if err != nil {
+			return err
+		}
 	}
 
 	j, err := json.Marshal(update)

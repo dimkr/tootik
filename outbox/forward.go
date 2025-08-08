@@ -26,6 +26,7 @@ import (
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/httpsig"
 )
 
 func forwardToGroup(ctx context.Context, domain string, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity, firstPostID string) (bool, error) {
@@ -103,7 +104,7 @@ func forwardToGroup(ctx context.Context, domain string, tx *sql.Tx, note *ap.Obj
 	}
 
 	// if this is a new post and we're passing the Create activity to followers, also share the post
-	if err := Announce(ctx, domain, tx, &group, note); err != nil {
+	if err := Announce(ctx, domain, tx, &group, note, httpsig.Key{}); err != nil {
 		return true, err
 	}
 

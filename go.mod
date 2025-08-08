@@ -6,6 +6,7 @@ require (
 	github.com/btcsuite/btcutil v1.0.2
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/google/uuid v1.6.0
+	github.com/gowebpki/jcs v1.0.1
 	github.com/mattn/go-sqlite3 v1.14.30
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/image v0.29.0

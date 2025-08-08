@@ -20,12 +20,15 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/proof"
 )
 
 // Follow queues a Follow activity for delivery.
-func Follow(ctx context.Context, domain string, follower *ap.Actor, followed string, db *sql.DB) error {
+func Follow(ctx context.Context, domain string, follower *ap.Actor, followed string, key httpsig.Key, db *sql.DB) error {
 	if followed == follower.ID {
 		return fmt.Errorf("%s cannot follow %s", follower.ID, followed)
 	}
@@ -45,6 +48,13 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 		Actor:   follower.ID,
 		Object:  followed,
 		To:      to,
+	}
+
+	if key.ID != "" {
+		follow.Proof, err = proof.Create(key, time.Now(), &follow)
+		if err != nil {
+			return err
+		}
 	}
 
 	tx, err := db.BeginTx(ctx, nil)

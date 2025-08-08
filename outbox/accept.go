@@ -20,12 +20,15 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/proof"
 )
 
 // Accept queues an Accept activity for delivery.
-func Accept(ctx context.Context, domain string, followed, follower, followID string, tx *sql.Tx) error {
+func Accept(ctx context.Context, domain string, followed, follower, followID string, tx *sql.Tx, key httpsig.Key) error {
 	id, err := NewID(domain, "accept")
 	if err != nil {
 		return err
@@ -46,6 +49,13 @@ func Accept(ctx context.Context, domain string, followed, follower, followID str
 			Object: followed,
 			ID:     followID,
 		},
+	}
+
+	if key.ID != "" {
+		accept.Proof, err = proof.Create(key, time.Now(), &accept)
+		if err != nil {
+			return err
+		}
 	}
 
 	if _, err := tx.ExecContext(

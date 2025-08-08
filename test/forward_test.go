@@ -27,6 +27,7 @@ import (
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/fed"
+	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/inbox/note"
 	"github.com/dimkr/tootik/outbox"
@@ -54,6 +55,7 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
+			httpsig.Key{},
 		),
 	)
 
@@ -130,6 +132,7 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
+			httpsig.Key{},
 		),
 	)
 
@@ -201,6 +204,7 @@ func TestForward_LocalReplyToLocalPublicPost(t *testing.T) {
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
+			httpsig.Key{},
 		),
 	)
 
@@ -245,6 +249,7 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
+			httpsig.Key{},
 		),
 	)
 
@@ -333,6 +338,7 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
+			httpsig.Key{},
 		),
 	)
 
@@ -406,6 +412,7 @@ func TestForward_ReplyToDM(t *testing.T) {
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
+			httpsig.Key{},
 		),
 	)
 
@@ -541,6 +548,7 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
+			httpsig.Key{},
 		),
 	)
 
@@ -676,6 +684,7 @@ func TestForward_MaxDepth(t *testing.T) {
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
+			httpsig.Key{},
 		),
 	)
 
@@ -794,6 +803,7 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
+			httpsig.Key{},
 		),
 	)
 
@@ -924,6 +934,7 @@ func TestForward_ReplyToLocalPostByLocalFollower(t *testing.T) {
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
+			httpsig.Key{},
 		),
 	)
 
@@ -965,6 +976,7 @@ func TestForward_EditedReplyToLocalPostByLocalFollower(t *testing.T) {
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
+			httpsig.Key{},
 		),
 	)
 
@@ -1013,6 +1025,7 @@ func TestForward_DeletedReplyToLocalPostByLocalFollower(t *testing.T) {
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
+			httpsig.Key{},
 		),
 	)
 
@@ -1067,6 +1080,7 @@ func TestForward_EditedReplyToPublicPost(t *testing.T) {
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
+			httpsig.Key{},
 		),
 	)
 
@@ -1175,6 +1189,7 @@ func TestForward_ResentEditedReplyToPublicPost(t *testing.T) {
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
+			httpsig.Key{},
 		),
 	)
 
@@ -1294,6 +1309,7 @@ func TestForward_DeletedReplyToPublicPost(t *testing.T) {
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
+			httpsig.Key{},
 		),
 	)
 
@@ -1380,6 +1396,7 @@ func TestForward_DeletedDeletedReplyToPublicPost(t *testing.T) {
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
+			httpsig.Key{},
 		),
 	)
 

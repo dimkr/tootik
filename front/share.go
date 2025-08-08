@@ -80,7 +80,7 @@ func (h *Handler) share(w text.Writer, r *Request, args ...string) {
 	}
 	defer tx.Rollback()
 
-	if err := outbox.Announce(r.Context, h.Domain, tx, r.User, &note); err != nil {
+	if err := outbox.Announce(r.Context, h.Domain, tx, r.User, &note, r.Keys[1]); err != nil {
 		r.Log.Warn("Failed to share post", "post", postID, "error", err)
 		w.Error()
 		return

@@ -25,6 +25,7 @@ import (
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/httpsig"
 )
 
 type Poller struct {
@@ -107,7 +108,7 @@ func (p *Poller) Run(ctx context.Context) error {
 
 		slog.Info("Updating poll results", "poll", poll.ID)
 
-		if err := UpdateNote(ctx, p.Domain, p.Config, p.DB, poll); err != nil {
+		if err := UpdateNote(ctx, p.Domain, p.Config, p.DB, poll, httpsig.Key{}); err != nil {
 			slog.Warn("Failed to update poll results", "poll", poll.ID, "error", err)
 		}
 	}

@@ -297,7 +297,7 @@ func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, event
 		slog.Info("Delivering activity to recipient", "inbox", task.Inbox, "activity", task.Job.Activity.ID)
 
 		if err := q.deliverWithTimeout(ctx, task); err == nil {
-			slog.Info("Successfully sent an activity", "from", task.Job.Sender.ID, "to", task.Inbox, "activity", task.Job.Activity.ID)
+			slog.Info("Successfully sent an activity", "from", task.Job.Sender.ID, "to", task.Inbox, "activity", task.Job.Activity.ID, "proof", task.Job.Activity.Proof)
 		} else {
 			slog.Warn("Failed to send an activity", "from", task.Job.Sender.ID, "to", task.Inbox, "activity", task.Job.Activity.ID, "error", err)
 			if !errors.Is(err, ErrBlockedDomain) {

@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/dimkr/tootik/fed"
+	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/outbox"
 	"github.com/stretchr/testify/assert"
 )
@@ -40,6 +41,7 @@ func TestMove_FederatedToFederated(t *testing.T) {
 			domain,
 			server.Alice,
 			"https://127.0.0.1/user/dan",
+			httpsig.Key{},
 			server.db,
 		),
 	)
@@ -88,6 +90,7 @@ func TestMove_FederatedToFederatedTwoAccounts(t *testing.T) {
 			domain,
 			server.Alice,
 			"https://127.0.0.1/user/dan",
+			httpsig.Key{},
 			server.db,
 		),
 	)
@@ -136,6 +139,7 @@ func TestMove_FederatedToFederatedNotLinked(t *testing.T) {
 			domain,
 			server.Alice,
 			"https://127.0.0.1/user/dan",
+			httpsig.Key{},
 			server.db,
 		),
 	)
@@ -184,6 +188,7 @@ func TestMove_FederatedToLocal(t *testing.T) {
 			domain,
 			server.Alice,
 			"https://127.0.0.1/user/dan",
+			httpsig.Key{},
 			server.db,
 		),
 	)
@@ -225,6 +230,7 @@ func TestMove_FederatedToLocalLinked(t *testing.T) {
 			domain,
 			server.Alice,
 			"https://127.0.0.1/user/dan",
+			httpsig.Key{},
 			server.db,
 		),
 	)
@@ -269,6 +275,7 @@ func TestMove_FollowingBoth(t *testing.T) {
 			domain,
 			server.Alice,
 			"https://127.0.0.1/user/dan",
+			httpsig.Key{},
 			server.db,
 		),
 	)
@@ -279,6 +286,7 @@ func TestMove_FollowingBoth(t *testing.T) {
 			domain,
 			server.Alice,
 			"https://::1/user/dan",
+			httpsig.Key{},
 			server.db,
 		),
 	)
@@ -337,6 +345,7 @@ func TestMove_LocalToLocal(t *testing.T) {
 			domain,
 			server.Carol,
 			server.Alice.ID,
+			httpsig.Key{},
 			server.db,
 		),
 	)
@@ -422,6 +431,7 @@ func TestMove_LocalToFederated(t *testing.T) {
 			domain,
 			server.Carol,
 			server.Alice.ID,
+			httpsig.Key{},
 			server.db,
 		),
 	)
@@ -470,6 +480,7 @@ func TestMove_LocalToFederatedNoSourceToTargetAlias(t *testing.T) {
 			domain,
 			server.Carol,
 			server.Alice.ID,
+			httpsig.Key{},
 			server.db,
 		),
 	)
@@ -499,6 +510,7 @@ func TestMove_LocalToFederatedNoTargetToSourceAlias(t *testing.T) {
 			domain,
 			server.Carol,
 			server.Alice.ID,
+			httpsig.Key{},
 			server.db,
 		),
 	)
@@ -533,6 +545,7 @@ func TestMove_LocalToFederatedAlreadyMoved(t *testing.T) {
 			domain,
 			server.Carol,
 			server.Alice.ID,
+			httpsig.Key{},
 			server.db,
 		),
 	)

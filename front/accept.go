@@ -56,7 +56,7 @@ func (h *Handler) accept(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := outbox.Accept(r.Context, h.Domain, r.User.ID, follower, followID, tx); err != nil {
+	if err := outbox.Accept(r.Context, h.Domain, r.User.ID, follower, followID, tx, r.Keys[1]); err != nil {
 		r.Log.Warn("Failed to accept follow request", "follower", follower, "error", err)
 		w.Error()
 		return

@@ -292,7 +292,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			}
 			defer tx.Rollback()
 
-			if err := outbox.Accept(ctx, q.Domain, followed, activity.Actor, activity.ID, tx); err != nil {
+			if err := outbox.Accept(ctx, q.Domain, followed, activity.Actor, activity.ID, tx, httpsig.Key{}); err != nil {
 				return fmt.Errorf("failed to accept %s: %w", activity.ID, err)
 			}
 

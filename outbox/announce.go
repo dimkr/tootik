@@ -23,10 +23,12 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/proof"
 )
 
 // Announce queues an Announce activity for delivery.
-func Announce(ctx context.Context, domain string, tx *sql.Tx, actor *ap.Actor, note *ap.Object) error {
+func Announce(ctx context.Context, domain string, tx *sql.Tx, actor *ap.Actor, note *ap.Object, key httpsig.Key) error {
 	now := time.Now()
 	announceID, err := NewID(domain, "announce")
 	if err != nil {
@@ -49,6 +51,13 @@ func Announce(ctx context.Context, domain string, tx *sql.Tx, actor *ap.Actor, n
 		To:        to,
 		CC:        cc,
 		Object:    note.ID,
+	}
+
+	if key.ID != "" {
+		announce.Proof, err = proof.Create(key, now, &announce)
+		if err != nil {
+			return err
+		}
 	}
 
 	if _, err := tx.ExecContext(

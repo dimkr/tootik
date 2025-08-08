@@ -22,10 +22,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/inbox/note"
+	"github.com/dimkr/tootik/proof"
 )
 
 const maxDeliveryQueueSize = 128
@@ -33,7 +36,7 @@ const maxDeliveryQueueSize = 128
 var ErrDeliveryQueueFull = errors.New("delivery queue is full")
 
 // Create queues a Create activity for delivery.
-func Create(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, post *ap.Object, author *ap.Actor) error {
+func Create(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, post *ap.Object, author *ap.Actor, key httpsig.Key) error {
 	id, err := NewID(domain, "create")
 	if err != nil {
 		return err
@@ -56,6 +59,11 @@ func Create(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, pos
 		Object:  post,
 		To:      post.To,
 		CC:      post.CC,
+	}
+
+	create.Proof, err = proof.Create(key, time.Now(), &create)
+	if err != nil {
+		return err
 	}
 
 	j, err := json.Marshal(create)
