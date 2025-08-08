@@ -22,6 +22,6 @@ type Proof struct {
 	CryptoSuite        string `json:"cryptosuite"`
 	VerificationMethod string `json:"verificationMethod"`
 	Purpose            string `json:"proofPurpose"`
-	Value              string `json:"value"`
+	Value              string `json:"proofValue"`
 	Created            string `json:"created"`
 }

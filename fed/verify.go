@@ -111,20 +111,20 @@ func (l *Listener) verify(r *http.Request, body []byte, flags ap.ResolverFlag) (
 	return sig, actor, nil
 }
 
-func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Activity, raw []byte, flags ap.ResolverFlag) (*ap.Actor, error) {
+func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Activity, raw []byte, flags ap.ResolverFlag) error {
 	actor, err := l.Resolver.ResolveID(ctx, l.ActorKeys, p.VerificationMethod, flags)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
+		return fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
 	}
 
 	publicKey, err := getEdPublicKeyByID(actor, p.VerificationMethod)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
+		return fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
 	}
 
 	if err := proof.Verify(publicKey, activity, raw); err != nil {
-		return nil, fmt.Errorf("failed to verify proof using %s: %w", p.VerificationMethod, err)
+		return fmt.Errorf("failed to verify proof using %s: %w", p.VerificationMethod, err)
 	}
 
-	return actor, nil
+	return nil
 }
