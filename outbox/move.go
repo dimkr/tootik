@@ -140,7 +140,7 @@ func Move(ctx context.Context, db *sql.DB, domain string, from *ap.Actor, to str
 	}
 
 	move := ap.Activity{
-		Context: "https://www.w3.org/ns/activitystreams",
+		Context: []string{"https://www.w3.org/ns/activitystreams", "https://w3id.org/security/data-integrity/v1"},
 		ID:      id,
 		Actor:   from.ID,
 		Type:    ap.Move,

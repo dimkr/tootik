@@ -52,7 +52,7 @@ func Create(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, pos
 	}
 
 	create := ap.Activity{
-		Context: "https://www.w3.org/ns/activitystreams",
+		Context: []string{"https://www.w3.org/ns/activitystreams", "https://w3id.org/security/data-integrity/v1"},
 		Type:    ap.Create,
 		ID:      id,
 		Actor:   author.ID,

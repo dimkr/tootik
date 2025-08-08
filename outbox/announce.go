@@ -54,6 +54,8 @@ func Announce(ctx context.Context, domain string, tx *sql.Tx, actor *ap.Actor, n
 	}
 
 	if key.ID != "" {
+		announce.Context = []string{"https://www.w3.org/ns/activitystreams", "https://w3id.org/security/data-integrity/v1"}
+
 		announce.Proof, err = proof.Create(key, now, &announce)
 		if err != nil {
 			return err

@@ -52,6 +52,8 @@ func Accept(ctx context.Context, domain string, followed, follower, followID str
 	}
 
 	if key.ID != "" {
+		accept.Context = []string{"https://www.w3.org/ns/activitystreams", "https://w3id.org/security/data-integrity/v1"}
+
 		accept.Proof, err = proof.Create(key, time.Now(), &accept)
 		if err != nil {
 			return err
