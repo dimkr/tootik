@@ -75,7 +75,7 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 			return
 		}
 
-		if err := outbox.UpdateActor(r.Context, h.Domain, tx, r.User.ID); err != nil {
+		if err := outbox.UpdateActor(r.Context, h.Domain, tx, r.User.ID, r.Keys[1]); err != nil {
 			r.Log.Warn("Failed to toggle manual approval", "error", err)
 			w.Error()
 			return

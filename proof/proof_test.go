@@ -69,7 +69,7 @@ func TestProof(t *testing.T) {
 		t.Fatalf("Failed to generate key: %v", err)
 	}
 
-	proof, err := Create(httpsig.Key{ID: "abcd", PrivateKey: priv}, time.Now(), &a)
+	proof, err := Create(httpsig.Key{ID: "abcd", PrivateKey: priv}, time.Now(), &a, a.Context)
 	if err != nil {
 		t.Fatalf("Failed to create proof: %v", err)
 	}
@@ -110,7 +110,7 @@ func TestProof_SignVector(t *testing.T) {
 		t.Fatalf("Failed to parse creation timestamp: %v", err)
 	}
 
-	if proof, err := Create(httpsig.Key{ID: "https://server.example/users/alice#ed25519-key", PrivateKey: ed25519.NewKeyFromSeed(base58.Decode("3u2en7t5LR2WtQH5PfFqMqwVHBeXouLzo6haApm8XHqvjxq")[2:])}, created, &a); err != nil {
+	if proof, err := Create(httpsig.Key{ID: "https://server.example/users/alice#ed25519-key", PrivateKey: ed25519.NewKeyFromSeed(base58.Decode("3u2en7t5LR2WtQH5PfFqMqwVHBeXouLzo6haApm8XHqvjxq")[2:])}, created, &a, a.Context); err != nil {
 		t.Fatalf("Failed to verify proof: %v", err)
 	} else if proof.Value != "z4BHCKd3cnJ87oEix8T2QTFt9YmB4HT8gPsne4pRNZKmjVnoy8tcsjPsA1bXnvb3NXyaCrHsN1uaSop2ZGRMiwVYH" {
 		t.Fatalf("Unexpected proof value: %v", proof.Value)

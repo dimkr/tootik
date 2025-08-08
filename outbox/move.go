@@ -149,7 +149,7 @@ func Move(ctx context.Context, db *sql.DB, domain string, from *ap.Actor, to str
 		To:      aud,
 	}
 
-	move.Proof, err = proof.Create(key, time.Now(), &move)
+	move.Proof, err = proof.Create(key, time.Now(), &move, move.Context)
 	if err != nil {
 		return err
 	}
@@ -170,7 +170,7 @@ func Move(ctx context.Context, db *sql.DB, domain string, from *ap.Actor, to str
 		return fmt.Errorf("failed to insert Move: %w", err)
 	}
 
-	if err := UpdateActor(ctx, domain, tx, from.ID); err != nil {
+	if err := UpdateActor(ctx, domain, tx, from.ID, key); err != nil {
 		return fmt.Errorf("failed to insert Move: %w", err)
 	}
 

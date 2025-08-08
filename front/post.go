@@ -129,6 +129,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 	}
 
 	note := ap.Object{
+		Context:      []string{"https://www.w3.org/ns/activitystreams", "https://w3id.org/security/data-integrity/v1"},
 		Type:         ap.Note,
 		ID:           postID,
 		AttributedTo: r.User.ID,

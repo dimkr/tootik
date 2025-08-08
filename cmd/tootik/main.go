@@ -46,6 +46,7 @@ import (
 	"github.com/dimkr/tootik/front/guppy"
 	tplain "github.com/dimkr/tootik/front/text/plain"
 	"github.com/dimkr/tootik/front/user"
+	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/icon"
 	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/migrations"
@@ -245,7 +246,7 @@ func main() {
 			panic(err)
 		}
 
-		if err := outbox.UpdateActor(ctx, *domain, tx, actorID); err != nil {
+		if err := outbox.UpdateActor(ctx, *domain, tx, actorID, httpsig.Key{}); err != nil {
 			panic(err)
 		}
 
@@ -305,7 +306,7 @@ func main() {
 			panic(err)
 		}
 
-		if err := outbox.UpdateActor(ctx, *domain, tx, actorID); err != nil {
+		if err := outbox.UpdateActor(ctx, *domain, tx, actorID, httpsig.Key{}); err != nil {
 			panic(err)
 		}
 

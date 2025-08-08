@@ -53,7 +53,7 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 	if key.ID != "" {
 		follow.Context = []string{"https://www.w3.org/ns/activitystreams", "https://w3id.org/security/data-integrity/v1"}
 
-		follow.Proof, err = proof.Create(key, time.Now(), &follow)
+		follow.Proof, err = proof.Create(key, time.Now(), &follow, follow.Context)
 		if err != nil {
 			return err
 		}

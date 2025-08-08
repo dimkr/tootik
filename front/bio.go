@@ -112,7 +112,7 @@ func (h *Handler) doSetBio(w text.Writer, r *Request, readInput func(text.Writer
 		return
 	}
 
-	if err := outbox.UpdateActor(r.Context, h.Domain, tx, r.User.ID); err != nil {
+	if err := outbox.UpdateActor(r.Context, h.Domain, tx, r.User.ID, r.Keys[1]); err != nil {
 		r.Log.Error("Failed to update bio", "error", err)
 		w.Error()
 		return

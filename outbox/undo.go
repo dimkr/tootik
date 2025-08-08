@@ -57,7 +57,7 @@ func Undo(ctx context.Context, domain string, db *sql.DB, activity *ap.Activity,
 		undo.Context = []string{"https://www.w3.org/ns/activitystreams", "https://w3id.org/security/data-integrity/v1"}
 
 		var err error
-		undo.Proof, err = proof.Create(key, time.Now(), &undo)
+		undo.Proof, err = proof.Create(key, time.Now(), &undo, undo.Context)
 		if err != nil {
 			return err
 		}

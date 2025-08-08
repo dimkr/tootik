@@ -43,7 +43,7 @@ func normalizeJSON(v any) ([]byte, error) {
 }
 
 // Create creates an eddsa-jcs-2022 integrity proof for a given [ap.Activity].
-func Create(key httpsig.Key, now time.Time, activity *ap.Activity) (ap.Proof, error) {
+func Create(key httpsig.Key, now time.Time, doc, context any) (ap.Proof, error) {
 	edKey, ok := key.PrivateKey.(ed25519.PrivateKey)
 	if !ok {
 		return ap.Proof{}, fmt.Errorf("wrong key type: %T", key.PrivateKey)
@@ -52,7 +52,7 @@ func Create(key httpsig.Key, now time.Time, activity *ap.Activity) (ap.Proof, er
 	created := now.UTC().Format(time.RFC3339)
 
 	cfg, err := normalizeJSON(map[string]any{
-		"@context":           activity.Context,
+		"@context":           context,
 		"type":               "DataIntegrityProof",
 		"cryptosuite":        "eddsa-jcs-2022",
 		"created":            created,
@@ -63,7 +63,7 @@ func Create(key httpsig.Key, now time.Time, activity *ap.Activity) (ap.Proof, er
 		return ap.Proof{}, err
 	}
 
-	data, err := normalizeJSON(activity)
+	data, err := normalizeJSON(doc)
 	if err != nil {
 		return ap.Proof{}, err
 	}
@@ -72,7 +72,7 @@ func Create(key httpsig.Key, now time.Time, activity *ap.Activity) (ap.Proof, er
 	docHash := sha256.Sum256(data)
 
 	return ap.Proof{
-		Context:            activity.Context,
+		Context:            context,
 		Type:               "DataIntegrityProof",
 		CryptoSuite:        "eddsa-jcs-2022",
 		VerificationMethod: key.ID,

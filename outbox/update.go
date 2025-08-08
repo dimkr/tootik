@@ -48,9 +48,16 @@ func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB,
 	}
 
 	if key.ID != "" {
+		now := time.Now()
+
+		note.Proof, err = proof.Create(key, now, note, note.Context)
+		if err != nil {
+			return err
+		}
+
 		update.Context = []string{"https://www.w3.org/ns/activitystreams", "https://w3id.org/security/data-integrity/v1"}
 
-		update.Proof, err = proof.Create(key, time.Now(), &update)
+		update.Proof, err = proof.Create(key, now, &update, update.Context)
 		if err != nil {
 			return err
 		}
@@ -128,7 +135,7 @@ func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB,
 }
 
 // UpdateActor queues an Update activity for delivery.
-func UpdateActor(ctx context.Context, domain string, tx *sql.Tx, actorID string) error {
+func UpdateActor(ctx context.Context, domain string, tx *sql.Tx, actorID string, key httpsig.Key) error {
 	updateID, err := NewID(domain, "update")
 	if err != nil {
 		return err
@@ -144,6 +151,15 @@ func UpdateActor(ctx context.Context, domain string, tx *sql.Tx, actorID string)
 		Actor:   actorID,
 		Object:  actorID,
 		To:      to,
+	}
+
+	if key.ID != "" {
+		update.Context = []string{"https://www.w3.org/ns/activitystreams", "https://w3id.org/security/data-integrity/v1"}
+
+		update.Proof, err = proof.Create(key, time.Now(), &update, update.Context)
+		if err != nil {
+			return err
+		}
 	}
 
 	if _, err := tx.ExecContext(

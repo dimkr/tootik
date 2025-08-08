@@ -110,7 +110,7 @@ func (h *Handler) setName(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := outbox.UpdateActor(r.Context, h.Domain, tx, r.User.ID); err != nil {
+	if err := outbox.UpdateActor(r.Context, h.Domain, tx, r.User.ID, r.Keys[1]); err != nil {
 		r.Log.Error("Failed to update name", "error", err)
 		w.Error()
 		return

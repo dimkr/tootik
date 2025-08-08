@@ -59,7 +59,7 @@ func Unfollow(ctx context.Context, domain string, db *sql.DB, follower, followed
 	if key.ID != "" {
 		unfollow.Context = []string{"https://www.w3.org/ns/activitystreams", "https://w3id.org/security/data-integrity/v1"}
 
-		unfollow.Proof, err = proof.Create(key, time.Now(), &unfollow)
+		unfollow.Proof, err = proof.Create(key, time.Now(), &unfollow, unfollow.Context)
 		if err != nil {
 			return err
 		}

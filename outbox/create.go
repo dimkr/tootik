@@ -61,7 +61,7 @@ func Create(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, pos
 		CC:      post.CC,
 	}
 
-	create.Proof, err = proof.Create(key, time.Now(), &create)
+	create.Proof, err = proof.Create(key, time.Now(), &create, create.Context)
 	if err != nil {
 		return err
 	}

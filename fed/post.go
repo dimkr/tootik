@@ -50,7 +50,9 @@ func (l *Listener) handlePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	note.Context = "https://www.w3.org/ns/activitystreams"
+	if note.Context == nil {
+		note.Context = "https://www.w3.org/ns/activitystreams"
+	}
 
 	j, err := json.Marshal(note)
 	if err != nil {
