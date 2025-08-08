@@ -21,12 +21,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/proof"
 )
 
 // Undo queues an Undo activity for delivery.
-func Undo(ctx context.Context, domain string, db *sql.DB, activity *ap.Activity) error {
+func Undo(ctx context.Context, domain string, db *sql.DB, activity *ap.Activity, key httpsig.Key) error {
 	noteID, ok := activity.Object.(string)
 	if !ok {
 		return errors.New("cannot undo activity")
@@ -48,6 +51,16 @@ func Undo(ctx context.Context, domain string, db *sql.DB, activity *ap.Activity)
 		To:      to,
 		CC:      activity.CC,
 		Object:  activity,
+	}
+
+	if key.ID != "" {
+		undo.Context = []string{"https://www.w3.org/ns/activitystreams", "https://w3id.org/security/data-integrity/v1"}
+
+		var err error
+		undo.Proof, err = proof.Create(key, time.Now(), &undo)
+		if err != nil {
+			return err
+		}
 	}
 
 	tx, err := db.BeginTx(ctx, nil)

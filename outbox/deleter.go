@@ -62,7 +62,7 @@ func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 			return false, err
 		}
 
-		if err := Undo(ctx, d.Domain, d.DB, &share); err != nil {
+		if err := Undo(ctx, d.Domain, d.DB, &share, httpsig.Key{}); err != nil {
 			return false, err
 		}
 
