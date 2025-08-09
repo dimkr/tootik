@@ -133,6 +133,8 @@ type Config struct {
 
 	RFC9421Threshold float32
 	Ed25519Threshold float32
+
+	DisableIntegrityProofs bool
 }
 
 // FillDefaults replaces missing or invalid settings with defaults.
