@@ -44,8 +44,7 @@ func normalizeJSON(v any) ([]byte, error) {
 	return jcs.Transform(j)
 }
 
-// Create creates an eddsa-jcs-2022 integrity proof for a given [ap.Activity].
-func Create(key httpsig.Key, now time.Time, doc, context any) (ap.Proof, error) {
+func create(key httpsig.Key, now time.Time, doc, context any) (ap.Proof, error) {
 	edKey, ok := key.PrivateKey.(ed25519.PrivateKey)
 	if !ok {
 		return ap.Proof{}, fmt.Errorf("wrong key type: %T", key.PrivateKey)
@@ -84,7 +83,7 @@ func Create(key httpsig.Key, now time.Time, doc, context any) (ap.Proof, error) 
 	}, nil
 }
 
-// Add adds an integrity proof to a JSON object.
+// Add adds an eddsa-jcs-2022 integrity proof to a JSON object.
 func Add(key httpsig.Key, now time.Time, raw []byte) ([]byte, error) {
 	var m map[string]any
 	if err := json.Unmarshal(raw, &m); err != nil {
@@ -93,7 +92,7 @@ func Add(key httpsig.Key, now time.Time, raw []byte) ([]byte, error) {
 
 	m["@context"] = proofContext
 
-	proof, err := Create(key, now, m, proofContext)
+	proof, err := create(key, now, m, proofContext)
 	if err != nil {
 		return nil, err
 	}
