@@ -51,13 +51,13 @@ func Create(key httpsig.Key, now time.Time, doc, context any) (ap.Proof, error) 
 		return ap.Proof{}, fmt.Errorf("wrong key type: %T", key.PrivateKey)
 	}
 
-	created := now.UTC().Format(time.RFC3339)
+	now = now.UTC().Truncate(time.Second)
 
 	cfg, err := normalizeJSON(map[string]any{
 		"@context":           context,
 		"type":               "DataIntegrityProof",
 		"cryptosuite":        "eddsa-jcs-2022",
-		"created":            created,
+		"created":            now,
 		"proofPurpose":       "assertionMethod",
 		"verificationMethod": key.ID,
 	})
@@ -80,7 +80,7 @@ func Create(key httpsig.Key, now time.Time, doc, context any) (ap.Proof, error) 
 		VerificationMethod: key.ID,
 		Purpose:            "assertionMethod",
 		Value:              "z" + base58.Encode(ed25519.Sign(edKey, append(cfgHash[:], docHash[:]...))),
-		Created:            created,
+		Created:            now,
 	}, nil
 }
 

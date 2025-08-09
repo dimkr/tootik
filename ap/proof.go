@@ -16,12 +16,14 @@ limitations under the License.
 
 package ap
 
+import "time"
+
 type Proof struct {
-	Context            any    `json:"@context"`
-	Type               string `json:"type"`
-	CryptoSuite        string `json:"cryptosuite"`
-	VerificationMethod string `json:"verificationMethod"`
-	Purpose            string `json:"proofPurpose"`
-	Value              string `json:"proofValue"`
-	Created            string `json:"created"`
+	Context            any       `json:"@context"`
+	Type               string    `json:"type"`
+	CryptoSuite        string    `json:"cryptosuite"`
+	VerificationMethod string    `json:"verificationMethod"`
+	Purpose            string    `json:"proofPurpose"`
+	Value              string    `json:"proofValue"`
+	Created            time.Time `json:"created"`
 }
