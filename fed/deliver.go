@@ -90,7 +90,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 	rows, err := q.DB.QueryContext(
 		ctx,
-		`select outbox.attempts, json(outbox.activity), json(outbox.activity), outbox.host, json(persons.actor), persons.rsaprivkey, persons.ed25519privkey from
+		`select outbox.attempts, json(outbox.activity), json(outbox.activity), json(persons.actor), persons.rsaprivkey, persons.ed25519privkey from
 		outbox
 		join persons
 		on
@@ -150,14 +150,13 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	count := 0
 	for rows.Next() {
 		var activity ap.Activity
-		var rawActivity, origin, rsaPrivKeyPem, ed25519PrivKeyPem string
+		var rawActivity, rsaPrivKeyPem, ed25519PrivKeyPem string
 		var actor ap.Actor
 		var deliveryAttempts int
 		if err := rows.Scan(
 			&deliveryAttempts,
 			&activity,
 			&rawActivity,
-			&origin,
 			&actor,
 			&rsaPrivKeyPem,
 			&ed25519PrivKeyPem,
@@ -188,8 +187,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey},
 		}
 
-		// if the origin of this activity is this server, attach an integrity proof
-		if origin == q.Domain {
+		if activity.Actor == actor.ID {
 			withProof, err := proof.Add(keys[1], time.Now(), []byte(rawActivity))
 			if err != nil {
 				slog.Error("Failed to add integrity proof", "error", err)
