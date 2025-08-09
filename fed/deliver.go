@@ -34,6 +34,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/proof"
 )
 
 type Queue struct {
@@ -181,6 +182,21 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			continue
 		}
 
+		keys := [2]httpsig.Key{
+			{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
+			{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey},
+		}
+
+		if activity.Actor == actor.ID && !q.Config.DisableIntegrityProofs {
+			withProof, err := proof.Add(keys[1], time.Now(), []byte(rawActivity))
+			if err != nil {
+				slog.Error("Failed to add integrity proof", "error", err)
+				continue
+			}
+
+			rawActivity = string(withProof)
+		}
+
 		if _, err := q.DB.ExecContext(
 			ctx,
 			`update outbox set last = unixepoch(), attempts = ? where activity->>'$.id' = ? and sender = ?`,
@@ -205,10 +221,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		if err := q.queueTasks(
 			ctx,
 			job,
-			[2]httpsig.Key{
-				{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
-				{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey},
-			},
+			keys,
 			&followers,
 			tasks,
 			events,

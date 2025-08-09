@@ -17,6 +17,7 @@ limitations under the License.
 package fed
 
 import (
+	"context"
 	"crypto/ed25519"
 	"crypto/x509"
 	"encoding/pem"
@@ -28,9 +29,48 @@ import (
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/proof"
 )
 
-func (l *Listener) verify(r *http.Request, body []byte, flags ap.ResolverFlag) (*httpsig.Signature, *ap.Actor, error) {
+func getKeyByID(actor *ap.Actor, keyID string) (ed25519.PublicKey, error) {
+	for _, key := range actor.AssertionMethod {
+		if key.ID != keyID {
+			continue
+		}
+
+		if key.Type != "Multikey" {
+			continue
+		}
+
+		if key.Controller != actor.ID {
+			continue
+		}
+
+		if len(key.PublicKeyMultibase) == 0 {
+			return nil, fmt.Errorf("key %s is empty", key.ID)
+		}
+
+		if key.PublicKeyMultibase[0] != 'z' {
+			return nil, fmt.Errorf("invalid prefix for %s: %c", key.ID, key.PublicKeyMultibase[0])
+		}
+
+		rawKey := base58.Decode(key.PublicKeyMultibase[1:])
+
+		if len(rawKey) != ed25519.PublicKeySize+2 {
+			return nil, fmt.Errorf("invalid key length for %s: %d", key.ID, len(rawKey))
+		}
+
+		if rawKey[0] != 0xed || rawKey[1] != 0x01 {
+			return nil, fmt.Errorf("invalid prefix for %s: %x%x", key.ID, rawKey[0], rawKey[1])
+		}
+
+		return ed25519.PublicKey(rawKey[2:]), nil
+	}
+
+	return nil, fmt.Errorf("key %s does not exist", keyID)
+}
+
+func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.ResolverFlag) (*httpsig.Signature, *ap.Actor, error) {
 	sig, err := httpsig.Extract(r, body, l.Domain, time.Now(), l.Config.MaxRequestAge)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to verify message: %w", err)
@@ -54,38 +94,9 @@ func (l *Listener) verify(r *http.Request, body []byte, flags ap.ResolverFlag) (
 			}
 		}
 	} else {
-		for _, key := range actor.AssertionMethod {
-			if key.ID != sig.KeyID {
-				continue
-			}
-
-			if key.Type != "Multikey" {
-				continue
-			}
-
-			if key.Controller != actor.ID {
-				continue
-			}
-
-			if len(key.PublicKeyMultibase) == 0 {
-				return nil, nil, fmt.Errorf("key %s is empty", key.ID)
-			}
-
-			if key.PublicKeyMultibase[0] != 'z' {
-				return nil, nil, fmt.Errorf("invalid prefix for %s: %c", key.ID, key.PublicKeyMultibase[0])
-			}
-
-			rawKey := base58.Decode(key.PublicKeyMultibase[1:])
-
-			if len(rawKey) != ed25519.PublicKeySize+2 {
-				return nil, nil, fmt.Errorf("invalid key length for %s: %d", key.ID, len(rawKey))
-			}
-
-			if rawKey[0] != 0xed || rawKey[1] != 0x01 {
-				return nil, nil, fmt.Errorf("invalid prefix for %s: %x%x", key.ID, rawKey[0], rawKey[1])
-			}
-
-			publicKey = ed25519.PublicKey(rawKey[2:])
+		publicKey, err = getKeyByID(actor, sig.KeyID)
+		if err != nil {
+			return nil, nil, err
 		}
 	}
 
@@ -98,4 +109,22 @@ func (l *Listener) verify(r *http.Request, body []byte, flags ap.ResolverFlag) (
 	}
 
 	return sig, actor, nil
+}
+
+func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Activity, raw []byte, flags ap.ResolverFlag) error {
+	actor, err := l.Resolver.ResolveID(ctx, l.ActorKeys, p.VerificationMethod, flags)
+	if err != nil {
+		return fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
+	}
+
+	publicKey, err := getKeyByID(actor, p.VerificationMethod)
+	if err != nil {
+		return fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
+	}
+
+	if err := proof.Verify(publicKey, activity, raw); err != nil {
+		return fmt.Errorf("failed to verify proof using %s: %w", p.VerificationMethod, err)
+	}
+
+	return nil
 }
