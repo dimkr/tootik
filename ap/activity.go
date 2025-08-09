@@ -54,6 +54,7 @@ type anyActivity struct {
 	Object  json.RawMessage `json:"object"`
 	To      Audience        `json:"to"`
 	CC      Audience        `json:"cc"`
+	Proof   Proof           `json:"proof"`
 }
 
 // Activity represents an ActivityPub activity.
@@ -68,6 +69,7 @@ type Activity struct {
 	To        Audience     `json:"to"`
 	CC        Audience     `json:"cc"`
 	Published Time         `json:"published,omitzero"`
+	Proof     Proof        `json:"proof,omitzero"`
 }
 
 var (
@@ -112,6 +114,7 @@ func (a *Activity) UnmarshalJSON(b []byte) error {
 	a.Actor = common.Actor
 	a.To = common.To
 	a.CC = common.CC
+	a.Proof = common.Proof
 
 	var object Object
 	var activity Activity
