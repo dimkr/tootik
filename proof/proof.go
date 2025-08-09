@@ -33,6 +33,8 @@ import (
 	"github.com/gowebpki/jcs"
 )
 
+var proofContext = []string{"https://www.w3.org/ns/activitystreams", "https://w3id.org/security/data-integrity/v1"}
+
 func normalizeJSON(v any) ([]byte, error) {
 	j, err := json.Marshal(v)
 	if err != nil {
@@ -89,7 +91,9 @@ func Add(key httpsig.Key, now time.Time, raw []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	proof, err := Create(key, now, m, m["@context"])
+	m["@context"] = proofContext
+
+	proof, err := Create(key, now, m, proofContext)
 	if err != nil {
 		return nil, err
 	}
