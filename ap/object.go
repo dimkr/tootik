@@ -61,8 +61,6 @@ type Object struct {
 	AnyOf       []PollOption `json:"anyOf,omitempty"`
 	EndTime     Time         `json:"endTime,omitzero"`
 	Closed      Time         `json:"closed,omitzero"`
-
-	Proof Proof `json:"proof,omitzero"`
 }
 
 func (o *Object) IsPublic() bool {
