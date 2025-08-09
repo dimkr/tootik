@@ -32,7 +32,7 @@ import (
 	"github.com/dimkr/tootik/proof"
 )
 
-func getEdPublicKeyByID(actor *ap.Actor, keyID string) (ed25519.PublicKey, error) {
+func geyKeyByID(actor *ap.Actor, keyID string) (ed25519.PublicKey, error) {
 	for _, key := range actor.AssertionMethod {
 		if key.ID != keyID {
 			continue
@@ -94,7 +94,7 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 			}
 		}
 	} else {
-		publicKey, err = getEdPublicKeyByID(actor, sig.KeyID)
+		publicKey, err = geyKeyByID(actor, sig.KeyID)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -117,7 +117,7 @@ func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Act
 		return fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
 	}
 
-	publicKey, err := getEdPublicKeyByID(actor, p.VerificationMethod)
+	publicKey, err := geyKeyByID(actor, p.VerificationMethod)
 	if err != nil {
 		return fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
 	}
