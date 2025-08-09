@@ -70,7 +70,7 @@ func getEdPublicKeyByID(actor *ap.Actor, keyID string) (ed25519.PublicKey, error
 	return nil, fmt.Errorf("key %s does not exist", keyID)
 }
 
-func (l *Listener) verify(r *http.Request, body []byte, flags ap.ResolverFlag) (*httpsig.Signature, *ap.Actor, error) {
+func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.ResolverFlag) (*httpsig.Signature, *ap.Actor, error) {
 	sig, err := httpsig.Extract(r, body, l.Domain, time.Now(), l.Config.MaxRequestAge)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to verify message: %w", err)

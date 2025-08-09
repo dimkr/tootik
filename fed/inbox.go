@@ -280,7 +280,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		flags |= ap.Offline
 	}
 
-	sig, sender, err := l.verify(r, rawActivity, flags)
+	sig, sender, err := l.verifyRequest(r, rawActivity, flags)
 	if err != nil {
 		if errors.Is(err, ErrActorGone) {
 			w.WriteHeader(http.StatusOK)
