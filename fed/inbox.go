@@ -518,7 +518,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 	if _, err = l.DB.ExecContext(
 		r.Context(),
 		`INSERT INTO servers (host, capabilities) VALUES ($1, $2) ON CONFLICT(host) DO UPDATE SET capabilities = capabilities | $2, updated = UNIXEPOCH()`,
-		origin,
+		senderOrigin,
 		capabilities,
 	); err != nil {
 		slog.Error("Failed to record server capabilities", "server", senderOrigin, "error", err)
