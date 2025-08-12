@@ -19,7 +19,6 @@ package front
 import (
 	"net/url"
 	"regexp"
-	"strings"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
@@ -72,9 +71,5 @@ func (h *Handler) resolve(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if prefix, found := strings.CutPrefix(person.ID, "https://"); found {
-		w.Redirect("/users/outbox/" + prefix)
-	} else {
-		w.Redirect("/users/outbox/" + strings.TrimPrefix(person.ID, "ap://"))
-	}
+	w.Redirect("/users/outbox/" + trimScheme(person.ID))
 }

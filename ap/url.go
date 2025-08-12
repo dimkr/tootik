@@ -22,7 +22,7 @@ import (
 	"regexp"
 )
 
-var portableIDFormat = regexp.MustCompile(`^(ap://did:key:z[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)[/#?].*`)
+var portableIDFormat = regexp.MustCompile(`^(ap://(did:key:z[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+))[/#?].*`)
 
 func CanonicalizeActorID(id string) (string, error) {
 	if m := portableIDFormat.FindStringSubmatch(id); m != nil {
@@ -49,7 +49,7 @@ func CanonicalizeActorID(id string) (string, error) {
 // GetOrigin returns the origin of an object, based on its ID.
 func GetOrigin(id string) (string, error) {
 	if m := portableIDFormat.FindStringSubmatch(id); m != nil {
-		return m[1], nil
+		return m[2], nil
 	}
 
 	if u, err := url.Parse(id); err != nil {

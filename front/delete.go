@@ -19,7 +19,6 @@ package front
 import (
 	"database/sql"
 	"errors"
-	"strings"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
@@ -51,5 +50,5 @@ func (h *Handler) delete(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.Redirect("/users/outbox/" + strings.TrimPrefix(r.User.ID, "https://"))
+	w.Redirect("/users/outbox/" + trimScheme(r.User.ID))
 }

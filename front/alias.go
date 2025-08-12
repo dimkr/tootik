@@ -102,5 +102,5 @@ func (h *Handler) alias(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.Redirect("/users/outbox/" + strings.TrimPrefix(actor.ID, "https://"))
+	w.Redirect("/users/outbox/" + trimScheme(actor.ID))
 }

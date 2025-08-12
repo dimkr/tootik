@@ -22,13 +22,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/url"
 	"strings"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/inbox/note"
@@ -59,16 +57,18 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 		return fmt.Errorf("received invalid Create for %s by %s from %s", post.ID, post.AttributedTo, activity.Actor)
 	}
 
-	u, err := url.Parse(post.ID)
+	origin, err := ap.GetOrigin(post.ID)
 	if err != nil {
 		return fmt.Errorf("failed to parse post ID %s: %w", post.ID, err)
 	}
 
-	if !data.IsIDValid(u) {
-		return fmt.Errorf("received invalid post ID: %s", post.ID)
-	}
+	/*
+		if !data.IsIDValid(post.ID) {
+			return fmt.Errorf("received invalid post ID: %s", post.ID)
+		}
+	*/
 
-	if q.BlockList != nil && q.BlockList.Contains(u.Host) {
+	if q.BlockList != nil && q.BlockList.Contains(origin) {
 		return fmt.Errorf("ignoring post %s: %w", post.ID, fed.ErrBlockedDomain)
 	}
 
@@ -252,6 +252,11 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return errors.New("received unauthorized follow request")
 		}
 
+		follower, err := ap.CanonicalizeActorID(activity.Actor)
+		if err != nil {
+			return fmt.Errorf("received canonicalize follower %s: %w", activity.Actor, err)
+		}
+
 		followed, ok := activity.Object.(string)
 		if !ok {
 			return errors.New("received a request to follow a non-link object")
@@ -260,31 +265,28 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return errors.New("received an invalid follow request")
 		}
 
-		prefix := fmt.Sprintf("https://%s/", q.Domain)
-		if strings.HasPrefix(activity.Actor, prefix) || !strings.HasPrefix(followed, prefix) {
-			return fmt.Errorf("received an invalid follow request for %s by %s", followed, activity.Actor)
-		}
-
 		var manual sql.NullInt32
-		if err := q.DB.QueryRowContext(ctx, `select actor->>'$.manuallyApprovesFollowers' from persons where id = ?`, followed).Scan(&manual); err != nil {
+		if err := q.DB.QueryRowContext(ctx, `select actor->>'$.manuallyApprovesFollowers' from persons where id = ?`, followed).Scan(&manual); errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("received an invalid follow request for %s by %s", followed, follower)
+		} else if err != nil {
 			return fmt.Errorf("failed to fetch %s: %w", followed, err)
 		}
 
 		if manual.Valid && manual.Int32 == 1 {
-			log.Debug("Not approving follow request", "follower", activity.Actor, "followed", followed)
+			log.Debug("Not approving follow request", "follower", follower, "followed", followed)
 
 			if _, err := q.DB.ExecContext(
 				ctx,
 				`INSERT INTO follows (id, follower, followed) VALUES($1, $2, $3) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = NULL, inserted = UNIXEPOCH()`,
 				activity.ID,
-				activity.Actor,
+				follower,
 				followed,
 			); err != nil {
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
 
 		} else {
-			log.Info("Approving follow request", "follower", activity.Actor, "followed", followed)
+			log.Info("Approving follow request", "follower", follower, "followed", followed)
 
 			tx, err := q.DB.BeginTx(ctx, nil)
 			if err != nil {
@@ -292,7 +294,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			}
 			defer tx.Rollback()
 
-			if err := outbox.Accept(ctx, q.Domain, followed, activity.Actor, activity.ID, tx); err != nil {
+			if err := outbox.Accept(ctx, q.Domain, followed, follower, activity.ID, tx); err != nil {
 				return fmt.Errorf("failed to accept %s: %w", activity.ID, err)
 			}
 
@@ -302,10 +304,6 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		}
 
 	case ap.Accept:
-		if sender.ID != activity.Actor {
-			return fmt.Errorf("received an invalid Accept for %s by %s", activity.Actor, sender.ID)
-		}
-
 		followID, ok := activity.Object.(string)
 		if ok && followID != "" {
 			log.Info("Follow is accepted", "follow", followID)
@@ -316,13 +314,22 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return errors.New("received an invalid Accept")
 		}
 
-		if _, err := q.DB.ExecContext(ctx, `update follows set accepted = 1 where id = ? and followed = ?`, followID, sender.ID); err != nil {
+		if res, err := q.DB.ExecContext(ctx, `update follows set accepted = 1 where id = ? and followed = ?`, followID, sender.ID); err != nil {
 			return fmt.Errorf("failed to accept follow %s: %w", followID, err)
+		} else if n, err := res.RowsAffected(); err != nil {
+			return fmt.Errorf("failed to accept follow %s: %w", followID, err)
+		} else if n == 0 {
+			return fmt.Errorf("received an invalid Accept for %s by %s", activity.Actor, sender.ID)
 		}
 
 	case ap.Reject:
-		if sender.ID != activity.Actor {
+		if !ap.SameActor(sender.ID, activity.Actor) {
 			return fmt.Errorf("received an invalid Reject for %s by %s", activity.Actor, sender.ID)
+		}
+
+		follower, err := ap.CanonicalizeActorID(activity.Actor)
+		if err != nil {
+			return fmt.Errorf("received canonicalize follower %s: %w", activity.Actor, err)
 		}
 
 		followID, ok := activity.Object.(string)
@@ -335,7 +342,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return errors.New("received an invalid Reject")
 		}
 
-		if _, err := q.DB.ExecContext(ctx, `update follows set accepted = 0 where id = ? and followed = ?`, followID, sender.ID); err != nil {
+		if _, err := q.DB.ExecContext(ctx, `update follows set accepted = 0 where id = ? and followed = ?`, followID, follower); err != nil {
 			return fmt.Errorf("failed to reject follow %s: %w", followID, err)
 		}
 
@@ -366,7 +373,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return nil
 		}
 
-		if sender.ID != activity.Actor {
+		if !ap.SameActor(sender.ID, activity.Actor) {
 			return fmt.Errorf("received an invalid undo request for %s by %s", activity.Actor, sender.ID)
 		}
 
@@ -407,6 +414,16 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		return q.processCreateActivity(ctx, log, sender, activity, rawActivity, post, shared)
 
 	case ap.Announce:
+		sharer, err := ap.CanonicalizeActorID(sender.ID)
+		if err != nil {
+			return fmt.Errorf("failed to normalize sharer %s: %w", sender.ID, err)
+		}
+
+		activityID, err := ap.CanonicalizeActorID(activity.ID)
+		if err != nil {
+			return fmt.Errorf("failed to normalize activity %s: %w", activity.ID, err)
+		}
+
 		inner, ok := activity.Object.(*ap.Activity)
 		if !ok {
 			if postID, ok := activity.Object.(string); ok && postID != "" {
@@ -414,8 +431,8 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 					ctx,
 					`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
 					postID,
-					sender.ID,
-					activity.ID,
+					sharer,
+					activityID,
 				); err != nil {
 					return fmt.Errorf("cannot insert share for %s by %s: %w", postID, sender.ID, err)
 				}
@@ -430,7 +447,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 	case ap.Update:
 		post, ok := activity.Object.(*ap.Object)
-		if !ok || post.ID == activity.Actor || post.ID == sender.ID {
+		if !ok || ap.SameActor(post.ID, activity.Actor) || ap.SameActor(post.ID, sender.ID) {
 			log.Debug("Ignoring unsupported Update object")
 			return nil
 		}

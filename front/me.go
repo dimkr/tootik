@@ -17,8 +17,6 @@ limitations under the License.
 package front
 
 import (
-	"strings"
-
 	"github.com/dimkr/tootik/front/text"
 )
 
@@ -28,5 +26,5 @@ func me(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.Redirect("/users/outbox/" + strings.TrimPrefix(r.User.ID, "https://"))
+	w.Redirect("/users/outbox/" + trimScheme(r.User.ID))
 }

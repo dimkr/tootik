@@ -376,7 +376,7 @@ func (q *Queue) queueTasks(
 	if wideDelivery {
 		followers, err := q.DB.QueryContext(
 			ctx,
-			`select distinct follower from follows where followed = ? and follower not like ? and accepted = 1`,
+			`select distinct follower from follows where followed = ? and follower not like ? and accepted = 1 and not exists (select 1 from persons where persons.id = follows.follower and ed25519privkey is not null)`,
 			job.Sender.ID,
 			fmt.Sprintf("https://%s/%%", q.Domain),
 		)

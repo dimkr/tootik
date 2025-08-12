@@ -19,6 +19,7 @@ package front
 import (
 	"database/sql"
 	"errors"
+	"strings"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
@@ -30,7 +31,12 @@ func (h *Handler) replyOrQuote(w text.Writer, r *Request, args []string, quote b
 		return
 	}
 
-	postID := "https://" + args[1]
+	var postID string
+	if strings.HasPrefix(args[1], "did:") {
+		postID = "ap://" + args[1]
+	} else {
+		postID = "https://" + args[1]
+	}
 
 	var note ap.Object
 	if err := h.DB.QueryRowContext(

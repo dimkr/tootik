@@ -258,7 +258,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 	}
 
 	if offset == 0 && actor.MovedTo != "" {
-		w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.MovedTo, "https://"), "Moved to %s", actor.MovedTo)
+		w.Linkf("/users/outbox/"+trimScheme(actor.MovedTo), "Moved to %s", actor.MovedTo)
 	}
 
 	if offset == 0 {
@@ -323,23 +323,15 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 
 		var accepted sql.NullInt32
 		if err := h.DB.QueryRowContext(r.Context, `select accepted from follows where follower = ? and followed = ?`, r.User.ID, actorID).Scan(&accepted); actor.ManuallyApprovesFollowers && errors.Is(err, sql.ErrNoRows) {
-			if suffix, found := strings.CutPrefix(actorID, "https://"); found {
-				w.Linkf("/users/follow/"+suffix, "⚡ Follow %s (requires approval)", actor.PreferredUsername)
-			} else {
-				w.Linkf("/users/follow/"+strings.TrimPrefix(actorID, "ap://"), "⚡ Follow %s (requires approval)", actor.PreferredUsername)
-			}
+			w.Linkf("/users/follow/"+trimScheme(actorID), "⚡ Follow %s (requires approval)", actor.PreferredUsername)
 		} else if errors.Is(err, sql.ErrNoRows) {
-			if suffix, found := strings.CutPrefix(actorID, "https://"); found {
-				w.Linkf("/users/follow/"+suffix, "⚡ Follow %s", actor.PreferredUsername)
-			} else {
-				w.Linkf("/users/follow/"+strings.TrimPrefix(actorID, "ap://"), "⚡ Follow %s", actor.PreferredUsername)
-			}
+			w.Linkf("/users/follow/"+trimScheme(actorID), "⚡ Follow %s", actor.PreferredUsername)
 		} else if err != nil {
 			r.Log.Warn("Failed to check if user is followed", "actor", actorID, "error", err)
 		} else if accepted.Valid && accepted.Int32 == 0 {
-			w.Linkf("/users/unfollow/"+strings.TrimPrefix(actorID, "https://"), "🔌 Unfollow %s (rejected)", actor.PreferredUsername)
+			w.Linkf("/users/unfollow/"+trimScheme(actorID), "🔌 Unfollow %s (rejected)", actor.PreferredUsername)
 		} else {
-			w.Linkf("/users/unfollow/"+strings.TrimPrefix(actorID, "https://"), "🔌 Unfollow %s", actor.PreferredUsername)
+			w.Linkf("/users/unfollow/"+trimScheme(actorID), "🔌 Unfollow %s", actor.PreferredUsername)
 		}
 	}
 }

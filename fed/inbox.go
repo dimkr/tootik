@@ -25,6 +25,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/dimkr/tootik/ap"
 )
@@ -124,7 +125,7 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 			if innerOrigin, err := ap.GetOrigin(inner); err != nil {
 				return err
 				// actors from $origin can only follow ours
-			} else if innerOrigin != l.Domain {
+			} else if innerOrigin != l.Domain && !strings.HasPrefix(innerOrigin, "did:") {
 				return fmt.Errorf("invalid object host: %s", innerOrigin)
 			}
 		} else {
@@ -141,14 +142,14 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 
 			if innerOrigin, err := ap.GetOrigin(v.ID); err != nil {
 				return err
-			} else if innerOrigin != l.Domain {
+			} else if innerOrigin != l.Domain && !strings.HasPrefix(innerOrigin, "did:") {
 				return fmt.Errorf("invalid object host: %s", innerOrigin)
 			}
 
 		case string:
 			if innerOrigin, err := ap.GetOrigin(v); err != nil {
 				return err
-			} else if innerOrigin != l.Domain {
+			} else if innerOrigin != l.Domain && !strings.HasPrefix(innerOrigin, "did:") {
 				return fmt.Errorf("invalid object host: %s", innerOrigin)
 			}
 

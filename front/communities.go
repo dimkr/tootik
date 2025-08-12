@@ -17,7 +17,6 @@ limitations under the License.
 package front
 
 import (
-	"strings"
 	"time"
 
 	"github.com/dimkr/tootik/front/text"
@@ -71,9 +70,9 @@ func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
 		}
 
 		if r.User == nil {
-			w.Linkf("/outbox/"+strings.TrimPrefix(id, "https://"), "%s %s", time.Unix(last, 0).Format(time.DateOnly), username)
+			w.Linkf("/outbox/"+trimScheme(id), "%s %s", time.Unix(last, 0).Format(time.DateOnly), username)
 		} else {
-			w.Linkf("/users/outbox/"+strings.TrimPrefix(id, "https://"), "%s %s", time.Unix(last, 0).Format(time.DateOnly), username)
+			w.Linkf("/users/outbox/"+trimScheme(id), "%s %s", time.Unix(last, 0).Format(time.DateOnly), username)
 		}
 
 		empty = false

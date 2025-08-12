@@ -299,9 +299,9 @@ func (h *Handler) printCompactNote(w text.Writer, r *Request, note *ap.Object, a
 	}
 
 	if r.User == nil {
-		w.Link("/view/"+strings.TrimPrefix(note.ID, "https://"), title)
+		w.Link("/view/"+trimScheme(note.ID), title)
 	} else {
-		w.Link("/users/view/"+strings.TrimPrefix(note.ID, "https://"), title)
+		w.Link("/users/view/"+trimScheme(note.ID), title)
 	}
 
 	for _, line := range contentLines {

@@ -426,9 +426,9 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 			return nil, nil, err
 		}
 
-		gw := u.Query().Get("gateways")
-
-		profile = gw + "/.well-known/apgateway/did:" + u.Opaque
+		if gw := u.Query().Get("gateways"); gw != "" {
+			profile = gw + "/.well-known/apgateway/did:" + u.Opaque
+		}
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, profile, nil)
@@ -488,9 +488,9 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 
 	keyIDs := make(map[string]struct{}, 2)
 
-	if u, err := url.Parse(actor.PublicKey.ID); err != nil {
+	if keyOrigin, err := ap.GetOrigin(actor.PublicKey.ID); err != nil {
 		slog.Debug("Failed to parse public key ID", "actor", actor.ID, "key", actor.PublicKey.ID, "error", err)
-	} else if u.Host == host {
+	} else if keyOrigin == host {
 		keyIDs[actor.PublicKey.ID] = struct{}{}
 	} else {
 		slog.Warn("Public key ID belongs to a different host", "actor", actor.ID, "key", actor.PublicKey.ID)

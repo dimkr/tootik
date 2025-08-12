@@ -182,6 +182,12 @@ func TestCluster_Nomadic(t *testing.T) {
 		OK()
 	cluster.Settle(t)
 
+	nomadBob.
+		FollowInput("🔭 View profile", "carol@c.localdomain").
+		Follow("⚡ Follow carol").
+		OK()
+	cluster.Settle(t)
+
 	carol.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "hello").
@@ -192,7 +198,35 @@ func TestCluster_Nomadic(t *testing.T) {
 		FollowInput("🔭 View profile", "carol@c.localdomain").
 		Contains(Line{Type: Quote, Text: "hello"})
 
-	_ = nomadAlice
-	_ = nomadBob
-	_ = carol
+	carol.
+		Follow("🐕 Followers").
+		Follow("2025-08-12 👽 alice").
+		Follow("⚡ Follow alice").
+		OK()
+	cluster.Settle(t)
+
+	nomadAlice.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "hi").
+		Contains(Line{Type: Quote, Text: "hi"})
+	cluster.Settle(t)
+
+	carol.
+		Follow("🐕 Followers").
+		Follow("2025-08-12 👽 alice").
+		Contains(Line{Type: Quote, Text: "hi"}).
+		Follow("2025-08-12 alice").
+		FollowInput("💬 Reply", "hola").
+		Contains(Line{Type: Quote, Text: "hola"})
+	cluster.Settle(t)
+
+	nomadAlice.
+		Follow("📻 My feed").
+		Follow("2025-08-12 alice ┃ 1💬").
+		Contains(Line{Type: Quote, Text: "hola"})
+
+	nomadBob.
+		Follow("📻 My feed").
+		Follow("2025-08-12 alice ┃ 1💬").
+		Contains(Line{Type: Quote, Text: "hola"})
 }
