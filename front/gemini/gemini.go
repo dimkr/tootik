@@ -67,7 +67,7 @@ func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn) (*ap.Actor, 
 	var id, rsaPrivKeyPem, ed25519PrivKeyPem string
 	var actor ap.Actor
 	var approved int
-	if err := gl.DB.QueryRowContext(ctx, `select persons.id, json(persons.actor), persons.rsaprivkey, persons.ed25519privkey, certificates.approved from certificates join persons on persons.actor->>'$.preferredUsername' = certificates.user where persons.host = ? and certificates.hash = ? and certificates.expires > unixepoch()`, gl.Domain, certHash).Scan(&id, &actor, &rsaPrivKeyPem, &ed25519PrivKeyPem, &approved); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := gl.DB.QueryRowContext(ctx, `select persons.id, json(persons.actor), persons.rsaprivkey, persons.ed25519privkey, certificates.approved from certificates join persons on persons.actor->>'$.preferredUsername' = certificates.user where certificates.hash = ? and certificates.expires > unixepoch()`, certHash).Scan(&id, &actor, &rsaPrivKeyPem, &ed25519PrivKeyPem, &approved); err != nil && errors.Is(err, sql.ErrNoRows) {
 		return nil, [2]httpsig.Key{}, front.ErrNotRegistered
 	} else if err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to fetch user for %s: %w", certHash, err)
@@ -87,11 +87,13 @@ func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn) (*ap.Actor, 
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to parse Ed15519 private key for %s: %w", certHash, err)
 	}
 
-	slog.Debug("Found existing user", "hash", certHash, "user", id)
-	return &actor, [2]httpsig.Key{
+	keys := [2]httpsig.Key{
 		{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
 		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey},
-	}, nil
+	}
+
+	slog.Debug("Found existing user", "hash", certHash, "user", id)
+	return &actor, keys, nil
 }
 
 // Handle handles a Gemini request.

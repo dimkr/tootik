@@ -33,7 +33,7 @@ func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
 			on
 				persons.id = shares.by
 			where
-				persons.host = $1 and
+				persons.ed25519privkey is not null and
 				persons.actor->>'$.type' = 'Group'
 			union all
 			select persons.id, persons.actor->>'preferredUsername' as username, notes.inserted from notes
@@ -41,7 +41,7 @@ func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
 			on
 				persons.id = notes.author
 			where
-				persons.host = $1 and
+				persons.ed25519privkey is not null and
 				persons.actor->>'$.type' = 'Group'
 		) u
 		group by
@@ -49,7 +49,6 @@ func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
 		order by
 			max(u.inserted) desc
 		`,
-		h.Domain,
 	)
 	if err != nil {
 		r.Log.Error("Failed to list communities", "error", err)

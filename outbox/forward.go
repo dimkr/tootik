@@ -42,7 +42,7 @@ func forwardToGroup(ctx context.Context, domain string, tx *sql.Tx, note *ap.Obj
 					notes.object->>'$.audience' = persons.id
 				where
 					notes.id = $1 and
-					persons.host = $2 and
+					persons.ed25519privkey is not null and
 					persons.actor->>'$.type' = 'Group'
 				union all
 				select persons.actor, 2 as rank
@@ -53,7 +53,7 @@ func forwardToGroup(ctx context.Context, domain string, tx *sql.Tx, note *ap.Obj
 				where
 					notes.id = $1 and
 					notes.object->>'$.audience' is null and
-					persons.host = $2 and
+					persons.ed25519privkey is not null and
 					persons.actor->>'$.type' = 'Group'
 				union all
 				select persons.actor, 3 as rank
@@ -64,14 +64,13 @@ func forwardToGroup(ctx context.Context, domain string, tx *sql.Tx, note *ap.Obj
 				where
 					notes.id = $1 and
 					notes.object->>'$.audience' is null and
-					persons.host = $2 and
+					persons.ed25519privkey is not null and
 					persons.actor->>'$.type' = 'Group'
 				order by rank
 				limit 1
 			)
 		`,
 		firstPostID,
-		domain,
 	).Scan(&group); err != nil && errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	} else if err != nil {

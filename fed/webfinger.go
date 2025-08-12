@@ -94,7 +94,7 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("Looking up resource", "resource", resource, "user", username)
 
-	rows, err := l.DB.QueryContext(r.Context(), `select id, actor->>'$.type' from persons where actor->>'$.preferredUsername' = ? and host = ?`, username, l.Domain)
+	rows, err := l.DB.QueryContext(r.Context(), `select id, actor->>'$.type' from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null`, username, l.Domain)
 	if err != nil {
 		slog.Warn("Failed to fetch user", "user", username, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)

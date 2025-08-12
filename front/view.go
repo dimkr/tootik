@@ -259,16 +259,15 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						union all
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 3 as rank from shares
 						join persons on persons.id = shares.by
-						where shares.note = $1 and persons.host = $2
+						where shares.note = $1 and persons.ed25519privkey is not null
 						union all
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 4 as rank from shares
 						join persons on persons.id = shares.by
-						where shares.note = $1 and persons.host != $2
+						where shares.note = $1 and persons.ed25519privkey is null
 					)
 					group by id
-					order by min(rank), inserted limit $3`,
+					order by min(rank), inserted limit $2`,
 					note.ID,
-					h.Domain,
 					h.Config.SharesPerPost,
 				)
 			} else {
@@ -293,17 +292,16 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						union all
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 4 as rank from shares
 						join persons on persons.id = shares.by
-						where shares.note = $1 and persons.host = $3
+						where shares.note = $1 and persons.ed25519privkey is not null
 						union all
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 5 as rank from shares
 						join persons on persons.id = shares.by
-						where shares.note = $1 and persons.host != $3
+						where shares.note = $1 and persons.ed25519privkey is null
 					)
 					group by id
-					order by min(rank), inserted limit $4`,
+					order by min(rank), inserted limit $3`,
 					note.ID,
 					r.User.ID,
-					h.Domain,
 					h.Config.SharesPerPost,
 				)
 			}

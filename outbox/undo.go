@@ -32,7 +32,7 @@ func Undo(ctx context.Context, domain string, db *sql.DB, activity *ap.Activity)
 		return errors.New("cannot undo activity")
 	}
 
-	id, err := NewID(domain, "undo")
+	id, err := NewID(domain, activity.Actor, "undo")
 	if err != nil {
 		return err
 	}

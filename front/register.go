@@ -89,7 +89,15 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 
 	r.Log.Info("Creating new user", "name", userName)
 
-	if _, _, err := user.Create(r.Context, h.Domain, h.DB, userName, ap.Person, clientCert); err != nil {
+	if r.URL.RawQuery != "" {
+		if actor, _, err := user.CreateNomadic(r.Context, h.Domain, h.DB, userName, clientCert, r.URL.RawQuery); err != nil {
+			r.Log.Warn("Failed to create new nomadic user", "name", userName, "error", err)
+			w.Status(40, "Failed to create new user")
+			return
+		} else {
+			r.Log.Info("Created nomadic user", "name", userName, "id", actor.ID)
+		}
+	} else if _, _, err := user.Create(r.Context, h.Domain, h.DB, userName, ap.Person, clientCert); err != nil {
 		r.Log.Warn("Failed to create new user", "name", userName, "error", err)
 		w.Status(40, "Failed to create new user")
 		return

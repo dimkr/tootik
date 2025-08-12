@@ -119,7 +119,7 @@ func (h *Handler) status(w text.Writer, r *Request, args ...string) {
 	var lastPost, lastFederatedPost, lastRegister, lastFederatedUser sql.NullInt64
 	var outboxSize, inboxSize int
 
-	if err := h.DB.QueryRowContext(r.Context, `select count(*) from persons where host = ?`, h.Domain).Scan(&usersCount); err != nil {
+	if err := h.DB.QueryRowContext(r.Context, `select count(*) from persons where ed25519privkey is not null`).Scan(&usersCount); err != nil {
 		r.Log.Info("Failed to get users count", "error", err)
 		w.Error()
 		return
@@ -161,13 +161,13 @@ func (h *Handler) status(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := h.DB.QueryRowContext(r.Context, `select max(inserted) from persons where host = ?`, h.Domain).Scan(&lastRegister); err != nil {
+	if err := h.DB.QueryRowContext(r.Context, `select max(inserted) from persons where ed25519privkey is not null`).Scan(&lastRegister); err != nil {
 		r.Log.Info("Failed to get last post time", "error", err)
 		w.Error()
 		return
 	}
 
-	if err := h.DB.QueryRowContext(r.Context, `select max(max(inserted), max(updated)) from persons where host != ?`, h.Domain).Scan(&lastFederatedUser); err != nil {
+	if err := h.DB.QueryRowContext(r.Context, `select max(max(inserted), max(updated)) from persons where ed25519privkey is null`).Scan(&lastFederatedUser); err != nil {
 		r.Log.Info("Failed to get last post time", "error", err)
 		w.Error()
 		return

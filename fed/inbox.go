@@ -25,7 +25,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"net/url"
 
 	"github.com/dimkr/tootik/ap"
 )
@@ -44,7 +43,7 @@ func (l *Listener) getActivityOrigin(activity *ap.Activity, sender *ap.Actor) (s
 		return "", "", errors.New("unspecified activity ID")
 	}
 
-	activityUrl, err := url.Parse(activity.ID)
+	activityOrigin, err := ap.GetOrigin(activity.ID)
 	if err != nil {
 		return "", "", err
 	}
@@ -53,12 +52,12 @@ func (l *Listener) getActivityOrigin(activity *ap.Activity, sender *ap.Actor) (s
 		return "", "", errors.New("unspecified sender ID")
 	}
 
-	senderUrl, err := url.Parse(sender.ID)
+	senderOrigin, err := ap.GetOrigin(sender.ID)
 	if err != nil {
 		return "", "", err
 	}
 
-	return activityUrl.Host, senderUrl.Host, nil
+	return activityOrigin, senderOrigin, nil
 }
 
 func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth uint) error {
@@ -76,26 +75,26 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 		return errors.New("unspecified activity ID")
 	}
 
-	activityUrl, err := url.Parse(activity.ID)
+	activityOrigin, err := ap.GetOrigin(activity.ID)
 	if err != nil {
 		return err
 	}
 
-	if activityUrl.Host != origin {
-		return fmt.Errorf("invalid activity host: %s", activityUrl.Host)
+	if activityOrigin != origin {
+		return fmt.Errorf("invalid activity host: %s", activityOrigin)
 	}
 
 	if activity.Actor == "" {
 		return errors.New("unspecified actor")
 	}
 
-	actorUrl, err := url.Parse(activity.Actor)
+	actorOrigin, err := ap.GetOrigin(activity.Actor)
 	if err != nil {
 		return err
 	}
 
-	if actorUrl.Host != origin {
-		return fmt.Errorf("invalid actor host: %s", actorUrl.Host)
+	if actorOrigin != origin {
+		return fmt.Errorf("invalid actor host: %s", actorOrigin)
 	}
 
 	switch activity.Type {
@@ -103,17 +102,17 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 		// $origin can only delete objects that belong to $origin
 		switch v := activity.Object.(type) {
 		case *ap.Object:
-			if objectUrl, err := url.Parse(v.ID); err != nil {
+			if objectOrigin, err := ap.GetOrigin(v.ID); err != nil {
 				return err
-			} else if objectUrl.Host != origin {
-				return fmt.Errorf("invalid object host: %s", objectUrl.Host)
+			} else if objectOrigin != origin {
+				return fmt.Errorf("invalid object host: %s", objectOrigin)
 			}
 
 		case string:
-			if objectUrl, err := url.Parse(v); err != nil {
+			if stringOrigin, err := ap.GetOrigin(v); err != nil {
 				return err
-			} else if objectUrl.Host != origin {
-				return fmt.Errorf("invalid object host: %s", objectUrl.Host)
+			} else if stringOrigin != origin {
+				return fmt.Errorf("invalid object host: %s", stringOrigin)
 			}
 
 		default:
@@ -122,11 +121,11 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 
 	case ap.Follow:
 		if inner, ok := activity.Object.(string); ok {
-			if innerUrl, err := url.Parse(inner); err != nil {
+			if innerOrigin, err := ap.GetOrigin(inner); err != nil {
 				return err
 				// actors from $origin can only follow ours
-			} else if innerUrl.Host != l.Domain {
-				return fmt.Errorf("invalid object host: %s", innerUrl.Host)
+			} else if innerOrigin != l.Domain {
+				return fmt.Errorf("invalid object host: %s", innerOrigin)
 			}
 		} else {
 			return fmt.Errorf("invalid object: %T", activity.Object)
@@ -140,17 +139,17 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 				return fmt.Errorf("invalid object type: %s", v.Type)
 			}
 
-			if activityUrl, err := url.Parse(v.ID); err != nil {
+			if innerOrigin, err := ap.GetOrigin(v.ID); err != nil {
 				return err
-			} else if activityUrl.Host != l.Domain {
-				return fmt.Errorf("invalid object host: %s", activityUrl.Host)
+			} else if innerOrigin != l.Domain {
+				return fmt.Errorf("invalid object host: %s", innerOrigin)
 			}
 
 		case string:
-			if activityUrl, err := url.Parse(v); err != nil {
+			if innerOrigin, err := ap.GetOrigin(v); err != nil {
 				return err
-			} else if activityUrl.Host != l.Domain {
-				return fmt.Errorf("invalid object host: %s", activityUrl.Host)
+			} else if innerOrigin != l.Domain {
+				return fmt.Errorf("invalid object host: %s", innerOrigin)
 			}
 
 		default:
@@ -174,25 +173,25 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 	case ap.Create, ap.Update:
 		// $origin can only create objects that belong to $origin
 		if obj, ok := activity.Object.(*ap.Object); ok {
-			if objectUrl, err := url.Parse(obj.ID); err != nil {
+			if objectOrigin, err := ap.GetOrigin(obj.ID); err != nil {
 				return err
-			} else if objectUrl.Host != origin {
-				return fmt.Errorf("invalid object host: %s", objectUrl.Host)
+			} else if objectOrigin != origin {
+				return fmt.Errorf("invalid object host: %s", objectOrigin)
 			} else if obj.AttributedTo != "" && obj.AttributedTo != activity.Actor {
-				authorUrl, err := url.Parse(obj.AttributedTo)
+				authorOrigin, err := ap.GetOrigin(obj.AttributedTo)
 				if err != nil {
 					return err
 				}
 
-				if authorUrl.Host != origin {
-					return fmt.Errorf("invalid author host: %s", authorUrl.Host)
+				if authorOrigin != origin {
+					return fmt.Errorf("invalid author host: %s", authorOrigin)
 				}
 			}
 		} else if s, ok := activity.Object.(string); ok {
-			if innerUrl, err := url.Parse(s); err != nil {
+			if stringOrigin, err := ap.GetOrigin(s); err != nil {
 				return err
-			} else if innerUrl.Host != origin {
-				return fmt.Errorf("invalid object host: %s", innerUrl.Host)
+			} else if stringOrigin != origin {
+				return fmt.Errorf("invalid object host: %s", stringOrigin)
 			}
 		} else {
 			return fmt.Errorf("invalid object: %T", obj)
@@ -206,7 +205,7 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 			return fmt.Errorf("invalid object: %T", activity.Object)
 		} else if s == "" {
 			return errors.New("empty ID")
-		} else if _, err := url.Parse(s); err != nil {
+		} else if _, err := ap.GetOrigin(s); err != nil {
 			return err
 		}
 
@@ -239,20 +238,7 @@ func (l *Listener) fetchObject(ctx context.Context, id string) (bool, []byte, er
 	return true, body, nil
 }
 
-func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
-	receiver := r.PathValue("username")
-
-	var registered int
-	if err := l.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where actor->>'$.preferredUsername' = ? and host = ?)`, receiver, l.Domain).Scan(&registered); err != nil {
-		slog.Warn("Failed to check if receiving user exists", "receiver", receiver, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	} else if registered == 0 {
-		slog.Debug("Receiving user does not exist", "receiver", receiver)
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
+func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request) {
 	if r.ContentLength > l.Config.MaxRequestBodySize {
 		slog.Warn("Ignoring big request", "size", r.ContentLength)
 		w.WriteHeader(http.StatusRequestEntityTooLarge)
@@ -527,4 +513,21 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
+	receiver := r.PathValue("username")
+
+	var registered int
+	if err := l.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null)`, receiver).Scan(&registered); err != nil {
+		slog.Warn("Failed to check if receiving user exists", "receiver", receiver, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	} else if registered == 0 {
+		slog.Debug("Receiving user does not exist", "receiver", receiver)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	l.doHandleInbox(w, r)
 }

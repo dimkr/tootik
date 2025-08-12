@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-	http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,25 +13,19 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package outbox
+
+package cluster
 
 import (
-	"fmt"
-	"strings"
-
-	"github.com/google/uuid"
+	"log/slog"
+	"os"
 )
 
-// NewID generates a pseudo-random ID.
-func NewID(domain, actorID, prefix string) (string, error) {
-	u, err := uuid.NewV7()
-	if err != nil {
-		return "", fmt.Errorf("failed to generate %s ID: %w", prefix, err)
+func init() {
+	opts := slog.HandlerOptions{
+		Level:     slog.LevelDebug,
+		AddSource: false,
 	}
 
-	if strings.HasPrefix(actorID, "ap://") {
-		return fmt.Sprintf("%s/%s/%s", actorID, prefix, u.String()), nil
-	}
-
-	return fmt.Sprintf("https://%s/%s/%s", domain, prefix, u.String()), nil
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &opts)))
 }

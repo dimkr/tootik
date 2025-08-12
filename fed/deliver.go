@@ -19,12 +19,12 @@ package fed
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"hash/crc32"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -188,13 +188,29 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		}
 
 		if activity.Actor == actor.ID && !q.Config.DisableIntegrityProofs {
-			withProof, err := proof.Add(keys[1], time.Now(), []byte(rawActivity))
+			activity.Context = []string{"https://www.w3.org/ns/activitystreams", "https://w3id.org/security/data-integrity/v1"}
+
+			proof, err := proof.Create(keys[1], time.Now(), &activity, activity.Context)
 			if err != nil {
 				slog.Error("Failed to add integrity proof", "error", err)
 				continue
 			}
 
-			rawActivity = string(withProof)
+			activity.Proof = proof
+
+			if strings.HasPrefix(actor.ID, "ap://") {
+				activity.Actor += "?gateways=https%3A%2F%2F" + q.Domain
+			}
+
+			j, err := json.Marshal(&activity)
+			if err != nil {
+				slog.Error("Failed to marshal activity", "error", err)
+				continue
+			}
+
+			rawActivity = string(j)
+		} else if strings.HasPrefix(actor.ID, "ap://") {
+			activity.Actor += "?gateways=https%3A%2F%2F" + q.Domain
 		}
 
 		if _, err := q.DB.ExecContext(
@@ -340,15 +356,10 @@ func (q *Queue) queueTasks(
 	tasks []chan deliveryTask,
 	events chan<- deliveryEvent,
 ) error {
-	activityID, err := url.Parse(job.Activity.ID)
-	if err != nil {
-		return err
-	}
-
 	recipients := ap.Audience{}
 
 	// deduplicate recipients or skip if we're forwarding an activity
-	if job.Activity.Actor == job.Sender.ID {
+	if ap.SameActor(job.Activity.Actor, job.Sender.ID) {
 		for id := range job.Activity.To.Keys() {
 			recipients.Add(id)
 		}
@@ -365,10 +376,9 @@ func (q *Queue) queueTasks(
 	if wideDelivery {
 		followers, err := q.DB.QueryContext(
 			ctx,
-			`select distinct follower from follows where followed = ? and follower not like ? and follower not like ? and accepted = 1`,
+			`select distinct follower from follows where followed = ? and follower not like ? and accepted = 1`,
 			job.Sender.ID,
 			fmt.Sprintf("https://%s/%%", q.Domain),
-			fmt.Sprintf("https://%s/%%", activityID.Host),
 		)
 		if err != nil {
 			slog.Warn("Failed to list followers", "activity", job.Activity.ID, "error", err)
@@ -389,7 +399,11 @@ func (q *Queue) queueTasks(
 
 	// assume that all other federated recipients are actors and not collections
 	for recipient := range recipients.Keys() {
-		actorIDs.Add(recipient)
+		if c, err := ap.CanonicalizeActorID(recipient); err == nil {
+			actorIDs.Add(c)
+		} else {
+			slog.Debug("Ignoring invalid recipient", "recipient", recipient)
+		}
 	}
 
 	var author string
@@ -400,7 +414,7 @@ func (q *Queue) queueTasks(
 	contentLength := strconv.Itoa(len(job.RawActivity))
 
 	for actorID := range actorIDs.Keys() {
-		if actorID == author || actorID == ap.Public {
+		if ap.SameActor(actorID, author) || actorID == ap.Public {
 			slog.Debug("Skipping recipient", "to", actorID, "activity", job.Activity.ID)
 			continue
 		}
@@ -414,9 +428,12 @@ func (q *Queue) queueTasks(
 			continue
 		}
 
-		// if possible, use the recipient's shared inbox and skip other recipients with the same shared inbox
 		inbox := to.Inbox
-		if wideDelivery {
+		if strings.HasPrefix(inbox, "ap://") && len(to.Gateways) > 0 {
+			// if it's a portable inbox, use the first gateway
+			inbox = to.Gateways[0] + "/.well-known/apgateway/" + inbox[5:]
+		} else if wideDelivery {
+			// if possible, use the recipient's shared inbox and skip other recipients with the same shared inbox
 			if sharedInbox, ok := to.Endpoints["sharedInbox"]; ok && sharedInbox != "" {
 				slog.Debug("Using shared inbox", "to", actorID, "activity", job.Activity.ID, "shared_inbox", inbox)
 				inbox = sharedInbox

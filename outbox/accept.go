@@ -26,7 +26,12 @@ import (
 
 // Accept queues an Accept activity for delivery.
 func Accept(ctx context.Context, domain string, followed, follower, followID string, tx *sql.Tx) error {
-	id, err := NewID(domain, "accept")
+	id, err := NewID(domain, followed, "accept")
+	if err != nil {
+		return err
+	}
+
+	follower, err = ap.CanonicalizeActorID(follower)
 	if err != nil {
 		return err
 	}

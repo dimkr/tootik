@@ -30,7 +30,7 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 		return fmt.Errorf("%s cannot follow %s", follower.ID, followed)
 	}
 
-	followID, err := NewID(domain, "follow")
+	followID, err := NewID(domain, follower.ID, "follow")
 	if err != nil {
 		return err
 	}
@@ -68,13 +68,12 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 				$1,
 				$2,
 				$3,
-				(SELECT CASE WHEN host = $4 AND COALESCE(actor->>'$.manuallyApprovesFollowers', 0) = 0 THEN 1 ELSE NULL END FROM persons WHERE id = $3)
+				(SELECT CASE WHEN ed25519privkey IS NOT NULL AND COALESCE(actor->>'$.manuallyApprovesFollowers', 0) = 0 THEN 1 ELSE NULL END FROM persons WHERE id = $3)
 			)
 		`,
 		followID,
 		follower.ID,
 		followed,
-		domain,
 	); err != nil {
 		return fmt.Errorf("failed to insert follow: %w", err)
 	}

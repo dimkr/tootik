@@ -36,7 +36,7 @@ func (h *Handler) local(w text.Writer, r *Request, args ...string) {
 						select notes.object, persons.actor, null as sharer, notes.inserted from persons
 						join notes
 						on notes.author = persons.id
-						where notes.public = 1 and persons.host = $1
+						where notes.public = 1 and persons.ed25519privkey is not null
 						union all
 						select notes.object, persons.actor, sharers.actor as sharer, shares.inserted from persons sharers
 						join shares
@@ -45,13 +45,12 @@ func (h *Handler) local(w text.Writer, r *Request, args ...string) {
 						on notes.id = shares.note
 						join persons
 						on persons.id = notes.author
-						where notes.public = 1 and sharers.host = $1
+						where notes.public = 1 and sharers.ed25519privkey is not null
 					)
 					order by inserted desc
-					limit $2
-					offset $3
+					limit $1
+					offset $2
 				`,
-				h.Domain,
 				h.Config.PostsPerPage,
 				offset,
 			)

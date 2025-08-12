@@ -248,7 +248,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		}
 
 	case ap.Follow:
-		if sender.ID != activity.Actor {
+		if !ap.SameActor(sender.ID, activity.Actor) {
 			return errors.New("received unauthorized follow request")
 		}
 

@@ -72,5 +72,9 @@ func (h *Handler) resolve(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.Redirect("/users/outbox/" + strings.TrimPrefix(person.ID, "https://"))
+	if prefix, found := strings.CutPrefix(person.ID, "https://"); found {
+		w.Redirect("/users/outbox/" + prefix)
+	} else {
+		w.Redirect("/users/outbox/" + strings.TrimPrefix(person.ID, "ap://"))
+	}
 }

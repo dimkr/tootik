@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"time"
 
 	"github.com/btcsuite/btcutil/base58"
@@ -31,6 +32,30 @@ import (
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/proof"
 )
+
+var didFormat = regexp.MustCompile(`^ap://did:key:(z[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)[/#?].*`)
+
+func parseMultiBaseKey(mb string) (ed25519.PublicKey, error) {
+	if len(mb) == 0 {
+		return nil, errors.New("key is empty")
+	}
+
+	if mb[0] != 'z' {
+		return nil, fmt.Errorf("invalid prefix: %c", mb[0])
+	}
+
+	rawKey := base58.Decode(mb[1:])
+
+	if len(rawKey) != ed25519.PublicKeySize+2 {
+		return nil, fmt.Errorf("invalid key length: %d", len(rawKey))
+	}
+
+	if rawKey[0] != 0xed || rawKey[1] != 0x01 {
+		return nil, fmt.Errorf("invalid prefix: %x%x", rawKey[0], rawKey[1])
+	}
+
+	return ed25519.PublicKey(rawKey[2:]), nil
+}
 
 func getKeyByID(actor *ap.Actor, keyID string) (ed25519.PublicKey, error) {
 	for _, key := range actor.AssertionMethod {
@@ -46,25 +71,12 @@ func getKeyByID(actor *ap.Actor, keyID string) (ed25519.PublicKey, error) {
 			continue
 		}
 
-		if len(key.PublicKeyMultibase) == 0 {
-			return nil, fmt.Errorf("key %s is empty", key.ID)
+		raw, err := parseMultiBaseKey(key.PublicKeyMultibase)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse %s: %w", key.ID, err)
 		}
 
-		if key.PublicKeyMultibase[0] != 'z' {
-			return nil, fmt.Errorf("invalid prefix for %s: %c", key.ID, key.PublicKeyMultibase[0])
-		}
-
-		rawKey := base58.Decode(key.PublicKeyMultibase[1:])
-
-		if len(rawKey) != ed25519.PublicKeySize+2 {
-			return nil, fmt.Errorf("invalid key length for %s: %d", key.ID, len(rawKey))
-		}
-
-		if rawKey[0] != 0xed || rawKey[1] != 0x01 {
-			return nil, fmt.Errorf("invalid prefix for %s: %x%x", key.ID, rawKey[0], rawKey[1])
-		}
-
-		return ed25519.PublicKey(rawKey[2:]), nil
+		return raw, nil
 	}
 
 	return nil, fmt.Errorf("key %s does not exist", keyID)
@@ -74,6 +86,24 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 	sig, err := httpsig.Extract(r, body, l.Domain, time.Now(), l.Config.MaxRequestAge)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to verify message: %w", err)
+	}
+
+	if m := didFormat.FindStringSubmatch(sig.KeyID); m != nil {
+		raw, err := parseMultiBaseKey(m[1])
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to parse %s: %w", sig.KeyID, err)
+		}
+
+		if err := sig.Verify(raw); err != nil {
+			return nil, nil, fmt.Errorf("failed to verify message using %s: %w", sig.KeyID, err)
+		}
+
+		actor, err := l.Resolver.ResolveID(r.Context(), l.ActorKeys, sig.KeyID, flags)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to fetch %s: %w", sig.KeyID, err)
+		}
+
+		return sig, actor, nil
 	}
 
 	actor, err := l.Resolver.ResolveID(r.Context(), l.ActorKeys, sig.KeyID, flags)

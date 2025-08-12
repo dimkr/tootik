@@ -52,7 +52,12 @@ func writeMetadataField(field ap.Attachment, w text.Writer) {
 }
 
 func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
-	actorID := "https://" + args[1]
+	var actorID string
+	if strings.HasPrefix(args[1], "did:") {
+		actorID = "ap://" + args[1]
+	} else {
+		actorID = "https://" + args[1]
+	}
 
 	var actor ap.Actor
 	if err := h.DB.QueryRowContext(r.Context, `select json(actor) from persons where id = ?`, actorID).Scan(&actor); err != nil && errors.Is(err, sql.ErrNoRows) {
@@ -318,9 +323,17 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 
 		var accepted sql.NullInt32
 		if err := h.DB.QueryRowContext(r.Context, `select accepted from follows where follower = ? and followed = ?`, r.User.ID, actorID).Scan(&accepted); actor.ManuallyApprovesFollowers && errors.Is(err, sql.ErrNoRows) {
-			w.Linkf("/users/follow/"+strings.TrimPrefix(actorID, "https://"), "⚡ Follow %s (requires approval)", actor.PreferredUsername)
+			if suffix, found := strings.CutPrefix(actorID, "https://"); found {
+				w.Linkf("/users/follow/"+suffix, "⚡ Follow %s (requires approval)", actor.PreferredUsername)
+			} else {
+				w.Linkf("/users/follow/"+strings.TrimPrefix(actorID, "ap://"), "⚡ Follow %s (requires approval)", actor.PreferredUsername)
+			}
 		} else if errors.Is(err, sql.ErrNoRows) {
-			w.Linkf("/users/follow/"+strings.TrimPrefix(actorID, "https://"), "⚡ Follow %s", actor.PreferredUsername)
+			if suffix, found := strings.CutPrefix(actorID, "https://"); found {
+				w.Linkf("/users/follow/"+suffix, "⚡ Follow %s", actor.PreferredUsername)
+			} else {
+				w.Linkf("/users/follow/"+strings.TrimPrefix(actorID, "ap://"), "⚡ Follow %s", actor.PreferredUsername)
+			}
 		} else if err != nil {
 			r.Log.Warn("Failed to check if user is followed", "actor", actorID, "error", err)
 		} else if accepted.Valid && accepted.Int32 == 0 {

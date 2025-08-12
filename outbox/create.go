@@ -34,7 +34,7 @@ var ErrDeliveryQueueFull = errors.New("delivery queue is full")
 
 // Create queues a Create activity for delivery.
 func Create(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, post *ap.Object, author *ap.Actor) error {
-	id, err := NewID(domain, "create")
+	id, err := NewID(domain, author.ID, "create")
 	if err != nil {
 		return err
 	}
