@@ -111,7 +111,7 @@ tootik supports [FEP-ef61](https://codeberg.org/fediverse/fep/src/branch/main/fe
 
 Currently, registration is hidden. To register a portable actor, supply a base58-encoded Ed25519 private key when registering:
 ```
-/users/register?did:key:z6Mk...
+/users/register?z6Mk...
 ```
 
 As usual, username is taken from the client certificate. A user named `alice` on `example.org` can be looked up over [WebFinger](https://www.rfc-editor.org/rfc/rfc7033):
