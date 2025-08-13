@@ -107,7 +107,7 @@ By default, tootik returns 0 in user and post counters unless `FillNodeInfoUsage
 
 ## Data Portability
 
-tootik supports [FEP-ef61] portable actors, activities and objects.
+tootik supports [FEP-ef61](https://codeberg.org/fediverse/fep/src/branch/main/fep/ef61/fep-ef61.md) portable actors, activities and objects.
 
 Currently, registration is hidden. To register a portable actor, supply a base58-encoded Ed25519 private key when registering:
 ```
