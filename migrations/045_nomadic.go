@@ -46,6 +46,10 @@ func nomadic(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
+	if _, err := tx.ExecContext(ctx, `CREATE UNIQUE INDEX personslocalusername ON persons(id, actor->>'$.preferredUsername') WHERE ed25519privkey IS NOT NULL`); err != nil {
+		return err
+	}
+
 	if _, err := tx.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS noutbox(id TEXT PRIMARY KEY, activity JSONB NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()), attempts INTEGER DEFAULT 0, last INTEGER DEFAULT (UNIXEPOCH()), sent INTEGER DEFAULT 0, sender STRING, host TEXT AS (CASE WHEN id LIKE 'ap://%' THEN substr(substr(id, 6), 0, instr(substr(id, 6), '/')) ELSE substr(substr(id, 9), 0, instr(substr(id, 9), '/')) END))`); err != nil {
 		return err
 	}
