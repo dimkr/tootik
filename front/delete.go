@@ -31,7 +31,7 @@ func (h *Handler) delete(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	postID := "https://" + args[1]
+	postID := ap.Canonicalize(ap.Gateway(h.Domain, args[1]))
 
 	var note ap.Object
 	if err := h.DB.QueryRowContext(r.Context, `select json(object) from notes where id = ? and author = ?`, postID, r.User.ID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {

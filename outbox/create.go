@@ -40,7 +40,7 @@ func Create(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, pos
 	}
 
 	var queueSize int
-	if err := db.QueryRowContext(ctx, `select count(distinct activity->>'$.id') from outbox where sent = 0 and attempts < ?`, cfg.MaxDeliveryAttempts).Scan(&queueSize); err != nil {
+	if err := db.QueryRowContext(ctx, `select count(distinct id) from outbox where sent = 0 and attempts < ?`, cfg.MaxDeliveryAttempts).Scan(&queueSize); err != nil {
 		return fmt.Errorf("failed to query delivery queue size: %w", err)
 	}
 
@@ -77,7 +77,7 @@ func Create(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, pos
 		return fmt.Errorf("failed to insert Create: %w", err)
 	}
 
-	if _, err = tx.ExecContext(ctx, `insert into outbox (activity, sender) values (jsonb(?),?)`, string(j), author.ID); err != nil {
+	if _, err = tx.ExecContext(ctx, `insert into outbox (id, activity, sender) values (?,jsonb(?),?)`, create.ID, string(j), author.ID); err != nil {
 		return fmt.Errorf("failed to insert Create: %w", err)
 	}
 

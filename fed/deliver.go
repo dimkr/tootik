@@ -19,7 +19,6 @@ package fed
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"hash/crc32"
@@ -187,35 +186,28 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey},
 		}
 
-		if activity.Actor == actor.ID && !q.Config.DisableIntegrityProofs {
+		if activity.Actor == actor.ID && !q.Config.DisableIntegrityProofs && activity.Proof == (ap.Proof{}) {
 			activity.Context = []string{"https://www.w3.org/ns/activitystreams", "https://w3id.org/security/data-integrity/v1"}
 
-			proof, err := proof.Create(keys[1], time.Now(), &activity, activity.Context)
+			withProof, err := proof.Add(
+				httpsig.Key{
+					ID:         ap.Gateway(q.Domain, keys[1].ID),
+					PrivateKey: keys[1].PrivateKey,
+				},
+				time.Now(),
+				[]byte(rawActivity),
+			)
 			if err != nil {
 				slog.Error("Failed to add integrity proof", "error", err)
 				continue
 			}
 
-			activity.Proof = proof
-
-			if strings.HasPrefix(actor.ID, "ap://") {
-				activity.Actor += "?gateways=https%3A%2F%2F" + q.Domain
-			}
-
-			j, err := json.Marshal(&activity)
-			if err != nil {
-				slog.Error("Failed to marshal activity", "error", err)
-				continue
-			}
-
-			rawActivity = string(j)
-		} else if strings.HasPrefix(actor.ID, "ap://") {
-			activity.Actor += "?gateways=https%3A%2F%2F" + q.Domain
+			rawActivity = string(withProof)
 		}
 
 		if _, err := q.DB.ExecContext(
 			ctx,
-			`update outbox set last = unixepoch(), attempts = ? where activity->>'$.id' = ? and sender = ?`,
+			`update outbox set last = unixepoch(), attempts = ? where id = ? and sender = ?`,
 			deliveryAttempts+1,
 			activity.ID,
 			actor.ID,
@@ -266,7 +258,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 		if _, err := q.DB.ExecContext(
 			ctx,
-			`update outbox set sent = 1 where activity->>'$.id' = ? and sender = ?`,
+			`update outbox set sent = 1 where id = ? and sender = ?`,
 			job.Activity.ID,
 			job.Sender.ID,
 		); err != nil {
@@ -359,7 +351,7 @@ func (q *Queue) queueTasks(
 	recipients := ap.Audience{}
 
 	// deduplicate recipients or skip if we're forwarding an activity
-	if ap.SameActor(job.Activity.Actor, job.Sender.ID) {
+	if job.Activity.Actor == job.Sender.ID {
 		for id := range job.Activity.To.Keys() {
 			recipients.Add(id)
 		}
@@ -399,22 +391,18 @@ func (q *Queue) queueTasks(
 
 	// assume that all other federated recipients are actors and not collections
 	for recipient := range recipients.Keys() {
-		if c, err := ap.CanonicalizeActorID(recipient); err == nil {
-			actorIDs.Add(c)
-		} else {
-			slog.Debug("Ignoring invalid recipient", "recipient", recipient)
-		}
+		actorIDs.Add(recipient)
 	}
 
 	var author string
 	if obj, ok := job.Activity.Object.(*ap.Object); ok {
-		author = obj.AttributedTo
+		author = ap.Canonicalize(obj.AttributedTo)
 	}
 
 	contentLength := strconv.Itoa(len(job.RawActivity))
 
 	for actorID := range actorIDs.Keys() {
-		if ap.SameActor(actorID, author) || actorID == ap.Public {
+		if actorID == author || actorID == ap.Public {
 			slog.Debug("Skipping recipient", "to", actorID, "activity", job.Activity.ID)
 			continue
 		}

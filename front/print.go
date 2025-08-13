@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -117,13 +116,13 @@ func (h *Handler) getDisplayName(id, preferredUsername, name string, t ap.ActorT
 		displayName = displayName[:match[0]] + displayName[match[1]:]
 	}
 
-	u, err := url.Parse(id)
+	origin, err := ap.GetOrigin(id)
 	if err != nil {
 		slog.Warn("Failed to parse user ID", "id", id, "error", err)
 		return fmt.Sprintf("%s %s", emoji, displayName)
 	}
 
-	return fmt.Sprintf("%s %s (%s@%s)", emoji, displayName, preferredUsername, u.Host)
+	return fmt.Sprintf("%s %s (%s@%s)", emoji, displayName, preferredUsername, origin)
 }
 
 func (h *Handler) getActorDisplayName(actor *ap.Actor) string {

@@ -25,7 +25,6 @@ import (
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
@@ -67,11 +66,9 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request) (*http.Response, e
 		return nil, fmt.Errorf("failed to query server capabilities for %s: %w", req.URL.Host, err)
 	}
 
-	if strings.HasPrefix(keys[1].ID, "ap://") {
+	if ap.IsPortable(keys[1].ID) {
 		capabilities = ap.RFC9421Ed25519Signatures
-
-		// TODO: do this when authenticating the user, not here
-		keys[1].ID += "?gateways=https%3A%2F%2F" + s.Domain
+		keys[1].ID = ap.Gateway(s.Domain, keys[1].ID)
 	} else if capabilities&ap.RFC9421Ed25519Signatures == 0 && req.Method == http.MethodPost && rand.Float32() > s.Config.Ed25519Threshold {
 		slog.Debug("Randomly enabling RFC9421 with Ed25519", "server", req.URL.Host)
 		capabilities = ap.RFC9421Ed25519Signatures

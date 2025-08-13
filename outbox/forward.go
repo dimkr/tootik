@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
@@ -90,7 +89,8 @@ func forwardToGroup(ctx context.Context, domain string, tx *sql.Tx, note *ap.Obj
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`insert into outbox(activity, sender) values(jsonb(?), ?)`,
+		`insert into outbox(id, activity, sender) values(jsonb(?), ?)`,
+		activity.ID,
 		rawActivity,
 		group.ID,
 	); err != nil {
@@ -157,8 +157,12 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, tx *sq
 		return nil
 	}
 
-	prefix := fmt.Sprintf("https://%s/", domain)
-	if !strings.HasPrefix(threadStarterID, prefix) {
+	var isLocal int
+	if err := tx.QueryRowContext(ctx, `select exists (select 1 from persons where id = ? and ed25519privkey is not null)`, threadStarterID).Scan(&isLocal); err != nil {
+		return err
+	}
+
+	if isLocal == 0 {
 		slog.Debug("Thread starter is federated", "activity", activity.ID, "note", note.ID)
 		return nil
 	}
@@ -174,7 +178,8 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, tx *sq
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT OR IGNORE INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
+		`INSERT OR IGNORE INTO outbox (id, activity, sender) VALUES (?, JSONB(?), ?)`,
+		activity.ID,
 		rawActivity,
 		threadStarterID,
 	); err != nil {

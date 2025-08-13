@@ -31,11 +31,6 @@ func Accept(ctx context.Context, domain string, followed, follower, followID str
 		return err
 	}
 
-	follower, err = ap.CanonicalizeActorID(follower)
-	if err != nil {
-		return err
-	}
-
 	recipients := ap.Audience{}
 	recipients.Add(follower)
 
@@ -55,7 +50,8 @@ func Accept(ctx context.Context, domain string, followed, follower, followID str
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
+		`INSERT INTO outbox (id, activity, sender) VALUES (?, JSONB(?), ?)`,
+		accept.ID,
 		&accept,
 		followed,
 	); err != nil {

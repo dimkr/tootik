@@ -41,7 +41,7 @@ func (h *Handler) export(w text.Writer, r *Request, args ...string) {
 	rows, err := h.DB.QueryContext(
 		r.Context,
 		`
-		select activity->>'$.id', activity->>'$.type', datetime(inserted, 'unixepoch'), json(activity) from outbox
+		select id, activity->>'$.type', datetime(inserted, 'unixepoch'), json(activity) from outbox
 		where
 			activity->>'$.actor' = ?
 		order by inserted desc

@@ -203,6 +203,7 @@ func CreateNomadic(
 		PreferredUsername: name,
 		Inbox:             id + "/inbox",
 		Outbox:            id + "/outbox",
+		Followers:         id + "/followers",
 		Gateways:          []string{"https://" + domain},
 		PublicKey: ap.PublicKey{
 			ID:           id + "#main-key",

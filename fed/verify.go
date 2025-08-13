@@ -24,7 +24,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"regexp"
 	"time"
 
 	"github.com/btcsuite/btcutil/base58"
@@ -32,8 +31,6 @@ import (
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/proof"
 )
-
-var didFormat = regexp.MustCompile(`^ap://did:key:(z[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)[/#?].*`)
 
 func parseMultiBaseKey(mb string) (ed25519.PublicKey, error) {
 	if len(mb) == 0 {
@@ -58,6 +55,8 @@ func parseMultiBaseKey(mb string) (ed25519.PublicKey, error) {
 }
 
 func getKeyByID(actor *ap.Actor, keyID string) (ed25519.PublicKey, error) {
+	keyID = ap.Canonicalize(keyID)
+
 	for _, key := range actor.AssertionMethod {
 		if key.ID != keyID {
 			continue
@@ -88,7 +87,7 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 		return nil, nil, fmt.Errorf("failed to verify message: %w", err)
 	}
 
-	if m := didFormat.FindStringSubmatch(sig.KeyID); m != nil {
+	if m := ap.DIDKeyRegex.FindStringSubmatch(sig.KeyID); m != nil {
 		raw, err := parseMultiBaseKey(m[1])
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to parse %s: %w", sig.KeyID, err)

@@ -62,15 +62,15 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 		return fmt.Errorf("failed to parse post ID %s: %w", post.ID, err)
 	}
 
-	/*
-		if !data.IsIDValid(post.ID) {
-			return fmt.Errorf("received invalid post ID: %s", post.ID)
-		}
-	*/
-
 	if q.BlockList != nil && q.BlockList.Contains(origin) {
 		return fmt.Errorf("ignoring post %s: %w", post.ID, fed.ErrBlockedDomain)
 	}
+
+	/*
+		if !ap.IsPortable(post.ID) && !data.IsIDValid(post.ID) {
+			return fmt.Errorf("received invalid post ID: %s", post.ID)
+		}
+	*/
 
 	if len(post.To.OrderedMap)+len(post.CC.OrderedMap) > q.Config.MaxRecipients {
 		log.Warn("Post has too many recipients", "to", len(post.To.OrderedMap), "cc", len(post.CC.OrderedMap))
@@ -192,6 +192,8 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 	log.Debug("Processing activity")
 
+	activity.ID = ap.Canonicalize(activity.ID)
+
 	switch activity.Type {
 	case ap.Delete:
 		deleted := ""
@@ -248,14 +250,11 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		}
 
 	case ap.Follow:
-		if !ap.SameActor(sender.ID, activity.Actor) {
+		if sender.ID != activity.Actor {
 			return errors.New("received unauthorized follow request")
 		}
 
-		follower, err := ap.CanonicalizeActorID(activity.Actor)
-		if err != nil {
-			return fmt.Errorf("received canonicalize follower %s: %w", activity.Actor, err)
-		}
+		follower := ap.Canonicalize(activity.Actor)
 
 		followed, ok := activity.Object.(string)
 		if !ok {
@@ -284,7 +283,6 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			); err != nil {
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
-
 		} else {
 			log.Info("Approving follow request", "follower", follower, "followed", followed)
 
@@ -323,14 +321,11 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		}
 
 	case ap.Reject:
-		if !ap.SameActor(sender.ID, activity.Actor) {
+		if sender.ID != activity.Actor {
 			return fmt.Errorf("received an invalid Reject for %s by %s", activity.Actor, sender.ID)
 		}
 
-		follower, err := ap.CanonicalizeActorID(activity.Actor)
-		if err != nil {
-			return fmt.Errorf("received canonicalize follower %s: %w", activity.Actor, err)
-		}
+		follower := ap.Canonicalize(activity.Actor)
 
 		followID, ok := activity.Object.(string)
 		if ok && followID != "" {
@@ -373,7 +368,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return nil
 		}
 
-		if !ap.SameActor(sender.ID, activity.Actor) {
+		if sender.ID != activity.Actor {
 			return fmt.Errorf("received an invalid undo request for %s by %s", activity.Actor, sender.ID)
 		}
 
@@ -414,15 +409,8 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		return q.processCreateActivity(ctx, log, sender, activity, rawActivity, post, shared)
 
 	case ap.Announce:
-		sharer, err := ap.CanonicalizeActorID(sender.ID)
-		if err != nil {
-			return fmt.Errorf("failed to normalize sharer %s: %w", sender.ID, err)
-		}
-
-		activityID, err := ap.CanonicalizeActorID(activity.ID)
-		if err != nil {
-			return fmt.Errorf("failed to normalize activity %s: %w", activity.ID, err)
-		}
+		sharer := ap.Canonicalize(sender.ID)
+		activityID := ap.Canonicalize(activity.ID)
 
 		inner, ok := activity.Object.(*ap.Activity)
 		if !ok {
@@ -447,7 +435,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 	case ap.Update:
 		post, ok := activity.Object.(*ap.Object)
-		if !ok || ap.SameActor(post.ID, activity.Actor) || ap.SameActor(post.ID, sender.ID) {
+		if !ok || post.ID == activity.Actor || post.ID == sender.ID {
 			log.Debug("Ignoring unsupported Update object")
 			return nil
 		}
