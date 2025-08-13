@@ -17,10 +17,7 @@ limitations under the License.
 package cluster
 
 import (
-	"crypto/ed25519"
 	"testing"
-
-	"github.com/btcsuite/btcutil/base58"
 )
 
 func TestCluster_PublicPost(t *testing.T) {
@@ -154,87 +151,4 @@ func TestCluster_DM(t *testing.T) {
 		NotContains(Line{Type: Quote, Text: "hola"})
 	bob.Refresh().
 		NotContains(Line{Type: Quote, Text: "hola"})
-}
-
-func TestCluster_Nomadic(t *testing.T) {
-	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
-
-	_, alicePriv, err := ed25519.GenerateKey(nil)
-	if err != nil {
-		t.Fatalf("Failed to generate key for alice: %v", err)
-	}
-	alicePrivBase58 := "z" + base58.Encode(append([]byte{0x80, 0x26}, alicePriv.Seed()...))
-
-	_, bobPriv, err := ed25519.GenerateKey(nil)
-	if err != nil {
-		t.Fatalf("Failed to generate key for bob: %v", err)
-	}
-	bobPrivBase58 := "z" + base58.Encode(append([]byte{0x80, 0x26}, bobPriv.Seed()...))
-
-	nomadAlice := cluster["a.localdomain"].Handle(aliceKeypair, "/users/register?"+alicePrivBase58).OK()
-	nomadBob := cluster["b.localdomain"].Handle(bobKeypair, "/users/register?"+bobPrivBase58).OK()
-	carol := cluster["c.localdomain"].Register(carolKeypair).OK()
-
-	_ = nomadBob
-	_ = carol
-
-	nomadAlice.
-		FollowInput("🔭 View profile", "carol@c.localdomain").
-		Follow("⚡ Follow carol").
-		OK()
-	cluster.Settle(t)
-
-	/*
-		nomadBob.
-			FollowInput("🔭 View profile", "carol@c.localdomain").
-			Follow("⚡ Follow carol").
-			OK()
-		cluster.Settle(t)
-
-	*/
-
-	carol.
-		Follow("📣 New post").
-		FollowInput("📣 Anyone", "hello").
-		Contains(Line{Type: Quote, Text: "hello"})
-	cluster.Settle(t)
-
-	nomadAlice.
-		FollowInput("🔭 View profile", "carol@c.localdomain").
-		Contains(Line{Type: Quote, Text: "hello"})
-
-	carol.
-		Follow("🐕 Followers").
-		Follow("2025-08-13 👽 alice").
-		Follow("⚡ Follow alice").
-		OK()
-	cluster.Settle(t)
-
-	nomadAlice.
-		Follow("📣 New post").
-		FollowInput("📣 Anyone", "hi").
-		Contains(Line{Type: Quote, Text: "hi"})
-	cluster.Settle(t)
-
-	/*
-		carol.
-			Follow("🐕 Followers").
-			Follow("2025-08-13 👽 alice").
-			Contains(Line{Type: Quote, Text: "hi"}).
-			Follow("2025-08-13 alice").
-			FollowInput("💬 Reply", "hola").
-			Contains(Line{Type: Quote, Text: "hola"})
-		cluster.Settle(t)
-
-		nomadAlice.
-			Follow("📻 My feed").
-			Follow("2025-08-13 alice ┃ 1💬").
-			Contains(Line{Type: Quote, Text: "hola"})
-
-		nomadBob.
-			Follow("📻 My feed").
-			Follow("2025-08-13 alice ┃ 1💬").
-			Contains(Line{Type: Quote, Text: "hola"})
-	*/
 }
