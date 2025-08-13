@@ -17,7 +17,6 @@ limitations under the License.
 package fed
 
 import (
-	"bytes"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -101,8 +100,24 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	r.Body = io.NopCloser(bytes.NewReader(rawActivity))
-	l.doHandleInbox(w, r)
+	actor, err := l.Resolver.ResolveID(r.Context(), l.ActorKeys, activity.Proof.VerificationMethod, 0)
+	if err != nil {
+		slog.Warn("Failed to resolve actor", "actor", activity.Proof.VerificationMethod, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if _, err = l.DB.ExecContext(
+		r.Context(),
+		`INSERT OR IGNORE INTO inbox (sender, activity, raw) VALUES (?, JSONB(?), ?)`,
+		actor.ID,
+		&activity,
+		string(rawActivity),
+	); err != nil {
+		slog.Error("Failed to insert activity", "actor", actor.ID, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 func writeWithProof(w http.ResponseWriter, actor *ap.Actor, ed25519PrivKeyPem string, body []byte) {

@@ -186,7 +186,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey},
 		}
 
-		if activity.Actor == actor.ID && !q.Config.DisableIntegrityProofs && activity.Proof == (ap.Proof{}) {
+		if activity.Actor == actor.ID && !q.Config.DisableIntegrityProofs {
 			activity.Context = []string{"https://www.w3.org/ns/activitystreams", "https://w3id.org/security/data-integrity/v1"}
 
 			withProof, err := proof.Add(
@@ -417,9 +417,9 @@ func (q *Queue) queueTasks(
 		}
 
 		inbox := to.Inbox
-		if strings.HasPrefix(inbox, "ap://") && len(to.Gateways) > 0 {
+		if ap.IsPortable(to.ID) && len(to.Gateways) > 0 && strings.HasPrefix(to.Gateways[0], "https://") {
 			// if it's a portable inbox, use the first gateway
-			inbox = to.Gateways[0] + "/.well-known/apgateway/" + inbox[5:]
+			inbox = ap.Gateway(to.Gateways[0][8:], inbox[5:])
 		} else if wideDelivery {
 			// if possible, use the recipient's shared inbox and skip other recipients with the same shared inbox
 			if sharedInbox, ok := to.Endpoints["sharedInbox"]; ok && sharedInbox != "" {

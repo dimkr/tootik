@@ -58,41 +58,41 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request) (*http.Response, e
 
 	slog.Debug("Sending request", "url", urlString)
 
-	capabilities := ap.CavageDraftSignatures
+	var capabilities ap.Capability
+	if !ap.IsPortable(keys[1].ID) {
+		capabilities = ap.CavageDraftSignatures
 
-	if err := s.DB.QueryRowContext(req.Context(), `select capabilities from servers where host = ?`, req.URL.Host).Scan(&capabilities); errors.Is(err, sql.ErrNoRows) {
-		slog.Debug("Server capabilities are unknown", "url", urlString)
-	} else if err != nil {
-		return nil, fmt.Errorf("failed to query server capabilities for %s: %w", req.URL.Host, err)
-	}
+		if err := s.DB.QueryRowContext(req.Context(), `select capabilities from servers where host = ?`, req.URL.Host).Scan(&capabilities); errors.Is(err, sql.ErrNoRows) {
+			slog.Debug("Server capabilities are unknown", "url", urlString)
+		} else if err != nil {
+			return nil, fmt.Errorf("failed to query server capabilities for %s: %w", req.URL.Host, err)
+		}
 
-	if ap.IsPortable(keys[1].ID) {
-		capabilities = ap.RFC9421Ed25519Signatures
-		keys[1].ID = ap.Gateway(s.Domain, keys[1].ID)
-	} else if capabilities&ap.RFC9421Ed25519Signatures == 0 && req.Method == http.MethodPost && rand.Float32() > s.Config.Ed25519Threshold {
-		slog.Debug("Randomly enabling RFC9421 with Ed25519", "server", req.URL.Host)
-		capabilities = ap.RFC9421Ed25519Signatures
-	} else if capabilities&ap.RFC9421RSASignatures == 0 && req.Method == http.MethodPost && rand.Float32() > s.Config.RFC9421Threshold {
-		slog.Debug("Randomly enabling RFC9421 with RSA", "server", req.URL.Host)
-		capabilities = ap.RFC9421RSASignatures
-	}
+		if capabilities&ap.RFC9421Ed25519Signatures == 0 && req.Method == http.MethodPost && rand.Float32() > s.Config.Ed25519Threshold {
+			slog.Debug("Randomly enabling RFC9421 with Ed25519", "server", req.URL.Host)
+			capabilities = ap.RFC9421Ed25519Signatures
+		} else if capabilities&ap.RFC9421RSASignatures == 0 && req.Method == http.MethodPost && rand.Float32() > s.Config.RFC9421Threshold {
+			slog.Debug("Randomly enabling RFC9421 with RSA", "server", req.URL.Host)
+			capabilities = ap.RFC9421RSASignatures
+		}
 
-	if capabilities&ap.RFC9421Ed25519Signatures > 0 {
-		slog.Debug("Signing request using RFC9421 with Ed25519", "method", req.Method, "url", urlString, "key", keys[1].ID)
+		if capabilities&ap.RFC9421Ed25519Signatures > 0 {
+			slog.Debug("Signing request using RFC9421 with Ed25519", "method", req.Method, "url", urlString, "key", keys[1].ID)
 
-		if err := httpsig.SignRFC9421(req, keys[1], time.Now(), time.Time{}, httpsig.RFC9421DigestSHA256, "ed25519", nil); err != nil {
+			if err := httpsig.SignRFC9421(req, keys[1], time.Now(), time.Time{}, httpsig.RFC9421DigestSHA256, "ed25519", nil); err != nil {
+				return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
+			}
+		} else if capabilities&ap.RFC9421RSASignatures > 0 {
+			slog.Debug("Signing request using RFC9421 with RSA", "method", req.Method, "url", urlString, "key", keys[0].ID)
+
+			if err := httpsig.SignRFC9421(req, keys[0], time.Now(), time.Time{}, httpsig.RFC9421DigestSHA256, "rsa-v1_5-sha256", nil); err != nil {
+				return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
+			}
+		} else if err := httpsig.Sign(req, keys[0], time.Now()); err != nil {
+			slog.Debug("Signing request using draft-cavage-http-signatures", "method", req.Method, "url", urlString, "key", keys[0].ID)
+
 			return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
 		}
-	} else if capabilities&ap.RFC9421RSASignatures > 0 {
-		slog.Debug("Signing request using RFC9421 with RSA", "method", req.Method, "url", urlString, "key", keys[0].ID)
-
-		if err := httpsig.SignRFC9421(req, keys[0], time.Now(), time.Time{}, httpsig.RFC9421DigestSHA256, "rsa-v1_5-sha256", nil); err != nil {
-			return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
-		}
-	} else if err := httpsig.Sign(req, keys[0], time.Now()); err != nil {
-		slog.Debug("Signing request using draft-cavage-http-signatures", "method", req.Method, "url", urlString, "key", keys[0].ID)
-
-		return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
 	}
 
 	resp, err := s.client.Do(req)
@@ -114,13 +114,15 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request) (*http.Response, e
 		return resp, fmt.Errorf("failed to send request to %s: %d, %s", urlString, resp.StatusCode, string(body))
 	}
 
-	if _, err = s.DB.ExecContext(
-		req.Context(),
-		`INSERT INTO servers (host, capabilities) VALUES ($1, $2) ON CONFLICT(host) DO UPDATE SET capabilities = capabilities | $2, updated = UNIXEPOCH()`,
-		req.URL.Host,
-		capabilities,
-	); err != nil {
-		slog.Warn("Failed to record server capabilities", "server", req.URL.Host, "error", err)
+	if capabilities > 0 {
+		if _, err = s.DB.ExecContext(
+			req.Context(),
+			`INSERT INTO servers (host, capabilities) VALUES ($1, $2) ON CONFLICT(host) DO UPDATE SET capabilities = capabilities | $2, updated = UNIXEPOCH()`,
+			req.URL.Host,
+			capabilities,
+		); err != nil {
+			slog.Warn("Failed to record server capabilities", "server", req.URL.Host, "error", err)
+		}
 	}
 
 	return resp, nil
