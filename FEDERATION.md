@@ -121,15 +121,11 @@ As usual, username is taken from the client certificate. A user named `alice` on
 The response points to a `https://` gateway that returns the actor object:
 
 	{
-		"subject": "acct:alice@example.org",
+		...
 		"links": [
 			{
-				"rel": "self",
-				"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"",
+				...
 				"href": "https://example.org/.well-known/apgateway/did:key:z6MktHosUh2fvpYofgb7BjC4AJZcg92HTP6zJRcYWqznB1q8/actor",
-				"properties": {
-					"https://www.w3.org/ns/activitystreams#type": "Person"
-				}
 			}
 		]
 	}
