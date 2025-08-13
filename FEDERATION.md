@@ -104,3 +104,79 @@ Received `Collection-Synchronization` headers are saved in the tootik database a
 tootik exposes instance metadata like its version number, through NodeInfo 2.0. This metadata is collected by fediverse statistics sites like [FediDB](https://fedidb.org/).
 
 By default, tootik returns 0 in user and post counters unless `FillNodeInfoUsage` is changed to `true`.
+
+## Data Portability
+
+tootik supports [FEP-ef61] portable actors, activities and objects.
+
+Currently, registration is hidden. To register a portable actor, supply a base58-encoded Ed25519 private key when registering:
+```
+/users/register?did:key:z6Mk...
+```
+
+As usual, username is taken from the client certificate. A user named `alice` on `example.org` can be looked up over [WebFinger](https://www.rfc-editor.org/rfc/rfc7033):
+
+	https://example.org/.well-known/webfinger?resource=acct:alice@example.org
+
+The response points to a `https://` gateway that returns the actor object:
+
+	{
+		"subject": "acct:alice@example.org",
+		"links": [
+			{
+				"rel": "self",
+				"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"",
+				"href": "https://example.org/.well-known/apgateway/did:key:z6MktHosUh2fvpYofgb7BjC4AJZcg92HTP6zJRcYWqznB1q8/actor",
+				"properties": {
+					"https://www.w3.org/ns/activitystreams#type": "Person"
+				}
+			}
+		]
+	}
+
+... and the actor object uses portable `ap://` URLs:
+
+```
+	{
+		...
+		"id": "ap://did:key:z6MktHosUh2fvpYofgb7BjC4AJZcg92HTP6zJRcYWqznB1q8/actor",
+		"type": "Person"
+		"inbox": "ap://did:key:z6MktHosUh2fvpYofgb7BjC4AJZcg92HTP6zJRcYWqznB1q8/actor/inbox",
+		"gateways": [
+			"https://example.org"
+		],
+		"preferredUsername": "alice",
+		"assertionMethod": [
+			{
+				"controller": "ap://did:key:z6MktHosUh2fvpYofgb7BjC4AJZcg92HTP6zJRcYWqznB1q8/actor",
+				"id": "ap://did:key:z6MktHosUh2fvpYofgb7BjC4AJZcg92HTP6zJRcYWqznB1q8/actor/z6MktHosUh2fvpYofgb7BjC4AJZcg92HTP6zJRcYWqznB1q8",
+				"publicKeyMultibase": "z6MktHosUh2fvpYofgb7BjC4AJZcg92HTP6zJRcYWqznB1q8",
+				"type": "Multikey"
+			}
+		],
+		"proof": {
+			...
+			"type": "DataIntegrityProof",
+			"cryptosuite": "eddsa-jcs-2022",
+			"verificationMethod": "ap://did:key:z6MktHosUh2fvpYofgb7BjC4AJZcg92HTP6zJRcYWqznB1q8/actor/z6MktHosUh2fvpYofgb7BjC4AJZcg92HTP6zJRcYWqznB1q8",
+			"proofPurpose": "assertionMethod",
+			"proofValue": "z3ARrpMTknBBEiYuchASyM7EVnVBGhHGgiBC9sWUU9BTtRQTd1vUyVdZ3PFH5jcNLueYRNMErBXUfRJaYZ5SUznoH",
+			"created": "2025-08-13T17:17:34Z"
+		}
+	}
+```
+
+When tootik receives a `POST` request to `/.well-known/apgateway`, it expects a valid [FEP-8b32](https://codeberg.org/fediverse/fep/src/branch/main/fep/8b32/fep-8b32.md) integrity proof and ability to fetch the actor, if not cached.
+
+tootik validates the integrity proof using the public Ed25519 key extracted from the key ID, and doesn't need to fetch the actor first.
+
+To allow other servers to discover portable actors without having to `POST` them to `/.well-known/apgateway`, tootik uses a `https://` gateway URL that points to the actor in the key ID of integrity proofs attached to outgoing requests.
+
+Portable actors can interact with users on the same server (portable or not) but interoperability with non-portable actors on other servers is very limited due to the backward-incompatible nature of `ap://` URLs.
+
+### TODO
+
+* Expose registration of portable actors
+* Explain data portability in help page
+* Ability to add gateways
+* Normalize IDs on insertion
