@@ -17,10 +17,7 @@ limitations under the License.
 package cluster
 
 import (
-	"crypto/ed25519"
 	"testing"
-
-	"github.com/btcsuite/btcutil/base58"
 )
 
 func TestCluster_ReplyForwardingWithIntegrityProofs(t *testing.T) {
@@ -160,27 +157,9 @@ func TestCluster_ReplyForwardingPortableActors(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
 	defer cluster.Stop()
 
-	_, alicePriv, err := ed25519.GenerateKey(nil)
-	if err != nil {
-		t.Fatalf("Failed to generate key for alice: %v", err)
-	}
-	alicePrivBase58 := "z" + base58.Encode(append([]byte{0x80, 0x26}, alicePriv.Seed()...))
-
-	_, bobPriv, err := ed25519.GenerateKey(nil)
-	if err != nil {
-		t.Fatalf("Failed to generate key for bob: %v", err)
-	}
-	bobPrivBase58 := "z" + base58.Encode(append([]byte{0x80, 0x26}, bobPriv.Seed()...))
-
-	_, carolPriv, err := ed25519.GenerateKey(nil)
-	if err != nil {
-		t.Fatalf("Failed to generate key for bob: %v", err)
-	}
-	carolPrivBase58 := "z" + base58.Encode(append([]byte{0x80, 0x26}, carolPriv.Seed()...))
-
-	alice := cluster["a.localdomain"].Handle(aliceKeypair, "/users/register?"+alicePrivBase58).OK()
-	bob := cluster["b.localdomain"].Handle(bobKeypair, "/users/register?"+bobPrivBase58).OK()
-	carol := cluster["c.localdomain"].Handle(carolKeypair, "/users/register?"+carolPrivBase58).OK()
+	alice := cluster["a.localdomain"].RegisterPortable(aliceKeypair).OK()
+	bob := cluster["b.localdomain"].RegisterPortable(bobKeypair).OK()
+	carol := cluster["c.localdomain"].RegisterPortable(carolKeypair).OK()
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").

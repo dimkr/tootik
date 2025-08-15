@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"strings"
 )
 
 var DIDKeyRegex = regexp.MustCompile(`(?:^ap:\/\/did:key:|.well-known\/apgateway\/did:key:|^did:key:|^)(z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)([\/#?].*){0,1}`)
@@ -31,6 +32,10 @@ func IsPortable(id string) bool {
 func Canonicalize(id string) string {
 	if m := DIDKeyRegex.FindStringSubmatch(id); m != nil {
 		return "ap://did:key:" + m[1] + m[2]
+	}
+
+	if !strings.HasPrefix(id, "https://") {
+		return "https://" + id
 	}
 
 	return id

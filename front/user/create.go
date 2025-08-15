@@ -26,7 +26,6 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"time"
 
@@ -157,28 +156,8 @@ func CreateNomadic(
 	db *sql.DB,
 	name string,
 	cert *x509.Certificate,
-	key string,
+	ed25519Priv ed25519.PrivateKey,
 ) (*ap.Actor, [2]httpsig.Key, error) {
-	if key == "" {
-		return nil, [2]httpsig.Key{}, errors.New("key is empty")
-	}
-
-	if key[0] != 'z' {
-		return nil, [2]httpsig.Key{}, fmt.Errorf("invalid key prefix: %c", key[0])
-	}
-
-	rawKey := base58.Decode(key[1:])
-
-	if len(rawKey) != ed25519.SeedSize+2 {
-		return nil, [2]httpsig.Key{}, fmt.Errorf("invalid key length: %d", len(rawKey))
-	}
-
-	if rawKey[0] != 0x80 || rawKey[1] != 0x26 {
-		return nil, [2]httpsig.Key{}, fmt.Errorf("invalid key prefix: %02x%02x", rawKey[0], rawKey[1])
-	}
-
-	ed25519Priv := ed25519.NewKeyFromSeed(rawKey[2:])
-
 	ed25519PrivPem, err := marshalEd25519PrivateKey(ed25519Priv)
 	if err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to marshal Ed25519 private key: %w", err)

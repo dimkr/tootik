@@ -467,7 +467,6 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	slog.Info("Inserting activity", "a", queued)
 	if _, err = l.DB.ExecContext(
 		r.Context(),
 		`INSERT OR IGNORE INTO inbox (sender, activity, raw) VALUES (?, JSONB(?), ?)`,
