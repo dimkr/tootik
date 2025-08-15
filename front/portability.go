@@ -43,7 +43,7 @@ func (h *Handler) portability(w text.Writer, r *Request, args ...string) {
 	}
 
 	w.OK()
-	w.Title("✈️ Data Portability")
+	w.Title("🚲 Data Portability")
 
 	w.Subtitle("Private Key")
 	w.Text("To register this account on another server, use this Ed25519 private key:")
