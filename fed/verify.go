@@ -141,12 +141,20 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 }
 
 func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Activity, raw []byte, flags ap.ResolverFlag) error {
-	actor, err := l.Resolver.ResolveID(ctx, l.ActorKeys, p.VerificationMethod, flags)
-	if err != nil {
-		return fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
+	var publicKey any
+	var err error
+	if m := ap.DIDKeyRegex.FindStringSubmatch(p.VerificationMethod); m != nil {
+		publicKey, err = parseMultiBaseKey(m[1])
+	} else {
+		var actor *ap.Actor
+		actor, err = l.Resolver.ResolveID(ctx, l.ActorKeys, p.VerificationMethod, flags)
+		if err != nil {
+			return fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
+		}
+
+		publicKey, err = getKeyByID(actor, p.VerificationMethod)
 	}
 
-	publicKey, err := getKeyByID(actor, p.VerificationMethod)
 	if err != nil {
 		return fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
 	}
