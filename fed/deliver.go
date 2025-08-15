@@ -19,6 +19,7 @@ package fed
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"hash/crc32"
@@ -187,22 +188,27 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		}
 
 		if activity.Actor == actor.ID && !q.Config.DisableIntegrityProofs {
-			activity.Context = []string{"https://www.w3.org/ns/activitystreams", "https://w3id.org/security/data-integrity/v1"}
+			clone := activity
 
-			withProof, err := proof.Add(
-				httpsig.Key{
-					ID:         ap.Gateway(q.Domain, keys[1].ID),
-					PrivateKey: keys[1].PrivateKey,
-				},
-				time.Now(),
-				[]byte(rawActivity),
-			)
+			clone.Context = []string{"https://www.w3.org/ns/activitystreams", "https://w3id.org/security/data-integrity/v1"}
+			clone.Actor = ap.Gateway(q.Domain, activity.Actor)
+			slog.Info("Changed actor", "to", activity.Actor)
+
+			proof, err := proof.Create(keys[1], time.Now(), &clone, clone.Context)
 			if err != nil {
 				slog.Error("Failed to add integrity proof", "error", err)
 				continue
 			}
 
-			rawActivity = string(withProof)
+			clone.Proof = proof
+
+			j, err := json.Marshal(&clone)
+			if err != nil {
+				slog.Error("Failed to add integrity proof", "error", err)
+				continue
+			}
+
+			rawActivity = string(j)
 		}
 
 		if _, err := q.DB.ExecContext(

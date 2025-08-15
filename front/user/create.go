@@ -212,7 +212,7 @@ func CreateNomadic(
 		},
 		AssertionMethod: []ap.AssertionMethod{
 			{
-				ID:                 id + "/" + ed25519PubMultibase,
+				ID:                 id + "#ed25519-key",
 				Type:               "Multikey",
 				Controller:         id,
 				PublicKeyMultibase: ed25519PubMultibase,

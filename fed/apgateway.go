@@ -100,7 +100,7 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actor, err := l.Resolver.ResolveID(r.Context(), l.ActorKeys, activity.Proof.VerificationMethod, 0)
+	actor, err := l.Resolver.ResolveID(r.Context(), l.ActorKeys, activity.Actor, 0)
 	if err != nil {
 		slog.Warn("Failed to resolve actor", "actor", activity.Proof.VerificationMethod, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
