@@ -192,7 +192,6 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 			clone.Context = []string{"https://www.w3.org/ns/activitystreams", "https://w3id.org/security/data-integrity/v1"}
 			clone.Actor = ap.Gateway(q.Domain, activity.Actor)
-			slog.Info("Changed actor", "to", activity.Actor)
 
 			proof, err := proof.Create(keys[1], time.Now(), &clone, clone.Context)
 			if err != nil {
