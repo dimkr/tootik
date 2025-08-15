@@ -184,8 +184,7 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		select {
 		case <-sigs:
 			slog.Info("Received termination signal")
@@ -194,7 +193,7 @@ func main() {
 		case <-ctx.Done():
 			wg.Done()
 		}
-	}()
+	})
 
 	if err := migrations.Run(ctx, *domain, db); err != nil {
 		panic(err)
@@ -380,14 +379,13 @@ func main() {
 			},
 		},
 	} {
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			if err := svc.Listener.ListenAndServe(ctx); err != nil {
 				slog.Error("Listener has failed", "listener", svc.Name, "error", err)
 			}
 			cancel()
 			wg.Done()
-		}()
+		})
 	}
 
 	for _, queue := range []struct {
@@ -417,14 +415,12 @@ func main() {
 			},
 		},
 	} {
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			if err := queue.Queue.Process(ctx); err != nil {
 				slog.Error("Failed to process queue", "queue", queue.Name, "error", err)
 			}
 			cancel()
-			wg.Done()
-		}()
+		})
 	}
 
 	for _, job := range []struct {
@@ -492,9 +488,7 @@ func main() {
 			},
 		},
 	} {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			defer cancel()
 
 			t := time.NewTicker(job.Interval)
@@ -516,7 +510,7 @@ func main() {
 				case <-t.C:
 				}
 			}
-		}()
+		})
 	}
 
 	<-ctx.Done()

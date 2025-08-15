@@ -196,17 +196,14 @@ func (fl *Listener) ListenAndServe(ctx context.Context) error {
 
 	var wg sync.WaitGroup
 
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		<-ctx.Done()
 		l.Close()
-		wg.Done()
-	}()
+	})
 
 	conns := make(chan net.Conn)
 
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		for ctx.Err() == nil {
 			conn, err := l.Accept()
 			if err != nil {
@@ -216,8 +213,7 @@ func (fl *Listener) ListenAndServe(ctx context.Context) error {
 
 			conns <- conn
 		}
-		wg.Done()
-	}()
+	})
 
 	for ctx.Err() == nil {
 		select {
@@ -227,14 +223,12 @@ func (fl *Listener) ListenAndServe(ctx context.Context) error {
 
 			timer := time.AfterFunc(fl.Config.GuppyRequestTimeout, cancelRequest)
 
-			wg.Add(1)
-			go func() {
+			wg.Go(func() {
 				fl.handle(requestCtx, conn)
 				conn.Close()
 				timer.Stop()
 				cancelRequest()
-				wg.Done()
-			}()
+			})
 		}
 	}
 

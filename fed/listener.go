@@ -127,8 +127,7 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 			},
 		}
 
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			<-serverCtx.Done()
 
 			// shut down gracefully only on reload
@@ -138,15 +137,12 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 			}
 
 			server.Close()
-			wg.Done()
-		}()
+		})
 
 		timer := time.NewTimer(math.MaxInt64)
 		timer.Stop()
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 
 			for {
 				select {
@@ -170,7 +166,7 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 				case <-w.Errors:
 				}
 			}
-		}()
+		})
 
 		slog.Info("Starting server")
 		var err error

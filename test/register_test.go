@@ -173,15 +173,14 @@ func TestRegister_RedirectNoCertificate(t *testing.T) {
 	defer tlsReader.Close()
 
 	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
+	wg.Go(func() {
 		assert.NoError(tlsReader.Handshake())
 		wg.Done()
-	}()
-	go func() {
+	})
+	wg.Go(func() {
 		assert.NoError(tlsWriter.(*tls.Conn).Handshake())
 		wg.Done()
-	}()
+	})
 	wg.Wait()
 
 	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users\r\n"))
@@ -256,15 +255,14 @@ func TestRegister_Redirect(t *testing.T) {
 	defer tlsReader.Close()
 
 	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
+	wg.Go(func() {
 		assert.NoError(tlsReader.Handshake())
 		wg.Done()
-	}()
-	go func() {
+	})
+	wg.Go(func() {
 		assert.NoError(tlsWriter.(*tls.Conn).Handshake())
 		wg.Done()
-	}()
+	})
 	wg.Wait()
 
 	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users\r\n"))
@@ -336,15 +334,14 @@ func TestRegister_NoCertificate(t *testing.T) {
 	defer tlsReader.Close()
 
 	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
+	wg.Go(func() {
 		assert.NoError(tlsReader.Handshake())
 		wg.Done()
-	}()
-	go func() {
+	})
+	wg.Go(func() {
 		assert.NoError(tlsWriter.(*tls.Conn).Handshake())
 		wg.Done()
-	}()
+	})
 	wg.Wait()
 
 	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
@@ -419,15 +416,14 @@ func TestRegister_HappyFlow(t *testing.T) {
 	defer tlsReader.Close()
 
 	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
+	wg.Go(func() {
 		assert.NoError(tlsReader.Handshake())
 		wg.Done()
-	}()
-	go func() {
+	})
+	wg.Go(func() {
 		assert.NoError(tlsWriter.(*tls.Conn).Handshake())
 		wg.Done()
-	}()
+	})
 	wg.Wait()
 
 	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
@@ -502,15 +498,14 @@ func TestRegister_HappyFlowRegistrationClosed(t *testing.T) {
 	defer tlsReader.Close()
 
 	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
+	wg.Go(func() {
 		assert.NoError(tlsReader.Handshake())
 		wg.Done()
-	}()
-	go func() {
+	})
+	wg.Go(func() {
 		assert.NoError(tlsWriter.(*tls.Conn).Handshake())
 		wg.Done()
-	}()
+	})
 	wg.Wait()
 
 	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
@@ -586,15 +581,14 @@ func TestRegister_AlreadyRegistered(t *testing.T) {
 	defer tlsReader.Close()
 
 	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
+	wg.Go(func() {
 		assert.NoError(tlsReader.Handshake())
 		wg.Done()
-	}()
-	go func() {
+	})
+	wg.Go(func() {
 		assert.NoError(tlsWriter.(*tls.Conn).Handshake())
 		wg.Done()
-	}()
+	})
 	wg.Wait()
 
 	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
@@ -678,15 +672,14 @@ func TestRegister_Twice(t *testing.T) {
 		defer tlsReader.Close()
 
 		var wg sync.WaitGroup
-		wg.Add(2)
-		go func() {
+		wg.Go(func() {
 			assert.NoError(tlsReader.Handshake())
 			wg.Done()
-		}()
-		go func() {
+		})
+		wg.Go(func() {
 			assert.NoError(tlsWriter.(*tls.Conn).Handshake())
 			wg.Done()
-		}()
+		})
 		wg.Wait()
 
 		_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
@@ -777,15 +770,14 @@ func TestRegister_Throttling(t *testing.T) {
 		defer tlsReader.Close()
 
 		var wg sync.WaitGroup
-		wg.Add(2)
-		go func() {
+		wg.Go(func() {
 			assert.NoError(tlsReader.Handshake())
 			wg.Done()
-		}()
-		go func() {
+		})
+		wg.Go(func() {
 			assert.NoError(tlsWriter.(*tls.Conn).Handshake())
 			wg.Done()
-		}()
+		})
 		wg.Wait()
 
 		_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
@@ -876,15 +868,14 @@ func TestRegister_Throttling30Minutes(t *testing.T) {
 		defer tlsReader.Close()
 
 		var wg sync.WaitGroup
-		wg.Add(2)
-		go func() {
+		wg.Go(func() {
 			assert.NoError(tlsReader.Handshake())
 			wg.Done()
-		}()
-		go func() {
+		})
+		wg.Go(func() {
 			assert.NoError(tlsWriter.(*tls.Conn).Handshake())
 			wg.Done()
-		}()
+		})
 		wg.Wait()
 
 		_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
@@ -978,15 +969,14 @@ func TestRegister_Throttling1Hour(t *testing.T) {
 		defer tlsReader.Close()
 
 		var wg sync.WaitGroup
-		wg.Add(2)
-		go func() {
+		wg.Go(func() {
 			assert.NoError(tlsReader.Handshake())
 			wg.Done()
-		}()
-		go func() {
+		})
+		wg.Go(func() {
 			assert.NoError(tlsWriter.(*tls.Conn).Handshake())
 			wg.Done()
-		}()
+		})
 		wg.Wait()
 
 		_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
@@ -1096,15 +1086,14 @@ func TestRegister_TwoCertificates(t *testing.T) {
 		defer tlsReader.Close()
 
 		var wg sync.WaitGroup
-		wg.Add(2)
-		go func() {
+		wg.Go(func() {
 			assert.NoError(tlsReader.Handshake())
 			wg.Done()
-		}()
-		go func() {
+		})
+		wg.Go(func() {
 			assert.NoError(tlsWriter.(*tls.Conn).Handshake())
 			wg.Done()
-		}()
+		})
 		wg.Wait()
 
 		_, err = tlsReader.Write([]byte(data.url))
@@ -1181,15 +1170,14 @@ func TestRegister_ForbiddenUserName(t *testing.T) {
 	defer tlsReader.Close()
 
 	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
+	wg.Go(func() {
 		assert.NoError(tlsReader.Handshake())
 		wg.Done()
-	}()
-	go func() {
+	})
+	wg.Go(func() {
 		assert.NoError(tlsWriter.(*tls.Conn).Handshake())
 		wg.Done()
-	}()
+	})
 	wg.Wait()
 
 	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))

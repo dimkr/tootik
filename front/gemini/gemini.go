@@ -204,17 +204,14 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 
 	var wg sync.WaitGroup
 
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		<-ctx.Done()
 		l.Close()
-		wg.Done()
-	}()
+	})
 
 	conns := make(chan net.Conn)
 
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		for ctx.Err() == nil {
 			conn, err := l.Accept()
 			if err != nil {
@@ -224,8 +221,7 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 
 			conns <- conn
 		}
-		wg.Done()
-	}()
+	})
 
 	for ctx.Err() == nil {
 		select {
@@ -235,20 +231,16 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 
 			timer := time.AfterFunc(gl.Config.GeminiRequestTimeout, cancelRequest)
 
-			wg.Add(1)
-			go func() {
+			wg.Go(func() {
 				<-requestCtx.Done()
 				conn.Close()
-				wg.Done()
-			}()
+			})
 
-			wg.Add(1)
-			go func() {
+			wg.Go(func() {
 				gl.Handle(requestCtx, conn)
 				timer.Stop()
 				cancelRequest()
-				wg.Done()
-			}()
+			})
 		}
 	}
 

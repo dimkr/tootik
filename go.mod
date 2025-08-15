@@ -1,13 +1,13 @@
 module github.com/dimkr/tootik
 
-go 1.24.5
+go 1.25.0
 
 require (
 	github.com/btcsuite/btcutil v1.0.2
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/google/uuid v1.6.0
 	github.com/gowebpki/jcs v1.0.1
-	github.com/mattn/go-sqlite3 v1.14.30
+	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/image v0.30.0
 	golang.org/x/net v0.43.0
