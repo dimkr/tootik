@@ -175,11 +175,9 @@ func TestRegister_RedirectNoCertificate(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Go(func() {
 		assert.NoError(tlsReader.Handshake())
-		wg.Done()
 	})
 	wg.Go(func() {
 		assert.NoError(tlsWriter.(*tls.Conn).Handshake())
-		wg.Done()
 	})
 	wg.Wait()
 
@@ -257,11 +255,9 @@ func TestRegister_Redirect(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Go(func() {
 		assert.NoError(tlsReader.Handshake())
-		wg.Done()
 	})
 	wg.Go(func() {
 		assert.NoError(tlsWriter.(*tls.Conn).Handshake())
-		wg.Done()
 	})
 	wg.Wait()
 
@@ -336,11 +332,9 @@ func TestRegister_NoCertificate(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Go(func() {
 		assert.NoError(tlsReader.Handshake())
-		wg.Done()
 	})
 	wg.Go(func() {
 		assert.NoError(tlsWriter.(*tls.Conn).Handshake())
-		wg.Done()
 	})
 	wg.Wait()
 
@@ -418,11 +412,9 @@ func TestRegister_HappyFlow(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Go(func() {
 		assert.NoError(tlsReader.Handshake())
-		wg.Done()
 	})
 	wg.Go(func() {
 		assert.NoError(tlsWriter.(*tls.Conn).Handshake())
-		wg.Done()
 	})
 	wg.Wait()
 
@@ -500,11 +492,9 @@ func TestRegister_HappyFlowRegistrationClosed(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Go(func() {
 		assert.NoError(tlsReader.Handshake())
-		wg.Done()
 	})
 	wg.Go(func() {
 		assert.NoError(tlsWriter.(*tls.Conn).Handshake())
-		wg.Done()
 	})
 	wg.Wait()
 
@@ -583,11 +573,9 @@ func TestRegister_AlreadyRegistered(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Go(func() {
 		assert.NoError(tlsReader.Handshake())
-		wg.Done()
 	})
 	wg.Go(func() {
 		assert.NoError(tlsWriter.(*tls.Conn).Handshake())
-		wg.Done()
 	})
 	wg.Wait()
 
@@ -674,11 +662,9 @@ func TestRegister_Twice(t *testing.T) {
 		var wg sync.WaitGroup
 		wg.Go(func() {
 			assert.NoError(tlsReader.Handshake())
-			wg.Done()
 		})
 		wg.Go(func() {
 			assert.NoError(tlsWriter.(*tls.Conn).Handshake())
-			wg.Done()
 		})
 		wg.Wait()
 
@@ -772,11 +758,9 @@ func TestRegister_Throttling(t *testing.T) {
 		var wg sync.WaitGroup
 		wg.Go(func() {
 			assert.NoError(tlsReader.Handshake())
-			wg.Done()
 		})
 		wg.Go(func() {
 			assert.NoError(tlsWriter.(*tls.Conn).Handshake())
-			wg.Done()
 		})
 		wg.Wait()
 
@@ -870,11 +854,9 @@ func TestRegister_Throttling30Minutes(t *testing.T) {
 		var wg sync.WaitGroup
 		wg.Go(func() {
 			assert.NoError(tlsReader.Handshake())
-			wg.Done()
 		})
 		wg.Go(func() {
 			assert.NoError(tlsWriter.(*tls.Conn).Handshake())
-			wg.Done()
 		})
 		wg.Wait()
 
@@ -971,11 +953,9 @@ func TestRegister_Throttling1Hour(t *testing.T) {
 		var wg sync.WaitGroup
 		wg.Go(func() {
 			assert.NoError(tlsReader.Handshake())
-			wg.Done()
 		})
 		wg.Go(func() {
 			assert.NoError(tlsWriter.(*tls.Conn).Handshake())
-			wg.Done()
 		})
 		wg.Wait()
 
@@ -1088,11 +1068,9 @@ func TestRegister_TwoCertificates(t *testing.T) {
 		var wg sync.WaitGroup
 		wg.Go(func() {
 			assert.NoError(tlsReader.Handshake())
-			wg.Done()
 		})
 		wg.Go(func() {
 			assert.NoError(tlsWriter.(*tls.Conn).Handshake())
-			wg.Done()
 		})
 		wg.Wait()
 
@@ -1172,11 +1150,9 @@ func TestRegister_ForbiddenUserName(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Go(func() {
 		assert.NoError(tlsReader.Handshake())
-		wg.Done()
 	})
 	wg.Go(func() {
 		assert.NoError(tlsWriter.(*tls.Conn).Handshake())
-		wg.Done()
 	})
 	wg.Wait()
 

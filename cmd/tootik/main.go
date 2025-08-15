@@ -189,9 +189,7 @@ func main() {
 		case <-sigs:
 			slog.Info("Received termination signal")
 			cancel()
-			wg.Done()
 		case <-ctx.Done():
-			wg.Done()
 		}
 	})
 
@@ -384,7 +382,6 @@ func main() {
 				slog.Error("Listener has failed", "listener", svc.Name, "error", err)
 			}
 			cancel()
-			wg.Done()
 		})
 	}
 

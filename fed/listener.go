@@ -143,7 +143,6 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 		timer.Stop()
 
 		wg.Go(func() {
-
 			for {
 				select {
 				case <-serverCtx.Done():
