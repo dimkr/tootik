@@ -17,3 +17,4 @@
 
 => /users/alias 🔗 Set account alias
 => /users/move 📦 Move account
+=> /users/portability ✈️ Data portability

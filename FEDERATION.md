@@ -109,12 +109,9 @@ By default, tootik returns 0 in user and post counters unless `FillNodeInfoUsage
 
 tootik supports [FEP-ef61](https://codeberg.org/fediverse/fep/src/branch/main/fep/ef61/fep-ef61.md) portable actors, activities and objects.
 
-Currently, registration is hidden. To register a portable actor, supply a base58-encoded Ed25519 private key when registering:
-```
-/users/register?z6Mk...
-```
+A portable actor is created by supplying a base58-encoded Ed25519 private key (`z6Mk...`) during registration.
 
-As usual, username is taken from the client certificate. A user named `alice` on `example.org` can be looked up over [WebFinger](https://www.rfc-editor.org/rfc/rfc7033):
+As usual, the username is taken from the client certificate. A user named `alice` on `example.org` can be looked up over [WebFinger](https://www.rfc-editor.org/rfc/rfc7033):
 
 	https://example.org/.well-known/webfinger?resource=acct:alice@example.org
 
@@ -166,13 +163,6 @@ When tootik receives a `POST` request to `/.well-known/apgateway`, it expects a 
 
 tootik validates the integrity proof using the public Ed25519 key extracted from the key ID, and doesn't need to fetch the actor first.
 
-To allow other servers to discover portable actors without having to `POST` them to `/.well-known/apgateway`, tootik uses a `https://` gateway URL that points to the actor in the key ID of integrity proofs attached to outgoing requests.
+To allow other servers to discover portable actors without having to `POST` them to `/.well-known/apgateway`, tootik uses a `https://` gateway URL in the `actor` field of activities delivered to other servers.
 
-Portable actors can interact with users on the same server (portable or not) but interoperability with non-portable actors on other servers is very limited due to the backward-incompatible nature of `ap://` URLs.
-
-### TODO
-
-* Expose registration of portable actors
-* Explain data portability in help page
-* Ability to add gateways
-* Normalize IDs on insertion
+Portable actors can interact with users on the same server (portable or not) but interoperability with non-portable actors on other servers is very limited due to the backward-incompatible nature of `ap://` URLs. Other limitations include disabled followers synchronization and inability to post polls, due to 'shared ownership' over objects associated with a particular portable actor.

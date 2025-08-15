@@ -110,6 +110,9 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 	h.handlers[regexp.MustCompile(`^/users/ttl`)] = withUserMenu(h.ttl)
 	h.handlers[regexp.MustCompile(`^/users/export$`)] = h.export
 	h.handlers[regexp.MustCompile(`^/users/approve/(\S+)$`)] = withUserMenu(h.approve)
+	h.handlers[regexp.MustCompile(`^/users/portability$`)] = withUserMenu(h.portability)
+	h.handlers[regexp.MustCompile(`^/users/gateway/add$`)] = h.gatewayAdd
+	h.handlers[regexp.MustCompile(`^/users/gateway/remove$`)] = h.gatewayRemove
 
 	h.handlers[regexp.MustCompile(`^/view/(\S+)$`)] = withUserMenu(h.view)
 	h.handlers[regexp.MustCompile(`^/users/view/(\S+)$`)] = withUserMenu(h.view)
