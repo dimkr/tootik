@@ -94,10 +94,7 @@ func NewBlockList(path string) (*BlockList, error) {
 	timer := time.NewTimer(math.MaxInt64)
 	timer.Stop()
 
-	b.wg.Add(1)
-	go func() {
-		defer b.wg.Done()
-
+	b.wg.Go(func() {
 		for {
 			select {
 			case event, ok := <-w.Events:
@@ -129,7 +126,7 @@ func NewBlockList(path string) (*BlockList, error) {
 				slog.Info("Reloaded blocklist", "path", path, "length", len(newDomains))
 			}
 		}
-	}()
+	})
 
 	return b, nil
 }
