@@ -480,10 +480,12 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	followersSync := r.Header.Get("Collection-Synchronization")
-	if followersSync != "" {
-		if err := l.saveFollowersDigest(r.Context(), sender, followersSync); err != nil {
-			slog.Warn("Failed to save followers sync header", "sender", sender.ID, "header", followersSync, "error", err)
+	if !ap.IsPortable(sender.ID) {
+		followersSync := r.Header.Get("Collection-Synchronization")
+		if followersSync != "" {
+			if err := l.saveFollowersDigest(r.Context(), sender, followersSync); err != nil {
+				slog.Warn("Failed to save followers sync header", "sender", sender.ID, "header", followersSync, "error", err)
+			}
 		}
 	}
 
