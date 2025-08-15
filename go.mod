@@ -1,6 +1,6 @@
 module github.com/dimkr/tootik
 
-go 1.24.6
+go 1.25.0
 
 require (
 	github.com/btcsuite/btcutil v1.0.2

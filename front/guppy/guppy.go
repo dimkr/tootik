@@ -95,9 +95,7 @@ func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks 
 	w := guppy.Wrap(&chanWriter{c}, seq)
 
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 
 		if r.URL.Host != gl.Domain {
 			w.Status(4, "Wrong host")
@@ -110,7 +108,7 @@ func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks 
 
 		w.Flush()
 		close(c)
-	}()
+	})
 
 	defer wg.Wait()
 
@@ -233,8 +231,7 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 
 	incoming := make(chan incomingPacket)
 
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		defer close(incoming)
 		defer wg.Done()
 
@@ -247,7 +244,7 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 			}
 			incoming <- incomingPacket{buf[:n], from}
 		}
-	}()
+	})
 
 	sessions := make(map[string]chan []byte)
 	done := make(chan string, gl.Config.MaxGuppySessions)
@@ -295,12 +292,10 @@ loop:
 
 			requestCtx, cancelRequest := context.WithTimeout(ctx, gl.Config.GuppyRequestTimeout)
 
-			wg.Add(1)
-			go func() {
+			wg.Go(func() {
 				gl.handle(requestCtx, pkt.From, pkt.Data, acks, done, l)
 				cancelRequest()
-				wg.Done()
-			}()
+			})
 		}
 	}
 
