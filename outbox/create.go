@@ -77,7 +77,7 @@ func Create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *ap.Object, a
 		return fmt.Errorf("failed to insert Create: %w", err)
 	}
 
-	if _, err = tx.ExecContext(ctx, `insert into outbox (activity, sender) values (jsonb(?),?)`, string(j), author.ID); err != nil {
+	if _, err = tx.ExecContext(ctx, `insert into outbox (id, activity, sender) values (?,jsonb(?),?)`, create.ID, string(j), author.ID); err != nil {
 		return fmt.Errorf("failed to insert Create: %w", err)
 	}
 
