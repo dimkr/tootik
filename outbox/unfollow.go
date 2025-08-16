@@ -26,12 +26,12 @@ import (
 )
 
 // Unfollow queues an Undo activity for delivery.
-func Unfollow(ctx context.Context, domain string, db *sql.DB, follower, followed, followID string) error {
+func Unfollow(ctx context.Context, db *sql.DB, follower, followed, followID string) error {
 	if followed == follower {
 		return fmt.Errorf("%s cannot unfollow %s", follower, followed)
 	}
 
-	undoID, err := NewID(domain, "undo")
+	undoID, err := NewID(follower, "undo")
 	if err != nil {
 		return err
 	}
@@ -70,7 +70,8 @@ func Unfollow(ctx context.Context, domain string, db *sql.DB, follower, followed
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
+		`INSERT INTO outbox (id, activity, sender) VALUES (?, JSONB(?), ?)`,
+		unfollow.ID,
 		&unfollow,
 		follower,
 	); err != nil {

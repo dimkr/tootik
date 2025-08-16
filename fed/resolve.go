@@ -25,6 +25,7 @@ import (
 	"hash/crc32"
 	"io"
 	"log/slog"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"net/url"
@@ -82,20 +83,7 @@ func NewResolver(blockedDomains *BlockList, domain string, cfg *cfg.Config, clie
 
 // ResolveID retrieves an actor object by its ID.
 func (r *Resolver) ResolveID(ctx context.Context, keys [2]httpsig.Key, id string, flags ap.ResolverFlag) (*ap.Actor, error) {
-	if id == "" {
-		return nil, errors.New("empty ID")
-	}
-
-	u, err := url.Parse(id)
-	if err != nil {
-		return nil, fmt.Errorf("cannot resolve %s: %w", id, err)
-	}
-
-	if u.Scheme != "https" {
-		return nil, ErrInvalidScheme
-	}
-
-	if actor, err := r.validate(func() (*ap.Actor, *ap.Actor, error) { return r.tryResolveID(ctx, keys, u, id, flags) }); err != nil {
+	if actor, err := r.validate(func() (*ap.Actor, *ap.Actor, error) { return r.tryResolveID(ctx, keys, id, flags) }); err != nil {
 		return nil, err
 	} else if actor.Suspended {
 		return nil, ErrSuspendedActor
@@ -173,9 +161,9 @@ func deleteActor(ctx context.Context, db *sql.DB, id string) {
 	}
 }
 
-func (r *Resolver) handleFetchFailure(ctx context.Context, fetched string, cachedActor *ap.Actor, sinceLastUpdate time.Duration, resp *http.Response, err error) (*ap.Actor, *ap.Actor, error) {
+func (r *Resolver) handleFetchFailure(ctx context.Context, host, fetched string, cachedActor *ap.Actor, sinceLastUpdate time.Duration, resp *http.Response, err error) (*ap.Actor, *ap.Actor, error) {
 	if resp != nil && (resp.StatusCode == http.StatusGone || resp.StatusCode == http.StatusNotFound) {
-		if cachedActor != nil {
+		if cachedActor != nil && (!ap.IsPortable(cachedActor.ID) || (len(cachedActor.Gateways) == 1 && cachedActor.Gateways[0] == "https://"+host)) {
 			slog.Warn("Actor is gone, deleting associated objects", "id", cachedActor.ID)
 			deleteActor(ctx, r.db, cachedActor.ID)
 		}
@@ -189,7 +177,7 @@ func (r *Resolver) handleFetchFailure(ctx context.Context, fetched string, cache
 	)
 	// if it's been a while since the last update and the server's domain is expired (NXDOMAIN), actor is gone
 	if sinceLastUpdate > r.Config.MaxInstanceRecoveryTime && errors.As(err, &urlError) && errors.As(urlError.Err, &opError) && errors.As(opError.Err, &dnsError) && dnsError.IsNotFound {
-		if cachedActor != nil {
+		if cachedActor != nil && (!ap.IsPortable(cachedActor.ID) || (len(cachedActor.Gateways) == 1 && cachedActor.Gateways[0] == "https://"+host)) {
 			slog.Warn("Server is probably gone, deleting associated objects", "id", cachedActor.ID)
 			deleteActor(ctx, r.db, cachedActor.ID)
 		}
@@ -197,6 +185,18 @@ func (r *Resolver) handleFetchFailure(ctx context.Context, fetched string, cache
 	}
 
 	return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", fetched, err)
+}
+
+func canonicalizeActor(actor *ap.Actor) {
+	actor.ID = ap.Canonicalize(actor.ID)
+
+	actor.PublicKey.ID = ap.Canonicalize(actor.PublicKey.ID)
+
+	for i := range actor.AssertionMethod {
+		actor.AssertionMethod[i].ID = ap.Canonicalize(actor.AssertionMethod[i].ID)
+	}
+
+	actor.Followers = ap.Canonicalize(actor.Followers)
 }
 
 func (r *Resolver) tryResolve(ctx context.Context, keys [2]httpsig.Key, host, name string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
@@ -238,6 +238,8 @@ func (r *Resolver) tryResolve(ctx context.Context, keys [2]httpsig.Key, host, na
 		return nil, nil, fmt.Errorf("failed to fetch %s%s cache: %w", name, host, err)
 	} else if err == nil {
 		cachedActor = &tmp
+
+		canonicalizeActor(cachedActor)
 
 		// fall back to insertion time if we don't have registration time
 		if cachedActor.Published == (ap.Time{}) {
@@ -286,11 +288,16 @@ func (r *Resolver) tryResolve(ctx context.Context, keys [2]httpsig.Key, host, na
 	if err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", finger, err)
 	}
+
+	if req.URL.Scheme != "https" {
+		return nil, cachedActor, ErrInvalidScheme
+	}
+
 	req.Header.Add("Accept", "application/json")
 
 	resp, err := r.send(keys, req)
 	if err != nil {
-		return r.handleFetchFailure(ctx, finger, cachedActor, sinceLastUpdate, resp, err)
+		return r.handleFetchFailure(ctx, req.URL.Host, finger, cachedActor, sinceLastUpdate, resp, err)
 	}
 	defer resp.Body.Close()
 
@@ -337,14 +344,19 @@ func (r *Resolver) tryResolve(ctx context.Context, keys [2]httpsig.Key, host, na
 	return nil, cachedActor, fmt.Errorf("no profile link in %s response", finger)
 }
 
-func (r *Resolver) tryResolveID(ctx context.Context, keys [2]httpsig.Key, u *url.URL, id string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
+func (r *Resolver) tryResolveID(ctx context.Context, keys [2]httpsig.Key, id string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
 	slog.Debug("Resolving actor", "id", id)
 
-	if r.BlockedDomains != nil && r.BlockedDomains.Contains(u.Host) {
+	origin, err := ap.GetOrigin(id)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to determine actor origin: %w", err)
+	}
+
+	if r.BlockedDomains != nil && r.BlockedDomains.Contains(origin) {
 		return nil, nil, ErrBlockedDomain
 	}
 
-	isLocal := u.Host == r.Domain
+	isLocal := origin == r.Domain
 
 	var lockID uint32
 	if !isLocal && flags&ap.Offline == 0 {
@@ -379,6 +391,10 @@ func (r *Resolver) tryResolveID(ctx context.Context, keys [2]httpsig.Key, u *url
 			slog.Debug("Resolved actor using cache", "id", cachedActor.ID)
 			return nil, cachedActor, nil
 		}
+
+		if len(cachedActor.Gateways) > 0 {
+			id = ap.Gateway(cachedActor.Gateways[rand.UintN(uint(len(cachedActor.Gateways)))], id)
+		}
 	}
 
 	if isLocal {
@@ -409,31 +425,39 @@ func (r *Resolver) tryResolveID(ctx context.Context, keys [2]httpsig.Key, u *url
 			return nil, cachedActor, fmt.Errorf("failed to update last fetch time for %s: %w", cachedActor.ID, err)
 		}
 
-		return r.fetchActor(ctx, keys, u.Host, cachedActor.ID, cachedActor, sinceLastUpdate)
+		return r.fetchActor(ctx, keys, origin, id, cachedActor, sinceLastUpdate)
 	}
 
-	return r.fetchActor(ctx, keys, u.Host, id, nil, sinceLastUpdate)
+	return r.fetchActor(ctx, keys, origin, id, nil, sinceLastUpdate)
 }
 
 func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, profile string, cachedActor *ap.Actor, sinceLastUpdate time.Duration) (*ap.Actor, *ap.Actor, error) {
+	slog.Info("Fetching actor", "profile", profile)
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, profile, nil)
 	if err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to send request to %s: %w", profile, err)
 	}
 
-	if req.URL.Host != host && !strings.HasSuffix(req.URL.Host, "."+host) {
-		return nil, cachedActor, fmt.Errorf("actor link host is %s: %w", req.URL.Host, ErrInvalidHost)
+	if req.URL.Scheme != "https" {
+		return nil, cachedActor, ErrInvalidScheme
 	}
 
-	if !data.IsIDValid(req.URL) {
-		return nil, cachedActor, fmt.Errorf("cannot resolve %s: %w", profile, ErrInvalidID)
+	if !ap.IsPortable(profile) {
+		if req.URL.Host != host && !strings.HasSuffix(req.URL.Host, "."+host) {
+			return nil, cachedActor, fmt.Errorf("actor link host is %s: %w", req.URL.Host, ErrInvalidHost)
+		}
+
+		if !data.IsIDValid(req.URL) {
+			return nil, cachedActor, fmt.Errorf("cannot resolve %s: %w", profile, ErrInvalidID)
+		}
 	}
 
 	req.Header.Add("Accept", "application/activity+json")
 
 	resp, err := r.send(keys, req)
 	if err != nil {
-		return r.handleFetchFailure(ctx, profile, cachedActor, sinceLastUpdate, resp, err)
+		return r.handleFetchFailure(ctx, req.URL.Host, profile, cachedActor, sinceLastUpdate, resp, err)
 	}
 	defer resp.Body.Close()
 
@@ -450,6 +474,9 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 	if err := json.Unmarshal(body, &actor); err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to unmarshal %s: %w", profile, err)
 	}
+
+	canonicalizeActor(&actor)
+	profile = ap.Canonicalize(profile)
 
 	if actor.ID != profile && actor.PublicKey.ID != profile {
 		found := false
@@ -468,11 +495,11 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 
 	keyIDs := make(map[string]struct{}, 2)
 
-	if u, err := url.Parse(actor.PublicKey.ID); err != nil {
+	if keyOrigin, err := ap.GetOrigin(actor.PublicKey.ID); err != nil {
 		slog.Debug("Failed to parse public key ID", "actor", actor.ID, "key", actor.PublicKey.ID, "error", err)
-	} else if u.Host == host {
+	} else if keyOrigin == host {
 		keyIDs[actor.PublicKey.ID] = struct{}{}
-	} else {
+	} else if !ap.IsPortable(actor.PublicKey.ID) {
 		slog.Warn("Public key ID belongs to a different host", "actor", actor.ID, "key", actor.PublicKey.ID)
 	}
 
@@ -481,14 +508,16 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 			continue
 		}
 
-		if u, err := url.Parse(method.ID); err != nil {
-			slog.Debug("Failed to parse assertion method ID", "actor", actor.ID, "key", method.ID, "error", err)
-		} else if u.Host == host {
+		if keyOrigin, err := ap.GetOrigin(method.ID); err != nil {
+			slog.Debug("Failed to get assertion method ID origin", "actor", actor.ID, "key", method.ID, "error", err)
+		} else if keyOrigin == host {
 			keyIDs[method.ID] = struct{}{}
-		} else {
+		} else if !ap.IsPortable(method.ID) {
 			slog.Warn("Assertion method ID belongs to a different host", "actor", actor.ID, "key", method.ID)
 		}
 	}
+
+	slog.Info("Fetched actor", "id", actor.ID)
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {

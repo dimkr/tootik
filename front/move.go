@@ -32,6 +32,11 @@ func (h *Handler) move(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
+	if ap.IsPortable(r.User.ID) {
+		w.Status(40, "Cannot move nomadic account")
+		return
+	}
+
 	if r.User.MovedTo != "" {
 		r.Log.Warn("User cannot be moved again", "movedTo", r.User.MovedTo)
 		w.Status(40, "Already moved to "+r.User.MovedTo)
@@ -88,11 +93,11 @@ func (h *Handler) move(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := outbox.Move(r.Context, h.DB, h.Domain, r.User, actor.ID); err != nil {
+	if err := outbox.Move(r.Context, h.DB, r.User, actor.ID); err != nil {
 		r.Log.Error("Failed to move user", "error", err)
 		w.Error()
 		return
 	}
 
-	w.Redirect("/users/outbox/" + strings.TrimPrefix(actor.ID, "https://"))
+	w.Redirect("/users/outbox/" + trimScheme(actor.ID))
 }

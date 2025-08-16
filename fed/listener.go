@@ -54,6 +54,8 @@ func (l *Listener) NewHandler() (http.Handler, error) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /robots.txt", robots)
 	mux.HandleFunc("GET /.well-known/webfinger", l.handleWebFinger)
+	mux.HandleFunc("GET /.well-known/apgateway/{resource...}", l.handleAPGatewayGet)
+	mux.HandleFunc("POST /.well-known/apgateway/{resource...}", l.handleAPGatewayPost)
 	mux.HandleFunc("GET /user/{username}", l.handleUser)
 	mux.HandleFunc("GET /icon/{username}", l.handleIcon)
 	mux.HandleFunc("POST /inbox/{username}", l.handleInbox)

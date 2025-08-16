@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,17 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package front
+package cluster
 
 import (
-	"github.com/dimkr/tootik/front/text"
+	"log/slog"
+	"os"
 )
 
-func me(w text.Writer, r *Request, args ...string) {
-	if r.User == nil {
-		w.Redirect("/users")
-		return
+func init() {
+	opts := slog.HandlerOptions{
+		Level:     slog.LevelDebug,
+		AddSource: false,
 	}
 
-	w.Redirect("/users/outbox/" + trimScheme(r.User.ID))
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &opts)))
 }

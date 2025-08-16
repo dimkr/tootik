@@ -34,7 +34,7 @@ func (l *Listener) handleActivity(w http.ResponseWriter, r *http.Request, prefix
 
 	var raw string
 	var activity ap.Activity
-	if err := l.DB.QueryRowContext(r.Context(), `select json(activity), json(activity) as raw from outbox where activity->>'$.id' = ?`, activityID).Scan(&raw, &activity); errors.Is(err, sql.ErrNoRows) {
+	if err := l.DB.QueryRowContext(r.Context(), `select json(activity), json(activity) as raw from outbox where id = ?`, activityID).Scan(&raw, &activity); errors.Is(err, sql.ErrNoRows) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {

@@ -106,6 +106,7 @@ This makes tootik lightweight, private and accessible:
 * Users can follow each other to see non-public posts
   * With support for manual approval of follow requests
   * With support for [Mastodon's follower synchronization mechanism](https://docs.joinmastodon.org/spec/activitypub/#follower-synchronization-mechanism), aka [FEP-8fcf](https://codeberg.org/fediverse/fep/src/branch/main/fep/8fcf/fep-8fcf.md)
+* [FEP-ef61](https://codeberg.org/fediverse/fep/src/branch/main/fep/ef61/fep-ef61.md) portable accounts
 * Multi-choice polls
 * [Lemmy](https://join-lemmy.org/)-style communities
   * Follow to join

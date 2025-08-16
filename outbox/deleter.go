@@ -28,7 +28,6 @@ import (
 const batchSize = 512
 
 type Deleter struct {
-	Domain string
 	Config *cfg.Config
 	DB     *sql.DB
 }
@@ -61,7 +60,7 @@ func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 			return false, err
 		}
 
-		if err := Undo(ctx, d.Domain, d.DB, &share); err != nil {
+		if err := Undo(ctx, d.DB, &share); err != nil {
 			return false, err
 		}
 
@@ -103,7 +102,7 @@ func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 			return false, err
 		}
 
-		if err := Delete(ctx, d.Domain, d.Config, d.DB, &note); err != nil {
+		if err := Delete(ctx, d.Config, d.DB, &note); err != nil {
 			return false, err
 		}
 

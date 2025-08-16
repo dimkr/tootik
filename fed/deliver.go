@@ -19,12 +19,12 @@ package fed
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"hash/crc32"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -188,18 +188,31 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		}
 
 		if activity.Actor == actor.ID && !q.Config.DisableIntegrityProofs {
-			withProof, err := proof.Add(keys[1], time.Now(), []byte(rawActivity))
+			clone := activity
+
+			clone.Context = []string{"https://www.w3.org/ns/activitystreams", "https://w3id.org/security/data-integrity/v1"}
+			clone.Actor = ap.Gateway("https://"+q.Domain, activity.Actor)
+
+			proof, err := proof.Create(keys[1], time.Now(), &clone, clone.Context)
 			if err != nil {
 				slog.Error("Failed to add integrity proof", "error", err)
 				continue
 			}
 
-			rawActivity = string(withProof)
+			clone.Proof = proof
+
+			j, err := json.Marshal(&clone)
+			if err != nil {
+				slog.Error("Failed to add integrity proof", "error", err)
+				continue
+			}
+
+			rawActivity = string(j)
 		}
 
 		if _, err := q.DB.ExecContext(
 			ctx,
-			`update outbox set last = unixepoch(), attempts = ? where activity->>'$.id' = ? and sender = ?`,
+			`update outbox set last = unixepoch(), attempts = ? where id = ? and sender = ?`,
 			deliveryAttempts+1,
 			activity.ID,
 			actor.ID,
@@ -250,7 +263,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 		if _, err := q.DB.ExecContext(
 			ctx,
-			`update outbox set sent = 1 where activity->>'$.id' = ? and sender = ?`,
+			`update outbox set sent = 1 where id = ? and sender = ?`,
 			job.Activity.ID,
 			job.Sender.ID,
 		); err != nil {
@@ -340,11 +353,6 @@ func (q *Queue) queueTasks(
 	tasks []chan deliveryTask,
 	events chan<- deliveryEvent,
 ) error {
-	activityID, err := url.Parse(job.Activity.ID)
-	if err != nil {
-		return err
-	}
-
 	recipients := ap.Audience{}
 
 	// deduplicate recipients or skip if we're forwarding an activity
@@ -365,10 +373,8 @@ func (q *Queue) queueTasks(
 	if wideDelivery {
 		followers, err := q.DB.QueryContext(
 			ctx,
-			`select distinct follower from follows where followed = ? and follower not like ? and follower not like ? and accepted = 1`,
+			`select distinct follower from follows where followed = ? and accepted = 1 and not exists (select 1 from persons where persons.id = follows.follower and ed25519privkey is not null)`,
 			job.Sender.ID,
-			fmt.Sprintf("https://%s/%%", q.Domain),
-			fmt.Sprintf("https://%s/%%", activityID.Host),
 		)
 		if err != nil {
 			slog.Warn("Failed to list followers", "activity", job.Activity.ID, "error", err)
@@ -394,7 +400,7 @@ func (q *Queue) queueTasks(
 
 	var author string
 	if obj, ok := job.Activity.Object.(*ap.Object); ok {
-		author = obj.AttributedTo
+		author = ap.Canonicalize(obj.AttributedTo)
 	}
 
 	contentLength := strconv.Itoa(len(job.RawActivity))
@@ -414,46 +420,59 @@ func (q *Queue) queueTasks(
 			continue
 		}
 
-		// if possible, use the recipient's shared inbox and skip other recipients with the same shared inbox
-		inbox := to.Inbox
-		if wideDelivery {
+		var inboxes []string
+		// if inbox is a portable object, deliver to all gateways
+		if ap.IsPortable(to.Inbox) {
+			inboxes = make([]string, 0, len(to.Gateways))
+
+			for _, gw := range to.Gateways {
+				inboxes = append(inboxes, ap.Gateway(gw, to.Inbox))
+			}
+		} else if wideDelivery {
+			// if possible, use the recipient's shared inbox and skip other recipients with the same shared inbox
 			if sharedInbox, ok := to.Endpoints["sharedInbox"]; ok && sharedInbox != "" {
-				slog.Debug("Using shared inbox", "to", actorID, "activity", job.Activity.ID, "shared_inbox", inbox)
-				inbox = sharedInbox
+				slog.Debug("Using shared inbox", "to", actorID, "activity", job.Activity.ID, "shared_inbox", sharedInbox)
+				inboxes = []string{sharedInbox}
 			}
 		}
 
-		req, err := http.NewRequest(http.MethodPost, inbox, strings.NewReader(job.RawActivity))
-		if err != nil {
-			slog.Warn("Failed to create new request", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
-			events <- deliveryEvent{job, false}
-			continue
+		if len(inboxes) == 0 {
+			inboxes = []string{to.Inbox}
 		}
 
-		if req.URL.Host == q.Domain {
-			slog.Debug("Skipping local recipient inbox", "to", actorID, "activity", job.Activity.ID, "inbox", inbox)
-			continue
-		}
-
-		req.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
-		req.Header.Set("Content-Length", contentLength)
-
-		if recipients.Contains(job.Sender.Followers) {
-			if digest, err := followers.Digest(ctx, q.DB, q.Domain, job.Sender, req.URL.Host); err == nil {
-				req.Header.Set("Collection-Synchronization", digest)
-			} else {
-				slog.Warn("Failed to digest followers", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
+		for _, inbox := range inboxes {
+			req, err := http.NewRequest(http.MethodPost, inbox, strings.NewReader(job.RawActivity))
+			if err != nil {
+				slog.Warn("Failed to create new request", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
+				events <- deliveryEvent{job, false}
+				continue
 			}
-		}
 
-		slog.Info("Queueing activity for delivery", "inbox", inbox, "activity", job.Activity.ID)
+			if req.URL.Host == q.Domain {
+				slog.Debug("Skipping local recipient inbox", "to", actorID, "activity", job.Activity.ID, "inbox", inbox)
+				continue
+			}
 
-		// assign a task to a random worker but use one worker per inbox, so activities are delivered once per inbox
-		tasks[crc32.ChecksumIEEE([]byte(inbox))%uint32(len(tasks))] <- deliveryTask{
-			Job:     job,
-			Keys:    keys,
-			Request: req,
-			Inbox:   inbox,
+			req.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
+			req.Header.Set("Content-Length", contentLength)
+
+			if !ap.IsPortable(job.Sender.Followers) && recipients.Contains(job.Sender.Followers) {
+				if digest, err := followers.Digest(ctx, q.DB, q.Domain, job.Sender, req.URL.Host); err == nil {
+					req.Header.Set("Collection-Synchronization", digest)
+				} else {
+					slog.Warn("Failed to digest followers", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
+				}
+			}
+
+			slog.Info("Queueing activity for delivery", "inbox", inbox, "activity", job.Activity.ID)
+
+			// assign a task to a random worker but use one worker per inbox, so activities are delivered once per inbox
+			tasks[crc32.ChecksumIEEE([]byte(inbox))%uint32(len(tasks))] <- deliveryTask{
+				Job:     job,
+				Keys:    keys,
+				Request: req,
+				Inbox:   inbox,
+			}
 		}
 	}
 

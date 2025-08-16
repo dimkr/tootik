@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -43,6 +44,14 @@ var (
 	ErrNotRegistered = errors.New("user is not registered")
 	ErrNotApproved   = errors.New("client certificate is not approved")
 )
+
+func trimScheme(id string) string {
+	if suffix, found := strings.CutPrefix(id, "https://"); found {
+		return suffix
+	} else {
+		return strings.TrimPrefix(id, "ap://")
+	}
+}
 
 func serveStaticFile(lines []string, w text.Writer, _ *Request, _ ...string) {
 	w.OK()
@@ -101,6 +110,9 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 	h.handlers[regexp.MustCompile(`^/users/ttl`)] = withUserMenu(h.ttl)
 	h.handlers[regexp.MustCompile(`^/users/export$`)] = h.export
 	h.handlers[regexp.MustCompile(`^/users/approve/(\S+)$`)] = withUserMenu(h.approve)
+	h.handlers[regexp.MustCompile(`^/users/portability$`)] = withUserMenu(h.portability)
+	h.handlers[regexp.MustCompile(`^/users/gateway/add$`)] = h.gatewayAdd
+	h.handlers[regexp.MustCompile(`^/users/gateway/remove$`)] = h.gatewayRemove
 
 	h.handlers[regexp.MustCompile(`^/view/(\S+)$`)] = withUserMenu(h.view)
 	h.handlers[regexp.MustCompile(`^/users/view/(\S+)$`)] = withUserMenu(h.view)

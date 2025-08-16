@@ -25,12 +25,12 @@ import (
 )
 
 // Follow queues a Follow activity for delivery.
-func Follow(ctx context.Context, domain string, follower *ap.Actor, followed string, db *sql.DB) error {
+func Follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB) error {
 	if followed == follower.ID {
 		return fmt.Errorf("%s cannot follow %s", follower.ID, followed)
 	}
 
-	followID, err := NewID(domain, "follow")
+	followID, err := NewID(follower.ID, "follow")
 	if err != nil {
 		return err
 	}
@@ -68,20 +68,20 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 				$1,
 				$2,
 				$3,
-				(SELECT CASE WHEN host = $4 AND COALESCE(actor->>'$.manuallyApprovesFollowers', 0) = 0 THEN 1 ELSE NULL END FROM persons WHERE id = $3)
+				(SELECT CASE WHEN ed25519privkey IS NOT NULL AND COALESCE(actor->>'$.manuallyApprovesFollowers', 0) = 0 THEN 1 ELSE NULL END FROM persons WHERE id = $3)
 			)
 		`,
 		followID,
 		follower.ID,
 		followed,
-		domain,
 	); err != nil {
 		return fmt.Errorf("failed to insert follow: %w", err)
 	}
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
+		`INSERT INTO outbox (id, activity, sender) VALUES (?, JSONB(?), ?)`,
+		follow.ID,
 		&follow,
 		follower.ID,
 	); err != nil {

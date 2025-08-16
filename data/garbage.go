@@ -35,11 +35,11 @@ type GarbageCollector struct {
 func (gc *GarbageCollector) Run(ctx context.Context) error {
 	now := time.Now()
 
-	if _, err := gc.DB.ExecContext(ctx, `delete from notesfts where id in (select notes.id from notes left join follows on follows.followed in (notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = follows.followed)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = follows.followed)) where follows.accepted = 1 and notes.inserted < $1 and notes.host != $2 and follows.id is null and not exists (select 1 from bookmarks where bookmarks.note = notesfts.id) and not exists (select 1 from shares where shares.note = notesfts.id and exists (select 1 from persons where persons.id = shares.by and persons.host = $2)))`, now.Add(-gc.Config.InvisiblePostsTTL).Unix(), gc.Domain); err != nil {
+	if _, err := gc.DB.ExecContext(ctx, `delete from notesfts where id in (select notes.id from notes left join follows on follows.followed in (notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = follows.followed)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = follows.followed)) where follows.accepted = 1 and notes.inserted < $1 and not exists (select 1 from persons where persons.ed25519privkey is not null and persons.id = notes.author) and follows.id is null and not exists (select 1 from bookmarks where bookmarks.note = notesfts.id) and not exists (select 1 from shares where shares.note = notesfts.id and exists (select 1 from persons where persons.id = shares.by and persons.ed25519privkey is not null)))`, now.Add(-gc.Config.InvisiblePostsTTL).Unix()); err != nil {
 		return fmt.Errorf("failed to remove invisible posts: %w", err)
 	}
 
-	if _, err := gc.DB.ExecContext(ctx, `delete from notes where id in (select notes.id from notes left join follows on follows.followed in (notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = follows.followed)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = follows.followed)) where follows.accepted = 1 and notes.inserted < $1 and notes.host != $2 and follows.id is null and not exists (select 1 from bookmarks where bookmarks.note = notes.id) and not exists (select 1 from shares where shares.note = notes.id and exists (select 1 from persons where persons.id = shares.by and persons.host = $2)))`, now.Add(-gc.Config.InvisiblePostsTTL).Unix(), gc.Domain); err != nil {
+	if _, err := gc.DB.ExecContext(ctx, `delete from notes where id in (select notes.id from notes left join follows on follows.followed in (notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = follows.followed)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = follows.followed)) where follows.accepted = 1 and notes.inserted < $1 and not exists (select 1 from persons where persons.ed25519privkey is not null and persons.id = notes.author) and follows.id is null and not exists (select 1 from bookmarks where bookmarks.note = notes.id) and not exists (select 1 from shares where shares.note = notes.id and exists (select 1 from persons where persons.id = shares.by and persons.ed25519privkey is not null)))`, now.Add(-gc.Config.InvisiblePostsTTL).Unix()); err != nil {
 		return fmt.Errorf("failed to remove invisible posts: %w", err)
 	}
 
@@ -67,11 +67,11 @@ func (gc *GarbageCollector) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to remove old shares: %w", err)
 	}
 
-	if _, err := gc.DB.ExecContext(ctx, `delete from outbox where inserted < ? and host != ?`, now.Add(-gc.Config.DeliveryTTL).Unix(), gc.Domain); err != nil {
+	if _, err := gc.DB.ExecContext(ctx, `delete from outbox where inserted < ? and ed25519privkey is null`, now.Add(-gc.Config.DeliveryTTL).Unix()); err != nil {
 		return fmt.Errorf("failed to remove old posts: %w", err)
 	}
 
-	if _, err := gc.DB.ExecContext(ctx, `delete from persons where updated < ? and host != ? and not exists (select 1 from follows where followed = persons.id) and not exists (select 1 from follows where follower = persons.id) and not exists (select 1 from notes where notes.author = persons.id) and not exists (select 1 from shares where shares.by = persons.id)`, now.Add(-gc.Config.ActorTTL).Unix(), gc.Domain); err != nil {
+	if _, err := gc.DB.ExecContext(ctx, `delete from persons where updated < ? and ed25519privkey is null and not exists (select 1 from follows where followed = persons.id) and not exists (select 1 from follows where follower = persons.id) and not exists (select 1 from notes where notes.author = persons.id) and not exists (select 1 from shares where shares.by = persons.id)`, now.Add(-gc.Config.ActorTTL).Unix()); err != nil {
 		return fmt.Errorf("failed to remove idle actors: %w", err)
 	}
 

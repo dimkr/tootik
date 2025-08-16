@@ -26,13 +26,13 @@ import (
 )
 
 // Undo queues an Undo activity for delivery.
-func Undo(ctx context.Context, domain string, db *sql.DB, activity *ap.Activity) error {
+func Undo(ctx context.Context, db *sql.DB, activity *ap.Activity) error {
 	noteID, ok := activity.Object.(string)
 	if !ok {
 		return errors.New("cannot undo activity")
 	}
 
-	id, err := NewID(domain, "undo")
+	id, err := NewID(activity.Actor, "undo")
 	if err != nil {
 		return err
 	}
@@ -76,7 +76,8 @@ func Undo(ctx context.Context, domain string, db *sql.DB, activity *ap.Activity)
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
+		`INSERT INTO outbox (id, activity, sender) VALUES (?, JSONB(?), ?)`,
+		undo.ID,
 		&undo,
 		activity.Actor,
 	); err != nil {

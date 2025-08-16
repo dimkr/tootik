@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"errors"
 
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/outbox"
 )
@@ -30,7 +31,7 @@ func (h *Handler) accept(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	follower := "https://" + args[1]
+	follower := ap.Abs(args[1])
 
 	tx, err := h.DB.BeginTx(r.Context, nil)
 	if err != nil {
@@ -56,7 +57,7 @@ func (h *Handler) accept(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := outbox.Accept(r.Context, h.Domain, r.User.ID, follower, followID, tx); err != nil {
+	if err := outbox.Accept(r.Context, r.User.ID, follower, followID, tx); err != nil {
 		r.Log.Warn("Failed to accept follow request", "follower", follower, "error", err)
 		w.Error()
 		return

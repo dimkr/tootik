@@ -25,8 +25,8 @@ import (
 )
 
 // Accept queues an Accept activity for delivery.
-func Accept(ctx context.Context, domain string, followed, follower, followID string, tx *sql.Tx) error {
-	id, err := NewID(domain, "accept")
+func Accept(ctx context.Context, followed, follower, followID string, tx *sql.Tx) error {
+	id, err := NewID(followed, "accept")
 	if err != nil {
 		return err
 	}
@@ -50,7 +50,8 @@ func Accept(ctx context.Context, domain string, followed, follower, followID str
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
+		`INSERT INTO outbox (id, activity, sender) VALUES (?, JSONB(?), ?)`,
+		accept.ID,
 		&accept,
 		followed,
 	); err != nil {

@@ -38,7 +38,7 @@ func (a *Audience) Add(s string) {
 		a.OrderedMap = make(data.OrderedMap[string, struct{}], 1)
 	}
 
-	a.OrderedMap.Store(s, struct{}{})
+	a.OrderedMap.Store(Canonicalize(s), struct{}{})
 }
 
 func (a *Audience) UnmarshalJSON(b []byte) error {
