@@ -33,9 +33,9 @@ import (
 )
 
 var (
-	inboxRegex    = regexp.MustCompile(`^(did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/actor)/inbox[#?]{0,1}.*`)
+	inboxRegex    = regexp.MustCompile(`^(did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/actor)\/inbox[#?]{0,1}.*`)
 	actorRegex    = regexp.MustCompile(`^(did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/actor)(?:\/z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+){0,1}[#?]{0,1}.*`)
-	postRegex     = regexp.MustCompile(`^did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/actor/post/[^#?]{0,1}`)
+	postRegex     = regexp.MustCompile(`^did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/actor\/post\/[^#?]{0,1}`)
 	activityRegex = regexp.MustCompile(`^did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/[^#?]{0,1}`)
 )
 
@@ -90,13 +90,13 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 	slog.Info("Posting to inbox", "id", actorID)
 
 	var exists int
-	if err := l.DB.QueryRowContext(r.Context(), `select 1 from persons where actor->>'$.id' = ? and ed25519privkey is not null`, actorID).Scan(&exists); err != nil {
-		slog.Warn("Failed to check if user exists", "actor", actorID, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	} else if err != nil {
+	if err := l.DB.QueryRowContext(r.Context(), `select 1 from persons where actor->>'$.id' = ? and ed25519privkey is not null`, actorID).Scan(&exists); errors.Is(err, sql.ErrNoRows) {
 		slog.Info("Notifying about missing user", "actor", actorID)
 		w.WriteHeader(http.StatusNotFound)
+		return
+	} else if err != nil {
+		slog.Warn("Failed to check if user exists", "actor", actorID, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
