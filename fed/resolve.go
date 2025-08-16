@@ -160,9 +160,9 @@ func deleteActor(ctx context.Context, db *sql.DB, id string) {
 	}
 }
 
-func (r *Resolver) handleFetchFailure(ctx context.Context, fetched string, cachedActor *ap.Actor, sinceLastUpdate time.Duration, resp *http.Response, err error) (*ap.Actor, *ap.Actor, error) {
+func (r *Resolver) handleFetchFailure(ctx context.Context, host, fetched string, cachedActor *ap.Actor, sinceLastUpdate time.Duration, resp *http.Response, err error) (*ap.Actor, *ap.Actor, error) {
 	if resp != nil && (resp.StatusCode == http.StatusGone || resp.StatusCode == http.StatusNotFound) {
-		if cachedActor != nil {
+		if cachedActor != nil && (!ap.IsPortable(cachedActor.ID) || (len(cachedActor.Gateways) == 1 && cachedActor.Gateways[0] == "https://"+host)) {
 			slog.Warn("Actor is gone, deleting associated objects", "id", cachedActor.ID)
 			deleteActor(ctx, r.db, cachedActor.ID)
 		}
@@ -176,7 +176,7 @@ func (r *Resolver) handleFetchFailure(ctx context.Context, fetched string, cache
 	)
 	// if it's been a while since the last update and the server's domain is expired (NXDOMAIN), actor is gone
 	if sinceLastUpdate > r.Config.MaxInstanceRecoveryTime && errors.As(err, &urlError) && errors.As(urlError.Err, &opError) && errors.As(opError.Err, &dnsError) && dnsError.IsNotFound {
-		if cachedActor != nil {
+		if cachedActor != nil && (!ap.IsPortable(cachedActor.ID) || (len(cachedActor.Gateways) == 1 && cachedActor.Gateways[0] == "https://"+host)) {
 			slog.Warn("Server is probably gone, deleting associated objects", "id", cachedActor.ID)
 			deleteActor(ctx, r.db, cachedActor.ID)
 		}
@@ -194,6 +194,8 @@ func canonicalizeActor(actor *ap.Actor) {
 	for i := range actor.AssertionMethod {
 		actor.AssertionMethod[i].ID = ap.Canonicalize(actor.AssertionMethod[i].ID)
 	}
+
+	actor.Followers = ap.Canonicalize(actor.Followers)
 }
 
 func (r *Resolver) tryResolve(ctx context.Context, keys [2]httpsig.Key, host, name string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
@@ -294,7 +296,7 @@ func (r *Resolver) tryResolve(ctx context.Context, keys [2]httpsig.Key, host, na
 
 	resp, err := r.send(keys, req)
 	if err != nil {
-		return r.handleFetchFailure(ctx, finger, cachedActor, sinceLastUpdate, resp, err)
+		return r.handleFetchFailure(ctx, req.URL.Host, finger, cachedActor, sinceLastUpdate, resp, err)
 	}
 	defer resp.Body.Close()
 
@@ -456,7 +458,7 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 
 	resp, err := r.send(keys, req)
 	if err != nil {
-		return r.handleFetchFailure(ctx, profile, cachedActor, sinceLastUpdate, resp, err)
+		return r.handleFetchFailure(ctx, req.URL.Host, profile, cachedActor, sinceLastUpdate, resp, err)
 	}
 	defer resp.Body.Close()
 

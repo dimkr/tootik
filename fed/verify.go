@@ -140,28 +140,33 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 	return sig, actor, nil
 }
 
-func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Activity, raw []byte, flags ap.ResolverFlag) error {
-	var publicKey any
-	var err error
+func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Activity, raw []byte, flags ap.ResolverFlag) (*ap.Actor, error) {
 	if m := ap.DIDKeyRegex.FindStringSubmatch(p.VerificationMethod); m != nil {
-		publicKey, err = parseMultiBaseKey(m[1])
-	} else {
-		var actor *ap.Actor
-		actor, err = l.Resolver.ResolveID(ctx, l.ActorKeys, p.VerificationMethod, flags)
+		publicKey, err := parseMultiBaseKey(m[1])
 		if err != nil {
-			return fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
+			return nil, fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
 		}
 
-		publicKey, err = getKeyByID(actor, p.VerificationMethod)
+		if err := proof.Verify(publicKey, activity, raw); err != nil {
+			return nil, fmt.Errorf("failed to verify proof using %s: %w", p.VerificationMethod, err)
+		}
+
+		return l.Resolver.ResolveID(ctx, l.ActorKeys, p.VerificationMethod, flags)
 	}
 
+	actor, err := l.Resolver.ResolveID(ctx, l.ActorKeys, p.VerificationMethod, flags)
 	if err != nil {
-		return fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
+		return nil, fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
+	}
+
+	publicKey, err := getKeyByID(actor, p.VerificationMethod)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
 	}
 
 	if err := proof.Verify(publicKey, activity, raw); err != nil {
-		return fmt.Errorf("failed to verify proof using %s: %w", p.VerificationMethod, err)
+		return nil, fmt.Errorf("failed to verify proof using %s: %w", p.VerificationMethod, err)
 	}
 
-	return nil
+	return actor, nil
 }
