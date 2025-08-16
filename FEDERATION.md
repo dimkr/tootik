@@ -165,4 +165,4 @@ tootik validates the integrity proof using the public Ed25519 key extracted from
 
 To allow other servers to discover portable actors without having to `POST` them to `/.well-known/apgateway`, tootik uses a `https://` gateway URL in the `actor` field of activities delivered to other servers.
 
-Portable actors can interact with users on the same server (portable or not) but interoperability with non-portable actors on other servers is very limited due to the backward-incompatible nature of `ap://` URLs, use of Ed25519 keys and requirement for integrity proofs. Other limitations include disabled followers synchronization and inability to post polls, due to 'shared ownership' over objects associated with a particular portable actor.
+Portable actors can interact with users on the same server (portable or not) but interoperability with non-portable actors on other servers is very limited due to the backward-incompatible nature of `ap://` URLs, use of Ed25519 keys and requirement for integrity proofs.

@@ -204,11 +204,6 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 	}
 
 	if m := pollRegex.FindStringSubmatchIndex(note.Content); m != nil {
-		if ap.IsPortable(r.User.ID) {
-			w.Status(40, "Portable actors cannot post polls")
-			return
-		}
-
 		optionNames := strings.SplitN(note.Content[m[4]:], pollOptionsDelimeter, h.Config.PollMaxOptions+1)
 		if len(optionNames) < pollMinOptions || len(optionNames) > h.Config.PollMaxOptions {
 			r.Log.Info("Received invalid poll", "content", note.Content)
