@@ -86,7 +86,7 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actorID := "ap://" + m[1]
+	actorID := ap.Abs(m[1])
 
 	slog.Info("Posting to inbox", "id", actorID)
 

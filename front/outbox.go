@@ -20,7 +20,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
@@ -52,12 +51,7 @@ func writeMetadataField(field ap.Attachment, w text.Writer) {
 }
 
 func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
-	var actorID string
-	if strings.HasPrefix(args[1], "did:") {
-		actorID = "ap://" + args[1]
-	} else {
-		actorID = "https://" + args[1]
-	}
+	actorID := ap.Abs(args[1])
 
 	var actor ap.Actor
 	if err := h.DB.QueryRowContext(r.Context, `select json(actor) from persons where id = ?`, actorID).Scan(&actor); err != nil && errors.Is(err, sql.ErrNoRows) {

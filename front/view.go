@@ -30,12 +30,7 @@ import (
 )
 
 func (h *Handler) view(w text.Writer, r *Request, args ...string) {
-	var postID string
-	if strings.HasPrefix(args[1], "did:") {
-		postID = "ap://" + args[1]
-	} else {
-		postID = "https://" + args[1]
-	}
+	postID := ap.Abs(args[1])
 
 	offset, err := getOffset(r.URL)
 	if err != nil {

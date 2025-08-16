@@ -19,8 +19,8 @@ package front
 import (
 	"database/sql"
 	"errors"
-	"strings"
 
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/outbox"
 )
@@ -31,12 +31,7 @@ func (h *Handler) follow(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	var followed string
-	if strings.HasPrefix(args[1], "did:") {
-		followed = "ap://" + args[1]
-	} else {
-		followed = "https://" + args[1]
-	}
+	followed := ap.Abs(args[1])
 
 	var exists int
 	if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from persons where id = ?)`, followed).Scan(&exists); err != nil {
