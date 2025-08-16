@@ -165,4 +165,6 @@ tootik validates the integrity proof using the public Ed25519 key extracted from
 
 To allow other servers to discover portable actors without having to `POST` them to `/.well-known/apgateway`, tootik uses a `https://` gateway URL in the `actor` field of activities delivered to other servers.
 
+When tootik tries to update a cached actor, it picks a random gateway from `gateways`. Therefore, if a cached actor has two gateways but one of them stops working and `gateways` is changed, tootik will eventually fetch the updated actor from the other gateway.
+
 Portable actors can interact with users on the same server (portable or not) but interoperability with non-portable actors on other servers is very limited due to the backward-incompatible nature of `ap://` URLs, use of Ed25519 keys and requirement for integrity proofs.
