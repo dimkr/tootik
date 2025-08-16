@@ -70,7 +70,8 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := l.verifyProof(r.Context(), activity.Proof, &activity, rawActivity, 0); err != nil {
+	actor, err := l.verifyProof(r.Context(), activity.Proof, &activity, rawActivity, 0)
+	if err != nil {
 		slog.Warn("Failed to verify proof", "body", string(rawActivity), "error", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -96,13 +97,6 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 		return
 	} else if err != nil {
 		slog.Warn("Failed to check if user exists", "actor", actorID, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	actor, err := l.Resolver.ResolveID(r.Context(), l.ActorKeys, activity.Actor, 0)
-	if err != nil {
-		slog.Warn("Failed to resolve actor", "actor", activity.Proof.VerificationMethod, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
