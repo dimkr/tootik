@@ -31,8 +31,6 @@ This page shows various statistics about this server and the parts of the fedive
 
 Follow this link to sign in or create an account on this server.
 
-The Common Name property of the client certificate ("identity") you use will determine your username.
-
 Registered users can:
 * Publish posts
 * Reply to posts
@@ -41,3 +39,15 @@ Registered users can:
 * View private posts
 * View a feed of posts by followed users
 * Bookmark posts
+
+## Registration
+
+The username of a newly created account is the Common Name property of the client certificate ("identity") used during registration, and it must be unique among all users registered on this server.
+
+There are two kinds of accounts:
+* Traditional
+* Nomadic
+
+Traditional accounts provide good compatibility with with other servers in the fediverse, but they're tied to this server and impossible to recover or migrate if this server shuts down.
+
+In contrast, a nomadic account can be registered on multiple servers simultaneously and migrated to another server even if this one is down. However, compatibility with other servers is very limited and there are various limitations, like inability to create polls.

@@ -117,7 +117,7 @@ Polls must have between 2 and {{.Config.PollMaxOptions}} multi-choice options, a
 
 ## Registration
 
-The username of a newly created account is the Common Name property of the client certificate used during registration, and it must be unique among all users registered on this server.
+The username of a newly created account is the Common Name property of the client certificate ("identity") used during registration, and it must be unique among all users registered on this server.
 
 There are two kinds of accounts:
 * Traditional
