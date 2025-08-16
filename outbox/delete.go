@@ -27,7 +27,7 @@ import (
 )
 
 // Delete queues a Delete activity for delivery.
-func Delete(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, note *ap.Object) error {
+func Delete(ctx context.Context, cfg *cfg.Config, db *sql.DB, note *ap.Object) error {
 	delete := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      note.ID + "#delete",
@@ -72,7 +72,7 @@ func Delete(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, not
 	}
 
 	// determine whether or not this activity needs to be forwarded before we potentially punch a hole in the thread
-	if err := ForwardActivity(ctx, domain, cfg, tx, note, &delete, string(j)); err != nil {
+	if err := ForwardActivity(ctx, cfg, tx, note, &delete, string(j)); err != nil {
 		return fmt.Errorf("failed to insert delete activity: %w", err)
 	}
 

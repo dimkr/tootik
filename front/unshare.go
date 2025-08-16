@@ -44,7 +44,7 @@ func (h *Handler) unshare(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := outbox.Undo(r.Context, h.Domain, h.DB, &share); err != nil {
+	if err := outbox.Undo(r.Context, h.DB, &share); err != nil {
 		r.Log.Warn("Failed to unshare post", "post", postID, "error", err)
 		w.Error()
 		return

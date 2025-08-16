@@ -33,8 +33,8 @@ const maxDeliveryQueueSize = 128
 var ErrDeliveryQueueFull = errors.New("delivery queue is full")
 
 // Create queues a Create activity for delivery.
-func Create(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, post *ap.Object, author *ap.Actor) error {
-	id, err := NewID(domain, author.ID, "create")
+func Create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *ap.Object, author *ap.Actor) error {
+	id, err := NewID(author.ID, "create")
 	if err != nil {
 		return err
 	}
@@ -77,11 +77,11 @@ func Create(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, pos
 		return fmt.Errorf("failed to insert Create: %w", err)
 	}
 
-	if _, err = tx.ExecContext(ctx, `insert into outbox (id, activity, sender) values (?,jsonb(?),?)`, create.ID, string(j), author.ID); err != nil {
+	if _, err = tx.ExecContext(ctx, `insert into outbox (activity, sender) values (jsonb(?),?)`, string(j), author.ID); err != nil {
 		return fmt.Errorf("failed to insert Create: %w", err)
 	}
 
-	if err := ForwardActivity(ctx, domain, cfg, tx, post, &create, string(j)); err != nil {
+	if err := ForwardActivity(ctx, cfg, tx, post, &create, string(j)); err != nil {
 		return err
 	}
 

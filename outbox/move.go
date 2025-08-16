@@ -113,12 +113,12 @@ func (m *Mover) Run(ctx context.Context) error {
 			slog.Info("Removing follow of moved actor", "follow", oldFollowID, "old", oldID, "new", newID)
 		} else {
 			slog.Info("Moving follow", "follow", oldFollowID, "old", oldID, "new", newID)
-			if err := Follow(ctx, m.Domain, &actor, newID, m.DB); err != nil {
+			if err := Follow(ctx, &actor, newID, m.DB); err != nil {
 				slog.Warn("Failed to follow new actor", "follow", oldFollowID, "old", oldID, "new", newID, "error", err)
 				continue
 			}
 		}
-		if err := Unfollow(ctx, m.Domain, m.DB, actor.ID, oldID, oldFollowID); err != nil {
+		if err := Unfollow(ctx, m.DB, actor.ID, oldID, oldFollowID); err != nil {
 			slog.Warn("Failed to unfollow old actor", "follow", oldFollowID, "old", oldID, "new", newID, "error", err)
 		}
 	}
@@ -127,13 +127,13 @@ func (m *Mover) Run(ctx context.Context) error {
 }
 
 // Move queues a Move activity for delivery.
-func Move(ctx context.Context, db *sql.DB, domain string, from *ap.Actor, to string) error {
+func Move(ctx context.Context, db *sql.DB, from *ap.Actor, to string) error {
 	now := time.Now()
 
 	aud := ap.Audience{}
 	aud.Add(from.Followers)
 
-	id, err := NewID(domain, from.ID, "move")
+	id, err := NewID(from.ID, "move")
 	if err != nil {
 		return err
 	}
@@ -164,7 +164,7 @@ func Move(ctx context.Context, db *sql.DB, domain string, from *ap.Actor, to str
 		return fmt.Errorf("failed to insert Move: %w", err)
 	}
 
-	if err := UpdateActor(ctx, domain, tx, from.ID); err != nil {
+	if err := UpdateActor(ctx, tx, from.ID); err != nil {
 		return fmt.Errorf("failed to insert Move: %w", err)
 	}
 

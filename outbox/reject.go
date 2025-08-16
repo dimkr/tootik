@@ -25,8 +25,8 @@ import (
 )
 
 // Reject queues a Reject activity for delivery.
-func Reject(ctx context.Context, domain string, followed, follower, followID string, tx *sql.Tx) error {
-	id, err := NewID(domain, followed, "reject")
+func Reject(ctx context.Context, followed, follower, followID string, tx *sql.Tx) error {
+	id, err := NewID(followed, "reject")
 	if err != nil {
 		return err
 	}

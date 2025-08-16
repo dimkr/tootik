@@ -71,7 +71,7 @@ func (h *Handler) follow(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := outbox.Follow(r.Context, h.Domain, r.User, followed, h.DB); err != nil {
+	if err := outbox.Follow(r.Context, r.User, followed, h.DB); err != nil {
 		r.Log.Warn("Failed to follow user", "followed", followed, "error", err)
 		w.Error()
 		return

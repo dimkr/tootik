@@ -160,7 +160,7 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 		}
 	}
 
-	if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, tx, post, activity, rawActivity); err != nil {
+	if err := outbox.ForwardActivity(ctx, q.Config, tx, post, activity, rawActivity); err != nil {
 		return fmt.Errorf("cannot forward %s: %w", post.ID, err)
 	}
 
@@ -230,7 +230,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 				return fmt.Errorf("failed to delete %s: %w", deleted, err)
 			}
 
-			if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, tx, &note, activity, rawActivity); err != nil {
+			if err := outbox.ForwardActivity(ctx, q.Config, tx, &note, activity, rawActivity); err != nil {
 				return fmt.Errorf("failed to delete %s: %w", deleted, err)
 			}
 
@@ -294,7 +294,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			}
 			defer tx.Rollback()
 
-			if err := outbox.Accept(ctx, q.Domain, followed, activity.Actor, activity.ID, tx); err != nil {
+			if err := outbox.Accept(ctx, followed, activity.Actor, activity.ID, tx); err != nil {
 				return fmt.Errorf("failed to accept %s: %w", activity.ID, err)
 			}
 
@@ -522,7 +522,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return fmt.Errorf("failed to update post %s: %w", post.ID, err)
 		}
 
-		if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, tx, post, activity, rawActivity); err != nil {
+		if err := outbox.ForwardActivity(ctx, q.Config, tx, post, activity, rawActivity); err != nil {
 			return fmt.Errorf("failed to forward update post %s: %w", post.ID, err)
 		}
 

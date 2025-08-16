@@ -299,7 +299,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 
 		var followID string
 		if err := db.QueryRowContext(ctx, `SELECT id FROM follows WHERE follower = ? AND followed = ?`, follower, d.Followed).Scan(&followID); err != nil && errors.Is(err, sql.ErrNoRows) {
-			followID, err = outbox.NewID(domain, d.Followed, "follow")
+			followID, err = outbox.NewID(follower, "follow")
 			if err != nil {
 				slog.Warn("Failed to generate fake follow ID", "followed", d.Followed, "follower", follower, "error", err)
 				continue
@@ -310,7 +310,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 			continue
 		}
 
-		if err := outbox.Unfollow(ctx, domain, db, follower, d.Followed, followID); err != nil {
+		if err := outbox.Unfollow(ctx, db, follower, d.Followed, followID); err != nil {
 			slog.Warn("Failed to remove remote follow", "followed", d.Followed, "follower", follower, "error", err)
 		}
 	}

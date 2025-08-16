@@ -241,7 +241,7 @@ func main() {
 			panic(err)
 		}
 
-		if err := outbox.UpdateActor(ctx, *domain, tx, actorID); err != nil {
+		if err := outbox.UpdateActor(ctx, tx, actorID); err != nil {
 			panic(err)
 		}
 
@@ -300,7 +300,7 @@ func main() {
 			panic(err)
 		}
 
-		if err := outbox.UpdateActor(ctx, *domain, tx, actorID); err != nil {
+		if err := outbox.UpdateActor(ctx, tx, actorID); err != nil {
 			panic(err)
 		}
 
@@ -470,7 +470,6 @@ func main() {
 			"deleter",
 			deleterInterval,
 			&outbox.Deleter{
-				Domain: *domain,
 				Config: &cfg,
 				DB:     db,
 			},

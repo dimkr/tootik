@@ -27,7 +27,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 )
 
-func forwardToGroup(ctx context.Context, domain string, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity, firstPostID string) (bool, error) {
+func forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity, firstPostID string) (bool, error) {
 	var group ap.Actor
 	if err := tx.QueryRowContext(
 		ctx,
@@ -102,7 +102,7 @@ func forwardToGroup(ctx context.Context, domain string, tx *sql.Tx, note *ap.Obj
 	}
 
 	// if this is a new post and we're passing the Create activity to followers, also share the post
-	if err := Announce(ctx, domain, tx, &group, note); err != nil {
+	if err := Announce(ctx, tx, &group, note); err != nil {
 		return true, err
 	}
 
@@ -121,7 +121,7 @@ func forwardToGroup(ctx context.Context, domain string, tx *sql.Tx, note *ap.Obj
 // ForwardActivity forwards an activity if needed.
 // A reply by B in a thread started by A is forwarded to all followers of A.
 // A post by a follower of a local group, which mentions the group or replies to a post in the group, is forwarded to followers of the group.
-func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity string) error {
+func ForwardActivity(ctx context.Context, cfg *cfg.Config, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity string) error {
 	// poll votes don't need to be forwarded
 	if note.Name != "" && note.Content == "" {
 		return nil
@@ -145,7 +145,7 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, tx *sq
 	}
 
 	if note.IsPublic() {
-		if groupThread, err := forwardToGroup(ctx, domain, tx, note, activity, rawActivity, firstPostID); err != nil {
+		if groupThread, err := forwardToGroup(ctx, tx, note, activity, rawActivity, firstPostID); err != nil {
 			return err
 		} else if groupThread {
 			return nil

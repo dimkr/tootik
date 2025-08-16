@@ -90,7 +90,7 @@ func (h *Handler) alias(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := outbox.UpdateActor(r.Context, h.Domain, tx, r.User.ID); err != nil {
+	if err := outbox.UpdateActor(r.Context, tx, r.User.ID); err != nil {
 		r.Log.Error("Failed to update alias", "error", err)
 		w.Error()
 		return

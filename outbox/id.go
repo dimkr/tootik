@@ -17,21 +17,22 @@ package outbox
 
 import (
 	"fmt"
-	"strings"
 
+	"github.com/dimkr/tootik/ap"
 	"github.com/google/uuid"
 )
 
 // NewID generates a pseudo-random ID.
-func NewID(domain, actorID, prefix string) (string, error) {
+func NewID(actorID, prefix string) (string, error) {
 	u, err := uuid.NewV7()
 	if err != nil {
 		return "", fmt.Errorf("failed to generate %s ID: %w", prefix, err)
 	}
 
-	if strings.HasPrefix(actorID, "ap://") {
-		return fmt.Sprintf("%s/%s/%s", actorID, prefix, u.String()), nil
+	origin, err := ap.GetOrigin(actorID)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate %s ID: %w", prefix, err)
 	}
 
-	return fmt.Sprintf("https://%s/%s/%s", domain, prefix, u.String()), nil
+	return ap.Abs(fmt.Sprintf("%s/%s/%s", origin, prefix, u.String())), nil
 }

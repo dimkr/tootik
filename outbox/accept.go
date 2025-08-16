@@ -25,8 +25,8 @@ import (
 )
 
 // Accept queues an Accept activity for delivery.
-func Accept(ctx context.Context, domain string, followed, follower, followID string, tx *sql.Tx) error {
-	id, err := NewID(domain, followed, "accept")
+func Accept(ctx context.Context, followed, follower, followID string, tx *sql.Tx) error {
+	id, err := NewID(followed, "accept")
 	if err != nil {
 		return err
 	}
