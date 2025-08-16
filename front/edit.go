@@ -32,7 +32,7 @@ func (h *Handler) doEdit(w text.Writer, r *Request, args []string, readInput inp
 		return
 	}
 
-	postID := ap.Canonicalize(args[1])
+	postID := ap.Abs(args[1])
 
 	var note ap.Object
 	if err := h.DB.QueryRowContext(r.Context, `select json(object) from notes where id = ? and author = ?`, postID, r.User.ID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {

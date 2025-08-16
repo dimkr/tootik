@@ -141,7 +141,7 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 }
 
 func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Activity, raw []byte, flags ap.ResolverFlag) (*ap.Actor, error) {
-	if m := ap.DIDKeyRegex.FindStringSubmatch(p.VerificationMethod); m != nil {
+	if m := ap.PortableIDRegex.FindStringSubmatch(p.VerificationMethod); m != nil {
 		publicKey, err := parseMultiBaseKey(m[1])
 		if err != nil {
 			return nil, fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
@@ -151,7 +151,7 @@ func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Act
 			return nil, fmt.Errorf("failed to verify proof using %s: %w", p.VerificationMethod, err)
 		}
 
-		return l.Resolver.ResolveID(ctx, l.ActorKeys, p.VerificationMethod, flags)
+		return l.Resolver.ResolveID(ctx, l.ActorKeys, activity.Actor, flags)
 	}
 
 	actor, err := l.Resolver.ResolveID(ctx, l.ActorKeys, p.VerificationMethod, flags)

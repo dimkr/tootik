@@ -70,7 +70,7 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := l.verifyProof(r.Context(), activity.Proof, &activity, rawActivity, 0); err != nil {
+	if _, err := l.verifyProof(r.Context(), activity.Proof, &activity, rawActivity, 0); err != nil {
 		slog.Warn("Failed to verify proof", "body", string(rawActivity), "error", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusMethodNotAllowed)

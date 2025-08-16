@@ -118,7 +118,7 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 		resp.Links = append(resp.Links, webFingerLink{
 			Rel:  "self",
 			Type: `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`,
-			Href: ap.Gateway(l.Domain, actorID.String),
+			Href: ap.Gateway("https://"+l.Domain, actorID.String),
 			Properties: webFingerProperties{
 				Type: ap.ActorType(actorType),
 			},

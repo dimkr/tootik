@@ -351,7 +351,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request) {
 		} else if proofOrigin != origin {
 			slog.Warn("Ignoring integrity proof due to invalid origin", "activity", &activity, "proof", &activity.Proof, "origin", proofOrigin)
 		} else {
-			if err := l.verifyProof(r.Context(), activity.Proof, &activity, rawActivity, 0); err != nil {
+			if _, err := l.verifyProof(r.Context(), activity.Proof, &activity, rawActivity, 0); err != nil {
 				slog.Warn("Failed to verify integrity proof", "activity", &activity, "proof", &activity.Proof, "error", err)
 
 				w.WriteHeader(http.StatusUnauthorized)

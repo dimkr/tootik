@@ -17,7 +17,10 @@ limitations under the License.
 package cluster
 
 import (
+	"crypto/ed25519"
 	"testing"
+
+	"github.com/btcsuite/btcutil/base58"
 )
 
 func TestCluster_ReplyForwardingWithIntegrityProofs(t *testing.T) {
@@ -216,4 +219,68 @@ func TestCluster_ReplyForwardingPortableActors(t *testing.T) {
 	carol.
 		Refresh().
 		NotContains(Line{Type: Quote, Text: "hola"})
+}
+
+func TestCluster_Gateways(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
+
+	_, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+	registerNomad := "/users/register?z" + base58.Encode(append([]byte{0x80, 0x26}, priv.Seed()...))
+
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerNomad).OK()
+	bob := cluster["b.localdomain"].RegisterPortable(bobKeypair).OK()
+	carol := cluster["c.localdomain"].Handle(carolKeypair, registerNomad).OK()
+
+	alice.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "c.localdomain").
+		OK()
+
+	carol.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "a.localdomain").
+		OK()
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	cluster.Settle(t)
+
+	post := alice.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "hi").
+		OK()
+	carol.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "hello").
+		OK()
+	cluster.Settle(t)
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Contains(Line{Type: Quote, Text: "hi"}).
+		Contains(Line{Type: Quote, Text: "hello"})
+
+	bob.GotoInput(post.Links["💬 Reply"], "hola").
+		Contains(Line{Type: Quote, Text: "hola"})
+	cluster.Settle(t)
+
+	alice.
+		Goto(post.Path).
+		Contains(Line{Type: Quote, Text: "hola"})
+
+	carol.
+		Goto(post.Path).
+		Error("40 Post not found")
+
+	carol.
+		FollowInput("🔭 View profile", "bob@b.localdomain").
+		Contains(Line{Type: Quote, Text: "hola"})
 }

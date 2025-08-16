@@ -191,7 +191,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			clone := activity
 
 			clone.Context = []string{"https://www.w3.org/ns/activitystreams", "https://w3id.org/security/data-integrity/v1"}
-			clone.Actor = ap.Gateway(q.Domain, activity.Actor)
+			clone.Actor = ap.Gateway("https://"+q.Domain, activity.Actor)
 
 			proof, err := proof.Create(keys[1], time.Now(), &clone, clone.Context)
 			if err != nil {
@@ -373,9 +373,8 @@ func (q *Queue) queueTasks(
 	if wideDelivery {
 		followers, err := q.DB.QueryContext(
 			ctx,
-			`select distinct follower from follows where followed = ? and follower not like ? and accepted = 1 and not exists (select 1 from persons where persons.id = follows.follower and ed25519privkey is not null)`,
+			`select distinct follower from follows where followed = ? and accepted = 1 and not exists (select 1 from persons where persons.id = follows.follower and ed25519privkey is not null)`,
 			job.Sender.ID,
-			fmt.Sprintf("https://%s/%%", q.Domain),
 		)
 		if err != nil {
 			slog.Warn("Failed to list followers", "activity", job.Activity.ID, "error", err)
@@ -427,9 +426,7 @@ func (q *Queue) queueTasks(
 			inboxes = make([]string, 0, len(to.Gateways))
 
 			for _, gw := range to.Gateways {
-				if strings.HasPrefix(gw, "https://") {
-					inboxes = append(inboxes, ap.Gateway(gw[8:], to.Inbox[5:]))
-				}
+				inboxes = append(inboxes, ap.Gateway(gw, to.Inbox))
 			}
 		} else if wideDelivery {
 			// if possible, use the recipient's shared inbox and skip other recipients with the same shared inbox

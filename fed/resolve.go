@@ -25,6 +25,7 @@ import (
 	"hash/crc32"
 	"io"
 	"log/slog"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"net/url"
@@ -392,9 +393,7 @@ func (r *Resolver) tryResolveID(ctx context.Context, keys [2]httpsig.Key, id str
 		}
 
 		if len(cachedActor.Gateways) > 0 {
-			before := id
-			id = ap.Gateway(strings.TrimPrefix(cachedActor.Gateways[0], "https://"), id)
-			slog.Info("Using gateway", "before", before, "id", id)
+			id = ap.Gateway(cachedActor.Gateways[rand.UintN(uint(len(cachedActor.Gateways)))], id)
 		}
 	}
 

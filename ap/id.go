@@ -20,38 +20,61 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
-	"strings"
 )
 
-var DIDKeyRegex = regexp.MustCompile(`(?:^ap:\/\/did:key:|.well-known\/apgateway\/did:key:|^did:key:|^)(z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)([\/#?].*){0,1}`)
+var (
+	DIDKeyRegex        = regexp.MustCompile(`^did:key:(z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)(?:[\/#?].*){0,1}`)
+	PortableIDRegex    = regexp.MustCompile(`^ap:\/\/did:key:(z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)((?:[\/#?].*){0,1})`)
+	compatibleURLRegex = regexp.MustCompile(`^https://[a-z0-9-]+(?:\.[a-z0-9-]+)+\/\.well-known\/apgateway\/did:key:(z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)((?:[\/#?].*){0,1})`)
+)
 
+// IsPortable determines whether or not an ActivityPub ID is portable.
 func IsPortable(id string) bool {
-	return DIDKeyRegex.MatchString(id)
+	return PortableIDRegex.MatchString(id) || compatibleURLRegex.MatchString(id)
 }
 
+// Abs prepends ap:// or https:// to a string to obtain a valid ActivityPub ID.
+func Abs(s string) string {
+	if DIDKeyRegex.MatchString(s) {
+		return "ap://" + s
+	}
+
+	return "https://" + s
+}
+
+// Canonicalize returns an ID in canonical form: if portable, it's converted to an ap:// URL.
 func Canonicalize(id string) string {
-	if m := DIDKeyRegex.FindStringSubmatch(id); m != nil {
+	if PortableIDRegex.MatchString(id) {
+		return id
+	}
+
+	if m := compatibleURLRegex.FindStringSubmatch(id); m != nil {
 		return "ap://did:key:" + m[1] + m[2]
 	}
 
-	if !strings.HasPrefix(id, "https://") {
-		return "https://" + id
+	return id
+}
+
+// Gateway returns a https:// gateway URL for a portable ActivityPub ID.
+func Gateway(gw, id string) string {
+	if m := PortableIDRegex.FindStringSubmatch(id); m != nil {
+		return fmt.Sprintf("%s/.well-known/apgateway/did:key:%s%s", gw, m[1], m[2])
+	}
+
+	if m := compatibleURLRegex.FindStringSubmatch(id); m != nil {
+		return fmt.Sprintf("%s/.well-known/apgateway/did:key:%s%s", gw, m[1], m[2])
 	}
 
 	return id
 }
 
-func Gateway(domain, id string) string {
-	if m := DIDKeyRegex.FindStringSubmatch(id); m != nil {
-		return fmt.Sprintf("https://%s/.well-known/apgateway/did:key:%s%s", domain, m[1], m[2])
-	}
-
-	return id
-}
-
-// GetOrigin returns the origin of an object, based on its ID.
+// GetOrigin returns the origin of an ActivityPub ID.
 func GetOrigin(id string) (string, error) {
-	if m := DIDKeyRegex.FindStringSubmatch(id); m != nil {
+	if m := PortableIDRegex.FindStringSubmatch(id); m != nil {
+		return "did:key:" + m[1], nil
+	}
+
+	if m := compatibleURLRegex.FindStringSubmatch(id); m != nil {
 		return "did:key:" + m[1], nil
 	}
 
