@@ -18,9 +18,7 @@ package fed
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
-	"io"
 	"log/slog"
 	"net/http"
 	"regexp"
@@ -49,71 +47,20 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rawActivity, err := io.ReadAll(io.LimitReader(r.Body, l.Config.MaxRequestBodySize))
-	if err != nil {
+	receiver := ap.Abs(m[1])
+
+	var registered int
+	if err := l.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where id = ? and ed25519privkey is not null)`, receiver).Scan(&registered); err != nil {
+		slog.Warn("Failed to check if receiving user exists", "receiver", receiver, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
-	}
-
-	var activity ap.Activity
-	if err := json.Unmarshal(rawActivity, &activity); err != nil {
-		slog.Warn("Failed to unmarshal activity", "body", string(rawActivity), "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	origin, err := ap.GetOrigin(activity.Actor)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
-		return
-	}
-
-	actor, err := l.verifyProof(r.Context(), activity.Proof, &activity, rawActivity, 0)
-	if err != nil {
-		slog.Warn("Failed to verify proof", "body", string(rawActivity), "error", err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
-		return
-	}
-
-	if err := l.validateActivity(&activity, origin, 0); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
-		return
-	}
-
-	actorID := ap.Abs(m[1])
-
-	slog.Info("Posting to inbox", "id", actorID)
-
-	var exists int
-	if err := l.DB.QueryRowContext(r.Context(), `select 1 from persons where actor->>'$.id' = ? and ed25519privkey is not null`, actorID).Scan(&exists); errors.Is(err, sql.ErrNoRows) {
-		slog.Info("Notifying about missing user", "actor", actorID)
+	} else if registered == 0 {
+		slog.Debug("Receiving user does not exist", "receiver", receiver)
 		w.WriteHeader(http.StatusNotFound)
 		return
-	} else if err != nil {
-		slog.Warn("Failed to check if user exists", "actor", actorID, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
 	}
 
-	if _, err = l.DB.ExecContext(
-		r.Context(),
-		`INSERT OR IGNORE INTO inbox (sender, activity, raw) VALUES (?, JSONB(?), ?)`,
-		actor.ID,
-		&activity,
-		string(rawActivity),
-	); err != nil {
-		slog.Error("Failed to insert activity", "actor", actor.ID, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusAccepted)
+	l.doHandleInbox(w, r)
 }
 
 func writeWithProof(w http.ResponseWriter, actor *ap.Actor, ed25519PrivKeyPem string, body []byte) {

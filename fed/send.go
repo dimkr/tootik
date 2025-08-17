@@ -25,7 +25,6 @@ import (
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
@@ -60,7 +59,7 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request) (*http.Response, e
 	slog.Debug("Sending request", "url", urlString)
 
 	var capabilities ap.Capability
-	if !strings.HasPrefix(keys[1].ID, "did:key:") {
+	if !ap.IsPortable(keys[1].ID) {
 		capabilities = ap.CavageDraftSignatures
 
 		if err := s.DB.QueryRowContext(req.Context(), `select capabilities from servers where host = ?`, req.URL.Host).Scan(&capabilities); errors.Is(err, sql.ErrNoRows) {
