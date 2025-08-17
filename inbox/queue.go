@@ -22,13 +22,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/url"
 	"strings"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/inbox/note"
@@ -59,18 +57,24 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 		return fmt.Errorf("received invalid Create for %s by %s from %s", post.ID, post.AttributedTo, activity.Actor)
 	}
 
-	u, err := url.Parse(post.ID)
+	post.ID = ap.Canonical(post.ID)
+	post.AttributedTo = ap.Canonical(post.AttributedTo)
+	post.Audience = ap.Canonical(post.Audience)
+
+	origin, err := ap.GetOrigin(post.ID)
 	if err != nil {
 		return fmt.Errorf("failed to parse post ID %s: %w", post.ID, err)
 	}
 
-	if !data.IsIDValid(u) {
-		return fmt.Errorf("received invalid post ID: %s", post.ID)
-	}
-
-	if q.BlockList != nil && q.BlockList.Contains(u.Host) {
+	if q.BlockList != nil && q.BlockList.Contains(origin) {
 		return fmt.Errorf("ignoring post %s: %w", post.ID, fed.ErrBlockedDomain)
 	}
+
+	/*
+		if !ap.IsPortable(post.ID) && !data.IsIDValid(post.ID) {
+			return fmt.Errorf("received invalid post ID: %s", post.ID)
+		}
+	*/
 
 	if len(post.To.OrderedMap)+len(post.CC.OrderedMap) > q.Config.MaxRecipients {
 		log.Warn("Post has too many recipients", "to", len(post.To.OrderedMap), "cc", len(post.CC.OrderedMap))
@@ -158,7 +162,7 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 		}
 	}
 
-	if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, tx, post, activity, rawActivity); err != nil {
+	if err := outbox.ForwardActivity(ctx, q.Config, tx, post, activity, rawActivity); err != nil {
 		return fmt.Errorf("cannot forward %s: %w", post.ID, err)
 	}
 
@@ -192,13 +196,16 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 	log.Debug("Processing activity")
 
+	activity.ID = ap.Canonical(activity.ID)
+	activity.Actor = ap.Canonical(activity.Actor)
+
 	switch activity.Type {
 	case ap.Delete:
 		deleted := ""
 		if _, ok := activity.Object.(*ap.Object); ok {
-			deleted = activity.Object.(*ap.Object).ID
+			deleted = ap.Canonical(activity.Object.(*ap.Object).ID)
 		} else if s, ok := activity.Object.(string); ok {
-			deleted = s
+			deleted = ap.Canonical(s)
 		}
 		if deleted == "" {
 			return errors.New("received an invalid delete activity")
@@ -225,7 +232,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 				return fmt.Errorf("failed to delete %s: %w", deleted, err)
 			}
 
-			if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, tx, &note, activity, rawActivity); err != nil {
+			if err := outbox.ForwardActivity(ctx, q.Config, tx, &note, activity, rawActivity); err != nil {
 				return fmt.Errorf("failed to delete %s: %w", deleted, err)
 			}
 
@@ -259,14 +266,12 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		if followed == "" {
 			return errors.New("received an invalid follow request")
 		}
-
-		prefix := fmt.Sprintf("https://%s/", q.Domain)
-		if strings.HasPrefix(activity.Actor, prefix) || !strings.HasPrefix(followed, prefix) {
-			return fmt.Errorf("received an invalid follow request for %s by %s", followed, activity.Actor)
-		}
+		followed = ap.Canonical(followed)
 
 		var manual sql.NullInt32
-		if err := q.DB.QueryRowContext(ctx, `select actor->>'$.manuallyApprovesFollowers' from persons where id = ?`, followed).Scan(&manual); err != nil {
+		if err := q.DB.QueryRowContext(ctx, `select actor->>'$.manuallyApprovesFollowers' from persons where id = ?`, followed).Scan(&manual); errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("received an invalid follow request for %s by %s", followed, activity.Actor)
+		} else if err != nil {
 			return fmt.Errorf("failed to fetch %s: %w", followed, err)
 		}
 
@@ -282,7 +287,6 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			); err != nil {
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
-
 		} else {
 			log.Info("Approving follow request", "follower", activity.Actor, "followed", followed)
 
@@ -292,7 +296,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			}
 			defer tx.Rollback()
 
-			if err := outbox.Accept(ctx, q.Domain, followed, activity.Actor, activity.ID, tx); err != nil {
+			if err := outbox.Accept(ctx, followed, activity.Actor, activity.ID, tx); err != nil {
 				return fmt.Errorf("failed to accept %s: %w", activity.ID, err)
 			}
 
@@ -302,22 +306,23 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		}
 
 	case ap.Accept:
-		if sender.ID != activity.Actor {
-			return fmt.Errorf("received an invalid Accept for %s by %s", activity.Actor, sender.ID)
-		}
-
 		followID, ok := activity.Object.(string)
 		if ok && followID != "" {
+			followID = ap.Canonical(followID)
 			log.Info("Follow is accepted", "follow", followID)
 		} else if followActivity, ok := activity.Object.(*ap.Activity); ok && followActivity.Type == ap.Follow && followActivity.ID != "" {
 			log.Info("Follow is accepted", "follow", followActivity.ID)
-			followID = followActivity.ID
+			followID = ap.Canonical(followActivity.ID)
 		} else {
 			return errors.New("received an invalid Accept")
 		}
 
-		if _, err := q.DB.ExecContext(ctx, `update follows set accepted = 1 where id = ? and followed = ?`, followID, sender.ID); err != nil {
+		if res, err := q.DB.ExecContext(ctx, `update follows set accepted = 1 where id = ? and followed = ?`, followID, sender.ID); err != nil {
 			return fmt.Errorf("failed to accept follow %s: %w", followID, err)
+		} else if n, err := res.RowsAffected(); err != nil {
+			return fmt.Errorf("failed to accept follow %s: %w", followID, err)
+		} else if n == 0 {
+			return fmt.Errorf("received an invalid Accept for %s by %s", activity.Actor, sender.ID)
 		}
 
 	case ap.Reject:
@@ -327,15 +332,16 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 		followID, ok := activity.Object.(string)
 		if ok && followID != "" {
+			followID = ap.Canonical(followID)
 			log.Info("Follow is rejected", "follow", followID)
 		} else if followActivity, ok := activity.Object.(*ap.Activity); ok && followActivity.Type == ap.Follow && followActivity.ID != "" {
 			log.Info("Follow is rejected", "follow", followActivity.ID)
-			followID = followActivity.ID
+			followID = ap.Canonical(followActivity.ID)
 		} else {
 			return errors.New("received an invalid Reject")
 		}
 
-		if _, err := q.DB.ExecContext(ctx, `update follows set accepted = 0 where id = ? and followed = ?`, followID, sender.ID); err != nil {
+		if _, err := q.DB.ExecContext(ctx, `update follows set accepted = 0 where id = ? and followed = ?`, followID, activity.Actor); err != nil {
 			return fmt.Errorf("failed to reject follow %s: %w", followID, err)
 		}
 
@@ -350,6 +356,8 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			if !ok {
 				return errors.New("cannot undo Announce")
 			}
+			noteID = ap.Canonical(noteID)
+
 			if _, err := q.DB.ExecContext(
 				ctx,
 				`delete from shares where note = ? and by = ?`,
@@ -374,9 +382,9 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 		var followed string
 		if actor, ok := inner.Object.(*ap.Object); ok {
-			followed = actor.ID
+			followed = ap.Canonical(actor.ID)
 		} else if actorID, ok := inner.Object.(string); ok {
-			followed = actorID
+			followed = ap.Canonical(actorID)
 		} else {
 			return errors.New("received a request to undo follow on unknown object")
 		}
@@ -388,12 +396,13 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		if strings.HasPrefix(follower, prefix) {
 			return errors.New("received an undo request from local actor")
 		}
-		if !strings.HasPrefix(followed, prefix) {
-			return errors.New("received an undo request on federated actor")
-		}
 
-		if _, err := q.DB.ExecContext(ctx, `update follows set accepted = 0 where follower = ? and followed = ?`, follower, followed); err != nil {
+		if res, err := q.DB.ExecContext(ctx, `update follows set accepted = 0 where follower = ? and followed = ? and exists (select 1 from persons where persons.id = follows.followed and persons.ed25519privkey is not null)`, follower, followed); err != nil {
 			return fmt.Errorf("failed to remove follow of %s by %s: %w", followed, follower, err)
+		} else if n, err := res.RowsAffected(); err != nil {
+			return fmt.Errorf("failed to remove follow of %s by %s: %w", followed, follower, err)
+		} else if n == 0 {
+			return fmt.Errorf("failed to remove follow of %s by %s: not found", followed, follower)
 		}
 
 		log.Info("Removed a Follow", "follower", follower, "followed", followed)
@@ -413,7 +422,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 				if _, err := q.DB.ExecContext(
 					ctx,
 					`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
-					postID,
+					ap.Canonical(postID),
 					sender.ID,
 					activity.ID,
 				); err != nil {
@@ -430,7 +439,13 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 	case ap.Update:
 		post, ok := activity.Object.(*ap.Object)
-		if !ok || post.ID == activity.Actor || post.ID == sender.ID {
+		if !ok {
+			log.Debug("Ignoring unsupported Update object")
+			return nil
+		}
+
+		post.ID = ap.Canonical(post.ID)
+		if post.ID == activity.Actor || post.ID == sender.ID {
 			log.Debug("Ignoring unsupported Update object")
 			return nil
 		}
@@ -438,6 +453,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		if post.ID == "" || post.AttributedTo == "" {
 			return errors.New("received invalid Update")
 		}
+		post.AttributedTo = ap.Canonical(post.AttributedTo)
 
 		var oldPost ap.Object
 		var lastChange int64
@@ -468,6 +484,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		}
 
 		// only the group can decide if audience has changed
+		oldPost.Audience = ap.Canonical(oldPost.Audience)
 		if sender.ID != oldPost.Audience {
 			post.Audience = oldPost.Audience
 		}
@@ -507,7 +524,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return fmt.Errorf("failed to update post %s: %w", post.ID, err)
 		}
 
-		if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, tx, post, activity, rawActivity); err != nil {
+		if err := outbox.ForwardActivity(ctx, q.Config, tx, post, activity, rawActivity); err != nil {
 			return fmt.Errorf("failed to forward update post %s: %w", post.ID, err)
 		}
 

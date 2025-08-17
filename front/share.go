@@ -49,7 +49,7 @@ func (h *Handler) share(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	postID := "https://" + args[1]
+	postID := ap.Abs(args[1])
 
 	var note ap.Object
 	if err := h.DB.QueryRowContext(r.Context, `select json(object) from notes where id = $1 and public = 1 and author != $2 and not exists (select 1 from shares where note = notes.id and by = $2)`, postID, r.User.ID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
@@ -80,7 +80,7 @@ func (h *Handler) share(w text.Writer, r *Request, args ...string) {
 	}
 	defer tx.Rollback()
 
-	if err := outbox.Announce(r.Context, h.Domain, tx, r.User, &note); err != nil {
+	if err := outbox.Announce(r.Context, tx, r.User, &note); err != nil {
 		r.Log.Warn("Failed to share post", "post", postID, "error", err)
 		w.Error()
 		return

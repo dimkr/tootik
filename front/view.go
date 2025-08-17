@@ -30,7 +30,7 @@ import (
 )
 
 func (h *Handler) view(w text.Writer, r *Request, args ...string) {
-	postID := "https://" + args[1]
+	postID := ap.Abs(args[1])
 
 	offset, err := getOffset(r.URL)
 	if err != nil {
@@ -160,9 +160,9 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						w.Empty()
 
 						if r.User == nil {
-							w.Link("/view/"+strings.TrimPrefix(parent.InReplyTo, "https://"), "[1 reply]")
+							w.Link("/view/"+trimScheme(parent.InReplyTo), "[1 reply]")
 						} else {
-							w.Link("/users/view/"+strings.TrimPrefix(parent.InReplyTo, "https://"), "[1 reply]")
+							w.Link("/users/view/"+trimScheme(parent.InReplyTo), "[1 reply]")
 						}
 
 						w.Empty()
@@ -170,9 +170,9 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						w.Empty()
 
 						if r.User == nil {
-							w.Linkf("/view/"+strings.TrimPrefix(parent.InReplyTo, "https://"), "[%d replies]", headDepth-currentDepth-1)
+							w.Linkf("/view/"+trimScheme(parent.InReplyTo), "[%d replies]", headDepth-currentDepth-1)
 						} else {
-							w.Linkf("/users/view/"+strings.TrimPrefix(parent.InReplyTo, "https://"), "[%d replies]", headDepth-currentDepth-1)
+							w.Linkf("/users/view/"+trimScheme(parent.InReplyTo), "[%d replies]", headDepth-currentDepth-1)
 						}
 
 						w.Empty()
@@ -182,9 +182,9 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 					}
 
 					if r.User == nil {
-						w.Linkf("/view/"+strings.TrimPrefix(parent.ID, "https://"), "%s %s", parent.Published.Time.Format(time.DateOnly), parentAuthor.PreferredUsername)
+						w.Linkf("/view/"+trimScheme(parent.ID), "%s %s", parent.Published.Time.Format(time.DateOnly), parentAuthor.PreferredUsername)
 					} else {
-						w.Linkf("/users/view/"+strings.TrimPrefix(parent.ID, "https://"), "%s %s", parent.Published.Time.Format(time.DateOnly), parentAuthor.PreferredUsername)
+						w.Linkf("/users/view/"+trimScheme(parent.ID), "%s %s", parent.Published.Time.Format(time.DateOnly), parentAuthor.PreferredUsername)
 					}
 
 					contentLines, _ := h.getCompactNoteContent(&parent)
@@ -229,16 +229,16 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			}
 
 			if r.User == nil {
-				links.Store("/outbox/"+strings.TrimPrefix(mentionID, "https://"), mentionUserName)
+				links.Store("/outbox/"+trimScheme(mentionID), mentionUserName)
 			} else {
-				links.Store("/users/outbox/"+strings.TrimPrefix(mentionID, "https://"), mentionUserName)
+				links.Store("/users/outbox/"+trimScheme(mentionID), mentionUserName)
 			}
 		}
 
 		if r.User == nil && group.Valid {
-			links.Store("/outbox/"+strings.TrimPrefix(group.V.ID, "https://"), "🔄 "+group.V.PreferredUsername)
+			links.Store("/outbox/"+trimScheme(group.V.ID), "🔄 "+group.V.PreferredUsername)
 		} else if group.Valid {
-			links.Store("/users/outbox/"+strings.TrimPrefix(group.V.ID, "https://"), "🔄️ "+group.V.PreferredUsername)
+			links.Store("/users/outbox/"+trimScheme(group.V.ID), "🔄️ "+group.V.PreferredUsername)
 		} else if note.IsPublic() {
 			var rows *sql.Rows
 			var err error
@@ -259,16 +259,15 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						union all
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 3 as rank from shares
 						join persons on persons.id = shares.by
-						where shares.note = $1 and persons.host = $2
+						where shares.note = $1 and persons.ed25519privkey is not null
 						union all
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 4 as rank from shares
 						join persons on persons.id = shares.by
-						where shares.note = $1 and persons.host != $2
+						where shares.note = $1 and persons.ed25519privkey is null
 					)
 					group by id
-					order by min(rank), inserted limit $3`,
+					order by min(rank), inserted limit $2`,
 					note.ID,
-					h.Domain,
 					h.Config.SharesPerPost,
 				)
 			} else {
@@ -293,17 +292,16 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						union all
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 4 as rank from shares
 						join persons on persons.id = shares.by
-						where shares.note = $1 and persons.host = $3
+						where shares.note = $1 and persons.ed25519privkey is not null
 						union all
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 5 as rank from shares
 						join persons on persons.id = shares.by
-						where shares.note = $1 and persons.host != $3
+						where shares.note = $1 and persons.ed25519privkey is null
 					)
 					group by id
-					order by min(rank), inserted limit $4`,
+					order by min(rank), inserted limit $3`,
 					note.ID,
 					r.User.ID,
-					h.Domain,
 					h.Config.SharesPerPost,
 				)
 			}
@@ -316,7 +314,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						r.Log.Warn("Failed to scan sharer", "error", err)
 						continue
 					}
-					links.Store("/users/outbox/"+strings.TrimPrefix(sharerID, "https://"), "🔄 "+sharerName)
+					links.Store("/users/outbox/"+trimScheme(sharerID), "🔄 "+sharerName)
 				}
 				rows.Close()
 			}
@@ -341,9 +339,9 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				if err := quotes.Scan(&quoteID, &quoter); err != nil {
 					r.Log.Warn("Failed to scan quoter", "error", err)
 				} else if r.User == nil {
-					links.Store("/view/"+strings.TrimPrefix(quoteID, "https://"), "♻️ "+quoter)
+					links.Store("/view/"+trimScheme(quoteID), "♻️ "+quoter)
 				} else {
-					links.Store("/users/view/"+strings.TrimPrefix(quoteID, "https://"), "♻️ "+quoter)
+					links.Store("/users/view/"+trimScheme(quoteID), "♻️ "+quoter)
 				}
 			}
 
@@ -367,9 +365,9 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		}
 
 		if r.User == nil {
-			w.Link("/outbox/"+strings.TrimPrefix(author.ID, "https://"), author.PreferredUsername)
+			w.Link("/outbox/"+trimScheme(author.ID), author.PreferredUsername)
 		} else {
-			w.Link("/users/outbox/"+strings.TrimPrefix(author.ID, "https://"), author.PreferredUsername)
+			w.Link("/users/outbox/"+trimScheme(author.ID), author.PreferredUsername)
 		}
 
 		for link, alt := range links.All() {
@@ -400,11 +398,11 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		}
 
 		if r.User != nil && note.AttributedTo == r.User.ID && note.Type != ap.Question && note.Name == "" { // polls and votes cannot be edited
-			w.Link("/users/edit/"+strings.TrimPrefix(note.ID, "https://"), "🩹 Edit")
-			w.Link(fmt.Sprintf("titan://%s/users/upload/edit/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload edited post")
+			w.Link("/users/edit/"+trimScheme(note.ID), "🩹 Edit")
+			w.Link(fmt.Sprintf("titan://%s/users/upload/edit/%s", h.Domain, trimScheme(note.ID)), "Upload edited post")
 		}
 		if r.User != nil && note.AttributedTo == r.User.ID {
-			w.Link("/users/delete/"+strings.TrimPrefix(note.ID, "https://"), "💣 Delete")
+			w.Link("/users/delete/"+trimScheme(note.ID), "💣 Delete")
 		}
 		if r.User != nil && note.Type == ap.Question && note.Closed == (ap.Time{}) && (note.EndTime == (ap.Time{}) || time.Now().Before(note.EndTime.Time)) {
 			options := note.OneOf
@@ -412,7 +410,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				options = note.AnyOf
 			}
 			for _, option := range options {
-				w.Linkf(fmt.Sprintf("/users/reply/%s?%s", strings.TrimPrefix(note.ID, "https://"), url.PathEscape(option.Name)), "📮 Vote %s", option.Name)
+				w.Linkf(fmt.Sprintf("/users/reply/%s?%s", trimScheme(note.ID), url.PathEscape(option.Name)), "📮 Vote %s", option.Name)
 			}
 		}
 
@@ -421,9 +419,9 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from shares where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&shared); err != nil {
 				r.Log.Warn("Failed to check if post is shared", "id", note.ID, "error", err)
 			} else if shared == 0 {
-				w.Link("/users/share/"+strings.TrimPrefix(note.ID, "https://"), "🔁 Share")
+				w.Link("/users/share/"+trimScheme(note.ID), "🔁 Share")
 			} else {
-				w.Link("/users/unshare/"+strings.TrimPrefix(note.ID, "https://"), "🔄️ Unshare")
+				w.Link("/users/unshare/"+trimScheme(note.ID), "🔄️ Unshare")
 			}
 		}
 
@@ -432,20 +430,20 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from bookmarks where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&bookmarked); err != nil {
 				r.Log.Warn("Failed to check if post is bookmarked", "id", note.ID, "error", err)
 			} else if bookmarked == 0 {
-				w.Link("/users/bookmark/"+strings.TrimPrefix(note.ID, "https://"), "🔖 Bookmark")
+				w.Link("/users/bookmark/"+trimScheme(note.ID), "🔖 Bookmark")
 			} else {
-				w.Link("/users/unbookmark/"+strings.TrimPrefix(note.ID, "https://"), "🔖 Unbookmark")
+				w.Link("/users/unbookmark/"+trimScheme(note.ID), "🔖 Unbookmark")
 			}
 		}
 
 		if r.User != nil {
 			if note.CanQuote() {
-				w.Link("/users/quote/"+strings.TrimPrefix(note.ID, "https://"), "♻️ Quote")
-				w.Link(fmt.Sprintf("titan://%s/users/upload/quote/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload quote")
+				w.Link("/users/quote/"+trimScheme(note.ID), "♻️ Quote")
+				w.Link(fmt.Sprintf("titan://%s/users/upload/quote/%s", h.Domain, trimScheme(note.ID)), "Upload quote")
 			}
 
-			w.Link("/users/reply/"+strings.TrimPrefix(note.ID, "https://"), "💬 Reply")
-			w.Link(fmt.Sprintf("titan://%s/users/upload/reply/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload reply")
+			w.Link("/users/reply/"+trimScheme(note.ID), "💬 Reply")
+			w.Link(fmt.Sprintf("titan://%s/users/upload/reply/%s", h.Domain, trimScheme(note.ID)), "Upload reply")
 		}
 
 		if note.Type == ap.Question && offset == 0 {
@@ -496,9 +494,9 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				w.Text("[Error]")
 			} else {
 				if r.User == nil {
-					w.Linkf("/view/"+strings.TrimPrefix(quote.ID, "https://"), "%s %s", quote.Published.Time.Format(time.DateOnly), quoteAuthor)
+					w.Linkf("/view/"+trimScheme(quote.ID), "%s %s", quote.Published.Time.Format(time.DateOnly), quoteAuthor)
 				} else {
-					w.Linkf("/users/view/"+strings.TrimPrefix(quote.ID, "https://"), "%s %s", quote.Published.Time.Format(time.DateOnly), quoteAuthor)
+					w.Linkf("/users/view/"+trimScheme(quote.ID), "%s %s", quote.Published.Time.Format(time.DateOnly), quoteAuthor)
 				}
 
 				quoteLines, _ := h.getCompactNoteContent(&quote)

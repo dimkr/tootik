@@ -44,7 +44,7 @@ func normalizeJSON(v any) ([]byte, error) {
 	return jcs.Transform(j)
 }
 
-func create(key httpsig.Key, now time.Time, doc, context any) (ap.Proof, error) {
+func Create(key httpsig.Key, now time.Time, doc, context any) (ap.Proof, error) {
 	edKey, ok := key.PrivateKey.(ed25519.PrivateKey)
 	if !ok {
 		return ap.Proof{}, fmt.Errorf("wrong key type: %T", key.PrivateKey)
@@ -92,7 +92,7 @@ func Add(key httpsig.Key, now time.Time, raw []byte) ([]byte, error) {
 
 	m["@context"] = proofContext
 
-	proof, err := create(key, now, m, proofContext)
+	proof, err := Create(key, now, m, proofContext)
 	if err != nil {
 		return nil, err
 	}

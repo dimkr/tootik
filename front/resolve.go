@@ -19,7 +19,6 @@ package front
 import (
 	"net/url"
 	"regexp"
-	"strings"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
@@ -72,5 +71,5 @@ func (h *Handler) resolve(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.Redirect("/users/outbox/" + strings.TrimPrefix(person.ID, "https://"))
+	w.Redirect("/users/outbox/" + trimScheme(person.ID))
 }

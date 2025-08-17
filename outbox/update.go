@@ -28,8 +28,8 @@ import (
 )
 
 // UpdateNote queues an Update activity for delivery.
-func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, note *ap.Object) error {
-	updateID, err := NewID(domain, "update")
+func UpdateNote(ctx context.Context, cfg *cfg.Config, db *sql.DB, note *ap.Object) error {
+	updateID, err := NewID(note.AttributedTo, "update")
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,8 @@ func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB,
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
+		`INSERT INTO outbox (id, activity, sender) VALUES (?, JSONB(?), ?)`,
+		update.ID,
 		string(j),
 		note.AttributedTo,
 	); err != nil {
@@ -104,7 +105,7 @@ func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB,
 		}
 	}
 
-	if err := ForwardActivity(ctx, domain, cfg, tx, note, &update, string(j)); err != nil {
+	if err := ForwardActivity(ctx, cfg, tx, note, &update, string(j)); err != nil {
 		return err
 	}
 
@@ -116,8 +117,8 @@ func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB,
 }
 
 // UpdateActor queues an Update activity for delivery.
-func UpdateActor(ctx context.Context, domain string, tx *sql.Tx, actorID string) error {
-	updateID, err := NewID(domain, "update")
+func UpdateActor(ctx context.Context, tx *sql.Tx, actorID string) error {
+	updateID, err := NewID(actorID, "update")
 	if err != nil {
 		return err
 	}
@@ -136,7 +137,8 @@ func UpdateActor(ctx context.Context, domain string, tx *sql.Tx, actorID string)
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
+		`INSERT INTO outbox (id, activity, sender) VALUES (?, JSONB(?), ?)`,
+		update.ID,
 		&update,
 		actorID,
 	); err != nil {

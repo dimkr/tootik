@@ -55,6 +55,7 @@ type Actor struct {
 	Attachment                []Attachment      `json:"attachment,omitempty"`
 	AssertionMethod           []AssertionMethod `json:"assertionMethod,omitempty"`
 	Generator                 Generator         `json:"generator,omitzero"`
+	Gateways                  []string          `json:"gateways,omitempty"`
 }
 
 func (a *Actor) Scan(src any) error {

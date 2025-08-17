@@ -18,7 +18,6 @@ package front
 
 import (
 	"database/sql"
-	"strings"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
@@ -92,17 +91,17 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 		displayName := h.getActorDisplayName(&actor)
 
 		if !accepted.Valid && last.Valid {
-			w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.ID, "https://"), "%s %s - pending approval", time.Unix(last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
+			w.Linkf("/users/outbox/"+trimScheme(actor.ID), "%s %s - pending approval", time.Unix(last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
 		} else if !accepted.Valid {
-			w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.ID, "https://"), "%s - pending approval", displayName)
+			w.Linkf("/users/outbox/"+trimScheme(actor.ID), "%s - pending approval", displayName)
 		} else if last.Valid && accepted.Int32 == 1 {
-			w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.ID, "https://"), "%s %s", time.Unix(last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
+			w.Linkf("/users/outbox/"+trimScheme(actor.ID), "%s %s", time.Unix(last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
 		} else if accepted.Int32 == 1 {
-			w.Link("/users/outbox/"+strings.TrimPrefix(actor.ID, "https://"), displayName)
+			w.Link("/users/outbox/"+trimScheme(actor.ID), displayName)
 		} else if last.Valid {
-			w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.ID, "https://"), "%s %s - rejected", time.Unix(last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
+			w.Linkf("/users/outbox/"+trimScheme(actor.ID), "%s %s - rejected", time.Unix(last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
 		} else {
-			w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.ID, "https://"), "%s - rejected", displayName)
+			w.Linkf("/users/outbox/"+trimScheme(actor.ID), "%s - rejected", displayName)
 		}
 		i++
 	}

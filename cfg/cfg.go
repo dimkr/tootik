@@ -135,6 +135,7 @@ type Config struct {
 	Ed25519Threshold float32
 
 	DisableIntegrityProofs bool
+	MaxGateways            int
 }
 
 // FillDefaults replaces missing or invalid settings with defaults.
@@ -448,5 +449,9 @@ func (c *Config) FillDefaults() {
 
 	if c.Ed25519Threshold <= 0 || c.Ed25519Threshold > 1 {
 		c.Ed25519Threshold = 0.98
+	}
+
+	if c.MaxGateways <= 0 {
+		c.MaxGateways = 10
 	}
 }

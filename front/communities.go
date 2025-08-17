@@ -17,7 +17,6 @@ limitations under the License.
 package front
 
 import (
-	"strings"
 	"time"
 
 	"github.com/dimkr/tootik/front/text"
@@ -33,7 +32,7 @@ func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
 			on
 				persons.id = shares.by
 			where
-				persons.host = $1 and
+				persons.ed25519privkey is not null and
 				persons.actor->>'$.type' = 'Group'
 			union all
 			select persons.id, persons.actor->>'preferredUsername' as username, notes.inserted from notes
@@ -41,7 +40,7 @@ func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
 			on
 				persons.id = notes.author
 			where
-				persons.host = $1 and
+				persons.ed25519privkey is not null and
 				persons.actor->>'$.type' = 'Group'
 		) u
 		group by
@@ -49,7 +48,6 @@ func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
 		order by
 			max(u.inserted) desc
 		`,
-		h.Domain,
 	)
 	if err != nil {
 		r.Log.Error("Failed to list communities", "error", err)
@@ -72,9 +70,9 @@ func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
 		}
 
 		if r.User == nil {
-			w.Linkf("/outbox/"+strings.TrimPrefix(id, "https://"), "%s %s", time.Unix(last, 0).Format(time.DateOnly), username)
+			w.Linkf("/outbox/"+trimScheme(id), "%s %s", time.Unix(last, 0).Format(time.DateOnly), username)
 		} else {
-			w.Linkf("/users/outbox/"+strings.TrimPrefix(id, "https://"), "%s %s", time.Unix(last, 0).Format(time.DateOnly), username)
+			w.Linkf("/users/outbox/"+trimScheme(id), "%s %s", time.Unix(last, 0).Format(time.DateOnly), username)
 		}
 
 		empty = false

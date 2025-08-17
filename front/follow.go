@@ -19,6 +19,8 @@ package front
 import (
 	"database/sql"
 	"errors"
+
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/outbox"
 )
@@ -29,7 +31,7 @@ func (h *Handler) follow(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	followed := "https://" + args[1]
+	followed := ap.Abs(args[1])
 
 	var exists int
 	if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from persons where id = ?)`, followed).Scan(&exists); err != nil {
@@ -69,7 +71,7 @@ func (h *Handler) follow(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := outbox.Follow(r.Context, h.Domain, r.User, followed, h.DB); err != nil {
+	if err := outbox.Follow(r.Context, r.User, followed, h.DB); err != nil {
 		r.Log.Warn("Failed to follow user", "followed", followed, "error", err)
 		w.Error()
 		return

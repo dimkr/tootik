@@ -30,7 +30,7 @@ func (h *Handler) replyOrQuote(w text.Writer, r *Request, args []string, quote b
 		return
 	}
 
-	postID := "https://" + args[1]
+	postID := ap.Abs(args[1])
 
 	var note ap.Object
 	if err := h.DB.QueryRowContext(

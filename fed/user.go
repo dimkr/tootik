@@ -31,7 +31,7 @@ func (l *Listener) handleUser(w http.ResponseWriter, r *http.Request) {
 	slog.Info("Looking up user", "name", name)
 
 	var actorID, actorString string
-	if err := l.DB.QueryRowContext(r.Context(), `select id, json(actor) from persons where actor->>'$.preferredUsername' = ? and host = ?`, name, l.Domain).Scan(&actorID, &actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := l.DB.QueryRowContext(r.Context(), `select id, json(actor) from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null`, name).Scan(&actorID, &actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
 		slog.Info("Notifying about deleted user", "name", name)
 		w.WriteHeader(http.StatusNotFound)
 		return
