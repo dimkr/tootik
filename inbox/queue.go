@@ -58,6 +58,7 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 	}
 
 	post.ID = ap.Canonicalize(post.ID)
+	post.AttributedTo = ap.Canonicalize(post.AttributedTo)
 	post.Audience = ap.Canonicalize(post.Audience)
 
 	origin, err := ap.GetOrigin(post.ID)
