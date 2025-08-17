@@ -448,6 +448,55 @@ To display details like the user's name and speed up the verification of future 
 
 To speed up each user's feed, [inbox.FeedUpdater](https://pkg.go.dev/github.com/dimkr/tootik/inbox#FeedUpdater) periodically appends rows to the `feed` table. This table holds all information that appears in the user's feed: posts written or shared by followed users, author information and more, eliminating the need for `join` queries, slow filtering by post visibility, deduplication and sorting by time when a user views their feed. This table is indexed by user and time, allowing fast querying of a single feed page for a particular user.
 
+```
+                                      ┏━━━━━━━━━━━━━━━━┓
+                        ┏━━━━━━━━━━━━━┫ cluster.Server ┣━━━━━━┓
+                        ┃             ┗━━━━━━━━━━━━━━━━┛      ┃
+                        ┃          ┌──────────────────────────╂───────────┐
+                        ┃          │  ┌───────────────┐       ┃           │
+  ┌──────────┐ ┌────────┸────────┐ │  │ outbox.Mover  │       ┃           │
+  │ gmi.Wrap ├─┤ gemini.Listener │ │  │ outbox.Poller │       ┃           │
+  └──────────┘ └────────┬────────┘ │  │ fed.Syncer    │       ┃           │
+                ┌───────┴──────────┴┐ └───┬─────┬─────┘ ┌─────┸────────┐  │
+    ┌───────────┤   front.Handler   ├─────┼────┐│    ┌──┤ fed.Listener ├──┼───┐
+    │           └┬────────┬───────┬─┘     │    ││    │  └─────┬────────┘  │   │
+┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┴┐ ┌─┴┴────┴┐ ┌─────┴──┐ ┌──────┴─┐ │
+│ notes │ │ shares │ │ persons │ │ follows │ │ outbox │ │ inbox  │ │  feed  │ │
+├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├────────┤ ├────────┤ ├────────┤ │
+│object │ │note    │ │actor    │ │follower │ │activity│ │activity│ │follower│ │
+│author │ │by      │ │...      │ │followed │ │sender  │ │sender  │ │note    │ │
+│...    │ │...     │ │         │ │...      │ │...     │ │...     │ │...     │ │
+└─┬─┬───┘ └─┬─┬────┘ └──┬─┬────┘ └──┬─┬──┬─┘ └┬──────┬┘ └──────┬─┘ └──────┬─┘ │
+  │ │       │ │ ┌───────┘ │         │ │ ┌┴────┴─────┐│    ┌────┴────────┐ │   │
+  │ │       │ │ │ ┌───────┴──────┐ ┌┼─┼─┤ fed.Queue │└────┤ inbox.Queue │ │   │
+  │ │       │ │ │ │ fed.Resolver ├─┘│ │ └───────────┘     └─┬─┬─┬─┬─────┘ │   │
+  │ │       │ │ │ └─────┰─┬─┬────┘  │ └─────────────────────┘ │ │ │       │   │
+  │ │       │ └─┼───────╂─┼─┼───────┼─────────────────────────┘ │ │       │   │
+  │ └───────┼───┼───────╂─┼─┼───────┼───────────────────────────┘ │       │   │
+  │         │   │       ┃ └─┼───────┼─────────────────────────────┼───────┼───┘
+┌─┴─────────┴───┴───┐   ┃   └───────┼─────────────────────────────┘       │
+│ inbox.FeedUpdater ├───╂───────────┘                                     │
+└─────────┬─────────┘   ┃                                                 │
+          └─────────────╂─────────────────────────────────────────────────┘
+               ┏━━━━━━━━┻━━━━━━━┓
+               ┃ cluster.Client ┃
+               ┗━━━━━━━━━━━━━━━━┛
+```
+
+The [cluster](https://pkg.go.dev/github.com/dimkr/tootik/cluster) package contains complex tests that simulate interaction between users on multiple servers. These tests are easy to write, they're fast and they run in parallel without affecting each other.
+
+The tests use three main constructs: [Client](https://pkg.go.dev/github.com/dimkr/tootik/cluster#Client), [Server](https://pkg.go.dev/github.com/dimkr/tootik/cluster#Server) and [Cluster](https://pkg.go.dev/github.com/dimkr/tootik/cluster#Cluster).
+
+During tests, all [http.Request](https://pkg.go.dev/net/http#Request)s sent by tootik (like those sent by [fed.Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver)) are sent through [Client](https://pkg.go.dev/github.com/dimkr/tootik/cluster#Client).
+
+[Server](https://pkg.go.dev/github.com/dimkr/tootik/cluster#Server) handles all kinds of incoming requests:
+* It uses a Unix socket wrapped with TLS and [gemini.Listener](https://pkg.go.dev/github.com/dimkr/tootik/front/gemini#Listener) to allow tests to simulate interaction with the [Gemini](https://geminiprotocol.net/) interface, including user authentication through client certificates
+* It uses the same [http.Handler](https://pkg.go.dev/net/http#Handler) as [fed.Listener](https://pkg.go.dev/github.com/dimkr/tootik/front/fed#Listener) to handle an incoming [http.Request](https://pkg.go.dev/net/http#Request) but without needing an actual HTTP server
+
+[Client](https://pkg.go.dev/github.com/dimkr/tootik/cluster#Client) holds a mapping between domain names and [Server](https://pkg.go.dev/github.com/dimkr/tootik/cluster#Server)s: it allows these servers to talk to each other by passing the [http.Request](https://pkg.go.dev/net/http#Request) sent by one server to the [http.Handler](https://pkg.go.dev/net/http#Handler) of another.
+
+[Cluster](https://pkg.go.dev/github.com/dimkr/tootik/cluster#Cluster) is a high-level wrapper for easy creation of multiple [Server](https://pkg.go.dev/github.com/dimkr/tootik/cluster#Server)s capable of federating with each other, given a list of domain names.
+
 ## More Documentation
 
 * [Setup guide](SETUP.md)
