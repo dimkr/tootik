@@ -240,6 +240,23 @@ func (l *Listener) fetchObject(ctx context.Context, id string) (bool, []byte, er
 	return true, body, nil
 }
 
+func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
+	receiver := r.PathValue("username")
+
+	var registered int
+	if err := l.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null)`, receiver).Scan(&registered); err != nil {
+		slog.Warn("Failed to check if receiving user exists", "receiver", receiver, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	} else if registered == 0 {
+		slog.Debug("Receiving user does not exist", "receiver", receiver)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	l.doHandleInbox(w, r)
+}
+
 func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request) {
 	if r.ContentLength > l.Config.MaxRequestBodySize {
 		slog.Warn("Ignoring big request", "size", r.ContentLength)
@@ -300,7 +317,13 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		sig, sender, err = l.verifyRequest(r, rawActivity, 0)
+		// if actor is deleted, ignore this activity if we don't know this actor
+		var flags ap.ResolverFlag
+		if activity.Type == ap.Delete {
+			flags |= ap.Offline
+		}
+
+		sig, sender, err = l.verifyRequest(r, rawActivity, flags)
 		if err != nil {
 			if errors.Is(err, ErrActorGone) {
 				w.WriteHeader(http.StatusOK)
@@ -539,21 +562,4 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-}
-
-func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
-	receiver := r.PathValue("username")
-
-	var registered int
-	if err := l.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null)`, receiver).Scan(&registered); err != nil {
-		slog.Warn("Failed to check if receiving user exists", "receiver", receiver, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	} else if registered == 0 {
-		slog.Debug("Receiving user does not exist", "receiver", receiver)
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	l.doHandleInbox(w, r)
 }

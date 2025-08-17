@@ -433,8 +433,6 @@ func (r *Resolver) tryResolveID(ctx context.Context, keys [2]httpsig.Key, id str
 }
 
 func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, profile string, cachedActor *ap.Actor, sinceLastUpdate time.Duration) (*ap.Actor, *ap.Actor, error) {
-	slog.Info("Fetching actor", "profile", profile)
-
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, profile, nil)
 	if err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to send request to %s: %w", profile, err)
@@ -517,8 +515,6 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 			slog.Warn("Assertion method ID belongs to a different host", "actor", actor.ID, "key", method.ID)
 		}
 	}
-
-	slog.Info("Fetched actor", "id", actor.ID)
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
