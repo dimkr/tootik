@@ -57,9 +57,9 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 		return fmt.Errorf("received invalid Create for %s by %s from %s", post.ID, post.AttributedTo, activity.Actor)
 	}
 
-	post.ID = ap.Canonicalize(post.ID)
-	post.AttributedTo = ap.Canonicalize(post.AttributedTo)
-	post.Audience = ap.Canonicalize(post.Audience)
+	post.ID = ap.Canonical(post.ID)
+	post.AttributedTo = ap.Canonical(post.AttributedTo)
+	post.Audience = ap.Canonical(post.Audience)
 
 	origin, err := ap.GetOrigin(post.ID)
 	if err != nil {
@@ -196,16 +196,16 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 	log.Debug("Processing activity")
 
-	activity.ID = ap.Canonicalize(activity.ID)
-	activity.Actor = ap.Canonicalize(activity.Actor)
+	activity.ID = ap.Canonical(activity.ID)
+	activity.Actor = ap.Canonical(activity.Actor)
 
 	switch activity.Type {
 	case ap.Delete:
 		deleted := ""
 		if _, ok := activity.Object.(*ap.Object); ok {
-			deleted = ap.Canonicalize(activity.Object.(*ap.Object).ID)
+			deleted = ap.Canonical(activity.Object.(*ap.Object).ID)
 		} else if s, ok := activity.Object.(string); ok {
-			deleted = ap.Canonicalize(s)
+			deleted = ap.Canonical(s)
 		}
 		if deleted == "" {
 			return errors.New("received an invalid delete activity")
@@ -266,7 +266,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		if followed == "" {
 			return errors.New("received an invalid follow request")
 		}
-		followed = ap.Canonicalize(followed)
+		followed = ap.Canonical(followed)
 
 		var manual sql.NullInt32
 		if err := q.DB.QueryRowContext(ctx, `select actor->>'$.manuallyApprovesFollowers' from persons where id = ?`, followed).Scan(&manual); errors.Is(err, sql.ErrNoRows) {
@@ -308,11 +308,11 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 	case ap.Accept:
 		followID, ok := activity.Object.(string)
 		if ok && followID != "" {
-			followID = ap.Canonicalize(followID)
+			followID = ap.Canonical(followID)
 			log.Info("Follow is accepted", "follow", followID)
 		} else if followActivity, ok := activity.Object.(*ap.Activity); ok && followActivity.Type == ap.Follow && followActivity.ID != "" {
 			log.Info("Follow is accepted", "follow", followActivity.ID)
-			followID = ap.Canonicalize(followActivity.ID)
+			followID = ap.Canonical(followActivity.ID)
 		} else {
 			return errors.New("received an invalid Accept")
 		}
@@ -332,11 +332,11 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 		followID, ok := activity.Object.(string)
 		if ok && followID != "" {
-			followID = ap.Canonicalize(followID)
+			followID = ap.Canonical(followID)
 			log.Info("Follow is rejected", "follow", followID)
 		} else if followActivity, ok := activity.Object.(*ap.Activity); ok && followActivity.Type == ap.Follow && followActivity.ID != "" {
 			log.Info("Follow is rejected", "follow", followActivity.ID)
-			followID = ap.Canonicalize(followActivity.ID)
+			followID = ap.Canonical(followActivity.ID)
 		} else {
 			return errors.New("received an invalid Reject")
 		}
@@ -356,7 +356,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			if !ok {
 				return errors.New("cannot undo Announce")
 			}
-			noteID = ap.Canonicalize(noteID)
+			noteID = ap.Canonical(noteID)
 
 			if _, err := q.DB.ExecContext(
 				ctx,
@@ -382,9 +382,9 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 		var followed string
 		if actor, ok := inner.Object.(*ap.Object); ok {
-			followed = ap.Canonicalize(actor.ID)
+			followed = ap.Canonical(actor.ID)
 		} else if actorID, ok := inner.Object.(string); ok {
-			followed = ap.Canonicalize(actorID)
+			followed = ap.Canonical(actorID)
 		} else {
 			return errors.New("received a request to undo follow on unknown object")
 		}
@@ -422,7 +422,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 				if _, err := q.DB.ExecContext(
 					ctx,
 					`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
-					ap.Canonicalize(postID),
+					ap.Canonical(postID),
 					sender.ID,
 					activity.ID,
 				); err != nil {
@@ -444,7 +444,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return nil
 		}
 
-		post.ID = ap.Canonicalize(post.ID)
+		post.ID = ap.Canonical(post.ID)
 		if post.ID == activity.Actor || post.ID == sender.ID {
 			log.Debug("Ignoring unsupported Update object")
 			return nil
@@ -453,7 +453,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		if post.ID == "" || post.AttributedTo == "" {
 			return errors.New("received invalid Update")
 		}
-		post.AttributedTo = ap.Canonicalize(post.AttributedTo)
+		post.AttributedTo = ap.Canonical(post.AttributedTo)
 
 		var oldPost ap.Object
 		var lastChange int64
@@ -484,7 +484,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		}
 
 		// only the group can decide if audience has changed
-		oldPost.Audience = ap.Canonicalize(oldPost.Audience)
+		oldPost.Audience = ap.Canonical(oldPost.Audience)
 		if sender.ID != oldPost.Audience {
 			post.Audience = oldPost.Audience
 		}

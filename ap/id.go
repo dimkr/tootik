@@ -42,8 +42,8 @@ func Abs(s string) string {
 	return "https://" + s
 }
 
-// Canonicalize returns an ID in canonical form: if portable, it's converted to an ap:// URL.
-func Canonicalize(id string) string {
+// Canonical returns an ID in canonical form: if portable, it's converted to an ap:// URL.
+func Canonical(id string) string {
 	if PortableIDRegex.MatchString(id) {
 		return id
 	}

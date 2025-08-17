@@ -188,16 +188,16 @@ func (r *Resolver) handleFetchFailure(ctx context.Context, host, fetched string,
 }
 
 func canonicalizeActor(actor *ap.Actor) {
-	actor.ID = ap.Canonicalize(actor.ID)
+	actor.ID = ap.Canonical(actor.ID)
 
-	actor.PublicKey.ID = ap.Canonicalize(actor.PublicKey.ID)
+	actor.PublicKey.ID = ap.Canonical(actor.PublicKey.ID)
 
 	for i := range actor.AssertionMethod {
-		actor.AssertionMethod[i].ID = ap.Canonicalize(actor.AssertionMethod[i].ID)
+		actor.AssertionMethod[i].ID = ap.Canonical(actor.AssertionMethod[i].ID)
 	}
 
-	actor.Followers = ap.Canonicalize(actor.Followers)
-	actor.MovedTo = ap.Canonicalize(actor.MovedTo)
+	actor.Followers = ap.Canonical(actor.Followers)
+	actor.MovedTo = ap.Canonical(actor.MovedTo)
 }
 
 func (r *Resolver) tryResolve(ctx context.Context, keys [2]httpsig.Key, host, name string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
@@ -477,7 +477,7 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 	}
 
 	canonicalizeActor(&actor)
-	profile = ap.Canonicalize(profile)
+	profile = ap.Canonical(profile)
 
 	if actor.ID != profile && actor.PublicKey.ID != profile {
 		found := false

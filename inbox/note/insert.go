@@ -86,8 +86,8 @@ func Insert(ctx context.Context, tx *sql.Tx, note *ap.Object) error {
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO notes (id, author, object, public) VALUES (?, ?, JSONB(?), ?)`,
-		ap.Canonicalize(note.ID),
-		ap.Canonicalize(note.AttributedTo),
+		ap.Canonical(note.ID),
+		ap.Canonical(note.AttributedTo),
 		&note,
 		public,
 	); err != nil {
@@ -97,14 +97,14 @@ func Insert(ctx context.Context, tx *sql.Tx, note *ap.Object) error {
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO notesfts (id, content) VALUES(?,?)`,
-		ap.Canonicalize(note.ID),
+		ap.Canonical(note.ID),
 		Flatten(note),
 	); err != nil {
 		return fmt.Errorf("failed to insert note %s: %w", note.ID, err)
 	}
 
 	for _, hashtag := range hashtags {
-		if _, err := tx.ExecContext(ctx, `insert into hashtags (note, hashtag) values(?,?)`, ap.Canonicalize(note.ID), hashtag); err != nil {
+		if _, err := tx.ExecContext(ctx, `insert into hashtags (note, hashtag) values(?,?)`, ap.Canonical(note.ID), hashtag); err != nil {
 			slog.Warn("Failed to tag post", "post", note.ID, "hashtag", hashtag, "error", err)
 		}
 	}

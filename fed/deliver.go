@@ -400,7 +400,7 @@ func (q *Queue) queueTasks(
 
 	var author string
 	if obj, ok := job.Activity.Object.(*ap.Object); ok {
-		author = ap.Canonicalize(obj.AttributedTo)
+		author = ap.Canonical(obj.AttributedTo)
 	}
 
 	contentLength := strconv.Itoa(len(job.RawActivity))
