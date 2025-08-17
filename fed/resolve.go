@@ -197,6 +197,7 @@ func canonicalizeActor(actor *ap.Actor) {
 	}
 
 	actor.Followers = ap.Canonicalize(actor.Followers)
+	actor.MovedTo = ap.Canonicalize(actor.MovedTo)
 }
 
 func (r *Resolver) tryResolve(ctx context.Context, keys [2]httpsig.Key, host, name string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
