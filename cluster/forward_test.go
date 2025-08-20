@@ -251,6 +251,11 @@ func TestCluster_Gateways(t *testing.T) {
 		FollowInput("🔭 View profile", "alice@a.localdomain").
 		Follow("⚡ Follow alice").
 		OK()
+	// TODO: automatically follow on all gateways
+	bob.
+		FollowInput("🔭 View profile", "carol@c.localdomain").
+		Follow("⚡ Follow carol").
+		OK()
 	cluster.Settle(t)
 
 	post := alice.
@@ -265,7 +270,10 @@ func TestCluster_Gateways(t *testing.T) {
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "hi"}).
+		Contains(Line{Type: Quote, Text: "hi"})
+
+	bob.
+		FollowInput("🔭 View profile", "carol@c.localdomain").
 		Contains(Line{Type: Quote, Text: "hello"})
 
 	bob.GotoInput(post.Links["💬 Reply"], "hola").

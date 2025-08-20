@@ -133,7 +133,7 @@ func Move(ctx context.Context, db *sql.DB, domain string, from *ap.Actor, to str
 	aud := ap.Audience{}
 	aud.Add(from.Followers)
 
-	id, err := NewID(domain, "move")
+	id, err := NewID(from.ID, domain, "move")
 	if err != nil {
 		return err
 	}

@@ -55,8 +55,6 @@ func parseMultiBaseKey(mb string) (ed25519.PublicKey, error) {
 }
 
 func getKeyByID(actor *ap.Actor, keyID string) (ed25519.PublicKey, error) {
-	keyID = ap.Canonical(keyID)
-
 	for _, key := range actor.AssertionMethod {
 		if key.ID != keyID {
 			continue

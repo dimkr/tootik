@@ -173,8 +173,8 @@ func CreateNomadic(
 
 	ed25519PubMultibase := "z" + base58.Encode(append([]byte{0xed, 0x01}, ed25519Priv.Public().(ed25519.PublicKey)...))
 
-	did := fmt.Sprintf("ap://did:key:%s/actor", ed25519PubMultibase)
-	id := ap.Gateway(domain, did)
+	did := fmt.Sprintf("did:key:%s", ed25519PubMultibase)
+	id := fmt.Sprintf("https://%s/.well-known/apgateway/%s/actor", domain, did)
 	actor := ap.Actor{
 		Context: []string{
 			"https://www.w3.org/ns/activitystreams",

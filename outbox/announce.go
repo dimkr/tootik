@@ -28,7 +28,7 @@ import (
 // Announce queues an Announce activity for delivery.
 func Announce(ctx context.Context, domain string, tx *sql.Tx, actor *ap.Actor, note *ap.Object) error {
 	now := time.Now()
-	announceID, err := NewID(domain, "announce")
+	announceID, err := NewID(actor.ID, domain, "announce")
 	if err != nil {
 		return err
 	}

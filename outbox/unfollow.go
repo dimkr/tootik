@@ -31,7 +31,7 @@ func Unfollow(ctx context.Context, domain string, db *sql.DB, follower, followed
 		return fmt.Errorf("%s cannot unfollow %s", follower, followed)
 	}
 
-	undoID, err := NewID(domain, "undo")
+	undoID, err := NewID(follower, domain, "undo")
 	if err != nil {
 		return err
 	}

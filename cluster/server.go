@@ -243,6 +243,8 @@ func (s *Server) handle(cert tls.Certificate, path, input string, redirects int)
 		}
 	}
 
+	fmt.Printf("Sending: gemini://%s%s\r\n", s.Domain, path)
+
 	if input == "" {
 		_, err = fmt.Fprintf(clientTlsConn, "gemini://%s%s\r\n", s.Domain, path)
 	} else {
@@ -285,7 +287,7 @@ func (s *Server) Handle(cert tls.Certificate, path string) Page {
 }
 
 func (s *Server) Register(cert tls.Certificate) Page {
-	return s.Handle(cert, "/users/register?n").OK()
+	return s.HandleInput(cert, "/users/register", "n").OK()
 }
 
 func (s *Server) RegisterPortable(cert tls.Certificate) Page {
@@ -294,5 +296,5 @@ func (s *Server) RegisterPortable(cert tls.Certificate) Page {
 		s.Test.Fatalf("Failed to generate key: %v", err)
 	}
 
-	return s.Handle(cert, "/users/register?z"+base58.Encode(append([]byte{0x80, 0x26}, priv.Seed()...))).OK()
+	return s.HandleInput(cert, "/users/register", "z"+base58.Encode(append([]byte{0x80, 0x26}, priv.Seed()...))).OK()
 }

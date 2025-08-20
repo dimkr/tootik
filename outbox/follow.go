@@ -30,7 +30,7 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 		return fmt.Errorf("%s cannot follow %s", follower.ID, followed)
 	}
 
-	followID, err := NewID(domain, "follow")
+	followID, err := NewID(follower.ID, domain, "follow")
 	if err != nil {
 		return err
 	}
