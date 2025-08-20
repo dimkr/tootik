@@ -29,7 +29,6 @@ import (
 )
 
 func (h *Handler) register(w text.Writer, r *Request, args ...string) {
-	println("got key", r.URL.RawQuery)
 	if r.User != nil {
 		r.Log.Warn("Registered user cannot register again")
 		w.Statusf(40, "Already registered as %s", r.User.PreferredUsername)
