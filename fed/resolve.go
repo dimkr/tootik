@@ -495,10 +495,16 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
 	}
 
+	did := ""
+	if m := ap.CompatibleURLRegex.FindStringSubmatch(actor.ID); m != nil {
+		did = "did:key:" + m[1]
+	}
+
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO persons(id, actor, fetched) VALUES ($1, JSONB($2), UNIXEPOCH()) ON CONFLICT(id) DO UPDATE SET actor = JSONB($2), updated = UNIXEPOCH()`,
+		`INSERT INTO persons(id, did, actor, fetched) VALUES ($1, CASE WHEN $2 = '' THEN NULL ELSE $2 END, JSONB($3), UNIXEPOCH()) ON CONFLICT(id) DO UPDATE SET did = CASE WHEN $2 = '' THEN NULL ELSE $2 END, actor = JSONB($3), updated = UNIXEPOCH()`,
 		actor.ID,
+		did,
 		string(body),
 	); err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
