@@ -225,8 +225,7 @@ func main() {
 		var actorID string
 		if err := tx.QueryRowContext(
 			ctx,
-			`select id from persons where host = ? and actor->>'$.preferredUsername' = ?`,
-			*domain,
+			`select id from persons where ed25519privkey is not null and actor->>'$.preferredUsername' = ?`,
 			flag.Arg(1),
 		).Scan(&actorID); err != nil {
 			panic(err)
@@ -274,8 +273,7 @@ func main() {
 		var actorID string
 		if err := tx.QueryRowContext(
 			ctx,
-			`select id from persons where host = ? and actor->>'$.preferredUsername' = ?`,
-			*domain,
+			`select id from persons where ed25519privkey is not null and actor->>'$.preferredUsername' = ?`,
 			userName,
 		).Scan(&actorID); err != nil {
 			panic(err)
