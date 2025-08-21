@@ -316,7 +316,14 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, receive
 			json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
 			return
 		}
+	} else if ap.IsPortable(activity.ID) {
+		slog.Warn("Portable activity has no integrity proof", "activity", &activity)
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"error": "integrity proof is required"})
+		return
 	} else {
+
 		// if actor is deleted, ignore this activity if we don't know this actor
 		var flags ap.ResolverFlag
 		if activity.Type == ap.Delete {

@@ -332,6 +332,50 @@ func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, event
 	}
 }
 
+func (q *Queue) queueTask(
+	ctx context.Context,
+	job deliveryJob,
+	keys [2]httpsig.Key,
+	actorID, inbox, contentLength string,
+	recipients ap.Audience,
+	followers *partialFollowers,
+	tasks []chan deliveryTask,
+	events chan<- deliveryEvent,
+) {
+	req, err := http.NewRequest(http.MethodPost, inbox, strings.NewReader(job.RawActivity))
+	if err != nil {
+		slog.Warn("Failed to create new request", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
+		events <- deliveryEvent{job, false}
+		return
+	}
+
+	if req.URL.Host == q.Domain {
+		slog.Debug("Skipping local recipient inbox", "to", actorID, "activity", job.Activity.ID, "inbox", inbox)
+		return
+	}
+
+	req.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
+	req.Header.Set("Content-Length", contentLength)
+
+	if recipients.Contains(job.Sender.Followers) {
+		if digest, err := followers.Digest(ctx, q.DB, q.Domain, job.Sender, req.URL.Host); err == nil {
+			req.Header.Set("Collection-Synchronization", digest)
+		} else {
+			slog.Warn("Failed to digest followers", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
+		}
+	}
+
+	slog.Info("Queueing activity for delivery", "inbox", inbox, "activity", job.Activity.ID)
+
+	// assign a task to a random worker but use one worker per inbox, so activities are delivered once per inbox
+	tasks[crc32.ChecksumIEEE([]byte(inbox))%uint32(len(tasks))] <- deliveryTask{
+		Job:     job,
+		Keys:    keys,
+		Request: req,
+		Inbox:   inbox,
+	}
+}
+
 func (q *Queue) queueTasks(
 	ctx context.Context,
 	job deliveryJob,
@@ -414,59 +458,46 @@ func (q *Queue) queueTasks(
 			continue
 		}
 
-		var inboxes []string
-		// if inbox is a portable object, deliver to all gateways
-		if ap.IsPortable(to.Inbox) {
-			inboxes = make([]string, 0, len(to.Gateways))
-
-			for _, gw := range to.Gateways {
-				inboxes = append(inboxes, ap.Gateway(gw, to.Inbox))
-			}
-		} else if wideDelivery {
+		inbox := to.Inbox
+		if wideDelivery {
 			// if possible, use the recipient's shared inbox and skip other recipients with the same shared inbox
 			if sharedInbox, ok := to.Endpoints["sharedInbox"]; ok && sharedInbox != "" {
-				slog.Debug("Using shared inbox", "to", actorID, "activity", job.Activity.ID, "shared_inbox", sharedInbox)
-				inboxes = []string{sharedInbox}
+				inbox = sharedInbox
+				slog.Debug("Using shared inbox", "to", actorID, "activity", job.Activity.ID, "shared_inbox", inbox)
 			}
 		}
 
-		if len(inboxes) == 0 {
-			inboxes = []string{to.Inbox}
-		}
+		q.queueTask(
+			ctx,
+			job,
+			keys,
+			actorID,
+			inbox,
+			contentLength,
+			recipients,
+			followers,
+			tasks,
+			events,
+		)
+	}
 
-		for _, inbox := range inboxes {
-			req, err := http.NewRequest(http.MethodPost, inbox, strings.NewReader(job.RawActivity))
-			if err != nil {
-				slog.Warn("Failed to create new request", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
-				events <- deliveryEvent{job, false}
-				continue
-			}
+	// if sender is a portable actor, forward the activity to all gateways
+	if ap.IsPortable(job.Sender.ID) {
+		for _, gw := range job.Sender.Gateways {
+			slog.Info("Forwarding activity to gateway", "activity", job.Activity.ID, "sender", job.Sender.ID, "gateway", gw)
 
-			if req.URL.Host == q.Domain {
-				slog.Debug("Skipping local recipient inbox", "to", actorID, "activity", job.Activity.ID, "inbox", inbox)
-				continue
-			}
-
-			req.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
-			req.Header.Set("Content-Length", contentLength)
-
-			if recipients.Contains(job.Sender.Followers) {
-				if digest, err := followers.Digest(ctx, q.DB, q.Domain, job.Sender, req.URL.Host); err == nil {
-					req.Header.Set("Collection-Synchronization", digest)
-				} else {
-					slog.Warn("Failed to digest followers", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
-				}
-			}
-
-			slog.Info("Queueing activity for delivery", "inbox", inbox, "activity", job.Activity.ID)
-
-			// assign a task to a random worker but use one worker per inbox, so activities are delivered once per inbox
-			tasks[crc32.ChecksumIEEE([]byte(inbox))%uint32(len(tasks))] <- deliveryTask{
-				Job:     job,
-				Keys:    keys,
-				Request: req,
-				Inbox:   inbox,
-			}
+			q.queueTask(
+				ctx,
+				job,
+				keys,
+				ap.Gateway(gw, job.Sender.ID),
+				ap.Gateway(gw, job.Sender.Inbox),
+				contentLength,
+				recipients,
+				followers,
+				tasks,
+				events,
+			)
 		}
 	}
 

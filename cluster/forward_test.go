@@ -281,7 +281,7 @@ func TestCluster_Gateways(t *testing.T) {
 
 	carol.
 		Goto(post.Path).
-		Error("40 Post not found")
+		Contains(Line{Type: Quote, Text: "hola"})
 
 	carol.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
