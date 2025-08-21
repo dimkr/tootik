@@ -78,6 +78,10 @@ func GetOrigin(id string) (string, error) {
 		return "did:key:" + m[1], nil
 	}
 
+	if DIDKeyRegex.MatchString(id) {
+		return id, nil
+	}
+
 	if u, err := url.Parse(id); err != nil {
 		return "", err
 	} else {

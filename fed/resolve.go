@@ -36,6 +36,7 @@ import (
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/lock"
+	"github.com/dimkr/tootik/proof"
 )
 
 // Resolver retrieves actor objects given their ID.
@@ -490,14 +491,23 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 		}
 	}
 
+	did := ""
+	if m := ap.CompatibleURLRegex.FindStringSubmatch(actor.ID); m != nil {
+		publicKey, err := parseMultiBaseKey(m[1])
+		if err != nil {
+			return nil, cachedActor, fmt.Errorf("failed to parse key %s for %s to verify proof: %w", m[1], actor.ID, err)
+		}
+
+		if err := proof.Verify(publicKey, actor.Proof, actor.Context, body); err != nil {
+			return nil, cachedActor, fmt.Errorf("failed to verify proof for %s: %w", actor.ID, err)
+		}
+
+		did = "did:key:" + m[1]
+	}
+
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
-	}
-
-	did := ""
-	if m := ap.CompatibleURLRegex.FindStringSubmatch(actor.ID); m != nil {
-		did = "did:key:" + m[1]
 	}
 
 	if _, err := tx.ExecContext(

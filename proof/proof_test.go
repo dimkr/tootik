@@ -51,7 +51,7 @@ func TestProof_Sign(t *testing.T) {
 		t.Fatalf("Failed to unmarshal activity: %v", err)
 	} else if a.Proof.Value != "zLaewdp4H9kqtwyrLatK4cjY5oRHwVcw4gibPSUDYDMhi4M49v8pcYk3ZB6D69dNpAPbUmY8ocuJ3m9KhKJEEg7z" {
 		t.Fatalf("Unexpected proof value: %s", a.Proof.Value)
-	} else if Verify(privKey.Public(), &a, withProof); err != nil {
+	} else if err := Verify(privKey.Public(), a.Proof, a.Context, withProof); err != nil {
 		t.Fatalf("Failed to verify proof: %v", err)
 	}
 }
@@ -67,7 +67,7 @@ func TestProof_Verify(t *testing.T) {
 		t.Fatalf("Failed to unmarshal activity: %v", err)
 	}
 
-	if err := Verify(ed25519.PublicKey(base58.Decode("6MkrJVnaZkeFzdQyMZu1cgjg7k1pZZ6pvBQ7XJPt4swbTQ2")[2:]), &a, raw); err != nil {
+	if err := Verify(ed25519.PublicKey(base58.Decode("6MkrJVnaZkeFzdQyMZu1cgjg7k1pZZ6pvBQ7XJPt4swbTQ2")[2:]), a.Proof, a.Context, raw); err != nil {
 		t.Fatalf("Failed to verify proof: %v", err)
 	}
 }

@@ -243,8 +243,6 @@ func (s *Server) handle(cert tls.Certificate, path, input string, redirects int)
 		}
 	}
 
-	fmt.Printf("Sending: gemini://%s%s\r\n", s.Domain, path)
-
 	if input == "" {
 		_, err = fmt.Fprintf(clientTlsConn, "gemini://%s%s\r\n", s.Domain, path)
 	} else {
