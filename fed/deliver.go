@@ -403,13 +403,13 @@ func (q *Queue) queueTasks(
 
 	var author string
 	if obj, ok := job.Activity.Object.(*ap.Object); ok {
-		author = obj.AttributedTo
+		author = ap.Canonical(obj.AttributedTo)
 	}
 
 	contentLength := strconv.Itoa(len(job.RawActivity))
 
 	for actorID := range actorIDs.Keys() {
-		if actorID == author || actorID == ap.Public {
+		if ap.Canonical(actorID) == author || actorID == ap.Public {
 			slog.Debug("Skipping recipient", "to", actorID, "activity", job.Activity.ID)
 			continue
 		}
