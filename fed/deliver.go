@@ -356,15 +356,6 @@ func (q *Queue) queueTasks(
 		for id := range job.Activity.CC.Keys() {
 			recipients.Add(id)
 		}
-
-		// if this is a portable actor, also send this activity to all gateways
-		if m := ap.CompatibleURLRegex.FindStringSubmatch(job.Sender.ID); m != nil {
-			for _, gw := range job.Sender.Gateways {
-				if gw == "https://"+q.Domain {
-					recipients.Add(fmt.Sprintf("%s/.well-known/apgateway/did:key:%s%s", gw, m[1], m[2]))
-				}
-			}
-		}
 	}
 
 	actorIDs := ap.Audience{}
