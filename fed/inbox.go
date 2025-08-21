@@ -279,6 +279,12 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, receive
 
 	r.Body = io.NopCloser(bytes.NewReader(rawActivity))
 
+	// if actor is deleted, ignore this activity if we don't know this actor
+	var flags ap.ResolverFlag
+	if activity.Type == ap.Delete {
+		flags |= ap.Offline
+	}
+
 	var sender *ap.Actor
 	var sig *httpsig.Signature
 	if activity.Proof != (ap.Proof{}) {
@@ -309,7 +315,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, receive
 		}
 
 		// if activity has an integrity proof, pretend it was sent by its actor even if forwarded by another
-		sender, err = l.verifyProof(r.Context(), activity.Proof, &activity, rawActivity, 0)
+		sender, err = l.verifyProof(r.Context(), activity.Proof, &activity, rawActivity, flags)
 		if err != nil {
 			slog.Warn("Failed to verify integrity proof", "activity", &activity, "proof", &activity.Proof, "error", err)
 			w.WriteHeader(http.StatusUnauthorized)
@@ -324,12 +330,6 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, receive
 		json.NewEncoder(w).Encode(map[string]any{"error": "integrity proof is required"})
 		return
 	} else {
-		// if actor is deleted, ignore this activity if we don't know this actor
-		var flags ap.ResolverFlag
-		if activity.Type == ap.Delete {
-			flags |= ap.Offline
-		}
-
 		sig, sender, err = l.verifyRequest(r, rawActivity, flags)
 		if err != nil {
 			if errors.Is(err, ErrActorGone) {
