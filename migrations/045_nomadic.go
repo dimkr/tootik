@@ -14,5 +14,17 @@ func nomadic(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX personspreferreduserlocal ON persons(actor->>'$.preferredUsername') WHERE ed25519privkey IS NOT NULL`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX personsidlocal ON persons(id) WHERE ed25519privkey IS NOT NULL`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX personsdidlocal ON persons(did) WHERE ed25519privkey IS NOT NULL AND did IS NOT NULL`); err != nil {
+		return err
+	}
+
 	return nil
 }
