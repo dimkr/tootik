@@ -254,10 +254,10 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	l.doHandleInbox(w, r)
+	l.doHandleInbox(w, r, "")
 }
 
-func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request) {
+func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, receiver string) {
 	if r.ContentLength > l.Config.MaxRequestBodySize {
 		slog.Warn("Ignoring big request", "size", r.ContentLength)
 		w.WriteHeader(http.StatusRequestEntityTooLarge)
@@ -526,6 +526,21 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request) {
 			if err := l.saveFollowersDigest(r.Context(), sender, followersSync); err != nil {
 				slog.Warn("Failed to save followers sync header", "sender", sender.ID, "header", followersSync, "error", err)
 			}
+		}
+	}
+
+	if ap.Canonical(sender.ID) == ap.Canonical(receiver) {
+		slog.Info("Forwarding portable activity", "activity", activity.ID, "sender", sender.ID, "receiver", receiver)
+
+		if _, err := l.DB.ExecContext(
+			r.Context(),
+			`insert or ignore into outbox(activity, sender) values(jsonb(?), ?)`,
+			string(rawActivity),
+			receiver,
+		); err != nil {
+			slog.Error("Failed to forward portable activity", "activity", activity.ID, "sender", sender.ID, "receiver", receiver, "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 	}
 

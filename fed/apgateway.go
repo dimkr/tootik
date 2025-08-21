@@ -19,6 +19,7 @@ package fed
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"regexp"
@@ -60,7 +61,7 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	l.doHandleInbox(w, r)
+	l.doHandleInbox(w, r, fmt.Sprintf("https://%s/.well-known/apgateway/%s/actor", l.Domain, m[1]))
 }
 
 func writeWithProof(w http.ResponseWriter, actor *ap.Actor, ed25519PrivKeyPem string, body []byte) {

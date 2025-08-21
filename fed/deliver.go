@@ -348,7 +348,7 @@ func (q *Queue) queueTasks(
 	recipients := ap.Audience{}
 
 	// deduplicate recipients or skip if we're forwarding an activity
-	if job.Activity.Actor == job.Sender.ID {
+	if ap.Canonical(job.Activity.Actor) == ap.Canonical(job.Sender.ID) {
 		for id := range job.Activity.To.Keys() {
 			recipients.Add(id)
 		}
@@ -356,10 +356,19 @@ func (q *Queue) queueTasks(
 		for id := range job.Activity.CC.Keys() {
 			recipients.Add(id)
 		}
+
+		// if this is a portable actor, also send this activity to all gateways
+		if m := ap.CompatibleURLRegex.FindStringSubmatch(job.Sender.ID); m != nil {
+			for _, gw := range job.Sender.Gateways {
+				if gw == "https://"+q.Domain {
+					recipients.Add(fmt.Sprintf("%s/.well-known/apgateway/did:key:%s%s", gw, m[1], m[2]))
+				}
+			}
+		}
 	}
 
 	actorIDs := ap.Audience{}
-	wideDelivery := job.Activity.Actor != job.Sender.ID || job.Activity.IsPublic() || recipients.Contains(job.Sender.Followers)
+	wideDelivery := ap.Canonical(job.Activity.Actor) != ap.Canonical(job.Sender.ID) || job.Activity.IsPublic() || recipients.Contains(job.Sender.Followers)
 
 	// list the actor's federated followers if we're forwarding an activity by another actor, or if addressed by actor
 	if wideDelivery {

@@ -252,39 +252,46 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return errors.New("received unauthorized follow request")
 		}
 
-		followed, ok := activity.Object.(string)
+		followedID, ok := activity.Object.(string)
 		if !ok {
 			return errors.New("received a request to follow a non-link object")
 		}
-		if followed == "" {
+		if followedID == "" {
 			return errors.New("received an invalid follow request")
 		}
 
 		prefix := fmt.Sprintf("https://%s/", q.Domain)
-		if strings.HasPrefix(activity.Actor, prefix) || !strings.HasPrefix(followed, prefix) {
-			return fmt.Errorf("received an invalid follow request for %s by %s", followed, activity.Actor)
+		if strings.HasPrefix(activity.Actor, prefix) {
+			return fmt.Errorf("received an invalid follow request for %s by %s", followedID, activity.Actor)
 		}
 
-		var manual sql.NullInt32
-		if err := q.DB.QueryRowContext(ctx, `select actor->>'$.manuallyApprovesFollowers' from persons where id = ?`, followed).Scan(&manual); err != nil {
-			return fmt.Errorf("failed to fetch %s: %w", followed, err)
+		followedDID := ""
+		if m := ap.CompatibleURLRegex.FindStringSubmatch(followedID); m != nil {
+			followedDID = "did:key:" + m[1]
 		}
 
-		if manual.Valid && manual.Int32 == 1 {
-			log.Debug("Not approving follow request", "follower", activity.Actor, "followed", followed)
+		var followed ap.Actor
+		if err := q.DB.QueryRowContext(ctx, `select json(actor) from persons where (id = ? or did = ?) and ed25519privkey is not null`, followedID, followedDID).Scan(&followed); errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("received an invalid follow request for %s:%s by %s", followed.ID, followedDID, activity.Actor)
+		} else if err != nil {
+			return fmt.Errorf("failed to fetch %s: %w", followed.ID, err)
+		}
+
+		if followed.ManuallyApprovesFollowers {
+			log.Debug("Not approving follow request", "follower", activity.Actor, "followed", followed.ID)
 
 			if _, err := q.DB.ExecContext(
 				ctx,
 				`INSERT INTO follows (id, follower, followed) VALUES($1, $2, $3) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = NULL, inserted = UNIXEPOCH()`,
 				activity.ID,
 				activity.Actor,
-				followed,
+				followed.ID,
 			); err != nil {
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
 
 		} else {
-			log.Info("Approving follow request", "follower", activity.Actor, "followed", followed)
+			log.Info("Approving follow request", "follower", activity.Actor, "followed", followed.ID)
 
 			tx, err := q.DB.BeginTx(ctx, nil)
 			if err != nil {
@@ -292,7 +299,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			}
 			defer tx.Rollback()
 
-			if err := outbox.Accept(ctx, q.Domain, followed, activity.Actor, activity.ID, tx); err != nil {
+			if err := outbox.Accept(ctx, q.Domain, followed.ID, activity.Actor, activity.ID, tx); err != nil {
 				return fmt.Errorf("failed to accept %s: %w", activity.ID, err)
 			}
 
