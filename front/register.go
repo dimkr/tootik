@@ -104,8 +104,22 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 		}
 
 	case "y":
-		w.Status(10, "base58-encoded Ed25519 private key")
+		w.Status(10, "base58-encoded Ed25519 private key or 'generate' to generate")
 		return
+
+	case "generate":
+		_, priv, err := ed25519.GenerateKey(nil)
+		if err != nil {
+			r.Log.Warn("Failed to generate key", "error", err)
+			w.Status(40, "Failed to generate key")
+			return
+		}
+
+		if _, _, err := user.CreateNomadic(r.Context, h.Domain, h.DB, userName, clientCert, priv); err != nil {
+			r.Log.Warn("Failed to create new nomadic user", "name", userName, "error", err)
+			w.Status(40, "Failed to create new user")
+			return
+		}
 
 	default:
 		if r.URL.RawQuery[0] != 'z' {

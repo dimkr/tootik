@@ -18,7 +18,6 @@ package cluster
 
 import (
 	"context"
-	"crypto/ed25519"
 	"crypto/tls"
 	"database/sql"
 	"fmt"
@@ -32,7 +31,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/btcsuite/btcutil/base58"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/front"
@@ -289,10 +287,5 @@ func (s *Server) Register(cert tls.Certificate) Page {
 }
 
 func (s *Server) RegisterPortable(cert tls.Certificate) Page {
-	_, priv, err := ed25519.GenerateKey(nil)
-	if err != nil {
-		s.Test.Fatalf("Failed to generate key: %v", err)
-	}
-
-	return s.HandleInput(cert, "/users/register", "z"+base58.Encode(append([]byte{0x80, 0x26}, priv.Seed()...))).OK()
+	return s.HandleInput(cert, "/users/register", "generate").OK()
 }
