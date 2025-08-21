@@ -48,7 +48,12 @@ func (h *Handler) portability(w text.Writer, r *Request, args ...string) {
 	w.Subtitle("Private Key")
 	w.Text("To register this account on another server, use this Ed25519 private key:")
 	w.Empty()
-	w.Text("z" + base58.Encode(append([]byte{0x80, 0x26}, r.Keys[1].PrivateKey.(ed25519.PrivateKey).Seed()...)))
+	if r.URL.RawQuery == "show" {
+		w.Text("z" + base58.Encode(append([]byte{0x80, 0x26}, r.Keys[1].PrivateKey.(ed25519.PrivateKey).Seed()...)))
+	} else {
+		w.Text("********")
+		w.Link("/users/portability?show", "Show")
+	}
 	w.Empty()
 	w.Text("Then,")
 	w.Itemf("Add %s to the list of gateways on the other server", h.Domain)
