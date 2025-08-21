@@ -187,7 +187,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey},
 		}
 
-		if activity.Actor == actor.ID && !q.Config.DisableIntegrityProofs {
+		if ap.Canonical(activity.Actor) == ap.Canonical(actor.ID) && activity.Proof == (ap.Proof{}) && !q.Config.DisableIntegrityProofs {
 			withProof, err := proof.Add(keys[1], time.Now(), []byte(rawActivity))
 			if err != nil {
 				slog.Error("Failed to add integrity proof", "error", err)
