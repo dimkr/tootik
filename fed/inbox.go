@@ -308,6 +308,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, receive
 			return
 		}
 
+		// if activity has an integrity proof, pretend it was sent by its actor even if forwarded by another
 		sender, err = l.verifyProof(r.Context(), activity.Proof, &activity, rawActivity, 0)
 		if err != nil {
 			slog.Warn("Failed to verify integrity proof", "activity", &activity, "proof", &activity.Proof, "error", err)
@@ -323,7 +324,6 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, receive
 		json.NewEncoder(w).Encode(map[string]any{"error": "integrity proof is required"})
 		return
 	} else {
-
 		// if actor is deleted, ignore this activity if we don't know this actor
 		var flags ap.ResolverFlag
 		if activity.Type == ap.Delete {
