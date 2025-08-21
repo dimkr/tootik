@@ -104,3 +104,75 @@ Received `Collection-Synchronization` headers are saved in the tootik database a
 tootik exposes instance metadata like its version number, through NodeInfo 2.0. This metadata is collected by fediverse statistics sites like [FediDB](https://fedidb.org/).
 
 By default, tootik returns 0 in user and post counters unless `FillNodeInfoUsage` is changed to `true`.
+
+## Data Portability
+
+tootik partially supports [FEP-ef61](https://codeberg.org/fediverse/fep/src/branch/main/fep/ef61/fep-ef61.md) portable actors, activities and objects.
+
+A portable actor is created by generating or supplying a pre-generated, base58-encoded Ed25519 private key during registration.
+
+As usual, the username is taken from the client certificate. A user named `alice` on `a.localdomain` can be looked up over [WebFinger](https://www.rfc-editor.org/rfc/rfc7033):
+
+	https://a.localdomain/.well-known/webfinger?resource=acct:alice@a.localdomain
+
+The response points to a `https://` gateway that returns the actor object:
+
+	{
+		...
+		"links": [
+			{
+				...
+				"href": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkjuj94k9qn7Rwddw3GnFeTq8fBcxzJ6Dgjw249LBYyqRE/actor",
+			}
+		]
+	}
+
+... and the actor object uses "compatible" `https://` URLs:
+
+```
+{
+    "@context": [
+        "https://www.w3.org/ns/activitystreams",
+        "https://w3id.org/security/data-integrity/v1"
+    ],
+    "id": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor",
+    "type": "Person",
+    "preferredUsername": "alice",
+    "inbox": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor/inbox",
+    "outbox": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor/outbox",
+    "followers": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor/followers",
+    "gateways": [
+        "https://a.localdomain"
+    ],
+    "assertionMethod": [
+        {
+            "controller": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor",
+            "id": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor#ed25519-key",
+            "publicKeyMultibase": "z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN",
+            "type": "Multikey"
+        }
+    ],
+    "proof": {
+        "@context": [
+            "https://www.w3.org/ns/activitystreams",
+            "https://w3id.org/security/data-integrity/v1"
+        ],
+        "created": "2025-08-21T19:07:24Z",
+        "cryptosuite": "eddsa-jcs-2022",
+        "proofPurpose": "assertionMethod",
+        "proofValue": "z4ykaucb9f6XZPGBM7bRPfDHPzwvyVGPedvFbiKibmgHc9fE5nyYUFa5b6Nc3YqFYL8A5L5jQ7HBVpNs14FsxsomW",
+        "type": "DataIntegrityProof",
+        "verificationMethod": "did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN"
+    },
+    "publicKey": {
+        "id": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor#main-key",
+        "owner": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor",
+        "publicKeyPem": "-----BEGIN RSA PUBLIC KEY-----\nMIIBCgKCAQEAo1kH9SLrhJynDBwEcdzHD1wkTq96qZuj8VTMHSOh2mNcCoQap8Fw\ndlzggcXu4yQyPVg/dZTvf12xijCGOpfm6/1+4OfRL6la7FBqVDGBtmKjrjt+KEZE\ny9apO0tUEcRyvX39gbdnrX5VV/8RA4+fPD/BU6GipKhIvnBmxr/qfE9JSMlcn3YE\nSYhdjb+QryMVfs50qKtxjonHi4crkTg222qNScf7hsF31nEvrhWLkD8Pii6JPaZ+\nKp+wftNAQahYxDh0TZSKx+2ZqB8fakMqT5qNY0+ZXUk+b3FQ6XBXmf2RdMKl/HOM\nEdol4X6ZQts/qDmMx0m1hHvrxTbB6gBvcQIDAQAB\n-----END RSA PUBLIC KEY-----\n"
+    },
+    "manuallyApprovesFollowers": false
+}
+```
+
+When tootik receives a `POST` request to `inbox` from a portable actor, it expects a valid [FEP-8b32](https://codeberg.org/fediverse/fep/src/branch/main/fep/8b32/fep-8b32.md) integrity proof and ability to fetch the actor, if not cached.
+
+tootik validates the integrity proof using the public Ed25519 key extracted from the key ID, and doesn't need to fetch the actor first.
