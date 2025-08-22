@@ -187,7 +187,7 @@ When tootik receives a `POST` request to `inbox` from a portable actor, it expec
 
 tootik validates the integrity proof using the Ed25519 public key extracted from the key ID, and doesn't need to fetch the actor first.
 
-tootik's `/.well-known/apgateway` doesn't validate HTTP signatures and simply ignores them. Therefore, automatic detection of RFC9421 and Ed25519 support on other servers ignores `200 OK` or `202 Accepted` responses from `/.well-known/apgateway`.
+tootik's `inbox` doesn't validate HTTP signatures and simply ignores them. Therefore, automatic detection of RFC9421 and Ed25519 support on other servers ignores `200 OK` or `202 Accepted` responses from `/.well-known/apgateway`.
 
 ## Following
 
