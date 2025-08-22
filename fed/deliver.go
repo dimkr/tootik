@@ -357,7 +357,7 @@ func (q *Queue) queueTask(
 	req.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 	req.Header.Set("Content-Length", contentLength)
 
-	if recipients.Contains(job.Sender.Followers) {
+	if followers != nil {
 		if digest, err := followers.Digest(ctx, q.DB, q.Domain, job.Sender, req.URL.Host); err == nil {
 			req.Header.Set("Collection-Synchronization", digest)
 		} else {
@@ -400,6 +400,11 @@ func (q *Queue) queueTasks(
 		for id := range job.Activity.CC.Keys() {
 			recipients.Add(id)
 		}
+	}
+
+	// disable followers synchronization if the sender is portable or if not sending to followers
+	if ap.IsPortable(job.Sender.ID) || recipients.Contains(job.Sender.Followers) {
+		followers = nil
 	}
 
 	actorIDs := ap.Audience{}
