@@ -290,6 +290,16 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			}
 			defer tx.Rollback()
 
+			if _, err := tx.ExecContext(
+				ctx,
+				`INSERT INTO follows (id, follower, followed, accepted) VALUES($1, $2, $3, 1) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = 1, inserted = UNIXEPOCH()`,
+				activity.ID,
+				activity.Actor,
+				followed.ID,
+			); err != nil {
+				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
+			}
+
 			if err := outbox.Accept(ctx, q.Domain, followed.ID, activity.Actor, activity.ID, tx); err != nil {
 				return fmt.Errorf("failed to accept %s: %w", activity.ID, err)
 			}
