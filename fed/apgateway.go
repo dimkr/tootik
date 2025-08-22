@@ -47,44 +47,18 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 
 	receiver := "ap://" + m[1]
 
-	var id sql.NullString
-	if err := l.DB.QueryRowContext(r.Context(), `select id from persons where cid = ?`, receiver).Scan(&id); err != nil {
-		slog.Warn("Failed to check if receiving user exists", "receiver", receiver, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	} else if !id.Valid {
+	var id string
+	if err := l.DB.QueryRowContext(r.Context(), `select id from persons where cid = ? and ed25519privkey is not null`, receiver).Scan(&id); errors.Is(err, sql.ErrNoRows) {
 		slog.Debug("Receiving user does not exist", "receiver", receiver)
 		w.WriteHeader(http.StatusNotFound)
 		return
-	}
-
-	l.doHandleInbox(w, r, id.String)
-}
-
-func writeWithProof(w http.ResponseWriter, actor *ap.Actor, ed25519PrivKeyMultibase string, body []byte) {
-	ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
-	if err != nil {
-		slog.Warn("Failed to decode key", "error", err)
+	} else if err != nil {
+		slog.Warn("Failed to check if receiving user exists", "receiver", receiver, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	withProof, err := proof.Add(
-		httpsig.Key{
-			ID:         actor.AssertionMethod[0].ID,
-			PrivateKey: ed25519PrivKey,
-		},
-		time.Now(),
-		[]byte(body),
-	)
-	if err != nil {
-		slog.Warn("Failed to add proof", "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
-	w.Write(withProof)
+	l.doHandleInbox(w, r, id)
 }
 
 func (l *Listener) getActor(w http.ResponseWriter, r *http.Request, id string) {
@@ -107,7 +81,29 @@ func (l *Listener) getActor(w http.ResponseWriter, r *http.Request, id string) {
 		return
 	}
 
-	writeWithProof(w, &actor, ed25519PrivKeyMultibase, []byte(actorString))
+	ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
+	if err != nil {
+		slog.Warn("Failed to decode key", "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	withProof, err := proof.Add(
+		httpsig.Key{
+			ID:         actor.AssertionMethod[0].ID,
+			PrivateKey: ed25519PrivKey,
+		},
+		time.Now(),
+		[]byte(actorString),
+	)
+	if err != nil {
+		slog.Warn("Failed to add proof", "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
+	w.Write(withProof)
 }
 
 func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
