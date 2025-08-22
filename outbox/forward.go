@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
@@ -158,14 +157,18 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, tx *sq
 		return nil
 	}
 
-	prefix := fmt.Sprintf("https://%s/", domain)
-	if !strings.HasPrefix(threadStarterID, prefix) {
+	var local int
+	if err := tx.QueryRowContext(ctx, `select exists (select 1 from persons where (id = ? or did = ?) and ed25519privkey is not null)`, threadStarterID, ap.Canonical(threadStarterID)).Scan(&local); err != nil {
+		return err
+	}
+
+	if local == 0 {
 		slog.Debug("Thread starter is federated", "activity", activity.ID, "note", note.ID)
 		return nil
 	}
 
 	var shouldForward int
-	if err := tx.QueryRowContext(ctx, `select exists (select 1 from notes join persons on persons.id = notes.author and (notes.public = 1 or exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers') or exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers')) where notes.id = ?)`, firstPostID).Scan(&shouldForward); err != nil {
+	if err := tx.QueryRowContext(ctx, `select exists (select 1 from notes join persons on persons.id = notes.author and (notes.public = 1 or exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers') or exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers')) where notes.id = ? )`, firstPostID).Scan(&shouldForward); err != nil {
 		return err
 	}
 	if shouldForward == 0 {
@@ -173,15 +176,18 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, tx *sq
 		return nil
 	}
 
-	if _, err := tx.ExecContext(
+	if res, err := tx.ExecContext(
 		ctx,
 		`INSERT OR IGNORE INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
 		rawActivity,
 		threadStarterID,
 	); err != nil {
 		return err
+	} else if n, err := res.RowsAffected(); err != nil {
+		return err
+	} else if n > 0 {
+		slog.Info("Forwarding activity to followers of thread starter", "activity", activity.ID, "note", note.ID, "thread", firstPostID, "starter", threadStarterID)
 	}
 
-	slog.Info("Forwarding activity to followers of thread starter", "activity", activity.ID, "note", note.ID, "thread", firstPostID, "starter", threadStarterID)
 	return nil
 }
