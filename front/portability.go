@@ -38,7 +38,7 @@ func (h *Handler) portability(w text.Writer, r *Request, args ...string) {
 	}
 
 	if !ap.IsPortable(r.User.ID) {
-		w.Status(40, "Not a nomadic account")
+		w.Status(40, "Not a portable account")
 		return
 	}
 
@@ -87,7 +87,7 @@ func (h *Handler) gatewayAdd(w text.Writer, r *Request, args ...string) {
 	}
 
 	if !ap.IsPortable(r.User.ID) {
-		w.Status(40, "Not a nomadic account")
+		w.Status(40, "Not a portable account")
 		return
 	}
 
@@ -191,7 +191,7 @@ func (h *Handler) gatewayRemove(w text.Writer, r *Request, args ...string) {
 	}
 
 	if !ap.IsPortable(r.User.ID) {
-		w.Status(40, "Not a nomadic account")
+		w.Status(40, "Not a portable account")
 		return
 	}
 

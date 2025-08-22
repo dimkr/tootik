@@ -153,7 +153,8 @@ func insertActor(
 	return tx.Commit()
 }
 
-func CreateNomadic(
+// CreatePortable creates a new portable user.
+func CreatePortable(
 	ctx context.Context,
 	domain string,
 	db *sql.DB,
