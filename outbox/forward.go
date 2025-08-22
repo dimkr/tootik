@@ -159,7 +159,7 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, tx *sq
 	}
 
 	var local int
-	if err := tx.QueryRowContext(ctx, `select exists (select 1 from persons where cid = ? and ed25519privkey is not null)`, ap.Canonical(threadStarterID), ap.Canonical(threadStarterID)).Scan(&local); err != nil {
+	if err := tx.QueryRowContext(ctx, `select exists (select 1 from persons where cid = ? and ed25519privkey is not null)`, ap.Canonical(threadStarterID)).Scan(&local); err != nil {
 		return err
 	}
 
