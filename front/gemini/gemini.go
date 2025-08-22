@@ -77,7 +77,7 @@ func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn) (*ap.Actor, 
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to fetch user for %s: %w", certHash, front.ErrNotApproved)
 	}
 
-	rsaPrivKey, err := data.ParsePrivateKey(rsaPrivKeyPem)
+	rsaPrivKey, err := data.ParseRSAPrivateKey(rsaPrivKeyPem)
 	if err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to parse RSA private key for %s: %w", certHash, err)
 	}

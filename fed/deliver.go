@@ -170,7 +170,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 		count++
 
-		rsaPrivKey, err := data.ParsePrivateKey(rsaPrivKeyPem)
+		rsaPrivKey, err := data.ParseRSAPrivateKey(rsaPrivKeyPem)
 		if err != nil {
 			slog.Error("Failed to parse RSA private key", "error", err)
 			continue

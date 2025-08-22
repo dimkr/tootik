@@ -26,8 +26,8 @@ import (
 	"github.com/btcsuite/btcutil/base58"
 )
 
-// ParsePrivateKey parses private keys.
-func ParsePrivateKey(privateKeyPemString string) (any, error) {
+// ParseRSAPrivateKey parses RSA private keys.
+func ParseRSAPrivateKey(privateKeyPemString string) (any, error) {
 	privateKeyPem, _ := pem.Decode([]byte(privateKeyPemString))
 
 	privateKey, err := x509.ParsePKCS8PrivateKey(privateKeyPem.Bytes)

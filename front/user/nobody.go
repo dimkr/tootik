@@ -35,7 +35,7 @@ func CreateNobody(ctx context.Context, domain string, db *sql.DB) (*ap.Actor, [2
 	if err := db.QueryRowContext(ctx, `select json(actor), rsaprivkey, ed25519privkey from persons where actor->>'$.preferredUsername' = 'nobody' and host = ?`, domain).Scan(&actor, &rsaPrivKeyPem, &ed25519PrivKeyMultibase); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to create nobody user: %w", err)
 	} else if err == nil {
-		rsaPrivKey, err := data.ParsePrivateKey(rsaPrivKeyPem)
+		rsaPrivKey, err := data.ParseRSAPrivateKey(rsaPrivKeyPem)
 		if err != nil {
 			return nil, [2]httpsig.Key{}, err
 		}

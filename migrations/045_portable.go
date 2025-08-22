@@ -40,7 +40,7 @@ func portable(ctx context.Context, domain string, tx *sql.Tx) error {
 				return err
 			}
 
-			ed25519PrivKey, err := data.ParsePrivateKey(ed25519PrivKeyPem)
+			ed25519PrivKey, err := data.ParseRSAPrivateKey(ed25519PrivKeyPem)
 			if err != nil {
 				return err
 			}
