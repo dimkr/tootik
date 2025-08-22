@@ -181,7 +181,7 @@ The response points to a `https://` gateway that returns the actor object:
 
 When tootik receives a `POST` request to `inbox` from a portable actor, it expects a valid [FEP-8b32](https://codeberg.org/fediverse/fep/src/branch/main/fep/8b32/fep-8b32.md) integrity proof and ability to fetch the actor, if not cached.
 
-tootik validates the integrity proof using the public Ed25519 key extracted from the key ID, and doesn't need to fetch the actor first.
+tootik validates the integrity proof using the Ed25519 public key extracted from the key ID, and doesn't need to fetch the actor first.
 
 ## Forwarding
 
