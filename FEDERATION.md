@@ -117,7 +117,7 @@ tootik does not support the [FEP-ae97](https://codeberg.org/fediverse/fep/src/br
 
 ## Compatibility
 
-As usual, the username is taken from the client certificate. A user named `alice` on `a.localdomain` can be looked up over [WebFinger](https://www.rfc-editor.org/rfc/rfc7033):
+A user named `alice` on `a.localdomain` can be looked up over [WebFinger](https://www.rfc-editor.org/rfc/rfc7033):
 
 	https://a.localdomain/.well-known/webfinger?resource=acct:alice@a.localdomain
 
