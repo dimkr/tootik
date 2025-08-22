@@ -45,10 +45,10 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	receiver := ap.Gateway("https://"+l.Domain, "ap://"+m[1])
+	receiver := "ap://" + m[1]
 
 	var id sql.NullString
-	if err := l.DB.QueryRowContext(r.Context(), `select id from persons where id = ?`, receiver).Scan(&id); err != nil {
+	if err := l.DB.QueryRowContext(r.Context(), `select id from persons where cid = ?`, receiver).Scan(&id); err != nil {
 		slog.Warn("Failed to check if receiving user exists", "receiver", receiver, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
