@@ -463,12 +463,12 @@ func (q *Queue) queueTasks(
 			continue
 		}
 
+		// if possible, use the recipient's shared inbox and skip other recipients with the same shared inbox
 		inbox := to.Inbox
 		if wideDelivery {
-			// if possible, use the recipient's shared inbox and skip other recipients with the same shared inbox
 			if sharedInbox, ok := to.Endpoints["sharedInbox"]; ok && sharedInbox != "" {
-				inbox = sharedInbox
 				slog.Debug("Using shared inbox", "to", actorID, "activity", job.Activity.ID, "shared_inbox", inbox)
+				inbox = sharedInbox
 			}
 		}
 
