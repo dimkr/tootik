@@ -19,6 +19,7 @@ package outbox
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
@@ -54,7 +55,7 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 	defer tx.Rollback()
 
 	// if the followed user is local and doesn't require manual approval, we can mark as accepted
-	if _, err := tx.ExecContext(
+	if res, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO follows
 			(
@@ -79,6 +80,10 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 		ap.Canonical(followed),
 	); err != nil {
 		return fmt.Errorf("failed to insert follow: %w", err)
+	} else if n, err := res.RowsAffected(); err != nil {
+		return fmt.Errorf("failed to insert follow: %w", err)
+	} else if n == 0 {
+		return errors.New("failed to insert follow: no rows inserted")
 	}
 
 	if _, err := tx.ExecContext(
