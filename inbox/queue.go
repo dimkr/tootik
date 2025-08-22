@@ -274,10 +274,11 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 			if _, err := q.DB.ExecContext(
 				ctx,
-				`INSERT INTO follows (id, follower, followed) VALUES($1, $2, $3) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = NULL, inserted = UNIXEPOCH()`,
+				`INSERT INTO follows (id, follower, followed, followedcid) VALUES($1, $2, $3, $4) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = NULL, inserted = UNIXEPOCH()`,
 				activity.ID,
 				activity.Actor,
 				followed.ID,
+				ap.Canonical(followed.ID),
 			); err != nil {
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
@@ -292,10 +293,11 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 			if _, err := tx.ExecContext(
 				ctx,
-				`INSERT INTO follows (id, follower, followed, accepted) VALUES($1, $2, $3, 1) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = 1, inserted = UNIXEPOCH()`,
+				`INSERT INTO follows (id, follower, followed, followedcid, accepted) VALUES($1, $2, $3, $4, 1) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = 1, inserted = UNIXEPOCH()`,
 				activity.ID,
 				activity.Actor,
 				followed.ID,
+				ap.Canonical(followed.ID),
 			); err != nil {
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
@@ -324,8 +326,20 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return errors.New("received an invalid Accept")
 		}
 
-		if _, err := q.DB.ExecContext(ctx, `update follows set accepted = 1 where id = ? and followed = ?`, followID, sender.ID); err != nil {
-			return fmt.Errorf("failed to accept follow %s: %w", followID, err)
+		if _, err := q.DB.ExecContext(
+			ctx,
+			`
+			INSERT INTO follows (id, follower, followed, followedcid, accepted)
+			SELECT $1, others.follower, $2, $3, 1
+			FROM follows others
+			WHERE others.id = $1 AND others.followedcid = $3
+			ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = 1, inserted = UNIXEPOCH()
+			`,
+			followID,
+			sender.ID,
+			ap.Canonical(sender.ID),
+		); err != nil {
+			return fmt.Errorf("failed to insert follow: %w", err)
 		}
 
 	case ap.Reject:

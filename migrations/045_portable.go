@@ -122,7 +122,7 @@ func portable(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE TABLE nfollows(id TEXT NOT NULL, follower TEXT NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()), accepted INTEGER, followed TEXT)`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE TABLE nfollows(id TEXT NOT NULL, follower TEXT NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()), accepted INTEGER, followed TEXT NOT NULL, followedcid TEXT NOT NULL)`); err != nil {
 		return err
 	}
 

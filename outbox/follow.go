@@ -56,24 +56,26 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 	// if the followed user is local and doesn't require manual approval, we can mark as accepted
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO follows
+		`INSERT OR IGNORE INTO follows
 			(
 				id,
 				follower,
 				followed,
+				followedcid,
 				accepted
 			)
-		VALUES
-			(
-				$1,
-				$2,
-				$3,
-				(SELECT CASE WHEN ed25519privkey IS NOT NULL AND COALESCE(actor->>'$.manuallyApprovesFollowers', 0) = 0 THEN 1 ELSE NULL END FROM persons WHERE id = $3)
-			)
+		SELECT
+			$1,
+			$2,
+			id,
+			$3,
+			CASE WHEN ed25519privkey IS NOT NULL AND COALESCE(actor->>'$.manuallyApprovesFollowers', 0) = 0 THEN 1 ELSE NULL END
+		FROM persons
+		WHERE cid = $3
 		`,
 		followID,
 		follower.ID,
-		followed,
+		ap.Canonical(followed),
 	); err != nil {
 		return fmt.Errorf("failed to insert follow: %w", err)
 	}
