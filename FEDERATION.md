@@ -191,7 +191,7 @@ Therefore:
 * When a user asks to follow a portable actor, tootik behaves as if the user requested to follow all currently known actors that share the same DID.
 * Every time one of these actors sends an `Accept` activity, tootik marks the existing request as accepted.
 * Every time an additional actor that shares the same DID sends an `Accept` activity, tootik behaves as if the user requested to follow this actor and marks the request as accepted.
-* tootik remembers the `Follow` activity ID used by the `Accept` activity and sends it in a `Reject` activity when the user requests to remove a follower. In any case, tootik doesn't care IDs of `Follow` activities and only compares the following and followed actor IDs when it approves requests, rejects requests or synchronizes the list of followers.
+* tootik remembers the `Follow` activity ID used by the `Accept` activity and sends it in a `Reject` activity when the user requests to remove a follower. In any case, tootik doesn't care about IDs of `Follow` activities and only compares the following and followed actor IDs when it approves requests, rejects requests or synchronizes the list of followers.
 
 ## Forwarding
 
