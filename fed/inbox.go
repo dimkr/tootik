@@ -537,9 +537,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, receive
 	}
 
 	if ap.Canonical(sender.ID) == ap.Canonical(receiver) {
-		slog.Info("Forwarding portable activity", "activity", activity.ID, "sender", sender.ID, "receiver", receiver)
-
-		if _, err := l.DB.ExecContext(
+		if res, err := l.DB.ExecContext(
 			r.Context(),
 			`insert or ignore into outbox(activity, sender) values(jsonb(?), ?)`,
 			string(rawActivity),
@@ -548,12 +546,20 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, receive
 			slog.Error("Failed to forward portable activity", "activity", activity.ID, "sender", sender.ID, "receiver", receiver, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
+		} else if n, err := res.RowsAffected(); err != nil {
+			slog.Error("Failed to forward portable activity", "activity", activity.ID, "sender", sender.ID, "receiver", receiver, "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		} else if n > 0 {
+			slog.Info("Forwarding portable activity", "activity", activity.ID, "sender", sender.ID, "receiver", receiver)
 		}
 	}
 
-	capabilities := ap.CavageDraftSignatures
+	var capabilities ap.Capability
 	if sig != nil {
 		switch sig.Alg {
+		case "rsa-sha256", "hs2019":
+			capabilities = ap.CavageDraftSignatures
 		case "rsa-v1_5-sha256":
 			capabilities = ap.RFC9421RSASignatures
 		case "ed25519":
