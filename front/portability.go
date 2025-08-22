@@ -23,8 +23,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/btcsuite/btcutil/base58"
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/outbox"
 )
@@ -49,7 +49,7 @@ func (h *Handler) portability(w text.Writer, r *Request, args ...string) {
 	w.Text("To register this account on another server, use this Ed25519 private key:")
 	w.Empty()
 	if r.URL.RawQuery == "show" {
-		w.Text("z" + base58.Encode(append([]byte{0x80, 0x26}, r.Keys[1].PrivateKey.(ed25519.PrivateKey).Seed()...)))
+		w.Text(data.EncodeEd25519PrivateKey(r.Keys[1].PrivateKey.(ed25519.PrivateKey)))
 	} else {
 		w.Text("********")
 		w.Link("/users/portability?show", "Show")

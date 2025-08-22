@@ -29,8 +29,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/btcsuite/btcutil/base58"
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/icon"
 )
@@ -66,38 +66,13 @@ func generateRSAKey() (any, string, []byte, error) {
 	return priv, privPem.String(), pubPem.Bytes(), nil
 }
 
-func marshalEd25519PrivateKey(priv ed25519.PrivateKey) (string, error) {
-	privPkcs8, err := x509.MarshalPKCS8PrivateKey(priv)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal private key: %w", err)
-	}
-
-	var privPem bytes.Buffer
-	if err := pem.Encode(
-		&privPem,
-		&pem.Block{
-			Type:  "BEGIN PRIVATE KEY",
-			Bytes: privPkcs8,
-		},
-	); err != nil {
-		return "", fmt.Errorf("failed to generate private key PEM: %w", err)
-	}
-
-	return privPem.String(), nil
-}
-
-func generateEd25519Key() (any, string, []byte, error) {
+func generateEd25519Key() (ed25519.PrivateKey, string, []byte, error) {
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("failed to generate private key: %w", err)
 	}
 
-	privPem, err := marshalEd25519PrivateKey(priv)
-	if err != nil {
-		return nil, "", nil, err
-	}
-
-	return priv, privPem, pub, nil
+	return priv, data.EncodeEd25519PrivateKey(priv), pub, nil
 }
 
 func insertActor(
@@ -105,7 +80,7 @@ func insertActor(
 	actor *ap.Actor,
 	did string,
 	rsaPrivPem string,
-	ed25519PrivPem string,
+	ed25519PrivMultibase string,
 	cert *x509.Certificate,
 	db *sql.DB,
 ) error {
@@ -117,7 +92,7 @@ func insertActor(
 			did,
 			&actor,
 			rsaPrivPem,
-			ed25519PrivPem,
+			ed25519PrivMultibase,
 		)
 		return err
 	}
@@ -135,7 +110,7 @@ func insertActor(
 		did,
 		&actor,
 		rsaPrivPem,
-		ed25519PrivPem,
+		ed25519PrivMultibase,
 	); err != nil {
 		return err
 	}
@@ -161,18 +136,14 @@ func CreatePortable(
 	name string,
 	cert *x509.Certificate,
 	ed25519Priv ed25519.PrivateKey,
+	ed25519PrivMultibase string,
 ) (*ap.Actor, [2]httpsig.Key, error) {
-	ed25519PrivPem, err := marshalEd25519PrivateKey(ed25519Priv)
-	if err != nil {
-		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to marshal Ed25519 private key: %w", err)
-	}
-
 	rsaPriv, rsaPrivPem, rsaPubPem, err := generateRSAKey()
 	if err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate RSA key pair: %w", err)
 	}
 
-	ed25519PubMultibase := "z" + base58.Encode(append([]byte{0xed, 0x01}, ed25519Priv.Public().(ed25519.PublicKey)...))
+	ed25519PubMultibase := data.EncodeEd25519PublicKey(ed25519Priv)
 
 	did := fmt.Sprintf("did:key:%s", ed25519PubMultibase)
 	id := fmt.Sprintf("https://%s/.well-known/apgateway/%s/actor", domain, did)
@@ -204,7 +175,7 @@ func CreatePortable(
 		},
 	}
 
-	if err := insertActor(ctx, &actor, did, rsaPrivPem, ed25519PrivPem, cert, db); err != nil {
+	if err := insertActor(ctx, &actor, did, rsaPrivPem, ed25519PrivMultibase, cert, db); err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 	}
 
@@ -223,7 +194,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate RSA key pair: %w", err)
 	}
 
-	ed25519Priv, ed25519PrivPem, ed25519Pub, err := generateEd25519Key()
+	ed25519Priv, ed25519PrivMultibase, _, err := generateEd25519Key()
 	if err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate Ed25519 key pair: %w", err)
 	}
@@ -261,7 +232,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 				ID:                 fmt.Sprintf("https://%s/user/%s#ed25519-key", domain, name),
 				Type:               "Multikey",
 				Controller:         id,
-				PublicKeyMultibase: "z" + base58.Encode(append([]byte{0xed, 0x01}, ed25519Pub...)),
+				PublicKeyMultibase: data.EncodeEd25519PublicKey(ed25519Priv),
 			},
 		},
 		ManuallyApprovesFollowers: false,
@@ -282,7 +253,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 		}
 	}
 
-	if err := insertActor(ctx, &actor, "", rsaPrivPem, ed25519PrivPem, cert, db); err != nil {
+	if err := insertActor(ctx, &actor, "", rsaPrivPem, ed25519PrivMultibase, cert, db); err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 	}
 

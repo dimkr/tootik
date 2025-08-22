@@ -22,8 +22,8 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/btcsuite/btcutil/base58"
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/user"
 )
@@ -115,31 +115,21 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 			return
 		}
 
-		if _, _, err := user.CreatePortable(r.Context, h.Domain, h.DB, userName, clientCert, priv); err != nil {
+		if _, _, err := user.CreatePortable(r.Context, h.Domain, h.DB, userName, clientCert, priv, data.EncodeEd25519PrivateKey(priv)); err != nil {
 			r.Log.Warn("Failed to create new portable user", "name", userName, "error", err)
 			w.Status(40, "Failed to create new user")
 			return
 		}
 
 	default:
-		if r.URL.RawQuery[0] != 'z' {
-			w.Statusf(40, "Invalid key prefix: %c", r.URL.RawQuery[0])
+		key, err := data.DecodeEd25519PrivateKey(r.URL.RawQuery)
+		if err != nil {
+			r.Log.Warn("Failed to decode Ed25519 private key", "name", userName, "error", err)
+			w.Statusf(40, "Invalid key: %s", err.Error())
 			return
 		}
 
-		rawKey := base58.Decode(r.URL.RawQuery[1:])
-
-		if len(rawKey) != ed25519.SeedSize+2 {
-			w.Statusf(40, "Invalid key length: %c", len(rawKey))
-			return
-		}
-
-		if rawKey[0] != 0x80 || rawKey[1] != 0x26 {
-			w.Statusf(40, "Invalid key prefix: %02x%02x", rawKey[0], rawKey[1])
-			return
-		}
-
-		if _, _, err := user.CreatePortable(r.Context, h.Domain, h.DB, userName, clientCert, ed25519.NewKeyFromSeed(rawKey[2:])); err != nil {
+		if _, _, err := user.CreatePortable(r.Context, h.Domain, h.DB, userName, clientCert, key, r.URL.RawQuery); err != nil {
 			r.Log.Warn("Failed to create new portable user", "name", userName, "error", err)
 			w.Status(40, "Failed to create new user")
 			return

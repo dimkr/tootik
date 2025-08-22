@@ -26,33 +26,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/btcsuite/btcutil/base58"
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/proof"
 )
-
-func parseMultiBaseKey(mb string) (ed25519.PublicKey, error) {
-	if len(mb) == 0 {
-		return nil, errors.New("key is empty")
-	}
-
-	if mb[0] != 'z' {
-		return nil, fmt.Errorf("invalid prefix: %c", mb[0])
-	}
-
-	rawKey := base58.Decode(mb[1:])
-
-	if len(rawKey) != ed25519.PublicKeySize+2 {
-		return nil, fmt.Errorf("invalid key length: %d", len(rawKey))
-	}
-
-	if rawKey[0] != 0xed || rawKey[1] != 0x01 {
-		return nil, fmt.Errorf("invalid prefix: %x%x", rawKey[0], rawKey[1])
-	}
-
-	return ed25519.PublicKey(rawKey[2:]), nil
-}
 
 func getKeyByID(actor *ap.Actor, keyID string) (ed25519.PublicKey, error) {
 	for _, key := range actor.AssertionMethod {
@@ -68,7 +46,7 @@ func getKeyByID(actor *ap.Actor, keyID string) (ed25519.PublicKey, error) {
 			continue
 		}
 
-		raw, err := parseMultiBaseKey(key.PublicKeyMultibase)
+		raw, err := data.DecodeEd25519PublicKey(key.PublicKeyMultibase)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse %s: %w", key.ID, err)
 		}
@@ -86,7 +64,7 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 	}
 
 	if m := ap.DIDKeyRegex.FindStringSubmatch(sig.KeyID); m != nil {
-		raw, err := parseMultiBaseKey(m[1])
+		raw, err := data.DecodeEd25519PublicKey(m[1])
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to parse %s: %w", sig.KeyID, err)
 		}
@@ -140,7 +118,7 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 
 func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Activity, raw []byte, flags ap.ResolverFlag) (*ap.Actor, error) {
 	if m := ap.DIDKeyRegex.FindStringSubmatch(p.VerificationMethod); m != nil {
-		publicKey, err := parseMultiBaseKey(m[1])
+		publicKey, err := data.DecodeEd25519PublicKey(m[1])
 		if err != nil {
 			return nil, fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
 		}

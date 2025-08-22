@@ -493,7 +493,7 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 
 	did := ""
 	if m := ap.CompatibleURLRegex.FindStringSubmatch(actor.ID); m != nil {
-		publicKey, err := parseMultiBaseKey(m[1])
+		publicKey, err := data.DecodeEd25519PublicKey(m[1])
 		if err != nil {
 			return nil, cachedActor, fmt.Errorf("failed to parse key %s for %s to verify proof: %w", m[1], actor.ID, err)
 		}

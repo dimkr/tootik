@@ -64,10 +64,10 @@ func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn) (*ap.Actor, 
 
 	certHash := fmt.Sprintf("%X", sha256.Sum256(clientCert.Raw))
 
-	var id, rsaPrivKeyPem, ed25519PrivKeyPem string
+	var id, rsaPrivKeyPem, ed25519PrivKeyMultibase string
 	var actor ap.Actor
 	var approved int
-	if err := gl.DB.QueryRowContext(ctx, `select persons.id, json(persons.actor), persons.rsaprivkey, persons.ed25519privkey, certificates.approved from certificates join persons on persons.actor->>'$.preferredUsername' = certificates.user where persons.host = ? and certificates.hash = ? and certificates.expires > unixepoch()`, gl.Domain, certHash).Scan(&id, &actor, &rsaPrivKeyPem, &ed25519PrivKeyPem, &approved); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := gl.DB.QueryRowContext(ctx, `select persons.id, json(persons.actor), persons.rsaprivkey, persons.ed25519privkey, certificates.approved from certificates join persons on persons.actor->>'$.preferredUsername' = certificates.user where persons.host = ? and certificates.hash = ? and certificates.expires > unixepoch()`, gl.Domain, certHash).Scan(&id, &actor, &rsaPrivKeyPem, &ed25519PrivKeyMultibase, &approved); err != nil && errors.Is(err, sql.ErrNoRows) {
 		return nil, [2]httpsig.Key{}, front.ErrNotRegistered
 	} else if err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to fetch user for %s: %w", certHash, err)
@@ -82,9 +82,9 @@ func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn) (*ap.Actor, 
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to parse RSA private key for %s: %w", certHash, err)
 	}
 
-	ed25519PrivKey, err := data.ParsePrivateKey(ed25519PrivKeyPem)
+	ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
 	if err != nil {
-		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to parse Ed15519 private key for %s: %w", certHash, err)
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to decode Ed15519 private key for %s: %w", certHash, err)
 	}
 
 	slog.Debug("Found existing user", "hash", certHash, "user", id)

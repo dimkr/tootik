@@ -150,7 +150,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	count := 0
 	for rows.Next() {
 		var activity ap.Activity
-		var rawActivity, rsaPrivKeyPem, ed25519PrivKeyPem string
+		var rawActivity, rsaPrivKeyPem, ed25519PrivKeyMultibase string
 		var actor ap.Actor
 		var deliveryAttempts int
 		if err := rows.Scan(
@@ -159,7 +159,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			&rawActivity,
 			&actor,
 			&rsaPrivKeyPem,
-			&ed25519PrivKeyPem,
+			&ed25519PrivKeyMultibase,
 		); err != nil {
 			slog.Error("Failed to fetch post to deliver", "error", err)
 			continue
@@ -176,9 +176,9 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			continue
 		}
 
-		ed25519PrivKey, err := data.ParsePrivateKey(ed25519PrivKeyPem)
+		ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
 		if err != nil {
-			slog.Error("Failed to parse Ed25519 private key", "error", err)
+			slog.Error("Failed to decode Ed25519 private key", "error", err)
 			continue
 		}
 

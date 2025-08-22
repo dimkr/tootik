@@ -63,10 +63,10 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 	l.doHandleInbox(w, r, id.String)
 }
 
-func writeWithProof(w http.ResponseWriter, actor *ap.Actor, ed25519PrivKeyPem string, body []byte) {
-	ed25519PrivKey, err := data.ParsePrivateKey(ed25519PrivKeyPem)
+func writeWithProof(w http.ResponseWriter, actor *ap.Actor, ed25519PrivKeyMultibase string, body []byte) {
+	ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
 	if err != nil {
-		slog.Warn("Failed to parse key", "error", err)
+		slog.Warn("Failed to decode key", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -93,8 +93,8 @@ func (l *Listener) getActor(w http.ResponseWriter, r *http.Request, id string) {
 	slog.Info("Fetching actor", "id", id)
 
 	var actor ap.Actor
-	var actorString, ed25519PrivKeyPem string
-	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), json(actor), ed25519privkey from persons where (id = $1 or actor->>'$.assertionMethod[0].id' = $1) order by ed25519privkey is not null desc limit 1`, id).Scan(&actor, &actorString, &ed25519PrivKeyPem); errors.Is(err, sql.ErrNoRows) {
+	var actorString, ed25519PrivKeyMultibase string
+	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), json(actor), ed25519privkey from persons where (id = $1 or actor->>'$.assertionMethod[0].id' = $1) order by ed25519privkey is not null desc limit 1`, id).Scan(&actor, &actorString, &ed25519PrivKeyMultibase); errors.Is(err, sql.ErrNoRows) {
 		slog.Info("Notifying about missing user", "id", id)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -109,16 +109,16 @@ func (l *Listener) getActor(w http.ResponseWriter, r *http.Request, id string) {
 		return
 	}
 
-	writeWithProof(w, &actor, ed25519PrivKeyPem, []byte(actorString))
+	writeWithProof(w, &actor, ed25519PrivKeyMultibase, []byte(actorString))
 }
 
 func (l *Listener) getPost(w http.ResponseWriter, r *http.Request, id string) {
 	slog.Info("Fetching post", "id", id)
 
 	var note ap.Object
-	var noteString, actorString, ed25519PrivKeyPem string
+	var noteString, actorString, ed25519PrivKeyMultibase string
 	var actor ap.Actor
-	if err := l.DB.QueryRowContext(r.Context(), `select json(notes.object), json(notes.object), json(persons.actor), json(persons.actor), persons.ed25519privkey from notes join persons on persons.id = notes.author where notes.id = ? and persons.ed25519privkey is not null`, id).Scan(&note, &noteString, &actor, &actorString, &ed25519PrivKeyPem); errors.Is(err, sql.ErrNoRows) {
+	if err := l.DB.QueryRowContext(r.Context(), `select json(notes.object), json(notes.object), json(persons.actor), json(persons.actor), persons.ed25519privkey from notes join persons on persons.id = notes.author where notes.id = ? and persons.ed25519privkey is not null`, id).Scan(&note, &noteString, &actor, &actorString, &ed25519PrivKeyMultibase); errors.Is(err, sql.ErrNoRows) {
 		slog.Info("Notifying about missing post", "id", id)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -133,16 +133,16 @@ func (l *Listener) getPost(w http.ResponseWriter, r *http.Request, id string) {
 		return
 	}
 
-	writeWithProof(w, &actor, ed25519PrivKeyPem, []byte(noteString))
+	writeWithProof(w, &actor, ed25519PrivKeyMultibase, []byte(noteString))
 }
 
 func (l *Listener) getActivity(w http.ResponseWriter, r *http.Request, id string) {
 	slog.Info("Fetching activity", "id", id)
 
-	var raw, ed25519PrivKeyPem string
+	var raw, ed25519PrivKeyMultibase string
 	var activity ap.Activity
 	var actor ap.Actor
-	if err := l.DB.QueryRowContext(r.Context(), `select json(outbox.activity), json(outbox.activity), json(persons.actor), persons.ed25519privkey from outbox join persons on persons.id = outbox.activity->>'$.actor' where outbox.activity->>'$.id' = ?`, id).Scan(&raw, &activity, &actor, &ed25519PrivKeyPem); errors.Is(err, sql.ErrNoRows) {
+	if err := l.DB.QueryRowContext(r.Context(), `select json(outbox.activity), json(outbox.activity), json(persons.actor), persons.ed25519privkey from outbox join persons on persons.id = outbox.activity->>'$.actor' where outbox.activity->>'$.id' = ?`, id).Scan(&raw, &activity, &actor, &ed25519PrivKeyMultibase); errors.Is(err, sql.ErrNoRows) {
 		slog.Info("Notifying about missing activity", "id", id)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -157,7 +157,7 @@ func (l *Listener) getActivity(w http.ResponseWriter, r *http.Request, id string
 		return
 	}
 
-	writeWithProof(w, &actor, ed25519PrivKeyPem, []byte(raw))
+	writeWithProof(w, &actor, ed25519PrivKeyMultibase, []byte(raw))
 }
 
 func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
