@@ -32,7 +32,7 @@ import (
 
 var (
 	inboxRegex = regexp.MustCompile(`^(did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/actor)\/inbox[#?]{0,1}.*`)
-	actorRegex = regexp.MustCompile(`^(did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/actor)(?:\/z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+){0,1}[#?]{0,1}.*`)
+	actorRegex = regexp.MustCompile(`^did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/actor$`)
 )
 
 func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
@@ -92,7 +92,7 @@ func (l *Listener) getActor(w http.ResponseWriter, r *http.Request, id string) {
 
 	var actor ap.Actor
 	var actorString, ed25519PrivKeyMultibase string
-	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), json(actor), ed25519privkey from persons where (id = $1 or actor->>'$.assertionMethod[0].id' = $1) order by ed25519privkey is not null desc limit 1`, id).Scan(&actor, &actorString, &ed25519PrivKeyMultibase); errors.Is(err, sql.ErrNoRows) {
+	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), json(actor), ed25519privkey from persons where cid = ? order by ed25519privkey is not null desc limit 1`, id).Scan(&actor, &actorString, &ed25519PrivKeyMultibase); errors.Is(err, sql.ErrNoRows) {
 		slog.Info("Notifying about missing user", "id", id)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -113,8 +113,8 @@ func (l *Listener) getActor(w http.ResponseWriter, r *http.Request, id string) {
 func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
 	resource := r.PathValue("resource")
 
-	if m := actorRegex.FindStringSubmatch(resource); m != nil {
-		l.getActor(w, r, ap.Gateway("https://"+l.Domain, "ap://"+m[1]))
+	if actorRegex.MatchString(resource) {
+		l.getActor(w, r, "ap://"+resource)
 	} else {
 		slog.Info("Invalid resource", "resource", resource)
 		w.WriteHeader(http.StatusNotFound)
