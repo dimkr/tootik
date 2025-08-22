@@ -19,7 +19,6 @@ package fed
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"regexp"
@@ -50,18 +49,18 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 
 	receiver := m[1]
 
-	var registered int
-	if err := l.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where did = ? and ed25519privkey is not null)`, receiver).Scan(&registered); err != nil {
+	var id sql.NullString
+	if err := l.DB.QueryRowContext(r.Context(), `select id from persons where did = ? and ed25519privkey is not null`, receiver).Scan(&id); err != nil {
 		slog.Warn("Failed to check if receiving user exists", "receiver", receiver, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
-	} else if registered == 0 {
+	} else if !id.Valid {
 		slog.Debug("Receiving user does not exist", "receiver", receiver)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	l.doHandleInbox(w, r, fmt.Sprintf("https://%s/.well-known/apgateway/%s/actor", l.Domain, m[1]))
+	l.doHandleInbox(w, r, id.String)
 }
 
 func writeWithProof(w http.ResponseWriter, actor *ap.Actor, ed25519PrivKeyPem string, body []byte) {
