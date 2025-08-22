@@ -183,6 +183,16 @@ When tootik receives a `POST` request to `inbox` from a portable actor, it expec
 
 tootik validates the integrity proof using the Ed25519 public key extracted from the key ID, and doesn't need to fetch the actor first.
 
+## Following
+
+tootik doesn't know whether or not `a.localdomain` responds to `Follow` activities sent to actors owned by the same DID on `b.localdomain` and `c.localdomain`.
+
+Therefore:
+* When a user asks to follow a portable actor, tootik behaves as if the user requested to follow all currently known actors that share the same DID.
+* Every time one of these actors sends an `Accept` activity, tootik marks the existing request as accepted.
+* Every time one an additional actor that shares the same DID sends an `Accept` activity, tootik behaves as if the user requested to follow this actor and marks theh request as accepted.
+* tootik remembers the `Follow` activity ID used by the `Accept` activity and sends it in a `Reject` activity when the user requests to remove a follower. In any case, tootik doesn't care IDs of `Follow` activities and only compares the following and followed actor IDs when it approves requests, rejects requests or synchronizes the list of followers.
+
 ## Forwarding
 
 If tootik on `a.localdomain` receives an activity from `b.localdomain` by a portable actor registered on `a.localdomain`, with gateways `a.localdomain`, `b.localdomain` and `c.localdomain`, it forwards the activity to `b.localdomain` and `c.localdomain`. In addition, tootik forwards activities forwarded by this actor: a reply in a thread started by the portable actor on `a.localdomain` will get forwarded to `b.localdomain` and `c.localdomain`.
