@@ -88,13 +88,13 @@ func TestDeliver_TwoUsersTwoPosts(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/bob')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/bob', 'https://localhost.localdomain/user/bob')`)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -198,13 +198,13 @@ func TestDeliver_ForwardedPost(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/bob')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/bob', 'https://localhost.localdomain/user/bob')`)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -297,13 +297,13 @@ func TestDeliver_OneFailed(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/bob')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/bob', 'https://localhost.localdomain/user/bob')`)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -404,10 +404,10 @@ func TestDeliver_OneFailedRetry(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -498,10 +498,10 @@ func TestDeliver_OneInvalidURLRetry(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -591,10 +591,10 @@ func TestDeliver_MaxAttempts(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -699,13 +699,13 @@ func TestDeliver_SharedInbox(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/frank', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/frank', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -791,13 +791,13 @@ func TestDeliver_SharedInboxRetry(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/frank', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/frank', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -891,13 +891,13 @@ func TestDeliver_SharedInboxUnknownActor(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/frank', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/frank', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -992,13 +992,13 @@ func TestDeliver_SharedInboxSingleWorker(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/frank', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/frank', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -1084,13 +1084,13 @@ func TestDeliver_SameInbox(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/frank', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/frank', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -1172,13 +1172,13 @@ func TestDeliver_ToAndCCDuplicates(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/bob')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/bob', 'https://localhost.localdomain/user/bob')`)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -1282,13 +1282,13 @@ func TestDeliver_PublicInTo(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/bob')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/bob', 'https://localhost.localdomain/user/bob')`)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -1392,13 +1392,13 @@ func TestDeliver_AuthorInTo(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/1', 'https://ip6-allnodes/user/dan', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/2', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/alice', 'https://localhost.localdomain/user/alice')`)
 	assert.NoError(err)
 
-	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/bob')`)
+	_, err = db.Exec(`INSERT INTO follows(id, follower, inserted, accepted, followed, followedcid) VALUES ('https://ip6-allnodes/follow/3', 'https://ip6-allnodes/user/erin', UNIXEPOCH() - 5, 1, 'https://localhost.localdomain/user/bob', 'https://localhost.localdomain/user/bob')`)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
