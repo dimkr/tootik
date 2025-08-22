@@ -126,7 +126,7 @@ func portable(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `INSERT INTO nfollows(id, follower, inserted, accepted, followed) SELECT id, follower, inserted, accepted, followed FROM follows`); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO nfollows(id, follower, inserted, accepted, followed, followedcid) SELECT id, follower, inserted, accepted, followed, followed FROM follows`); err != nil {
 		return err
 	}
 
