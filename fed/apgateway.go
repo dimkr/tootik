@@ -31,10 +31,8 @@ import (
 )
 
 var (
-	inboxRegex    = regexp.MustCompile(`^(did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)\/actor\/inbox[#?]{0,1}.*`)
-	actorRegex    = regexp.MustCompile(`^(did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/actor)(?:\/z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+){0,1}[#?]{0,1}.*`)
-	postRegex     = regexp.MustCompile(`^did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/actor\/post\/[^#?]{0,1}`)
-	activityRegex = regexp.MustCompile(`^did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/[^#?]{0,1}`)
+	inboxRegex = regexp.MustCompile(`^(did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/actor)\/inbox[#?]{0,1}.*`)
+	actorRegex = regexp.MustCompile(`^(did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/actor)(?:\/z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+){0,1}[#?]{0,1}.*`)
 )
 
 func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
@@ -47,10 +45,10 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	receiver := m[1]
+	receiver := ap.Gateway("https://"+l.Domain, "ap://"+m[1])
 
 	var id sql.NullString
-	if err := l.DB.QueryRowContext(r.Context(), `select id from persons where did = ? and ed25519privkey is not null`, receiver).Scan(&id); err != nil {
+	if err := l.DB.QueryRowContext(r.Context(), `select id from persons where id = ?`, receiver).Scan(&id); err != nil {
 		slog.Warn("Failed to check if receiving user exists", "receiver", receiver, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -112,63 +110,11 @@ func (l *Listener) getActor(w http.ResponseWriter, r *http.Request, id string) {
 	writeWithProof(w, &actor, ed25519PrivKeyMultibase, []byte(actorString))
 }
 
-func (l *Listener) getPost(w http.ResponseWriter, r *http.Request, id string) {
-	slog.Info("Fetching post", "id", id)
-
-	var note ap.Object
-	var noteString, actorString, ed25519PrivKeyMultibase string
-	var actor ap.Actor
-	if err := l.DB.QueryRowContext(r.Context(), `select json(notes.object), json(notes.object), json(persons.actor), json(persons.actor), persons.ed25519privkey from notes join persons on persons.id = notes.author where notes.id = ? and persons.ed25519privkey is not null`, id).Scan(&note, &noteString, &actor, &actorString, &ed25519PrivKeyMultibase); errors.Is(err, sql.ErrNoRows) {
-		slog.Info("Notifying about missing post", "id", id)
-		w.WriteHeader(http.StatusNotFound)
-		return
-	} else if err != nil {
-		slog.Warn("Failed to fetch post", "id", id, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if !note.IsPublic() {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	writeWithProof(w, &actor, ed25519PrivKeyMultibase, []byte(noteString))
-}
-
-func (l *Listener) getActivity(w http.ResponseWriter, r *http.Request, id string) {
-	slog.Info("Fetching activity", "id", id)
-
-	var raw, ed25519PrivKeyMultibase string
-	var activity ap.Activity
-	var actor ap.Actor
-	if err := l.DB.QueryRowContext(r.Context(), `select json(outbox.activity), json(outbox.activity), json(persons.actor), persons.ed25519privkey from outbox join persons on persons.id = outbox.activity->>'$.actor' where outbox.activity->>'$.id' = ?`, id).Scan(&raw, &activity, &actor, &ed25519PrivKeyMultibase); errors.Is(err, sql.ErrNoRows) {
-		slog.Info("Notifying about missing activity", "id", id)
-		w.WriteHeader(http.StatusNotFound)
-		return
-	} else if err != nil {
-		slog.Warn("Failed to fetch activity", "id", id, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if !activity.IsPublic() {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	writeWithProof(w, &actor, ed25519PrivKeyMultibase, []byte(raw))
-}
-
 func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
 	resource := r.PathValue("resource")
 
 	if m := actorRegex.FindStringSubmatch(resource); m != nil {
 		l.getActor(w, r, ap.Gateway("https://"+l.Domain, "ap://"+m[1]))
-	} else if m := postRegex.FindStringSubmatch(resource); m != nil {
-		l.getPost(w, r, ap.Gateway("https://"+l.Domain, "ap://"+m[1]))
-	} else if m := activityRegex.FindStringSubmatch(resource); m != nil {
-		l.getActivity(w, r, ap.Gateway("https://"+l.Domain, "ap://"+m[1]))
 	} else {
 		slog.Info("Invalid resource", "resource", resource)
 		w.WriteHeader(http.StatusNotFound)
