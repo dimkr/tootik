@@ -105,15 +105,15 @@ tootik exposes instance metadata like its version number, through NodeInfo 2.0. 
 
 By default, tootik returns 0 in user and post counters unless `FillNodeInfoUsage` is changed to `true`.
 
-## Data Portability
+# Data Portability
 
 tootik partially supports [FEP-ef61](https://codeberg.org/fediverse/fep/src/branch/main/fep/ef61/fep-ef61.md) portable actors, activities and objects.
 
-### Registration
+## Registration
 
 A portable actor is created by generating or supplying a pre-generated, base58-encoded Ed25519 private key during registration.
 
-### Compatibility
+## Compatibility
 
 As usual, the username is taken from the client certificate. A user named `alice` on `a.localdomain` can be looked up over [WebFinger](https://www.rfc-editor.org/rfc/rfc7033):
 
@@ -177,21 +177,21 @@ The response points to a `https://` gateway that returns the actor object:
 }
 ```
 
-### Security
+## Security
 
 When tootik receives a `POST` request to `inbox` from a portable actor, it expects a valid [FEP-8b32](https://codeberg.org/fediverse/fep/src/branch/main/fep/8b32/fep-8b32.md) integrity proof and ability to fetch the actor, if not cached.
 
 tootik validates the integrity proof using the public Ed25519 key extracted from the key ID, and doesn't need to fetch the actor first.
 
-### Forwarding
+## Forwarding
 
 If tootik on `a.localdomain` receives an activity from `b.localdomain` by a portable actor with gateways `a.localdomain`, `b.localdomain` and `c.localdomain`, it forwards the activity to `b.localdomain` and `c.localdomain`. In addition, tootik forwards activities forwarded by this actor: a reply in a thread started by the portable actor on `a.localdomain` will get forwarded to `b.localdomain` and `c.localdomain`.
 
-When tootik forwards activities, it assumes that other servers use the same URL format: for example, if the user is `did:key:x`, `a.localdomain` puts `https://a.localdomain/.well-known/apgateway/did:key:x/actor/inbox` in `inbox` and forwards activities to `b.localdomain` by sending them to `https://b.localdomain/.well-known/apgateway/did:key:x/actor/inbox`.
+When tootik forwards activities, it assumes that other servers use the same URL format: for example, if `did:key:x` is registered on `a.localdomain` and `b.localdomain`, `a.localdomain` puts `https://a.localdomain/.well-known/apgateway/did:key:x/actor/inbox` in `inbox` and forwards activities to `b.localdomain` by sending them to `https://b.localdomain/.well-known/apgateway/did:key:x/actor/inbox`.
 
-When a tootik user sends an activity to a portable actor on `a.localdomain` and `b.localdomain`, the activity is sent to `a.localdomain` or `b.localdomain` but not to both: tootik assumes that the receiving server is responsible for forwarding the activity to other gateways.
+If a tootik user mentions `alice@a.localdomain` in a new post and it's a portable actor that's also registered as `bob@b.localdomin`, this post is only sent to `alice@a.localdomain`: tootik assumes that the receiving server is responsible for forwarding the activity to other gateways.
 
-### Limitations
+## Limitations
 
 * tootik does not support `ap://` identifiers, location hints and delivery to `outbox`.
 * The RSA key under `publicKey` is generated during registration, so different actors owned by the same DID will use different RSA keys when they talk to on servers that don't support Ed25519 signatures. Therefore, servers that cache only one RSA key for a DID with two actors might fail to validate some signatures.
