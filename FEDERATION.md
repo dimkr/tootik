@@ -113,6 +113,8 @@ tootik partially supports [FEP-ef61](https://codeberg.org/fediverse/fep/src/bran
 
 A portable actor is created by generating or supplying a pre-generated, base58-encoded Ed25519 private key during registration.
 
+tootik does not support the [FEP-ae97](https://codeberg.org/fediverse/fep/src/branch/main/fep/ae97/fep-ae97.md) registration flow.
+
 ## Compatibility
 
 As usual, the username is taken from the client certificate. A user named `alice` on `a.localdomain` can be looked up over [WebFinger](https://www.rfc-editor.org/rfc/rfc7033):
