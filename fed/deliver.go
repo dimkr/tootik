@@ -199,9 +199,9 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 		if _, err := q.DB.ExecContext(
 			ctx,
-			`update outbox set last = unixepoch(), attempts = ? where activity->>'$.id' = ? and sender = ?`,
+			`update outbox set last = unixepoch(), attempts = ? where cid = ? and sender = ?`,
 			deliveryAttempts+1,
-			activity.ID,
+			ap.Canonical(activity.ID),
 			actor.ID,
 		); err != nil {
 			slog.Error("Failed to save last delivery attempt time", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
@@ -250,8 +250,8 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 		if _, err := q.DB.ExecContext(
 			ctx,
-			`update outbox set sent = 1 where activity->>'$.id' = ? and sender = ?`,
-			job.Activity.ID,
+			`update outbox set sent = 1 where cid = ? and sender = ?`,
+			ap.Canonical(job.Activity.ID),
 			job.Sender.ID,
 		); err != nil {
 			slog.Error("Failed to mark delivery as completed", "id", job.Activity.ID, "error", err)
@@ -294,7 +294,7 @@ func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, event
 		if err := q.DB.QueryRowContext(
 			ctx,
 			`select exists (select 1 from deliveries where activity = ? and inbox = ?)`,
-			task.Job.Activity.ID,
+			ap.Canonical(task.Job.Activity.ID),
 			task.Inbox,
 		).Scan(&delivered); err != nil {
 			slog.Error("Failed to check if delivered already", "to", task.Inbox, "activity", task.Job.Activity.ID, "error", err)
@@ -323,7 +323,7 @@ func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, event
 		if _, err := q.DB.ExecContext(
 			ctx,
 			`insert into deliveries(activity, inbox) values (?, ?)`,
-			task.Job.Activity.ID,
+			ap.Canonical(task.Job.Activity.ID),
 			task.Inbox,
 		); err != nil {
 			slog.Error("Failed to record delivery", "activity", task.Job.Activity.ID, "inbox", task.Inbox, "error", err)
@@ -337,7 +337,6 @@ func (q *Queue) queueTask(
 	job deliveryJob,
 	keys [2]httpsig.Key,
 	actorID, inbox, contentLength string,
-	recipients ap.Audience,
 	followers *partialFollowers,
 	tasks []chan deliveryTask,
 	events chan<- deliveryEvent,
@@ -479,7 +478,6 @@ func (q *Queue) queueTasks(
 			actorID,
 			inbox,
 			contentLength,
-			recipients,
 			followers,
 			tasks,
 			events,
@@ -498,7 +496,6 @@ func (q *Queue) queueTasks(
 				ap.Gateway(gw, job.Sender.ID),
 				ap.Gateway(gw, job.Sender.Inbox),
 				contentLength,
-				recipients,
 				followers,
 				tasks,
 				events,

@@ -78,7 +78,6 @@ func generateEd25519Key() (ed25519.PrivateKey, string, []byte, error) {
 func insertActor(
 	ctx context.Context,
 	actor *ap.Actor,
-	did string,
 	rsaPrivPem string,
 	ed25519PrivMultibase string,
 	cert *x509.Certificate,
@@ -87,9 +86,9 @@ func insertActor(
 	if cert == nil {
 		_, err := db.ExecContext(
 			ctx,
-			`INSERT INTO persons (id, did, actor, rsaprivkey, ed25519privkey) VALUES (?, CASE WHEN $2 = '' THEN NULL ELSE $2 END, JSONB(?), ?, ?)`,
+			`INSERT INTO persons (id, cid, actor, rsaprivkey, ed25519privkey) VALUES (?, $2, JSONB(?), ?, ?)`,
 			actor.ID,
-			did,
+			ap.Canonical(actor.ID),
 			&actor,
 			rsaPrivPem,
 			ed25519PrivMultibase,
@@ -105,9 +104,9 @@ func insertActor(
 
 	if _, err = tx.ExecContext(
 		ctx,
-		`INSERT OR IGNORE INTO persons (id, did, actor, rsaprivkey, ed25519privkey) VALUES (?, CASE WHEN $2 = '' THEN NULL ELSE $2 END, JSONB(?), ?, ?)`,
+		`INSERT OR IGNORE INTO persons (id, cid, actor, rsaprivkey, ed25519privkey) VALUES (?, $2, JSONB(?), ?, ?)`,
 		actor.ID,
-		did,
+		ap.Canonical(actor.ID),
 		&actor,
 		rsaPrivPem,
 		ed25519PrivMultibase,
@@ -145,8 +144,7 @@ func CreatePortable(
 
 	ed25519PubMultibase := data.EncodeEd25519PublicKey(ed25519Priv)
 
-	did := fmt.Sprintf("did:key:%s", ed25519PubMultibase)
-	id := fmt.Sprintf("https://%s/.well-known/apgateway/%s/actor", domain, did)
+	id := fmt.Sprintf("https://%s/.well-known/apgateway/did:key:%s/actor", domain, ed25519PubMultibase)
 	actor := ap.Actor{
 		Context: []string{
 			"https://www.w3.org/ns/activitystreams",
@@ -175,7 +173,7 @@ func CreatePortable(
 		},
 	}
 
-	if err := insertActor(ctx, &actor, did, rsaPrivPem, ed25519PrivMultibase, cert, db); err != nil {
+	if err := insertActor(ctx, &actor, rsaPrivPem, ed25519PrivMultibase, cert, db); err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 	}
 
@@ -253,7 +251,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 		}
 	}
 
-	if err := insertActor(ctx, &actor, "", rsaPrivPem, ed25519PrivMultibase, cert, db); err != nil {
+	if err := insertActor(ctx, &actor, rsaPrivPem, ed25519PrivMultibase, cert, db); err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 	}
 

@@ -255,21 +255,18 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return errors.New("received an invalid follow request")
 		}
 
-		prefix := fmt.Sprintf("https://%s/", q.Domain)
-		if strings.HasPrefix(activity.Actor, prefix) {
-			return fmt.Errorf("received an invalid follow request for %s by %s", followedID, activity.Actor)
-		}
-
-		followedDID := ""
-		if m := ap.CompatibleURLRegex.FindStringSubmatch(followedID); m != nil {
-			followedDID = "did:key:" + m[1]
-		}
-
 		var followed ap.Actor
-		if err := q.DB.QueryRowContext(ctx, `select json(actor) from persons where (id = ? or did = ?) and ed25519privkey is not null`, followedID, followedDID).Scan(&followed); errors.Is(err, sql.ErrNoRows) {
-			return fmt.Errorf("received an invalid follow request for %s:%s by %s", followed.ID, followedDID, activity.Actor)
+		if err := q.DB.QueryRowContext(ctx, `select json(actor) from persons where cid = ? and ed25519privkey is not null`, ap.Canonical(followedID)).Scan(&followed); errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("received an invalid follow request for %s by %s", followed.ID, activity.Actor)
 		} else if err != nil {
 			return fmt.Errorf("failed to fetch %s: %w", followed.ID, err)
+		}
+
+		var local int
+		if err := q.DB.QueryRowContext(ctx, `select exists (select 1 from persons where cid = ? and ed25519privkey is not null)`, ap.Canonical(activity.Actor)).Scan(&local); err != nil {
+			return fmt.Errorf("failed to check if %s is local: %w", activity.Actor, err)
+		} else if local == 1 {
+			return fmt.Errorf("received an invalid follow request for %s by %s", followedID, activity.Actor)
 		}
 
 		if followed.ManuallyApprovesFollowers {
@@ -284,7 +281,6 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			); err != nil {
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
-
 		} else {
 			log.Info("Approving follow request", "follower", activity.Actor, "followed", followed.ID)
 

@@ -80,7 +80,8 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES (?, JSONB(?), ?)`,
+		ap.Canonical(follow.ID),
 		&follow,
 		follower.ID,
 	); err != nil {

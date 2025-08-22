@@ -109,7 +109,7 @@ func TestDeliver_TwoUsersTwoPosts(t *testing.T) {
 	post := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/1","type":"Create","actor":"https://localhost.localdomain/user/alice","object":{"id":"https://localhost.localdomain/note/1","type":"Note","attributedTo":"https://localhost.localdomain/user/alice","content":"hello","to":["https://localhost.localdomain/followers/alice"],"cc":[]},"to":["https://localhost.localdomain/followers/alice"],"cc":[]}`
 
 	_, err = db.Exec(
-		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES ($1->>'$.id', $1, $2)`,
 		post,
 		alice.ID,
 	)
@@ -122,7 +122,7 @@ func TestDeliver_TwoUsersTwoPosts(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/2","type":"Create","actor":"https://localhost.localdomain/user/bob","object":{"id":"https://localhost.localdomain/note/2","type":"Note","attributedTo":"https://localhost.localdomain/user/bob","content":"bye","inReplyTo":"https://localhost.localdomain/note/1","to":["https://localhost.localdomain/user/alice","https://localhost.localdomain/followers/bob"],"cc":[]},"to":["https://localhost.localdomain/user/alice","https://localhost.localdomain/followers/bob"],"cc":[]}`
 
 	_, err = db.Exec(
-		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES ($1->>'$.id', $1, $2)`,
 		reply,
 		bob.ID,
 	)
@@ -219,7 +219,7 @@ func TestDeliver_ForwardedPost(t *testing.T) {
 	post := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/1","type":"Create","actor":"https://localhost.localdomain/user/alice","object":{"id":"https://localhost.localdomain/note/1","type":"Note","attributedTo":"https://localhost.localdomain/user/alice","content":"hello","to":["https://localhost.localdomain/followers/alice"],"cc":[]},"to":["https://localhost.localdomain/followers/alice"],"cc":[]}`
 
 	_, err = db.Exec(
-		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES ($1->>'$.id', $1, $2)`,
 		post,
 		alice.ID,
 	)
@@ -230,7 +230,7 @@ func TestDeliver_ForwardedPost(t *testing.T) {
 	assert.Empty(client.Data)
 
 	_, err = db.Exec(
-		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES ($1->>'$.id', $1, $2)`,
 		post,
 		bob.ID,
 	)
@@ -318,7 +318,7 @@ func TestDeliver_OneFailed(t *testing.T) {
 	post := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/1","type":"Create","actor":"https://localhost.localdomain/user/alice","object":{"id":"https://localhost.localdomain/note/1","type":"Note","attributedTo":"https://localhost.localdomain/user/alice","content":"hello","to":["https://localhost.localdomain/followers/alice"],"cc":[]},"to":["https://localhost.localdomain/followers/alice"],"cc":[]}`
 
 	_, err = db.Exec(
-		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES ($1->>'$.id', $1, $2)`,
 		post,
 		alice.ID,
 	)
@@ -331,7 +331,7 @@ func TestDeliver_OneFailed(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/2","type":"Create","actor":"https://localhost.localdomain/user/bob","object":{"id":"https://localhost.localdomain/note/2","type":"Note","attributedTo":"https://localhost.localdomain/user/bob","content":"bye","inReplyTo":"https://localhost.localdomain/note/1","to":["https://localhost.localdomain/user/alice","https://localhost.localdomain/followers/bob"],"cc":[]},"to":["https://localhost.localdomain/user/alice","https://localhost.localdomain/followers/bob"],"cc":[]}`
 
 	_, err = db.Exec(
-		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES ($1->>'$.id', $1, $2)`,
 		reply,
 		bob.ID,
 	)
@@ -422,7 +422,7 @@ func TestDeliver_OneFailedRetry(t *testing.T) {
 	post := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/1","type":"Create","actor":"https://localhost.localdomain/user/alice","object":{"id":"https://localhost.localdomain/note/1","type":"Note","attributedTo":"https://localhost.localdomain/user/alice","content":"hello","to":["https://localhost.localdomain/followers/alice"],"cc":[]},"to":["https://localhost.localdomain/followers/alice"],"cc":[]}`
 
 	_, err = db.Exec(
-		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES ($1->>'$.id', $1, $2)`,
 		post,
 		alice.ID,
 	)
@@ -516,7 +516,7 @@ func TestDeliver_OneInvalidURLRetry(t *testing.T) {
 	post := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/1","type":"Create","actor":"https://localhost.localdomain/user/alice","object":{"id":"https://localhost.localdomain/note/1","type":"Note","attributedTo":"https://localhost.localdomain/user/alice","content":"hello","to":["https://localhost.localdomain/followers/alice"],"cc":[]},"to":["https://localhost.localdomain/followers/alice"],"cc":[]}`
 
 	_, err = db.Exec(
-		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES ($1->>'$.id', $1, $2)`,
 		post,
 		alice.ID,
 	)
@@ -609,7 +609,7 @@ func TestDeliver_MaxAttempts(t *testing.T) {
 	post := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/1","type":"Create","actor":"https://localhost.localdomain/user/alice","object":{"id":"https://localhost.localdomain/note/1","type":"Note","attributedTo":"https://localhost.localdomain/user/alice","content":"hello","to":["https://localhost.localdomain/followers/alice"],"cc":[]},"to":["https://localhost.localdomain/followers/alice"],"cc":[]}`
 
 	_, err = db.Exec(
-		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES ($1->>'$.id', $1, $2)`,
 		post,
 		alice.ID,
 	)
@@ -720,7 +720,7 @@ func TestDeliver_SharedInbox(t *testing.T) {
 	post := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/1","type":"Create","actor":"https://localhost.localdomain/user/alice","object":{"id":"https://localhost.localdomain/note/1","type":"Note","attributedTo":"https://localhost.localdomain/user/alice","content":"hello","to":["https://localhost.localdomain/followers/alice"],"cc":[]},"to":["https://localhost.localdomain/followers/alice"],"cc":[]}`
 
 	_, err = db.Exec(
-		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES ($1->>'$.id', $1, $2)`,
 		post,
 		alice.ID,
 	)
@@ -812,7 +812,7 @@ func TestDeliver_SharedInboxRetry(t *testing.T) {
 	post := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/1","type":"Create","actor":"https://localhost.localdomain/user/alice","object":{"id":"https://localhost.localdomain/note/1","type":"Note","attributedTo":"https://localhost.localdomain/user/alice","content":"hello","to":["https://localhost.localdomain/followers/alice"],"cc":[]},"to":["https://localhost.localdomain/followers/alice"],"cc":[]}`
 
 	_, err = db.Exec(
-		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES ($1->>'$.id', $1, $2)`,
 		post,
 		alice.ID,
 	)
@@ -912,7 +912,7 @@ func TestDeliver_SharedInboxUnknownActor(t *testing.T) {
 	post := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/1","type":"Create","actor":"https://localhost.localdomain/user/alice","object":{"id":"https://localhost.localdomain/note/1","type":"Note","attributedTo":"https://localhost.localdomain/user/alice","content":"hello","to":["https://localhost.localdomain/followers/alice"],"cc":[]},"to":["https://localhost.localdomain/followers/alice"],"cc":[]}`
 
 	_, err = db.Exec(
-		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES ($1->>'$.id', $1, $2)`,
 		post,
 		alice.ID,
 	)
@@ -1013,7 +1013,7 @@ func TestDeliver_SharedInboxSingleWorker(t *testing.T) {
 	post := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/1","type":"Create","actor":"https://localhost.localdomain/user/alice","object":{"id":"https://localhost.localdomain/note/1","type":"Note","attributedTo":"https://localhost.localdomain/user/alice","content":"hello","to":["https://localhost.localdomain/followers/alice"],"cc":[]},"to":["https://localhost.localdomain/followers/alice"],"cc":[]}`
 
 	_, err = db.Exec(
-		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES ($1->>'$.id', $1, $2)`,
 		post,
 		alice.ID,
 	)
@@ -1105,7 +1105,7 @@ func TestDeliver_SameInbox(t *testing.T) {
 	post := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/1","type":"Create","actor":"https://localhost.localdomain/user/alice","object":{"id":"https://localhost.localdomain/note/1","type":"Note","attributedTo":"https://localhost.localdomain/user/alice","content":"hello","to":["https://localhost.localdomain/followers/alice"],"cc":[]},"to":["https://localhost.localdomain/followers/alice"],"cc":[]}`
 
 	_, err = db.Exec(
-		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES ($1->>'$.id', $1, $2)`,
 		post,
 		alice.ID,
 	)
@@ -1193,7 +1193,7 @@ func TestDeliver_ToAndCCDuplicates(t *testing.T) {
 	post := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/1","type":"Create","actor":"https://localhost.localdomain/user/alice","object":{"id":"https://localhost.localdomain/note/1","type":"Note","attributedTo":"https://localhost.localdomain/user/alice","content":"hello","to":["https://localhost.localdomain/followers/alice","https://ip6-allnodes/user/erin"],"cc":["https://ip6-allnodes/user/dan","https://ip6-allnodes/user/erin"]},"to":["https://localhost.localdomain/followers/alice","https://ip6-allnodes/user/erin"],"cc":["https://ip6-allnodes/user/dan","https://ip6-allnodes/user/erin"]}`
 
 	_, err = db.Exec(
-		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES ($1->>'$.id', $1, $2)`,
 		post,
 		alice.ID,
 	)
@@ -1206,7 +1206,7 @@ func TestDeliver_ToAndCCDuplicates(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/2","type":"Create","actor":"https://localhost.localdomain/user/bob","object":{"id":"https://localhost.localdomain/note/2","type":"Note","attributedTo":"https://localhost.localdomain/user/bob","content":"bye","inReplyTo":"https://localhost.localdomain/note/1","to":["https://localhost.localdomain/user/alice","https://localhost.localdomain/followers/bob"],"cc":[]},"to":["https://localhost.localdomain/user/alice","https://localhost.localdomain/followers/bob"],"cc":[]}`
 
 	_, err = db.Exec(
-		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES ($1->>'$.id', $1, $2)`,
 		reply,
 		bob.ID,
 	)
@@ -1303,7 +1303,7 @@ func TestDeliver_PublicInTo(t *testing.T) {
 	post := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/1","type":"Create","actor":"https://localhost.localdomain/user/alice","object":{"id":"https://localhost.localdomain/note/1","type":"Note","attributedTo":"https://localhost.localdomain/user/alice","content":"hello","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":[]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":[]}`
 
 	_, err = db.Exec(
-		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES ($1->>'$.id', $1, $2)`,
 		post,
 		alice.ID,
 	)
@@ -1316,7 +1316,7 @@ func TestDeliver_PublicInTo(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/2","type":"Create","actor":"https://localhost.localdomain/user/bob","object":{"id":"https://localhost.localdomain/note/2","type":"Note","attributedTo":"https://localhost.localdomain/user/bob","content":"bye","inReplyTo":"https://localhost.localdomain/note/1","to":["https://localhost.localdomain/user/alice","https://localhost.localdomain/followers/bob"],"cc":[]},"to":["https://localhost.localdomain/user/alice","https://localhost.localdomain/followers/bob"],"cc":[]}`
 
 	_, err = db.Exec(
-		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES ($1->>'$.id', $1, $2)`,
 		reply,
 		bob.ID,
 	)
@@ -1413,7 +1413,7 @@ func TestDeliver_AuthorInTo(t *testing.T) {
 	post := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/1","type":"Create","actor":"https://localhost.localdomain/user/alice","object":{"id":"https://localhost.localdomain/note/1","type":"Note","attributedTo":"https://localhost.localdomain/user/alice","content":"hello","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":[]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":[]}`
 
 	_, err = db.Exec(
-		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES ($1->>'$.id', $1, $2)`,
 		post,
 		alice.ID,
 	)
@@ -1426,7 +1426,7 @@ func TestDeliver_AuthorInTo(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/2","type":"Create","actor":"https://localhost.localdomain/user/bob","object":{"id":"https://localhost.localdomain/note/2","type":"Note","attributedTo":"https://localhost.localdomain/user/bob","content":"bye","inReplyTo":"https://localhost.localdomain/note/1","to":["https://localhost.localdomain/user/bob","https://localhost.localdomain/followers/bob"],"cc":[]},"to":["https://localhost.localdomain/user/bob","https://localhost.localdomain/followers/bob"],"cc":[]}`
 
 	_, err = db.Exec(
-		`INSERT INTO outbox (activity, sender) VALUES (?,?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES ($1->>'$.id', $1, $2)`,
 		reply,
 		bob.ID,
 	)

@@ -50,7 +50,8 @@ func Accept(ctx context.Context, domain string, followed, follower, followID str
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES (?, JSONB(?), ?)`,
+		ap.Canonical(accept.ID),
 		&accept,
 		followed,
 	); err != nil {

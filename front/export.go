@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"encoding/csv"
 
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 )
 
@@ -41,13 +42,13 @@ func (h *Handler) export(w text.Writer, r *Request, args ...string) {
 	rows, err := h.DB.QueryContext(
 		r.Context,
 		`
-		select activity->>'$.id', activity->>'$.type', datetime(inserted, 'unixepoch'), json(activity) from outbox
+		select cid, activity->>'$.type', datetime(inserted, 'unixepoch'), json(activity) from outbox
 		where
-			activity->>'$.actor' = ?
+			activity->>'$.actor' in (select id from persons where cid = ?)
 		order by inserted desc
 		limit ?
 		`,
-		r.User.ID,
+		ap.Canonical(r.User.ID),
 		csvRows,
 	)
 	if err != nil {

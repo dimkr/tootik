@@ -84,7 +84,8 @@ func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB,
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES (?, JSONB(?), ?)`,
+		ap.Canonical(update.ID),
 		string(j),
 		note.AttributedTo,
 	); err != nil {
@@ -136,7 +137,8 @@ func UpdateActor(ctx context.Context, domain string, tx *sql.Tx, actorID string)
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES (?, JSONB(?), ?)`,
+		ap.Canonical(update.ID),
 		&update,
 		actorID,
 	); err != nil {
