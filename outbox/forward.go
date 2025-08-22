@@ -158,14 +158,12 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, tx *sq
 		return nil
 	}
 
-	var local int
-	if err := tx.QueryRowContext(ctx, `select exists (select 1 from persons where cid = ? and ed25519privkey is not null)`, ap.Canonical(threadStarterID)).Scan(&local); err != nil {
-		return err
-	}
-
-	if local == 0 {
+	var local string
+	if err := tx.QueryRowContext(ctx, `select id from persons where cid = ? and ed25519privkey is not null limit 1`, ap.Canonical(threadStarterID)).Scan(&local); errors.Is(err, sql.ErrNoRows) {
 		slog.Debug("Thread starter is federated", "activity", activity.ID, "note", note.ID)
 		return nil
+	} else if err != nil {
+		return err
 	}
 
 	var shouldForward int
@@ -182,13 +180,13 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, tx *sq
 		`INSERT OR IGNORE INTO outbox (cid, activity, sender) VALUES (?, JSONB(?), ?)`,
 		ap.Canonical(activity.ID),
 		rawActivity,
-		threadStarterID,
+		local,
 	); err != nil {
 		return err
 	} else if n, err := res.RowsAffected(); err != nil {
 		return err
 	} else if n > 0 {
-		slog.Info("Forwarding activity to followers of thread starter", "activity", activity.ID, "note", note.ID, "thread", firstPostID, "starter", threadStarterID)
+		slog.Info("Forwarding activity to followers of thread starter", "activity", activity.ID, "note", note.ID, "thread", firstPostID, "starter", local)
 	}
 
 	return nil
