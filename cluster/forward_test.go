@@ -20,7 +20,7 @@ import (
 	"crypto/ed25519"
 	"testing"
 
-	"github.com/btcsuite/btcutil/base58"
+	"github.com/dimkr/tootik/data"
 )
 
 func TestCluster_ReplyForwardingWithIntegrityProofs(t *testing.T) {
@@ -229,11 +229,11 @@ func TestCluster_Gateways(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to generate key: %v", err)
 	}
-	registerNomad := "/users/register?z" + base58.Encode(append([]byte{0x80, 0x26}, priv.Seed()...))
+	registerPortable := "/users/register?" + data.EncodeEd25519PrivateKey(priv)
 
-	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerNomad).OK()
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
 	bob := cluster["b.localdomain"].RegisterPortable(bobKeypair).OK()
-	carol := cluster["c.localdomain"].Handle(carolKeypair, registerNomad).OK()
+	carol := cluster["c.localdomain"].Handle(carolKeypair, registerPortable).OK()
 
 	alice.
 		Follow("⚙️ Settings").
