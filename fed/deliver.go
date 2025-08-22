@@ -403,7 +403,7 @@ func (q *Queue) queueTasks(
 	}
 
 	// disable followers synchronization if the sender is portable or if not sending to followers
-	if ap.IsPortable(job.Sender.ID) || recipients.Contains(job.Sender.Followers) {
+	if ap.IsPortable(job.Sender.ID) || !recipients.Contains(job.Sender.Followers) {
 		followers = nil
 	}
 
