@@ -56,7 +56,7 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 	// if the followed user is local and doesn't require manual approval, we can mark as accepted
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT OR IGNORE INTO follows
+		`INSERT INTO follows
 			(
 				id,
 				follower,
@@ -72,6 +72,7 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 			CASE WHEN ed25519privkey IS NOT NULL AND COALESCE(actor->>'$.manuallyApprovesFollowers', 0) = 0 THEN 1 ELSE NULL END
 		FROM persons
 		WHERE cid = $3
+		ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = NULL, inserted = UNIXEPOCH()
 		`,
 		followID,
 		follower.ID,
