@@ -32,7 +32,7 @@ import (
 
 var (
 	inboxRegex = regexp.MustCompile(`^(did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/actor)\/inbox[#?]{0,1}.*`)
-	actorRegex = regexp.MustCompile(`^did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/actor$`)
+	actorRegex = regexp.MustCompile(`^(did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/actor)[#?]{0,1}.*`)
 )
 
 func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
@@ -113,8 +113,8 @@ func (l *Listener) getActor(w http.ResponseWriter, r *http.Request, id string) {
 func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
 	resource := r.PathValue("resource")
 
-	if actorRegex.MatchString(resource) {
-		l.getActor(w, r, "ap://"+resource)
+	if m := actorRegex.FindStringSubmatch(resource); m != nil {
+		l.getActor(w, r, "ap://"+m[1])
 	} else {
 		slog.Info("Invalid resource", "resource", resource)
 		w.WriteHeader(http.StatusNotFound)
