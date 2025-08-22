@@ -205,5 +205,5 @@ If a tootik user mentions `alice@a.localdomain` in a new post and it's a portabl
 
 * tootik does not support `ap://` identifiers, location hints and delivery to `outbox`.
 * tootik does not support fetching of objects (like posts) and activities from `/.well-known/apgateway`: replication of data across all actors associated with the same DID is achieved using forwarding.
-* The RSA key under `publicKey` is generated during registration, so different actors owned by the same DID will use different RSA keys when they talk to on servers that don't support Ed25519 signatures. Therefore, servers that cache only one RSA key for a DID with two actors might fail to validate some signatures.
+* The RSA key under `publicKey` is generated during registration, so different actors owned by the same DID will use different RSA keys when they talk to servers that don't support Ed25519 signatures. Therefore, servers that cache only one RSA key for a DID with two actors might fail to validate some signatures.
 * Followers synchronization is disabled for portable actors, in both directions: tootik ignores the `Collection-Synchronization` header when activites are delivered to portable actors and doesn't attach it to an outgoing request if the sender is a portable actor.
