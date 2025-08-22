@@ -227,7 +227,7 @@ func (h *Handler) gatewayRemove(w text.Writer, r *Request, args ...string) {
 	return
 
 found:
-	r.Log.Info("Removing metadata field", "gateway", gw)
+	r.Log.Info("Removing gateway", "gateway", gw)
 
 	tx, err := h.DB.BeginTx(r.Context, nil)
 	if err != nil {
