@@ -57,7 +57,8 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 	// if the followed user is local and doesn't require manual approval, we can mark as accepted
 	if res, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO follows
+		`
+		INSERT INTO follows
 			(
 				id,
 				follower,
