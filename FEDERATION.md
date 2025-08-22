@@ -185,7 +185,7 @@ tootik validates the integrity proof using the Ed25519 public key extracted from
 
 ## Forwarding
 
-If tootik on `a.localdomain` receives an activity from `b.localdomain` by a portable actor with gateways `a.localdomain`, `b.localdomain` and `c.localdomain`, it forwards the activity to `b.localdomain` and `c.localdomain`. In addition, tootik forwards activities forwarded by this actor: a reply in a thread started by the portable actor on `a.localdomain` will get forwarded to `b.localdomain` and `c.localdomain`.
+If tootik on `a.localdomain` receives an activity from `b.localdomain` by a portable actor registered on `a.localdomain`, with gateways `a.localdomain`, `b.localdomain` and `c.localdomain`, it forwards the activity to `b.localdomain` and `c.localdomain`. In addition, tootik forwards activities forwarded by this actor: a reply in a thread started by the portable actor on `a.localdomain` will get forwarded to `b.localdomain` and `c.localdomain`.
 
 When tootik forwards activities, it assumes that other servers use the same URL format: for example, if `did:key:x` is registered on `a.localdomain` and `b.localdomain`, `a.localdomain` puts `https://a.localdomain/.well-known/apgateway/did:key:x/actor/inbox` in `inbox` and forwards activities to `b.localdomain` by sending them to `https://b.localdomain/.well-known/apgateway/did:key:x/actor/inbox`.
 
