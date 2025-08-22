@@ -117,7 +117,7 @@ tootik does not support the [FEP-ae97](https://codeberg.org/fediverse/fep/src/br
 
 ## Compatibility
 
-A user named `alice` on `a.localdomain` can be looked up over [WebFinger](https://www.rfc-editor.org/rfc/rfc7033):
+A portable actor named `alice` on `a.localdomain` can be looked up over [WebFinger](https://www.rfc-editor.org/rfc/rfc7033):
 
 	https://a.localdomain/.well-known/webfinger?resource=acct:alice@a.localdomain
 
@@ -179,11 +179,15 @@ The response points to a `https://` gateway that returns the actor object:
 }
 ```
 
+Portable actors have both Ed25519 and RSA keys, allowing them to interact with actors on ActivityPub servers that don't support Ed25519 signatures.
+
 ## Security
 
 When tootik receives a `POST` request to `inbox` from a portable actor, it expects a valid [FEP-8b32](https://codeberg.org/fediverse/fep/src/branch/main/fep/8b32/fep-8b32.md) integrity proof and ability to fetch the actor, if not cached.
 
 tootik validates the integrity proof using the Ed25519 public key extracted from the key ID, and doesn't need to fetch the actor first.
+
+tootik's `/.well-known/apgateway` doesn't validate HTTP signatures and simply ignores them. Therefore, automatic detection of RFC9421 and Ed25519 support on other servers ignores `200 OK` or `202 Accepted` responses from `/.well-known/apgateway`.
 
 ## Following
 
