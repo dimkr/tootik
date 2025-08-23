@@ -94,6 +94,7 @@ func portable(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 
 	}
+
 	if _, err := tx.ExecContext(ctx, `DROP TABLE outbox`); err != nil {
 		return err
 	}
@@ -149,5 +150,6 @@ func portable(ctx context.Context, domain string, tx *sql.Tx) error {
 	if _, err := tx.ExecContext(ctx, `CREATE UNIQUE INDEX followsfollowerfollowed ON follows(follower, followed)`); err != nil {
 		return err
 	}
+
 	return nil
 }

@@ -199,6 +199,7 @@ Therefore:
 * When a user asks to follow a portable actor, tootik behaves as if the user requested to follow all currently known actors that share the same DID.
 * Every time one of these actors sends an `Accept` activity, tootik marks the existing request as accepted.
 * Every time an additional actor that shares the same DID sends an `Accept` activity, tootik behaves as if the user requested to follow this actor and marks the request as accepted.
+* Every time an additional actor that shares the same DID is discovered, tootik behaves as if the user requested to follow this actor and copies the request status from a previous request.
 
 ## Forwarding
 
