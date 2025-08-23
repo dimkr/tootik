@@ -54,7 +54,7 @@ func create(key httpsig.Key, now time.Time, doc, context any) (ap.Proof, error) 
 
 	keyID := key.ID
 	if m := ap.CompatibleURLRegex.FindStringSubmatch(keyID); m != nil {
-		keyID = "did:key:" + m[1]
+		keyID = fmt.Sprintf("did:key:%s#%s", m[1], m[1])
 	}
 
 	cfg, err := normalizeJSON(map[string]any{
