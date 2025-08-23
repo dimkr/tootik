@@ -233,7 +233,6 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 
 	wg.Go(func() {
 		defer close(incoming)
-		defer wg.Done()
 
 		buf := make([]byte, maxRequestSize)
 		for {
