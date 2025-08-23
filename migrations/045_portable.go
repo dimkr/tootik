@@ -151,5 +151,9 @@ func portable(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX followsfollowedcid ON follows(followedcid)`); err != nil {
+		return err
+	}
+
 	return nil
 }
