@@ -469,9 +469,14 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 
 	keyIDs := make(map[string]struct{}, 2)
 
-	if u, err := url.Parse(actor.PublicKey.ID); err != nil {
+	actorOrigin, err := ap.GetOrigin(actor.ID)
+	if err != nil {
+		return nil, cachedActor, fmt.Errorf("failed to get %s origin: %w", actor.ID, err)
+	}
+
+	if keyOrigin, err := ap.GetOrigin(actor.PublicKey.ID); err != nil {
 		slog.Debug("Failed to parse public key ID", "actor", actor.ID, "key", actor.PublicKey.ID, "error", err)
-	} else if u.Host == host {
+	} else if keyOrigin == actorOrigin {
 		keyIDs[actor.PublicKey.ID] = struct{}{}
 	} else {
 		slog.Warn("Public key ID belongs to a different host", "actor", actor.ID, "key", actor.PublicKey.ID)
@@ -482,9 +487,9 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 			continue
 		}
 
-		if u, err := url.Parse(method.ID); err != nil {
+		if methodOrigin, err := ap.GetOrigin(method.ID); err != nil {
 			slog.Debug("Failed to parse assertion method ID", "actor", actor.ID, "key", method.ID, "error", err)
-		} else if u.Host == host {
+		} else if methodOrigin == actorOrigin {
 			keyIDs[method.ID] = struct{}{}
 		} else {
 			slog.Warn("Assertion method ID belongs to a different host", "actor", actor.ID, "key", method.ID)
