@@ -71,7 +71,7 @@ func (gc *GarbageCollector) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to remove old posts: %w", err)
 	}
 
-	if _, err := gc.DB.ExecContext(ctx, `delete from persons where updated < ? and ed25519privkey is null and and not exists (select 1 from persons gateways where gateways.cid = persons.cid and  gateways.id != persons.id and gateways.ed25519privkey is not null) and not exists (select 1 from follows where followed = persons.id) and not exists (select 1 from follows where follower = persons.id) and not exists (select 1 from notes where notes.author = persons.id) and not exists (select 1 from shares where shares.by = persons.id)`, now.Add(-gc.Config.ActorTTL).Unix()); err != nil {
+	if _, err := gc.DB.ExecContext(ctx, `delete from persons where updated < ? and ed25519privkey is null and not exists (select 1 from follows where followedcid = persons.cid) and not exists (select 1 from follows where follower = persons.id) and not exists (select 1 from notes where notes.author = persons.id) and not exists (select 1 from shares where shares.by = persons.id)`, now.Add(-gc.Config.ActorTTL).Unix()); err != nil {
 		return fmt.Errorf("failed to remove idle actors: %w", err)
 	}
 
