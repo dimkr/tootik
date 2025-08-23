@@ -129,7 +129,7 @@ func tryVerify(key ed25519.PublicKey, docHash [32]byte, proof ap.Proof, context 
 		return true, nil
 	}
 
-	return false, errors.New("proof verification failed")
+	return false, nil
 }
 
 // Verify verifies an integrity proof.
