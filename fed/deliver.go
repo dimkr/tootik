@@ -401,8 +401,12 @@ func (q *Queue) queueTasks(
 		}
 	}
 
-	// disable followers synchronization if the sender is portable or if not sending to followers
-	if ap.IsPortable(job.Sender.ID) || !recipients.Contains(job.Sender.Followers) {
+	/*
+		disable followers synchronization when
+		1. forwarding, even if canonical sender is canonical actor, or
+		2. if not sending to followers
+	*/
+	if job.Sender.ID != job.Activity.Actor || !recipients.Contains(job.Sender.Followers) {
 		followers = nil
 	}
 
