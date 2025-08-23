@@ -201,6 +201,8 @@ Therefore:
 * Every time an additional actor that shares the same DID sends an `Accept` activity, tootik behaves as if the user requested to follow this actor and marks the request as accepted.
 * Every time an additional actor that shares the same DID is discovered, tootik behaves as if the user requested to follow this actor and copies the request status from a previous request.
 
+If `alice@a.localdomain` shares the same DID as `bob@b.localdomain`, tootik on `a.localdomain` doesn't add the `Collection-Synchronization` header when it forwards activities by `bob@b.localdomain` to `carol@c.localdomain`, because `alice@a.localdomain` and `bob@b.localdomain` may disagree about the list of followers due to interoperability issues or simply because federation and persistent storage are not 100% reliable.
+
 ## Forwarding
 
 If tootik on `a.localdomain` receives an activity from `b.localdomain` by a portable actor registered on `a.localdomain`, with gateways `a.localdomain`, `b.localdomain` and `c.localdomain`, it forwards the activity to `b.localdomain` and `c.localdomain`. In addition, tootik forwards activities forwarded by this actor: a reply in a thread started by the portable actor on `a.localdomain` will get forwarded to `b.localdomain` and `c.localdomain`.
@@ -214,4 +216,3 @@ If a tootik user mentions `alice@a.localdomain` in a new post and it's a portabl
 * tootik does not support `ap://` identifiers, location hints and delivery to `outbox`.
 * tootik does not support fetching of objects (like posts) and activities from `/.well-known/apgateway`: replication of data across all actors associated with the same DID is achieved using forwarding.
 * The RSA key under `publicKey` is generated during registration, so different actors owned by the same DID will use different RSA keys when they talk to servers that don't support Ed25519 signatures. Therefore, servers that cache only one RSA key for a DID with two actors might fail to validate some signatures.
-* If `alice@a.localdomain` shares the same DID as `bob@b.localdomain`, tootik on `a.localdomain` doesn't add the `Collection-Synchronization` header when it forwards activities by `bob@b.localdomain` to `c.localdomain`, because `a.localdomain` and `b.localdomain` may disagree about the list of followers.
