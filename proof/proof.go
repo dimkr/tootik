@@ -105,6 +105,33 @@ func Add(key httpsig.Key, now time.Time, raw []byte) ([]byte, error) {
 	return json.Marshal(m)
 }
 
+func tryVerify(key ed25519.PublicKey, docHash [32]byte, proof ap.Proof, context any) (bool, error) {
+	m := map[string]any{
+		"type":               proof.Type,
+		"cryptosuite":        proof.CryptoSuite,
+		"created":            proof.Created,
+		"proofPurpose":       proof.Purpose,
+		"verificationMethod": proof.VerificationMethod,
+	}
+
+	if context != nil {
+		m["@context"] = context
+	}
+
+	cfg, err := normalizeJSON(m)
+	if err != nil {
+		return false, err
+	}
+
+	cfgHash := sha256.Sum256(cfg)
+
+	if ed25519.Verify(key, append(cfgHash[:], docHash[:]...), base58.Decode(proof.Value[1:])) {
+		return true, nil
+	}
+
+	return false, errors.New("proof verification failed")
+}
+
 // Verify verifies an integrity proof.
 func Verify(key any, proof ap.Proof, context any, raw []byte) error {
 	edKey, ok := key.(ed25519.PublicKey)
@@ -128,23 +155,12 @@ func Verify(key any, proof ap.Proof, context any, raw []byte) error {
 		return errors.New("invalid value: " + proof.Value)
 	}
 
-	cfg, err := normalizeJSON(map[string]any{
-		"@context":           context,
-		"type":               proof.Type,
-		"cryptosuite":        proof.CryptoSuite,
-		"created":            proof.Created,
-		"proofPurpose":       proof.Purpose,
-		"verificationMethod": proof.VerificationMethod,
-	})
-	if err != nil {
-		return err
-	}
-
 	var m map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &m); err != nil {
 		return err
 	}
 	delete(m, "proof")
+	delete(m, "signature")
 
 	j, err := json.Marshal(m)
 	if err != nil {
@@ -156,12 +172,25 @@ func Verify(key any, proof ap.Proof, context any, raw []byte) error {
 		return err
 	}
 
-	cfgHash := sha256.Sum256(cfg)
 	docHash := sha256.Sum256(data)
 
-	if !ed25519.Verify(edKey, append(cfgHash[:], docHash[:]...), base58.Decode(proof.Value[1:])) {
-		return errors.New("proof verification failed")
+	if ok, err := tryVerify(edKey, docHash, proof, context); err != nil {
+		return err
+	} else if ok {
+		return nil
 	}
 
-	return nil
+	/*
+		try again without @context, because Hubzilla ignores it
+		https://framagit.org/hubzilla/core/-/blob/aaa863cda7c29daa4fe0322749f55f50e2123d1d/Zotlabs/Lib/JcsEddsa2022.php#L34
+	*/
+	if context != nil {
+		if ok, err := tryVerify(edKey, docHash, proof, nil); err != nil {
+			return err
+		} else if ok {
+			return nil
+		}
+	}
+
+	return errors.New("proof verification failed")
 }

@@ -63,7 +63,7 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 		return nil, nil, fmt.Errorf("failed to verify message: %w", err)
 	}
 
-	if m := ap.DIDKeyRegex.FindStringSubmatch(sig.KeyID); m != nil {
+	if m := ap.KeyRegex.FindStringSubmatch(sig.KeyID); m != nil {
 		raw, err := data.DecodeEd25519PublicKey(m[1])
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to parse %s: %w", sig.KeyID, err)
@@ -117,7 +117,7 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 }
 
 func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Activity, raw []byte, flags ap.ResolverFlag) (*ap.Actor, error) {
-	if m := ap.DIDKeyRegex.FindStringSubmatch(p.VerificationMethod); m != nil {
+	if m := ap.KeyRegex.FindStringSubmatch(p.VerificationMethod); m != nil {
 		publicKey, err := data.DecodeEd25519PublicKey(m[1])
 		if err != nil {
 			return nil, fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
