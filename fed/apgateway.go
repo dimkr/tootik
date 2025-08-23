@@ -47,8 +47,9 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 
 	receiver := "ap://" + m[1]
 
-	var id string
-	if err := l.DB.QueryRowContext(r.Context(), `select id from persons where cid = ? and ed25519privkey is not null`, receiver).Scan(&id); errors.Is(err, sql.ErrNoRows) {
+	var actor ap.Actor
+	var rsaPrivKeyPem, ed25519PrivKeyMultibase string
+	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519privkey from persons where cid = ? and ed25519privkey is not null`, receiver).Scan(&actor, &rsaPrivKeyPem, &ed25519PrivKeyMultibase); errors.Is(err, sql.ErrNoRows) {
 		slog.Debug("Receiving user does not exist", "receiver", receiver)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -58,7 +59,24 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	l.doHandleInbox(w, r, id)
+	rsaPrivKey, err := data.ParseRSAPrivateKey(rsaPrivKeyPem)
+	if err != nil {
+		slog.Warn("Failed to parse RSA private key", "receiver", receiver, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
+	if err != nil {
+		slog.Warn("Failed to decode Ed25519 private key", "receiver", receiver, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	l.doHandleInbox(w, r, actor.ID, [2]httpsig.Key{
+		{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
+		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey},
+	})
 }
 
 func (l *Listener) getActor(w http.ResponseWriter, r *http.Request, id string) {
