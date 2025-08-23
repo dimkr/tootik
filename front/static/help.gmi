@@ -31,7 +31,13 @@ This page shows various statistics about this server and the parts of the fedive
 
 Follow this link to sign in or create an account on this server.
 
+There are two kinds of accounts:
+* Traditional: tied to this particular server, but provide good interoperability
+* Portable: allow replication of your data across multiple servers, mostly in a backwards compatible way
+
 The Common Name property of the client certificate ("identity") you use will determine your username.
+
+You can add additional client certificates later, or revoke access for an old certificate.
 
 Registered users can:
 * Publish posts

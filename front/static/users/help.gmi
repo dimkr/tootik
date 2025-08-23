@@ -115,9 +115,15 @@ For example:
 
 Polls must have between 2 and {{.Config.PollMaxOptions}} multi-choice options, and end after {{printf "%s" .Config.PollDuration}}.
 
-## Client Certificates ("Identities")
+## Registration.
 
-The username of a newly created account is the Common Name property of the client certificate used during registration.
+The username of a newly created account is the Common Name property of the client certificate used.
+
+There are two kinds of accounts:
+* Traditional: tied to this particular server, but provide good interoperability
+* Portable: allow replication of your data across multiple servers, mostly in a backwards compatible way
+
+## Client Certificates ("Identities")
 
 To associate an additional client certificate with your account:
 * Create a new client certificate with the same Common Name as your current certificate
