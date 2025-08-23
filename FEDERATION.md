@@ -189,7 +189,7 @@ When tootik receives a `POST` request to `inbox` from a portable actor, it expec
 
 tootik validates the integrity proof using the Ed25519 public key extracted from the key ID, and doesn't need to fetch the actor first.
 
-tootik's `inbox` doesn't validate HTTP signatures and simply ignores them. Therefore, automatic detection of RFC9421 and Ed25519 support on other servers ignores `200 OK` or `202 Accepted` responses from `/.well-known/apgateway`.
+tootik's `inbox` doesn't validate HTTP signatures and simply ignores them. Other servers might do the same, therefore automatic detection of RFC9421 and Ed25519 support on other servers ignores `200 OK` or `202 Accepted` responses from `/.well-known/apgateway`.
 
 ## Following
 
@@ -215,4 +215,3 @@ If a tootik user mentions `alice@a.localdomain` in a new post and it's a portabl
 * tootik does not support fetching of objects (like posts) and activities from `/.well-known/apgateway`: replication of data across all actors associated with the same DID is achieved using forwarding.
 * The RSA key under `publicKey` is generated during registration, so different actors owned by the same DID will use different RSA keys when they talk to servers that don't support Ed25519 signatures. Therefore, servers that cache only one RSA key for a DID with two actors might fail to validate some signatures.
 * Followers synchronization is disabled for portable actors, in both directions: tootik ignores the `Collection-Synchronization` header when activites are delivered to portable actors and doesn't attach it to an outgoing request if the sender is a portable actor.
-* tootik doesn't send a `Follow` activity when a followed portable actor adds a gateway.
