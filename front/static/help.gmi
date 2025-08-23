@@ -33,7 +33,7 @@ Follow this link to sign in or create an account on this server.
 
 There are two kinds of accounts:
 * Traditional: tied to this particular server, but provide good interoperability
-* Portable: allow replication of your data across multiple servers, mostly in a backwards compatible way
+* Portable: allow replication of your data across multiple servers, but replication is not 100% reliable and interoperability could be limited
 
 The Common Name property of the client certificate ("identity") you use will determine your username.
 

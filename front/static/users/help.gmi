@@ -121,7 +121,7 @@ The username of a newly created account is the Common Name property of the clien
 
 There are two kinds of accounts:
 * Traditional: tied to this particular server, but provide good interoperability
-* Portable: allow replication of your data across multiple servers, mostly in a backwards compatible way
+* Portable: allow replication of your data across multiple servers, but replication is not 100% reliable and interoperability could be limited
 
 ## Client Certificates ("Identities")
 
