@@ -78,6 +78,7 @@ func create(key httpsig.Key, now time.Time, doc, context any) (ap.Proof, error) 
 	docHash := sha256.Sum256(data)
 
 	return ap.Proof{
+		Context:            context,
 		Type:               "DataIntegrityProof",
 		CryptoSuite:        "eddsa-jcs-2022",
 		VerificationMethod: keyID,

@@ -17,6 +17,7 @@ limitations under the License.
 package ap
 
 type Proof struct {
+	Context            any    `json:"@context"`
 	Type               string `json:"type"`
 	CryptoSuite        string `json:"cryptosuite"`
 	VerificationMethod string `json:"verificationMethod"`
