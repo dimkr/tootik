@@ -502,7 +502,7 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 			return nil, cachedActor, fmt.Errorf("failed to parse key %s for %s to verify proof: %w", m[1], actor.ID, err)
 		}
 
-		if err := proof.Verify(publicKey, actor.Proof, actor.Context, body); err != nil {
+		if err := proof.Verify(publicKey, actor.Proof, body); err != nil {
 			return nil, cachedActor, fmt.Errorf("failed to verify proof for %s: %w", actor.ID, err)
 		}
 	}

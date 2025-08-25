@@ -123,7 +123,7 @@ func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Act
 			return nil, fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
 		}
 
-		if err := proof.Verify(publicKey, activity.Proof, activity.Context, raw); err != nil {
+		if err := proof.Verify(publicKey, activity.Proof, raw); err != nil {
 			return nil, fmt.Errorf("failed to verify proof using %s: %w", p.VerificationMethod, err)
 		}
 
@@ -140,7 +140,7 @@ func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Act
 		return nil, fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
 	}
 
-	if err := proof.Verify(publicKey, p, activity.Context, raw); err != nil {
+	if err := proof.Verify(publicKey, p, raw); err != nil {
 		return nil, fmt.Errorf("failed to verify proof using %s: %w", p.VerificationMethod, err)
 	}
 

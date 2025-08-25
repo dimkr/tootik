@@ -57,14 +57,16 @@ func create(key httpsig.Key, now time.Time, doc, context any) (ap.Proof, error) 
 		keyID = fmt.Sprintf("did:key:%s#%s", m[1], m[1])
 	}
 
-	cfg, err := normalizeJSON(map[string]any{
-		"@context":           context,
-		"type":               "DataIntegrityProof",
-		"cryptosuite":        "eddsa-jcs-2022",
-		"created":            created,
-		"proofPurpose":       "assertionMethod",
-		"verificationMethod": keyID,
-	})
+	proof := ap.Proof{
+		Context:            context,
+		Type:               "DataIntegrityProof",
+		CryptoSuite:        "eddsa-jcs-2022",
+		Created:            created,
+		Purpose:            "assertionMethod",
+		VerificationMethod: keyID,
+	}
+
+	cfg, err := normalizeJSON(proof)
 	if err != nil {
 		return ap.Proof{}, err
 	}
@@ -77,15 +79,8 @@ func create(key httpsig.Key, now time.Time, doc, context any) (ap.Proof, error) 
 	cfgHash := sha256.Sum256(cfg)
 	docHash := sha256.Sum256(data)
 
-	return ap.Proof{
-		Context:            context,
-		Type:               "DataIntegrityProof",
-		CryptoSuite:        "eddsa-jcs-2022",
-		VerificationMethod: keyID,
-		Purpose:            "assertionMethod",
-		Value:              "z" + base58.Encode(ed25519.Sign(edKey, append(cfgHash[:], docHash[:]...))),
-		Created:            created,
-	}, nil
+	proof.Value = "z" + base58.Encode(ed25519.Sign(edKey, append(cfgHash[:], docHash[:]...)))
+	return proof, nil
 }
 
 // Add adds an eddsa-jcs-2022 integrity proof to a JSON object.
@@ -106,35 +101,8 @@ func Add(key httpsig.Key, now time.Time, raw []byte) ([]byte, error) {
 	return json.Marshal(m)
 }
 
-func tryVerify(key ed25519.PublicKey, docHash [32]byte, proof ap.Proof, context any) (bool, error) {
-	m := map[string]any{
-		"type":               proof.Type,
-		"cryptosuite":        proof.CryptoSuite,
-		"created":            proof.Created,
-		"proofPurpose":       proof.Purpose,
-		"verificationMethod": proof.VerificationMethod,
-	}
-
-	if context != nil {
-		m["@context"] = context
-	}
-
-	cfg, err := normalizeJSON(m)
-	if err != nil {
-		return false, err
-	}
-
-	cfgHash := sha256.Sum256(cfg)
-
-	if ed25519.Verify(key, append(cfgHash[:], docHash[:]...), base58.Decode(proof.Value[1:])) {
-		return true, nil
-	}
-
-	return false, nil
-}
-
 // Verify verifies an integrity proof.
-func Verify(key any, proof ap.Proof, context any, raw []byte) error {
+func Verify(key any, proof ap.Proof, raw []byte) error {
 	edKey, ok := key.(ed25519.PublicKey)
 	if !ok {
 		return fmt.Errorf("wrong key type: %T", key)
@@ -175,23 +143,19 @@ func Verify(key any, proof ap.Proof, context any, raw []byte) error {
 
 	docHash := sha256.Sum256(data)
 
-	if ok, err := tryVerify(edKey, docHash, proof, context); err != nil {
+	options := proof
+	options.Value = ""
+
+	cfg, err := normalizeJSON(options)
+	if err != nil {
 		return err
-	} else if ok {
-		return nil
 	}
 
-	/*
-		try again without @context, because Hubzilla ignores it
-		https://framagit.org/hubzilla/core/-/blob/aaa863cda7c29daa4fe0322749f55f50e2123d1d/Zotlabs/Lib/JcsEddsa2022.php#L34
-	*/
-	if context != nil {
-		if ok, err := tryVerify(edKey, docHash, proof, nil); err != nil {
-			return err
-		} else if ok {
-			return nil
-		}
+	cfgHash := sha256.Sum256(cfg)
+
+	if !ed25519.Verify(edKey, append(cfgHash[:], docHash[:]...), base58.Decode(proof.Value[1:])) {
+		return errors.New("proof verification failed")
 	}
 
-	return errors.New("proof verification failed")
+	return nil
 }
