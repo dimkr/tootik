@@ -37,7 +37,7 @@ func IsPortable(id string) bool {
 // Abs prepends ap:// or https:// to a string to obtain a valid ActivityPub ID.
 func Abs(s string) string {
 	if DIDKeyRegex.MatchString(s) {
-		return "ap://" + s
+		return "ap://did:key:" + s
 	}
 
 	return "https://" + s
@@ -79,8 +79,8 @@ func GetOrigin(id string) (string, error) {
 		return "did:key:" + m[1], nil
 	}
 
-	if DIDKeyRegex.MatchString(id) {
-		return id, nil
+	if m := DIDKeyRegex.FindStringSubmatch(id); m != nil {
+		return "did:key:" + m[1], nil
 	}
 
 	if u, err := url.Parse(id); err != nil {
