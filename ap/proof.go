@@ -17,11 +17,11 @@ limitations under the License.
 package ap
 
 type Proof struct {
-	Context            any    `json:"@context"`
+	Context            any    `json:"@context,omitempty"`
 	Type               string `json:"type"`
 	CryptoSuite        string `json:"cryptosuite"`
 	VerificationMethod string `json:"verificationMethod"`
 	Purpose            string `json:"proofPurpose"`
-	Value              string `json:"proofValue"`
+	Value              string `json:"proofValue,omitempty"`
 	Created            string `json:"created"`
 }

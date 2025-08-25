@@ -52,14 +52,16 @@ func create(key httpsig.Key, now time.Time, doc, context any) (ap.Proof, error) 
 
 	created := now.UTC().Format(time.RFC3339)
 
-	cfg, err := normalizeJSON(map[string]any{
-		"@context":           context,
-		"type":               "DataIntegrityProof",
-		"cryptosuite":        "eddsa-jcs-2022",
-		"created":            created,
-		"proofPurpose":       "assertionMethod",
-		"verificationMethod": key.ID,
-	})
+	proof := ap.Proof{
+		Context:            context,
+		Type:               "DataIntegrityProof",
+		CryptoSuite:        "eddsa-jcs-2022",
+		Created:            created,
+		Purpose:            "assertionMethod",
+		VerificationMethod: key.ID,
+	}
+
+	cfg, err := normalizeJSON(proof)
 	if err != nil {
 		return ap.Proof{}, err
 	}
@@ -72,15 +74,8 @@ func create(key httpsig.Key, now time.Time, doc, context any) (ap.Proof, error) 
 	cfgHash := sha256.Sum256(cfg)
 	docHash := sha256.Sum256(data)
 
-	return ap.Proof{
-		Context:            context,
-		Type:               "DataIntegrityProof",
-		CryptoSuite:        "eddsa-jcs-2022",
-		VerificationMethod: key.ID,
-		Purpose:            "assertionMethod",
-		Value:              "z" + base58.Encode(ed25519.Sign(edKey, append(cfgHash[:], docHash[:]...))),
-		Created:            created,
-	}, nil
+	proof.Value = "z" + base58.Encode(ed25519.Sign(edKey, append(cfgHash[:], docHash[:]...)))
+	return proof, nil
 }
 
 // Add adds an eddsa-jcs-2022 integrity proof to a JSON object.
@@ -102,38 +97,26 @@ func Add(key httpsig.Key, now time.Time, raw []byte) ([]byte, error) {
 }
 
 // Verify verifies an integrity proof.
-func Verify(key any, activity *ap.Activity, raw []byte) error {
+func Verify(key any, proof ap.Proof, raw []byte) error {
 	edKey, ok := key.(ed25519.PublicKey)
 	if !ok {
 		return fmt.Errorf("wrong key type: %T", key)
 	}
 
-	if activity.Proof.Type != "DataIntegrityProof" {
-		return errors.New("invalid type: " + activity.Proof.Type)
+	if proof.Type != "DataIntegrityProof" {
+		return errors.New("invalid type: " + proof.Type)
 	}
 
-	if activity.Proof.CryptoSuite != "eddsa-jcs-2022" {
-		return errors.New("invalid cryptosuite: " + activity.Proof.CryptoSuite)
+	if proof.CryptoSuite != "eddsa-jcs-2022" {
+		return errors.New("invalid cryptosuite: " + proof.CryptoSuite)
 	}
 
-	if activity.Proof.Purpose != "assertionMethod" {
-		return errors.New("invalid purpose: " + activity.Proof.Purpose)
+	if proof.Purpose != "assertionMethod" {
+		return errors.New("invalid purpose: " + proof.Purpose)
 	}
 
-	if len(activity.Proof.Value) <= 1 || activity.Proof.Value[0] != 'z' {
-		return errors.New("invalid value: " + activity.Proof.Value)
-	}
-
-	cfg, err := normalizeJSON(map[string]any{
-		"@context":           activity.Context,
-		"type":               activity.Proof.Type,
-		"cryptosuite":        activity.Proof.CryptoSuite,
-		"created":            activity.Proof.Created,
-		"proofPurpose":       activity.Proof.Purpose,
-		"verificationMethod": activity.Proof.VerificationMethod,
-	})
-	if err != nil {
-		return err
+	if len(proof.Value) <= 1 || proof.Value[0] != 'z' {
+		return errors.New("invalid value: " + proof.Value)
 	}
 
 	var m map[string]json.RawMessage
@@ -141,6 +124,7 @@ func Verify(key any, activity *ap.Activity, raw []byte) error {
 		return err
 	}
 	delete(m, "proof")
+	delete(m, "signature")
 
 	j, err := json.Marshal(m)
 	if err != nil {
@@ -152,10 +136,19 @@ func Verify(key any, activity *ap.Activity, raw []byte) error {
 		return err
 	}
 
-	cfgHash := sha256.Sum256(cfg)
 	docHash := sha256.Sum256(data)
 
-	if !ed25519.Verify(edKey, append(cfgHash[:], docHash[:]...), base58.Decode(activity.Proof.Value[1:])) {
+	options := proof
+	options.Value = ""
+
+	cfg, err := normalizeJSON(options)
+	if err != nil {
+		return err
+	}
+
+	cfgHash := sha256.Sum256(cfg)
+
+	if !ed25519.Verify(edKey, append(cfgHash[:], docHash[:]...), base58.Decode(proof.Value[1:])) {
 		return errors.New("proof verification failed")
 	}
 
