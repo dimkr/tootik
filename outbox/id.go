@@ -18,14 +18,19 @@ package outbox
 import (
 	"fmt"
 
+	"github.com/dimkr/tootik/ap"
 	"github.com/google/uuid"
 )
 
 // NewID generates a pseudo-random ID.
-func NewID(domain, prefix string) (string, error) {
+func NewID(actorID, domain, prefix string) (string, error) {
 	u, err := uuid.NewV7()
 	if err != nil {
 		return "", fmt.Errorf("failed to generate %s ID: %w", prefix, err)
+	}
+
+	if m := ap.CompatibleURLRegex.FindStringSubmatch(actorID); m != nil {
+		return fmt.Sprintf("https://%s/.well-known/apgateway/did:key:%s/actor/%s/%s", domain, m[1], prefix, u.String()), nil
 	}
 
 	return fmt.Sprintf("https://%s/%s/%s", domain, prefix, u.String()), nil

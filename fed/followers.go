@@ -121,7 +121,7 @@ func (f partialFollowers) Digest(ctx context.Context, db *sql.DB, domain string,
 func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("username")
 
-	_, sender, err := l.verifyRequest(r, nil, ap.InstanceActor)
+	_, sender, err := l.verifyRequest(r, nil, ap.InstanceActor, l.ActorKeys)
 	if err != nil {
 		slog.Warn("Failed to verify followers request", "error", err)
 		w.WriteHeader(http.StatusUnauthorized)
@@ -299,7 +299,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 
 		var followID string
 		if err := db.QueryRowContext(ctx, `SELECT id FROM follows WHERE follower = ? AND followed = ?`, follower, d.Followed).Scan(&followID); err != nil && errors.Is(err, sql.ErrNoRows) {
-			followID, err = outbox.NewID(domain, "follow")
+			followID, err = outbox.NewID(d.Followed, domain, "follow")
 			if err != nil {
 				slog.Warn("Failed to generate fake follow ID", "followed", d.Followed, "follower", follower, "error", err)
 				continue

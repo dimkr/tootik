@@ -93,16 +93,19 @@ func getTextAndLinks(s string, maxRunes, maxLines int) ([]string, data.OrderedMa
 }
 
 func (h *Handler) getDisplayName(id, preferredUsername, name string, t ap.ActorType) string {
-	prefix := fmt.Sprintf("https://%s/user/", h.Domain)
-
-	isLocal := strings.HasPrefix(id, prefix)
+	origin, err := ap.GetOrigin(id)
+	if err != nil {
+		origin = ""
+	}
 
 	emoji := "👽"
 	if t == ap.Group {
 		emoji = "👥"
 	} else if t != ap.Person {
 		emoji = "🤖"
-	} else if isLocal {
+	} else if strings.HasPrefix(origin, "did:") {
+		emoji = "🚴"
+	} else if origin == h.Domain {
 		emoji = "😈"
 	} else if strings.Contains(id, "masto") || strings.Contains(id, "mstdn") {
 		emoji = "🐘"

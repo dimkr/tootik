@@ -36,6 +36,7 @@ import (
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/lock"
+	"github.com/dimkr/tootik/proof"
 )
 
 // Resolver retrieves actor objects given their ID.
@@ -468,9 +469,14 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 
 	keyIDs := make(map[string]struct{}, 2)
 
-	if u, err := url.Parse(actor.PublicKey.ID); err != nil {
+	actorOrigin, err := ap.GetOrigin(actor.ID)
+	if err != nil {
+		return nil, cachedActor, fmt.Errorf("failed to get %s origin: %w", actor.ID, err)
+	}
+
+	if keyOrigin, err := ap.GetOrigin(actor.PublicKey.ID); err != nil {
 		slog.Debug("Failed to parse public key ID", "actor", actor.ID, "key", actor.PublicKey.ID, "error", err)
-	} else if u.Host == host {
+	} else if keyOrigin == actorOrigin {
 		keyIDs[actor.PublicKey.ID] = struct{}{}
 	} else {
 		slog.Warn("Public key ID belongs to a different host", "actor", actor.ID, "key", actor.PublicKey.ID)
@@ -481,12 +487,23 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 			continue
 		}
 
-		if u, err := url.Parse(method.ID); err != nil {
+		if methodOrigin, err := ap.GetOrigin(method.ID); err != nil {
 			slog.Debug("Failed to parse assertion method ID", "actor", actor.ID, "key", method.ID, "error", err)
-		} else if u.Host == host {
+		} else if methodOrigin == actorOrigin {
 			keyIDs[method.ID] = struct{}{}
 		} else {
 			slog.Warn("Assertion method ID belongs to a different host", "actor", actor.ID, "key", method.ID)
+		}
+	}
+
+	if m := ap.CompatibleURLRegex.FindStringSubmatch(actor.ID); m != nil {
+		publicKey, err := data.DecodeEd25519PublicKey(m[1])
+		if err != nil {
+			return nil, cachedActor, fmt.Errorf("failed to parse key %s for %s to verify proof: %w", m[1], actor.ID, err)
+		}
+
+		if err := proof.Verify(publicKey, actor.Proof, body); err != nil {
+			return nil, cachedActor, fmt.Errorf("failed to verify proof for %s: %w", actor.ID, err)
 		}
 	}
 
@@ -497,8 +514,9 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO persons(id, actor, fetched) VALUES ($1, JSONB($2), UNIXEPOCH()) ON CONFLICT(id) DO UPDATE SET actor = JSONB($2), updated = UNIXEPOCH()`,
+		`INSERT INTO persons(id, cid, actor, fetched) VALUES ($1, $2, JSONB($3), UNIXEPOCH()) ON CONFLICT(id) DO UPDATE SET actor = JSONB($3), updated = UNIXEPOCH()`,
 		actor.ID,
+		ap.Canonical(actor.ID),
 		string(body),
 	); err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
@@ -531,6 +549,22 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 		actor.ID,
 	); err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
+	}
+
+	if ap.IsPortable(actor.ID) {
+		if _, err := tx.ExecContext(
+			ctx,
+			`
+			INSERT OR IGNORE INTO follows (id, follower, followed, followedcid, accepted)
+			SELECT others.id, others.follower, $1, $2, others.accepted
+			FROM follows others
+			WHERE others.followedcid = $2
+			`,
+			actor.ID,
+			ap.Canonical(actor.ID),
+		); err != nil {
+			return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
+		}
 	}
 
 	if err := tx.Commit(); err != nil {

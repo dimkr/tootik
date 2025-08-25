@@ -17,11 +17,13 @@ limitations under the License.
 package front
 
 import (
+	"crypto/ed25519"
 	"crypto/tls"
 	"database/sql"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/user"
 )
@@ -89,10 +91,49 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 
 	r.Log.Info("Creating new user", "name", userName)
 
-	if _, _, err := user.Create(r.Context, h.Domain, h.DB, userName, ap.Person, clientCert); err != nil {
-		r.Log.Warn("Failed to create new user", "name", userName, "error", err)
-		w.Status(40, "Failed to create new user")
+	switch r.URL.RawQuery {
+	case "":
+		w.Status(10, "Create portable user? (y/n)")
 		return
+
+	case "n":
+		if _, _, err := user.Create(r.Context, h.Domain, h.DB, userName, ap.Person, clientCert); err != nil {
+			r.Log.Warn("Failed to create new user", "name", userName, "error", err)
+			w.Status(40, "Failed to create new user")
+			return
+		}
+
+	case "y":
+		w.Status(10, "base58-encoded Ed25519 private key or 'generate' to generate")
+		return
+
+	case "generate":
+		_, priv, err := ed25519.GenerateKey(nil)
+		if err != nil {
+			r.Log.Warn("Failed to generate key", "error", err)
+			w.Status(40, "Failed to generate key")
+			return
+		}
+
+		if _, _, err := user.CreatePortable(r.Context, h.Domain, h.DB, userName, clientCert, priv, data.EncodeEd25519PrivateKey(priv)); err != nil {
+			r.Log.Warn("Failed to create new portable user", "name", userName, "error", err)
+			w.Status(40, "Failed to create new user")
+			return
+		}
+
+	default:
+		key, err := data.DecodeEd25519PrivateKey(r.URL.RawQuery)
+		if err != nil {
+			r.Log.Warn("Failed to decode Ed25519 private key", "name", userName, "error", err)
+			w.Statusf(40, "Invalid key: %s", err.Error())
+			return
+		}
+
+		if _, _, err := user.CreatePortable(r.Context, h.Domain, h.DB, userName, clientCert, key, r.URL.RawQuery); err != nil {
+			r.Log.Warn("Failed to create new portable user", "name", userName, "error", err)
+			w.Status(40, "Failed to create new user")
+			return
+		}
 	}
 
 	w.Redirect("/users")

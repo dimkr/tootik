@@ -99,8 +99,120 @@ tootik attaches the `Collection-Synchronization` header to outgoing activities i
 
 Received `Collection-Synchronization` headers are saved in the tootik database and a periodic job (see `FollowersSyncInterval`) synchronizes the collections by sending `Undo` activities for unknown remote `Follow`s and clearing the `accepted` flag for unknown local `Follow`s.
 
+tootik saves IDs of received `Follow` activities so it can use them in future `Accept` or `Reject` activities. However, when it receives such activities, it ignores the activity ID and only compares the following and followed actor IDs to track the current status of each pair.
+
 # NodeInfo
 
 tootik exposes instance metadata like its version number, through NodeInfo 2.0. This metadata is collected by fediverse statistics sites like [FediDB](https://fedidb.org/).
 
 By default, tootik returns 0 in user and post counters unless `FillNodeInfoUsage` is changed to `true`.
+
+# Data Portability
+
+tootik partially supports [FEP-ef61](https://codeberg.org/fediverse/fep/src/branch/main/fep/ef61/fep-ef61.md) portable actors, activities and objects.
+
+## Registration
+
+A portable actor is created by generating or supplying a pre-generated, base58-encoded Ed25519 private key during registration.
+
+tootik does not support the [FEP-ae97](https://codeberg.org/fediverse/fep/src/branch/main/fep/ae97/fep-ae97.md) registration flow.
+
+## Compatibility
+
+A portable actor named `alice` on `a.localdomain` can be looked up over [WebFinger](https://www.rfc-editor.org/rfc/rfc7033):
+
+	https://a.localdomain/.well-known/webfinger?resource=acct:alice@a.localdomain
+
+The response points to a `https://` gateway that returns the actor object:
+
+	{
+		...
+		"links": [
+			{
+				...
+				"href": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkjuj94k9qn7Rwddw3GnFeTq8fBcxzJ6Dgjw249LBYyqRE/actor",
+			}
+		]
+	}
+
+... and the actor object uses "compatible" `https://` URLs:
+
+```
+{
+    "@context": [
+        "https://www.w3.org/ns/activitystreams",
+        "https://w3id.org/security/data-integrity/v1"
+    ],
+    "id": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor",
+    "type": "Person",
+    "preferredUsername": "alice",
+    "inbox": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor/inbox",
+    "outbox": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor/outbox",
+    "followers": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor/followers",
+    "gateways": [
+        "https://a.localdomain"
+    ],
+    "assertionMethod": [
+        {
+            "controller": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor",
+            "id": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor#ed25519-key",
+            "publicKeyMultibase": "z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN",
+            "type": "Multikey"
+        }
+    ],
+    "proof": {
+        "@context": [
+            "https://www.w3.org/ns/activitystreams",
+            "https://w3id.org/security/data-integrity/v1"
+        ],
+        "created": "2025-08-21T19:07:24Z",
+        "cryptosuite": "eddsa-jcs-2022",
+        "proofPurpose": "assertionMethod",
+        "proofValue": "z4ykaucb9f6XZPGBM7bRPfDHPzwvyVGPedvFbiKibmgHc9fE5nyYUFa5b6Nc3YqFYL8A5L5jQ7HBVpNs14FsxsomW",
+        "type": "DataIntegrityProof",
+        "verificationMethod": "did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN"
+    },
+    "publicKey": {
+        "id": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor#main-key",
+        "owner": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor",
+        "publicKeyPem": "-----BEGIN RSA PUBLIC KEY-----\nMIIBCgKCAQEAo1kH9SLrhJynDBwEcdzHD1wkTq96qZuj8VTMHSOh2mNcCoQap8Fw\ndlzggcXu4yQyPVg/dZTvf12xijCGOpfm6/1+4OfRL6la7FBqVDGBtmKjrjt+KEZE\ny9apO0tUEcRyvX39gbdnrX5VV/8RA4+fPD/BU6GipKhIvnBmxr/qfE9JSMlcn3YE\nSYhdjb+QryMVfs50qKtxjonHi4crkTg222qNScf7hsF31nEvrhWLkD8Pii6JPaZ+\nKp+wftNAQahYxDh0TZSKx+2ZqB8fakMqT5qNY0+ZXUk+b3FQ6XBXmf2RdMKl/HOM\nEdol4X6ZQts/qDmMx0m1hHvrxTbB6gBvcQIDAQAB\n-----END RSA PUBLIC KEY-----\n"
+    },
+    "manuallyApprovesFollowers": false
+}
+```
+
+Portable actors have both Ed25519 and RSA keys, allowing them to interact with actors on ActivityPub servers that don't support Ed25519 signatures.
+
+## Security
+
+When tootik receives a `POST` request to `inbox` from a portable actor, it expects a valid [FEP-8b32](https://codeberg.org/fediverse/fep/src/branch/main/fep/8b32/fep-8b32.md) integrity proof and ability to fetch the actor, if not cached.
+
+tootik validates the integrity proof using the Ed25519 public key extracted from the key ID, and doesn't need to fetch the actor first.
+
+tootik's `inbox` doesn't validate HTTP signatures and simply ignores them. Other servers might do the same, therefore automatic detection of RFC9421 and Ed25519 support on other servers ignores `200 OK` or `202 Accepted` responses from `/.well-known/apgateway`.
+
+## Following
+
+tootik doesn't know whether or not `a.localdomain` responds to `Follow` activities sent to actors owned by the same DID on `b.localdomain` and `c.localdomain`.
+
+Therefore:
+* When a user asks to follow a portable actor, tootik behaves as if the user requested to follow all currently known actors that share the same DID.
+* Every time one of these actors sends an `Accept` activity, tootik marks the existing request as accepted.
+* Every time an additional actor that shares the same DID sends an `Accept` activity, tootik behaves as if the user requested to follow this actor and marks the request as accepted.
+* Every time an additional actor that shares the same DID is discovered, tootik behaves as if the user requested to follow this actor and copies the request status from a previous request.
+
+If `alice@a.localdomain` shares the same DID as `bob@b.localdomain`, tootik on `a.localdomain` doesn't add the `Collection-Synchronization` header when it forwards activities by `bob@b.localdomain` to `carol@c.localdomain`, because `alice@a.localdomain` and `bob@b.localdomain` may disagree about the list of followers due to interoperability issues or simply because federation and persistent storage are not 100% reliable.
+
+## Forwarding
+
+If tootik on `a.localdomain` receives an activity from `b.localdomain` by a portable actor registered on `a.localdomain`, with gateways `a.localdomain`, `b.localdomain` and `c.localdomain`, it forwards the activity to `b.localdomain` and `c.localdomain`. In addition, tootik forwards activities forwarded by this actor: a reply in a thread started by the portable actor on `a.localdomain` will get forwarded to `b.localdomain` and `c.localdomain`.
+
+When tootik forwards activities, it assumes that other servers use the same URL format: for example, if `did:key:x` is registered on `a.localdomain` and `b.localdomain`, `a.localdomain` puts `https://a.localdomain/.well-known/apgateway/did:key:x/actor/inbox` in `inbox` and forwards activities to `b.localdomain` by sending them to `https://b.localdomain/.well-known/apgateway/did:key:x/actor/inbox`.
+
+If a tootik user mentions `alice@a.localdomain` in a new post and it's a portable actor that's also registered as `bob@b.localdomin`, this post is only sent to `alice@a.localdomain`: tootik assumes that the receiving server is responsible for forwarding the activity to other gateways.
+
+## Limitations
+
+* tootik does not support `ap://` identifiers, location hints and delivery to `outbox`.
+* tootik does not support fetching of objects (like posts) and activities from `/.well-known/apgateway`: replication of data across all actors associated with the same DID is achieved using forwarding.
+* The RSA key under `publicKey` is generated during registration, so different actors owned by the same DID will use different RSA keys when they talk to servers that don't support Ed25519 signatures. Therefore, servers that cache only one RSA key for a DID with two actors might fail to validate some signatures.

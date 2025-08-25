@@ -117,7 +117,7 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 
 		resp.Links = append(resp.Links, webFingerLink{
 			Rel:  "self",
-			Type: "application/activity+json",
+			Type: `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`,
 			Href: actorID.String,
 			Properties: webFingerProperties{
 				Type: ap.ActorType(actorType),

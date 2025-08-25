@@ -31,7 +31,7 @@ func Unfollow(ctx context.Context, domain string, db *sql.DB, follower, followed
 		return fmt.Errorf("%s cannot unfollow %s", follower, followed)
 	}
 
-	undoID, err := NewID(domain, "undo")
+	undoID, err := NewID(follower, domain, "undo")
 	if err != nil {
 		return err
 	}
@@ -70,7 +70,8 @@ func Unfollow(ctx context.Context, domain string, db *sql.DB, follower, followed
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES (?, JSONB(?), ?)`,
+		ap.Canonical(unfollow.ID),
 		&unfollow,
 		follower,
 	); err != nil {

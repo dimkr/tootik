@@ -111,13 +111,16 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request) (*http.Response, e
 		return resp, fmt.Errorf("failed to send request to %s: %d, %s", urlString, resp.StatusCode, string(body))
 	}
 
-	if _, err = s.DB.ExecContext(
-		req.Context(),
-		`INSERT INTO servers (host, capabilities) VALUES ($1, $2) ON CONFLICT(host) DO UPDATE SET capabilities = capabilities | $2, updated = UNIXEPOCH()`,
-		req.URL.Host,
-		capabilities,
-	); err != nil {
-		slog.Warn("Failed to record server capabilities", "server", req.URL.Host, "error", err)
+	// other servers may ignore the signature if the request includes a valid identity proof
+	if !ap.IsPortable(keys[1].ID) {
+		if _, err = s.DB.ExecContext(
+			req.Context(),
+			`INSERT INTO servers (host, capabilities) VALUES ($1, $2) ON CONFLICT(host) DO UPDATE SET capabilities = capabilities | $2, updated = UNIXEPOCH()`,
+			req.URL.Host,
+			capabilities,
+		); err != nil {
+			slog.Warn("Failed to record server capabilities", "server", req.URL.Host, "error", err)
+		}
 	}
 
 	return resp, nil

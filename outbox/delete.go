@@ -63,7 +63,8 @@ func Delete(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, not
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES (?, JSONB(?), ?)`,
+		ap.Canonical(delete.ID),
 		string(j),
 		note.AttributedTo,
 	); err != nil {

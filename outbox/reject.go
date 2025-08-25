@@ -26,7 +26,7 @@ import (
 
 // Reject queues a Reject activity for delivery.
 func Reject(ctx context.Context, domain string, followed, follower, followID string, tx *sql.Tx) error {
-	id, err := NewID(domain, "reject")
+	id, err := NewID(followed, domain, "reject")
 	if err != nil {
 		return err
 	}
@@ -50,7 +50,8 @@ func Reject(ctx context.Context, domain string, followed, follower, followID str
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES (?, JSONB(?), ?)`,
+		ap.Canonical(reject.ID),
 		&reject,
 		followed,
 	); err != nil {

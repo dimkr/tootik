@@ -28,7 +28,7 @@ import (
 // Announce queues an Announce activity for delivery.
 func Announce(ctx context.Context, domain string, tx *sql.Tx, actor *ap.Actor, note *ap.Object) error {
 	now := time.Now()
-	announceID, err := NewID(domain, "announce")
+	announceID, err := NewID(actor.ID, domain, "announce")
 	if err != nil {
 		return err
 	}
@@ -80,7 +80,8 @@ func Announce(ctx context.Context, domain string, tx *sql.Tx, actor *ap.Actor, n
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES (?, JSONB(?), ?)`,
+		ap.Canonical(announce.ID),
 		&announce,
 		actor.ID,
 	); err != nil {

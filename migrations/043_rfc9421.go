@@ -9,8 +9,8 @@ import (
 	"encoding/pem"
 	"fmt"
 
-	"github.com/btcsuite/btcutil/base58"
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/data"
 )
 
 func rfc9421(ctx context.Context, domain string, tx *sql.Tx) error {
@@ -46,7 +46,7 @@ func rfc9421(ctx context.Context, domain string, tx *sql.Tx) error {
 				return err
 			}
 
-			pub, priv, err := ed25519.GenerateKey(nil)
+			_, priv, err := ed25519.GenerateKey(nil)
 			if err != nil {
 				return err
 			}
@@ -72,7 +72,7 @@ func rfc9421(ctx context.Context, domain string, tx *sql.Tx) error {
 					ID:                 actor.ID + "#ed25519-key",
 					Type:               "Multikey",
 					Controller:         actor.ID,
-					PublicKeyMultibase: "z" + base58.Encode(append([]byte{0xed, 0x01}, pub...)),
+					PublicKeyMultibase: data.EncodeEd25519PublicKey(priv),
 				},
 			}
 

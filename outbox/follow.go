@@ -19,6 +19,7 @@ package outbox
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
@@ -30,7 +31,7 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 		return fmt.Errorf("%s cannot follow %s", follower.ID, followed)
 	}
 
-	followID, err := NewID(domain, "follow")
+	followID, err := NewID(follower.ID, domain, "follow")
 	if err != nil {
 		return err
 	}
@@ -54,34 +55,42 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 	defer tx.Rollback()
 
 	// if the followed user is local and doesn't require manual approval, we can mark as accepted
-	if _, err := tx.ExecContext(
+	if res, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO follows
+		`
+		INSERT INTO follows
 			(
 				id,
 				follower,
 				followed,
+				followedcid,
 				accepted
 			)
-		VALUES
-			(
-				$1,
-				$2,
-				$3,
-				(SELECT CASE WHEN host = $4 AND COALESCE(actor->>'$.manuallyApprovesFollowers', 0) = 0 THEN 1 ELSE NULL END FROM persons WHERE id = $3)
-			)
+		SELECT
+			$1,
+			$2,
+			id,
+			$3,
+			CASE WHEN ed25519privkey IS NOT NULL AND COALESCE(actor->>'$.manuallyApprovesFollowers', 0) = 0 THEN 1 ELSE NULL END
+		FROM persons
+		WHERE cid = $3
+		ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = NULL, inserted = UNIXEPOCH()
 		`,
 		followID,
 		follower.ID,
-		followed,
-		domain,
+		ap.Canonical(followed),
 	); err != nil {
 		return fmt.Errorf("failed to insert follow: %w", err)
+	} else if n, err := res.RowsAffected(); err != nil {
+		return fmt.Errorf("failed to insert follow: %w", err)
+	} else if n == 0 {
+		return errors.New("failed to insert follow: no rows inserted")
 	}
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
+		`INSERT INTO outbox (cid, activity, sender) VALUES (?, JSONB(?), ?)`,
+		ap.Canonical(follow.ID),
 		&follow,
 		follower.ID,
 	); err != nil {
