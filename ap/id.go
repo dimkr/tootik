@@ -34,15 +34,6 @@ func IsPortable(id string) bool {
 	return PortableIDRegex.MatchString(id) || CompatibleURLRegex.MatchString(id)
 }
 
-// Abs prepends ap:// or https:// to a string to obtain a valid ActivityPub ID.
-func Abs(s string) string {
-	if DIDKeyRegex.MatchString(s) {
-		return "ap://did:key:" + s
-	}
-
-	return "https://" + s
-}
-
 // Canonical returns an ID in canonical form: if portable, it's converted to an ap:// URL.
 func Canonical(id string) string {
 	if PortableIDRegex.MatchString(id) {
