@@ -19,7 +19,7 @@ package cluster
 import (
 	"testing"
 
-	"github.com/dimkr/tootik/outbox"
+	"github.com/dimkr/tootik/inbox"
 )
 
 func TestCluster_Poll(t *testing.T) {
@@ -55,10 +55,8 @@ func TestCluster_Poll(t *testing.T) {
 		OK()
 	cluster.Settle(t)
 
-	poller := outbox.Poller{
-		Domain: "b.localdomain",
-		DB:     cluster["b.localdomain"].DB,
-		Config: cluster["b.localdomain"].Config,
+	poller := inbox.Poller{
+		Queue: cluster["b.localdomain"].Incoming,
 	}
 	if err := poller.Run(t.Context()); err != nil {
 		t.Fatalf("Failed to process votes: %v", err)

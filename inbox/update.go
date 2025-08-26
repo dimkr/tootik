@@ -14,22 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package outbox
+package inbox
 
 import (
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	inote "github.com/dimkr/tootik/inbox/note"
 )
 
 // UpdateNote queues an Update activity for delivery.
-func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, note *ap.Object) error {
-	updateID, err := NewID(note.AttributedTo, domain, "update")
+func (q *Queue) UpdateNote(ctx context.Context, cfg *cfg.Config, db *sql.DB, actor *ap.Actor, note *ap.Object) error {
+	updateID, err := q.NewID(note.AttributedTo, "update")
 	if err != nil {
 		return err
 	}
@@ -57,33 +57,6 @@ func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB,
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`UPDATE notes SET object = JSONB(?) WHERE id = ?`,
-		&note,
-		note.ID,
-	); err != nil {
-		return fmt.Errorf("failed to update note: %w", err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`UPDATE notesfts SET content = ? WHERE id = ?`,
-		inote.Flatten(note),
-		note.ID,
-	); err != nil {
-		return fmt.Errorf("failed to update note: %w", err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`UPDATE feed SET note = JSONB(?) WHERE note->>'$.id' = ?`,
-		&note,
-		note.ID,
-	); err != nil {
-		return fmt.Errorf("failed to update note: %w", err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
 		`INSERT INTO outbox (cid, activity, sender) VALUES (?, JSONB(?), ?)`,
 		ap.Canonical(update.ID),
 		string(j),
@@ -92,21 +65,8 @@ func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB,
 		return fmt.Errorf("failed to insert update activity: %w", err)
 	}
 
-	if _, err = tx.ExecContext(ctx, `delete from hashtags where note = ?`, note.ID); err != nil {
-		return fmt.Errorf("failed to delete old hashtags: %w", err)
-	}
-
-	for _, hashtag := range note.Tag {
-		if hashtag.Type != ap.Hashtag || len(hashtag.Name) <= 1 || hashtag.Name[0] != '#' {
-			continue
-		}
-		if _, err = tx.ExecContext(ctx, `insert into hashtags (note, hashtag) values(?,?)`, note.ID, hashtag.Name[1:]); err != nil {
-			return fmt.Errorf("failed to insert hashtag: %w", err)
-		}
-	}
-
-	if err := ForwardActivity(ctx, domain, cfg, tx, note, &update, string(j)); err != nil {
-		return err
+	if err := q.processActivity(ctx, tx, slog.With(), actor, &update, string(j), 1, false); err != nil {
+		return fmt.Errorf("failed to update note: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -117,8 +77,8 @@ func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB,
 }
 
 // UpdateActor queues an Update activity for delivery.
-func UpdateActor(ctx context.Context, domain string, tx *sql.Tx, actorID string) error {
-	updateID, err := NewID(actorID, domain, "update")
+func (q *Queue) UpdateActor(ctx context.Context, tx *sql.Tx, actorID string) error {
+	updateID, err := q.NewID(actorID, "update")
 	if err != nil {
 		return err
 	}

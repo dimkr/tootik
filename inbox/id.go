@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package outbox
+package inbox
 
 import (
 	"fmt"
@@ -23,15 +23,15 @@ import (
 )
 
 // NewID generates a pseudo-random ID.
-func NewID(actorID, domain, prefix string) (string, error) {
+func (q *Queue) NewID(actorID, prefix string) (string, error) {
 	u, err := uuid.NewV7()
 	if err != nil {
 		return "", fmt.Errorf("failed to generate %s ID: %w", prefix, err)
 	}
 
 	if m := ap.CompatibleURLRegex.FindStringSubmatch(actorID); m != nil {
-		return fmt.Sprintf("https://%s/.well-known/apgateway/did:key:%s/actor/%s/%s", domain, m[1], prefix, u.String()), nil
+		return fmt.Sprintf("https://%s/.well-known/apgateway/did:key:%s/actor/%s/%s", q.Domain, m[1], prefix, u.String()), nil
 	}
 
-	return fmt.Sprintf("https://%s/%s/%s", domain, prefix, u.String()), nil
+	return fmt.Sprintf("https://%s/%s/%s", q.Domain, prefix, u.String()), nil
 }

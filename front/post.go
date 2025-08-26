@@ -28,7 +28,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/text/plain"
-	"github.com/dimkr/tootik/outbox"
+	"github.com/dimkr/tootik/inbox"
 )
 
 const (
@@ -84,7 +84,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 	var postID string
 	if oldNote == nil {
 		var err error
-		postID, err = outbox.NewID(r.User.ID, h.Domain, "post")
+		postID, err = h.Queue.NewID(r.User.ID, "post")
 		if err != nil {
 			r.Log.Error("Failed to generate post ID", "error", err)
 			w.Error()
@@ -247,13 +247,13 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 
 		note.Updated = now
 
-		err = outbox.UpdateNote(r.Context, h.Domain, h.Config, h.DB, &note)
+		err = h.Queue.UpdateNote(r.Context, h.Config, h.DB, r.User, &note)
 	} else {
-		err = outbox.Create(r.Context, h.Domain, h.Config, h.DB, &note, r.User)
+		err = h.Queue.Create(r.Context, h.Config, h.DB, &note, r.User)
 	}
 	if err != nil {
 		r.Log.Error("Failed to insert post", "error", err)
-		if errors.Is(err, outbox.ErrDeliveryQueueFull) {
+		if errors.Is(err, inbox.ErrDeliveryQueueFull) {
 			w.Status(40, "Please try again later")
 		} else {
 			w.Error()

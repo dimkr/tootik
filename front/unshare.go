@@ -22,7 +22,6 @@ import (
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
-	"github.com/dimkr/tootik/outbox"
 )
 
 func (h *Handler) unshare(w text.Writer, r *Request, args ...string) {
@@ -44,7 +43,7 @@ func (h *Handler) unshare(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := outbox.Undo(r.Context, h.Domain, h.DB, &share); err != nil {
+	if err := h.Queue.Undo(r.Context, h.DB, r.User, &share); err != nil {
 		r.Log.Warn("Failed to unshare post", "post", postID, "error", err)
 		w.Error()
 		return

@@ -14,26 +14,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package outbox
+package inbox
 
 import (
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 )
 
 // Delete queues a Delete activity for delivery.
-func Delete(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, note *ap.Object) error {
+func (q *Queue) Delete(ctx context.Context, cfg *cfg.Config, db *sql.DB, actor *ap.Actor, note *ap.Object) error {
 	delete := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      note.ID + "#delete",
 		Type:    ap.Delete,
 		Actor:   note.AttributedTo,
-		Object: ap.Object{
+		Object: &ap.Object{
 			Type: note.Type,
 			ID:   note.ID,
 		},
@@ -71,49 +72,8 @@ func Delete(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, not
 		return fmt.Errorf("failed to insert delete activity: %w", err)
 	}
 
-	// determine whether or not this activity needs to be forwarded before we potentially punch a hole in the thread
-	if err := ForwardActivity(ctx, domain, cfg, tx, note, &delete, string(j)); err != nil {
+	if err := q.processActivity(ctx, tx, slog.With(), actor, &delete, string(j), 1, false); err != nil {
 		return fmt.Errorf("failed to insert delete activity: %w", err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`DELETE FROM notes WHERE id = ?`,
-		note.ID,
-	); err != nil {
-		return fmt.Errorf("failed to delete note: %w", err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`DELETE FROM notesfts WHERE id = ?`,
-		note.ID,
-	); err != nil {
-		return fmt.Errorf("failed to delete note: %w", err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`DELETE FROM shares WHERE note = ?`,
-		note.ID,
-	); err != nil {
-		return fmt.Errorf("failed to delete note: %w", err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`DELETE FROM bookmarks WHERE note = ?`,
-		note.ID,
-	); err != nil {
-		return fmt.Errorf("failed to delete note: %w", err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`DELETE FROM feed WHERE note->>'$.id' = ?`,
-		note.ID,
-	); err != nil {
-		return fmt.Errorf("failed to delete note: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {

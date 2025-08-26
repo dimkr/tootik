@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,19 +14,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package outbox
+package inbox
 
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
 )
 
-// Reject queues a Reject activity for delivery.
-func Reject(ctx context.Context, domain string, followed, follower, followID string, tx *sql.Tx) error {
-	id, err := NewID(followed, domain, "reject")
+// Accept queues an Accept activity for delivery.
+func (q *Queue) Accept(ctx context.Context, followed *ap.Actor, follower, followID string, tx *sql.Tx) error {
+	id, err := q.NewID(followed.ID, "accept")
 	if err != nil {
 		return err
 	}
@@ -34,11 +36,11 @@ func Reject(ctx context.Context, domain string, followed, follower, followID str
 	recipients := ap.Audience{}
 	recipients.Add(follower)
 
-	reject := ap.Activity{
+	accept := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
-		Type:    ap.Reject,
+		Type:    ap.Accept,
 		ID:      id,
-		Actor:   followed,
+		Actor:   followed.ID,
 		To:      recipients,
 		Object: &ap.Activity{
 			Actor:  follower,
@@ -48,26 +50,23 @@ func Reject(ctx context.Context, domain string, followed, follower, followID str
 		},
 	}
 
+	j, err := json.Marshal(&accept)
+	if err != nil {
+		return err
+	}
+
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (cid, activity, sender) VALUES (?, JSONB(?), ?)`,
-		ap.Canonical(reject.ID),
-		&reject,
-		followed,
+		ap.Canonical(accept.ID),
+		string(j),
+		followed.ID,
 	); err != nil {
-		return fmt.Errorf("failed to reject %s: %w", follower, err)
+		return fmt.Errorf("failed to accept %s: %w", followID, err)
 	}
 
-	if res, err := tx.ExecContext(
-		ctx,
-		`UPDATE follows SET accepted = 0 WHERE id = ? AND (accepted IS NULL OR accepted = 1)`,
-		followID,
-	); err != nil {
-		return fmt.Errorf("failed to reject %s: %w", follower, err)
-	} else if n, err := res.RowsAffected(); err != nil {
-		return fmt.Errorf("failed to reject %s: %w", follower, err)
-	} else if n == 0 {
-		return fmt.Errorf("failed to reject %s: cannot reject", follower)
+	if err := q.processActivity(ctx, tx, slog.With("activity", &accept), followed, &accept, string(j), 1, false); err != nil {
+		return fmt.Errorf("failed to accept %s: %w", followID, err)
 	}
 
 	return nil

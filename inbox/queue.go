@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
@@ -32,7 +31,6 @@ import (
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/inbox/note"
-	"github.com/dimkr/tootik/outbox"
 )
 
 type Queue struct {
@@ -53,7 +51,7 @@ type batchItem struct {
 
 var ErrActivityTooNested = errors.New("exceeded activity depth limit")
 
-func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity string, post *ap.Object, shared bool) error {
+func (q *Queue) processCreateActivity(ctx context.Context, tx *sql.Tx, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity string, post *ap.Object, shared bool) error {
 	u, err := url.Parse(post.ID)
 	if err != nil {
 		return fmt.Errorf("failed to parse post ID %s: %w", post.ID, err)
@@ -73,16 +71,10 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 	}
 
 	var audience sql.NullString
-	if err := q.DB.QueryRowContext(ctx, `select object->>'$.audience' from notes where id = ?`, post.ID).Scan(&audience); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := tx.QueryRowContext(ctx, `select object->>'$.audience' from notes where id = ?`, post.ID).Scan(&audience); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("failed to check of %s is a duplicate: %w", post.ID, err)
 	} else if err == nil {
 		if sender.ID == post.Audience && !audience.Valid {
-			tx, err := q.DB.BeginTx(ctx, nil)
-			if err != nil {
-				return fmt.Errorf("cannot set %s audience: %w", post.ID, err)
-			}
-			defer tx.Rollback()
-
 			if _, err := tx.ExecContext(ctx, `update notes set object = jsonb_set(object, '$.audience', ?) where id = ? and object->>'$.audience' is null`, post.Audience, post.ID); err != nil {
 				return fmt.Errorf("failed to set %s audience to %s: %w", post.ID, audience.String, err)
 			}
@@ -102,12 +94,8 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 					return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, sender.ID, err)
 				}
 			}
-
-			if err := tx.Commit(); err != nil {
-				return fmt.Errorf("cannot set %s audience: %w", post.ID, err)
-			}
 		} else if shared {
-			if _, err := q.DB.ExecContext(
+			if _, err := tx.ExecContext(
 				ctx,
 				`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
 				post.ID,
@@ -121,16 +109,6 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 		log.Debug("Post is a duplicate")
 		return nil
 	}
-
-	if _, err := q.Resolver.ResolveID(ctx, q.Keys, post.AttributedTo, 0); err != nil {
-		return fmt.Errorf("failed to resolve %s: %w", post.AttributedTo, err)
-	}
-
-	tx, err := q.DB.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("cannot insert %s: %w", post.ID, err)
-	}
-	defer tx.Rollback()
 
 	// only the group itself has the authority to decide which posts belong to it
 	if post.Audience != sender.ID {
@@ -153,45 +131,33 @@ func (q *Queue) processCreateActivity(ctx context.Context, log *slog.Logger, sen
 		}
 	}
 
-	if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, tx, post, activity, rawActivity); err != nil {
+	if err := q.ForwardActivity(ctx, q.Config, tx, post, activity, rawActivity); err != nil {
 		return fmt.Errorf("cannot forward %s: %w", post.ID, err)
 	}
 
 	log.Info("Received a new post")
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("cannot insert %s: %w", post.ID, err)
-	}
-
-	mentionedUsers := ap.Audience{}
-
-	for _, tag := range post.Tag {
-		if tag.Type == ap.Mention && tag.Href != post.AttributedTo {
-			mentionedUsers.Add(tag.Href)
+	/*
+		if _, err = tx.ExecContext(ctx, `insert into feed(follower, note, author, inserted) values(?, jsonb(?), jsonb(?), unixepoch())`, author.ID, post, author); err != nil {
+			return fmt.Errorf("failed to insert Create: %w", err)
 		}
-	}
-
-	for id := range mentionedUsers.Keys() {
-		if _, err := q.Resolver.ResolveID(ctx, q.Keys, id, 0); err != nil {
-			log.Warn("Failed to resolve mention", "mention", id, "error", err)
-		}
-	}
+	*/
 
 	return nil
 }
 
-func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity string, depth int, shared bool) error {
+func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity string, depth int, shared bool) error {
 	if depth == ap.MaxActivityDepth {
 		return ErrActivityTooNested
 	}
 
-	log.Debug("Processing activity")
+	log.Debug("Processing activity", "domain", q.Domain)
 
 	switch activity.Type {
 	case ap.Delete:
 		deleted := ""
-		if _, ok := activity.Object.(*ap.Object); ok {
-			deleted = activity.Object.(*ap.Object).ID
+		if o, ok := activity.Object.(*ap.Object); ok {
+			deleted = o.ID
 		} else if s, ok := activity.Object.(string); ok {
 			deleted = s
 		}
@@ -202,25 +168,19 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		log.Info("Received delete request", "deleted", deleted)
 
 		if deleted == activity.Actor {
-			if _, err := q.DB.ExecContext(ctx, `delete from persons where id = ?`, deleted); err != nil {
+			if _, err := tx.ExecContext(ctx, `delete from persons where id = ?`, deleted); err != nil {
 				return fmt.Errorf("failed to delete person %s: %w", deleted, err)
 			}
 		} else {
-			tx, err := q.DB.BeginTx(ctx, nil)
-			if err != nil {
-				return fmt.Errorf("cannot delete %s: %w", deleted, err)
-			}
-			defer tx.Rollback()
-
 			var note ap.Object
-			if err := q.DB.QueryRowContext(ctx, `select json(object) from notes where id = ?`, deleted).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
+			if err := tx.QueryRowContext(ctx, `select json(object) from notes where id = ?`, deleted).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
 				log.Debug("Received delete request for non-existing post", "deleted", deleted)
 				return nil
 			} else if err != nil {
 				return fmt.Errorf("failed to delete %s: %w", deleted, err)
 			}
 
-			if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, tx, &note, activity, rawActivity); err != nil {
+			if err := q.ForwardActivity(ctx, q.Config, tx, &note, activity, rawActivity); err != nil {
 				return fmt.Errorf("failed to delete %s: %w", deleted, err)
 			}
 
@@ -235,10 +195,6 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			}
 			if _, err := tx.ExecContext(ctx, `delete from feed where note->>'$.id' = ?`, deleted); err != nil {
 				return fmt.Errorf("cannot delete %s: %w", deleted, err)
-			}
-
-			if err := tx.Commit(); err != nil {
-				return fmt.Errorf("failed to delete %s: %w", deleted, err)
 			}
 		}
 
@@ -255,24 +211,18 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return errors.New("received an invalid follow request")
 		}
 
+		var localFollowed int
 		var followed ap.Actor
-		if err := q.DB.QueryRowContext(ctx, `select json(actor) from persons where cid = ? and ed25519privkey is not null`, ap.Canonical(followedID)).Scan(&followed); errors.Is(err, sql.ErrNoRows) {
-			return fmt.Errorf("received an invalid follow request for %s by %s", followed.ID, activity.Actor)
+		if err := tx.QueryRowContext(ctx, `select ed25519privkey is not null, json(actor) from persons where cid = ?`, ap.Canonical(followedID)).Scan(&localFollowed, &followed); errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("areceived an invalid follow request for %s by %s", followedID, activity.Actor)
 		} else if err != nil {
 			return fmt.Errorf("failed to fetch %s: %w", followed.ID, err)
 		}
 
-		var local int
-		if err := q.DB.QueryRowContext(ctx, `select exists (select 1 from persons where cid = ? and ed25519privkey is not null)`, ap.Canonical(activity.Actor)).Scan(&local); err != nil {
-			return fmt.Errorf("failed to check if %s is local: %w", activity.Actor, err)
-		} else if local == 1 {
-			return fmt.Errorf("received an invalid follow request for %s by %s", followedID, activity.Actor)
-		}
+		if localFollowed == 0 || followed.ManuallyApprovesFollowers {
+			log.Info("Not approving follow request", "follower", activity.Actor, "followed", followed.ID)
 
-		if followed.ManuallyApprovesFollowers {
-			log.Debug("Not approving follow request", "follower", activity.Actor, "followed", followed.ID)
-
-			if _, err := q.DB.ExecContext(
+			if _, err := tx.ExecContext(
 				ctx,
 				`INSERT INTO follows (id, follower, followed, followedcid) VALUES($1, $2, $3, $4) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = NULL, inserted = UNIXEPOCH()`,
 				activity.ID,
@@ -285,12 +235,6 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		} else {
 			log.Info("Approving follow request", "follower", activity.Actor, "followed", followed.ID)
 
-			tx, err := q.DB.BeginTx(ctx, nil)
-			if err != nil {
-				return fmt.Errorf("failed to begin transaction: %w", err)
-			}
-			defer tx.Rollback()
-
 			if _, err := tx.ExecContext(
 				ctx,
 				`INSERT INTO follows (id, follower, followed, followedcid, accepted) VALUES($1, $2, $3, $4, 1) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = 1, inserted = UNIXEPOCH()`,
@@ -302,12 +246,8 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
 
-			if err := outbox.Accept(ctx, q.Domain, followed.ID, activity.Actor, activity.ID, tx); err != nil {
+			if err := q.Accept(ctx, &followed, activity.Actor, activity.ID, tx); err != nil {
 				return fmt.Errorf("failed to accept %s: %w", activity.ID, err)
-			}
-
-			if err := tx.Commit(); err != nil {
-				return fmt.Errorf("failed to accept follow: %w", err)
 			}
 		}
 
@@ -326,7 +266,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return errors.New("received an invalid Accept")
 		}
 
-		if _, err := q.DB.ExecContext(
+		if _, err := tx.ExecContext(
 			ctx,
 			`
 			INSERT INTO follows (id, follower, followed, followedcid, accepted)
@@ -357,8 +297,12 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return errors.New("received an invalid Reject")
 		}
 
-		if _, err := q.DB.ExecContext(ctx, `update follows set accepted = 0 where id = ? and followed = ?`, followID, sender.ID); err != nil {
+		if res, err := tx.ExecContext(ctx, `update follows set accepted = 0 where id = ? and followed = ? and accepted is null or accepted = 1`, followID, sender.ID); err != nil {
 			return fmt.Errorf("failed to reject follow %s: %w", followID, err)
+		} else if n, err := res.RowsAffected(); err != nil {
+			return fmt.Errorf("failed to reject follow %s: %w", followID, err)
+		} else if n == 0 {
+			return fmt.Errorf("failed to reject follow %s: not found", followID)
 		}
 
 	case ap.Undo:
@@ -372,7 +316,7 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			if !ok {
 				return errors.New("cannot undo Announce")
 			}
-			if _, err := q.DB.ExecContext(
+			if _, err := tx.ExecContext(
 				ctx,
 				`delete from shares where note = ? and by = ?`,
 				noteID,
@@ -395,7 +339,9 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		follower := activity.Actor
 
 		var followed string
-		if actor, ok := inner.Object.(*ap.Object); ok {
+		if follow, ok := inner.Object.(*ap.Activity); ok {
+			followed = follow.Actor
+		} else if actor, ok := inner.Object.(*ap.Object); ok {
 			followed = actor.ID
 		} else if actorID, ok := inner.Object.(string); ok {
 			followed = actorID
@@ -406,15 +352,9 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return errors.New("received an undo request with empty ID")
 		}
 
-		prefix := fmt.Sprintf("https://%s/", q.Domain)
-		if strings.HasPrefix(follower, prefix) {
-			return errors.New("received an undo request from local actor")
-		}
-		if !strings.HasPrefix(followed, prefix) {
-			return errors.New("received an undo request on federated actor")
-		}
+		log.Info("Removing a Follow", "domain", q.Domain, "follower", follower, "followed", followed)
 
-		if _, err := q.DB.ExecContext(ctx, `update follows set accepted = 0 where follower = ? and followed = ?`, follower, followed); err != nil {
+		if _, err := tx.ExecContext(ctx, `update follows set accepted = 0 where follower = ? and followed = ?`, follower, followed); err != nil {
 			return fmt.Errorf("failed to remove follow of %s by %s: %w", followed, follower, err)
 		}
 
@@ -426,13 +366,13 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return errors.New("received invalid Create")
 		}
 
-		return q.processCreateActivity(ctx, log, sender, activity, rawActivity, post, shared)
+		return q.processCreateActivity(ctx, tx, log, sender, activity, rawActivity, post, shared)
 
 	case ap.Announce:
 		inner, ok := activity.Object.(*ap.Activity)
 		if !ok {
 			if postID, ok := activity.Object.(string); ok && postID != "" {
-				if _, err := q.DB.ExecContext(
+				if _, err := tx.ExecContext(
 					ctx,
 					`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
 					postID,
@@ -447,8 +387,28 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return nil
 		}
 
+		/*
+			if actor.Type == ap.Person {
+				if _, err := tx.ExecContext(
+					ctx,
+					`
+				INSERT INTO feed (follower, note, author, sharer, inserted)
+				SELECT $1, JSONB($2), authors.actor, JSONB($3), UNIXEPOCH()
+				FROM persons authors
+				WHERE authors.id = $4
+				`,
+					actor.ID,
+					note,
+					actor,
+					note.AttributedTo,
+				); err != nil {
+					return fmt.Errorf("failed to insert announce activity: %w", err)
+				}
+			}
+		*/
+
 		depth++
-		return q.processActivity(ctx, log.With("activity", inner, "depth", depth), sender, inner, rawActivity, depth, true)
+		return q.processActivity(ctx, tx, log.With("activity", inner, "depth", depth), sender, inner, rawActivity, depth, true)
 
 	case ap.Update:
 		post, ok := activity.Object.(*ap.Object)
@@ -463,9 +423,9 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 
 		var oldPost ap.Object
 		var lastChange int64
-		if err := q.DB.QueryRowContext(ctx, `select max(inserted, updated), json(object) from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastChange, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
+		if err := tx.QueryRowContext(ctx, `select max(inserted, updated), json(object) from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastChange, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
 			log.Debug("Received Update for non-existing post")
-			return q.processCreateActivity(ctx, log, sender, activity, rawActivity, post, shared)
+			return q.processCreateActivity(ctx, tx, log, sender, activity, rawActivity, post, shared)
 		} else if err != nil {
 			return fmt.Errorf("failed to get last update time for %s: %w", post.ID, err)
 		}
@@ -493,12 +453,6 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 		if sender.ID != oldPost.Audience {
 			post.Audience = oldPost.Audience
 		}
-
-		tx, err := q.DB.BeginTx(ctx, nil)
-		if err != nil {
-			return fmt.Errorf("cannot insert %s: %w", post.ID, err)
-		}
-		defer tx.Rollback()
 
 		if _, err := tx.ExecContext(
 			ctx,
@@ -529,12 +483,8 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 			return fmt.Errorf("failed to update post %s: %w", post.ID, err)
 		}
 
-		if err := outbox.ForwardActivity(ctx, q.Domain, q.Config, tx, post, activity, rawActivity); err != nil {
+		if err := q.ForwardActivity(ctx, q.Config, tx, post, activity, rawActivity); err != nil {
 			return fmt.Errorf("failed to forward update post %s: %w", post.ID, err)
-		}
-
-		if err := tx.Commit(); err != nil {
-			return fmt.Errorf("failed to update post %s: %w", post.ID, err)
 		}
 
 		log.Info("Updated post")
@@ -556,12 +506,12 @@ func (q *Queue) processActivity(ctx context.Context, log *slog.Logger, sender *a
 	return nil
 }
 
-func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Actor, activity *ap.Activity, rawActivity string, shared bool) {
+func (q *Queue) processActivityWithTimeout(parent context.Context, tx *sql.Tx, sender *ap.Actor, activity *ap.Activity, rawActivity string, shared bool) {
 	ctx, cancel := context.WithTimeout(parent, q.Config.ActivityProcessingTimeout)
 	defer cancel()
 
 	log := slog.With("activity", activity, "sender", sender.ID)
-	if err := q.processActivity(ctx, log, sender, activity, rawActivity, 1, shared); err != nil {
+	if err := q.processActivity(ctx, tx, log, sender, activity, rawActivity, 1, shared); err != nil {
 		log.Warn("Failed to process activity", "error", err)
 	}
 }
@@ -613,12 +563,22 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		return 0, nil
 	}
 
+	tx, err := q.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to process batch: %w", err)
+	}
+	defer tx.Rollback()
+
 	for _, item := range batch {
-		q.processActivityWithTimeout(ctx, item.Sender, item.Activity, item.RawActivity, item.Shared)
+		q.processActivityWithTimeout(ctx, tx, item.Sender, item.Activity, item.RawActivity, item.Shared)
 	}
 
-	if _, err := q.DB.ExecContext(ctx, `delete from inbox where id <= ?`, maxID); err != nil {
+	if _, err := tx.ExecContext(ctx, `delete from inbox where id <= ?`, maxID); err != nil {
 		return 0, fmt.Errorf("failed to delete processed activities: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("failed to process batch: %w", err)
 	}
 
 	return rowsCount, nil

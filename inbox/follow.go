@@ -14,24 +14,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package outbox
+package inbox
 
 import (
 	"context"
 	"database/sql"
-	"errors"
+	"encoding/json"
 	"fmt"
+	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
 )
 
 // Follow queues a Follow activity for delivery.
-func Follow(ctx context.Context, domain string, follower *ap.Actor, followed string, db *sql.DB) error {
+func (q *Queue) Follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB) error {
 	if followed == follower.ID {
 		return fmt.Errorf("%s cannot follow %s", follower.ID, followed)
 	}
 
-	followID, err := NewID(follower.ID, domain, "follow")
+	followID, err := q.NewID(follower.ID, "follow")
 	if err != nil {
 		return err
 	}
@@ -48,52 +49,28 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 		To:      to,
 	}
 
+	j, err := json.Marshal(&follow)
+	if err != nil {
+		return err
+	}
+
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
-	// if the followed user is local and doesn't require manual approval, we can mark as accepted
-	if res, err := tx.ExecContext(
-		ctx,
-		`
-		INSERT INTO follows
-			(
-				id,
-				follower,
-				followed,
-				followedcid,
-				accepted
-			)
-		SELECT
-			$1,
-			$2,
-			id,
-			$3,
-			CASE WHEN ed25519privkey IS NOT NULL AND COALESCE(actor->>'$.manuallyApprovesFollowers', 0) = 0 THEN 1 ELSE NULL END
-		FROM persons
-		WHERE cid = $3
-		ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = NULL, inserted = UNIXEPOCH()
-		`,
-		followID,
-		follower.ID,
-		ap.Canonical(followed),
-	); err != nil {
-		return fmt.Errorf("failed to insert follow: %w", err)
-	} else if n, err := res.RowsAffected(); err != nil {
-		return fmt.Errorf("failed to insert follow: %w", err)
-	} else if n == 0 {
-		return errors.New("failed to insert follow: no rows inserted")
-	}
-
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (cid, activity, sender) VALUES (?, JSONB(?), ?)`,
 		ap.Canonical(follow.ID),
-		&follow,
+		string(j),
 		follower.ID,
 	); err != nil {
+		return fmt.Errorf("failed to insert follow activity: %w", err)
+	}
+
+	if err := q.processActivity(ctx, tx, slog.With(), follower, &follow, string(j), 1, false); err != nil {
 		return fmt.Errorf("failed to insert follow activity: %w", err)
 	}
 

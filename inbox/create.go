@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package outbox
+package inbox
 
 import (
 	"context"
@@ -22,10 +22,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/inbox/note"
 )
 
 const maxDeliveryQueueSize = 128
@@ -33,8 +33,8 @@ const maxDeliveryQueueSize = 128
 var ErrDeliveryQueueFull = errors.New("delivery queue is full")
 
 // Create queues a Create activity for delivery.
-func Create(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, post *ap.Object, author *ap.Actor) error {
-	id, err := NewID(author.ID, domain, "create")
+func (q *Queue) Create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *ap.Object, author *ap.Actor) error {
+	id, err := q.NewID(author.ID, "create")
 	if err != nil {
 		return err
 	}
@@ -69,20 +69,16 @@ func Create(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, pos
 	}
 	defer tx.Rollback()
 
-	if err := note.Insert(ctx, tx, post); err != nil {
-		return fmt.Errorf("failed to insert note: %w", err)
-	}
-
-	if _, err = tx.ExecContext(ctx, `insert into feed(follower, note, author, inserted) values(?, jsonb(?), jsonb(?), unixepoch())`, author.ID, post, author); err != nil {
-		return fmt.Errorf("failed to insert Create: %w", err)
-	}
-
 	if _, err = tx.ExecContext(ctx, `insert into outbox (cid, activity, sender) values (?,jsonb(?),?)`, ap.Canonical(create.ID), string(j), author.ID); err != nil {
 		return fmt.Errorf("failed to insert Create: %w", err)
 	}
 
-	if err := ForwardActivity(ctx, domain, cfg, tx, post, &create, string(j)); err != nil {
-		return err
+	if err := q.processActivity(ctx, tx, slog.With(), author, &create, string(j), 1, false); err != nil {
+		return fmt.Errorf("failed to insert Create: %w", err)
+	}
+
+	if _, err = tx.ExecContext(ctx, `insert into feed(follower, note, author, inserted) values(?, jsonb(?), jsonb(?), unixepoch())`, author.ID, post, author); err != nil {
+		return fmt.Errorf("failed to insert Create: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {

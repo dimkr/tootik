@@ -14,30 +14,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package outbox
+package inbox
 
 import (
 	"context"
-	"database/sql"
 	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
 )
 
 const batchSize = 512
 
 type Deleter struct {
-	Domain string
-	Config *cfg.Config
-	DB     *sql.DB
+	*Queue
 }
 
 func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 	rows, err := d.DB.QueryContext(
 		ctx,
 		`
-		select json(outbox.activity) from persons
+		select json(persons.actor), json(outbox.activity) from persons
 		join shares on shares.by = persons.id
 		join outbox on outbox.activity->>'$.actor' = shares.by and outbox.activity->>'$.object' = shares.note
 		where
@@ -56,12 +52,13 @@ func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 
 	count := 0
 	for rows.Next() {
+		var sharer ap.Actor
 		var share ap.Activity
-		if err := rows.Scan(&share); err != nil {
+		if err := rows.Scan(&sharer, &share); err != nil {
 			return false, err
 		}
 
-		if err := Undo(ctx, d.Domain, d.DB, &share); err != nil {
+		if err := d.Undo(ctx, d.DB, &sharer, &share); err != nil {
 			return false, err
 		}
 
@@ -80,7 +77,7 @@ func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 	rows, err := d.DB.QueryContext(
 		ctx,
 		`
-		select json(notes.object) from persons
+		select json(persons.actor), json(notes.object) from persons
 		join notes on notes.author = persons.id
 		where
 			persons.ttl is not null and
@@ -98,12 +95,13 @@ func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 
 	count := 0
 	for rows.Next() {
+		var author ap.Actor
 		var note ap.Object
-		if err := rows.Scan(&note); err != nil {
+		if err := rows.Scan(&author, &note); err != nil {
 			return false, err
 		}
 
-		if err := Delete(ctx, d.Domain, d.Config, d.DB, &note); err != nil {
+		if err := d.Delete(ctx, d.Config, d.DB, &author, &note); err != nil {
 			return false, err
 		}
 

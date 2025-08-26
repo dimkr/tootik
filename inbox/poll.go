@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package outbox
+package inbox
 
 import (
 	"context"
@@ -24,13 +24,10 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
 )
 
 type Poller struct {
-	Domain string
-	Config *cfg.Config
-	DB     *sql.DB
+	*Queue
 }
 
 type pollResult struct {
@@ -46,6 +43,7 @@ func (p *Poller) Run(ctx context.Context) error {
 
 	votes := map[pollResult]int64{}
 	polls := map[string]*ap.Object{}
+	authors := map[string]*ap.Actor{}
 
 	for rows.Next() {
 		var pollID string
@@ -64,7 +62,8 @@ func (p *Poller) Run(ctx context.Context) error {
 		}
 
 		var obj ap.Object
-		if err := p.DB.QueryRowContext(ctx, "select json(object) from notes where id = ?", pollID).Scan(&obj); err != nil {
+		var author ap.Actor
+		if err := p.DB.QueryRowContext(ctx, "select json(notes.object), json(persons.actor) from notes join persons on persons.id = notes.author where notes.id = ?", pollID).Scan(&obj, &author); err != nil {
 			slog.Warn("Failed to fetch poll", "poll", pollID, "error", err)
 			continue
 		}
@@ -73,12 +72,14 @@ func (p *Poller) Run(ctx context.Context) error {
 		if option.Valid {
 			votes[pollResult{PollID: pollID, Option: option.String}] = count
 		}
+
+		authors[pollID] = &author
 	}
 	rows.Close()
 
 	now := ap.Time{Time: time.Now()}
 
-	for _, poll := range polls {
+	for pollID, poll := range polls {
 		changed := false
 
 		poll.VotersCount = 0
@@ -107,7 +108,7 @@ func (p *Poller) Run(ctx context.Context) error {
 
 		slog.Info("Updating poll results", "poll", poll.ID)
 
-		if err := UpdateNote(ctx, p.Domain, p.Config, p.DB, poll); err != nil {
+		if err := p.Queue.UpdateNote(ctx, p.Config, p.DB, authors[pollID], poll); err != nil {
 			slog.Warn("Failed to update poll results", "poll", poll.ID, "error", err)
 		}
 	}

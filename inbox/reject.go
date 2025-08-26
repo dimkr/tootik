@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,19 +14,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package outbox
+package inbox
 
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
 )
 
-// Accept queues an Accept activity for delivery.
-func Accept(ctx context.Context, domain string, followed, follower, followID string, tx *sql.Tx) error {
-	id, err := NewID(followed, domain, "accept")
+// Reject queues a Reject activity for delivery.
+func (q *Queue) Reject(ctx context.Context, followed *ap.Actor, follower, followID string, tx *sql.Tx) error {
+	id, err := q.NewID(followed.ID, "reject")
 	if err != nil {
 		return err
 	}
@@ -34,11 +36,11 @@ func Accept(ctx context.Context, domain string, followed, follower, followID str
 	recipients := ap.Audience{}
 	recipients.Add(follower)
 
-	accept := ap.Activity{
+	reject := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
-		Type:    ap.Accept,
+		Type:    ap.Reject,
 		ID:      id,
-		Actor:   followed,
+		Actor:   followed.ID,
 		To:      recipients,
 		Object: &ap.Activity{
 			Actor:  follower,
@@ -48,29 +50,23 @@ func Accept(ctx context.Context, domain string, followed, follower, followID str
 		},
 	}
 
+	j, err := json.Marshal(&reject)
+	if err != nil {
+		return err
+	}
+
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (cid, activity, sender) VALUES (?, JSONB(?), ?)`,
-		ap.Canonical(accept.ID),
-		&accept,
-		followed,
+		ap.Canonical(reject.ID),
+		string(j),
+		followed.ID,
 	); err != nil {
-		return fmt.Errorf("failed to accept %s: %w", followID, err)
+		return fmt.Errorf("failed to reject %s: %w", follower, err)
 	}
 
-	if res, err := tx.ExecContext(
-		ctx,
-		`INSERT INTO follows (id, follower, followed, followedcid, accepted) VALUES($1, $2, $3, $4, 1) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = 1, inserted = UNIXEPOCH()`,
-		followID,
-		follower,
-		followed,
-		ap.Canonical(followed),
-	); err != nil {
-		return fmt.Errorf("failed to accept %s: %w", followID, err)
-	} else if n, err := res.RowsAffected(); err != nil {
-		return fmt.Errorf("failed to accept %s: %w", followID, err)
-	} else if n == 0 {
-		return fmt.Errorf("failed to accept %s: cannot accept", followID)
+	if err := q.processActivity(ctx, tx, slog.With(), followed, &reject, string(j), 1, false); err != nil {
+		return fmt.Errorf("failed to reject %s: %w", follower, err)
 	}
 
 	return nil

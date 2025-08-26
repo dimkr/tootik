@@ -28,6 +28,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front/static"
 	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/inbox"
 )
 
 // Handler handles frontend (client-to-server) requests.
@@ -37,6 +38,7 @@ type Handler struct {
 	Config   *cfg.Config
 	Resolver ap.Resolver
 	DB       *sql.DB
+	Queue    *inbox.Queue
 }
 
 var (
@@ -53,13 +55,14 @@ func serveStaticFile(lines []string, w text.Writer, _ *Request, _ ...string) {
 }
 
 // NewHandler returns a new [Handler].
-func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolver, db *sql.DB) (Handler, error) {
+func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolver, db *sql.DB, queue *inbox.Queue) (Handler, error) {
 	h := Handler{
 		handlers: map[*regexp.Regexp]func(text.Writer, *Request, ...string){},
 		Domain:   domain,
 		Config:   cfg,
 		Resolver: resolver,
 		DB:       db,
+		Queue:    queue,
 	}
 	var cache sync.Map
 

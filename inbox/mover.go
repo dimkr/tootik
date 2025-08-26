@@ -14,24 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package outbox
+package inbox
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/httpsig"
 )
 
 type Mover struct {
-	Domain   string
-	DB       *sql.DB
-	Resolver ap.Resolver
-	Keys     [2]httpsig.Key
+	*Queue
 }
 
 func (m *Mover) updatedMoveTargets(ctx context.Context, prefix string) error {
@@ -113,73 +107,14 @@ func (m *Mover) Run(ctx context.Context) error {
 			slog.Info("Removing follow of moved actor", "follow", oldFollowID, "old", oldID, "new", newID)
 		} else {
 			slog.Info("Moving follow", "follow", oldFollowID, "old", oldID, "new", newID)
-			if err := Follow(ctx, m.Domain, &actor, newID, m.DB); err != nil {
+			if err := m.Follow(ctx, &actor, newID, m.DB); err != nil {
 				slog.Warn("Failed to follow new actor", "follow", oldFollowID, "old", oldID, "new", newID, "error", err)
 				continue
 			}
 		}
-		if err := Unfollow(ctx, m.Domain, m.DB, actor.ID, oldID, oldFollowID); err != nil {
+		if err := m.Unfollow(ctx, m.DB, &actor, oldID, oldFollowID); err != nil {
 			slog.Warn("Failed to unfollow old actor", "follow", oldFollowID, "old", oldID, "new", newID, "error", err)
 		}
-	}
-
-	return nil
-}
-
-// Move queues a Move activity for delivery.
-func Move(ctx context.Context, db *sql.DB, domain string, from *ap.Actor, to string) error {
-	now := time.Now()
-
-	aud := ap.Audience{}
-	aud.Add(from.Followers)
-
-	id, err := NewID(from.ID, domain, "move")
-	if err != nil {
-		return err
-	}
-
-	move := ap.Activity{
-		Context: "https://www.w3.org/ns/activitystreams",
-		ID:      id,
-		Actor:   from.ID,
-		Type:    ap.Move,
-		Object:  from.ID,
-		Target:  to,
-		To:      aud,
-	}
-
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`update persons set actor = jsonb_set(actor, '$.movedTo', $1, '$.updated', $2) where id = $3`,
-		to,
-		now.Format(time.RFC3339Nano),
-		from.ID,
-	); err != nil {
-		return fmt.Errorf("failed to insert Move: %w", err)
-	}
-
-	if err := UpdateActor(ctx, domain, tx, from.ID); err != nil {
-		return fmt.Errorf("failed to insert Move: %w", err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`insert into outbox (cid, activity, sender) values (?, jsonb(?), ?)`,
-		ap.Canonical(move.ID),
-		&move,
-		from.ID,
-	); err != nil {
-		return fmt.Errorf("failed to insert Move: %w", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to insert Move: %w", err)
 	}
 
 	return nil

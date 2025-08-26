@@ -19,7 +19,7 @@ package cluster
 import (
 	"testing"
 
-	"github.com/dimkr/tootik/outbox"
+	"github.com/dimkr/tootik/inbox"
 )
 
 func TestCluster_MovedAccount(t *testing.T) {
@@ -53,11 +53,8 @@ func TestCluster_MovedAccount(t *testing.T) {
 
 	bob.FollowInput("🔭 View profile", "carol@c.localdomain").OK()
 
-	mover := outbox.Mover{
-		Domain:   "b.localdomain",
-		DB:       cluster["b.localdomain"].DB,
-		Resolver: cluster["b.localdomain"].Resolver,
-		Keys:     cluster["b.localdomain"].NobodyKeys,
+	mover := inbox.Mover{
+		Queue: cluster["b.localdomain"].Incoming,
 	}
 	if err := mover.Run(t.Context()); err != nil {
 		t.Fatalf("Failed to process moved accounts: %v", err)

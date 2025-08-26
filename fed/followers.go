@@ -34,7 +34,6 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/httpsig"
-	"github.com/dimkr/tootik/outbox"
 )
 
 type partialFollowers map[string]map[string]string
@@ -45,12 +44,14 @@ type Syncer struct {
 	DB       *sql.DB
 	Resolver *Resolver
 	Keys     [2]httpsig.Key
+	Queue    ap.Inbox
 }
 
 type followersDigest struct {
 	Followed string
 	URL      string
 	Digest   string
+	Queue    ap.Inbox
 }
 
 var followersSyncRegex = regexp.MustCompile(`\b([^"=]+)="([^"]+)"`)
@@ -297,20 +298,26 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 			continue
 		}
 
+		var actor ap.Actor
+		if err := db.QueryRowContext(ctx, `SELECT JSON(persons.actor) FROM persons WHERE id = ? AND persons.ed25519privkey IS NOT NULL`, follower).Scan(&actor); err != nil {
+			slog.Warn("Failed to fetch actor of unknown remote follow", "followed", d.Followed, "follower", follower, "error", err)
+			continue
+		}
+
 		var followID string
-		if err := db.QueryRowContext(ctx, `SELECT id FROM follows WHERE follower = ? AND followed = ?`, follower, d.Followed).Scan(&followID); err != nil && errors.Is(err, sql.ErrNoRows) {
-			followID, err = outbox.NewID(d.Followed, domain, "follow")
+		if err := db.QueryRowContext(ctx, `SELECT follows.id FROM follows WHERE follows.follower = ? AND follows.followed = ?`, follower, d.Followed).Scan(&followID); errors.Is(err, sql.ErrNoRows) {
+			followID, err = d.Queue.NewID(d.Followed, "follow")
 			if err != nil {
 				slog.Warn("Failed to generate fake follow ID", "followed", d.Followed, "follower", follower, "error", err)
 				continue
 			}
 			slog.Warn("Using fake follow ID to remove unknown remote follow", "followed", d.Followed, "follower", follower, "id", followID)
 		} else if err != nil {
-			slog.Warn("Failed to fetch follow ID of unknown remote follow", "followed", d.Followed, "follower", follower, "error", err)
+			slog.Warn("Failed to fetch actor and follow ID of unknown remote follow", "followed", d.Followed, "follower", follower, "error", err)
 			continue
 		}
 
-		if err := outbox.Unfollow(ctx, domain, db, follower, d.Followed, followID); err != nil {
+		if err := d.Queue.Unfollow(ctx, db, &actor, d.Followed, followID); err != nil {
 			slog.Warn("Failed to remove remote follow", "followed", d.Followed, "follower", follower, "error", err)
 		}
 	}
@@ -336,7 +343,9 @@ func (s *Syncer) ProcessBatch(ctx context.Context) (int, error) {
 	jobs := make([]followersDigest, 0, s.Config.FollowersSyncBatchSize)
 
 	for rows.Next() {
-		var job followersDigest
+		job := followersDigest{
+			Queue: s.Queue,
+		}
 		if err := rows.Scan(&job.Followed, &job.URL, &job.Digest); err != nil {
 			slog.Error("Failed to scan digest", "error", err)
 			continue

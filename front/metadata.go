@@ -25,7 +25,6 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/text/plain"
-	"github.com/dimkr/tootik/outbox"
 )
 
 var metadataRegex = regexp.MustCompile(`^([^\p{Cc}\p{Cs}\s=\r\n]{1,16}(?: *[^\p{Cc}\p{Cs}\s=\r\n]{1,16}){0,3})=([^\p{Cc}\p{Cs}\r\n]{1,64})$`)
@@ -150,7 +149,7 @@ func (h *Handler) metadataAdd(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := outbox.UpdateActor(r.Context, h.Domain, tx, r.User.ID); err != nil {
+	if err := h.Queue.UpdateActor(r.Context, tx, r.User.ID); err != nil {
 		r.Log.Error("Failed to add metadata field", "name", attachment.Name, "error", err)
 		w.Error()
 		return
@@ -233,7 +232,7 @@ found:
 		return
 	}
 
-	if err := outbox.UpdateActor(r.Context, h.Domain, tx, r.User.ID); err != nil {
+	if err := h.Queue.UpdateActor(r.Context, tx, r.User.ID); err != nil {
 		r.Log.Error("Failed to remove metadata field", "key", key, "id", id, "error", err)
 		w.Error()
 		return

@@ -49,7 +49,6 @@ import (
 	"github.com/dimkr/tootik/icon"
 	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/migrations"
-	"github.com/dimkr/tootik/outbox"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -202,6 +201,15 @@ func main() {
 		panic(err)
 	}
 
+	queue := &inbox.Queue{
+		Domain:    *domain,
+		Config:    &cfg,
+		BlockList: blockList,
+		DB:        db,
+		Resolver:  resolver,
+		Keys:      nobodyKeys,
+	}
+
 	switch cmd {
 	case "add-community":
 		_, _, err := user.Create(ctx, *domain, db, flag.Arg(1), ap.Group, nil)
@@ -241,7 +249,7 @@ func main() {
 			panic(err)
 		}
 
-		if err := outbox.UpdateActor(ctx, *domain, tx, actorID); err != nil {
+		if err := queue.UpdateActor(ctx, tx, actorID); err != nil {
 			panic(err)
 		}
 
@@ -300,7 +308,7 @@ func main() {
 			panic(err)
 		}
 
-		if err := outbox.UpdateActor(ctx, *domain, tx, actorID); err != nil {
+		if err := queue.UpdateActor(ctx, tx, actorID); err != nil {
 			panic(err)
 		}
 
@@ -311,7 +319,7 @@ func main() {
 		return
 	}
 
-	handler, err := front.NewHandler(*domain, *closed, &cfg, resolver, db)
+	handler, err := front.NewHandler(*domain, *closed, &cfg, resolver, db, queue)
 	if err != nil {
 		panic(err)
 	}
@@ -393,14 +401,7 @@ func main() {
 	}{
 		{
 			"incoming",
-			&inbox.Queue{
-				Domain:    *domain,
-				Config:    &cfg,
-				BlockList: blockList,
-				DB:        db,
-				Resolver:  resolver,
-				Keys:      nobodyKeys,
-			},
+			queue,
 		},
 		{
 			"outgoing",
@@ -439,20 +440,15 @@ func main() {
 		{
 			"poller",
 			pollResultsUpdateInterval,
-			&outbox.Poller{
-				Domain: *domain,
-				Config: &cfg,
-				DB:     db,
+			&inbox.Poller{
+				Queue: queue,
 			},
 		},
 		{
 			"mover",
 			followMoveInterval,
-			&outbox.Mover{
-				Domain:   *domain,
-				DB:       db,
-				Resolver: resolver,
-				Keys:     nobodyKeys,
+			&inbox.Mover{
+				Queue: queue,
 			},
 		},
 		{
@@ -464,15 +460,14 @@ func main() {
 				DB:       db,
 				Resolver: resolver,
 				Keys:     nobodyKeys,
+				Queue:    queue,
 			},
 		},
 		{
 			"deleter",
 			deleterInterval,
-			&outbox.Deleter{
-				Domain: *domain,
-				Config: &cfg,
-				DB:     db,
+			&inbox.Deleter{
+				Queue: queue,
 			},
 		},
 		{

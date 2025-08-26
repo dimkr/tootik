@@ -14,25 +14,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package outbox
+package inbox
 
 import (
 	"context"
 	"database/sql"
-	"errors"
+	"encoding/json"
 	"fmt"
+	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
 )
 
 // Undo queues an Undo activity for delivery.
-func Undo(ctx context.Context, domain string, db *sql.DB, activity *ap.Activity) error {
-	noteID, ok := activity.Object.(string)
-	if !ok {
-		return errors.New("cannot undo activity")
-	}
-
-	id, err := NewID(activity.Actor, domain, "undo")
+func (q *Queue) Undo(ctx context.Context, db *sql.DB, actor *ap.Actor, activity *ap.Activity) error {
+	id, err := q.NewID(actor.ID, "undo")
 	if err != nil {
 		return err
 	}
@@ -44,10 +40,15 @@ func Undo(ctx context.Context, domain string, db *sql.DB, activity *ap.Activity)
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      id,
 		Type:    ap.Undo,
-		Actor:   activity.Actor,
+		Actor:   actor.ID,
 		To:      to,
 		CC:      activity.CC,
 		Object:  activity,
+	}
+
+	j, err := json.Marshal(&undo)
+	if err != nil {
+		return err
 	}
 
 	tx, err := db.BeginTx(ctx, nil)
@@ -58,29 +59,15 @@ func Undo(ctx context.Context, domain string, db *sql.DB, activity *ap.Activity)
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`DELETE FROM shares WHERE note = ? AND by = ?`,
-		noteID,
-		activity.Actor,
-	); err != nil {
-		return fmt.Errorf("failed to remove share: %w", err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`DELETE FROM feed WHERE note->>'$.id' = ? AND sharer->>'$.id' = ?`,
-		noteID,
-		activity.Actor,
-	); err != nil {
-		return fmt.Errorf("failed to remove share: %w", err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
 		`INSERT INTO outbox (cid, activity, sender) VALUES (?, JSONB(?), ?)`,
 		ap.Canonical(undo.ID),
-		&undo,
+		string(j),
 		activity.Actor,
 	); err != nil {
+		return fmt.Errorf("failed to insert undo activity: %w", err)
+	}
+
+	if err := q.processActivity(ctx, tx, slog.With(), actor, &undo, string(j), 1, false); err != nil {
 		return fmt.Errorf("failed to insert undo activity: %w", err)
 	}
 

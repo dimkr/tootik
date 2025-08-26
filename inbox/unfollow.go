@@ -14,24 +14,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package outbox
+package inbox
 
 import (
 	"context"
 	"database/sql"
-	"errors"
+	"encoding/json"
 	"fmt"
+	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
 )
 
 // Unfollow queues an Undo activity for delivery.
-func Unfollow(ctx context.Context, domain string, db *sql.DB, follower, followed, followID string) error {
-	if followed == follower {
-		return fmt.Errorf("%s cannot unfollow %s", follower, followed)
+func (q *Queue) Unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor, followed, followID string) error {
+	if ap.Canonical(followed) == ap.Canonical(follower.ID) {
+		return fmt.Errorf("%s cannot unfollow %s", follower.ID, followed)
 	}
 
-	undoID, err := NewID(follower, domain, "undo")
+	undoID, err := q.NewID(follower.ID, "undo")
 	if err != nil {
 		return err
 	}
@@ -43,14 +44,19 @@ func Unfollow(ctx context.Context, domain string, db *sql.DB, follower, followed
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      undoID,
 		Type:    ap.Undo,
-		Actor:   follower,
+		Actor:   follower.ID,
 		Object: &ap.Activity{
 			ID:     followID,
 			Type:   ap.Follow,
-			Actor:  follower,
+			Actor:  follower.ID,
 			Object: followed,
 		},
 		To: to,
+	}
+
+	j, err := json.Marshal(&unfollow)
+	if err != nil {
+		return err
 	}
 
 	tx, err := db.BeginTx(ctx, nil)
@@ -72,18 +78,18 @@ func Unfollow(ctx context.Context, domain string, db *sql.DB, follower, followed
 		ctx,
 		`INSERT INTO outbox (cid, activity, sender) VALUES (?, JSONB(?), ?)`,
 		ap.Canonical(unfollow.ID),
-		&unfollow,
-		follower,
+		string(j),
+		follower.ID,
 	); err != nil {
 		return fmt.Errorf("failed to insert undo for %s: %w", followID, err)
 	}
 
-	if _, err := tx.ExecContext(ctx, `delete from follows where id = ?`, followID); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return fmt.Errorf("failed to unfollow %s: %w", followID, err)
+	if err := q.processActivity(ctx, tx, slog.With(), follower, &unfollow, string(j), 1, false); err != nil {
+		return fmt.Errorf("failed to insert undo for %s: %w", followID, err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("%s failed to unfollow %s: %w", follower, followed, err)
+		return fmt.Errorf("failed to insert undo for %s: %w", followID, err)
 	}
 
 	return nil

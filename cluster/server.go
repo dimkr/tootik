@@ -122,7 +122,15 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 		t.Fatalf("Failed to run create the nobody user: %v", err)
 	}
 
-	handler, err := front.NewHandler(domain, false, &cfg, resolver, db)
+	incoming := &inbox.Queue{
+		Domain:   domain,
+		Config:   &cfg,
+		DB:       db,
+		Resolver: resolver,
+		Keys:     nobodyKeys,
+	}
+
+	handler, err := front.NewHandler(domain, false, &cfg, resolver, db, incoming)
 	if err != nil {
 		t.Fatalf("Failed to run create a Handler: %v", err)
 	}
@@ -172,14 +180,8 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 			DB:      db,
 			Handler: handler,
 		},
-		Backend: backend,
-		Incoming: &inbox.Queue{
-			Domain:   domain,
-			Config:   &cfg,
-			DB:       db,
-			Resolver: resolver,
-			Keys:     nobodyKeys,
-		},
+		Backend:  backend,
+		Incoming: incoming,
 		Outgoing: &fed.Queue{
 			Domain:   domain,
 			Config:   &cfg,

@@ -25,7 +25,6 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/icon"
-	"github.com/dimkr/tootik/outbox"
 )
 
 var supportedImageTypes = map[string]struct{}{
@@ -137,7 +136,7 @@ func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := outbox.UpdateActor(r.Context, h.Domain, tx, r.User.ID); err != nil {
+	if err := h.Queue.UpdateActor(r.Context, tx, r.User.ID); err != nil {
 		r.Log.Error("Failed to set avatar", "error", err)
 		w.Error()
 		return
