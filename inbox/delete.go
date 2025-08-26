@@ -23,11 +23,9 @@ import (
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
 )
 
-// Delete queues a Delete activity for delivery.
-func (q *Queue) Delete(ctx context.Context, cfg *cfg.Config, db *sql.DB, actor *ap.Actor, note *ap.Object) error {
+func (q *Queue) delete(ctx context.Context, db *sql.DB, actor *ap.Actor, note *ap.Object) error {
 	delete := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      note.ID + "#delete",
@@ -48,7 +46,7 @@ func (q *Queue) Delete(ctx context.Context, cfg *cfg.Config, db *sql.DB, actor *
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
+		return err
 	}
 	defer tx.Rollback()
 
@@ -58,7 +56,7 @@ func (q *Queue) Delete(ctx context.Context, cfg *cfg.Config, db *sql.DB, actor *
 		`UPDATE outbox SET sent = 1 WHERE activity->>'$.object.id' = ? AND activity->>'$.type' = 'Create'`,
 		note.ID,
 	); err != nil {
-		return fmt.Errorf("failed to insert delete activity: %w", err)
+		return err
 	}
 
 	if _, err := tx.ExecContext(
@@ -68,15 +66,20 @@ func (q *Queue) Delete(ctx context.Context, cfg *cfg.Config, db *sql.DB, actor *
 		string(j),
 		note.AttributedTo,
 	); err != nil {
-		return fmt.Errorf("failed to insert delete activity: %w", err)
+		return err
 	}
 
 	if err := q.ProcessLocalActivity(ctx, tx, actor, &delete, string(j)); err != nil {
-		return fmt.Errorf("failed to insert delete activity: %w", err)
+		return err
 	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to delete note: %w", err)
+	return tx.Commit()
+}
+
+// Delete queues a Delete activity for delivery.
+func (q *Queue) Delete(ctx context.Context, db *sql.DB, actor *ap.Actor, note *ap.Object) error {
+	if err := q.delete(ctx, db, actor, note); err != nil {
+		return fmt.Errorf("failed to delete %s by %s: %w", note.ID, actor.ID)
 	}
 
 	return nil

@@ -108,7 +108,7 @@ func (p *Poller) Run(ctx context.Context) error {
 
 		slog.Info("Updating poll results", "poll", poll.ID)
 
-		if err := p.Queue.UpdateNote(ctx, p.Config, p.DB, authors[pollID], poll); err != nil {
+		if err := p.Queue.UpdateNote(ctx, p.DB, authors[pollID], poll); err != nil {
 			slog.Warn("Failed to update poll results", "poll", poll.ID, "error", err)
 		}
 	}

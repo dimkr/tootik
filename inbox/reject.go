@@ -25,8 +25,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 )
 
-// Reject queues a Reject activity for delivery.
-func (q *Queue) Reject(ctx context.Context, followed *ap.Actor, follower, followID string, tx *sql.Tx) error {
+func (q *Queue) reject(ctx context.Context, followed *ap.Actor, follower, followID string, tx *sql.Tx) error {
 	id, err := q.NewID(followed.ID, "reject")
 	if err != nil {
 		return err
@@ -61,11 +60,16 @@ func (q *Queue) Reject(ctx context.Context, followed *ap.Actor, follower, follow
 		string(j),
 		followed.ID,
 	); err != nil {
-		return fmt.Errorf("failed to reject %s: %w", follower, err)
+		return err
 	}
 
-	if err := q.ProcessLocalActivity(ctx, tx, followed, &reject, string(j)); err != nil {
-		return fmt.Errorf("failed to reject %s: %w", follower, err)
+	return q.ProcessLocalActivity(ctx, tx, followed, &reject, string(j))
+}
+
+// Reject queues a Reject activity for delivery.
+func (q *Queue) Reject(ctx context.Context, followed *ap.Actor, follower, followID string, tx *sql.Tx) error {
+	if err := q.reject(ctx, followed, follower, followID, tx); err != nil {
+		return fmt.Errorf("failed to reject %s from %s by %s: %w", followID, follower, followed.ID, err)
 	}
 
 	return nil

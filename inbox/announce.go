@@ -26,9 +26,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 )
 
-// Announce queues an Announce activity for delivery.
-func (q *Queue) Announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, note *ap.Object) error {
-	now := time.Now()
+func (q *Queue) announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, note *ap.Object) error {
 	announceID, err := q.NewID(actor.ID, "announce")
 	if err != nil {
 		return err
@@ -46,7 +44,7 @@ func (q *Queue) Announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, note 
 		ID:        announceID,
 		Type:      ap.Announce,
 		Actor:     actor.ID,
-		Published: ap.Time{Time: now},
+		Published: ap.Time{Time: time.Now()},
 		To:        to,
 		CC:        cc,
 		Object:    note.ID,
@@ -64,11 +62,16 @@ func (q *Queue) Announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, note 
 		string(j),
 		actor.ID,
 	); err != nil {
-		return fmt.Errorf("failed to insert announce activity: %w", err)
+		return err
 	}
 
-	if err := q.ProcessLocalActivity(ctx, tx, actor, &announce, string(j)); err != nil {
-		return fmt.Errorf("failed to insert announce activity: %w", err)
+	return q.ProcessLocalActivity(ctx, tx, actor, &announce, string(j))
+}
+
+// Announce queues an Announce activity for delivery.
+func (q *Queue) Announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, note *ap.Object) error {
+	if err := q.announce(ctx, tx, actor, note); err != nil {
+		return fmt.Errorf("failed to announce %s by %s: %w", note.ID, actor.ID, err)
 	}
 
 	return nil

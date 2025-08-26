@@ -25,8 +25,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 )
 
-// Accept queues an Accept activity for delivery.
-func (q *Queue) Accept(ctx context.Context, followed *ap.Actor, follower, followID string, tx *sql.Tx) error {
+func (q *Queue) accept(ctx context.Context, followed *ap.Actor, follower, followID string, tx *sql.Tx) error {
 	id, err := q.NewID(followed.ID, "accept")
 	if err != nil {
 		return err
@@ -61,11 +60,16 @@ func (q *Queue) Accept(ctx context.Context, followed *ap.Actor, follower, follow
 		string(j),
 		followed.ID,
 	); err != nil {
-		return fmt.Errorf("failed to accept %s: %w", followID, err)
+		return err
 	}
 
-	if err := q.ProcessLocalActivity(ctx, tx, followed, &accept, string(j)); err != nil {
-		return fmt.Errorf("failed to accept %s: %w", followID, err)
+	return q.ProcessLocalActivity(ctx, tx, followed, &accept, string(j))
+}
+
+// Accept queues an Accept activity for delivery.
+func (q *Queue) Accept(ctx context.Context, followed *ap.Actor, follower, followID string, tx *sql.Tx) error {
+	if err := q.accept(ctx, followed, follower, followID, tx); err != nil {
+		return fmt.Errorf("failed to accept %s from %s by %s: %w", followID, follower, followed.ID, err)
 	}
 
 	return nil

@@ -101,7 +101,7 @@ func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 			return false, err
 		}
 
-		if err := d.Delete(ctx, d.Config, d.DB, &author, &note); err != nil {
+		if err := d.Delete(ctx, d.DB, &author, &note); err != nil {
 			return false, err
 		}
 

@@ -25,8 +25,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 )
 
-// Follow queues a Follow activity for delivery.
-func (q *Queue) Follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB) error {
+func (q *Queue) follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB) error {
 	if followed == follower.ID {
 		return fmt.Errorf("%s cannot follow %s", follower.ID, followed)
 	}
@@ -55,7 +54,7 @@ func (q *Queue) Follow(ctx context.Context, follower *ap.Actor, followed string,
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
+		return err
 	}
 	defer tx.Rollback()
 
@@ -66,15 +65,20 @@ func (q *Queue) Follow(ctx context.Context, follower *ap.Actor, followed string,
 		string(j),
 		follower.ID,
 	); err != nil {
-		return fmt.Errorf("failed to insert follow activity: %w", err)
+		return err
 	}
 
 	if err := q.ProcessLocalActivity(ctx, tx, follower, &follow, string(j)); err != nil {
-		return fmt.Errorf("failed to insert follow activity: %w", err)
+		return err
 	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("%s failed to follow %s: %w", follower.ID, followed, err)
+	return tx.Commit()
+}
+
+// Follow queues a Follow activity for delivery.
+func (q *Queue) Follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB) error {
+	if err := q.follow(ctx, follower, followed, db); err != nil {
+		return fmt.Errorf("failed to follow %s by %s: %w", followed, follower.ID, err)
 	}
 
 	return nil

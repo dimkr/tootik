@@ -31,8 +31,7 @@ const maxDeliveryQueueSize = 128
 
 var ErrDeliveryQueueFull = errors.New("delivery queue is full")
 
-// Create queues a Create activity for delivery.
-func (q *Queue) Create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *ap.Object, author *ap.Actor) error {
+func (q *Queue) create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *ap.Object, author *ap.Actor) error {
 	id, err := q.NewID(author.ID, "create")
 	if err != nil {
 		return err
@@ -64,24 +63,29 @@ func (q *Queue) Create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *a
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
+		return err
 	}
 	defer tx.Rollback()
 
 	if _, err = tx.ExecContext(ctx, `insert into outbox (cid, activity, sender) values (?,jsonb(?),?)`, ap.Canonical(create.ID), string(j), author.ID); err != nil {
-		return fmt.Errorf("failed to insert Create: %w", err)
+		return err
 	}
 
 	if err := q.ProcessLocalActivity(ctx, tx, author, &create, string(j)); err != nil {
-		return fmt.Errorf("failed to insert Create: %w", err)
+		return err
 	}
 
 	if _, err = tx.ExecContext(ctx, `insert into feed(follower, note, author, inserted) values(?, jsonb(?), jsonb(?), unixepoch())`, author.ID, post, author); err != nil {
-		return fmt.Errorf("failed to insert Create: %w", err)
+		return err
 	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to create note: %w", err)
+	return tx.Commit()
+}
+
+// Create queues a Create activity for delivery.
+func (q *Queue) Create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *ap.Object, author *ap.Actor) error {
+	if err := q.create(ctx, cfg, db, post, author); err != nil {
+		return fmt.Errorf("failed to create %s by %s: %w", post.ID, author.ID, err)
 	}
 
 	return nil

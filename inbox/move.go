@@ -25,10 +25,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 )
 
-// Move queues a Move activity for delivery.
-func (q *Queue) Move(ctx context.Context, db *sql.DB, from *ap.Actor, to string) error {
-	now := time.Now()
-
+func (q *Queue) move(ctx context.Context, db *sql.DB, from *ap.Actor, to string) error {
 	aud := ap.Audience{}
 	aud.Add(from.Followers)
 
@@ -57,14 +54,14 @@ func (q *Queue) Move(ctx context.Context, db *sql.DB, from *ap.Actor, to string)
 		ctx,
 		`update persons set actor = jsonb_set(actor, '$.movedTo', $1, '$.updated', $2) where id = $3`,
 		to,
-		now.Format(time.RFC3339Nano),
+		time.Now().Format(time.RFC3339Nano),
 		from.ID,
 	); err != nil {
-		return fmt.Errorf("failed to insert Move: %w", err)
+		return err
 	}
 
 	if err := q.UpdateActor(ctx, tx, from.ID); err != nil {
-		return fmt.Errorf("failed to insert Move: %w", err)
+		return err
 	}
 
 	if _, err := tx.ExecContext(
@@ -74,11 +71,16 @@ func (q *Queue) Move(ctx context.Context, db *sql.DB, from *ap.Actor, to string)
 		&move,
 		from.ID,
 	); err != nil {
-		return fmt.Errorf("failed to insert Move: %w", err)
+		return err
 	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to insert Move: %w", err)
+	return tx.Commit()
+}
+
+// Move queues a Move activity for delivery.
+func (q *Queue) Move(ctx context.Context, db *sql.DB, from *ap.Actor, to string) error {
+	if err := q.move(ctx, db, from, to); err != nil {
+		return fmt.Errorf("failed to move %s to %s: %w", from.ID, to, err)
 	}
 
 	return nil

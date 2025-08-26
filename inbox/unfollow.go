@@ -25,8 +25,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 )
 
-// Unfollow queues an Undo activity for delivery.
-func (q *Queue) Unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor, followed, followID string) error {
+func (q *Queue) unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor, followed, followID string) error {
 	if ap.Canonical(followed) == ap.Canonical(follower.ID) {
 		return fmt.Errorf("%s cannot unfollow %s", follower.ID, followed)
 	}
@@ -60,7 +59,7 @@ func (q *Queue) Unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor, fo
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
+		return err
 	}
 	defer tx.Rollback()
 
@@ -70,7 +69,7 @@ func (q *Queue) Unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor, fo
 		`UPDATE outbox SET sent = 1 WHERE activity->>'$.object.id' = ? and activity->>'$.type' = 'Follow'`,
 		followID,
 	); err != nil {
-		return fmt.Errorf("failed to mark follow activity as received: %w", err)
+		return err
 	}
 
 	if _, err := tx.ExecContext(
@@ -80,15 +79,20 @@ func (q *Queue) Unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor, fo
 		string(j),
 		follower.ID,
 	); err != nil {
-		return fmt.Errorf("failed to insert undo for %s: %w", followID, err)
+		return err
 	}
 
 	if err := q.ProcessLocalActivity(ctx, tx, follower, &unfollow, string(j)); err != nil {
-		return fmt.Errorf("failed to insert undo for %s: %w", followID, err)
+		return err
 	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to insert undo for %s: %w", followID, err)
+	return tx.Commit()
+}
+
+// Unfollow queues an Undo activity for delivery.
+func (q *Queue) Unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor, followed, followID string) error {
+	if err := q.unfollow(ctx, db, follower, followed, followID); err != nil {
+		return fmt.Errorf("failed to unfollow %s from %s by %s: %w", followID, follower.ID, followed, err)
 	}
 
 	return nil

@@ -247,7 +247,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 
 		note.Updated = now
 
-		err = h.Queue.UpdateNote(r.Context, h.Config, h.DB, r.User, &note)
+		err = h.Queue.UpdateNote(r.Context, h.DB, r.User, &note)
 	} else {
 		err = h.Queue.Create(r.Context, h.Config, h.DB, &note, r.User)
 	}

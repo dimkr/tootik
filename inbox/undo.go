@@ -25,8 +25,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 )
 
-// Undo queues an Undo activity for delivery.
-func (q *Queue) Undo(ctx context.Context, db *sql.DB, actor *ap.Actor, activity *ap.Activity) error {
+func (q *Queue) undo(ctx context.Context, db *sql.DB, actor *ap.Actor, activity *ap.Activity) error {
 	id, err := q.NewID(actor.ID, "undo")
 	if err != nil {
 		return err
@@ -52,7 +51,7 @@ func (q *Queue) Undo(ctx context.Context, db *sql.DB, actor *ap.Actor, activity 
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
+		return err
 	}
 	defer tx.Rollback()
 
@@ -63,15 +62,20 @@ func (q *Queue) Undo(ctx context.Context, db *sql.DB, actor *ap.Actor, activity 
 		string(j),
 		activity.Actor,
 	); err != nil {
-		return fmt.Errorf("failed to insert undo activity: %w", err)
+		return err
 	}
 
 	if err := q.ProcessLocalActivity(ctx, tx, actor, &undo, string(j)); err != nil {
-		return fmt.Errorf("failed to insert undo activity: %w", err)
+		return err
 	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("%s failed to undo %s: %w", activity.Actor, activity.ID, err)
+	return tx.Commit()
+}
+
+// Undo queues an Undo activity for delivery.
+func (q *Queue) Undo(ctx context.Context, db *sql.DB, actor *ap.Actor, activity *ap.Activity) error {
+	if err := q.undo(ctx, db, actor, activity); err != nil {
+		return fmt.Errorf("failed to undo %s by %s: %w", activity.ID, actor.ID, err)
 	}
 
 	return nil

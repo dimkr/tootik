@@ -23,11 +23,9 @@ import (
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
 )
 
-// UpdateNote queues an Update activity for delivery.
-func (q *Queue) UpdateNote(ctx context.Context, cfg *cfg.Config, db *sql.DB, actor *ap.Actor, note *ap.Object) error {
+func (q *Queue) updateNote(ctx context.Context, db *sql.DB, actor *ap.Actor, note *ap.Object) error {
 	updateID, err := q.NewID(note.AttributedTo, "update")
 	if err != nil {
 		return err
@@ -50,7 +48,7 @@ func (q *Queue) UpdateNote(ctx context.Context, cfg *cfg.Config, db *sql.DB, act
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
+		return err
 	}
 	defer tx.Rollback()
 
@@ -61,22 +59,27 @@ func (q *Queue) UpdateNote(ctx context.Context, cfg *cfg.Config, db *sql.DB, act
 		string(j),
 		note.AttributedTo,
 	); err != nil {
-		return fmt.Errorf("failed to insert update activity: %w", err)
+		return err
 	}
 
 	if err := q.ProcessLocalActivity(ctx, tx, actor, &update, string(j)); err != nil {
-		return fmt.Errorf("failed to update note: %w", err)
+		return err
+
 	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to update note: %w", err)
+	return tx.Commit()
+}
+
+// UpdateNote queues an Update activity for delivery.
+func (q *Queue) UpdateNote(ctx context.Context, db *sql.DB, actor *ap.Actor, note *ap.Object) error {
+	if err := q.updateNote(ctx, db, actor, note); err != nil {
+		return fmt.Errorf("failed to update %s by %s: %w", note.ID, actor.ID, err)
 	}
 
 	return nil
 }
 
-// UpdateActor queues an Update activity for delivery.
-func (q *Queue) UpdateActor(ctx context.Context, tx *sql.Tx, actorID string) error {
+func (q *Queue) updateActor(ctx context.Context, tx *sql.Tx, actorID string) error {
 	updateID, err := q.NewID(actorID, "update")
 	if err != nil {
 		return err
@@ -94,14 +97,20 @@ func (q *Queue) UpdateActor(ctx context.Context, tx *sql.Tx, actorID string) err
 		To:      to,
 	}
 
-	if _, err := tx.ExecContext(
+	_, err = tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (cid, activity, sender) VALUES (?, JSONB(?), ?)`,
 		ap.Canonical(update.ID),
 		&update,
 		actorID,
-	); err != nil {
-		return fmt.Errorf("failed to insert update activity: %w", err)
+	)
+	return err
+}
+
+// UpdateActor queues an Update activity for delivery.
+func (q *Queue) UpdateActor(ctx context.Context, tx *sql.Tx, actorID string) error {
+	if err := q.updateActor(ctx, tx, actorID); err != nil {
+		return fmt.Errorf("failed to update %s: %w", actorID, err)
 	}
 
 	return nil
