@@ -79,7 +79,7 @@ func (q *Queue) delete(ctx context.Context, db *sql.DB, actor *ap.Actor, note *a
 // Delete queues a Delete activity for delivery.
 func (q *Queue) Delete(ctx context.Context, db *sql.DB, actor *ap.Actor, note *ap.Object) error {
 	if err := q.delete(ctx, db, actor, note); err != nil {
-		return fmt.Errorf("failed to delete %s by %s: %w", note.ID, actor.ID)
+		return fmt.Errorf("failed to delete %s by %s: %w", note.ID, actor.ID, err)
 	}
 
 	return nil
