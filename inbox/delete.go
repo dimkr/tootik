@@ -21,7 +21,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
@@ -72,7 +71,7 @@ func (q *Queue) Delete(ctx context.Context, cfg *cfg.Config, db *sql.DB, actor *
 		return fmt.Errorf("failed to insert delete activity: %w", err)
 	}
 
-	if err := q.processActivity(ctx, tx, slog.With(), actor, &delete, string(j), 1, false); err != nil {
+	if err := q.ProcessLocalActivity(ctx, tx, actor, &delete, string(j)); err != nil {
 		return fmt.Errorf("failed to insert delete activity: %w", err)
 	}
 

@@ -21,7 +21,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
 )
@@ -65,7 +64,7 @@ func (q *Queue) Reject(ctx context.Context, followed *ap.Actor, follower, follow
 		return fmt.Errorf("failed to reject %s: %w", follower, err)
 	}
 
-	if err := q.processActivity(ctx, tx, slog.With(), followed, &reject, string(j), 1, false); err != nil {
+	if err := q.ProcessLocalActivity(ctx, tx, followed, &reject, string(j)); err != nil {
 		return fmt.Errorf("failed to reject %s: %w", follower, err)
 	}
 

@@ -21,7 +21,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
 )
@@ -67,7 +66,7 @@ func (q *Queue) Undo(ctx context.Context, db *sql.DB, actor *ap.Actor, activity 
 		return fmt.Errorf("failed to insert undo activity: %w", err)
 	}
 
-	if err := q.processActivity(ctx, tx, slog.With(), actor, &undo, string(j), 1, false); err != nil {
+	if err := q.ProcessLocalActivity(ctx, tx, actor, &undo, string(j)); err != nil {
 		return fmt.Errorf("failed to insert undo activity: %w", err)
 	}
 

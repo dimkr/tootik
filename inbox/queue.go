@@ -137,13 +137,11 @@ func (q *Queue) processCreateActivity(ctx context.Context, tx *sql.Tx, log *slog
 
 	log.Info("Received a new post")
 
-	/*
-		if _, err = tx.ExecContext(ctx, `insert into feed(follower, note, author, inserted) values(?, jsonb(?), jsonb(?), unixepoch())`, author.ID, post, author); err != nil {
-			return fmt.Errorf("failed to insert Create: %w", err)
-		}
-	*/
-
 	return nil
+}
+
+func (q *Queue) ProcessLocalActivity(ctx context.Context, tx *sql.Tx, sender *ap.Actor, activity *ap.Activity, rawActivity string) error {
+	return q.processActivity(ctx, tx, slog.With(), sender, activity, rawActivity, 1, false)
 }
 
 func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity string, depth int, shared bool) error {

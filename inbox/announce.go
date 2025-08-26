@@ -21,7 +21,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
@@ -68,7 +67,7 @@ func (q *Queue) Announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, note 
 		return fmt.Errorf("failed to insert announce activity: %w", err)
 	}
 
-	if err := q.processActivity(ctx, tx, slog.With(), actor, &announce, string(j), 1, false); err != nil {
+	if err := q.ProcessLocalActivity(ctx, tx, actor, &announce, string(j)); err != nil {
 		return fmt.Errorf("failed to insert announce activity: %w", err)
 	}
 

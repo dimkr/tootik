@@ -21,7 +21,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
@@ -65,7 +64,7 @@ func (q *Queue) UpdateNote(ctx context.Context, cfg *cfg.Config, db *sql.DB, act
 		return fmt.Errorf("failed to insert update activity: %w", err)
 	}
 
-	if err := q.processActivity(ctx, tx, slog.With(), actor, &update, string(j), 1, false); err != nil {
+	if err := q.ProcessLocalActivity(ctx, tx, actor, &update, string(j)); err != nil {
 		return fmt.Errorf("failed to update note: %w", err)
 	}
 

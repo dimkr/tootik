@@ -21,7 +21,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
 )
@@ -84,7 +83,7 @@ func (q *Queue) Unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor, fo
 		return fmt.Errorf("failed to insert undo for %s: %w", followID, err)
 	}
 
-	if err := q.processActivity(ctx, tx, slog.With(), follower, &unfollow, string(j), 1, false); err != nil {
+	if err := q.ProcessLocalActivity(ctx, tx, follower, &unfollow, string(j)); err != nil {
 		return fmt.Errorf("failed to insert undo for %s: %w", followID, err)
 	}
 

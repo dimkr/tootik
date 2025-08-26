@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
@@ -73,7 +72,7 @@ func (q *Queue) Create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *a
 		return fmt.Errorf("failed to insert Create: %w", err)
 	}
 
-	if err := q.processActivity(ctx, tx, slog.With(), author, &create, string(j), 1, false); err != nil {
+	if err := q.ProcessLocalActivity(ctx, tx, author, &create, string(j)); err != nil {
 		return fmt.Errorf("failed to insert Create: %w", err)
 	}
 

@@ -21,7 +21,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
 )
@@ -65,7 +64,7 @@ func (q *Queue) Accept(ctx context.Context, followed *ap.Actor, follower, follow
 		return fmt.Errorf("failed to accept %s: %w", followID, err)
 	}
 
-	if err := q.processActivity(ctx, tx, slog.With("activity", &accept), followed, &accept, string(j), 1, false); err != nil {
+	if err := q.ProcessLocalActivity(ctx, tx, followed, &accept, string(j)); err != nil {
 		return fmt.Errorf("failed to accept %s: %w", followID, err)
 	}
 

@@ -21,7 +21,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
 )
@@ -70,7 +69,7 @@ func (q *Queue) Follow(ctx context.Context, follower *ap.Actor, followed string,
 		return fmt.Errorf("failed to insert follow activity: %w", err)
 	}
 
-	if err := q.processActivity(ctx, tx, slog.With(), follower, &follow, string(j), 1, false); err != nil {
+	if err := q.ProcessLocalActivity(ctx, tx, follower, &follow, string(j)); err != nil {
 		return fmt.Errorf("failed to insert follow activity: %w", err)
 	}
 
