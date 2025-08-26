@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package inbox processes activities received from other servers.
+// Package inbox creates and processes activities.
 //
-// Incoming activites are received and queued by [fed.Listener].
+// Incoming activities are received and queued by [fed.Listener].
 package inbox
