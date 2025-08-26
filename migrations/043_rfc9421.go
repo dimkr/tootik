@@ -46,7 +46,7 @@ func rfc9421(ctx context.Context, domain string, tx *sql.Tx) error {
 				return err
 			}
 
-			_, priv, err := ed25519.GenerateKey(nil)
+			pub, priv, err := ed25519.GenerateKey(nil)
 			if err != nil {
 				return err
 			}
@@ -72,7 +72,7 @@ func rfc9421(ctx context.Context, domain string, tx *sql.Tx) error {
 					ID:                 actor.ID + "#ed25519-key",
 					Type:               "Multikey",
 					Controller:         actor.ID,
-					PublicKeyMultibase: data.EncodeEd25519PublicKey(priv),
+					PublicKeyMultibase: data.EncodeEd25519PublicKey(pub),
 				},
 			}
 

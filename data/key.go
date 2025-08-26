@@ -71,8 +71,8 @@ func DecodeEd25519PrivateKey(key string) (ed25519.PrivateKey, error) {
 }
 
 // EncodeEd25519PublicKey encodes an Ed25519 public key.
-func EncodeEd25519PublicKey(key ed25519.PrivateKey) string {
-	return "z" + base58.Encode(append([]byte{0xed, 0x01}, key.Public().(ed25519.PublicKey)...))
+func EncodeEd25519PublicKey(key ed25519.PublicKey) string {
+	return "z" + base58.Encode(append([]byte{0xed, 0x01}, key...))
 }
 
 // DecodeEd25519PublicKey decodes an Ed25519 public key encoded by [EncodeEd25519PublicKey].

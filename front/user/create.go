@@ -66,7 +66,7 @@ func generateRSAKey() (any, string, []byte, error) {
 	return priv, privPem.String(), pubPem.Bytes(), nil
 }
 
-func generateEd25519Key() (ed25519.PrivateKey, string, []byte, error) {
+func generateEd25519Key() (ed25519.PrivateKey, string, ed25519.PublicKey, error) {
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("failed to generate private key: %w", err)
@@ -136,13 +136,14 @@ func CreatePortable(
 	cert *x509.Certificate,
 	ed25519Priv ed25519.PrivateKey,
 	ed25519PrivMultibase string,
+	ed25519Pub ed25519.PublicKey,
 ) (*ap.Actor, [2]httpsig.Key, error) {
 	rsaPriv, rsaPrivPem, rsaPubPem, err := generateRSAKey()
 	if err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate RSA key pair: %w", err)
 	}
 
-	ed25519PubMultibase := data.EncodeEd25519PublicKey(ed25519Priv)
+	ed25519PubMultibase := data.EncodeEd25519PublicKey(ed25519Pub)
 
 	id := fmt.Sprintf("https://%s/.well-known/apgateway/did:key:%s/actor", domain, ed25519PubMultibase)
 	actor := ap.Actor{
@@ -192,7 +193,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate RSA key pair: %w", err)
 	}
 
-	ed25519Priv, ed25519PrivMultibase, _, err := generateEd25519Key()
+	ed25519Priv, ed25519PrivMultibase, ed25519Pub, err := generateEd25519Key()
 	if err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate Ed25519 key pair: %w", err)
 	}
@@ -230,7 +231,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 				ID:                 fmt.Sprintf("https://%s/user/%s#ed25519-key", domain, name),
 				Type:               "Multikey",
 				Controller:         id,
-				PublicKeyMultibase: data.EncodeEd25519PublicKey(ed25519Priv),
+				PublicKeyMultibase: data.EncodeEd25519PublicKey(ed25519Pub),
 			},
 		},
 		ManuallyApprovesFollowers: false,
