@@ -410,7 +410,7 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 
 	case ap.Update:
 		post, ok := activity.Object.(*ap.Object)
-		if !ok || post.ID == activity.Actor || post.ID == sender.ID {
+		if !ok || ap.Canonical(post.ID) == ap.Canonical(activity.Actor) || ap.Canonical(post.ID) == ap.Canonical(sender.ID) {
 			log.Debug("Ignoring unsupported Update object")
 			return nil
 		}
