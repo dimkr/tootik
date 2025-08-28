@@ -212,7 +212,7 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 		var localFollowed int
 		var followed ap.Actor
 		if err := tx.QueryRowContext(ctx, `select ed25519privkey is not null, json(actor) from persons where cid = ?`, ap.Canonical(followedID)).Scan(&localFollowed, &followed); errors.Is(err, sql.ErrNoRows) {
-			return fmt.Errorf("areceived an invalid follow request for %s by %s", followedID, activity.Actor)
+			return fmt.Errorf("received an invalid follow request for %s by %s", followedID, activity.Actor)
 		} else if err != nil {
 			return fmt.Errorf("failed to fetch %s: %w", followed.ID, err)
 		}
@@ -230,7 +230,7 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 			); err != nil {
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
-		} else {
+		} else if localFollowed == 1 && !followed.ManuallyApprovesFollowers {
 			log.Info("Approving follow request", "follower", activity.Actor, "followed", followed.ID)
 
 			if _, err := tx.ExecContext(
@@ -247,6 +247,8 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 			if err := q.Accept(ctx, &followed, activity.Actor, activity.ID, tx); err != nil {
 				return fmt.Errorf("failed to accept %s: %w", activity.ID, err)
 			}
+		} else {
+			return fmt.Errorf("received an invalid follow request for %s by %s", followed.ID, activity.Actor)
 		}
 
 	case ap.Accept:
