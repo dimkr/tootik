@@ -111,9 +111,15 @@ By default, tootik returns 0 in user and post counters unless `FillNodeInfoUsage
 
 tootik partially supports [FEP-ef61](https://codeberg.org/fediverse/fep/src/branch/main/fep/ef61/fep-ef61.md) portable actors, activities and objects.
 
+tootik is still primarily based on the 'classical mechanics' of `https://` links as IDs, and most "actor x is allowed to operate on object/activity y" checks are done using a strict `==` check. Support for data portability affects 4 main areas:
+* Discovery of actors
+* Delivery of activities to `inbox`
+* Tracking of follower<>followed relationships
+* Replication of outgoing activities
+
 ## Registration
 
-A portable actor is created by generating or supplying a pre-generated, base58-encoded Ed25519 private key during registration.
+A portable actor is created by generating or supplying a pre-generated, base58-encoded Ed25519 private key during registration. The key, like the user's `preferredUsername`, must be unique per tootik instance.
 
 tootik does not support the [FEP-ae97](https://codeberg.org/fediverse/fep/src/branch/main/fep/ae97/fep-ae97.md) registration flow.
 
@@ -183,9 +189,11 @@ The response points to a `https://` gateway that returns the actor object:
 
 Portable actors have both Ed25519 and RSA keys, allowing them to interact with actors on ActivityPub servers that don't support Ed25519 signatures.
 
+If both `a.localdomain` and `b.localdomain` run tootik and both `alice@a.localdomain` and `bob@b.localdomain` are canonically `ap://did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor`, both instance treat these actors as distinct actors that happen to share the same canonical ID. Although both actors have 'shared ownership' over posts, the profile page for `alice@a.localdomain` on both instances only shows posts where `attributedTo` is `https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor`, and `alice@a.localdomain` cannot edit posts where `attributedTo` is `bob@b.localdomain`.
+
 ## Security
 
-When tootik receives a `POST` request to `inbox` from a portable actor, it expects a valid [FEP-8b32](https://codeberg.org/fediverse/fep/src/branch/main/fep/8b32/fep-8b32.md) integrity proof and ability to fetch the actor, if not cached.
+When tootik receives a `POST` request to `inbox` from a portable actor, it requires a valid [FEP-8b32](https://codeberg.org/fediverse/fep/src/branch/main/fep/8b32/fep-8b32.md) integrity proof and ability to fetch the actor, if not cached.
 
 tootik validates the integrity proof using the Ed25519 public key extracted from the key ID, and doesn't need to fetch the actor first.
 
@@ -193,13 +201,13 @@ tootik's `inbox` doesn't validate HTTP signatures and simply ignores them. Other
 
 ## Following
 
-tootik doesn't know whether or not `a.localdomain` responds to `Follow` activities sent to actors owned by the same DID on `b.localdomain` and `c.localdomain`.
+tootik doesn't know whether or not `a.localdomain` responds to `Follow` activities sent to actors owned by the same DID on `b.localdomain` and `c.localdomain`, and it doesn't know whether or not all three servers agree about the list of followers for this DID.
 
 Therefore:
 * When a user asks to follow a portable actor, tootik behaves as if the user requested to follow all currently known actors that share the same DID.
-* Every time one of these actors sends an `Accept` activity, tootik marks the existing request as accepted.
+* Every time one of these actors sends an `Accept` activity, tootik marks the request for this actor as accepted.
 * Every time an additional actor that shares the same DID sends an `Accept` activity, tootik behaves as if the user requested to follow this actor and marks the request as accepted.
-* Every time an additional actor that shares the same DID is discovered, tootik behaves as if the user requested to follow this actor and copies the request status from a previous request.
+* Every time an additional actor that shares the same DID is fetched for the first time, tootik behaves as if the user requested to follow this actor and copies the request status from a previous request.
 
 If `alice@a.localdomain` shares the same DID as `bob@b.localdomain`, tootik on `a.localdomain` doesn't add the `Collection-Synchronization` header when it forwards activities by `bob@b.localdomain` to `carol@c.localdomain`, because `alice@a.localdomain` and `bob@b.localdomain` may disagree about the list of followers due to interoperability issues or simply because federation and persistent storage are not 100% reliable.
 
