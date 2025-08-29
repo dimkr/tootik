@@ -286,4 +286,12 @@ func TestCluster_Gateways(t *testing.T) {
 	carol.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
 		Contains(Line{Type: Quote, Text: "hola"})
+
+	carol.GotoInput(post.Links["🩹 Edit"], "yo").
+		Contains(Line{Type: Quote, Text: "yo"})
+	cluster.Settle(t)
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Contains(Line{Type: Quote, Text: "yo"})
 }

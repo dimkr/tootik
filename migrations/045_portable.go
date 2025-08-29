@@ -69,5 +69,13 @@ func portable(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
+	if _, err := tx.ExecContext(ctx, `ALTER TABLE notes ADD COLUMN authorcid TEXT NOT NULL AS (CASE WHEN author LIKE '%/.well-known/apgateway/did:key:z6Mk%' THEN 'ap://' || SUBSTR(author, 9 + INSTR(SUBSTR(author, 9), '/') + 22, CASE WHEN INSTR(SUBSTR(author, 9 + INSTR(SUBSTR(author, 9), '/') + 22), '?') > 0 THEN INSTR(SUBSTR(author, 9 + INSTR(SUBSTR(author, 9), '/') + 22), '?') - 1 ELSE LENGTH(author) END) ELSE author END)`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX notesauthorcid ON notes(authorcid)`); err != nil {
+		return err
+	}
+
 	return nil
 }
