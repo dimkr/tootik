@@ -55,8 +55,7 @@ func (q *Queue) reject(ctx context.Context, followed *ap.Actor, follower, follow
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (cid, activity, sender) VALUES (?, JSONB(?), ?)`,
-		ap.Canonical(reject.ID),
+		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
 		string(j),
 		followed.ID,
 	); err != nil {

@@ -61,8 +61,7 @@ func (q *Queue) delete(ctx context.Context, db *sql.DB, actor *ap.Actor, note *a
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (cid, activity, sender) VALUES (?, JSONB(?), ?)`,
-		ap.Canonical(delete.ID),
+		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
 		string(j),
 		note.AttributedTo,
 	); err != nil {

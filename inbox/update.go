@@ -54,8 +54,7 @@ func (q *Queue) updateNote(ctx context.Context, db *sql.DB, actor *ap.Actor, not
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (cid, activity, sender) VALUES (?, JSONB(?), ?)`,
-		ap.Canonical(update.ID),
+		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
 		string(j),
 		note.AttributedTo,
 	); err != nil {
@@ -99,8 +98,7 @@ func (q *Queue) updateActor(ctx context.Context, tx *sql.Tx, actorID string) err
 
 	_, err = tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (cid, activity, sender) VALUES (?, JSONB(?), ?)`,
-		ap.Canonical(update.ID),
+		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
 		&update,
 		actorID,
 	)

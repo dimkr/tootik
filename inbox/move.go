@@ -66,8 +66,7 @@ func (q *Queue) move(ctx context.Context, db *sql.DB, from *ap.Actor, to string)
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`insert into outbox (cid, activity, sender) values (?, jsonb(?), ?)`,
-		ap.Canonical(move.ID),
+		`insert into outbox (activity, sender) values (jsonb(?), ?)`,
 		&move,
 		from.ID,
 	); err != nil {

@@ -90,8 +90,7 @@ func (q *Queue) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Object,
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`insert into outbox(cid, activity, sender) values(?, jsonb(?), ?)`,
-		ap.Canonical(activity.ID),
+		`insert into outbox(activity, sender) values(jsonb(?), ?)`,
 		rawActivity,
 		group.ID,
 	); err != nil {
@@ -177,8 +176,7 @@ func (q *Queue) ForwardActivity(ctx context.Context, cfg *cfg.Config, tx *sql.Tx
 
 	if res, err := tx.ExecContext(
 		ctx,
-		`INSERT OR IGNORE INTO outbox (cid, activity, sender) VALUES (?, JSONB(?), ?)`,
-		ap.Canonical(activity.ID),
+		`INSERT OR IGNORE INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
 		rawActivity,
 		local,
 	); err != nil {

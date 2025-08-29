@@ -86,9 +86,8 @@ func insertActor(
 	if cert == nil {
 		_, err := db.ExecContext(
 			ctx,
-			`INSERT INTO persons (id, cid, actor, rsaprivkey, ed25519privkey) VALUES (?, ?, JSONB(?), ?, ?)`,
+			`INSERT INTO persons (id,  actor, rsaprivkey, ed25519privkey) VALUES (?, JSONB(?), ?, ?)`,
 			actor.ID,
-			ap.Canonical(actor.ID),
 			&actor,
 			rsaPrivPem,
 			ed25519PrivMultibase,
@@ -104,9 +103,8 @@ func insertActor(
 
 	if _, err = tx.ExecContext(
 		ctx,
-		`INSERT OR IGNORE INTO persons (id, cid, actor, rsaprivkey, ed25519privkey) VALUES (?, ?, JSONB(?), ?, ?)`,
+		`INSERT OR IGNORE INTO persons (id, actor, rsaprivkey, ed25519privkey) VALUES (?, JSONB(?), ?, ?)`,
 		actor.ID,
-		ap.Canonical(actor.ID),
 		&actor,
 		rsaPrivPem,
 		ed25519PrivMultibase,

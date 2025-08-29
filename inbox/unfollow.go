@@ -74,8 +74,7 @@ func (q *Queue) unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor, fo
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (cid, activity, sender) VALUES (?, JSONB(?), ?)`,
-		ap.Canonical(unfollow.ID),
+		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
 		string(j),
 		follower.ID,
 	); err != nil {

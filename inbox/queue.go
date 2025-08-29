@@ -222,11 +222,10 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 
 			if _, err := tx.ExecContext(
 				ctx,
-				`INSERT INTO follows (id, follower, followed, followedcid) VALUES($1, $2, $3, $4) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = NULL, inserted = UNIXEPOCH()`,
+				`INSERT INTO follows (id, follower, followed) VALUES($1, $2, $3) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = NULL, inserted = UNIXEPOCH()`,
 				activity.ID,
 				activity.Actor,
 				followed.ID,
-				ap.Canonical(followed.ID),
 			); err != nil {
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
@@ -235,11 +234,10 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 
 			if _, err := tx.ExecContext(
 				ctx,
-				`INSERT INTO follows (id, follower, followed, followedcid, accepted) VALUES($1, $2, $3, $4, 1) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = 1, inserted = UNIXEPOCH()`,
+				`INSERT INTO follows (id, follower, followed, accepted) VALUES($1, $2, $3, 1) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = 1, inserted = UNIXEPOCH()`,
 				activity.ID,
 				activity.Actor,
 				followed.ID,
-				ap.Canonical(followed.ID),
 			); err != nil {
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
@@ -269,8 +267,8 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 		if _, err := tx.ExecContext(
 			ctx,
 			`
-			INSERT INTO follows (id, follower, followed, followedcid, accepted)
-			SELECT $1, others.follower, $2, $3, 1
+			INSERT INTO follows (id, follower, followed, accepted)
+			SELECT $1, others.follower, $2, 1
 			FROM follows others
 			WHERE others.id = $1 AND others.followedcid = $3
 			ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = 1, inserted = UNIXEPOCH()
@@ -423,7 +421,7 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 
 		var oldPost ap.Object
 		var lastChange int64
-		if err := tx.QueryRowContext(ctx, `select max(inserted, updated), json(object) from notes where id = ? and author = ?`, post.ID, post.AttributedTo).Scan(&lastChange, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
+		if err := tx.QueryRowContext(ctx, `select max(inserted, updated), json(object) from notes where cid = ? and author in (select id from persons where cid = ?)`, ap.Canonical(post.ID), ap.Canonical(post.AttributedTo)).Scan(&lastChange, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
 			log.Debug("Received Update for non-existing post")
 			return q.processCreateActivity(ctx, tx, log, sender, activity, rawActivity, post, shared)
 		} else if err != nil {
@@ -456,9 +454,9 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 
 		if _, err := tx.ExecContext(
 			ctx,
-			`update notes set object = jsonb(?), updated = unixepoch() where id = ?`,
+			`update notes set object = jsonb(?), updated = unixepoch() where cid = ?`,
 			post,
-			post.ID,
+			ap.Canonical(post.ID),
 		); err != nil {
 			return fmt.Errorf("failed to update post %s: %w", post.ID, err)
 		}
@@ -466,9 +464,9 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 		if post.Content != oldPost.Content {
 			if _, err := tx.ExecContext(
 				ctx,
-				`update notesfts set content = ? where id = ?`,
+				`update notesfts set content = ? where id in (select id from notes where cid = ?)`,
 				note.Flatten(post),
-				post.ID,
+				ap.Canonical(post.ID),
 			); err != nil {
 				return fmt.Errorf("failed to update post %s: %w", post.ID, err)
 			}
@@ -476,9 +474,9 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 
 		if _, err := tx.ExecContext(
 			ctx,
-			`update feed set note = jsonb(?) where note->>'$.id' = ?`,
+			`update feed set note = jsonb(?) where note->>'$.id' in (select id from notes where cid = ?)`,
 			post,
-			post.ID,
+			ap.Canonical(post.ID),
 		); err != nil {
 			return fmt.Errorf("failed to update post %s: %w", post.ID, err)
 		}

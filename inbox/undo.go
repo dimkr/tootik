@@ -57,8 +57,7 @@ func (q *Queue) undo(ctx context.Context, db *sql.DB, actor *ap.Actor, activity 
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (cid, activity, sender) VALUES (?, JSONB(?), ?)`,
-		ap.Canonical(undo.ID),
+		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
 		string(j),
 		activity.Actor,
 	); err != nil {

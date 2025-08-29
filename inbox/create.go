@@ -67,7 +67,7 @@ func (q *Queue) create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *a
 	}
 	defer tx.Rollback()
 
-	if _, err = tx.ExecContext(ctx, `insert into outbox (cid, activity, sender) values (?,jsonb(?),?)`, ap.Canonical(create.ID), string(j), author.ID); err != nil {
+	if _, err = tx.ExecContext(ctx, `insert into outbox (activity, sender) values (jsonb(?),?)`, string(j), author.ID); err != nil {
 		return err
 	}
 

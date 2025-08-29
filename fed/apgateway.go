@@ -105,16 +105,15 @@ func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
 			union all
 			select json(persons.actor) as actor, persons.ed25519privkey, json(notes.object) as raw from notes
 			join persons on notes.author = persons.id
-			where notes.id = $2 and notes.public = 1 and persons.ed25519privkey is not null
+			where notes.cid = $1 and notes.public = 1 and persons.ed25519privkey is not null
 			union all
 			select json(persons.actor) as actor, persons.ed25519privkey, json(outbox.activity) as raw from outbox
 			join persons on outbox.activity->>'$.actor' = persons.id
-			where outbox.cid = $1 and (exists (select 1 from json_each(outbox.activity->'$.cc') where value = $3) or exists (select 1 from json_each(outbox.activity->'$.to') where value = $3)) and persons.ed25519privkey is not null
+			where outbox.cid = $1 and (exists (select 1 from json_each(outbox.activity->'$.cc') where value = $2) or exists (select 1 from json_each(outbox.activity->'$.to') where value = $2)) and persons.ed25519privkey is not null
 		)
 		limit 1
 		`,
 		id,
-		ap.Gateway("https://"+l.Domain, id),
 		ap.Public,
 	).Scan(&actor, &ed25519PrivKeyMultibase, &raw); errors.Is(err, sql.ErrNoRows) {
 		slog.Info("Notifying about missing object", "id", id)

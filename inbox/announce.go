@@ -57,8 +57,7 @@ func (q *Queue) announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, note 
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (cid, activity, sender) VALUES (?, JSONB(?), ?)`,
-		ap.Canonical(announce.ID),
+		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
 		string(j),
 		actor.ID,
 	); err != nil {

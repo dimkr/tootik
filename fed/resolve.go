@@ -514,9 +514,8 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO persons(id, cid, actor, fetched) VALUES ($1, $2, JSONB($3), UNIXEPOCH()) ON CONFLICT(id) DO UPDATE SET actor = JSONB($3), updated = UNIXEPOCH()`,
+		`INSERT INTO persons(id, actor, fetched) VALUES ($1, JSONB($2), UNIXEPOCH()) ON CONFLICT(id) DO UPDATE SET actor = JSONB($2), updated = UNIXEPOCH()`,
 		actor.ID,
-		ap.Canonical(actor.ID),
 		string(body),
 	); err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
@@ -555,8 +554,8 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 		if _, err := tx.ExecContext(
 			ctx,
 			`
-			INSERT OR IGNORE INTO follows (id, follower, followed, followedcid, accepted)
-			SELECT others.id, others.follower, $1, $2, others.accepted
+			INSERT OR IGNORE INTO follows (id, follower, followed, accepted)
+			SELECT others.id, others.follower, $1, others.accepted
 			FROM follows others
 			WHERE others.followedcid = $2
 			`,
