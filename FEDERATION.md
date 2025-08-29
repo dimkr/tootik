@@ -116,7 +116,7 @@ If
 * `bob@b.localdomain` is `https://b.localdomain/.well-known/apgateway/did:key:z6Mkjuj94k9qn7Rwddw3GnFeTq8fBcxzJ6Dgjw249LBYyqRE/actor`
 * and `carol@c.localdomain` is `https://c.localdomain/.well-known/apgateway/did:key:z6Mkjuj94k9qn7Rwddw3GnFeTq8fBcxzJ6Dgjw249LBYyqRE/actor`
 
-then tootik canonicalizes all three to `ap://did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor` and in some cases, allows one of them to operate on objects and activities "owned" by another. However, tootik is still primarily based on the 'classical mechanics' of `https://` URLs as IDs, and most "actor x is allowed to operate on object/activity y" checks are done using a strict `==` check, because tootik on `a.localdomain` doesn't know whether or not the server on `b.localdomain` allows `Update` from `alice@a.localdomain` on posts by `bob@b.localdomain`. In other words, the profile page for `alice@a.localdomain` only shows posts where `attributedTo` is `https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor`, and `alice@a.localdomain` cannot edit posts where `attributedTo` is `https://b.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor/inbox`.
+then tootik canonicalizes all three to `ap://did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor` and in some cases, allows one of them to operate on objects and activities "owned" by another. However, tootik is still primarily based on the 'classical mechanics' of `https://` URLs as IDs, and most "actor x is allowed to operate on object/activity y" checks are done using a strict `==` check.
 
 Support for data portability comes into play in 5 main areas:
 * Registration
