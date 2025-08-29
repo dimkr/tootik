@@ -31,8 +31,8 @@ import (
 )
 
 var (
-	inboxRegex = regexp.MustCompile(`^(did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/actor)\/inbox[#?]{0,1}.*`)
-	actorRegex = regexp.MustCompile(`^(did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/actor)[#?]{0,1}.*`)
+	inboxRegex          = regexp.MustCompile(`^(did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/actor)\/inbox[#?]{0,1}.*`)
+	portableObjectRegex = regexp.MustCompile(`^did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/[^#?]+`)
 )
 
 func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
@@ -79,29 +79,56 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (l *Listener) getActor(w http.ResponseWriter, r *http.Request, id string) {
-	slog.Info("Fetching actor", "id", id)
+func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
+	resource := r.PathValue("resource")
 
-	var actor ap.Actor
-	var actorString, ed25519PrivKeyMultibase string
-	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), json(actor), ed25519privkey from persons where cid = ? order by ed25519privkey is not null desc limit 1`, id).Scan(&actor, &actorString, &ed25519PrivKeyMultibase); errors.Is(err, sql.ErrNoRows) {
-		slog.Info("Notifying about missing user", "id", id)
+	id := portableObjectRegex.FindString(resource)
+	if id == "" {
+		slog.Info("Invalid resource", "resource", resource)
 		w.WriteHeader(http.StatusNotFound)
-		return
-	} else if err != nil {
-		slog.Warn("Failed to fetch user", "id", id, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	if actor.Suspended {
+	id = "ap://" + id
+
+	slog.Info("Fetching object", "id", id)
+
+	var actor ap.Actor
+	var raw, ed25519PrivKeyMultibase string
+	if err := l.DB.QueryRowContext(
+		r.Context(),
+		`
+		select actor, ed25519privkey, raw from
+		(
+			select json(actor) as actor, ed25519privkey, json(actor) as raw from persons
+			where cid = $1 and ed25519privkey is not null
+			union all
+			select json(persons.actor) as actor, persons.ed25519privkey, json(notes.object) as raw from notes
+			join persons on notes.author = persons.id
+			where notes.id = $2 and notes.public = 1 and persons.ed25519privkey is not null
+			union all
+			select json(persons.actor) as actor, persons.ed25519privkey, json(outbox.activity) as raw from outbox
+			join persons on outbox.activity->>'$.actor' = persons.id
+			where outbox.cid = $1 and (exists (select 1 from json_each(outbox.activity->'$.cc') where value = $3) or exists (select 1 from json_each(outbox.activity->'$.to') where value = $3)) and persons.ed25519privkey is not null
+		)
+		limit 1
+		`,
+		id,
+		ap.Gateway("https://"+l.Domain, id),
+		ap.Public,
+	).Scan(&actor, &ed25519PrivKeyMultibase, &raw); errors.Is(err, sql.ErrNoRows) {
+		slog.Info("Notifying about missing object", "id", id)
 		w.WriteHeader(http.StatusNotFound)
+		return
+	} else if err != nil {
+		slog.Warn("Failed to fetch object", "id", id, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
 	if err != nil {
-		slog.Warn("Failed to decode key", "error", err)
+		slog.Warn("Failed to decode key", "id", id, "key", actor.AssertionMethod[0].ID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -112,25 +139,14 @@ func (l *Listener) getActor(w http.ResponseWriter, r *http.Request, id string) {
 			PrivateKey: ed25519PrivKey,
 		},
 		time.Now(),
-		[]byte(actorString),
+		[]byte(raw),
 	)
 	if err != nil {
-		slog.Warn("Failed to add proof", "error", err)
+		slog.Warn("Failed to add proof", "id", id, "key", actor.AssertionMethod[0].ID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 	w.Write(withProof)
-}
-
-func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
-	resource := r.PathValue("resource")
-
-	if m := actorRegex.FindStringSubmatch(resource); m != nil {
-		l.getActor(w, r, "ap://"+m[1])
-	} else {
-		slog.Info("Invalid resource", "resource", resource)
-		w.WriteHeader(http.StatusNotFound)
-	}
 }

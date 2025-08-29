@@ -236,5 +236,5 @@ tootik's activities export feature exports activities by all actors that share t
 ## Limitations
 
 * tootik does not support `ap://` identifiers, location hints and delivery to `outbox`.
-* tootik does not support fetching of objects (like posts) and activities from `/.well-known/apgateway`: replication of data across all actors associated with the same DID is achieved using forwarding.
+* tootik provides limited support for fetching of objects (like posts) and activities from `/.well-known/apgateway`: replication of data across all actors associated with the same DID is primarily achieved using forwarding.
 * The RSA key under `publicKey` is generated during registration, so different actors owned by the same DID will use different RSA keys when they talk to servers that don't support Ed25519 signatures. Therefore, servers that cache only one RSA key for a DID with two actors might fail to validate some signatures.
