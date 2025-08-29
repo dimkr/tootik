@@ -265,10 +265,12 @@ func TestCluster_Gateways(t *testing.T) {
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "hi"})
+		Contains(Line{Type: Quote, Text: "hi"}).
+		Contains(Line{Type: Quote, Text: "hello"})
 
 	bob.
 		FollowInput("🔭 View profile", "carol@c.localdomain").
+		Contains(Line{Type: Quote, Text: "hi"}).
 		Contains(Line{Type: Quote, Text: "hello"})
 
 	bob.GotoInput(post.Links["💬 Reply"], "hola").

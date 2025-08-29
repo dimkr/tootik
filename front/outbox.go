@@ -82,16 +82,16 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 			`select json(u.object), json(authors.actor), null, max(u.inserted, coalesce(max(replies.inserted), 0)) from (
 				select notes.id, notes.object, notes.author, shares.inserted from shares
 				join notes on notes.id = shares.note
-				where shares.by = $1 and notes.public = 1 and notes.object->>'$.inReplyTo' is null
+				where shares.by in (select id from persons where cid = $1) and notes.public = 1 and notes.object->>'$.inReplyTo' is null
 				union all
 				select notes.id, notes.object, notes.author, notes.inserted from notes
-				where notes.author = $1 and notes.public = 1 and notes.object->>'$.inReplyTo' is null
+				where notes.authorcid = $1 and notes.public = 1 and notes.object->>'$.inReplyTo' is null
 			) u
 			join persons authors on authors.id = u.author
 			left join notes replies on replies.object->>'$.inReplyTo' = u.id
 			group by u.id
 			order by max(u.inserted, coalesce(max(replies.inserted), 0)) / 86400 desc, count(replies.id) desc, u.inserted desc limit $2 offset $3`,
-			actorID,
+			ap.Canonical(actorID),
 			h.Config.PostsPerPage,
 			offset,
 		)
@@ -103,19 +103,19 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 				select notes.id, notes.object, notes.author, shares.inserted from shares
 				join notes on notes.id = shares.note
 				where
-					shares.by = $1 and
+					shares.by in (select id from persons where cid = $1) and
 					(
 						notes.public = 1 or
-						exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
+						exists (select 1 from follows where follower = $2 and followedcid = $1 and accepted = 1)
 					) and
 					notes.object->>'$.inReplyTo' is null
 				union all
 				select notes.id, notes.object, notes.author, notes.inserted from notes
 				where
-					notes.author = $1 and
+					notes.authorcid = $1 and
 					(
 						notes.public = 1 or
-						exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
+						exists (select 1 from follows where follower = $2 and followedcid = $1 and accepted = 1)
 					) and
 					notes.object->>'$.inReplyTo' is null
 			) u
@@ -123,7 +123,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 			left join notes replies on replies.object->>'$.inReplyTo' = u.id
 			group by u.id
 			order by max(u.inserted, coalesce(max(replies.inserted), 0)) / 86400 desc, count(replies.id) desc, u.inserted desc limit $3 offset $4`,
-			actorID,
+			ap.Canonical(actorID),
 			r.User.ID,
 			h.Config.PostsPerPage,
 			offset,
@@ -134,19 +134,19 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 			r.Context,
 			`select json(object), json(actor), json(sharer), max(inserted) from (
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
-				join persons on persons.id = $1
-				where notes.author = $1 and notes.public = 1
+				join persons on persons.cid = $1
+				where notes.authorcid = $1 and notes.public = 1
 				union all
 				select notes.id, authors.actor, notes.object, shares.inserted, sharers.actor as by from
 				shares
 				join notes on notes.id = shares.note
 				join persons authors on authors.id = notes.author
-				join persons sharers on sharers.id = $1
-				where shares.by = $1 and notes.public = 1
+				join persons sharers on sharers.id = shares.by
+				where shares.by in (select id from persons where cid = $1) and notes.public = 1
 			)
 			group by id
 			order by max(inserted) desc limit $2 offset $3`,
-			actorID,
+			ap.Canonical(actorID),
 			h.Config.PostsPerPage,
 			offset,
 		)
@@ -156,18 +156,18 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 			r.Context,
 			`select json(object), json(actor), json(sharer), max(inserted) from (
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
-				join persons on persons.id = notes.author
-				where notes.author = $1
+				join persons on persons.cid = notes.authorcid
+				where notes.authorcid = $1
 				union all
 				select notes.id, authors.actor, notes.object, shares.inserted, sharers.actor as by from shares
 				join notes on notes.id = shares.note
 				join persons authors on authors.id = notes.author
-				join persons sharers on sharers.id = $1
-				where shares.by = $1
+				join persons sharers on sharers.id = shares.by
+				where shares.by in (select id from persons where cid = $1)
 			)
 			group by id
 			order by max(inserted) desc limit $2 offset $3`,
-			actorID,
+			ap.Canonical(actorID),
 			h.Config.PostsPerPage,
 			offset,
 		)
@@ -177,13 +177,13 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 			r.Context,
 			`select json(object), json(actor), json(sharer), max(inserted) from (
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
-				join persons on persons.id = $1
-				where notes.author = $1 and notes.public = 1
+				join persons on persons.cid = $1
+				where notes.authorcid = $1 and notes.public = 1
 				union
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
-				join persons on persons.id = $1
+				join persons on persons.cid = $1
 				where (
-					notes.author = $1 and (
+					notes.authorcid = $1 and (
 						$2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
 						(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $2)) or
 						(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $2))
@@ -195,22 +195,22 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 					persons.actor->>'$.followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
 					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers')) or
 					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers'))
-				join persons authors on authors.id = $1
+				join persons authors on authors.cid = $1
 				where notes.public = 0 and
-					notes.author = $1 and
-					persons.id = $1 and
-					exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
+					notes.authorcid = $1 and
+					persons.cid = $1 and
+					exists (select 1 from follows where follower = $2 and followedcid = $1 and accepted = 1)
 				union all
 				select notes.id, authors.actor, notes.object, shares.inserted, sharers.actor as by from
 				shares
 				join notes on notes.id = shares.note
 				join persons authors on authors.id = notes.author
-				join persons sharers on sharers.id = $1
-				where shares.by = $1 and notes.public = 1
+				join persons sharers on sharers.id = shares.by
+				where shares.by in (select id from persons where cid = $1) and notes.public = 1
 			)
 			group by id
 			order by max(inserted) desc limit $3 offset $4`,
-			actorID,
+			ap.Canonical(actorID),
 			r.User.ID,
 			h.Config.PostsPerPage,
 			offset,
