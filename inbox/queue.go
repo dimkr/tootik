@@ -211,7 +211,7 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, sender *ap.Acto
 
 		var localFollowed int
 		var followed ap.Actor
-		if err := tx.QueryRowContext(ctx, `select ed25519privkey is not null, json(actor) from persons where cid = ?`, ap.Canonical(followedID)).Scan(&localFollowed, &followed); errors.Is(err, sql.ErrNoRows) {
+		if err := tx.QueryRowContext(ctx, `select ed25519privkey is not null, json(actor) from persons where cid = ? order by ed25519privkey is not null desc limit 1`, ap.Canonical(followedID)).Scan(&localFollowed, &followed); errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("received an invalid follow request for %s by %s", followedID, activity.Actor)
 		} else if err != nil {
 			return fmt.Errorf("failed to fetch %s: %w", followed.ID, err)
@@ -432,9 +432,9 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, sender *ap.Acto
 
 		if _, err := tx.ExecContext(
 			ctx,
-			`update notes set object = jsonb(?), updated = unixepoch() where cid = ?`,
+			`update notes set object = jsonb(?), updated = unixepoch() where id = ?`,
 			post,
-			ap.Canonical(post.ID),
+			post.ID,
 		); err != nil {
 			return fmt.Errorf("failed to update post %s: %w", post.ID, err)
 		}
@@ -442,9 +442,9 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, sender *ap.Acto
 		if post.Content != oldPost.Content {
 			if _, err := tx.ExecContext(
 				ctx,
-				`update notesfts set content = ? where id in (select id from notes where cid = ?)`,
+				`update notesfts set content = ? where id = ?`,
 				note.Flatten(post),
-				ap.Canonical(post.ID),
+				post.ID,
 			); err != nil {
 				return fmt.Errorf("failed to update post %s: %w", post.ID, err)
 			}
@@ -452,9 +452,9 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, sender *ap.Acto
 
 		if _, err := tx.ExecContext(
 			ctx,
-			`update feed set note = jsonb(?) where note->>'$.id' in (select id from notes where cid = ?)`,
+			`update feed set note = jsonb(?) where note->>'$.id' = ?`,
 			post,
-			ap.Canonical(post.ID),
+			post.ID,
 		); err != nil {
 			return fmt.Errorf("failed to update post %s: %w", post.ID, err)
 		}
