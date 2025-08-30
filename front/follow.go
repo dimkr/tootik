@@ -69,7 +69,7 @@ func (h *Handler) follow(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := h.Queue.Follow(r.Context, r.User, followed, h.DB); err != nil {
+	if err := h.Inbox.Follow(r.Context, r.User, followed, h.DB); err != nil {
 		r.Log.Warn("Failed to follow user", "followed", followed, "error", err)
 		w.Error()
 		return

@@ -84,7 +84,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 	var postID string
 	if oldNote == nil {
 		var err error
-		postID, err = h.Queue.NewID(r.User.ID, "post")
+		postID, err = h.Inbox.NewID(r.User.ID, "post")
 		if err != nil {
 			r.Log.Error("Failed to generate post ID", "error", err)
 			w.Error()
@@ -247,9 +247,9 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 
 		note.Updated = now
 
-		err = h.Queue.UpdateNote(r.Context, h.DB, r.User, &note)
+		err = h.Inbox.UpdateNote(r.Context, h.DB, r.User, &note)
 	} else {
-		err = h.Queue.Create(r.Context, h.Config, h.DB, &note, r.User)
+		err = h.Inbox.Create(r.Context, h.Config, h.DB, &note, r.User)
 	}
 	if err != nil {
 		r.Log.Error("Failed to insert post", "error", err)

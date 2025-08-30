@@ -49,6 +49,7 @@ import (
 	"github.com/dimkr/tootik/icon"
 	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/migrations"
+	"github.com/dimkr/tootik/outbox"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -440,15 +441,21 @@ func main() {
 		{
 			"poller",
 			pollResultsUpdateInterval,
-			&inbox.Poller{
-				Queue: queue,
+			&outbox.Poller{
+				DB:     db,
+				Domain: *domain,
+				Inbox:  queue,
 			},
 		},
 		{
 			"mover",
 			followMoveInterval,
-			&inbox.Mover{
-				Queue: queue,
+			&outbox.Mover{
+				DB:       db,
+				Domain:   *domain,
+				Inbox:    queue,
+				Resolver: resolver,
+				Keys:     nobodyKeys,
 			},
 		},
 		{
@@ -466,8 +473,9 @@ func main() {
 		{
 			"deleter",
 			deleterInterval,
-			&inbox.Deleter{
-				Queue: queue,
+			&outbox.Deleter{
+				DB:    db,
+				Inbox: queue,
 			},
 		},
 		{

@@ -92,7 +92,7 @@ func (h *Handler) move(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := h.Queue.Move(r.Context, h.DB, r.User, actor.ID); err != nil {
+	if err := h.Inbox.Move(r.Context, h.DB, r.User, actor.ID); err != nil {
 		r.Log.Error("Failed to move user", "error", err)
 		w.Error()
 		return

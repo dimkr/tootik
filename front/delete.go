@@ -44,7 +44,7 @@ func (h *Handler) delete(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := h.Queue.Delete(r.Context, h.DB, r.User, &note); err != nil {
+	if err := h.Inbox.Delete(r.Context, h.DB, r.User, &note); err != nil {
 		r.Log.Error("Failed to delete post", "note", note.ID, "error", err)
 		w.Error()
 		return

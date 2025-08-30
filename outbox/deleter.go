@@ -14,10 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package inbox
+package outbox
 
 import (
 	"context"
+	"database/sql"
 	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
@@ -26,7 +27,8 @@ import (
 const batchSize = 512
 
 type Deleter struct {
-	*Queue
+	DB    *sql.DB
+	Inbox ap.Inbox
 }
 
 func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
@@ -58,7 +60,7 @@ func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 			return false, err
 		}
 
-		if err := d.Undo(ctx, d.DB, &sharer, &share); err != nil {
+		if err := d.Inbox.Undo(ctx, d.DB, &sharer, &share); err != nil {
 			return false, err
 		}
 
@@ -101,7 +103,7 @@ func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 			return false, err
 		}
 
-		if err := d.Delete(ctx, d.DB, &author, &note); err != nil {
+		if err := d.Inbox.Delete(ctx, d.DB, &author, &note); err != nil {
 			return false, err
 		}
 

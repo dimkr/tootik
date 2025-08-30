@@ -20,7 +20,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dimkr/tootik/inbox"
+	"github.com/dimkr/tootik/outbox"
 )
 
 func TestDeleter_OldData(t *testing.T) {
@@ -115,8 +115,9 @@ func TestDeleter_OldData(t *testing.T) {
 		t.Fatal("Failed to set post #1 insertion time: no rows affected")
 	}
 
-	deleter := inbox.Deleter{
-		Queue: cluster["b.localdomain"].Incoming,
+	deleter := outbox.Deleter{
+		DB:    cluster["b.localdomain"].DB,
+		Inbox: cluster["b.localdomain"].Incoming,
 	}
 
 	if err := deleter.Run(t.Context()); err != nil {
@@ -267,8 +268,9 @@ func TestDeleter_Disabled(t *testing.T) {
 		Follow("Never").
 		Contains(Line{Type: Text, Text: "Current setting: old posts are not deleted automatically."})
 
-	deleter := inbox.Deleter{
-		Queue: cluster["b.localdomain"].Incoming,
+	deleter := outbox.Deleter{
+		DB:    cluster["b.localdomain"].DB,
+		Inbox: cluster["b.localdomain"].Incoming,
 	}
 
 	if err := deleter.Run(t.Context()); err != nil {

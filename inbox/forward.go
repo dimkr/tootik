@@ -118,10 +118,10 @@ func (q *Queue) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Object,
 	return true, nil
 }
 
-// ForwardActivity forwards an activity if needed.
+// forwardActivity forwards an activity if needed.
 // A reply by B in a thread started by A is forwarded to all followers of A.
 // A post by a follower of a local group, which mentions the group or replies to a post in the group, is forwarded to followers of the group.
-func (q *Queue) ForwardActivity(ctx context.Context, cfg *cfg.Config, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity string) error {
+func (q *Queue) forwardActivity(ctx context.Context, cfg *cfg.Config, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity string) error {
 	// poll votes don't need to be forwarded
 	if note.Name != "" && note.Content == "" {
 		return nil

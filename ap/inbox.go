@@ -19,9 +19,22 @@ package ap
 import (
 	"context"
 	"database/sql"
+
+	"github.com/dimkr/tootik/cfg"
 )
 
+// Inbox creates and processes activities.
 type Inbox interface {
 	NewID(actorID, prefix string) (string, error)
+	Accept(ctx context.Context, followed *Actor, follower, followID string, tx *sql.Tx) error
+	Announce(ctx context.Context, tx *sql.Tx, actor *Actor, note *Object) error
+	Create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *Object, author *Actor) error
+	Delete(ctx context.Context, db *sql.DB, actor *Actor, note *Object) error
+	Follow(ctx context.Context, follower *Actor, followed string, db *sql.DB) error
+	Move(ctx context.Context, db *sql.DB, from *Actor, to string) error
+	Reject(ctx context.Context, followed *Actor, follower, followID string, tx *sql.Tx) error
+	Undo(ctx context.Context, db *sql.DB, actor *Actor, activity *Activity) error
+	UpdateActor(ctx context.Context, tx *sql.Tx, actorID string) error
+	UpdateNote(ctx context.Context, db *sql.DB, actor *Actor, note *Object) error
 	Unfollow(ctx context.Context, db *sql.DB, follower *Actor, followed, followID string) error
 }

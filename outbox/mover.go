@@ -14,18 +14,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package inbox
+package outbox
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/httpsig"
 )
 
 type Mover struct {
-	*Queue
+	DB       *sql.DB
+	Domain   string
+	Inbox    ap.Inbox
+	Resolver ap.Resolver
+	Keys     [2]httpsig.Key
 }
 
 func (m *Mover) updatedMoveTargets(ctx context.Context, prefix string) error {
@@ -36,20 +42,20 @@ func (m *Mover) updatedMoveTargets(ctx context.Context, prefix string) error {
 	defer rows.Close()
 
 	for rows.Next() {
-		var oldID, newID string
-		if err := rows.Scan(&oldID, &newID); err != nil {
+		var oldID, NewID string
+		if err := rows.Scan(&oldID, &NewID); err != nil {
 			slog.Error("Failed to scan moved actor", "error", err)
 			continue
 		}
 
-		actor, err := m.Resolver.ResolveID(ctx, m.Keys, newID, 0)
+		actor, err := m.Resolver.ResolveID(ctx, m.Keys, NewID, 0)
 		if err != nil {
-			slog.Warn("Failed to resolve move target", "old", oldID, "new", newID, "error", err)
+			slog.Warn("Failed to resolve move target", "old", oldID, "new", NewID, "error", err)
 			continue
 		}
 
 		if !actor.AlsoKnownAs.Contains(oldID) {
-			slog.Warn("New account does not point to old account", "new", newID, "old", oldID)
+			slog.Warn("New account does not point to old account", "new", NewID, "old", oldID)
 		}
 	}
 
@@ -96,24 +102,24 @@ func (m *Mover) Run(ctx context.Context) error {
 
 	for rows.Next() {
 		var actor ap.Actor
-		var oldID, newID, oldFollowID string
+		var oldID, NewID, oldFollowID string
 		var onlyRemove bool
-		if err := rows.Scan(&actor, &oldID, &newID, &oldFollowID, &onlyRemove); err != nil {
+		if err := rows.Scan(&actor, &oldID, &NewID, &oldFollowID, &onlyRemove); err != nil {
 			slog.Error("Failed to scan follow to move", "error", err)
 			continue
 		}
 
 		if onlyRemove {
-			slog.Info("Removing follow of moved actor", "follow", oldFollowID, "old", oldID, "new", newID)
+			slog.Info("Removing follow of moved actor", "follow", oldFollowID, "old", oldID, "new", NewID)
 		} else {
-			slog.Info("Moving follow", "follow", oldFollowID, "old", oldID, "new", newID)
-			if err := m.Follow(ctx, &actor, newID, m.DB); err != nil {
-				slog.Warn("Failed to follow new actor", "follow", oldFollowID, "old", oldID, "new", newID, "error", err)
+			slog.Info("Moving follow", "follow", oldFollowID, "old", oldID, "new", NewID)
+			if err := m.Inbox.Follow(ctx, &actor, NewID, m.DB); err != nil {
+				slog.Warn("Failed to follow new actor", "follow", oldFollowID, "old", oldID, "new", NewID, "error", err)
 				continue
 			}
 		}
-		if err := m.Unfollow(ctx, m.DB, &actor, oldID, oldFollowID); err != nil {
-			slog.Warn("Failed to unfollow old actor", "follow", oldFollowID, "old", oldID, "new", newID, "error", err)
+		if err := m.Inbox.Unfollow(ctx, m.DB, &actor, oldID, oldFollowID); err != nil {
+			slog.Warn("Failed to unfollow old actor", "follow", oldFollowID, "old", oldID, "new", NewID, "error", err)
 		}
 	}
 

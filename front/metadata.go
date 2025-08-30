@@ -149,7 +149,7 @@ func (h *Handler) metadataAdd(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := h.Queue.UpdateActor(r.Context, tx, r.User.ID); err != nil {
+	if err := h.Inbox.UpdateActor(r.Context, tx, r.User.ID); err != nil {
 		r.Log.Error("Failed to add metadata field", "name", attachment.Name, "error", err)
 		w.Error()
 		return
@@ -232,7 +232,7 @@ found:
 		return
 	}
 
-	if err := h.Queue.UpdateActor(r.Context, tx, r.User.ID); err != nil {
+	if err := h.Inbox.UpdateActor(r.Context, tx, r.User.ID); err != nil {
 		r.Log.Error("Failed to remove metadata field", "key", key, "id", id, "error", err)
 		w.Error()
 		return

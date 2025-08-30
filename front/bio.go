@@ -111,7 +111,7 @@ func (h *Handler) doSetBio(w text.Writer, r *Request, readInput func(text.Writer
 		return
 	}
 
-	if err := h.Queue.UpdateActor(r.Context, tx, r.User.ID); err != nil {
+	if err := h.Inbox.UpdateActor(r.Context, tx, r.User.ID); err != nil {
 		r.Log.Error("Failed to update bio", "error", err)
 		w.Error()
 		return

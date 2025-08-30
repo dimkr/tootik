@@ -136,7 +136,7 @@ func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := h.Queue.UpdateActor(r.Context, tx, r.User.ID); err != nil {
+	if err := h.Inbox.UpdateActor(r.Context, tx, r.User.ID); err != nil {
 		r.Log.Error("Failed to set avatar", "error", err)
 		w.Error()
 		return
