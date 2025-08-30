@@ -65,7 +65,7 @@ func portable(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE INDEX notescid ON notes(cid)`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE UNIQUE INDEX notescid ON notes(cid)`); err != nil {
 		return err
 	}
 
