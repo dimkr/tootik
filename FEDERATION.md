@@ -112,9 +112,9 @@ By default, tootik returns 0 in user and post counters unless `FillNodeInfoUsage
 tootik partially supports [FEP-ef61](https://codeberg.org/fediverse/fep/src/branch/main/fep/ef61/fep-ef61.md) portable actors, activities and objects.
 
 If
-* `alice@a.localdomain` is `https://a.localdomain/.well-known/apgateway/did:key:z6Mkjuj94k9qn7Rwddw3GnFeTq8fBcxzJ6Dgjw249LBYyqRE/actor`
-* `bob@b.localdomain` is `https://b.localdomain/.well-known/apgateway/did:key:z6Mkjuj94k9qn7Rwddw3GnFeTq8fBcxzJ6Dgjw249LBYyqRE/actor`
-* and `carol@c.localdomain` is `https://c.localdomain/.well-known/apgateway/did:key:z6Mkjuj94k9qn7Rwddw3GnFeTq8fBcxzJ6Dgjw249LBYyqRE/actor`
+* `alice@a.localdomain` is `https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor`
+* `bob@b.localdomain` is `https://b.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor`
+* and `carol@c.localdomain` is `https://c.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor`
 
 then tootik canonicalizes all three to `ap://did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor` and in some cases, allows one of them to operate on objects and activities "owned" by another. However, tootik is still primarily based on the 'classical mechanics' of `https://` URLs as IDs, and most "actor x is allowed to operate on object/activity y" checks are done using a strict `==` check.
 
@@ -146,7 +146,7 @@ The response points to a `https://` gateway that returns the actor object:
 		"links": [
 			{
 				...
-				"href": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkjuj94k9qn7Rwddw3GnFeTq8fBcxzJ6Dgjw249LBYyqRE/actor",
+				"href": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor",
 			}
 		]
 	}
@@ -236,5 +236,6 @@ tootik's activities export feature exports activities by all actors that share t
 ## Limitations
 
 * tootik does not support `ap://` identifiers, location hints and delivery to `outbox`.
+* tootik assumes that activity and object IDs don't change: for example, it assumes that `Update` activities for portable posts preserve the `id` field of the original object. This matches the expectation of servers that don't support data portability and simplifies the implementation.
 * tootik provides limited support for fetching of objects (like posts) and activities from `/.well-known/apgateway`: replication of data across all actors associated with the same DID is primarily achieved using forwarding.
 * The RSA key under `publicKey` is generated during registration, so different actors owned by the same DID will use different RSA keys when they talk to servers that don't support Ed25519 signatures. Therefore, servers that cache only one RSA key for a DID with two actors might fail to validate some signatures.
