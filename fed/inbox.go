@@ -353,13 +353,13 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, receive
 		sig, sender, err = l.verifyRequest(r, rawActivity, flags, keys)
 		if err != nil {
 			if errors.Is(err, ErrActorGone) {
-				w.WriteHeader(http.StatusOK)
+				w.WriteHeader(http.StatusAccepted)
 				return
 			}
 
 			if errors.Is(err, ErrActorNotCached) {
 				slog.Debug("Ignoring Delete activity for unknown actor", "error", err)
-				w.WriteHeader(http.StatusOK)
+				w.WriteHeader(http.StatusAccepted)
 				return
 			}
 
@@ -416,7 +416,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, receive
 
 	if _, ok := unsupportedActivityTypes[queued.Type]; ok {
 		slog.Debug("Ignoring unsupported activity", "activity", &activity, "sender", sender.ID)
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusAccepted)
 		return
 	}
 
@@ -436,7 +436,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, receive
 	/* if we don't support this activity or it's invalid, we don't want to fetch it (we validate again later) */
 	if err := l.validateActivity(queued, origin, 0); errors.Is(err, ap.ErrUnsupportedActivity) {
 		slog.Debug("Activity is unsupported", "activity", &activity, "sender", sender.ID, "error", err)
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusAccepted)
 		return
 	} else if err != nil {
 		slog.Warn("Activity is invalid", "activity", &activity, "sender", sender.ID, "error", err)
@@ -526,7 +526,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, receive
 		// we must validate the original activity because the forwarded one can be valid while the original isn't
 		if err := l.validateActivity(queued, origin, 0); errors.Is(err, ap.ErrUnsupportedActivity) {
 			slog.Debug("Activity is unsupported", "activity", &activity, "sender", sender.ID, "error", err)
-			w.WriteHeader(http.StatusOK)
+			w.WriteHeader(http.StatusAccepted)
 			return
 		} else if err != nil {
 			slog.Warn("Activity is invalid", "activity", &activity, "sender", sender.ID, "error", err)
@@ -607,5 +607,5 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, receive
 		}
 	}
 
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusAccepted)
 }

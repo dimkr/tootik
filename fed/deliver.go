@@ -353,7 +353,7 @@ func (q *Queue) queueTask(
 		return
 	}
 
-	req.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
+	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 	req.Header.Set("Content-Length", contentLength)
 
 	if followers != nil {
