@@ -41,7 +41,7 @@ func portable(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE INDEX personscidlocal ON persons(cid) WHERE ed25519privkey IS NOT NULL`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE UNIQUE INDEX personscidlocal ON persons(cid) WHERE ed25519privkey IS NOT NULL`); err != nil {
 		return err
 	}
 
