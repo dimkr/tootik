@@ -93,7 +93,7 @@ func getTextAndLinks(s string, maxRunes, maxLines int) ([]string, data.OrderedMa
 }
 
 func (h *Handler) getDisplayName(id, preferredUsername, name string, t ap.ActorType) string {
-	origin, err := ap.GetOrigin(id)
+	origin, err := ap.Origin(id)
 	if err != nil {
 		origin = ""
 	}

@@ -26,8 +26,8 @@ var (
 	// KeyRegex matches a base58-encoded Ed25519 public key.
 	KeyRegex = regexp.MustCompile(`\b(z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)\b`)
 
-	// DIDKeyRegex matches a portable object DID.
-	DIDKeyRegex = regexp.MustCompile(`^did:key:(z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)(?:[\/#?].*){0,1}`)
+	// didKeyRegex matches a portable object ID, without the ap:// prefix.
+	didKeyRegex = regexp.MustCompile(`^did:key:(z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)(?:[\/#?].*){0,1}`)
 
 	// apURLRegex matches an ap:// URL.
 	apURLRegex = regexp.MustCompile(`^ap:\/\/did:key:(z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)((?:[\/#?].*){0,1})`)
@@ -67,8 +67,8 @@ func Gateway(gw, id string) string {
 	return id
 }
 
-// GetOrigin returns the origin of an ActivityPub ID.
-func GetOrigin(id string) (string, error) {
+// Origin returns the origin of an ActivityPub ID.
+func Origin(id string) (string, error) {
 	if m := apURLRegex.FindStringSubmatch(id); m != nil {
 		return "did:key:" + m[1], nil
 	}
@@ -77,7 +77,7 @@ func GetOrigin(id string) (string, error) {
 		return "did:key:" + m[1], nil
 	}
 
-	if m := DIDKeyRegex.FindStringSubmatch(id); m != nil {
+	if m := didKeyRegex.FindStringSubmatch(id); m != nil {
 		return "did:key:" + m[1], nil
 	}
 

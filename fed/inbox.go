@@ -47,7 +47,7 @@ func (l *Listener) getActivityOrigin(activity *ap.Activity, sender *ap.Actor) (s
 		return "", "", errors.New("unspecified activity ID")
 	}
 
-	activityOrigin, err := ap.GetOrigin(activity.ID)
+	activityOrigin, err := ap.Origin(activity.ID)
 	if err != nil {
 		return "", "", err
 	}
@@ -56,7 +56,7 @@ func (l *Listener) getActivityOrigin(activity *ap.Activity, sender *ap.Actor) (s
 		return "", "", errors.New("unspecified sender ID")
 	}
 
-	senderOrigin, err := ap.GetOrigin(sender.ID)
+	senderOrigin, err := ap.Origin(sender.ID)
 	if err != nil {
 		return "", "", err
 	}
@@ -79,7 +79,7 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 		return errors.New("unspecified activity ID")
 	}
 
-	activityOrigin, err := ap.GetOrigin(activity.ID)
+	activityOrigin, err := ap.Origin(activity.ID)
 	if err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 		return errors.New("unspecified actor")
 	}
 
-	actorOrigin, err := ap.GetOrigin(activity.Actor)
+	actorOrigin, err := ap.Origin(activity.Actor)
 	if err != nil {
 		return err
 	}
@@ -106,14 +106,14 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 		// $origin can only delete objects that belong to $origin
 		switch v := activity.Object.(type) {
 		case *ap.Object:
-			if objectOrigin, err := ap.GetOrigin(v.ID); err != nil {
+			if objectOrigin, err := ap.Origin(v.ID); err != nil {
 				return err
 			} else if objectOrigin != origin {
 				return fmt.Errorf("invalid object host: %s", objectOrigin)
 			}
 
 		case string:
-			if stringOrigin, err := ap.GetOrigin(v); err != nil {
+			if stringOrigin, err := ap.Origin(v); err != nil {
 				return err
 			} else if stringOrigin != origin {
 				return fmt.Errorf("invalid object host: %s", stringOrigin)
@@ -125,7 +125,7 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 
 	case ap.Follow:
 		if inner, ok := activity.Object.(string); ok {
-			if innerOrigin, err := ap.GetOrigin(inner); err != nil {
+			if innerOrigin, err := ap.Origin(inner); err != nil {
 				return err
 				// actors from $origin can only follow ours
 			} else if innerOrigin != l.Domain && !strings.HasPrefix(innerOrigin, "did:") {
@@ -143,14 +143,14 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 				return fmt.Errorf("invalid object type: %s", v.Type)
 			}
 
-			if innerOrigin, err := ap.GetOrigin(v.ID); err != nil {
+			if innerOrigin, err := ap.Origin(v.ID); err != nil {
 				return err
 			} else if innerOrigin != l.Domain && !strings.HasPrefix(innerOrigin, "did:") {
 				return fmt.Errorf("invalid object host: %s", innerOrigin)
 			}
 
 		case string:
-			if innerOrigin, err := ap.GetOrigin(v); err != nil {
+			if innerOrigin, err := ap.Origin(v); err != nil {
 				return err
 			} else if innerOrigin != l.Domain && !strings.HasPrefix(innerOrigin, "did:") {
 				return fmt.Errorf("invalid object host: %s", innerOrigin)
@@ -177,12 +177,12 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 	case ap.Create, ap.Update:
 		// $origin can only create objects that belong to $origin
 		if obj, ok := activity.Object.(*ap.Object); ok {
-			if objectOrigin, err := ap.GetOrigin(obj.ID); err != nil {
+			if objectOrigin, err := ap.Origin(obj.ID); err != nil {
 				return err
 			} else if objectOrigin != origin {
 				return fmt.Errorf("invalid object host: %s", objectOrigin)
 			} else if obj.AttributedTo != "" && obj.AttributedTo != activity.Actor {
-				authorOrigin, err := ap.GetOrigin(obj.AttributedTo)
+				authorOrigin, err := ap.Origin(obj.AttributedTo)
 				if err != nil {
 					return err
 				}
@@ -192,7 +192,7 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 				}
 			}
 		} else if s, ok := activity.Object.(string); ok {
-			if stringOrigin, err := ap.GetOrigin(s); err != nil {
+			if stringOrigin, err := ap.Origin(s); err != nil {
 				return err
 			} else if stringOrigin != origin {
 				return fmt.Errorf("invalid object host: %s", stringOrigin)
@@ -209,7 +209,7 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 			return fmt.Errorf("invalid object: %T", activity.Object)
 		} else if s == "" {
 			return errors.New("empty ID")
-		} else if _, err := ap.GetOrigin(s); err != nil {
+		} else if _, err := ap.Origin(s); err != nil {
 			return err
 		}
 
@@ -308,7 +308,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, receive
 	var sender *ap.Actor
 	var sig *httpsig.Signature
 	if activity.Proof != (ap.Proof{}) {
-		actorOrigin, err := ap.GetOrigin(activity.Actor)
+		actorOrigin, err := ap.Origin(activity.Actor)
 		if err != nil {
 			slog.Warn("Failed to verify integrity proof", "activity", &activity, "proof", &activity.Proof, "error", err)
 			w.WriteHeader(http.StatusUnauthorized)
@@ -317,7 +317,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, receive
 			return
 		}
 
-		proofOrigin, err := ap.GetOrigin(activity.Proof.VerificationMethod)
+		proofOrigin, err := ap.Origin(activity.Proof.VerificationMethod)
 		if err != nil {
 			slog.Warn("Failed to verify integrity proof", "activity", &activity, "proof", &activity.Proof, "error", err)
 			w.WriteHeader(http.StatusUnauthorized)
