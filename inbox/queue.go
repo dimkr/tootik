@@ -51,7 +51,7 @@ type batchItem struct {
 
 var ErrActivityTooNested = errors.New("exceeded activity depth limit")
 
-func (q *Queue) processCreateActivity(ctx context.Context, tx *sql.Tx, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity string, post *ap.Object, shared bool) error {
+func (q *Queue) processCreateActivity(ctx context.Context, tx *sql.Tx, sender *ap.Actor, activity *ap.Activity, rawActivity string, post *ap.Object, shared bool) error {
 	u, err := url.Parse(post.ID)
 	if err != nil {
 		return fmt.Errorf("failed to parse post ID %s: %w", post.ID, err)
@@ -66,7 +66,7 @@ func (q *Queue) processCreateActivity(ctx context.Context, tx *sql.Tx, log *slog
 	}
 
 	if len(post.To.OrderedMap)+len(post.CC.OrderedMap) > q.Config.MaxRecipients {
-		log.Warn("Post has too many recipients", "to", len(post.To.OrderedMap), "cc", len(post.CC.OrderedMap))
+		slog.Warn("Post has too many recipients", "activity", activity, "to", len(post.To.OrderedMap), "cc", len(post.CC.OrderedMap))
 		return nil
 	}
 
@@ -106,7 +106,7 @@ func (q *Queue) processCreateActivity(ctx context.Context, tx *sql.Tx, log *slog
 			}
 		}
 
-		log.Debug("Post is a duplicate")
+		slog.Debug("Post is a duplicate", "activity", activity, "post", post.ID)
 		return nil
 	}
 
@@ -135,21 +135,21 @@ func (q *Queue) processCreateActivity(ctx context.Context, tx *sql.Tx, log *slog
 		return fmt.Errorf("cannot forward %s: %w", post.ID, err)
 	}
 
-	log.Info("Received a new post")
+	slog.Info("Received a new post", "activity", activity, "post", post.ID)
 
 	return nil
 }
 
 func (q *Queue) ProcessLocalActivity(ctx context.Context, tx *sql.Tx, sender *ap.Actor, activity *ap.Activity, rawActivity string) error {
-	return q.processActivity(ctx, tx, slog.With(), sender, activity, rawActivity, 1, false)
+	return q.processActivity(ctx, tx, sender, activity, rawActivity, 1, false)
 }
 
-func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logger, sender *ap.Actor, activity *ap.Activity, rawActivity string, depth int, shared bool) error {
+func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, sender *ap.Actor, activity *ap.Activity, rawActivity string, depth int, shared bool) error {
 	if depth == ap.MaxActivityDepth {
 		return ErrActivityTooNested
 	}
 
-	log.Debug("Processing activity", "domain", q.Domain)
+	slog.Debug("Processing activity", "activity", activity)
 
 	switch activity.Type {
 	case ap.Delete:
@@ -163,7 +163,7 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 			return errors.New("received an invalid delete activity")
 		}
 
-		log.Info("Received delete request", "deleted", deleted)
+		slog.Info("Received delete request", "activity", activity, "deleted", deleted)
 
 		if deleted == activity.Actor {
 			if _, err := tx.ExecContext(ctx, `delete from persons where id = ?`, deleted); err != nil {
@@ -172,7 +172,7 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 		} else {
 			var note ap.Object
 			if err := tx.QueryRowContext(ctx, `select json(object) from notes where id = ?`, deleted).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
-				log.Debug("Received delete request for non-existing post", "deleted", deleted)
+				slog.Debug("Received delete request for non-existing post", "activity", activity, "deleted", deleted)
 				return nil
 			} else if err != nil {
 				return fmt.Errorf("failed to delete %s: %w", deleted, err)
@@ -218,7 +218,7 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 		}
 
 		if localFollowed == 0 || followed.ManuallyApprovesFollowers {
-			log.Info("Not approving follow request", "follower", activity.Actor, "followed", followed.ID)
+			slog.Info("Not approving follow request", "activity", activity, "follower", activity.Actor, "followed", followed.ID)
 
 			if _, err := tx.ExecContext(
 				ctx,
@@ -230,7 +230,7 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
 		} else if localFollowed == 1 && !followed.ManuallyApprovesFollowers {
-			log.Info("Approving follow request", "follower", activity.Actor, "followed", followed.ID)
+			slog.Info("Approving follow request", "activity", activity, "follower", activity.Actor, "followed", followed.ID)
 
 			if _, err := tx.ExecContext(
 				ctx,
@@ -256,9 +256,9 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 
 		followID, ok := activity.Object.(string)
 		if ok && followID != "" {
-			log.Info("Follow is accepted", "follow", followID)
+			slog.Info("Follow is accepted", "activity", activity, "follow", followID)
 		} else if followActivity, ok := activity.Object.(*ap.Activity); ok && followActivity.Type == ap.Follow && followActivity.ID != "" {
-			log.Info("Follow is accepted", "follow", followActivity.ID)
+			slog.Info("Follow is accepted", "activity", activity, "follow", followActivity.ID)
 			followID = followActivity.ID
 		} else {
 			return errors.New("received an invalid Accept")
@@ -287,9 +287,9 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 
 		followID, ok := activity.Object.(string)
 		if ok && followID != "" {
-			log.Info("Follow is rejected", "follow", followID)
+			slog.Info("Follow is rejected", "activity", activity, "follow", followID)
 		} else if followActivity, ok := activity.Object.(*ap.Activity); ok && followActivity.Type == ap.Follow && followActivity.ID != "" {
-			log.Info("Follow is rejected", "follow", followActivity.ID)
+			slog.Info("Follow is rejected", "activity", activity, "follow", followActivity.ID)
 			followID = followActivity.ID
 		} else {
 			return errors.New("received an invalid Reject")
@@ -326,7 +326,7 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 		}
 
 		if inner.Type != ap.Follow {
-			log.Debug("Ignoring request to undo a non-Follow activity")
+			slog.Debug("Ignoring request to undo a non-Follow activity", "activity", activity)
 			return nil
 		}
 
@@ -350,13 +350,11 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 			return errors.New("received an undo request with empty ID")
 		}
 
-		log.Info("Removing a Follow", "domain", q.Domain, "follower", follower, "followed", followed)
-
 		if _, err := tx.ExecContext(ctx, `update follows set accepted = 0 where follower = ? and followed = ?`, follower, followed); err != nil {
 			return fmt.Errorf("failed to remove follow of %s by %s: %w", followed, follower, err)
 		}
 
-		log.Info("Removed a Follow", "follower", follower, "followed", followed)
+		slog.Info("Removed a Follow", "activity", activity, "follower", follower, "followed", followed)
 
 	case ap.Create:
 		post, ok := activity.Object.(*ap.Object)
@@ -364,7 +362,7 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 			return errors.New("received invalid Create")
 		}
 
-		return q.processCreateActivity(ctx, tx, log, sender, activity, rawActivity, post, shared)
+		return q.processCreateActivity(ctx, tx, sender, activity, rawActivity, post, shared)
 
 	case ap.Announce:
 		inner, ok := activity.Object.(*ap.Activity)
@@ -380,38 +378,18 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 					return fmt.Errorf("cannot insert share for %s by %s: %w", postID, sender.ID, err)
 				}
 			} else {
-				log.Debug("Ignoring unsupported Announce object")
+				slog.Debug("Ignoring unsupported Announce object", "activity", activity)
 			}
 			return nil
 		}
 
-		/*
-			if actor.Type == ap.Person {
-				if _, err := tx.ExecContext(
-					ctx,
-					`
-				INSERT INTO feed (follower, note, author, sharer, inserted)
-				SELECT $1, JSONB($2), authors.actor, JSONB($3), UNIXEPOCH()
-				FROM persons authors
-				WHERE authors.id = $4
-				`,
-					actor.ID,
-					note,
-					actor,
-					note.AttributedTo,
-				); err != nil {
-					return fmt.Errorf("failed to insert announce activity: %w", err)
-				}
-			}
-		*/
-
 		depth++
-		return q.processActivity(ctx, tx, log.With("activity", inner, "depth", depth), sender, inner, rawActivity, depth, true)
+		return q.processActivity(ctx, tx, sender, inner, rawActivity, depth, true)
 
 	case ap.Update:
 		post, ok := activity.Object.(*ap.Object)
 		if !ok || ap.Canonical(post.ID) == ap.Canonical(activity.Actor) || ap.Canonical(post.ID) == ap.Canonical(sender.ID) {
-			log.Debug("Ignoring unsupported Update object")
+			slog.Debug("Ignoring unsupported Update object", "activity", activity)
 			return nil
 		}
 
@@ -422,8 +400,8 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 		var oldPost ap.Object
 		var lastChange int64
 		if err := tx.QueryRowContext(ctx, `select max(inserted, updated), json(object) from notes where cid = ? and author in (select id from persons where cid = ?)`, ap.Canonical(post.ID), ap.Canonical(post.AttributedTo)).Scan(&lastChange, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
-			log.Debug("Received Update for non-existing post")
-			return q.processCreateActivity(ctx, tx, log, sender, activity, rawActivity, post, shared)
+			slog.Debug("Received Update for non-existing post", "activity", activity)
+			return q.processCreateActivity(ctx, tx, sender, activity, rawActivity, post, shared)
 		} else if err != nil {
 			return fmt.Errorf("failed to get last update time for %s: %w", post.ID, err)
 		}
@@ -443,7 +421,7 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 		}
 
 		if (post.Type == ap.Question && post.Updated != (ap.Time{}) && lastChange >= post.Updated.UnixNano()) || (post.Type != ap.Question && (post.Updated == (ap.Time{}) || lastChange >= post.Updated.UnixNano())) {
-			log.Debug("Received old update request for new post")
+			slog.Debug("Received old update request for new post", "activity", activity)
 			return nil
 		}
 
@@ -485,19 +463,19 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 			return fmt.Errorf("failed to forward update post %s: %w", post.ID, err)
 		}
 
-		log.Info("Updated post")
+		slog.Info("Updated post", "activity", activity, "post", post.ID)
 
 	case ap.Move:
-		log.Debug("Ignoring Move activity")
+		slog.Debug("Ignoring Move activity", "activity", activity)
 
 	case ap.Like, ap.Dislike, ap.EmojiReact, ap.Add, ap.Remove:
-		log.Debug("Ignoring activity")
+		slog.Debug("Ignoring activity", "activity", activity)
 
 	default:
 		if sender.ID == activity.Actor {
-			log.Warn("Received unknown request")
+			slog.Warn("Received unknown request", "activity", activity)
 		} else {
-			log.Warn("Received unknown, unauthorized request")
+			slog.Warn("Received unknown, unauthorized request", "activity", activity)
 		}
 	}
 
@@ -508,9 +486,8 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, tx *sql.Tx, s
 	ctx, cancel := context.WithTimeout(parent, q.Config.ActivityProcessingTimeout)
 	defer cancel()
 
-	log := slog.With("activity", activity, "sender", sender.ID)
-	if err := q.processActivity(ctx, tx, log, sender, activity, rawActivity, 1, shared); err != nil {
-		log.Warn("Failed to process activity", "error", err)
+	if err := q.processActivity(ctx, tx, sender, activity, rawActivity, 1, shared); err != nil {
+		slog.Warn("Failed to process activity", "activity", activity, "error", err)
 	}
 }
 
