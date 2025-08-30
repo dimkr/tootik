@@ -134,8 +134,8 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 			r.Context,
 			`select json(object), json(actor), json(sharer), max(inserted) from (
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
-				join persons on persons.cid = $1
-				where notes.authorcid = $1 and notes.public = 1
+				join persons on persons.id = notes.author
+				where persons.cid = $1 and notes.authorcid = $1 and notes.public = 1
 				union all
 				select notes.id, authors.actor, notes.object, shares.inserted, sharers.actor as by from
 				shares
@@ -156,8 +156,8 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 			r.Context,
 			`select json(object), json(actor), json(sharer), max(inserted) from (
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
-				join persons on persons.cid = notes.authorcid
-				where notes.authorcid = $1
+				join persons on persons.id = notes.author
+				where persons.cid = $1 and notes.authorcid = $1
 				union all
 				select notes.id, authors.actor, notes.object, shares.inserted, sharers.actor as by from shares
 				join notes on notes.id = shares.note
@@ -177,13 +177,14 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 			r.Context,
 			`select json(object), json(actor), json(sharer), max(inserted) from (
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
-				join persons on persons.cid = $1
-				where notes.authorcid = $1 and notes.public = 1
+				join persons on persons.id = notes.author
+				where persons.cid = $1 and notes.authorcid = $1 and notes.public = 1
 				union
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
-				join persons on persons.cid = $1
+				join persons on persons.id = notes.author
 				where (
-					notes.authorcid = $1 and (
+					notes.authorcid = $1 and
+					persons.cid = $1 and (
 						$2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
 						(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $2)) or
 						(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $2))
@@ -195,10 +196,11 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 					persons.actor->>'$.followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
 					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers')) or
 					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers'))
-				join persons authors on authors.cid = $1
+				join persons authors on authors.id = notes.author
 				where notes.public = 0 and
 					notes.authorcid = $1 and
 					persons.cid = $1 and
+					authors.cid = $1 and
 					exists (select 1 from follows where follower = $2 and followedcid = $1 and accepted = 1)
 				union all
 				select notes.id, authors.actor, notes.object, shares.inserted, sharers.actor as by from
