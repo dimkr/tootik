@@ -31,11 +31,6 @@ func (h *Handler) move(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if ap.IsPortable(r.User.ID) {
-		w.Status(40, "Cannot move portable account")
-		return
-	}
-
 	if r.User.MovedTo != "" {
 		r.Log.Warn("User cannot be moved again", "movedTo", r.User.MovedTo)
 		w.Status(40, "Already moved to "+r.User.MovedTo)
