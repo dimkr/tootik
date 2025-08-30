@@ -35,7 +35,7 @@ func (h *Handler) doEdit(w text.Writer, r *Request, args []string, readInput inp
 	postID := "https://" + args[1]
 
 	var note ap.Object
-	if err := h.DB.QueryRowContext(r.Context, `select json(object) from notes where cid = ? and author in (select id from persons where cid = ?)`, ap.Canonical(postID), ap.Canonical(r.User.ID)).Scan(&note); errors.Is(err, sql.ErrNoRows) {
+	if err := h.DB.QueryRowContext(r.Context, `select json(object) from notes where id = ? and author in (select id from persons where cid = ?)`, postID, ap.Canonical(r.User.ID)).Scan(&note); errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Attempted to edit non-existing post", "post", postID, "error", err)
 		w.Error()
 		return
