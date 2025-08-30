@@ -42,20 +42,20 @@ func (m *Mover) updatedMoveTargets(ctx context.Context, prefix string) error {
 	defer rows.Close()
 
 	for rows.Next() {
-		var oldID, NewID string
-		if err := rows.Scan(&oldID, &NewID); err != nil {
+		var oldID, newID string
+		if err := rows.Scan(&oldID, &newID); err != nil {
 			slog.Error("Failed to scan moved actor", "error", err)
 			continue
 		}
 
-		actor, err := m.Resolver.ResolveID(ctx, m.Keys, NewID, 0)
+		actor, err := m.Resolver.ResolveID(ctx, m.Keys, newID, 0)
 		if err != nil {
-			slog.Warn("Failed to resolve move target", "old", oldID, "new", NewID, "error", err)
+			slog.Warn("Failed to resolve move target", "old", oldID, "new", newID, "error", err)
 			continue
 		}
 
 		if !actor.AlsoKnownAs.Contains(oldID) {
-			slog.Warn("New account does not point to old account", "new", NewID, "old", oldID)
+			slog.Warn("New account does not point to old account", "new", newID, "old", oldID)
 		}
 	}
 
