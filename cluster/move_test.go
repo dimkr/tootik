@@ -54,11 +54,11 @@ func TestCluster_MovedAccount(t *testing.T) {
 	bob.FollowInput("🔭 View profile", "carol@c.localdomain").OK()
 
 	mover := outbox.Mover{
-		DB:       cluster["b.localdomain"].DB,
 		Domain:   "b.localdomain",
-		Inbox:    cluster["b.localdomain"].Incoming,
+		DB:       cluster["b.localdomain"].DB,
 		Resolver: cluster["b.localdomain"].Resolver,
 		Keys:     cluster["b.localdomain"].NobodyKeys,
+		Inbox:    cluster["b.localdomain"].Incoming,
 	}
 	if err := mover.Run(t.Context()); err != nil {
 		t.Fatalf("Failed to process moved accounts: %v", err)

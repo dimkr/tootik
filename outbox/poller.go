@@ -27,8 +27,8 @@ import (
 )
 
 type Poller struct {
-	DB     *sql.DB
 	Domain string
+	DB     *sql.DB
 	Inbox  ap.Inbox
 }
 

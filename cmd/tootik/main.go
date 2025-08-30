@@ -442,8 +442,8 @@ func main() {
 			"poller",
 			pollResultsUpdateInterval,
 			&outbox.Poller{
-				DB:     db,
 				Domain: *domain,
+				DB:     db,
 				Inbox:  queue,
 			},
 		},
@@ -451,8 +451,8 @@ func main() {
 			"mover",
 			followMoveInterval,
 			&outbox.Mover{
-				DB:       db,
 				Domain:   *domain,
+				DB:       db,
 				Inbox:    queue,
 				Resolver: resolver,
 				Keys:     nobodyKeys,
@@ -467,7 +467,7 @@ func main() {
 				DB:       db,
 				Resolver: resolver,
 				Keys:     nobodyKeys,
-				Queue:    queue,
+				Inbox:    queue,
 			},
 		},
 		{

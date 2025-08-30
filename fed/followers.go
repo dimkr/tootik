@@ -44,14 +44,14 @@ type Syncer struct {
 	DB       *sql.DB
 	Resolver *Resolver
 	Keys     [2]httpsig.Key
-	Queue    ap.Inbox
+	Inbox    ap.Inbox
 }
 
 type followersDigest struct {
 	Followed string
 	URL      string
 	Digest   string
-	Queue    ap.Inbox
+	Inbox    ap.Inbox
 }
 
 var followersSyncRegex = regexp.MustCompile(`\b([^"=]+)="([^"]+)"`)
@@ -306,7 +306,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 
 		var followID string
 		if err := db.QueryRowContext(ctx, `SELECT follows.id FROM follows WHERE follows.follower = ? AND follows.followed = ?`, follower, d.Followed).Scan(&followID); errors.Is(err, sql.ErrNoRows) {
-			followID, err = d.Queue.NewID(d.Followed, "follow")
+			followID, err = d.Inbox.NewID(d.Followed, "follow")
 			if err != nil {
 				slog.Warn("Failed to generate fake follow ID", "followed", d.Followed, "follower", follower, "error", err)
 				continue
@@ -317,7 +317,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 			continue
 		}
 
-		if err := d.Queue.Unfollow(ctx, db, &actor, d.Followed, followID); err != nil {
+		if err := d.Inbox.Unfollow(ctx, db, &actor, d.Followed, followID); err != nil {
 			slog.Warn("Failed to remove remote follow", "followed", d.Followed, "follower", follower, "error", err)
 		}
 	}
@@ -344,7 +344,7 @@ func (s *Syncer) ProcessBatch(ctx context.Context) (int, error) {
 
 	for rows.Next() {
 		job := followersDigest{
-			Queue: s.Queue,
+			Inbox: s.Inbox,
 		}
 		if err := rows.Scan(&job.Followed, &job.URL, &job.Digest); err != nil {
 			slog.Error("Failed to scan digest", "error", err)
