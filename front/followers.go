@@ -51,7 +51,7 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 			if _, err := tx.ExecContext(
 				r.Context,
 				"update persons set actor = jsonb_set(actor, '$.manuallyApprovesFollowers', jsonb('true')) where id = ?",
-				r.User.ID,
+				ap.Canonical(r.User.ID),
 			); err != nil {
 				r.Log.Warn("Failed to toggle manual approval", "error", err)
 				w.Error()
@@ -62,7 +62,7 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 			if _, err := tx.ExecContext(
 				r.Context,
 				"update persons set actor = jsonb_set(actor, '$.manuallyApprovesFollowers', jsonb('false')) where id = ?",
-				r.User.ID,
+				ap.Canonical(r.User.ID),
 			); err != nil {
 				r.Log.Warn("Failed to toggle manual approval", "error", err)
 				w.Error()
@@ -101,7 +101,7 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 		where follows.followed = $1 and (accepted is null or accepted = 1)
 		order by follows.inserted desc
 		`,
-		r.User.ID,
+		ap.Canonical(r.User.ID),
 	)
 	if err != nil {
 		r.Log.Warn("Failed to list followers", "error", err)

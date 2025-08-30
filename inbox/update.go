@@ -56,7 +56,7 @@ func (q *Queue) updateNote(ctx context.Context, db *sql.DB, actor *ap.Actor, not
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
 		string(j),
-		note.AttributedTo,
+		ap.Canonical(note.AttributedTo),
 	); err != nil {
 		return err
 	}
@@ -100,7 +100,7 @@ func (q *Queue) updateActor(ctx context.Context, tx *sql.Tx, actorID string) err
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
 		&update,
-		actorID,
+		ap.Canonical(actorID),
 	)
 	return err
 }

@@ -68,7 +68,7 @@ func (q *Queue) move(ctx context.Context, db *sql.DB, from *ap.Actor, to string)
 		ctx,
 		`insert into outbox (activity, sender) values (jsonb(?), ?)`,
 		&move,
-		from.ID,
+		ap.Canonical(from.ID),
 	); err != nil {
 		return err
 	}

@@ -63,7 +63,7 @@ func (q *Queue) delete(ctx context.Context, db *sql.DB, actor *ap.Actor, note *a
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
 		string(j),
-		note.AttributedTo,
+		ap.Canonical(note.AttributedTo),
 	); err != nil {
 		return err
 	}

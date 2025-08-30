@@ -74,9 +74,8 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -151,9 +150,8 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -207,9 +205,8 @@ func TestForward_LocalReplyToLocalPublicPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -280,9 +277,8 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -353,9 +349,8 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -426,9 +421,8 @@ func TestForward_ReplyToDM(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -488,9 +482,8 @@ func TestForward_NotFollowingAuthor(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -561,9 +554,8 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -623,9 +615,8 @@ func TestForward_ReplyToFederatedPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -741,9 +732,8 @@ func TestForward_MaxDepth(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -874,9 +864,8 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -933,9 +922,8 @@ func TestForward_ReplyToLocalPostByLocalFollower(t *testing.T) {
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -974,9 +962,8 @@ func TestForward_EditedReplyToLocalPostByLocalFollower(t *testing.T) {
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -1022,9 +1009,8 @@ func TestForward_DeletedReplyToLocalPostByLocalFollower(t *testing.T) {
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -1088,8 +1074,7 @@ func TestForward_EditedReplyToPublicPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
+		`insert into persons (actor) values (jsonb(?))`,
 		`{"type":"Person","id":"https://127.0.0.1/user/dan","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
@@ -1196,8 +1181,7 @@ func TestForward_ResentEditedReplyToPublicPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
+		`insert into persons (actor) values (jsonb(?))`,
 		`{"type":"Person","id":"https://127.0.0.1/user/dan","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
@@ -1315,8 +1299,7 @@ func TestForward_DeletedReplyToPublicPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
+		`insert into persons (actor) values (jsonb(?))`,
 		`{"type":"Person","id":"https://127.0.0.1/user/dan","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
@@ -1401,8 +1384,7 @@ func TestForward_DeletedDeletedReplyToPublicPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
+		`insert into persons (actor) values (jsonb(?))`,
 		`{"type":"Person","id":"https://127.0.0.1/user/dan","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)

@@ -23,6 +23,7 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 )
 
@@ -140,7 +141,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 				offset $4
 			`,
 			query,
-			r.User.ID,
+			ap.Canonical(r.User.ID),
 			h.Config.PostsPerPage,
 			offset,
 		)

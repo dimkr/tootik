@@ -19,6 +19,7 @@ package front
 import (
 	"database/sql"
 
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 )
 
@@ -55,7 +56,7 @@ func (h *Handler) bookmarks(w text.Writer, r *Request, args ...string) {
 				order by bookmarks.inserted desc
 				limit $2
 				offset $3`,
-				r.User.ID,
+				ap.Canonical(r.User.ID),
 				h.Config.PostsPerPage,
 				offset,
 			)

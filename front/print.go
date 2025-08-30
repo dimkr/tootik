@@ -231,7 +231,7 @@ func (h *Handler) printCompactNote(w text.Writer, r *Request, note *ap.Object, a
 	contentLines, links, hashtags, mentionedUsers := h.getNoteContent(note, true)
 
 	var replies int
-	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where object->>'$.inReplyTo' = ?`, note.ID).Scan(&replies); err != nil {
+	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where parent = ?`, ap.Canonical(note.ID)).Scan(&replies); err != nil {
 		r.Log.Warn("Failed to count replies", "id", note.ID, "error", err)
 	}
 

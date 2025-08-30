@@ -69,16 +69,16 @@ func (q *Queue) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Object,
 				limit 1
 			)
 		`,
-		firstPostID,
+		ap.Canonical(firstPostID),
 		q.Domain,
-	).Scan(&group); err != nil && errors.Is(err, sql.ErrNoRows) {
+	).Scan(&group); errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	} else if err != nil {
 		return false, err
 	}
 
 	var following int
-	if err := tx.QueryRowContext(ctx, `select exists (select 1 from follows where follower = ? and followed = ? and accepted = 1)`, note.AttributedTo, group.ID).Scan(&following); err != nil {
+	if err := tx.QueryRowContext(ctx, `select exists (select 1 from follows where follower = ? and followed = ? and accepted = 1)`, ap.Canonical(note.AttributedTo), ap.Canonical(group.ID)).Scan(&following); err != nil {
 		return true, err
 	}
 
@@ -92,7 +92,7 @@ func (q *Queue) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Object,
 		ctx,
 		`insert into outbox(activity, sender) values(jsonb(?), ?)`,
 		rawActivity,
-		group.ID,
+		ap.Canonical(group.ID),
 	); err != nil {
 		return true, err
 	}
@@ -110,7 +110,7 @@ func (q *Queue) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Object,
 		ctx,
 		`update notes set object = jsonb_set(object, '$.audience', $1) where id = $2`,
 		group.ID,
-		note.ID,
+		ap.Canonical(note.ID),
 	); err != nil {
 		return true, err
 	}
@@ -132,7 +132,7 @@ func (q *Queue) ForwardActivity(ctx context.Context, cfg *cfg.Config, tx *sql.Tx
 
 	if note.InReplyTo != "" {
 		var depth int
-		if err := tx.QueryRowContext(ctx, `with recursive thread(id, author, parent, depth) as (select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, 1 as depth from notes where id = $1 union all select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent where t.depth <= $2) select id, author, depth from thread order by depth desc limit 1`, note.ID, cfg.MaxForwardingDepth+1).Scan(&firstPostID, &threadStarterID, &depth); err != nil && errors.Is(err, sql.ErrNoRows) {
+		if err := tx.QueryRowContext(ctx, `with recursive thread(id, author, parent, depth) as (select notes.id, notes.author, notes.parent, 1 as depth from notes where id = $1 union all select notes.id, notes.author, notes.parent, t.depth + 1 from thread t join notes on notes.id = t.parent where t.depth <= $2) select id, author, depth from thread order by depth desc limit 1`, ap.Canonical(note.ID), cfg.MaxForwardingDepth+1).Scan(&firstPostID, &threadStarterID, &depth); errors.Is(err, sql.ErrNoRows) {
 			slog.Debug("Failed to find thread for post", "activity", activity.ID, "note", note.ID)
 			return nil
 		} else if err != nil {
@@ -158,15 +158,15 @@ func (q *Queue) ForwardActivity(ctx context.Context, cfg *cfg.Config, tx *sql.Tx
 	}
 
 	var local string
-	if err := tx.QueryRowContext(ctx, `select id from persons where cid = ? and ed25519privkey is not null limit 1`, ap.Canonical(threadStarterID)).Scan(&local); errors.Is(err, sql.ErrNoRows) {
-		slog.Debug("Thread starter is federated", "activity", activity.ID, "note", note.ID)
+	if err := tx.QueryRowContext(ctx, `select id from persons where id = ? and ed25519privkey is not null limit 1`, ap.Canonical(threadStarterID)).Scan(&local); errors.Is(err, sql.ErrNoRows) {
+		slog.Debug("Thread starter is federated", "domain", q.Domain, "activity", activity.ID, "note", note.ID)
 		return nil
 	} else if err != nil {
 		return err
 	}
 
 	var shouldForward int
-	if err := tx.QueryRowContext(ctx, `select exists (select 1 from notes join persons on persons.id = notes.author and (notes.public = 1 or exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers') or exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers')) where notes.id = ?)`, firstPostID).Scan(&shouldForward); err != nil {
+	if err := tx.QueryRowContext(ctx, `select exists (select 1 from notes join persons on persons.id = notes.author and (notes.public = 1 or exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers') or exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers')) where notes.id = ?)`, ap.Canonical(firstPostID)).Scan(&shouldForward); err != nil {
 		return err
 	}
 	if shouldForward == 0 {
@@ -178,7 +178,7 @@ func (q *Queue) ForwardActivity(ctx context.Context, cfg *cfg.Config, tx *sql.Tx
 		ctx,
 		`INSERT OR IGNORE INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
 		rawActivity,
-		local,
+		ap.Canonical(local),
 	); err != nil {
 		return err
 	} else if n, err := res.RowsAffected(); err != nil {

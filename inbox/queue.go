@@ -71,15 +71,15 @@ func (q *Queue) processCreateActivity(ctx context.Context, tx *sql.Tx, log *slog
 	}
 
 	var audience sql.NullString
-	if err := tx.QueryRowContext(ctx, `select object->>'$.audience' from notes where id = ?`, post.ID).Scan(&audience); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := tx.QueryRowContext(ctx, `select object->>'$.audience' from notes where id = ?`, ap.Canonical(post.ID)).Scan(&audience); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("failed to check of %s is a duplicate: %w", post.ID, err)
 	} else if err == nil {
 		if sender.ID == post.Audience && !audience.Valid {
-			if _, err := tx.ExecContext(ctx, `update notes set object = jsonb_set(object, '$.audience', ?) where id = ? and object->>'$.audience' is null`, post.Audience, post.ID); err != nil {
+			if _, err := tx.ExecContext(ctx, `update notes set object = jsonb_set(object, '$.audience', ?) where id = ? and object->>'$.audience' is null`, post.Audience, ap.Canonical(post.ID)); err != nil {
 				return fmt.Errorf("failed to set %s audience to %s: %w", post.ID, audience.String, err)
 			}
 
-			if _, err := tx.ExecContext(ctx, `update feed set note = jsonb_set(note, '$.audience', ?) where note->>'$.id' = ? and note->>'$.audience' is null`, post.Audience, post.ID); err != nil {
+			if _, err := tx.ExecContext(ctx, `update feed set note = jsonb_set(note, '$.audience', ?) where note->>'$.id' = ? and note->>'$.audience' is null`, post.Audience, ap.Canonical(post.ID)); err != nil {
 				return fmt.Errorf("failed to set %s audience to %s: %w", post.ID, audience.String, err)
 			}
 
@@ -87,9 +87,9 @@ func (q *Queue) processCreateActivity(ctx context.Context, tx *sql.Tx, log *slog
 				if _, err := tx.ExecContext(
 					ctx,
 					`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
-					post.ID,
-					sender.ID,
-					activity.ID,
+					ap.Canonical(post.ID),
+					ap.Canonical(sender.ID),
+					ap.Canonical(activity.ID),
 				); err != nil {
 					return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, sender.ID, err)
 				}
@@ -98,9 +98,9 @@ func (q *Queue) processCreateActivity(ctx context.Context, tx *sql.Tx, log *slog
 			if _, err := tx.ExecContext(
 				ctx,
 				`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
-				post.ID,
-				sender.ID,
-				activity.ID,
+				ap.Canonical(post.ID),
+				ap.Canonical(sender.ID),
+				ap.Canonical(activity.ID),
 			); err != nil {
 				return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, sender.ID, err)
 			}
@@ -110,7 +110,7 @@ func (q *Queue) processCreateActivity(ctx context.Context, tx *sql.Tx, log *slog
 		return nil
 	}
 
-	// only the group itself has the authority to decide which posts belong to it
+	// only the group itself has the authority to deide which posts belong to it
 	if post.Audience != sender.ID {
 		post.Audience = ""
 	}
@@ -123,9 +123,9 @@ func (q *Queue) processCreateActivity(ctx context.Context, tx *sql.Tx, log *slog
 		if _, err := tx.ExecContext(
 			ctx,
 			`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
-			post.ID,
-			sender.ID,
-			activity.ID,
+			ap.Canonical(post.ID),
+			ap.Canonical(sender.ID),
+			ap.Canonical(activity.ID),
 		); err != nil {
 			return fmt.Errorf("cannot insert share for %s by %s: %w", post.ID, sender.ID, err)
 		}
@@ -163,9 +163,10 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 			return errors.New("received an invalid delete activity")
 		}
 
+		deleted = ap.Canonical(deleted)
 		log.Info("Received delete request", "deleted", deleted)
 
-		if deleted == activity.Actor {
+		if deleted == ap.Canonical(activity.Actor) {
 			if _, err := tx.ExecContext(ctx, `delete from persons where id = ?`, deleted); err != nil {
 				return fmt.Errorf("failed to delete person %s: %w", deleted, err)
 			}
@@ -211,7 +212,7 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 
 		var localFollowed int
 		var followed ap.Actor
-		if err := tx.QueryRowContext(ctx, `select ed25519privkey is not null, json(actor) from persons where cid = ?`, ap.Canonical(followedID)).Scan(&localFollowed, &followed); errors.Is(err, sql.ErrNoRows) {
+		if err := tx.QueryRowContext(ctx, `select ed25519privkey is not null, json(actor) from persons where id = ?`, ap.Canonical(followedID)).Scan(&localFollowed, &followed); errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("received an invalid follow request for %s by %s", followedID, activity.Actor)
 		} else if err != nil {
 			return fmt.Errorf("failed to fetch %s: %w", followed.ID, err)
@@ -224,8 +225,8 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 				ctx,
 				`INSERT INTO follows (id, follower, followed) VALUES($1, $2, $3) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = NULL, inserted = UNIXEPOCH()`,
 				activity.ID,
-				activity.Actor,
-				followed.ID,
+				ap.Canonical(activity.Actor),
+				ap.Canonical(followed.ID),
 			); err != nil {
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
@@ -236,8 +237,8 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 				ctx,
 				`INSERT INTO follows (id, follower, followed, accepted) VALUES($1, $2, $3, 1) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = 1, inserted = UNIXEPOCH()`,
 				activity.ID,
-				activity.Actor,
-				followed.ID,
+				ap.Canonical(activity.Actor),
+				ap.Canonical(followed.ID),
 			); err != nil {
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
@@ -266,15 +267,8 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 
 		if _, err := tx.ExecContext(
 			ctx,
-			`
-			INSERT INTO follows (id, follower, followed, accepted)
-			SELECT $1, others.follower, $2, 1
-			FROM follows others
-			WHERE others.id = $1 AND others.followedcid = $3
-			ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = 1, inserted = UNIXEPOCH()
-			`,
+			`update follows set accepted = 1 where id = ? and followed = ? and (accepted is null or accepted = 0)`,
 			followID,
-			sender.ID,
 			ap.Canonical(sender.ID),
 		); err != nil {
 			return fmt.Errorf("failed to insert follow: %w", err)
@@ -295,7 +289,7 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 			return errors.New("received an invalid Reject")
 		}
 
-		if res, err := tx.ExecContext(ctx, `update follows set accepted = 0 where id = ? and followed = ? and accepted is null or accepted = 1`, followID, sender.ID); err != nil {
+		if res, err := tx.ExecContext(ctx, `update follows set accepted = 0 where id = ? and followed = ? and (accepted is null or accepted = 1)`, followID, ap.Canonical(sender.ID)); err != nil {
 			return fmt.Errorf("failed to reject follow %s: %w", followID, err)
 		} else if n, err := res.RowsAffected(); err != nil {
 			return fmt.Errorf("failed to reject follow %s: %w", followID, err)
@@ -317,8 +311,8 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 			if _, err := tx.ExecContext(
 				ctx,
 				`delete from shares where note = ? and by = ?`,
-				noteID,
-				activity.Actor,
+				ap.Canonical(noteID),
+				ap.Canonical(activity.Actor),
 			); err != nil {
 				return fmt.Errorf("failed to remove share for %s by %s: %w", noteID, activity.Actor, err)
 			}
@@ -373,9 +367,9 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 				if _, err := tx.ExecContext(
 					ctx,
 					`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
-					postID,
-					sender.ID,
-					activity.ID,
+					ap.Canonical(postID),
+					ap.Canonical(sender.ID),
+					ap.Canonical(activity.ID),
 				); err != nil {
 					return fmt.Errorf("cannot insert share for %s by %s: %w", postID, sender.ID, err)
 				}
@@ -384,26 +378,6 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 			}
 			return nil
 		}
-
-		/*
-			if actor.Type == ap.Person {
-				if _, err := tx.ExecContext(
-					ctx,
-					`
-				INSERT INTO feed (follower, note, author, sharer, inserted)
-				SELECT $1, JSONB($2), authors.actor, JSONB($3), UNIXEPOCH()
-				FROM persons authors
-				WHERE authors.id = $4
-				`,
-					actor.ID,
-					note,
-					actor,
-					note.AttributedTo,
-				); err != nil {
-					return fmt.Errorf("failed to insert announce activity: %w", err)
-				}
-			}
-		*/
 
 		depth++
 		return q.processActivity(ctx, tx, log.With("activity", inner, "depth", depth), sender, inner, rawActivity, depth, true)
@@ -421,7 +395,7 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 
 		var oldPost ap.Object
 		var lastChange int64
-		if err := tx.QueryRowContext(ctx, `select max(inserted, updated), json(object) from notes where cid = ? and author in (select id from persons where cid = ?)`, ap.Canonical(post.ID), ap.Canonical(post.AttributedTo)).Scan(&lastChange, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
+		if err := tx.QueryRowContext(ctx, `select max(inserted, updated), json(object) from notes where id = ? and author in (select id from persons where id = ?)`, ap.Canonical(post.ID), ap.Canonical(post.AttributedTo)).Scan(&lastChange, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
 			log.Debug("Received Update for non-existing post")
 			return q.processCreateActivity(ctx, tx, log, sender, activity, rawActivity, post, shared)
 		} else if err != nil {
@@ -447,14 +421,14 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 			return nil
 		}
 
-		// only the group can decide if audience has changed
+		// only the group can deide if audience has changed
 		if sender.ID != oldPost.Audience {
 			post.Audience = oldPost.Audience
 		}
 
 		if _, err := tx.ExecContext(
 			ctx,
-			`update notes set object = jsonb(?), updated = unixepoch() where cid = ?`,
+			`update notes set object = jsonb(?), updated = unixepoch() where id = ?`,
 			post,
 			ap.Canonical(post.ID),
 		); err != nil {
@@ -464,7 +438,7 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 		if post.Content != oldPost.Content {
 			if _, err := tx.ExecContext(
 				ctx,
-				`update notesfts set content = ? where id in (select id from notes where cid = ?)`,
+				`update notesfts set content = ? where id in (select id from notes where id = ?)`,
 				note.Flatten(post),
 				ap.Canonical(post.ID),
 			); err != nil {
@@ -474,7 +448,7 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, log *slog.Logge
 
 		if _, err := tx.ExecContext(
 			ctx,
-			`update feed set note = jsonb(?) where note->>'$.id' in (select id from notes where cid = ?)`,
+			`update feed set note = jsonb(?) where note->>'$.id' in (select id from notes where id = ?)`,
 			post,
 			ap.Canonical(post.ID),
 		); err != nil {
@@ -544,7 +518,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		maxID = id
 
 		if !sender.Valid {
-			slog.Warn("Sender is unknown", "id", id)
+			slog.Warn("Sender is unknown", "id", id, "domain", q.Domain)
 			continue
 		}
 

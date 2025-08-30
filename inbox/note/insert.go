@@ -85,9 +85,7 @@ func Insert(ctx context.Context, tx *sql.Tx, note *ap.Object) error {
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO notes (id, author, object, public) VALUES (?, ?, JSONB(?), ?)`,
-		note.ID,
-		note.AttributedTo,
+		`INSERT INTO notes (object, public) VALUES (JSONB(?), ?)`,
 		&note,
 		public,
 	); err != nil {
@@ -97,7 +95,7 @@ func Insert(ctx context.Context, tx *sql.Tx, note *ap.Object) error {
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO notesfts (id, content) VALUES(?,?)`,
-		note.ID,
+		ap.Canonical(note.ID),
 		Flatten(note),
 	); err != nil {
 		return fmt.Errorf("failed to insert note %s: %w", note.ID, err)

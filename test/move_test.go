@@ -48,15 +48,13 @@ func TestMove_FederatedToFederated(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
+		`insert into persons (actor) values (jsonb(?))`,
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://::1/user/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://::1/user/dan",
+		`insert into persons (actor) values (jsonb(?))`,
 		`{"id":"https://::1/user/dan","type":"Person","preferredUsername":"dan","alsoKnownAs":"https://127.0.0.1/user/dan"}`,
 	)
 	assert.NoError(err)
@@ -96,15 +94,13 @@ func TestMove_FederatedToFederatedTwoAccounts(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
+		`insert into persons (actor) values (jsonb(?))`,
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://::1/user/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://::1/user/dan",
+		`insert into persons (actor) values (jsonb(?))`,
 		`{"id":"https://::1/user/dan","type":"Person","preferredUsername":"dan","alsoKnownAs":["https://::1/user/dan","https://127.0.0.1/user/dan"]}`,
 	)
 	assert.NoError(err)
@@ -144,15 +140,13 @@ func TestMove_FederatedToFederatedNotLinked(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
+		`insert into persons (actor) values (jsonb(?))`,
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://::1/user/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://::1/user/dan",
+		`insert into persons (actor) values (jsonb(?))`,
 		`{"id":"https://::1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
@@ -192,8 +186,7 @@ func TestMove_FederatedToLocal(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
+		`insert into persons (actor) values (jsonb(?))`,
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://localhost.localdomain:8443/user/bob"}`,
 	)
 	assert.NoError(err)
@@ -233,8 +226,7 @@ func TestMove_FederatedToLocalLinked(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
+		`insert into persons (actor) values (jsonb(?))`,
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://localhost.localdomain:8443/user/bob"}`,
 	)
 	assert.NoError(err)
@@ -287,15 +279,13 @@ func TestMove_FollowingBoth(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
+		`insert into persons (actor) values (jsonb(?))`,
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://::1/user/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://::1/user/dan",
+		`insert into persons (actor) values (jsonb(?))`,
 		`{"id":"https://::1/user/dan","type":"Person","preferredUsername":"dan","alsoKnownAs":"https://127.0.0.1/user/dan"}`,
 	)
 	assert.NoError(err)
@@ -410,8 +400,7 @@ func TestMove_LocalToFederated(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/alice",
+		`insert into persons (actor) values (jsonb(?))`,
 		`{"id":"https://127.0.0.1/user/alice","type":"Person","preferredUsername":"alice","alsoKnownAs":["https://localhost.localdomain:8443/user/alice"]}`,
 	)
 	assert.NoError(err)
@@ -458,8 +447,7 @@ func TestMove_LocalToFederatedNoSourceToTargetAlias(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/alice",
+		`insert into persons (actor) values (jsonb(?))`,
 		`{"id":"https://127.0.0.1/user/alice","type":"Person","preferredUsername":"alice","alsoKnownAs":["https://localhost.localdomain:8443/user/alice"]}`,
 	)
 	assert.NoError(err)
@@ -487,8 +475,7 @@ func TestMove_LocalToFederatedNoTargetToSourceAlias(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/alice",
+		`insert into persons (actor) values (jsonb(?))`,
 		`{"id":"https://127.0.0.1/user/alice","type":"Person","preferredUsername":"alice","alsoKnownAs":[]}`,
 	)
 	assert.NoError(err)
@@ -521,8 +508,7 @@ func TestMove_LocalToFederatedAlreadyMoved(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/alice",
+		`insert into persons (actor) values (jsonb(?))`,
 		`{"id":"https://127.0.0.1/user/alice","type":"Person","preferredUsername":"alice","alsoKnownAs":["https://localhost.localdomain:8443/user/alice"]}`,
 	)
 	assert.NoError(err)

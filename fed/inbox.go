@@ -538,7 +538,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, receive
 	if _, err = l.DB.ExecContext(
 		r.Context(),
 		`INSERT OR IGNORE INTO inbox (sender, activity, raw) VALUES (?, JSONB(?), ?)`,
-		sender.ID,
+		ap.Canonical(sender.ID),
 		queued,
 		string(rawActivity),
 	); err != nil {
@@ -559,7 +559,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, receive
 			r.Context(),
 			`insert or ignore into outbox(activity, sender) values(jsonb(?), ?)`,
 			string(rawActivity),
-			receiver,
+			ap.Canonical(receiver),
 		); err != nil {
 			slog.Error("Failed to forward portable activity", "activity", activity.ID, "sender", sender.ID, "receiver", receiver, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)

@@ -56,7 +56,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				notes.id = $1 and
 				notes.public = 1
 			`,
-			postID,
+			ap.Canonical(postID),
 		).Scan(&note, &author, &group)
 	} else {
 		err = h.DB.QueryRowContext(
@@ -89,8 +89,8 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 					)
 				)
 			`,
-			postID,
-			r.User.ID,
+			ap.Canonical(postID),
+			ap.Canonical(r.User.ID),
 		).Scan(&note, &author, &group)
 	}
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
@@ -119,22 +119,22 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				`
 				select json(note), json(author), depth from
 				(
-					with recursive thread(note, author, depth) as (
-						select notes.object as note, persons.actor as author, 1 as depth
+					with recursive thread(note, parent, author, depth) as (
+						select notes.object as note, notes.parent, persons.actor as author, 1 as depth
 						from notes
 						join persons on persons.id = notes.author
 						where notes.id = ?
 						union all
-						select notes.object as note, persons.actor as author, t.depth + 1
+						select notes.object as note, notes.parent, persons.actor as author, t.depth + 1
 						from thread t
-						join notes on notes.id = t.note->>'$.inReplyTo'
+						join notes on notes.id = t.parent
 						join persons on persons.id = notes.author
 					)
-					select * from thread order by note->'$.inReplyTo' is null desc, depth limit ?
+					select note, author, depth from thread order by parent is null desc, depth limit ?
 				)
 				order by depth desc
 				`,
-				note.InReplyTo,
+				ap.Canonical(note.InReplyTo),
 				h.Config.PostContextDepth,
 			); err != nil {
 				r.Log.Warn("Failed to fetch context", "error", err)
@@ -267,7 +267,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 					)
 					group by id
 					order by min(rank), inserted limit $3`,
-					note.ID,
+					ap.Canonical(note.ID),
 					h.Domain,
 					h.Config.SharesPerPost,
 				)
@@ -301,8 +301,8 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 					)
 					group by id
 					order by min(rank), inserted limit $4`,
-					note.ID,
-					r.User.ID,
+					ap.Canonical(note.ID),
+					ap.Canonical(r.User.ID),
 					h.Domain,
 					h.Config.SharesPerPost,
 				)
@@ -331,7 +331,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			order by notes.inserted desc
 			limit ?
 			`,
-			note.ID,
+			ap.Canonical(note.ID),
 			h.Config.QuotesPerPost,
 		); err != nil {
 			r.Log.Warn("Failed to query quotes", "error", err)
@@ -355,8 +355,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			title += " ┃ edited"
 		}
 
-		prefix := fmt.Sprintf("https://%s/", h.Domain)
-		if strings.HasPrefix(note.ID, prefix) {
+		if origin, err := ap.GetOrigin(note.ID); err == nil && origin == h.Domain {
 			w.Text(title)
 		} else {
 			w.Link(note.ID, title)
@@ -488,7 +487,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				join persons on persons.id = notes.author
 				where notes.id = ?
 				`,
-				note.Quote,
+				ap.Canonical(note.Quote),
 			).Scan(&quote, &quoteAuthor); errors.Is(err, sql.ErrNoRows) {
 				w.Text("[Missing]")
 			} else if err != nil {
@@ -523,14 +522,14 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		replies, err = h.DB.QueryContext(
 			r.Context,
 			`
-			select json(replies.object), json(persons.actor), null as sharer, replies.inserted from notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
+			select json(replies.object), json(persons.actor), null as sharer, replies.inserted from notes join notes replies on replies.parent = notes.id
 			left join persons on persons.id = replies.author
 			where
 				notes.id = $1 and
 				replies.public = 1
 			order by replies.inserted desc limit $2 offset $3
 			`,
-			postID,
+			ap.Canonical(postID),
 			h.Config.RepliesPerPage,
 			offset,
 		)
@@ -539,7 +538,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			r.Context,
 			`
 			select json(replies.object), json(persons.actor), null as sharer, replies.inserted from
-			notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
+			notes join notes replies on replies.parent = notes.id
 			left join persons on persons.id = replies.author
 			where
 				notes.id = $1 and
@@ -565,8 +564,8 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				)
 			order by replies.inserted desc limit $3 offset $4
 			`,
-			postID,
-			r.User.ID,
+			ap.Canonical(postID),
+			ap.Canonical(r.User.ID),
 			h.Config.RepliesPerPage,
 			offset,
 		)

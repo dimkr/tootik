@@ -102,7 +102,7 @@ func (h *Handler) setName(w text.Writer, r *Request, args ...string) {
 		"update persons set actor = jsonb_set(actor, '$.name', $1, '$.updated', $2) where id = $3",
 		plainDisplayName,
 		now.Format(time.RFC3339Nano),
-		r.User.ID,
+		ap.Canonical(r.User.ID),
 	); err != nil {
 		r.Log.Error("Failed to update name", "error", err)
 		w.Error()

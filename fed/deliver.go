@@ -199,10 +199,10 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 		if _, err := q.DB.ExecContext(
 			ctx,
-			`update outbox set last = unixepoch(), attempts = ? where cid = ? and sender = ?`,
+			`update outbox set last = unixepoch(), attempts = ? where id = ? and sender = ?`,
 			deliveryAttempts+1,
 			ap.Canonical(activity.ID),
-			actor.ID,
+			ap.Canonical(actor.ID),
 		); err != nil {
 			slog.Error("Failed to save last delivery attempt time", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 			continue
@@ -250,9 +250,9 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 		if _, err := q.DB.ExecContext(
 			ctx,
-			`update outbox set sent = 1 where cid = ? and sender = ?`,
+			`update outbox set sent = 1 where id = ? and sender = ?`,
 			ap.Canonical(job.Activity.ID),
-			job.Sender.ID,
+			ap.Canonical(job.Sender.ID),
 		); err != nil {
 			slog.Error("Failed to mark delivery as completed", "id", job.Activity.ID, "error", err)
 		} else {

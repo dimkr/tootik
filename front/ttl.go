@@ -21,6 +21,7 @@ import (
 	"net/url"
 	"strconv"
 
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 )
 
@@ -38,7 +39,7 @@ func (h *Handler) ttl(w text.Writer, r *Request, args ...string) {
 		if err := h.DB.QueryRowContext(
 			r.Context,
 			`select ttl from persons where id = ?`,
-			r.User.ID,
+			ap.Canonical(r.User.ID),
 		).Scan(&ttl); err != nil {
 			r.Log.Warn("Failed to fetch TTL", "error", err)
 			w.Error()
@@ -70,7 +71,7 @@ func (h *Handler) ttl(w text.Writer, r *Request, args ...string) {
 				r.Context,
 				`update persons set ttl = ? where id = ?`,
 				days,
-				r.User.ID,
+				ap.Canonical(r.User.ID),
 			); err != nil {
 				r.Log.Error("Failed to set TTL", "error", err)
 				w.Error()
@@ -82,7 +83,7 @@ func (h *Handler) ttl(w text.Writer, r *Request, args ...string) {
 		} else if _, err := h.DB.ExecContext(
 			r.Context,
 			`update persons set ttl = null where id = ?`,
-			r.User.ID,
+			ap.Canonical(r.User.ID),
 		); err != nil {
 			r.Log.Error("Failed to clear TTL", "error", err)
 			w.Error()

@@ -165,15 +165,13 @@ func TestUsers_PublicPostShared(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
+		`insert into persons (actor) values (jsonb(?))`,
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/erin",
+		`insert into persons (actor) values (jsonb(?))`,
 		`{"id":"https://127.0.0.1/user/erin","type":"Person","preferredUsername":"erin","followers":"https://127.0.0.1/followers/erin"}`,
 	)
 	assert.NoError(err)
@@ -216,15 +214,13 @@ func TestUsers_PublicPostSharedNotFollowing(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
+		`insert into persons (actor) values (jsonb(?))`,
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/erin",
+		`insert into persons (actor) values (jsonb(?))`,
 		`{"id":"https://127.0.0.1/user/erin","type":"Person","preferredUsername":"erin","followers":"https://127.0.0.1/followers/erin"}`,
 	)
 	assert.NoError(err)

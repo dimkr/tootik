@@ -17,7 +17,6 @@ limitations under the License.
 package fed
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -94,7 +93,7 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("Looking up resource", "resource", resource, "user", username)
 
-	rows, err := l.DB.QueryContext(r.Context(), `select id, actor->>'$.type' from persons where actor->>'$.preferredUsername' = ? and host = ?`, username, l.Domain)
+	rows, err := l.DB.QueryContext(r.Context(), `select actor->>'$.id', actor->>'$.type' from persons where actor->>'$.preferredUsername' = ? and host = ?`, username, l.Domain)
 	if err != nil {
 		slog.Warn("Failed to fetch user", "user", username, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -107,8 +106,7 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for rows.Next() {
-		var actorID sql.NullString
-		var actorType string
+		var actorID, actorType string
 		if err := rows.Scan(&actorID, &actorType); err != nil {
 			slog.Warn("Failed to scan user", "user", username, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -118,7 +116,7 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 		resp.Links = append(resp.Links, webFingerLink{
 			Rel:  "self",
 			Type: `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`,
-			Href: actorID.String,
+			Href: actorID,
 			Properties: webFingerProperties{
 				Type: ap.ActorType(actorType),
 			},

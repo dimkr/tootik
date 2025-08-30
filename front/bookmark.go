@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"time"
 
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 )
 
@@ -29,7 +30,7 @@ func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	postID := "https://" + args[1]
+	postID := ap.Canonical("https://" + args[1])
 
 	tx, err := h.DB.BeginTx(r.Context, nil)
 	if err != nil {
@@ -57,7 +58,7 @@ func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
 				
 		)`,
 		postID,
-		r.User.ID,
+		ap.Canonical(r.User.ID),
 	).Scan(&exists); err != nil {
 		r.Log.Warn("Failed to check if bookmarked post exists", "post", postID, "error", err)
 		w.Error()

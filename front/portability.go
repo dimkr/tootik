@@ -152,7 +152,7 @@ func (h *Handler) gatewayAdd(w text.Writer, r *Request, args ...string) {
 		`,
 		"https://"+gw,
 		now.Format(time.RFC3339Nano),
-		r.User.ID,
+		ap.Canonical(r.User.ID),
 		h.Config.MaxGateways,
 	); err != nil {
 		r.Log.Error("Failed to add gateway", "gateway", gw, "error", err)
@@ -247,7 +247,7 @@ found:
 		`,
 		id,
 		time.Now().Format(time.RFC3339Nano),
-		r.User.ID,
+		ap.Canonical(r.User.ID),
 		gw,
 	); err != nil {
 		r.Log.Error("Failed to remove gateway", "gateway", gw, "id", id, "error", err)

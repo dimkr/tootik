@@ -118,7 +118,7 @@ func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
 		// we add fragment because some servers cache the image until the URL changes
 		fmt.Sprintf("https://%s/icon/%s%s#%d", h.Domain, r.User.PreferredUsername, icon.FileNameExtension, now.UnixNano()),
 		now.Format(time.RFC3339Nano),
-		r.User.ID,
+		ap.Canonical(r.User.ID),
 	); err != nil {
 		r.Log.Error("Failed to set avatar", "error", err)
 		w.Error()

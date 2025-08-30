@@ -132,7 +132,7 @@ func (h *Handler) metadataAdd(w text.Writer, r *Request, args ...string) {
 		`,
 		&attachment,
 		now.Format(time.RFC3339Nano),
-		r.User.ID,
+		ap.Canonical(r.User.ID),
 		h.Config.MaxMetadataFields,
 		attachment.Name,
 	); err != nil {
@@ -216,7 +216,7 @@ found:
 		`,
 		id,
 		time.Now().Format(time.RFC3339Nano),
-		r.User.ID,
+		ap.Canonical(r.User.ID),
 		key,
 	); err != nil {
 		r.Log.Error("Failed to remove metadata field", "key", key, "id", id, "error", err)

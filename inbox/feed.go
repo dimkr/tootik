@@ -71,7 +71,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 			join
 			notes
 			on
-				notes.object->>'$.inReplyTo' = myposts.id
+				notes.parent = myposts.id
 			join
 			persons authors
 			on

@@ -179,7 +179,7 @@ func (h *Handler) status(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := h.DB.QueryRowContext(r.Context, `select count(distinct cid) from outbox where sent = 0 and attempts < ?`, h.Config.MaxDeliveryAttempts).Scan(&outboxSize); err != nil {
+	if err := h.DB.QueryRowContext(r.Context, `select count(distinct id) from outbox where sent = 0 and attempts < ?`, h.Config.MaxDeliveryAttempts).Scan(&outboxSize); err != nil {
 		r.Log.Info("Failed to get delivery queue size", "error", err)
 		w.Error()
 		return

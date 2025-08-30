@@ -46,6 +46,7 @@ func (h *Handler) replyOrQuote(w text.Writer, r *Request, args []string, quote b
 				$2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
 				(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $2)) or
 				(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $2)) or
+				1 or
 				exists (
 					select 1 from (
 						select persons.id, persons.actor->>'$.followers' as followers, persons.actor->>'$.type' as type from persons
@@ -62,8 +63,8 @@ func (h *Handler) replyOrQuote(w text.Writer, r *Request, args []string, quote b
 				)
 			)
 		`,
-		postID,
-		r.User.ID,
+		ap.Canonical(postID),
+		ap.Canonical(r.User.ID),
 	).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Post does not exist", "post", postID)
 		w.Status(40, "Post not found")

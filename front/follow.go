@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"errors"
 
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 )
 
@@ -32,7 +33,7 @@ func (h *Handler) follow(w text.Writer, r *Request, args ...string) {
 	followed := "https://" + args[1]
 
 	var exists int
-	if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from persons where id = ?)`, followed).Scan(&exists); err != nil {
+	if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from persons where id = ?)`, ap.Canonical(followed)).Scan(&exists); err != nil {
 		r.Log.Warn("Failed to check if user exists", "followed", followed, "error", err)
 		w.Error()
 		return
@@ -45,7 +46,7 @@ func (h *Handler) follow(w text.Writer, r *Request, args ...string) {
 	}
 
 	var follows int
-	if err := h.DB.QueryRowContext(r.Context, `select count(*) from follows where follower = ?`, r.User.ID).Scan(&follows); err != nil {
+	if err := h.DB.QueryRowContext(r.Context, `select count(*) from follows where follower = ?`, ap.Canonical(r.User.ID)).Scan(&follows); err != nil {
 		r.Log.Warn("Failed to count follows", "error", err)
 		w.Error()
 		return
@@ -57,7 +58,7 @@ func (h *Handler) follow(w text.Writer, r *Request, args ...string) {
 	}
 
 	var accepted sql.NullInt32
-	if err := h.DB.QueryRowContext(r.Context, `select accepted from follows where follower = ? and followed = ?`, r.User.ID, followed).Scan(&accepted); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := h.DB.QueryRowContext(r.Context, `select accepted from follows where follower = ? and followed = ?`, ap.Canonical(r.User.ID), ap.Canonical(followed)).Scan(&accepted); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Failed to check if user is already followed", "followed", followed, "error", err)
 		w.Error()
 		return

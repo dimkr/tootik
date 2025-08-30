@@ -49,7 +49,7 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 
 	var actor ap.Actor
 	var rsaPrivKeyPem, ed25519PrivKeyMultibase string
-	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519privkey from persons where cid = ? and ed25519privkey is not null`, receiver).Scan(&actor, &rsaPrivKeyPem, &ed25519PrivKeyMultibase); errors.Is(err, sql.ErrNoRows) {
+	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519privkey from persons where id = ? and ed25519privkey is not null`, receiver).Scan(&actor, &rsaPrivKeyPem, &ed25519PrivKeyMultibase); errors.Is(err, sql.ErrNoRows) {
 		slog.Debug("Receiving user does not exist", "receiver", receiver)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -101,15 +101,15 @@ func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
 		select actor, ed25519privkey, raw from
 		(
 			select json(actor) as actor, ed25519privkey, json(actor) as raw from persons
-			where cid = $1 and ed25519privkey is not null
+			where id = $1 and ed25519privkey is not null
 			union all
 			select json(persons.actor) as actor, persons.ed25519privkey, json(notes.object) as raw from notes
 			join persons on notes.author = persons.id
-			where notes.cid = $1 and notes.public = 1 and persons.ed25519privkey is not null
+			where notes.id = $1 and notes.public = 1 and persons.ed25519privkey is not null
 			union all
 			select json(persons.actor) as actor, persons.ed25519privkey, json(outbox.activity) as raw from outbox
 			join persons on outbox.activity->>'$.actor' = persons.id
-			where outbox.cid = $1 and (exists (select 1 from json_each(outbox.activity->'$.cc') where value = $2) or exists (select 1 from json_each(outbox.activity->'$.to') where value = $2)) and persons.ed25519privkey is not null
+			where outbox.id = $1 and (exists (select 1 from json_each(outbox.activity->'$.cc') where value = $2) or exists (select 1 from json_each(outbox.activity->'$.to') where value = $2)) and persons.ed25519privkey is not null
 		)
 		limit 1
 		`,

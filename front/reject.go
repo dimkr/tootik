@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"errors"
 
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 )
 
@@ -43,8 +44,8 @@ func (h *Handler) reject(w text.Writer, r *Request, args ...string) {
 	if err := tx.QueryRowContext(
 		r.Context,
 		`SELECT id FROM follows WHERE follower = ? AND followed = ?`,
-		follower,
-		r.User.ID,
+		ap.Canonical(follower),
+		ap.Canonical(r.User.ID),
 	).Scan(&followID); errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Failed to fetch follow request to reject", "follower", follower)
 		w.Status(40, "No such follow request")

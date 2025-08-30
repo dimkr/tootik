@@ -62,7 +62,7 @@ func (q *Queue) follow(ctx context.Context, follower *ap.Actor, followed string,
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
 		string(j),
-		follower.ID,
+		ap.Canonical(follower.ID),
 	); err != nil {
 		return err
 	}

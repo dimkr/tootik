@@ -44,9 +44,8 @@ func TestCommunity_NewThread(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -97,9 +96,8 @@ func TestCommunity_NewThreadNotFollowing(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -147,9 +145,8 @@ func TestCommunity_NewThreadNotPublic(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -200,9 +197,8 @@ func TestCommunity_ReplyInThread(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -291,9 +287,8 @@ func TestCommunity_ReplyInThreadAuthorNotFollowing(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -362,9 +357,8 @@ func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -386,9 +380,8 @@ func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/erin",
-		`{"type":"Person","preferredUsername":"erin"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/erin","type":"Person","preferredUsername":"erin"}`,
 	)
 	assert.NoError(err)
 
@@ -457,9 +450,8 @@ func TestCommunity_DuplicateReplyInThread(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -559,9 +551,8 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -682,9 +673,8 @@ func TestCommunity_UnknownEditedReplyInThread(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 

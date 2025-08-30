@@ -75,15 +75,13 @@ func TestDeliver_TwoUsersTwoPosts(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/dan",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/dan","preferredUsername":"dan","inbox":"https://ip6-allnodes/inbox/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/erin",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/erin","preferredUsername":"erin","inbox":"https://ip6-allnodes/inbox/erin"}`,
 	)
 	assert.NoError(err)
@@ -185,15 +183,13 @@ func TestDeliver_ForwardedPost(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/dan",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/dan","preferredUsername":"dan","inbox":"https://ip6-allnodes/inbox/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/erin",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/erin","preferredUsername":"erin","inbox":"https://ip6-allnodes/inbox/erin"}`,
 	)
 	assert.NoError(err)
@@ -284,15 +280,13 @@ func TestDeliver_OneFailed(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/dan",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/dan","preferredUsername":"dan","inbox":"https://ip6-allnodes/inbox/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/erin",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/erin","preferredUsername":"erin","inbox":"https://ip6-allnodes/inbox/erin"}`,
 	)
 	assert.NoError(err)
@@ -391,15 +385,13 @@ func TestDeliver_OneFailedRetry(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/dan",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/dan","preferredUsername":"dan","inbox":"https://ip6-allnodes/inbox/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/erin",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/erin","preferredUsername":"erin","inbox":"https://ip6-allnodes/inbox/erin"}`,
 	)
 	assert.NoError(err)
@@ -485,15 +477,13 @@ func TestDeliver_OneInvalidURLRetry(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/dan",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/dan","preferredUsername":"dan","inbox":"https://ip6-allnodes:inbox/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/erin",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/erin","preferredUsername":"erin","inbox":"https://ip6-allnodes/inbox/erin"}`,
 	)
 	assert.NoError(err)
@@ -578,15 +568,13 @@ func TestDeliver_MaxAttempts(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/dan",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/dan","preferredUsername":"dan","inbox":"https://ip6-allnodes/inbox/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/erin",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/erin","preferredUsername":"erin","inbox":"https://ip6-allnodes/inbox/erin"}`,
 	)
 	assert.NoError(err)
@@ -679,22 +667,19 @@ func TestDeliver_SharedInbox(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/dan",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/dan","preferredUsername":"dan","inbox":"https://ip6-allnodes/inbox/dan","endpoints":{"sharedInbox":"https://ip6-allnodes/inbox/nobody"}}`,
 	)
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/erin",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/erin","preferredUsername":"erin","inbox":"https://ip6-allnodes/inbox/erin","endpoints":{"sharedInbox":"https://ip6-allnodes/inbox/nobody"}}`,
 	)
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/frank",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/frank","preferredUsername":"frank","inbox":"https://ip6-allnodes/inbox/frank"}`,
 	)
 	assert.NoError(err)
@@ -771,22 +756,19 @@ func TestDeliver_SharedInboxRetry(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/dan",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/dan","preferredUsername":"dan","inbox":"https://ip6-allnodes/inbox/dan","endpoints":{"sharedInbox":"https://ip6-allnodes/inbox/nobody"}}`,
 	)
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/erin",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/erin","preferredUsername":"erin","inbox":"https://ip6-allnodes/inbox/erin","endpoints":{"sharedInbox":"https://ip6-allnodes/inbox/nobody"}}`,
 	)
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/frank",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/frank","preferredUsername":"frank","inbox":"https://ip6-allnodes/inbox/frank"}`,
 	)
 	assert.NoError(err)
@@ -878,15 +860,13 @@ func TestDeliver_SharedInboxUnknownActor(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/dan",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/dan","preferredUsername":"dan","inbox":"https://ip6-allnodes/inbox/dan","endpoints":{"sharedInbox":"https://ip6-allnodes/inbox/nobody"}}`,
 	)
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/frank",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/frank","preferredUsername":"frank","inbox":"https://ip6-allnodes/inbox/frank"}`,
 	)
 	assert.NoError(err)
@@ -972,22 +952,19 @@ func TestDeliver_SharedInboxSingleWorker(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/dan",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/dan","preferredUsername":"dan","inbox":"https://ip6-allnodes/inbox/dan","endpoints":{"sharedInbox":"https://ip6-allnodes/inbox/nobody"}}`,
 	)
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/erin",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/erin","preferredUsername":"erin","inbox":"https://ip6-allnodes/inbox/erin","endpoints":{"sharedInbox":"https://ip6-allnodes/inbox/nobody"}}`,
 	)
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/frank",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/frank","preferredUsername":"frank","inbox":"https://ip6-allnodes/inbox/frank"}`,
 	)
 	assert.NoError(err)
@@ -1064,22 +1041,19 @@ func TestDeliver_SameInbox(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/dan",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/dan","preferredUsername":"dan","inbox":"https://ip6-allnodes/inbox/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/erin",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/erin","preferredUsername":"erin","inbox":"https://ip6-allnodes/inbox/frank"}`,
 	)
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/frank",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/frank","preferredUsername":"frank","inbox":"https://ip6-allnodes/inbox/frank"}`,
 	)
 	assert.NoError(err)
@@ -1159,15 +1133,13 @@ func TestDeliver_ToAndCCDuplicates(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/dan",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/dan","preferredUsername":"dan","inbox":"https://ip6-allnodes/inbox/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/erin",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/erin","preferredUsername":"erin","inbox":"https://ip6-allnodes/inbox/erin"}`,
 	)
 	assert.NoError(err)
@@ -1269,15 +1241,13 @@ func TestDeliver_PublicInTo(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/dan",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/dan","preferredUsername":"dan","inbox":"https://ip6-allnodes/inbox/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/erin",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/erin","preferredUsername":"erin","inbox":"https://ip6-allnodes/inbox/erin"}`,
 	)
 	assert.NoError(err)
@@ -1379,15 +1349,13 @@ func TestDeliver_AuthorInTo(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/dan",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/dan","preferredUsername":"dan","inbox":"https://ip6-allnodes/inbox/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
-		"https://ip6-allnodes/user/erin",
+		`insert into persons (actor) values(?)`,
 		`{"type":"Person","id":"https://ip6-allnodes/user/erin","preferredUsername":"erin","inbox":"https://ip6-allnodes/inbox/erin"}`,
 	)
 	assert.NoError(err)

@@ -60,7 +60,7 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 			g.inserted desc,
 			follows.inserted desc
 		`,
-		r.User.ID,
+		ap.Canonical(r.User.ID),
 	)
 	if err != nil {
 		r.Log.Warn("Failed to list followed users", "error", err)

@@ -137,6 +137,10 @@ func (r *Resolver) validate(try func() (*ap.Actor, *ap.Actor, error)) (*ap.Actor
 }
 
 func deleteActor(ctx context.Context, db *sql.DB, id string) {
+	if ap.IsPortable(id) {
+		return
+	}
+
 	if _, err := db.ExecContext(ctx, `delete from notesfts where exists (select 1 from notes where notes.author = ? and notesfts.id = notes.id)`, id); err != nil {
 		slog.Warn("Failed to delete notes by actor", "id", id, "error", err)
 	}
@@ -275,7 +279,7 @@ func (r *Resolver) tryResolve(ctx context.Context, keys [2]httpsig.Key, host, na
 		if _, err := r.db.ExecContext(
 			ctx,
 			`UPDATE persons SET fetched = UNIXEPOCH() WHERE id = ?`,
-			cachedActor.ID,
+			ap.Canonical(cachedActor.ID),
 		); err != nil {
 			return nil, cachedActor, fmt.Errorf("failed to update last fetch time for %s: %w", cachedActor.ID, err)
 		}
@@ -363,7 +367,7 @@ func (r *Resolver) tryResolveID(ctx context.Context, keys [2]httpsig.Key, u *url
 	var updated, inserted int64
 	var fetched sql.NullInt64
 	var sinceLastUpdate time.Duration
-	if err := r.db.QueryRowContext(ctx, `select json(actor), updated, fetched, inserted from persons where id = $1 or id in (select actor from keys where id = $1)`, id).Scan(&tmp, &updated, &fetched, &inserted); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := r.db.QueryRowContext(ctx, `select json(actor), updated, fetched, inserted from persons where id = $1 or id in (select actor from keys where id = $1)`, ap.Canonical(id)).Scan(&tmp, &updated, &fetched, &inserted); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, fmt.Errorf("failed to fetch %s cache: %w", id, err)
 	} else if err == nil {
 		cachedActor = &tmp
@@ -404,8 +408,8 @@ func (r *Resolver) tryResolveID(ctx context.Context, keys [2]httpsig.Key, u *url
 
 		if _, err := r.db.ExecContext(
 			ctx,
-			`UPDATE persons SET fetched = UNIXEPOCH() WHERE id = ?`,
-			cachedActor.ID,
+			`UPDATE persons SET fetched = UNIXEPOCH() WHERE id = ? AND ed25519privkey IS NULL`,
+			ap.Canonical(cachedActor.ID),
 		); err != nil {
 			return nil, cachedActor, fmt.Errorf("failed to update last fetch time for %s: %w", cachedActor.ID, err)
 		}
@@ -419,6 +423,7 @@ func (r *Resolver) tryResolveID(ctx context.Context, keys [2]httpsig.Key, u *url
 func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, profile string, cachedActor *ap.Actor, sinceLastUpdate time.Duration) (*ap.Actor, *ap.Actor, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, profile, nil)
 	if err != nil {
+		panic("x")
 		return nil, cachedActor, fmt.Errorf("failed to send request to %s: %w", profile, err)
 	}
 
@@ -514,8 +519,7 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO persons(id, actor, fetched) VALUES ($1, JSONB($2), UNIXEPOCH()) ON CONFLICT(id) DO UPDATE SET actor = JSONB($2), updated = UNIXEPOCH()`,
-		actor.ID,
+		`INSERT INTO persons(actor, fetched) VALUES (JSONB($1), UNIXEPOCH()) ON CONFLICT(id) DO UPDATE SET actor = JSONB($1), updated = UNIXEPOCH() WHERE ed25519privkey IS NULL`,
 		string(body),
 	); err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
@@ -525,8 +529,8 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 		if _, err := tx.ExecContext(
 			ctx,
 			`INSERT OR IGNORE INTO keys (id, actor) VALUES (?, ?)`,
-			keyID,
-			actor.ID,
+			ap.Canonical(keyID),
+			ap.Canonical(actor.ID),
 		); err != nil {
 			return nil, cachedActor, fmt.Errorf("failed to associate %s with %s: %w", keyID, actor.ID, err)
 		}
@@ -548,22 +552,6 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 		actor.ID,
 	); err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
-	}
-
-	if ap.IsPortable(actor.ID) {
-		if _, err := tx.ExecContext(
-			ctx,
-			`
-			INSERT OR IGNORE INTO follows (id, follower, followed, accepted)
-			SELECT others.id, others.follower, $1, others.accepted
-			FROM follows others
-			WHERE others.followedcid = $2
-			`,
-			actor.ID,
-			ap.Canonical(actor.ID),
-		); err != nil {
-			return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
-		}
 	}
 
 	if err := tx.Commit(); err != nil {

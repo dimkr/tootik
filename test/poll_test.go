@@ -36,9 +36,8 @@ func TestPoll_TwoOptions(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -77,9 +76,8 @@ func TestPoll_TwoOptionsZeroVotes(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -118,9 +116,8 @@ func TestPoll_TwoOptionsOnlyZeroVotes(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -159,9 +156,8 @@ func TestPoll_OneOption(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -199,9 +195,8 @@ func TestPoll_Vote(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -247,9 +242,8 @@ func TestPoll_VoteClosedPoll(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -289,9 +283,8 @@ func TestPoll_VoteEndedPoll(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -331,9 +324,8 @@ func TestPoll_Reply(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -379,9 +371,8 @@ func TestPoll_ReplyClosedPoll(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -427,9 +418,8 @@ func TestPoll_EditVote(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -478,9 +468,8 @@ func TestPoll_DeleteReply(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -529,9 +518,8 @@ func TestPoll_Update(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
@@ -589,9 +577,8 @@ func TestPoll_OldUpdate(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"type":"Person","preferredUsername":"dan"}`,
+		`insert into persons (actor) values (jsonb(?))`,
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 

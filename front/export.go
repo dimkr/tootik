@@ -42,9 +42,9 @@ func (h *Handler) export(w text.Writer, r *Request, args ...string) {
 	rows, err := h.DB.QueryContext(
 		r.Context,
 		`
-		select cid, activity->>'$.type', datetime(inserted, 'unixepoch'), json(activity) from outbox
+		select id, activity->>'$.type', datetime(inserted, 'unixepoch'), json(activity) from outbox
 		where
-			activity->>'$.actor' in (select id from persons where cid = ?)
+			activity->>'$.actor' in (select id from persons where id = ?)
 		order by inserted desc
 		limit ?
 		`,

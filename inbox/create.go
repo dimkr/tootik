@@ -38,7 +38,7 @@ func (q *Queue) create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *a
 	}
 
 	var queueSize int
-	if err := db.QueryRowContext(ctx, `select count(distinct cid) from outbox where sent = 0 and attempts < ?`, cfg.MaxDeliveryAttempts).Scan(&queueSize); err != nil {
+	if err := db.QueryRowContext(ctx, `select count(distinct id) from outbox where sent = 0 and attempts < ?`, cfg.MaxDeliveryAttempts).Scan(&queueSize); err != nil {
 		return fmt.Errorf("failed to query delivery queue size: %w", err)
 	}
 
@@ -67,7 +67,7 @@ func (q *Queue) create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *a
 	}
 	defer tx.Rollback()
 
-	if _, err = tx.ExecContext(ctx, `insert into outbox (activity, sender) values (jsonb(?),?)`, string(j), author.ID); err != nil {
+	if _, err = tx.ExecContext(ctx, `insert into outbox (activity, sender) values (jsonb(?),?)`, string(j), ap.Canonical(author.ID)); err != nil {
 		return err
 	}
 
@@ -75,7 +75,7 @@ func (q *Queue) create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *a
 		return err
 	}
 
-	if _, err = tx.ExecContext(ctx, `insert into feed(follower, note, author, inserted) values(?, jsonb(?), jsonb(?), unixepoch())`, author.ID, post, author); err != nil {
+	if _, err = tx.ExecContext(ctx, `insert into feed(follower, note, author, inserted) values(?, jsonb(?), jsonb(?), unixepoch())`, ap.Canonical(author.ID), post, author); err != nil {
 		return err
 	}
 
