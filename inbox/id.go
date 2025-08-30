@@ -29,7 +29,7 @@ func (q *Queue) NewID(actorID, prefix string) (string, error) {
 		return "", fmt.Errorf("failed to generate %s ID: %w", prefix, err)
 	}
 
-	if m := ap.CompatibleURLRegex.FindStringSubmatch(actorID); m != nil {
+	if m := ap.GatewayURLRegex.FindStringSubmatch(actorID); m != nil {
 		return fmt.Sprintf("https://%s/.well-known/apgateway/did:key:%s/actor/%s/%s", q.Domain, m[1], prefix, u.String()), nil
 	}
 
