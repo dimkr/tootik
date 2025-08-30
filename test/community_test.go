@@ -19,15 +19,11 @@ package test
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/fed"
-	"github.com/dimkr/tootik/inbox"
-	"github.com/dimkr/tootik/outbox"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -55,10 +51,9 @@ func TestCommunity_NewThread(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		outbox.Accept(
+		server.inbox.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -108,10 +103,9 @@ func TestCommunity_NewThreadNotFollowing(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		outbox.Accept(
+		server.inbox.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -158,10 +152,9 @@ func TestCommunity_NewThreadNotPublic(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		outbox.Accept(
+		server.inbox.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -211,10 +204,9 @@ func TestCommunity_ReplyInThread(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		outbox.Accept(
+		server.inbox.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -257,15 +249,7 @@ func TestCommunity_ReplyInThread(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.inbox.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -328,15 +312,7 @@ func TestCommunity_ReplyInThreadAuthorNotFollowing(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.inbox.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -373,10 +349,9 @@ func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		outbox.Accept(
+		server.inbox.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -423,15 +398,7 @@ func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.inbox.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -468,10 +435,9 @@ func TestCommunity_DuplicateReplyInThread(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		outbox.Accept(
+		server.inbox.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -514,15 +480,7 @@ func TestCommunity_DuplicateReplyInThread(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.inbox.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -533,7 +491,7 @@ func TestCommunity_DuplicateReplyInThread(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err = queue.ProcessBatch(context.Background())
+	n, err = server.inbox.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -570,10 +528,9 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		outbox.Accept(
+		server.inbox.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -617,15 +574,7 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.inbox.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -661,7 +610,7 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err = queue.ProcessBatch(context.Background())
+	n, err = server.inbox.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -693,10 +642,9 @@ func TestCommunity_UnknownEditedReplyInThread(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		outbox.Accept(
+		server.inbox.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -739,15 +687,7 @@ func TestCommunity_UnknownEditedReplyInThread(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.inbox.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 

@@ -34,24 +34,23 @@ func TestMove_FederatedToFederated(t *testing.T) {
 
 	assert := assert.New(t)
 
+	_, err := server.db.Exec(
+		`insert into persons (id, actor) values (?, jsonb(?))`,
+		"https://127.0.0.1/user/dan",
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://::1/user/dan"}`,
+	)
+	assert.NoError(err)
+
 	assert.NoError(
-		outbox.Follow(
+		server.inbox.Follow(
 			context.Background(),
-			domain,
 			server.Alice,
 			"https://127.0.0.1/user/dan",
 			server.db,
 		),
 	)
 
-	_, err := server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
-	assert.NoError(err)
-
-	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://::1/user/dan"}`,
-	)
+	_, err = server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
@@ -68,6 +67,7 @@ func TestMove_FederatedToFederated(t *testing.T) {
 		DB:       server.db,
 		Resolver: resolver,
 		Keys:     server.NobodyKeys,
+		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
@@ -82,20 +82,7 @@ func TestMove_FederatedToFederatedTwoAccounts(t *testing.T) {
 
 	assert := assert.New(t)
 
-	assert.NoError(
-		outbox.Follow(
-			context.Background(),
-			domain,
-			server.Alice,
-			"https://127.0.0.1/user/dan",
-			server.db,
-		),
-	)
-
-	_, err := server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
-	assert.NoError(err)
-
-	_, err = server.db.Exec(
+	_, err := server.db.Exec(
 		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://::1/user/dan"}`,
@@ -109,6 +96,18 @@ func TestMove_FederatedToFederatedTwoAccounts(t *testing.T) {
 	)
 	assert.NoError(err)
 
+	assert.NoError(
+		server.inbox.Follow(
+			context.Background(),
+			server.Alice,
+			"https://127.0.0.1/user/dan",
+			server.db,
+		),
+	)
+
+	_, err = server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
+	assert.NoError(err)
+
 	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db)
 
 	mover := outbox.Mover{
@@ -116,6 +115,7 @@ func TestMove_FederatedToFederatedTwoAccounts(t *testing.T) {
 		DB:       server.db,
 		Resolver: resolver,
 		Keys:     server.NobodyKeys,
+		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
@@ -130,20 +130,7 @@ func TestMove_FederatedToFederatedNotLinked(t *testing.T) {
 
 	assert := assert.New(t)
 
-	assert.NoError(
-		outbox.Follow(
-			context.Background(),
-			domain,
-			server.Alice,
-			"https://127.0.0.1/user/dan",
-			server.db,
-		),
-	)
-
-	_, err := server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
-	assert.NoError(err)
-
-	_, err = server.db.Exec(
+	_, err := server.db.Exec(
 		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://::1/user/dan"}`,
@@ -157,6 +144,18 @@ func TestMove_FederatedToFederatedNotLinked(t *testing.T) {
 	)
 	assert.NoError(err)
 
+	assert.NoError(
+		server.inbox.Follow(
+			context.Background(),
+			server.Alice,
+			"https://127.0.0.1/user/dan",
+			server.db,
+		),
+	)
+
+	_, err = server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
+	assert.NoError(err)
+
 	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db)
 
 	mover := outbox.Mover{
@@ -164,6 +163,7 @@ func TestMove_FederatedToFederatedNotLinked(t *testing.T) {
 		DB:       server.db,
 		Resolver: resolver,
 		Keys:     server.NobodyKeys,
+		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
@@ -178,24 +178,23 @@ func TestMove_FederatedToLocal(t *testing.T) {
 
 	assert := assert.New(t)
 
+	_, err := server.db.Exec(
+		`insert into persons (id, actor) values (?, jsonb(?))`,
+		"https://127.0.0.1/user/dan",
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://localhost.localdomain:8443/user/bob"}`,
+	)
+	assert.NoError(err)
+
 	assert.NoError(
-		outbox.Follow(
+		server.inbox.Follow(
 			context.Background(),
-			domain,
 			server.Alice,
 			"https://127.0.0.1/user/dan",
 			server.db,
 		),
 	)
 
-	_, err := server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
-	assert.NoError(err)
-
-	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://localhost.localdomain:8443/user/bob"}`,
-	)
+	_, err = server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
 	assert.NoError(err)
 
 	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db)
@@ -205,6 +204,7 @@ func TestMove_FederatedToLocal(t *testing.T) {
 		DB:       server.db,
 		Resolver: resolver,
 		Keys:     server.NobodyKeys,
+		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
@@ -219,24 +219,23 @@ func TestMove_FederatedToLocalLinked(t *testing.T) {
 
 	assert := assert.New(t)
 
+	_, err := server.db.Exec(
+		`insert into persons (id, actor) values (?, jsonb(?))`,
+		"https://127.0.0.1/user/dan",
+		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://localhost.localdomain:8443/user/bob"}`,
+	)
+	assert.NoError(err)
+
 	assert.NoError(
-		outbox.Follow(
+		server.inbox.Follow(
 			context.Background(),
-			domain,
 			server.Alice,
 			"https://127.0.0.1/user/dan",
 			server.db,
 		),
 	)
 
-	_, err := server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
-	assert.NoError(err)
-
-	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
-		"https://127.0.0.1/user/dan",
-		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://localhost.localdomain:8443/user/bob"}`,
-	)
+	_, err = server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(`UPDATE persons SET actor = jsonb_set(actor, '$.alsoKnownAs', $1) WHERE id = $2`, "https://127.0.0.1/user/dan", server.Bob.ID)
@@ -249,6 +248,7 @@ func TestMove_FederatedToLocalLinked(t *testing.T) {
 		DB:       server.db,
 		Resolver: resolver,
 		Keys:     server.NobodyKeys,
+		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
@@ -263,30 +263,7 @@ func TestMove_FollowingBoth(t *testing.T) {
 
 	assert := assert.New(t)
 
-	assert.NoError(
-		outbox.Follow(
-			context.Background(),
-			domain,
-			server.Alice,
-			"https://127.0.0.1/user/dan",
-			server.db,
-		),
-	)
-
-	assert.NoError(
-		outbox.Follow(
-			context.Background(),
-			domain,
-			server.Alice,
-			"https://::1/user/dan",
-			server.db,
-		),
-	)
-
-	_, err := server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
-	assert.NoError(err)
-
-	_, err = server.db.Exec(
+	_, err := server.db.Exec(
 		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://::1/user/dan"}`,
@@ -300,6 +277,27 @@ func TestMove_FollowingBoth(t *testing.T) {
 	)
 	assert.NoError(err)
 
+	assert.NoError(
+		server.inbox.Follow(
+			context.Background(),
+			server.Alice,
+			"https://127.0.0.1/user/dan",
+			server.db,
+		),
+	)
+
+	assert.NoError(
+		server.inbox.Follow(
+			context.Background(),
+			server.Alice,
+			"https://::1/user/dan",
+			server.db,
+		),
+	)
+
+	_, err = server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
+	assert.NoError(err)
+
 	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db)
 
 	mover := outbox.Mover{
@@ -307,6 +305,7 @@ func TestMove_FollowingBoth(t *testing.T) {
 		DB:       server.db,
 		Resolver: resolver,
 		Keys:     server.NobodyKeys,
+		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
@@ -332,9 +331,8 @@ func TestMove_LocalToLocal(t *testing.T) {
 	assert := assert.New(t)
 
 	assert.NoError(
-		outbox.Follow(
+		server.inbox.Follow(
 			context.Background(),
-			domain,
 			server.Carol,
 			server.Alice.ID,
 			server.db,
@@ -361,6 +359,7 @@ func TestMove_LocalToLocal(t *testing.T) {
 		DB:       server.db,
 		Resolver: resolver,
 		Keys:     server.NobodyKeys,
+		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
@@ -395,6 +394,7 @@ func TestMove_LocalToLocalNoFollowers(t *testing.T) {
 		DB:       server.db,
 		Resolver: resolver,
 		Keys:     server.NobodyKeys,
+		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
@@ -417,9 +417,8 @@ func TestMove_LocalToFederated(t *testing.T) {
 	assert.NoError(err)
 
 	assert.NoError(
-		outbox.Follow(
+		server.inbox.Follow(
 			context.Background(),
-			domain,
 			server.Carol,
 			server.Alice.ID,
 			server.db,
@@ -443,6 +442,7 @@ func TestMove_LocalToFederated(t *testing.T) {
 		DB:       server.db,
 		Resolver: resolver,
 		Keys:     server.NobodyKeys,
+		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
@@ -465,9 +465,8 @@ func TestMove_LocalToFederatedNoSourceToTargetAlias(t *testing.T) {
 	assert.NoError(err)
 
 	assert.NoError(
-		outbox.Follow(
+		server.inbox.Follow(
 			context.Background(),
-			domain,
 			server.Carol,
 			server.Alice.ID,
 			server.db,
@@ -494,9 +493,8 @@ func TestMove_LocalToFederatedNoTargetToSourceAlias(t *testing.T) {
 	assert.NoError(err)
 
 	assert.NoError(
-		outbox.Follow(
+		server.inbox.Follow(
 			context.Background(),
-			domain,
 			server.Carol,
 			server.Alice.ID,
 			server.db,
@@ -528,9 +526,8 @@ func TestMove_LocalToFederatedAlreadyMoved(t *testing.T) {
 	assert.NoError(err)
 
 	assert.NoError(
-		outbox.Follow(
+		server.inbox.Follow(
 			context.Background(),
-			domain,
 			server.Carol,
 			server.Alice.ID,
 			server.db,
@@ -554,6 +551,7 @@ func TestMove_LocalToFederatedAlreadyMoved(t *testing.T) {
 		DB:       server.db,
 		Resolver: resolver,
 		Keys:     server.NobodyKeys,
+		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
 

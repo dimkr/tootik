@@ -211,7 +211,7 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, sender *ap.Acto
 
 		var localFollowed int
 		var followed ap.Actor
-		if err := tx.QueryRowContext(ctx, `select ed25519privkey is not null, json(actor) from persons where cid = ? order by ed25519privkey is not null desc limit 1`, ap.Canonical(followedID)).Scan(&localFollowed, &followed); errors.Is(err, sql.ErrNoRows) {
+		if err := tx.QueryRowContext(ctx, `select ed25519privkey is not null, json(actor) from persons where id = ? order by ed25519privkey is not null desc limit 1`, followedID).Scan(&localFollowed, &followed); errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("received an invalid follow request for %s by %s", followedID, activity.Actor)
 		} else if err != nil {
 			return fmt.Errorf("failed to fetch %s: %w", followed.ID, err)
@@ -350,7 +350,7 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, sender *ap.Acto
 			return errors.New("received an undo request with empty ID")
 		}
 
-		if _, err := tx.ExecContext(ctx, `update follows set accepted = 0 where follower = ? and followed = ?`, follower, followed); err != nil {
+		if _, err := tx.ExecContext(ctx, `delete from follows where follower = ? and followed = ?`, follower, followed); err != nil {
 			return fmt.Errorf("failed to remove follow of %s by %s: %w", followed, follower, err)
 		}
 

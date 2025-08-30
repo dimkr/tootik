@@ -56,8 +56,8 @@ func TestCluster_Poll(t *testing.T) {
 	cluster.Settle(t)
 
 	poller := outbox.Poller{
-		DB:     cluster["b.localdomain"].DB,
 		Domain: "b.localdomain",
+		DB:     cluster["b.localdomain"].DB,
 		Inbox:  cluster["b.localdomain"].Incoming,
 	}
 	if err := poller.Run(t.Context()); err != nil {

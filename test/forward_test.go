@@ -29,7 +29,6 @@ import (
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/inbox/note"
-	"github.com/dimkr/tootik/outbox"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -46,11 +45,19 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 	assert.NoError(err)
 	defer tx.Rollback()
 
+	queue := inbox.Queue{
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
+		Keys:      server.NobodyKeys,
+	}
+
 	assert.NoError(
-		outbox.Accept(
+		queue.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -89,14 +96,6 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
@@ -122,11 +121,19 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 	assert.NoError(err)
 	defer tx.Rollback()
 
+	queue := inbox.Queue{
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
+		Keys:      server.NobodyKeys,
+	}
+
 	assert.NoError(
-		outbox.Accept(
+		queue.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -166,14 +173,6 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
@@ -193,11 +192,19 @@ func TestForward_LocalReplyToLocalPublicPost(t *testing.T) {
 	assert.NoError(err)
 	defer tx.Rollback()
 
+	queue := inbox.Queue{
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
+		Keys:      server.NobodyKeys,
+	}
+
 	assert.NoError(
-		outbox.Accept(
+		queue.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -237,11 +244,19 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 	assert.NoError(err)
 	defer tx.Rollback()
 
+	queue := inbox.Queue{
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
+		Keys:      server.NobodyKeys,
+	}
+
 	assert.NoError(
-		outbox.Accept(
+		queue.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -295,14 +310,6 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
@@ -325,11 +332,19 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 	assert.NoError(err)
 	defer tx.Rollback()
 
+	queue := inbox.Queue{
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
+		Keys:      server.NobodyKeys,
+	}
+
 	assert.NoError(
-		outbox.Accept(
+		queue.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -368,14 +383,6 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
@@ -398,11 +405,19 @@ func TestForward_ReplyToDM(t *testing.T) {
 	assert.NoError(err)
 	defer tx.Rollback()
 
+	queue := inbox.Queue{
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
+		Keys:      server.NobodyKeys,
+	}
+
 	assert.NoError(
-		outbox.Accept(
+		queue.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -441,14 +456,6 @@ func TestForward_ReplyToDM(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
@@ -533,11 +540,19 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 	assert.NoError(err)
 	defer tx.Rollback()
 
+	queue := inbox.Queue{
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
+		Keys:      server.NobodyKeys,
+	}
+
 	assert.NoError(
-		outbox.Accept(
+		queue.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -576,14 +591,6 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
@@ -668,11 +675,19 @@ func TestForward_MaxDepth(t *testing.T) {
 	assert.NoError(err)
 	defer tx.Rollback()
 
+	queue := inbox.Queue{
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
+		Keys:      server.NobodyKeys,
+	}
+
 	assert.NoError(
-		outbox.Accept(
+		queue.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -756,14 +771,6 @@ func TestForward_MaxDepth(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
@@ -786,11 +793,19 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 	assert.NoError(err)
 	defer tx.Rollback()
 
+	queue := inbox.Queue{
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
+		Keys:      server.NobodyKeys,
+	}
+
 	assert.NoError(
-		outbox.Accept(
+		queue.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -889,14 +904,6 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
@@ -916,11 +923,19 @@ func TestForward_ReplyToLocalPostByLocalFollower(t *testing.T) {
 	assert.NoError(err)
 	defer tx.Rollback()
 
+	queue := inbox.Queue{
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
+		Keys:      server.NobodyKeys,
+	}
+
 	assert.NoError(
-		outbox.Accept(
+		queue.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -957,11 +972,19 @@ func TestForward_EditedReplyToLocalPostByLocalFollower(t *testing.T) {
 	assert.NoError(err)
 	defer tx.Rollback()
 
+	queue := inbox.Queue{
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
+		Keys:      server.NobodyKeys,
+	}
+
 	assert.NoError(
-		outbox.Accept(
+		queue.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -1005,11 +1028,19 @@ func TestForward_DeletedReplyToLocalPostByLocalFollower(t *testing.T) {
 	assert.NoError(err)
 	defer tx.Rollback()
 
+	queue := inbox.Queue{
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
+		Keys:      server.NobodyKeys,
+	}
+
 	assert.NoError(
-		outbox.Accept(
+		queue.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -1059,11 +1090,19 @@ func TestForward_EditedReplyToPublicPost(t *testing.T) {
 	assert.NoError(err)
 	defer tx.Rollback()
 
+	queue := inbox.Queue{
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
+		Keys:      server.NobodyKeys,
+	}
+
 	assert.NoError(
-		outbox.Accept(
+		queue.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -1103,14 +1142,6 @@ func TestForward_EditedReplyToPublicPost(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
@@ -1167,11 +1198,19 @@ func TestForward_ResentEditedReplyToPublicPost(t *testing.T) {
 	assert.NoError(err)
 	defer tx.Rollback()
 
+	queue := inbox.Queue{
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
+		Keys:      server.NobodyKeys,
+	}
+
 	assert.NoError(
-		outbox.Accept(
+		queue.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -1211,14 +1250,6 @@ func TestForward_ResentEditedReplyToPublicPost(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
@@ -1286,11 +1317,19 @@ func TestForward_DeletedReplyToPublicPost(t *testing.T) {
 	assert.NoError(err)
 	defer tx.Rollback()
 
+	queue := inbox.Queue{
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
+		Keys:      server.NobodyKeys,
+	}
+
 	assert.NoError(
-		outbox.Accept(
+		queue.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -1339,14 +1378,6 @@ func TestForward_DeletedReplyToPublicPost(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(2, n)
@@ -1372,11 +1403,19 @@ func TestForward_DeletedDeletedReplyToPublicPost(t *testing.T) {
 	assert.NoError(err)
 	defer tx.Rollback()
 
+	queue := inbox.Queue{
+		Domain:    domain,
+		Config:    server.cfg,
+		BlockList: &fed.BlockList{},
+		DB:        server.db,
+		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
+		Keys:      server.NobodyKeys,
+	}
+
 	assert.NoError(
-		outbox.Accept(
+		queue.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -1425,14 +1464,6 @@ func TestForward_DeletedDeletedReplyToPublicPost(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
 	n, err := queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(2, n)
