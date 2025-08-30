@@ -27,11 +27,11 @@ import (
 )
 
 type Mover struct {
-	DB       *sql.DB
 	Domain   string
-	Inbox    ap.Inbox
+	DB       *sql.DB
 	Resolver ap.Resolver
 	Keys     [2]httpsig.Key
+	Inbox    ap.Inbox
 }
 
 func (m *Mover) updatedMoveTargets(ctx context.Context, prefix string) error {
