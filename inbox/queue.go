@@ -399,7 +399,7 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, sender *ap.Acto
 
 		var oldPost ap.Object
 		var lastChange int64
-		if err := tx.QueryRowContext(ctx, `select max(inserted, updated), json(object) from notes where cid = ? and author in (select id from persons where cid = ?)`, ap.Canonical(post.ID), ap.Canonical(post.AttributedTo)).Scan(&lastChange, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
+		if err := tx.QueryRowContext(ctx, `select max(inserted, updated), json(object) from notes where id = ? and author in (select id from persons where cid = ?)`, post.ID, ap.Canonical(post.AttributedTo)).Scan(&lastChange, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
 			slog.Debug("Received Update for non-existing post", "activity", activity)
 			return q.processCreateActivity(ctx, tx, sender, activity, rawActivity, post, shared)
 		} else if err != nil {
