@@ -407,15 +407,10 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, sender *ap.Acto
 		}
 
 		// if specified, prefer post publication or editing time to insertion or last update time
-		var sec int64
 		if oldPost.Updated != (ap.Time{}) {
-			sec = oldPost.Updated.UnixNano()
-		}
-		if sec == 0 {
-			sec = oldPost.Published.UnixNano()
-		}
-		if sec > 0 {
-			lastChange = sec
+			lastChange = oldPost.Updated.UnixNano()
+		} else if oldPost.Published != (ap.Time{}) {
+			lastChange = oldPost.Published.UnixNano()
 		} else {
 			lastChange *= 1000000000
 		}
