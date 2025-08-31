@@ -209,6 +209,8 @@ tootik validates the integrity proof using the Ed25519 public key extracted from
 
 tootik's `inbox` doesn't validate HTTP signatures and simply ignores them. Other servers might do the same, therefore automatic detection of RFC9421 and Ed25519 support on other servers ignores `200 OK` or `202 Accepted` responses from `/.well-known/apgateway`.
 
+tootik forwards the activities sent to portable actors to their followers and other actors that share the same DID, according to `gateways`.
+
 ## Following
 
 When tootik on `b.localdomain` receives a `Follow` activity for `alice@a.localdomain`, it behaves as if this activity targets `bob@b.localdomain`. However, it doesn't know if other servers behave like this, and it doesn't know if all servers with actors that are canonically `ap://did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor` agree about this actor's list of followers.
