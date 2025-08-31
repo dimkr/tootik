@@ -53,7 +53,35 @@ func portable(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `ALTER TABLE follows ADD COLUMN followedcid TEXT NOT NULL AS (CASE WHEN followed LIKE '%/.well-known/apgateway/did:key:z6Mk%' THEN 'ap://' || SUBSTR(followed, 9 + INSTR(SUBSTR(followed, 9), '/') + 22, CASE WHEN INSTR(SUBSTR(followed, 9 + INSTR(SUBSTR(followed, 9), '/') + 22), '?') > 0 THEN INSTR(SUBSTR(followed, 9 + INSTR(SUBSTR(followed, 9), '/') + 22), '?') - 1 ELSE LENGTH(followed) END) ELSE followed END)`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE TABLE nfollows(id TEXT NOT NULL, follower TEXT NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()), accepted INTEGER, followed TEXT NOT NULL, followedcid TEXT NOT NULL AS (CASE WHEN followed LIKE '%/.well-known/apgateway/did:key:z6Mk%' THEN 'ap://' || SUBSTR(followed, 9 + INSTR(SUBSTR(followed, 9), '/') + 22, CASE WHEN INSTR(SUBSTR(followed, 9 + INSTR(SUBSTR(followed, 9), '/') + 22), '?') > 0 THEN INSTR(SUBSTR(followed, 9 + INSTR(SUBSTR(followed, 9), '/') + 22), '?') - 1 ELSE LENGTH(followed) END) ELSE followed END))`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `INSERT INTO nfollows(id, follower, followed, accepted) SELECT id, follower, followed, accepted FROM follows`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `DROP TABLE follows`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `ALTER TABLE nfollows RENAME TO follows`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX followsid ON follows(id)`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX followsfollower ON follows(follower)`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX followsfollowed ON follows(followed)`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `CREATE UNIQUE INDEX followsfollowerfollowed ON follows(follower, followed)`); err != nil {
 		return err
 	}
 
