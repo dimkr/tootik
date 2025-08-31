@@ -509,7 +509,7 @@ func TestView_PostInGroupPublicAndGroupFollowed(t *testing.T) {
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/group/people",
-		`{"type":"Group","preferredUsername":"people"}`,
+		`{"id":"https://127.0.0.1/group/people","type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
@@ -595,7 +595,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedButNotAccepted(t *testing.T) {
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/group/people",
-		`{"type":"Group","preferredUsername":"people"}`,
+		`{"id":"https://127.0.0.1/group/people","type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
@@ -635,7 +635,7 @@ func TestView_PostInGroupNotPublicAndAuthorFollowed(t *testing.T) {
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/group/people",
-		`{"type":"Group","preferredUsername":"people"}`,
+		`{"id":"https://127.0.0.1/group/people","type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
@@ -678,7 +678,7 @@ func TestView_PostInGroupNotPublicAndAuthorFollowedButNotAccepted(t *testing.T) 
 	_, err := server.db.Exec(
 		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/group/people",
-		`{"type":"Group","preferredUsername":"people"}`,
+		`{"id":"https://127.0.0.1/group/people","type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
