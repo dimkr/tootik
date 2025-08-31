@@ -93,7 +93,11 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 
 	switch r.URL.RawQuery {
 	case "":
-		w.Status(10, "Create portable user? (y/n)")
+		if h.Config.EnablePortableActorRegistration {
+			w.Status(10, "Create portable user? (y/n)")
+		} else {
+			w.Redirect("/users?n")
+		}
 		return
 
 	case "n":
@@ -104,10 +108,19 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 		}
 
 	case "y":
-		w.Status(10, "base58-encoded Ed25519 private key or 'generate' to generate")
+		if h.Config.EnablePortableActorRegistration {
+			w.Status(10, "base58-encoded Ed25519 private key or 'generate' to generate")
+		} else {
+			w.Status(40, "Registration of portable actors is disabled")
+		}
 		return
 
 	case "generate":
+		if !h.Config.EnablePortableActorRegistration {
+			w.Status(40, "Registration of portable actors is disabled")
+			return
+		}
+
 		pub, priv, err := ed25519.GenerateKey(nil)
 		if err != nil {
 			r.Log.Warn("Failed to generate key", "error", err)
@@ -122,6 +135,11 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 		}
 
 	default:
+		if !h.Config.EnablePortableActorRegistration {
+			w.Status(40, "Registration of portable actors is disabled")
+			return
+		}
+
 		key, err := data.DecodeEd25519PrivateKey(r.URL.RawQuery)
 		if err != nil {
 			r.Log.Warn("Failed to decode Ed25519 private key", "name", userName, "error", err)

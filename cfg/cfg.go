@@ -27,13 +27,14 @@ import (
 type Config struct {
 	DatabaseOptions string
 
-	RequireRegistration            bool
-	RegistrationInterval           time.Duration
-	CertificateApprovalTimeout     time.Duration
-	UserNameRegex                  string
-	CompiledUserNameRegex          *regexp.Regexp `json:"-"`
-	ForbiddenUserNameRegex         string
-	CompiledForbiddenUserNameRegex *regexp.Regexp `json:"-"`
+	RequireRegistration             bool
+	RegistrationInterval            time.Duration
+	CertificateApprovalTimeout      time.Duration
+	UserNameRegex                   string
+	CompiledUserNameRegex           *regexp.Regexp `json:"-"`
+	ForbiddenUserNameRegex          string
+	CompiledForbiddenUserNameRegex  *regexp.Regexp `json:"-"`
+	EnablePortableActorRegistration bool
 
 	MaxPostsLength     int
 	MaxPostsPerDay     int64
