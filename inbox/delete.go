@@ -25,7 +25,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 )
 
-func (q *Queue) delete(ctx context.Context, db *sql.DB, actor *ap.Actor, note *ap.Object) error {
+func (inbox *Inbox) delete(ctx context.Context, db *sql.DB, actor *ap.Actor, note *ap.Object) error {
 	delete := ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      note.ID + "#delete",
@@ -68,7 +68,7 @@ func (q *Queue) delete(ctx context.Context, db *sql.DB, actor *ap.Actor, note *a
 		return err
 	}
 
-	if err := q.ProcessLocalActivity(ctx, tx, actor, &delete, string(j)); err != nil {
+	if err := inbox.ProcessActivity(ctx, tx, actor, &delete, string(j), 1, false); err != nil {
 		return err
 	}
 
@@ -76,8 +76,8 @@ func (q *Queue) delete(ctx context.Context, db *sql.DB, actor *ap.Actor, note *a
 }
 
 // Delete queues a Delete activity for delivery.
-func (q *Queue) Delete(ctx context.Context, db *sql.DB, actor *ap.Actor, note *ap.Object) error {
-	if err := q.delete(ctx, db, actor, note); err != nil {
+func (inbox *Inbox) Delete(ctx context.Context, db *sql.DB, actor *ap.Actor, note *ap.Object) error {
+	if err := inbox.delete(ctx, db, actor, note); err != nil {
 		return fmt.Errorf("failed to delete %s by %s: %w", note.ID, actor.ID, err)
 	}
 

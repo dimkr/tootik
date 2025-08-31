@@ -25,11 +25,11 @@ import (
 	"github.com/dimkr/tootik/ap"
 )
 
-func (q *Queue) move(ctx context.Context, db *sql.DB, from *ap.Actor, to string) error {
+func (inbox *Inbox) move(ctx context.Context, db *sql.DB, from *ap.Actor, to string) error {
 	aud := ap.Audience{}
 	aud.Add(from.Followers)
 
-	id, err := q.NewID(from.ID, "move")
+	id, err := inbox.NewID(from.ID, "move")
 	if err != nil {
 		return err
 	}
@@ -60,7 +60,7 @@ func (q *Queue) move(ctx context.Context, db *sql.DB, from *ap.Actor, to string)
 		return err
 	}
 
-	if err := q.UpdateActor(ctx, tx, from.ID); err != nil {
+	if err := inbox.UpdateActor(ctx, tx, from.ID); err != nil {
 		return err
 	}
 
@@ -77,8 +77,8 @@ func (q *Queue) move(ctx context.Context, db *sql.DB, from *ap.Actor, to string)
 }
 
 // Move queues a Move activity for delivery.
-func (q *Queue) Move(ctx context.Context, db *sql.DB, from *ap.Actor, to string) error {
-	if err := q.move(ctx, db, from, to); err != nil {
+func (inbox *Inbox) Move(ctx context.Context, db *sql.DB, from *ap.Actor, to string) error {
+	if err := inbox.move(ctx, db, from, to); err != nil {
 		return fmt.Errorf("failed to move %s to %s: %w", from.ID, to, err)
 	}
 

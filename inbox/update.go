@@ -25,8 +25,8 @@ import (
 	"github.com/dimkr/tootik/ap"
 )
 
-func (q *Queue) updateNote(ctx context.Context, db *sql.DB, actor *ap.Actor, note *ap.Object) error {
-	updateID, err := q.NewID(note.AttributedTo, "update")
+func (inbox *Inbox) updateNote(ctx context.Context, db *sql.DB, actor *ap.Actor, note *ap.Object) error {
+	updateID, err := inbox.NewID(note.AttributedTo, "update")
 	if err != nil {
 		return err
 	}
@@ -75,25 +75,24 @@ func (q *Queue) updateNote(ctx context.Context, db *sql.DB, actor *ap.Actor, not
 		}
 	}
 
-	if err := q.ProcessLocalActivity(ctx, tx, actor, &update, string(j)); err != nil {
+	if err := inbox.ProcessActivity(ctx, tx, actor, &update, string(j), 1, false); err != nil {
 		return err
-
 	}
 
 	return tx.Commit()
 }
 
 // UpdateNote queues an Update activity for delivery.
-func (q *Queue) UpdateNote(ctx context.Context, db *sql.DB, actor *ap.Actor, note *ap.Object) error {
-	if err := q.updateNote(ctx, db, actor, note); err != nil {
+func (inbox *Inbox) UpdateNote(ctx context.Context, db *sql.DB, actor *ap.Actor, note *ap.Object) error {
+	if err := inbox.updateNote(ctx, db, actor, note); err != nil {
 		return fmt.Errorf("failed to update %s by %s: %w", note.ID, actor.ID, err)
 	}
 
 	return nil
 }
 
-func (q *Queue) updateActor(ctx context.Context, tx *sql.Tx, actorID string) error {
-	updateID, err := q.NewID(actorID, "update")
+func (inbox *Inbox) updateActor(ctx context.Context, tx *sql.Tx, actorID string) error {
+	updateID, err := inbox.NewID(actorID, "update")
 	if err != nil {
 		return err
 	}
@@ -120,8 +119,8 @@ func (q *Queue) updateActor(ctx context.Context, tx *sql.Tx, actorID string) err
 }
 
 // UpdateActor queues an Update activity for delivery.
-func (q *Queue) UpdateActor(ctx context.Context, tx *sql.Tx, actorID string) error {
-	if err := q.updateActor(ctx, tx, actorID); err != nil {
+func (inbox *Inbox) UpdateActor(ctx context.Context, tx *sql.Tx, actorID string) error {
+	if err := inbox.updateActor(ctx, tx, actorID); err != nil {
 		return fmt.Errorf("failed to update %s: %w", actorID, err)
 	}
 

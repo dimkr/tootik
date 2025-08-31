@@ -26,8 +26,8 @@ import (
 	"github.com/dimkr/tootik/ap"
 )
 
-func (q *Queue) announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, note *ap.Object) error {
-	announceID, err := q.NewID(actor.ID, "announce")
+func (inbox *Inbox) announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, note *ap.Object) error {
+	announceID, err := inbox.NewID(actor.ID, "announce")
 	if err != nil {
 		return err
 	}
@@ -64,12 +64,12 @@ func (q *Queue) announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, note 
 		return err
 	}
 
-	return q.ProcessLocalActivity(ctx, tx, actor, &announce, string(j))
+	return inbox.ProcessActivity(ctx, tx, actor, &announce, string(j), 1, false)
 }
 
 // Announce queues an Announce activity for delivery.
-func (q *Queue) Announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, note *ap.Object) error {
-	if err := q.announce(ctx, tx, actor, note); err != nil {
+func (inbox *Inbox) Announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, note *ap.Object) error {
+	if err := inbox.announce(ctx, tx, actor, note); err != nil {
 		return fmt.Errorf("failed to announce %s by %s: %w", note.ID, actor.ID, err)
 	}
 

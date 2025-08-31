@@ -44,7 +44,8 @@ type server struct {
 	db         *sql.DB
 	dbPath     string
 	handler    front.Handler
-	inbox      *inbox.Queue
+	inbox      *inbox.Inbox
+	queue      *inbox.Queue
 	Alice      *ap.Actor
 	Bob        *ap.Actor
 	Carol      *ap.Actor
@@ -97,16 +98,20 @@ func newTestServer() *server {
 		panic(err)
 	}
 
-	queue := &inbox.Queue{
+	localInbox := &inbox.Inbox{
 		Domain:    domain,
 		Config:    &cfg,
 		BlockList: &fed.BlockList{},
 		DB:        db,
-		Resolver:  fed.NewResolver(nil, domain, &cfg, &http.Client{}, db),
-		Keys:      nobodyKeys,
 	}
 
-	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, queue)
+	queue := &inbox.Queue{
+		Config: &cfg,
+		DB:     db,
+		Inbox:  localInbox,
+	}
+
+	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, localInbox)
 	if err != nil {
 		panic(err)
 	}
@@ -116,7 +121,8 @@ func newTestServer() *server {
 		dbPath:     path,
 		db:         db,
 		handler:    handler,
-		inbox:      queue,
+		inbox:      localInbox,
+		queue:      queue,
 		Alice:      alice,
 		Bob:        bob,
 		Carol:      carol,

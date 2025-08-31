@@ -67,7 +67,7 @@ func TestCluster_FollowersSyncMissingRemoteFollow(t *testing.T) {
 		DB:       cluster["a.localdomain"].DB,
 		Resolver: cluster["a.localdomain"].Resolver,
 		Keys:     cluster["a.localdomain"].NobodyKeys,
-		Inbox:    cluster["a.localdomain"].Incoming,
+		Inbox:    cluster["a.localdomain"].Inbox,
 	}
 	if _, err := syncer.ProcessBatch(t.Context()); err != nil {
 		t.Fatalf("Failed to synchronize followers: %v", err)
@@ -127,7 +127,7 @@ func TestCluster_FollowersSyncMissingLocalFollow(t *testing.T) {
 		DB:       cluster["a.localdomain"].DB,
 		Resolver: cluster["a.localdomain"].Resolver,
 		Keys:     cluster["a.localdomain"].NobodyKeys,
-		Inbox:    cluster["a.localdomain"].Incoming,
+		Inbox:    cluster["a.localdomain"].Inbox,
 	}
 	if _, err := syncer.ProcessBatch(t.Context()); err != nil {
 		t.Fatalf("Failed to synchronize followers: %v", err)

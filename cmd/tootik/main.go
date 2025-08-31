@@ -202,13 +202,11 @@ func main() {
 		panic(err)
 	}
 
-	queue := &inbox.Queue{
+	localInbox := &inbox.Inbox{
 		Domain:    *domain,
 		Config:    &cfg,
 		BlockList: blockList,
 		DB:        db,
-		Resolver:  resolver,
-		Keys:      nobodyKeys,
 	}
 
 	switch cmd {
@@ -250,7 +248,7 @@ func main() {
 			panic(err)
 		}
 
-		if err := queue.UpdateActor(ctx, tx, actorID); err != nil {
+		if err := localInbox.UpdateActor(ctx, tx, actorID); err != nil {
 			panic(err)
 		}
 
@@ -309,7 +307,7 @@ func main() {
 			panic(err)
 		}
 
-		if err := queue.UpdateActor(ctx, tx, actorID); err != nil {
+		if err := localInbox.UpdateActor(ctx, tx, actorID); err != nil {
 			panic(err)
 		}
 
@@ -320,7 +318,7 @@ func main() {
 		return
 	}
 
-	handler, err := front.NewHandler(*domain, *closed, &cfg, resolver, db, queue)
+	handler, err := front.NewHandler(*domain, *closed, &cfg, resolver, db, localInbox)
 	if err != nil {
 		panic(err)
 	}
@@ -402,7 +400,11 @@ func main() {
 	}{
 		{
 			"incoming",
-			queue,
+			&inbox.Queue{
+				Config: &cfg,
+				DB:     db,
+				Inbox:  localInbox,
+			},
 		},
 		{
 			"outgoing",
@@ -444,7 +446,7 @@ func main() {
 			&outbox.Poller{
 				Domain: *domain,
 				DB:     db,
-				Inbox:  queue,
+				Inbox:  localInbox,
 			},
 		},
 		{
@@ -453,7 +455,7 @@ func main() {
 			&outbox.Mover{
 				Domain:   *domain,
 				DB:       db,
-				Inbox:    queue,
+				Inbox:    localInbox,
 				Resolver: resolver,
 				Keys:     nobodyKeys,
 			},
@@ -467,7 +469,7 @@ func main() {
 				DB:       db,
 				Resolver: resolver,
 				Keys:     nobodyKeys,
-				Inbox:    queue,
+				Inbox:    localInbox,
 			},
 		},
 		{
@@ -475,7 +477,7 @@ func main() {
 			deleterInterval,
 			&outbox.Deleter{
 				DB:    db,
-				Inbox: queue,
+				Inbox: localInbox,
 			},
 		},
 		{

@@ -31,8 +31,8 @@ const maxDeliveryQueueSize = 128
 
 var ErrDeliveryQueueFull = errors.New("delivery queue is full")
 
-func (q *Queue) create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *ap.Object, author *ap.Actor) error {
-	id, err := q.NewID(author.ID, "create")
+func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *ap.Object, author *ap.Actor) error {
+	id, err := inbox.NewID(author.ID, "create")
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func (q *Queue) create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *a
 		return err
 	}
 
-	if err := q.ProcessLocalActivity(ctx, tx, author, &create, string(j)); err != nil {
+	if err := inbox.ProcessActivity(ctx, tx, author, &create, string(j), 1, false); err != nil {
 		return err
 	}
 
@@ -83,8 +83,8 @@ func (q *Queue) create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *a
 }
 
 // Create queues a Create activity for delivery.
-func (q *Queue) Create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *ap.Object, author *ap.Actor) error {
-	if err := q.create(ctx, cfg, db, post, author); err != nil {
+func (inbox *Inbox) Create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *ap.Object, author *ap.Actor) error {
+	if err := inbox.create(ctx, cfg, db, post, author); err != nil {
 		return fmt.Errorf("failed to create %s by %s: %w", post.ID, author.ID, err)
 	}
 

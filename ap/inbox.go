@@ -37,4 +37,5 @@ type Inbox interface {
 	UpdateActor(ctx context.Context, tx *sql.Tx, actorID string) error
 	UpdateNote(ctx context.Context, db *sql.DB, actor *Actor, note *Object) error
 	Unfollow(ctx context.Context, db *sql.DB, follower *Actor, followed, followID string) error
+	ProcessActivity(ctx context.Context, tx *sql.Tx, sender *Actor, activity *Activity, rawActivity string, depth int, shared bool) error
 }

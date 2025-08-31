@@ -23,15 +23,15 @@ import (
 )
 
 // NewID generates a pseudo-random ID.
-func (q *Queue) NewID(actorID, prefix string) (string, error) {
+func (inbox *Inbox) NewID(actorID, prefix string) (string, error) {
 	u, err := uuid.NewV7()
 	if err != nil {
 		return "", fmt.Errorf("failed to generate %s ID: %w", prefix, err)
 	}
 
 	if m := ap.GatewayURLRegex.FindStringSubmatch(actorID); m != nil {
-		return fmt.Sprintf("https://%s/.well-known/apgateway/did:key:%s/actor/%s/%s", q.Domain, m[1], prefix, u.String()), nil
+		return fmt.Sprintf("https://%s/.well-known/apgateway/did:key:%s/actor/%s/%s", inbox.Domain, m[1], prefix, u.String()), nil
 	}
 
-	return fmt.Sprintf("https://%s/%s/%s", q.Domain, prefix, u.String()), nil
+	return fmt.Sprintf("https://%s/%s/%s", inbox.Domain, prefix, u.String()), nil
 }

@@ -25,8 +25,8 @@ import (
 	"github.com/dimkr/tootik/ap"
 )
 
-func (q *Queue) undo(ctx context.Context, db *sql.DB, actor *ap.Actor, activity *ap.Activity) error {
-	id, err := q.NewID(actor.ID, "undo")
+func (inbox *Inbox) undo(ctx context.Context, db *sql.DB, actor *ap.Actor, activity *ap.Activity) error {
+	id, err := inbox.NewID(actor.ID, "undo")
 	if err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func (q *Queue) undo(ctx context.Context, db *sql.DB, actor *ap.Actor, activity 
 		return err
 	}
 
-	if err := q.ProcessLocalActivity(ctx, tx, actor, &undo, string(j)); err != nil {
+	if err := inbox.ProcessActivity(ctx, tx, actor, &undo, string(j), 1, false); err != nil {
 		return err
 	}
 
@@ -72,8 +72,8 @@ func (q *Queue) undo(ctx context.Context, db *sql.DB, actor *ap.Actor, activity 
 }
 
 // Undo queues an Undo activity for delivery.
-func (q *Queue) Undo(ctx context.Context, db *sql.DB, actor *ap.Actor, activity *ap.Activity) error {
-	if err := q.undo(ctx, db, actor, activity); err != nil {
+func (inbox *Inbox) Undo(ctx context.Context, db *sql.DB, actor *ap.Actor, activity *ap.Activity) error {
+	if err := inbox.undo(ctx, db, actor, activity); err != nil {
 		return fmt.Errorf("failed to undo %s by %s: %w", activity.ID, actor.ID, err)
 	}
 

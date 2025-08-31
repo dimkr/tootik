@@ -51,6 +51,7 @@ type Server struct {
 	NobodyKeys [2]httpsig.Key
 	Frontend   gemini.Listener
 	Backend    http.Handler
+	Inbox      *inbox.Inbox
 	Incoming   *inbox.Queue
 	Outgoing   *fed.Queue
 
@@ -122,15 +123,13 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 		t.Fatalf("Failed to run create the nobody user: %v", err)
 	}
 
-	incoming := &inbox.Queue{
-		Domain:   domain,
-		Config:   &cfg,
-		DB:       db,
-		Resolver: resolver,
-		Keys:     nobodyKeys,
+	localInbox := &inbox.Inbox{
+		Domain: domain,
+		Config: &cfg,
+		DB:     db,
 	}
 
-	handler, err := front.NewHandler(domain, false, &cfg, resolver, db, incoming)
+	handler, err := front.NewHandler(domain, false, &cfg, resolver, db, localInbox)
 	if err != nil {
 		t.Fatalf("Failed to run create a Handler: %v", err)
 	}
@@ -180,8 +179,13 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 			DB:      db,
 			Handler: handler,
 		},
-		Backend:  backend,
-		Incoming: incoming,
+		Backend: backend,
+		Inbox:   localInbox,
+		Incoming: &inbox.Queue{
+			Config: &cfg,
+			DB:     db,
+			Inbox:  localInbox,
+		},
 		Outgoing: &fed.Queue{
 			Domain:   domain,
 			Config:   &cfg,

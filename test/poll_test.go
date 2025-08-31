@@ -48,7 +48,7 @@ func TestPoll_TwoOptions(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := server.inbox.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -81,7 +81,7 @@ func TestPoll_TwoOptionsZeroVotes(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := server.inbox.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -114,7 +114,7 @@ func TestPoll_TwoOptionsOnlyZeroVotes(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := server.inbox.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -147,7 +147,7 @@ func TestPoll_OneOption(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := server.inbox.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -179,7 +179,7 @@ func TestPoll_Vote(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := server.inbox.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -219,7 +219,7 @@ func TestPoll_VoteClosedPoll(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := server.inbox.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -253,7 +253,7 @@ func TestPoll_VoteEndedPoll(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := server.inbox.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -287,7 +287,7 @@ func TestPoll_Reply(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := server.inbox.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -327,7 +327,7 @@ func TestPoll_ReplyClosedPoll(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := server.inbox.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -367,7 +367,7 @@ func TestPoll_EditVote(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := server.inbox.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -410,7 +410,7 @@ func TestPoll_DeleteReply(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := server.inbox.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -453,7 +453,7 @@ func TestPoll_Update(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := server.inbox.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -472,7 +472,7 @@ func TestPoll_Update(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err = server.inbox.ProcessBatch(context.Background())
+	n, err = server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -505,7 +505,7 @@ func TestPoll_OldUpdate(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := server.inbox.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -524,7 +524,7 @@ func TestPoll_OldUpdate(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err = server.inbox.ProcessBatch(context.Background())
+	n, err = server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 

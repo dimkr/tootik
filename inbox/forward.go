@@ -26,7 +26,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 )
 
-func (q *Queue) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity, firstPostID string) (bool, error) {
+func (inbox *Inbox) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity, firstPostID string) (bool, error) {
 	var group ap.Actor
 	if err := tx.QueryRowContext(
 		ctx,
@@ -69,7 +69,7 @@ func (q *Queue) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Object,
 			)
 		`,
 		firstPostID,
-		q.Domain,
+		inbox.Domain,
 	).Scan(&group); err != nil && errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	} else if err != nil {
@@ -101,7 +101,7 @@ func (q *Queue) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Object,
 	}
 
 	// if this is a new post and we're passing the Create activity to followers, also share the post
-	if err := q.Announce(ctx, tx, &group, note); err != nil {
+	if err := inbox.Announce(ctx, tx, &group, note); err != nil {
 		return true, err
 	}
 
@@ -120,7 +120,7 @@ func (q *Queue) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Object,
 // forwardActivity forwards an activity if needed.
 // A reply by B in a thread started by A is forwarded to all followers of A.
 // A post by a follower of a local group, which mentions the group or replies to a post in the group, is forwarded to followers of the group.
-func (q *Queue) forwardActivity(ctx context.Context, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity string) error {
+func (inbox *Inbox) forwardActivity(ctx context.Context, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity string) error {
 	// poll votes don't need to be forwarded
 	if note.Name != "" && note.Content == "" {
 		return nil
@@ -131,20 +131,20 @@ func (q *Queue) forwardActivity(ctx context.Context, tx *sql.Tx, note *ap.Object
 
 	if note.InReplyTo != "" {
 		var depth int
-		if err := tx.QueryRowContext(ctx, `with recursive thread(id, author, parent, depth) as (select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, 1 as depth from notes where id = $1 union all select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent where t.depth <= $2) select id, author, depth from thread order by depth desc limit 1`, note.ID, q.Config.MaxForwardingDepth+1).Scan(&firstPostID, &threadStarterID, &depth); err != nil && errors.Is(err, sql.ErrNoRows) {
+		if err := tx.QueryRowContext(ctx, `with recursive thread(id, author, parent, depth) as (select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, 1 as depth from notes where id = $1 union all select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent where t.depth <= $2) select id, author, depth from thread order by depth desc limit 1`, note.ID, inbox.Config.MaxForwardingDepth+1).Scan(&firstPostID, &threadStarterID, &depth); err != nil && errors.Is(err, sql.ErrNoRows) {
 			slog.Debug("Failed to find thread for post", "activity", activity.ID, "note", note.ID)
 			return nil
 		} else if err != nil {
 			return fmt.Errorf("failed to fetch first post in thread: %w", err)
 		}
-		if depth > q.Config.MaxForwardingDepth {
+		if depth > inbox.Config.MaxForwardingDepth {
 			slog.Debug("Thread exceeds depth limit for forwarding", "activity", activity.ID, "note", note.ID)
 			return nil
 		}
 	}
 
 	if note.IsPublic() {
-		if groupThread, err := q.forwardToGroup(ctx, tx, note, activity, rawActivity, firstPostID); err != nil {
+		if groupThread, err := inbox.forwardToGroup(ctx, tx, note, activity, rawActivity, firstPostID); err != nil {
 			return err
 		} else if groupThread {
 			return nil

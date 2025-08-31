@@ -281,7 +281,7 @@ func TestCommunity_ReplyInThread(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := server.inbox.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -344,7 +344,7 @@ func TestCommunity_ReplyInThreadAuthorNotFollowing(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := server.inbox.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -438,7 +438,7 @@ func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := server.inbox.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -528,7 +528,7 @@ func TestCommunity_DuplicateReplyInThread(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := server.inbox.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -539,7 +539,7 @@ func TestCommunity_DuplicateReplyInThread(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err = server.inbox.ProcessBatch(context.Background())
+	n, err = server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -630,7 +630,7 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := server.inbox.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -666,7 +666,7 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err = server.inbox.ProcessBatch(context.Background())
+	n, err = server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -751,7 +751,7 @@ func TestCommunity_UnknownEditedReplyInThread(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err := server.inbox.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 

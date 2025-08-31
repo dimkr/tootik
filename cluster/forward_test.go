@@ -16,9 +16,7 @@ limitations under the License.
 
 package cluster
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestCluster_ReplyForwardingWithIntegrityProofs(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")

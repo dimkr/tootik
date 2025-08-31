@@ -25,12 +25,12 @@ import (
 	"github.com/dimkr/tootik/ap"
 )
 
-func (q *Queue) unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor, followed, followID string) error {
+func (inbox *Inbox) unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor, followed, followID string) error {
 	if ap.Canonical(followed) == ap.Canonical(follower.ID) {
 		return fmt.Errorf("%s cannot unfollow %s", follower.ID, followed)
 	}
 
-	undoID, err := q.NewID(follower.ID, "undo")
+	undoID, err := inbox.NewID(follower.ID, "undo")
 	if err != nil {
 		return err
 	}
@@ -81,7 +81,7 @@ func (q *Queue) unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor, fo
 		return err
 	}
 
-	if err := q.ProcessLocalActivity(ctx, tx, follower, &unfollow, string(j)); err != nil {
+	if err := inbox.ProcessActivity(ctx, tx, follower, &unfollow, string(j), 1, false); err != nil {
 		return err
 	}
 
@@ -89,8 +89,8 @@ func (q *Queue) unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor, fo
 }
 
 // Unfollow queues an Undo activity for delivery.
-func (q *Queue) Unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor, followed, followID string) error {
-	if err := q.unfollow(ctx, db, follower, followed, followID); err != nil {
+func (inbox *Inbox) Unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor, followed, followID string) error {
+	if err := inbox.unfollow(ctx, db, follower, followed, followID); err != nil {
 		return fmt.Errorf("failed to unfollow %s from %s by %s: %w", followID, follower.ID, followed, err)
 	}
 

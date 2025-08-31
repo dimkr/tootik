@@ -117,7 +117,7 @@ func TestDeleter_OldData(t *testing.T) {
 
 	deleter := outbox.Deleter{
 		DB:    cluster["b.localdomain"].DB,
-		Inbox: cluster["b.localdomain"].Incoming,
+		Inbox: cluster["b.localdomain"].Inbox,
 	}
 
 	if err := deleter.Run(t.Context()); err != nil {
@@ -270,7 +270,7 @@ func TestDeleter_Disabled(t *testing.T) {
 
 	deleter := outbox.Deleter{
 		DB:    cluster["b.localdomain"].DB,
-		Inbox: cluster["b.localdomain"].Incoming,
+		Inbox: cluster["b.localdomain"].Inbox,
 	}
 
 	if err := deleter.Run(t.Context()); err != nil {

@@ -19,12 +19,9 @@ package test
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strings"
 	"testing"
 
-	"github.com/dimkr/tootik/fed"
-	"github.com/dimkr/tootik/inbox"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -325,15 +322,7 @@ func TestView_Update(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -351,7 +340,7 @@ func TestView_Update(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err = queue.ProcessBatch(context.Background())
+	n, err = server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -383,15 +372,7 @@ func TestView_OldUpdate(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -409,7 +390,7 @@ func TestView_OldUpdate(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	n, err = queue.ProcessBatch(context.Background())
+	n, err = server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -548,15 +529,7 @@ func TestView_PostInGroupPublicAndGroupFollowed(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -599,15 +572,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowed(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -650,15 +615,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedButNotAccepted(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -698,15 +655,7 @@ func TestView_PostInGroupNotPublicAndAuthorFollowed(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -749,15 +698,7 @@ func TestView_PostInGroupNotPublicAndAuthorFollowedButNotAccepted(t *testing.T) 
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -813,15 +754,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithReply(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(2, n)
 
@@ -881,15 +814,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithPrivateReply(t *testing.T)
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(2, n)
 

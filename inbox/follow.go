@@ -25,12 +25,12 @@ import (
 	"github.com/dimkr/tootik/ap"
 )
 
-func (q *Queue) follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB) error {
+func (inbox *Inbox) follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB) error {
 	if followed == follower.ID {
 		return fmt.Errorf("%s cannot follow %s", follower.ID, followed)
 	}
 
-	followID, err := q.NewID(follower.ID, "follow")
+	followID, err := inbox.NewID(follower.ID, "follow")
 	if err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ func (q *Queue) follow(ctx context.Context, follower *ap.Actor, followed string,
 		return err
 	}
 
-	if err := q.ProcessLocalActivity(ctx, tx, follower, &follow, string(j)); err != nil {
+	if err := inbox.ProcessActivity(ctx, tx, follower, &follow, string(j), 1, false); err != nil {
 		return err
 	}
 
@@ -75,8 +75,8 @@ func (q *Queue) follow(ctx context.Context, follower *ap.Actor, followed string,
 }
 
 // Follow queues a Follow activity for delivery.
-func (q *Queue) Follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB) error {
-	if err := q.follow(ctx, follower, followed, db); err != nil {
+func (inbox *Inbox) Follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB) error {
+	if err := inbox.follow(ctx, follower, followed, db); err != nil {
 		return fmt.Errorf("failed to follow %s by %s: %w", followed, follower.ID, err)
 	}
 
