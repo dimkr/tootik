@@ -295,7 +295,7 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, sender *ap.Acto
 			return errors.New("received an invalid Reject")
 		}
 
-		if res, err := tx.ExecContext(ctx, `update follows set accepted = 0 where id = ? and followed = ? and accepted is null or accepted = 1`, followID, sender.ID); err != nil {
+		if res, err := tx.ExecContext(ctx, `update follows set accepted = 0 where id = ? and followed = ? and (accepted is null or accepted = 1)`, followID, sender.ID); err != nil {
 			return fmt.Errorf("failed to reject follow %s: %w", followID, err)
 		} else if n, err := res.RowsAffected(); err != nil {
 			return fmt.Errorf("failed to reject follow %s: %w", followID, err)
