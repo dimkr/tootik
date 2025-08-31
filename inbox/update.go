@@ -61,6 +61,20 @@ func (q *Queue) updateNote(ctx context.Context, db *sql.DB, actor *ap.Actor, not
 		return err
 	}
 
+	if _, err = tx.ExecContext(ctx, `delete from hashtags where note = ?`, note.ID); err != nil {
+		return err
+	}
+
+	for _, hashtag := range note.Tag {
+		if hashtag.Type != ap.Hashtag || len(hashtag.Name) <= 1 || hashtag.Name[0] != '#' {
+			continue
+		}
+
+		if _, err = tx.ExecContext(ctx, `insert into hashtags (note, hashtag) values(?, ?)`, note.ID, hashtag.Name[1:]); err != nil {
+			return err
+		}
+	}
+
 	if err := q.ProcessLocalActivity(ctx, tx, actor, &update, string(j)); err != nil {
 		return err
 
