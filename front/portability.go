@@ -73,8 +73,10 @@ func (h *Handler) portability(w text.Writer, r *Request, args ...string) {
 		}
 	}
 
-	if len(r.User.Gateways) < h.Config.MaxGateways {
-		w.Empty()
+	w.Empty()
+	if len(r.User.Gateways) == h.Config.MaxGateways {
+		w.Text("Reached the maximum number of gateways.")
+	} else {
 		w.Link("/users/gateway/add", "➕ Add")
 	}
 }
