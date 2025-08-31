@@ -50,12 +50,20 @@ func TestCommunity_NewThread(t *testing.T) {
 	assert.NoError(err)
 	defer tx.Rollback()
 
+	_, err = tx.Exec(
+		`insert into follows (id, follower, followed) values (?, ?, ?)`,
+		"https://127.0.0.1/follow/1",
+		"https://127.0.0.1/user/dan",
+		server.Alice.ID,
+	)
+	assert.NoError(err)
+
 	assert.NoError(
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
 			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain:8443/follow/1",
+			"https://127.0.0.1/follow/1",
 			tx,
 		),
 	)
@@ -102,12 +110,20 @@ func TestCommunity_NewThreadNotFollowing(t *testing.T) {
 	assert.NoError(err)
 	defer tx.Rollback()
 
+	_, err = tx.Exec(
+		`insert into follows (id, follower, followed) values (?, ?, ?)`,
+		"https://127.0.0.1/follow/1",
+		"https://127.0.0.1/user/dan",
+		server.Alice.ID,
+	)
+	assert.NoError(err)
+
 	assert.NoError(
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
 			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain:8443/follow/1",
+			"https://127.0.0.1/follow/1",
 			tx,
 		),
 	)
@@ -151,12 +167,20 @@ func TestCommunity_NewThreadNotPublic(t *testing.T) {
 	assert.NoError(err)
 	defer tx.Rollback()
 
+	_, err = tx.Exec(
+		`insert into follows (id, follower, followed) values (?, ?, ?)`,
+		"https://127.0.0.1/follow/1",
+		"https://127.0.0.1/user/dan",
+		server.Alice.ID,
+	)
+	assert.NoError(err)
+
 	assert.NoError(
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
 			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain:8443/follow/1",
+			"https://127.0.0.1/follow/1",
 			tx,
 		),
 	)
@@ -203,12 +227,20 @@ func TestCommunity_ReplyInThread(t *testing.T) {
 	assert.NoError(err)
 	defer tx.Rollback()
 
+	_, err = tx.Exec(
+		`insert into follows (id, follower, followed) values (?, ?, ?)`,
+		"https://127.0.0.1/follow/1",
+		"https://127.0.0.1/user/dan",
+		server.Alice.ID,
+	)
+	assert.NoError(err)
+
 	assert.NoError(
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
 			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain:8443/follow/1",
+			"https://127.0.0.1/follow/1",
 			tx,
 		),
 	)
@@ -348,12 +380,20 @@ func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
 	assert.NoError(err)
 	defer tx.Rollback()
 
+	_, err = tx.Exec(
+		`insert into follows (id, follower, followed) values (?, ?, ?)`,
+		"https://127.0.0.1/follow/1",
+		"https://127.0.0.1/user/dan",
+		server.Alice.ID,
+	)
+	assert.NoError(err)
+
 	assert.NoError(
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
 			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain:8443/follow/1",
+			"https://127.0.0.1/follow/1",
 			tx,
 		),
 	)
@@ -434,12 +474,20 @@ func TestCommunity_DuplicateReplyInThread(t *testing.T) {
 	assert.NoError(err)
 	defer tx.Rollback()
 
+	_, err = tx.Exec(
+		`insert into follows (id, follower, followed) values (?, ?, ?)`,
+		"https://127.0.0.1/follow/1",
+		"https://127.0.0.1/user/dan",
+		server.Alice.ID,
+	)
+	assert.NoError(err)
+
 	assert.NoError(
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
 			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain:8443/follow/1",
+			"https://127.0.0.1/follow/1",
 			tx,
 		),
 	)
@@ -527,12 +575,20 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 	assert.NoError(err)
 	defer tx.Rollback()
 
+	_, err = tx.Exec(
+		`insert into follows (id, follower, followed) values (?, ?, ?)`,
+		"https://127.0.0.1/follow/1",
+		"https://127.0.0.1/user/dan",
+		server.Alice.ID,
+	)
+	assert.NoError(err)
+
 	assert.NoError(
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
 			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain:8443/follow/1",
+			"https://127.0.0.1/follow/1",
 			tx,
 		),
 	)
@@ -641,12 +697,20 @@ func TestCommunity_UnknownEditedReplyInThread(t *testing.T) {
 	assert.NoError(err)
 	defer tx.Rollback()
 
+	_, err = tx.Exec(
+		`insert into follows (id, follower, followed) values (?, ?, ?)`,
+		"https://127.0.0.1/follow/1",
+		"https://127.0.0.1/user/dan",
+		server.Alice.ID,
+	)
+	assert.NoError(err)
+
 	assert.NoError(
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
 			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain:8443/follow/1",
+			"https://127.0.0.1/follow/1",
 			tx,
 		),
 	)
