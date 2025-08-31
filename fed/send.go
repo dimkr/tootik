@@ -111,7 +111,7 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request) (*http.Response, e
 		return resp, fmt.Errorf("failed to send request to %s: %d, %s", urlString, resp.StatusCode, string(body))
 	}
 
-	// other servers may ignore the signature if the request includes a valid identity proof
+	// other servers may ignore the signature if the request includes a valid integrity proof
 	if !ap.IsPortable(keys[1].ID) {
 		if _, err = s.DB.ExecContext(
 			req.Context(),
