@@ -554,7 +554,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, receive
 		}
 	}
 
-	if ap.Canonical(sender.ID) == ap.Canonical(receiver) {
+	if ap.IsPortable(receiver) {
 		if res, err := l.DB.ExecContext(
 			r.Context(),
 			`insert or ignore into outbox(activity, sender) values(jsonb(?), ?)`,

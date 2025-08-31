@@ -489,7 +489,7 @@ func (q *Queue) queueTasks(
 	}
 
 	// if this is an activity by a portable actor, forward it to all gateways
-	if ap.IsPortable(job.Sender.ID) && (job.Activity.IsPublic() || ap.Canonical(job.Sender.ID) == ap.Canonical(job.Activity.Actor)) && len(job.Sender.Gateways) > 1 {
+	if ap.IsPortable(job.Sender.ID) && len(job.Sender.Gateways) > 1 {
 		for _, gw := range job.Sender.Gateways[1:] {
 			slog.Info("Forwarding activity to gateway", "activity", job.Activity.ID, "sender", job.Sender.ID, "gateway", gw)
 

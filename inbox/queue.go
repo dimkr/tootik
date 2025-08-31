@@ -211,7 +211,7 @@ func (q *Queue) processActivity(ctx context.Context, tx *sql.Tx, sender *ap.Acto
 
 		var localFollowed int
 		var followed ap.Actor
-		if err := tx.QueryRowContext(ctx, `select ed25519privkey is not null, json(actor) from persons where id = ? order by ed25519privkey is not null desc limit 1`, followedID).Scan(&localFollowed, &followed); errors.Is(err, sql.ErrNoRows) {
+		if err := tx.QueryRowContext(ctx, `select ed25519privkey is not null, json(actor) from persons where cid = ? order by ed25519privkey is not null desc limit 1`, ap.Canonical(followedID)).Scan(&localFollowed, &followed); errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("received an invalid follow request for %s by %s", followedID, activity.Actor)
 		} else if err != nil {
 			return fmt.Errorf("failed to fetch %s: %w", followed.ID, err)

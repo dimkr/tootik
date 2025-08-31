@@ -59,7 +59,7 @@ var followersSyncRegex = regexp.MustCompile(`\b([^"=]+)="([^"]+)"`)
 func fetchFollowers(ctx context.Context, db *sql.DB, followed, host string) (ap.Audience, error) {
 	var followers ap.Audience
 
-	rows, err := db.QueryContext(ctx, `SELECT follower FROM follows WHERE followed = ? AND follower LIKE 'https://' || ? || '/' || '%' AND accepted = 1`, followed, host)
+	rows, err := db.QueryContext(ctx, `SELECT follower FROM follows WHERE followed = ? AND follower LIKE 'https://' || ? || '/%' AND accepted = 1`, followed, host)
 	if err != nil {
 		return followers, err
 	}
@@ -77,7 +77,7 @@ func fetchFollowers(ctx context.Context, db *sql.DB, followed, host string) (ap.
 }
 
 func digestFollowers(ctx context.Context, db *sql.DB, followed, host string) (string, error) {
-	rows, err := db.QueryContext(ctx, `SELECT follower FROM follows WHERE followed = ? AND follower LIKE 'https://' || ? || '/' || '%' AND accepted = 1`, followed, host)
+	rows, err := db.QueryContext(ctx, `SELECT follower FROM follows WHERE followed = ? AND follower LIKE 'https://' || ? || '/%' AND accepted = 1`, followed, host)
 	if err != nil {
 		return "", err
 	}
@@ -135,7 +135,7 @@ func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := l.DB.QueryContext(r.Context(), `SELECT follower FROM follows WHERE followed = 'https://' || ? || '/user/' || ? AND follower LIKE 'https://' || ? || '/' || '%' AND accepted = 1`, l.Domain, name, u.Host)
+	rows, err := l.DB.QueryContext(r.Context(), `SELECT follower FROM follows WHERE followed = 'https://' || ? || '/user/' || ? AND follower LIKE 'https://' || ? || '/%' AND accepted = 1`, l.Domain, name, u.Host)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -289,17 +289,11 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 
 		slog.Info("Found unknown remote follow", "followed", d.Followed, "follower", follower)
 
-		var exists int
-		if err := db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM persons WHERE id = ?)`, follower).Scan(&exists); err != nil {
-			slog.Warn("Failed to check if follower exists", "followed", d.Followed, "follower", follower, "error", err)
-			continue
-		} else if exists == 0 {
+		var actor ap.Actor
+		if err := db.QueryRowContext(ctx, `SELECT JSON(persons.actor) FROM persons WHERE id = ? AND persons.ed25519privkey IS NOT NULL`, follower).Scan(&actor); errors.Is(err, sql.ErrNoRows) {
 			slog.Info("Follower does not exist", "followed", d.Followed, "follower", follower)
 			continue
-		}
-
-		var actor ap.Actor
-		if err := db.QueryRowContext(ctx, `SELECT JSON(persons.actor) FROM persons WHERE id = ? AND persons.ed25519privkey IS NOT NULL`, follower).Scan(&actor); err != nil {
+		} else if err != nil {
 			slog.Warn("Failed to fetch actor of unknown remote follow", "followed", d.Followed, "follower", follower, "error", err)
 			continue
 		}
