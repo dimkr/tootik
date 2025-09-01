@@ -213,12 +213,11 @@ tootik forwards the activities sent to portable actors to their followers and ot
 
 ## Following
 
-When tootik on `b.localdomain` receives a `Follow` activity for `alice@a.localdomain`, it behaves as if this activity targets `bob@b.localdomain`. However, it doesn't know if other servers behave like this, and it doesn't know if all servers with actors that are canonically `ap://did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor` agree about this actor's list of followers.
+When tootik on `b.localdomain` receives a `Follow` activity for `alice@a.localdomain`, it behaves as if this activity targets `bob@b.localdomain` and responds with `Accept` even if `alice@a.localdomain` sent one. However, tootik doesn't know if other servers behave like this, and it doesn't know if all servers with actors that are canonically `ap://did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor` agree about this actor's list of followers.
 
 Therefore:
-* When a user asks to follow a portable actor, tootik behaves as if the user requested to follow all currently known actors with the same canonical ID.
-* Every time one of these actors sends an `Accept` activity, tootik marks the request for this actor as accepted.
-* Every time an additional actor that shares the same canonical ID sends an `Accept` activity, tootik behaves as if the user requested to follow this actor and marks the request as accepted.
+* When a user asks to follow a portable actor, tootik behaves as if the user requested to follow a particular actor.
+* Every time an actor that shares the same canonical ID sends an `Accept` activity, tootik behaves as if the user requested to follow this actor and marks the request as accepted.
 * Every time an additional actor that shares the same canonical ID is fetched for the first time, tootik behaves as if the user requested to follow this actor and copies the request status from a previous request.
 
 tootik performs [FEP-8fcf](https://codeberg.org/fediverse/fep/src/branch/main/fep/8fcf/fep-8fcf.md) followers synchronization for portable actors, assuming that other servers track follower<>followed relationships using actor IDs and not using their canonical IDs.
@@ -229,7 +228,7 @@ However, tootik doesn't add the `Collection-Synchronization` header when it forw
 
 When `alice@a.localdomain` receives an activity by `bob@b.localdomain`, it forwards it to all actors that share the same canonical ID according to `gateways`. If `b.localdomain` is running tootik, too, it forwards activities from `a.localdomain` to `c.localdomain` and vice versa.
 
-In addition, tootik forwards activities forwarded by portable actors: a reply in a thread started by `alice@a.localdomain` will get forwarded to `b.localdomain`, and so on.
+In addition, tootik forwards activities forwarded by portable actors: a reply in a thread started by `alice@a.localdomain` will get forwarded to `bob@b.localdomain`, and so on.
 
 When tootik forwards activities, it assumes that other servers use the same URL format: for example, if the `inbox` property of `alice@a.localdomain` is  `https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor/inbox` and it forwards an activity to `bob@b.localdomain`, it sends a `POST` request to `https://b.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor/inbox`.
 
@@ -239,5 +238,5 @@ tootik's activities export feature exports activities by all actors that share t
 
 * tootik does not support `ap://` identifiers, location hints and delivery to `outbox`.
 * tootik assumes that activity and object IDs don't change: for example, it assumes that `Update` activities for portable posts preserve the `id` field of the original object. This matches the expectation of servers that don't support data portability and simplifies the implementation.
-* tootik provides limited support for fetching of objects (like posts) and activities from `/.well-known/apgateway`: replication of data across all actors associated with the same DID is primarily achieved using forwarding.
-* The RSA key under `publicKey` is generated during registration, so different actors owned by the same DID will use different RSA keys when they talk to servers that don't support Ed25519 signatures. Therefore, servers that cache only one RSA key for a DID with two actors might fail to validate some signatures.
+* tootik provides limited support for fetching of objects (like posts) and activities from `/.well-known/apgateway`: replication of data across all actors with the same canonical ID is primarily achieved using forwarding.
+* The RSA key under `publicKey` is generated during registration, so different actors owned by the same DID will use different RSA keys when they talk to servers that don't support Ed25519 signatures. Therefore, servers that cache only one RSA key for two actors with the same canonical ID (which shouldn't exist) might fail to validate some signatures.
