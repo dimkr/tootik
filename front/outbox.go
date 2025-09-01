@@ -150,7 +150,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 			h.Config.PostsPerPage,
 			offset,
 		)
-	} else if r.User.ID == actorID {
+	} else if ap.Canonical(r.User.ID) == ap.Canonical(actorID) {
 		// users can see all their posts
 		rows, err = h.DB.QueryContext(
 			r.Context,
