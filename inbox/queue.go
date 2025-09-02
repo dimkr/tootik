@@ -25,12 +25,15 @@ import (
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/httpsig"
 )
 
 type Queue struct {
-	Config *cfg.Config
-	DB     *sql.DB
-	Inbox  ap.Inbox
+	Config   *cfg.Config
+	DB       *sql.DB
+	Inbox    ap.Inbox
+	Resolver ap.Resolver
+	Keys     [2]httpsig.Key
 }
 
 type batchItem struct {
@@ -40,12 +43,23 @@ type batchItem struct {
 	Shared      bool
 }
 
-func (q *Queue) processActivityWithTimeout(parent context.Context, tx *sql.Tx, sender *ap.Actor, activity *ap.Activity, rawActivity string, shared bool) {
+func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Actor, activity *ap.Activity, rawActivity string, shared bool) {
 	ctx, cancel := context.WithTimeout(parent, q.Config.ActivityProcessingTimeout)
 	defer cancel()
 
-	if err := q.Inbox.ProcessActivity(ctx, tx, sender, activity, rawActivity, 1, shared); err != nil {
+	tx, err := q.DB.BeginTx(ctx, nil)
+	if err != nil {
+		slog.Warn("Failed to start transaction", "activity", activity, "error", err)
+		return
+	}
+	defer tx.Rollback()
+
+	if _, err := q.Resolver.ResolveID(ctx, q.Keys, activity.Actor, 0); err != nil {
+		slog.Warn("Failed to resolve actor", "activity", activity, "error", err)
+	} else if err := q.Inbox.ProcessActivity(ctx, tx, sender, activity, rawActivity, 1, shared); err != nil {
 		slog.Warn("Failed to process activity", "activity", activity, "error", err)
+	} else if err := tx.Commit(); err != nil {
+		slog.Warn("Failed to commit changes", "activity", activity, "error", err)
 	}
 }
 
@@ -96,22 +110,12 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		return 0, nil
 	}
 
-	tx, err := q.DB.BeginTx(ctx, nil)
-	if err != nil {
-		return 0, fmt.Errorf("failed to process batch: %w", err)
-	}
-	defer tx.Rollback()
-
 	for _, item := range batch {
-		q.processActivityWithTimeout(ctx, tx, item.Sender, item.Activity, item.RawActivity, item.Shared)
+		q.processActivityWithTimeout(ctx, item.Sender, item.Activity, item.RawActivity, item.Shared)
 	}
 
-	if _, err := tx.ExecContext(ctx, `delete from inbox where id <= ?`, maxID); err != nil {
+	if _, err := q.DB.ExecContext(ctx, `delete from inbox where id <= ?`, maxID); err != nil {
 		return 0, fmt.Errorf("failed to delete processed activities: %w", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return 0, fmt.Errorf("failed to process batch: %w", err)
 	}
 
 	return rowsCount, nil

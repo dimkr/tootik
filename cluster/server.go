@@ -182,9 +182,11 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 		Backend: backend,
 		Inbox:   localInbox,
 		Incoming: &inbox.Queue{
-			Config: &cfg,
-			DB:     db,
-			Inbox:  localInbox,
+			Config:   &cfg,
+			DB:       db,
+			Inbox:    localInbox,
+			Resolver: resolver,
+			Keys:     nobodyKeys,
 		},
 		Outgoing: &fed.Queue{
 			Domain:   domain,

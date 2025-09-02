@@ -401,9 +401,11 @@ func main() {
 		{
 			"incoming",
 			&inbox.Queue{
-				Config: &cfg,
-				DB:     db,
-				Inbox:  localInbox,
+				Config:   &cfg,
+				DB:       db,
+				Inbox:    localInbox,
+				Resolver: resolver,
+				Keys:     nobodyKeys,
 			},
 		},
 		{

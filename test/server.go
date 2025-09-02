@@ -105,13 +105,17 @@ func newTestServer() *server {
 		DB:        db,
 	}
 
+	resolver := fed.NewResolver(nil, domain, &cfg, &http.Client{}, db)
+
 	queue := &inbox.Queue{
-		Config: &cfg,
-		DB:     db,
-		Inbox:  localInbox,
+		Config:   &cfg,
+		DB:       db,
+		Inbox:    localInbox,
+		Resolver: resolver,
+		Keys:     nobodyKeys,
 	}
 
-	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, localInbox)
+	handler, err := front.NewHandler(domain, false, &cfg, resolver, db, localInbox)
 	if err != nil {
 		panic(err)
 	}
