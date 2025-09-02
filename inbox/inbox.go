@@ -185,10 +185,6 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 		}
 
 	case ap.Follow:
-		if sender.ID != activity.Actor {
-			return errors.New("received unauthorized follow request")
-		}
-
 		followedID, ok := activity.Object.(string)
 		if !ok {
 			return errors.New("received a request to follow a non-link object")
@@ -200,7 +196,22 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 		var localFollowed int
 		var followed ap.Actor
 		if err := tx.QueryRowContext(ctx, `select ed25519privkey is not null, json(actor) from persons where cid = ? order by ed25519privkey is not null desc limit 1`, ap.Canonical(followedID)).Scan(&localFollowed, &followed); errors.Is(err, sql.ErrNoRows) {
-			return fmt.Errorf("received an invalid follow request for %s by %s", followedID, activity.Actor)
+			var localFollowerID string
+			if err := tx.QueryRowContext(ctx, `select id from persons where cid = ? and ed25519privkey is not null`, ap.Canonical(activity.Actor)).Scan(&localFollowerID); errors.Is(err, sql.ErrNoRows) {
+				return fmt.Errorf("received an invalid follow request for %s by %s", followedID, activity.Actor)
+			} else if err != nil {
+				return fmt.Errorf("failed to validate follow request for %s by %s: %w", followedID, activity.Actor, err)
+			} else if _, err := tx.ExecContext(
+				ctx,
+				`INSERT INTO follows (id, follower, followed) VALUES($1, $2, $3) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = NULL, inserted = UNIXEPOCH()`,
+				activity.ID,
+				localFollowerID,
+				followedID,
+			); err != nil {
+				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
+			}
+
+			return nil
 		} else if err != nil {
 			return fmt.Errorf("failed to fetch %s: %w", followed.ID, err)
 		}

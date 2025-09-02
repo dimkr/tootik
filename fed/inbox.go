@@ -125,11 +125,8 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 
 	case ap.Follow:
 		if inner, ok := activity.Object.(string); ok {
-			if innerOrigin, err := ap.Origin(inner); err != nil {
+			if _, err := ap.Origin(inner); err != nil {
 				return err
-				// actors from $origin can only follow ours
-			} else if innerOrigin != l.Domain && !strings.HasPrefix(innerOrigin, "did:") {
-				return fmt.Errorf("invalid object host: %s", innerOrigin)
 			}
 		} else {
 			return fmt.Errorf("invalid object: %T", activity.Object)

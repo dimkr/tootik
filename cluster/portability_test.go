@@ -180,12 +180,11 @@ func TestCluster_Gateways(t *testing.T) {
 		Contains(Line{Type: Quote, Text: "yo"})
 }
 
-func TestCluster_FollowForwarding(t *testing.T) {
+func TestCluster_FollowerForwarding(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
 	defer cluster.Stop()
 
 	cluster["a.localdomain"].Config.EnablePortableActorRegistration = true
-	cluster["b.localdomain"].Config.EnablePortableActorRegistration = true
 	cluster["c.localdomain"].Config.EnablePortableActorRegistration = true
 
 	pub, priv, err := ed25519.GenerateKey(nil)
@@ -320,4 +319,48 @@ func TestCluster_FollowForwarding(t *testing.T) {
 		Contains(Line{Type: Quote, Text: "1"}).
 		Contains(Line{Type: Quote, Text: "2"}).
 		NotContains(Line{Type: Quote, Text: "3"})
+}
+
+func TestCluster_FollowForwarding(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
+
+	cluster["a.localdomain"].Config.EnablePortableActorRegistration = true
+	cluster["c.localdomain"].Config.EnablePortableActorRegistration = true
+
+	_, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+	registerPortable := "/users/register?" + data.EncodeEd25519PrivateKey(priv)
+
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
+	cluster["b.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["c.localdomain"].Handle(carolKeypair, registerPortable).OK()
+
+	alice.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "c.localdomain").
+		OK()
+	carol.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "a.localdomain").
+		OK()
+	cluster.Settle(t)
+
+	alice.
+		FollowInput("🔭 View profile", "bob@b.localdomain").
+		Follow("⚡ Follow bob").
+		OK()
+	cluster.Settle(t)
+
+	alice.
+		Follow("⚡️ Follows").
+		Contains(Line{Type: Link, Text: "👽 bob (bob@b.localdomain)", URL: "/users/outbox/b.localdomain/user/bob"})
+
+	carol.
+		Follow("⚡️ Follows").
+		Contains(Line{Type: Link, Text: "👽 bob (bob@b.localdomain)", URL: "/users/outbox/b.localdomain/user/bob"})
 }
