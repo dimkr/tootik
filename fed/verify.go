@@ -63,22 +63,24 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 		return nil, nil, fmt.Errorf("failed to verify message: %w", err)
 	}
 
-	if m := ap.KeyRegex.FindStringSubmatch(sig.KeyID); m != nil {
-		raw, err := data.DecodeEd25519PublicKey(m[1])
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to parse %s: %w", sig.KeyID, err)
-		}
+	if sig.Alg == "ed25519" {
+		if m := ap.KeyRegex.FindStringSubmatch(sig.KeyID); m != nil {
+			raw, err := data.DecodeEd25519PublicKey(m[1])
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to parse %s: %w", sig.KeyID, err)
+			}
 
-		if err := sig.Verify(raw); err != nil {
-			return nil, nil, fmt.Errorf("failed to verify message using %s: %w", sig.KeyID, err)
-		}
+			if err := sig.Verify(raw); err != nil {
+				return nil, nil, fmt.Errorf("failed to verify message using %s: %w", sig.KeyID, err)
+			}
 
-		actor, err := l.Resolver.ResolveID(r.Context(), keys, sig.KeyID, flags)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to fetch %s: %w", sig.KeyID, err)
-		}
+			actor, err := l.Resolver.ResolveID(r.Context(), keys, sig.KeyID, flags)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to fetch %s: %w", sig.KeyID, err)
+			}
 
-		return sig, actor, nil
+			return sig, actor, nil
+		}
 	}
 
 	actor, err := l.Resolver.ResolveID(r.Context(), keys, sig.KeyID, flags)
