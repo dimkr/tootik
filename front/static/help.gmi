@@ -56,3 +56,5 @@ Portable accounts may suffer from interoperability issues but have several advan
 * They allow migration away from this server even if it's offline
 
 Settings → Data portability allows one to view the private key used to prove the ownership over a portable account and configure the list of gateways.
+
+Only one portable account on this server can use a particular private key: if all client certificates associated with your account are lost or expired, you won't be able to register again with same key to restore access to your account.
