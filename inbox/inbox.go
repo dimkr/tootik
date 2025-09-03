@@ -276,7 +276,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 
 		var localFollowed, localFollower int
 		var followed, follower string
-		if err := tx.QueryRowContext(ctx, `select followed, follower, exists (select 1 from persons where persons.cid = follows.followedcid and ed25519privkey is not null), (select 1 from persons where persons.id = follows.follower and ed25519privkey is not null) from follows where id = ? and accepted is null`, followID).Scan(&followed, &follower, &localFollowed, &localFollower); errors.Is(err, sql.ErrNoRows) {
+		if err := tx.QueryRowContext(ctx, `select followed, follower, exists (select 1 from persons where persons.cid = follows.followedcid and ed25519privkey is not null), exists (select 1 from persons where persons.id = follows.follower and ed25519privkey is not null) from follows where id = ? and accepted is null`, followID).Scan(&followed, &follower, &localFollowed, &localFollower); errors.Is(err, sql.ErrNoRows) {
 			slog.Warn("Follow request is unknown", "follow", followID)
 		} else if err != nil {
 			return fmt.Errorf("failed to fetch follow request %s: %w", followID, err)
