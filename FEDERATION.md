@@ -228,9 +228,7 @@ However, tootik doesn't add the `Collection-Synchronization` header when it forw
 
 ## Replication
 
-When `alice@a.localdomain` receives an activity by `bob@b.localdomain`, it forwards it to all actors that share the same canonical ID according to `gateways`. If `b.localdomain` is running tootik, too, it forwards activities from `a.localdomain` to `c.localdomain` and vice versa.
-
-In addition, tootik forwards activities forwarded by portable actors: a reply in a thread started by `alice@a.localdomain` will get forwarded to `bob@b.localdomain`, and so on.
+When `alice@a.localdomain` receives a `Follow`, `Accept` or `Reject` activity by `bob@b.localdomain`, it forwards it to all actors that share the same canonical ID according to `gateways`.
 
 When tootik forwards activities, it assumes that other servers use the same URL format: for example, if the `inbox` property of `alice@a.localdomain` is  `https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor/inbox` and it forwards an activity to `bob@b.localdomain`, it sends a `POST` request to `https://b.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor/inbox`.
 
