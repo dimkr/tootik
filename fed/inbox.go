@@ -551,25 +551,6 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, receive
 		}
 	}
 
-	if ap.IsPortable(receiver) {
-		if res, err := l.DB.ExecContext(
-			r.Context(),
-			`insert or ignore into outbox(activity, sender) values(jsonb(?), ?)`,
-			string(rawActivity),
-			receiver,
-		); err != nil {
-			slog.Error("Failed to forward portable activity", "activity", activity.ID, "sender", sender.ID, "receiver", receiver, "error", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		} else if n, err := res.RowsAffected(); err != nil {
-			slog.Error("Failed to forward portable activity", "activity", activity.ID, "sender", sender.ID, "receiver", receiver, "error", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		} else if n > 0 {
-			slog.Info("Forwarding portable activity", "activity", activity.ID, "sender", sender.ID, "receiver", receiver)
-		}
-	}
-
 	var capabilities ap.Capability
 	if sig != nil {
 		switch sig.Alg {
