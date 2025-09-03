@@ -521,7 +521,7 @@ func TestOutbox_PublicPostInGroupDeletedByGroup(t *testing.T) {
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://other.localdomain/group/people",
-		`{"id":"https://other.localdomain/announce/1","type":"Announce","object":{"id":"https://127.0.0.1/delete/1","type":"Delete","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note"},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"audience":"https://other.localdomain/group/people"}`,
+		`{"id":"https://other.localdomain/announce/1","type":"Announce","actor":"https://other.localdomain/group/people","object":{"id":"https://127.0.0.1/delete/1","type":"Delete","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note"},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"audience":"https://other.localdomain/group/people"}`,
 	)
 	assert.NoError(err)
 
@@ -577,7 +577,7 @@ func TestOutbox_PublicPostInGroupForwardedDelete(t *testing.T) {
 	_, err = server.db.Exec(
 		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/erin",
-		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://https://127.0.0.1/announce/2","type":"Announce","object":{"id":"https://127.0.0.1/delete/1","type":"Delete","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note"},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"audience":"https://other.localdomain/group/people"}`,
+		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/2","type":"Announce","actor":"https://127.0.0.1/user/erin","object":{"id":"https://127.0.0.1/delete/1","type":"Delete","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note"},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan","https://other.localdomain/group/people"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"audience":"https://other.localdomain/group/people"}`,
 	)
 	assert.NoError(err)
 
