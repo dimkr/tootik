@@ -371,3 +371,42 @@ func TestCluster_FollowForwarding(t *testing.T) {
 		Follow("⚡️ Follows").
 		Contains(Line{Type: Link, Text: "👽 bob (bob@b.localdomain)", URL: "/users/outbox/b.localdomain/user/bob"})
 }
+
+func TestCluster_ForwardedLegacyReply(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
+
+	cluster["a.localdomain"].Config.EnablePortableActorRegistration = true
+	cluster["b.localdomain"].Config.RFC9421Threshold = 1
+	cluster["b.localdomain"].Config.Ed25519Threshold = 1
+	cluster["b.localdomain"].Config.DisableIntegrityProofs = true
+	cluster["c.localdomain"].Config.EnablePortableActorRegistration = true
+
+	alice := cluster["a.localdomain"].RegisterPortable(aliceKeypair).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["c.localdomain"].RegisterPortable(carolKeypair).OK()
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	carol.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	cluster.Settle(t)
+
+	post := alice.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "hello").
+		OK()
+	cluster.Settle(t)
+
+	bob.GotoInput(post.Links["💬 Reply"], "hi").
+		Contains(Line{Type: Quote, Text: "hi"})
+	cluster.Settle(t)
+
+	carol.
+		FollowInput("🔭 View profile", "bob@b.localdomain").
+		Contains(Line{Type: Quote, Text: "hi"})
+}
