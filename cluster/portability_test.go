@@ -178,6 +178,13 @@ func TestCluster_Gateways(t *testing.T) {
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
 		Contains(Line{Type: Quote, Text: "yo"})
+
+	carol.Goto(post.Links["💣 Delete"])
+	cluster.Settle(t)
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		NotContains(Line{Type: Quote, Text: "yo"})
 }
 
 func TestCluster_FollowerForwarding(t *testing.T) {

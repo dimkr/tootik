@@ -248,7 +248,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 			return fmt.Errorf("received an invalid follow request for %s by %s", followed.ID, activity.Actor)
 		}
 
-		if ap.IsPortable(followed.ID) {
+		if localFollowed == 1 && ap.IsPortable(followed.ID) {
 			if _, err := tx.ExecContext(
 				ctx,
 				`insert or ignore into outbox(activity, sender) values(jsonb(?), ?)`,
@@ -274,12 +274,13 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 
 		slog.Info("Follow is accepted", "activity", activity, "follow", followID)
 
-		var followed string
-		if err := tx.QueryRowContext(ctx, `select followed from follows where id = ? and accepted is null`, followID).Scan(&followed); errors.Is(err, sql.ErrNoRows) {
+		var localFollowed int
+		var followed, follower string
+		if err := tx.QueryRowContext(ctx, `select followed, follower, exists (select 1 from persons where persons.cid = follows.followed and ed25519privkey is not null) from follows where id = ? and accepted is null`, followID).Scan(&followed, &follower, &localFollowed); errors.Is(err, sql.ErrNoRows) {
 			slog.Warn("Follow request is unknown", "follow", followID)
 		} else if err != nil {
 			return fmt.Errorf("failed to fetch follow request %s: %w", followID, err)
-		} else if ap.IsPortable(followed) {
+		} else if localFollowed == 1 && ap.IsPortable(followed) {
 			if _, err := tx.ExecContext(
 				ctx,
 				`insert or ignore into outbox(activity, sender) values(jsonb(?), ?)`,
