@@ -274,9 +274,9 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 
 		slog.Info("Follow is accepted", "activity", activity, "follow", followID)
 
-		var localFollowed int
+		var localFollowed, localFollower int
 		var followed, follower string
-		if err := tx.QueryRowContext(ctx, `select followed, follower, exists (select 1 from persons where persons.cid = follows.followed and ed25519privkey is not null) from follows where id = ? and accepted is null`, followID).Scan(&followed, &follower, &localFollowed); errors.Is(err, sql.ErrNoRows) {
+		if err := tx.QueryRowContext(ctx, `select followed, follower, exists (select 1 from persons where persons.cid = follows.followedcid and ed25519privkey is not null), (select 1 from persons where persons.id = follows.follower and ed25519privkey is not null) from follows where id = ? and accepted is null`, followID).Scan(&followed, &follower, &localFollowed, &localFollower); errors.Is(err, sql.ErrNoRows) {
 			slog.Warn("Follow request is unknown", "follow", followID)
 		} else if err != nil {
 			return fmt.Errorf("failed to fetch follow request %s: %w", followID, err)
@@ -286,6 +286,15 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 				`insert or ignore into outbox(activity, sender) values(jsonb(?), ?)`,
 				rawActivity,
 				followed,
+			); err != nil {
+				return fmt.Errorf("failed to forward follow: %w", err)
+			}
+		} else if localFollower == 1 && ap.IsPortable(follower) {
+			if _, err := tx.ExecContext(
+				ctx,
+				`insert or ignore into outbox(activity, sender) values(jsonb(?), ?)`,
+				rawActivity,
+				follower,
 			); err != nil {
 				return fmt.Errorf("failed to forward follow: %w", err)
 			}
