@@ -63,23 +63,27 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 		return nil, nil, fmt.Errorf("failed to verify message: %w", err)
 	}
 
-	if sig.Alg == "ed25519" {
+	if sig.Alg == "ed25519" && ap.IsPortable(sig.KeyID) {
 		if m := ap.KeyRegex.FindStringSubmatch(sig.KeyID); m != nil {
-			raw, err := data.DecodeEd25519PublicKey(m[1])
-			if err != nil {
-				return nil, nil, fmt.Errorf("failed to parse %s: %w", sig.KeyID, err)
-			}
+			if keyOrigin, err := ap.Origin(sig.KeyID); err != nil {
+				return nil, nil, fmt.Errorf("failed to get origin of %s: %w", sig.KeyID, err)
+			} else if keyOrigin == "did:key:"+m[1] {
+				raw, err := data.DecodeEd25519PublicKey(m[1])
+				if err != nil {
+					return nil, nil, fmt.Errorf("failed to parse %s: %w", sig.KeyID, err)
+				}
 
-			if err := sig.Verify(raw); err != nil {
-				return nil, nil, fmt.Errorf("failed to verify message using %s: %w", sig.KeyID, err)
-			}
+				if err := sig.Verify(raw); err != nil {
+					return nil, nil, fmt.Errorf("failed to verify message using %s: %w", sig.KeyID, err)
+				}
 
-			actor, err := l.Resolver.ResolveID(r.Context(), keys, sig.KeyID, flags)
-			if err != nil {
-				return nil, nil, fmt.Errorf("failed to fetch %s: %w", sig.KeyID, err)
-			}
+				actor, err := l.Resolver.ResolveID(r.Context(), keys, sig.KeyID, flags)
+				if err != nil {
+					return nil, nil, fmt.Errorf("failed to fetch %s: %w", sig.KeyID, err)
+				}
 
-			return sig, actor, nil
+				return sig, actor, nil
+			}
 		}
 	}
 
@@ -120,9 +124,18 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 
 func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Activity, raw []byte, flags ap.ResolverFlag, keys [2]httpsig.Key) (*ap.Actor, error) {
 	if m := ap.KeyRegex.FindStringSubmatch(p.VerificationMethod); m != nil {
+		origin, err := ap.Origin(activity.Actor)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get origin of %s: %w", p.VerificationMethod, err)
+		}
+
+		if origin != "did:key:"+m[1] {
+			return nil, fmt.Errorf("key %s does not belong to %s", m[1], origin)
+		}
+
 		publicKey, err := data.DecodeEd25519PublicKey(m[1])
 		if err != nil {
-			return nil, fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
+			return nil, fmt.Errorf("failed to decode key %s to verify proof: %w", p.VerificationMethod, err)
 		}
 
 		if err := proof.Verify(publicKey, activity.Proof, raw); err != nil {
