@@ -95,6 +95,7 @@ func getTextAndLinks(s string, maxRunes, maxLines int) ([]string, data.OrderedMa
 func (h *Handler) getDisplayName(id, preferredUsername, name string, t ap.ActorType) string {
 	origin, err := ap.Origin(id)
 	if err != nil {
+		slog.Warn("Failed to get origin of actor", "id", id, "error", err)
 		origin = ""
 	}
 

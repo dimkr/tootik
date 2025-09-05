@@ -407,7 +407,7 @@ func (q *Queue) queueTasks(
 	}
 
 	actorIDs := ap.Audience{}
-	wideDelivery := (!ap.IsPortable(job.Activity.Actor) && (ap.Canonical(job.Activity.Actor) != ap.Canonical(job.Sender.ID))) || job.Activity.IsPublic() || recipients.Contains(job.Sender.Followers)
+	wideDelivery := ap.Canonical(job.Activity.Actor) != ap.Canonical(job.Sender.ID) || job.Activity.IsPublic() || recipients.Contains(job.Sender.Followers)
 
 	// list the actor's federated followers if we're forwarding an activity by another actor, or if addressed by actor
 	if wideDelivery {

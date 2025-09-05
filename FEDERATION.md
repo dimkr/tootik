@@ -99,8 +99,6 @@ tootik attaches the `Collection-Synchronization` header to outgoing activities i
 
 Received `Collection-Synchronization` headers are saved in the tootik database and a periodic job (see `FollowersSyncInterval`) synchronizes the collections by sending `Undo` activities for unknown remote `Follow`s and clearing the `accepted` flag for unknown local `Follow`s.
 
-tootik saves IDs of received `Follow` activities so it can use them in future `Accept` or `Reject` activities. However, when it receives such activities, it ignores the activity ID and only compares the following and followed actor IDs to track the current status of each pair.
-
 # NodeInfo
 
 tootik exposes instance metadata like its version number, through NodeInfo 2.0. This metadata is collected by fediverse statistics sites like [FediDB](https://fedidb.org/).

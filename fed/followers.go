@@ -304,7 +304,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 		}
 
 		var followID string
-		if err := db.QueryRowContext(ctx, `SELECT follows.id FROM follows WHERE follows.follower = ? AND follows.followed = ?`, follower, d.Followed).Scan(&followID); errors.Is(err, sql.ErrNoRows) {
+		if err := db.QueryRowContext(ctx, `SELECT id FROM follows WHERE follower = ? AND followed = ?`, follower, d.Followed).Scan(&followID); err != nil && errors.Is(err, sql.ErrNoRows) {
 			followID, err = d.Inbox.NewID(actor.ID, "follow")
 			if err != nil {
 				slog.Warn("Failed to generate fake follow ID", "followed", d.Followed, "follower", follower, "error", err)
@@ -312,7 +312,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 			}
 			slog.Warn("Using fake follow ID to remove unknown remote follow", "followed", d.Followed, "follower", follower, "id", followID)
 		} else if err != nil {
-			slog.Warn("Failed to fetch actor and follow ID of unknown remote follow", "followed", d.Followed, "follower", follower, "error", err)
+			slog.Warn("Failed to fetch follow ID of unknown remote follow", "followed", d.Followed, "follower", follower, "error", err)
 			continue
 		}
 
