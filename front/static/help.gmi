@@ -31,8 +31,6 @@ This page shows various statistics about this server and the parts of the fedive
 
 Follow this link to sign in or create an account on this server.
 
-The Common Name property of the client certificate ("identity") you use will determine your username.
-
 Registered users can:
 * Publish posts
 * Reply to posts
@@ -41,3 +39,22 @@ Registered users can:
 * View private posts
 * View a feed of posts by followed users
 * Bookmark posts
+
+The Common Name property of the client certificate ("identity") you use will determine your username.
+
+You can add additional client certificates later, or revoke access for an old certificate.
+
+There are two kinds of accounts:
+* Traditional
+* Portable
+
+Traditional accounts are tied to this particular server, but provide good interoperability.
+
+Portable accounts may suffer from interoperability issues but have several advantages:
+* They're identified by an Ed25519 key pair and not tied to a particular server
+* They allow replication of your data across multiple servers ("gateways"); this replication is not 100% reliable, though
+* They allow migration away from this server even if it's offline
+
+Settings → Data portability allows one to view the private key used to prove the ownership over a portable account and configure the list of gateways.
+
+Only one portable account on this server can use a particular private key: if all client certificates associated with your account are lost or expired, you won't be able to register again with same key to restore access to your account.

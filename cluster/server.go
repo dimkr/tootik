@@ -51,6 +51,7 @@ type Server struct {
 	NobodyKeys [2]httpsig.Key
 	Frontend   gemini.Listener
 	Backend    http.Handler
+	Inbox      *inbox.Inbox
 	Incoming   *inbox.Queue
 	Outgoing   *fed.Queue
 
@@ -122,7 +123,13 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 		t.Fatalf("Failed to run create the nobody user: %v", err)
 	}
 
-	handler, err := front.NewHandler(domain, false, &cfg, resolver, db)
+	localInbox := &inbox.Inbox{
+		Domain: domain,
+		Config: &cfg,
+		DB:     db,
+	}
+
+	handler, err := front.NewHandler(domain, false, &cfg, resolver, db, localInbox)
 	if err != nil {
 		t.Fatalf("Failed to run create a Handler: %v", err)
 	}
@@ -173,10 +180,11 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 			Handler: handler,
 		},
 		Backend: backend,
+		Inbox:   localInbox,
 		Incoming: &inbox.Queue{
-			Domain:   domain,
 			Config:   &cfg,
 			DB:       db,
+			Inbox:    localInbox,
 			Resolver: resolver,
 			Keys:     nobodyKeys,
 		},
@@ -283,5 +291,9 @@ func (s *Server) Handle(cert tls.Certificate, path string) Page {
 }
 
 func (s *Server) Register(cert tls.Certificate) Page {
-	return s.Handle(cert, "/users/register").OK()
+	return s.HandleInput(cert, "/users/register", "n").OK()
+}
+
+func (s *Server) RegisterPortable(cert tls.Certificate) Page {
+	return s.HandleInput(cert, "/users/register", "generate").OK()
 }

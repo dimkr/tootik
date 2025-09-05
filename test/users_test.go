@@ -19,10 +19,8 @@ package test
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strings"
 
-	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/inbox"
 	"github.com/stretchr/testify/assert"
 
@@ -191,15 +189,7 @@ func TestUsers_PublicPostShared(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -242,15 +232,7 @@ func TestUsers_PublicPostSharedNotFollowing(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Keys:      server.NobodyKeys,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 

@@ -150,7 +150,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	count := 0
 	for rows.Next() {
 		var activity ap.Activity
-		var rawActivity, rsaPrivKeyPem, ed25519PrivKeyPem string
+		var rawActivity, rsaPrivKeyPem, ed25519PrivKeyMultibase string
 		var actor ap.Actor
 		var deliveryAttempts int
 		if err := rows.Scan(
@@ -159,7 +159,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			&rawActivity,
 			&actor,
 			&rsaPrivKeyPem,
-			&ed25519PrivKeyPem,
+			&ed25519PrivKeyMultibase,
 		); err != nil {
 			slog.Error("Failed to fetch post to deliver", "error", err)
 			continue
@@ -170,15 +170,15 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 		count++
 
-		rsaPrivKey, err := data.ParsePrivateKey(rsaPrivKeyPem)
+		rsaPrivKey, err := data.ParseRSAPrivateKey(rsaPrivKeyPem)
 		if err != nil {
 			slog.Error("Failed to parse RSA private key", "error", err)
 			continue
 		}
 
-		ed25519PrivKey, err := data.ParsePrivateKey(ed25519PrivKeyPem)
+		ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
 		if err != nil {
-			slog.Error("Failed to parse Ed25519 private key", "error", err)
+			slog.Error("Failed to decode Ed25519 private key", "error", err)
 			continue
 		}
 
@@ -187,7 +187,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey},
 		}
 
-		if activity.Actor == actor.ID && !q.Config.DisableIntegrityProofs {
+		if ap.Canonical(activity.Actor) == ap.Canonical(actor.ID) && activity.Proof == (ap.Proof{}) && !q.Config.DisableIntegrityProofs {
 			withProof, err := proof.Add(keys[1], time.Now(), []byte(rawActivity))
 			if err != nil {
 				slog.Error("Failed to add integrity proof", "error", err)
@@ -199,9 +199,9 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 		if _, err := q.DB.ExecContext(
 			ctx,
-			`update outbox set last = unixepoch(), attempts = ? where activity->>'$.id' = ? and sender = ?`,
+			`update outbox set last = unixepoch(), attempts = ? where cid = ? and sender = ?`,
 			deliveryAttempts+1,
-			activity.ID,
+			ap.Canonical(activity.ID),
 			actor.ID,
 		); err != nil {
 			slog.Error("Failed to save last delivery attempt time", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
@@ -250,8 +250,8 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 		if _, err := q.DB.ExecContext(
 			ctx,
-			`update outbox set sent = 1 where activity->>'$.id' = ? and sender = ?`,
-			job.Activity.ID,
+			`update outbox set sent = 1 where cid = ? and sender = ?`,
+			ap.Canonical(job.Activity.ID),
 			job.Sender.ID,
 		); err != nil {
 			slog.Error("Failed to mark delivery as completed", "id", job.Activity.ID, "error", err)
@@ -294,7 +294,7 @@ func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, event
 		if err := q.DB.QueryRowContext(
 			ctx,
 			`select exists (select 1 from deliveries where activity = ? and inbox = ?)`,
-			task.Job.Activity.ID,
+			ap.Canonical(task.Job.Activity.ID),
 			task.Inbox,
 		).Scan(&delivered); err != nil {
 			slog.Error("Failed to check if delivered already", "to", task.Inbox, "activity", task.Job.Activity.ID, "error", err)
@@ -323,12 +323,55 @@ func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, event
 		if _, err := q.DB.ExecContext(
 			ctx,
 			`insert into deliveries(activity, inbox) values (?, ?)`,
-			task.Job.Activity.ID,
+			ap.Canonical(task.Job.Activity.ID),
 			task.Inbox,
 		); err != nil {
 			slog.Error("Failed to record delivery", "activity", task.Job.Activity.ID, "inbox", task.Inbox, "error", err)
 			events <- deliveryEvent{task.Job, false}
 		}
+	}
+}
+
+func (q *Queue) queueTask(
+	ctx context.Context,
+	job deliveryJob,
+	keys [2]httpsig.Key,
+	actorID, inbox, contentLength string,
+	followers *partialFollowers,
+	tasks []chan deliveryTask,
+	events chan<- deliveryEvent,
+) {
+	req, err := http.NewRequest(http.MethodPost, inbox, strings.NewReader(job.RawActivity))
+	if err != nil {
+		slog.Warn("Failed to create new request", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
+		events <- deliveryEvent{job, false}
+		return
+	}
+
+	if req.URL.Host == q.Domain {
+		slog.Debug("Skipping local recipient inbox", "to", actorID, "activity", job.Activity.ID, "inbox", inbox)
+		return
+	}
+
+	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
+	req.Header.Set("Content-Length", contentLength)
+
+	if followers != nil {
+		if digest, err := followers.Digest(ctx, q.DB, q.Domain, job.Sender, req.URL.Host); err == nil {
+			req.Header.Set("Collection-Synchronization", digest)
+		} else {
+			slog.Warn("Failed to digest followers", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
+		}
+	}
+
+	slog.Info("Queueing activity for delivery", "inbox", inbox, "activity", job.Activity.ID)
+
+	// assign a task to a random worker but use one worker per inbox, so activities are delivered once per inbox
+	tasks[crc32.ChecksumIEEE([]byte(inbox))%uint32(len(tasks))] <- deliveryTask{
+		Job:     job,
+		Keys:    keys,
+		Request: req,
+		Inbox:   inbox,
 	}
 }
 
@@ -348,7 +391,7 @@ func (q *Queue) queueTasks(
 	recipients := ap.Audience{}
 
 	// deduplicate recipients or skip if we're forwarding an activity
-	if job.Activity.Actor == job.Sender.ID {
+	if ap.Canonical(job.Activity.Actor) == ap.Canonical(job.Sender.ID) {
 		for id := range job.Activity.To.Keys() {
 			recipients.Add(id)
 		}
@@ -358,8 +401,13 @@ func (q *Queue) queueTasks(
 		}
 	}
 
+	// disable followers synchronization if not sending to followers
+	if !recipients.Contains(job.Sender.Followers) {
+		followers = nil
+	}
+
 	actorIDs := ap.Audience{}
-	wideDelivery := job.Activity.Actor != job.Sender.ID || job.Activity.IsPublic() || recipients.Contains(job.Sender.Followers)
+	wideDelivery := ap.Canonical(job.Activity.Actor) != ap.Canonical(job.Sender.ID) || job.Activity.IsPublic() || recipients.Contains(job.Sender.Followers)
 
 	// list the actor's federated followers if we're forwarding an activity by another actor, or if addressed by actor
 	if wideDelivery {
@@ -394,13 +442,13 @@ func (q *Queue) queueTasks(
 
 	var author string
 	if obj, ok := job.Activity.Object.(*ap.Object); ok {
-		author = obj.AttributedTo
+		author = ap.Canonical(obj.AttributedTo)
 	}
 
 	contentLength := strconv.Itoa(len(job.RawActivity))
 
 	for actorID := range actorIDs.Keys() {
-		if actorID == author || actorID == ap.Public {
+		if ap.Canonical(actorID) == author || actorID == ap.Public {
 			slog.Debug("Skipping recipient", "to", actorID, "activity", job.Activity.ID)
 			continue
 		}
@@ -423,37 +471,35 @@ func (q *Queue) queueTasks(
 			}
 		}
 
-		req, err := http.NewRequest(http.MethodPost, inbox, strings.NewReader(job.RawActivity))
-		if err != nil {
-			slog.Warn("Failed to create new request", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
-			events <- deliveryEvent{job, false}
-			continue
-		}
+		q.queueTask(
+			ctx,
+			job,
+			keys,
+			actorID,
+			inbox,
+			contentLength,
+			followers,
+			tasks,
+			events,
+		)
+	}
 
-		if req.URL.Host == q.Domain {
-			slog.Debug("Skipping local recipient inbox", "to", actorID, "activity", job.Activity.ID, "inbox", inbox)
-			continue
-		}
+	// if this is an activity by a portable actor, forward it to all gateways
+	if ap.IsPortable(job.Sender.ID) && len(job.Sender.Gateways) > 1 {
+		for _, gw := range job.Sender.Gateways[1:] {
+			slog.Info("Forwarding activity to gateway", "activity", job.Activity.ID, "sender", job.Sender.ID, "gateway", gw)
 
-		req.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
-		req.Header.Set("Content-Length", contentLength)
-
-		if recipients.Contains(job.Sender.Followers) {
-			if digest, err := followers.Digest(ctx, q.DB, q.Domain, job.Sender, req.URL.Host); err == nil {
-				req.Header.Set("Collection-Synchronization", digest)
-			} else {
-				slog.Warn("Failed to digest followers", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
-			}
-		}
-
-		slog.Info("Queueing activity for delivery", "inbox", inbox, "activity", job.Activity.ID)
-
-		// assign a task to a random worker but use one worker per inbox, so activities are delivered once per inbox
-		tasks[crc32.ChecksumIEEE([]byte(inbox))%uint32(len(tasks))] <- deliveryTask{
-			Job:     job,
-			Keys:    keys,
-			Request: req,
-			Inbox:   inbox,
+			q.queueTask(
+				ctx,
+				job,
+				keys,
+				ap.Gateway(gw, job.Sender.ID),
+				ap.Gateway(gw, job.Sender.Inbox),
+				contentLength,
+				followers,
+				tasks,
+				events,
+			)
 		}
 	}
 

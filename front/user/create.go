@@ -29,8 +29,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/btcsuite/btcutil/base58"
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/icon"
 )
@@ -66,29 +66,122 @@ func generateRSAKey() (any, string, []byte, error) {
 	return priv, privPem.String(), pubPem.Bytes(), nil
 }
 
-func generateEd25519Key() (any, string, []byte, error) {
+func generateEd25519Key() (ed25519.PrivateKey, string, ed25519.PublicKey, error) {
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("failed to generate private key: %w", err)
 	}
 
-	privPkcs8, err := x509.MarshalPKCS8PrivateKey(priv)
+	return priv, data.EncodeEd25519PrivateKey(priv), pub, nil
+}
+
+func insertActor(
+	ctx context.Context,
+	actor *ap.Actor,
+	rsaPrivPem string,
+	ed25519PrivMultibase string,
+	cert *x509.Certificate,
+	db *sql.DB,
+) error {
+	if cert == nil {
+		_, err := db.ExecContext(
+			ctx,
+			`INSERT INTO persons (id,  actor, rsaprivkey, ed25519privkey) VALUES (?, JSONB(?), ?, ?)`,
+			actor.ID,
+			&actor,
+			rsaPrivPem,
+			ed25519PrivMultibase,
+		)
+		return err
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, "", nil, fmt.Errorf("failed to marshal private key: %w", err)
+		return err
 	}
+	defer tx.Rollback()
 
-	var privPem bytes.Buffer
-	if err := pem.Encode(
-		&privPem,
-		&pem.Block{
-			Type:  "BEGIN PRIVATE KEY",
-			Bytes: privPkcs8,
-		},
+	if _, err = tx.ExecContext(
+		ctx,
+		`INSERT OR IGNORE INTO persons (id, actor, rsaprivkey, ed25519privkey) VALUES (?, JSONB(?), ?, ?)`,
+		actor.ID,
+		&actor,
+		rsaPrivPem,
+		ed25519PrivMultibase,
 	); err != nil {
-		return nil, "", nil, fmt.Errorf("failed to generate private key PEM: %w", err)
+		return err
 	}
 
-	return priv, privPem.String(), pub, nil
+	if _, err = tx.ExecContext(
+		ctx,
+		`INSERT OR IGNORE INTO certificates (user, hash, approved, expires) VALUES($1, $2, (SELECT NOT EXISTS (SELECT 1 FROM certificates WHERE user = $1)), $3)`,
+		actor.PreferredUsername,
+		fmt.Sprintf("%X", sha256.Sum256(cert.Raw)),
+		cert.NotAfter.Unix(),
+	); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+// CreatePortable creates a new portable user.
+func CreatePortable(
+	ctx context.Context,
+	domain string,
+	db *sql.DB,
+	name string,
+	cert *x509.Certificate,
+	ed25519Priv ed25519.PrivateKey,
+	ed25519PrivMultibase string,
+	ed25519Pub ed25519.PublicKey,
+) (*ap.Actor, [2]httpsig.Key, error) {
+	rsaPriv, rsaPrivPem, rsaPubPem, err := generateRSAKey()
+	if err != nil {
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate RSA key pair: %w", err)
+	}
+
+	ed25519PubMultibase := data.EncodeEd25519PublicKey(ed25519Pub)
+
+	id := fmt.Sprintf("https://%s/.well-known/apgateway/did:key:%s/actor", domain, ed25519PubMultibase)
+	actor := ap.Actor{
+		Context: []string{
+			"https://www.w3.org/ns/activitystreams",
+			"https://w3id.org/security/data-integrity/v1",
+			"https://w3id.org/fep/ef61",
+		},
+		ID:                id,
+		Type:              ap.Person,
+		PreferredUsername: name,
+		Inbox:             id + "/inbox",
+		Outbox:            id + "/outbox",
+		Followers:         id + "/followers",
+		Gateways:          []string{"https://" + domain},
+		PublicKey: ap.PublicKey{
+			ID:           id + "#main-key",
+			Owner:        id,
+			PublicKeyPem: string(rsaPubPem),
+		},
+		AssertionMethod: []ap.AssertionMethod{
+			{
+				ID:                 id + "#ed25519-key",
+				Type:               "Multikey",
+				Controller:         id,
+				PublicKeyMultibase: ed25519PubMultibase,
+			},
+		},
+	}
+
+	if err := insertActor(ctx, &actor, rsaPrivPem, ed25519PrivMultibase, cert, db); err != nil {
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
+	}
+
+	keys := [2]httpsig.Key{
+		{ID: actor.PublicKey.ID, PrivateKey: rsaPriv},
+		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519Priv},
+	}
+
+	return &actor, keys, nil
 }
 
 // Create creates a new user.
@@ -98,7 +191,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate RSA key pair: %w", err)
 	}
 
-	ed25519Priv, ed25519PrivPem, ed25519Pub, err := generateEd25519Key()
+	ed25519Priv, ed25519PrivMultibase, ed25519Pub, err := generateEd25519Key()
 	if err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate Ed25519 key pair: %w", err)
 	}
@@ -136,7 +229,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 				ID:                 fmt.Sprintf("https://%s/user/%s#ed25519-key", domain, name),
 				Type:               "Multikey",
 				Controller:         id,
-				PublicKeyMultibase: "z" + base58.Encode(append([]byte{0xed, 0x01}, ed25519Pub...)),
+				PublicKeyMultibase: data.EncodeEd25519PublicKey(ed25519Pub),
 			},
 		},
 		ManuallyApprovesFollowers: false,
@@ -157,55 +250,13 @@ func Create(ctx context.Context, domain string, db *sql.DB, name string, actorTy
 		}
 	}
 
+	if err := insertActor(ctx, &actor, rsaPrivPem, ed25519PrivMultibase, cert, db); err != nil {
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
+	}
+
 	keys := [2]httpsig.Key{
 		{ID: actor.PublicKey.ID, PrivateKey: rsaPriv},
 		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519Priv},
-	}
-
-	if cert == nil {
-		if _, err = db.ExecContext(
-			ctx,
-			`INSERT INTO persons (id, actor, rsaprivkey, ed25519privkey) VALUES (?, JSONB(?), ?, ?)`,
-			id,
-			&actor,
-			rsaPrivPem,
-			ed25519PrivPem,
-		); err != nil {
-			return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
-		}
-
-		return &actor, keys, nil
-	}
-
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
-	}
-	defer tx.Rollback()
-
-	if _, err = tx.ExecContext(
-		ctx,
-		`INSERT OR IGNORE INTO persons (id, actor, rsaprivkey, ed25519privkey) VALUES (?, JSONB(?), ?, ?)`,
-		id,
-		&actor,
-		rsaPrivPem,
-		ed25519PrivPem,
-	); err != nil {
-		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
-	}
-
-	if _, err = tx.ExecContext(
-		ctx,
-		`INSERT OR IGNORE INTO certificates (user, hash, approved, expires) VALUES($1, $2, (SELECT NOT EXISTS (SELECT 1 FROM certificates WHERE user = $1)), $3)`,
-		name,
-		fmt.Sprintf("%X", sha256.Sum256(cert.Raw)),
-		cert.NotAfter.Unix(),
-	); err != nil {
-		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 	}
 
 	return &actor, keys, nil

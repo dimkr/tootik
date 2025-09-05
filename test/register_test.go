@@ -35,6 +35,7 @@ import (
 	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/front/gemini"
 	"github.com/dimkr/tootik/front/user"
+	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/migrations"
 	"github.com/stretchr/testify/assert"
 )
@@ -184,7 +185,7 @@ func TestRegister_RedirectNoCertificate(t *testing.T) {
 	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users\r\n"))
 	assert.NoError(err)
 
-	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
+	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, &inbox.Inbox{})
 	assert.NoError(err)
 
 	l := gemini.Listener{
@@ -264,7 +265,7 @@ func TestRegister_Redirect(t *testing.T) {
 	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users\r\n"))
 	assert.NoError(err)
 
-	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
+	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, &inbox.Inbox{})
 	assert.NoError(err)
 
 	l := gemini.Listener{
@@ -341,7 +342,7 @@ func TestRegister_NoCertificate(t *testing.T) {
 	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
 	assert.NoError(err)
 
-	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
+	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, &inbox.Inbox{})
 	assert.NoError(err)
 
 	l := gemini.Listener{
@@ -421,7 +422,7 @@ func TestRegister_HappyFlow(t *testing.T) {
 	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
 	assert.NoError(err)
 
-	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
+	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, &inbox.Inbox{})
 	assert.NoError(err)
 
 	l := gemini.Listener{
@@ -501,7 +502,7 @@ func TestRegister_HappyFlowRegistrationClosed(t *testing.T) {
 	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
 	assert.NoError(err)
 
-	handler, err := front.NewHandler(domain, true, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
+	handler, err := front.NewHandler(domain, true, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, &inbox.Inbox{})
 	assert.NoError(err)
 
 	l := gemini.Listener{
@@ -585,7 +586,7 @@ func TestRegister_AlreadyRegistered(t *testing.T) {
 	_, _, err = user.Create(context.Background(), domain, db, "erin", ap.Person, erinKeyPair.Leaf)
 	assert.NoError(err)
 
-	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
+	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, &inbox.Inbox{})
 	assert.NoError(err)
 
 	l := gemini.Listener{
@@ -671,7 +672,7 @@ func TestRegister_Twice(t *testing.T) {
 		_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
 		assert.NoError(err)
 
-		handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
+		handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, &inbox.Inbox{})
 		assert.NoError(err)
 
 		l := gemini.Listener{
@@ -767,7 +768,7 @@ func TestRegister_Throttling(t *testing.T) {
 		_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
 		assert.NoError(err)
 
-		handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
+		handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, &inbox.Inbox{})
 		assert.NoError(err)
 
 		l := gemini.Listener{
@@ -863,7 +864,7 @@ func TestRegister_Throttling30Minutes(t *testing.T) {
 		_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
 		assert.NoError(err)
 
-		handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
+		handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, &inbox.Inbox{})
 		assert.NoError(err)
 
 		l := gemini.Listener{
@@ -962,7 +963,7 @@ func TestRegister_Throttling1Hour(t *testing.T) {
 		_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
 		assert.NoError(err)
 
-		handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
+		handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, &inbox.Inbox{})
 		assert.NoError(err)
 
 		l := gemini.Listener{
@@ -1077,7 +1078,7 @@ func TestRegister_TwoCertificates(t *testing.T) {
 		_, err = tlsReader.Write([]byte(data.url))
 		assert.NoError(err)
 
-		handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
+		handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, &inbox.Inbox{})
 		assert.NoError(err)
 
 		l := gemini.Listener{
@@ -1159,7 +1160,7 @@ func TestRegister_ForbiddenUserName(t *testing.T) {
 	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register\r\n"))
 	assert.NoError(err)
 
-	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
+	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, &inbox.Inbox{})
 	assert.NoError(err)
 
 	l := gemini.Listener{

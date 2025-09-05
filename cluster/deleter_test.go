@@ -116,9 +116,8 @@ func TestDeleter_OldData(t *testing.T) {
 	}
 
 	deleter := outbox.Deleter{
-		Domain: "b.localdomain",
-		Config: cluster["b.localdomain"].Config,
-		DB:     cluster["b.localdomain"].DB,
+		DB:    cluster["b.localdomain"].DB,
+		Inbox: cluster["b.localdomain"].Inbox,
 	}
 
 	if err := deleter.Run(t.Context()); err != nil {
@@ -270,9 +269,8 @@ func TestDeleter_Disabled(t *testing.T) {
 		Contains(Line{Type: Text, Text: "Current setting: old posts are not deleted automatically."})
 
 	deleter := outbox.Deleter{
-		Domain: "b.localdomain",
-		Config: cluster["b.localdomain"].Config,
-		DB:     cluster["b.localdomain"].DB,
+		DB:    cluster["b.localdomain"].DB,
+		Inbox: cluster["b.localdomain"].Inbox,
 	}
 
 	if err := deleter.Run(t.Context()); err != nil {

@@ -14,23 +14,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package outbox
+package inbox
 
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
 )
 
-// Follow queues a Follow activity for delivery.
-func Follow(ctx context.Context, domain string, follower *ap.Actor, followed string, db *sql.DB) error {
+func (inbox *Inbox) follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB) error {
 	if followed == follower.ID {
 		return fmt.Errorf("%s cannot follow %s", follower.ID, followed)
 	}
 
-	followID, err := NewID(domain, "follow")
+	followID, err := inbox.NewID(follower.ID, "follow")
 	if err != nil {
 		return err
 	}
@@ -47,49 +47,37 @@ func Follow(ctx context.Context, domain string, follower *ap.Actor, followed str
 		To:      to,
 	}
 
+	j, err := json.Marshal(&follow)
+	if err != nil {
+		return err
+	}
+
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
+		return err
 	}
 	defer tx.Rollback()
-
-	// if the followed user is local and doesn't require manual approval, we can mark as accepted
-	if _, err := tx.ExecContext(
-		ctx,
-		`INSERT INTO follows
-			(
-				id,
-				follower,
-				followed,
-				accepted
-			)
-		VALUES
-			(
-				$1,
-				$2,
-				$3,
-				(SELECT CASE WHEN host = $4 AND COALESCE(actor->>'$.manuallyApprovesFollowers', 0) = 0 THEN 1 ELSE NULL END FROM persons WHERE id = $3)
-			)
-		`,
-		followID,
-		follower.ID,
-		followed,
-		domain,
-	); err != nil {
-		return fmt.Errorf("failed to insert follow: %w", err)
-	}
 
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
-		&follow,
+		string(j),
 		follower.ID,
 	); err != nil {
-		return fmt.Errorf("failed to insert follow activity: %w", err)
+		return err
 	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("%s failed to follow %s: %w", follower.ID, followed, err)
+	if err := inbox.ProcessActivity(ctx, tx, follower, &follow, string(j), 1, false); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+// Follow queues a Follow activity for delivery.
+func (inbox *Inbox) Follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB) error {
+	if err := inbox.follow(ctx, follower, followed, db); err != nil {
+		return fmt.Errorf("failed to follow %s by %s: %w", followed, follower.ID, err)
 	}
 
 	return nil

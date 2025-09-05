@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package outbox
+package inbox
 
 import (
 	"context"
@@ -23,13 +23,10 @@ import (
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
-	inote "github.com/dimkr/tootik/inbox/note"
 )
 
-// UpdateNote queues an Update activity for delivery.
-func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, note *ap.Object) error {
-	updateID, err := NewID(domain, "update")
+func (inbox *Inbox) updateNote(ctx context.Context, db *sql.DB, actor *ap.Actor, note *ap.Object) error {
+	updateID, err := inbox.NewID(note.AttributedTo, "update")
 	if err != nil {
 		return err
 	}
@@ -51,36 +48,9 @@ func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB,
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
+		return err
 	}
 	defer tx.Rollback()
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`UPDATE notes SET object = JSONB(?) WHERE id = ?`,
-		&note,
-		note.ID,
-	); err != nil {
-		return fmt.Errorf("failed to update note: %w", err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`UPDATE notesfts SET content = ? WHERE id = ?`,
-		inote.Flatten(note),
-		note.ID,
-	); err != nil {
-		return fmt.Errorf("failed to update note: %w", err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`UPDATE feed SET note = JSONB(?) WHERE note->>'$.id' = ?`,
-		&note,
-		note.ID,
-	); err != nil {
-		return fmt.Errorf("failed to update note: %w", err)
-	}
 
 	if _, err := tx.ExecContext(
 		ctx,
@@ -88,36 +58,41 @@ func UpdateNote(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB,
 		string(j),
 		note.AttributedTo,
 	); err != nil {
-		return fmt.Errorf("failed to insert update activity: %w", err)
+		return err
 	}
 
 	if _, err = tx.ExecContext(ctx, `delete from hashtags where note = ?`, note.ID); err != nil {
-		return fmt.Errorf("failed to delete old hashtags: %w", err)
+		return err
 	}
 
 	for _, hashtag := range note.Tag {
 		if hashtag.Type != ap.Hashtag || len(hashtag.Name) <= 1 || hashtag.Name[0] != '#' {
 			continue
 		}
-		if _, err = tx.ExecContext(ctx, `insert into hashtags (note, hashtag) values(?,?)`, note.ID, hashtag.Name[1:]); err != nil {
-			return fmt.Errorf("failed to insert hashtag: %w", err)
+
+		if _, err = tx.ExecContext(ctx, `insert into hashtags (note, hashtag) values(?, ?)`, note.ID, hashtag.Name[1:]); err != nil {
+			return err
 		}
 	}
 
-	if err := ForwardActivity(ctx, domain, cfg, tx, note, &update, string(j)); err != nil {
+	if err := inbox.ProcessActivity(ctx, tx, actor, &update, string(j), 1, false); err != nil {
 		return err
 	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to update note: %w", err)
+	return tx.Commit()
+}
+
+// UpdateNote queues an Update activity for delivery.
+func (inbox *Inbox) UpdateNote(ctx context.Context, db *sql.DB, actor *ap.Actor, note *ap.Object) error {
+	if err := inbox.updateNote(ctx, db, actor, note); err != nil {
+		return fmt.Errorf("failed to update %s by %s: %w", note.ID, actor.ID, err)
 	}
 
 	return nil
 }
 
-// UpdateActor queues an Update activity for delivery.
-func UpdateActor(ctx context.Context, domain string, tx *sql.Tx, actorID string) error {
-	updateID, err := NewID(domain, "update")
+func (inbox *Inbox) updateActor(ctx context.Context, tx *sql.Tx, actorID string) error {
+	updateID, err := inbox.NewID(actorID, "update")
 	if err != nil {
 		return err
 	}
@@ -134,13 +109,19 @@ func UpdateActor(ctx context.Context, domain string, tx *sql.Tx, actorID string)
 		To:      to,
 	}
 
-	if _, err := tx.ExecContext(
+	_, err = tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
 		&update,
 		actorID,
-	); err != nil {
-		return fmt.Errorf("failed to insert update activity: %w", err)
+	)
+	return err
+}
+
+// UpdateActor queues an Update activity for delivery.
+func (inbox *Inbox) UpdateActor(ctx context.Context, tx *sql.Tx, actorID string) error {
+	if err := inbox.updateActor(ctx, tx, actorID); err != nil {
+		return fmt.Errorf("failed to update %s: %w", actorID, err)
 	}
 
 	return nil

@@ -58,7 +58,7 @@ func TestCluster_Poll(t *testing.T) {
 	poller := outbox.Poller{
 		Domain: "b.localdomain",
 		DB:     cluster["b.localdomain"].DB,
-		Config: cluster["b.localdomain"].Config,
+		Inbox:  cluster["b.localdomain"].Inbox,
 	}
 	if err := poller.Run(t.Context()); err != nil {
 		t.Fatalf("Failed to process votes: %v", err)

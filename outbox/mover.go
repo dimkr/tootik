@@ -21,7 +21,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/httpsig"
@@ -32,6 +31,7 @@ type Mover struct {
 	DB       *sql.DB
 	Resolver ap.Resolver
 	Keys     [2]httpsig.Key
+	Inbox    ap.Inbox
 }
 
 func (m *Mover) updatedMoveTargets(ctx context.Context, prefix string) error {
@@ -102,83 +102,25 @@ func (m *Mover) Run(ctx context.Context) error {
 
 	for rows.Next() {
 		var actor ap.Actor
-		var oldID, newID, oldFollowID string
+		var oldID, NewID, oldFollowID string
 		var onlyRemove bool
-		if err := rows.Scan(&actor, &oldID, &newID, &oldFollowID, &onlyRemove); err != nil {
+		if err := rows.Scan(&actor, &oldID, &NewID, &oldFollowID, &onlyRemove); err != nil {
 			slog.Error("Failed to scan follow to move", "error", err)
 			continue
 		}
 
 		if onlyRemove {
-			slog.Info("Removing follow of moved actor", "follow", oldFollowID, "old", oldID, "new", newID)
+			slog.Info("Removing follow of moved actor", "follow", oldFollowID, "old", oldID, "new", NewID)
 		} else {
-			slog.Info("Moving follow", "follow", oldFollowID, "old", oldID, "new", newID)
-			if err := Follow(ctx, m.Domain, &actor, newID, m.DB); err != nil {
-				slog.Warn("Failed to follow new actor", "follow", oldFollowID, "old", oldID, "new", newID, "error", err)
+			slog.Info("Moving follow", "follow", oldFollowID, "old", oldID, "new", NewID)
+			if err := m.Inbox.Follow(ctx, &actor, NewID, m.DB); err != nil {
+				slog.Warn("Failed to follow new actor", "follow", oldFollowID, "old", oldID, "new", NewID, "error", err)
 				continue
 			}
 		}
-		if err := Unfollow(ctx, m.Domain, m.DB, actor.ID, oldID, oldFollowID); err != nil {
-			slog.Warn("Failed to unfollow old actor", "follow", oldFollowID, "old", oldID, "new", newID, "error", err)
+		if err := m.Inbox.Unfollow(ctx, m.DB, &actor, oldID, oldFollowID); err != nil {
+			slog.Warn("Failed to unfollow old actor", "follow", oldFollowID, "old", oldID, "new", NewID, "error", err)
 		}
-	}
-
-	return nil
-}
-
-// Move queues a Move activity for delivery.
-func Move(ctx context.Context, db *sql.DB, domain string, from *ap.Actor, to string) error {
-	now := time.Now()
-
-	aud := ap.Audience{}
-	aud.Add(from.Followers)
-
-	id, err := NewID(domain, "move")
-	if err != nil {
-		return err
-	}
-
-	move := ap.Activity{
-		Context: "https://www.w3.org/ns/activitystreams",
-		ID:      id,
-		Actor:   from.ID,
-		Type:    ap.Move,
-		Object:  from.ID,
-		Target:  to,
-		To:      aud,
-	}
-
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`update persons set actor = jsonb_set(actor, '$.movedTo', $1, '$.updated', $2) where id = $3`,
-		to,
-		now.Format(time.RFC3339Nano),
-		from.ID,
-	); err != nil {
-		return fmt.Errorf("failed to insert Move: %w", err)
-	}
-
-	if err := UpdateActor(ctx, domain, tx, from.ID); err != nil {
-		return fmt.Errorf("failed to insert Move: %w", err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`insert into outbox (activity, sender) values (jsonb(?), ?)`,
-		&move,
-		from.ID,
-	); err != nil {
-		return fmt.Errorf("failed to insert Move: %w", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to insert Move: %w", err)
 	}
 
 	return nil

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package outbox
+package inbox
 
 import (
 	"context"
@@ -25,22 +25,20 @@ import (
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/inbox/note"
 )
 
 const maxDeliveryQueueSize = 128
 
 var ErrDeliveryQueueFull = errors.New("delivery queue is full")
 
-// Create queues a Create activity for delivery.
-func Create(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, post *ap.Object, author *ap.Actor) error {
-	id, err := NewID(domain, "create")
+func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *ap.Object, author *ap.Actor) error {
+	id, err := inbox.NewID(author.ID, "create")
 	if err != nil {
 		return err
 	}
 
 	var queueSize int
-	if err := db.QueryRowContext(ctx, `select count(distinct activity->>'$.id') from outbox where sent = 0 and attempts < ?`, cfg.MaxDeliveryAttempts).Scan(&queueSize); err != nil {
+	if err := db.QueryRowContext(ctx, `select count(distinct cid) from outbox where sent = 0 and attempts < ?`, cfg.MaxDeliveryAttempts).Scan(&queueSize); err != nil {
 		return fmt.Errorf("failed to query delivery queue size: %w", err)
 	}
 
@@ -65,28 +63,29 @@ func Create(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, pos
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
+		return err
 	}
 	defer tx.Rollback()
 
-	if err := note.Insert(ctx, tx, post); err != nil {
-		return fmt.Errorf("failed to insert note: %w", err)
-	}
-
-	if _, err = tx.ExecContext(ctx, `insert into feed(follower, note, author, inserted) values(?, jsonb(?), jsonb(?), unixepoch())`, author.ID, post, author); err != nil {
-		return fmt.Errorf("failed to insert Create: %w", err)
-	}
-
 	if _, err = tx.ExecContext(ctx, `insert into outbox (activity, sender) values (jsonb(?),?)`, string(j), author.ID); err != nil {
-		return fmt.Errorf("failed to insert Create: %w", err)
-	}
-
-	if err := ForwardActivity(ctx, domain, cfg, tx, post, &create, string(j)); err != nil {
 		return err
 	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to create note: %w", err)
+	if err := inbox.ProcessActivity(ctx, tx, author, &create, string(j), 1, false); err != nil {
+		return err
+	}
+
+	if _, err = tx.ExecContext(ctx, `insert into feed(follower, note, author, inserted) values(?, jsonb(?), jsonb(?), unixepoch())`, author.ID, post, author); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+// Create queues a Create activity for delivery.
+func (inbox *Inbox) Create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *ap.Object, author *ap.Actor) error {
+	if err := inbox.create(ctx, cfg, db, post, author); err != nil {
+		return fmt.Errorf("failed to create %s by %s: %w", post.ID, author.ID, err)
 	}
 
 	return nil

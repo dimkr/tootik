@@ -399,11 +399,11 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			}
 		}
 
-		if r.User != nil && note.AttributedTo == r.User.ID && note.Type != ap.Question && note.Name == "" { // polls and votes cannot be edited
+		if r.User != nil && ap.Canonical(note.AttributedTo) == ap.Canonical(r.User.ID) && note.Type != ap.Question && note.Name == "" { // polls and votes cannot be edited
 			w.Link("/users/edit/"+strings.TrimPrefix(note.ID, "https://"), "🩹 Edit")
 			w.Link(fmt.Sprintf("titan://%s/users/upload/edit/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload edited post")
 		}
-		if r.User != nil && note.AttributedTo == r.User.ID {
+		if r.User != nil && ap.Canonical(note.AttributedTo) == ap.Canonical(r.User.ID) {
 			w.Link("/users/delete/"+strings.TrimPrefix(note.ID, "https://"), "💣 Delete")
 		}
 		if r.User != nil && note.Type == ap.Question && note.Closed == (ap.Time{}) && (note.EndTime == (ap.Time{}) || time.Now().Before(note.EndTime.Time)) {
@@ -416,7 +416,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			}
 		}
 
-		if r.User != nil && note.IsPublic() && note.AttributedTo != r.User.ID {
+		if r.User != nil && note.IsPublic() && ap.Canonical(note.AttributedTo) != ap.Canonical(r.User.ID) {
 			var shared int
 			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from shares where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&shared); err != nil {
 				r.Log.Warn("Failed to check if post is shared", "id", note.ID, "error", err)

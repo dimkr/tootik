@@ -14,19 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package outbox
+package inbox
 
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
 )
 
-// Reject queues a Reject activity for delivery.
-func Reject(ctx context.Context, domain string, followed, follower, followID string, tx *sql.Tx) error {
-	id, err := NewID(domain, "reject")
+func (inbox *Inbox) reject(ctx context.Context, followed *ap.Actor, follower, followID string, tx *sql.Tx) error {
+	id, err := inbox.NewID(followed.ID, "reject")
 	if err != nil {
 		return err
 	}
@@ -38,7 +38,7 @@ func Reject(ctx context.Context, domain string, followed, follower, followID str
 		Context: "https://www.w3.org/ns/activitystreams",
 		Type:    ap.Reject,
 		ID:      id,
-		Actor:   followed,
+		Actor:   followed.ID,
 		To:      recipients,
 		Object: &ap.Activity{
 			Actor:  follower,
@@ -48,25 +48,27 @@ func Reject(ctx context.Context, domain string, followed, follower, followID str
 		},
 	}
 
+	j, err := json.Marshal(&reject)
+	if err != nil {
+		return err
+	}
+
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
-		&reject,
-		followed,
+		string(j),
+		followed.ID,
 	); err != nil {
-		return fmt.Errorf("failed to reject %s: %w", follower, err)
+		return err
 	}
 
-	if res, err := tx.ExecContext(
-		ctx,
-		`UPDATE follows SET accepted = 0 WHERE id = ? AND (accepted IS NULL OR accepted = 1)`,
-		followID,
-	); err != nil {
-		return fmt.Errorf("failed to reject %s: %w", follower, err)
-	} else if n, err := res.RowsAffected(); err != nil {
-		return fmt.Errorf("failed to reject %s: %w", follower, err)
-	} else if n == 0 {
-		return fmt.Errorf("failed to reject %s: cannot reject", follower)
+	return inbox.ProcessActivity(ctx, tx, followed, &reject, string(j), 1, false)
+}
+
+// Reject queues a Reject activity for delivery.
+func (inbox *Inbox) Reject(ctx context.Context, followed *ap.Actor, follower, followID string, tx *sql.Tx) error {
+	if err := inbox.reject(ctx, followed, follower, followID, tx); err != nil {
+		return fmt.Errorf("failed to reject %s from %s by %s: %w", followID, follower, followed.ID, err)
 	}
 
 	return nil

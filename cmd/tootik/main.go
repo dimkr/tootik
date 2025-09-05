@@ -202,6 +202,13 @@ func main() {
 		panic(err)
 	}
 
+	localInbox := &inbox.Inbox{
+		Domain:    *domain,
+		Config:    &cfg,
+		BlockList: blockList,
+		DB:        db,
+	}
+
 	switch cmd {
 	case "add-community":
 		_, _, err := user.Create(ctx, *domain, db, flag.Arg(1), ap.Group, nil)
@@ -225,8 +232,7 @@ func main() {
 		var actorID string
 		if err := tx.QueryRowContext(
 			ctx,
-			`select id from persons where host = ? and actor->>'$.preferredUsername' = ?`,
-			*domain,
+			`select id from persons where ed25519privkey is not null and actor->>'$.preferredUsername' = ?`,
 			flag.Arg(1),
 		).Scan(&actorID); err != nil {
 			panic(err)
@@ -242,7 +248,7 @@ func main() {
 			panic(err)
 		}
 
-		if err := outbox.UpdateActor(ctx, *domain, tx, actorID); err != nil {
+		if err := localInbox.UpdateActor(ctx, tx, actorID); err != nil {
 			panic(err)
 		}
 
@@ -274,8 +280,7 @@ func main() {
 		var actorID string
 		if err := tx.QueryRowContext(
 			ctx,
-			`select id from persons where host = ? and actor->>'$.preferredUsername' = ?`,
-			*domain,
+			`select id from persons where ed25519privkey is not null and actor->>'$.preferredUsername' = ?`,
 			userName,
 		).Scan(&actorID); err != nil {
 			panic(err)
@@ -302,7 +307,7 @@ func main() {
 			panic(err)
 		}
 
-		if err := outbox.UpdateActor(ctx, *domain, tx, actorID); err != nil {
+		if err := localInbox.UpdateActor(ctx, tx, actorID); err != nil {
 			panic(err)
 		}
 
@@ -313,7 +318,7 @@ func main() {
 		return
 	}
 
-	handler, err := front.NewHandler(*domain, *closed, &cfg, resolver, db)
+	handler, err := front.NewHandler(*domain, *closed, &cfg, resolver, db, localInbox)
 	if err != nil {
 		panic(err)
 	}
@@ -396,12 +401,11 @@ func main() {
 		{
 			"incoming",
 			&inbox.Queue{
-				Domain:    *domain,
-				Config:    &cfg,
-				BlockList: blockList,
-				DB:        db,
-				Resolver:  resolver,
-				Keys:      nobodyKeys,
+				Config:   &cfg,
+				DB:       db,
+				Inbox:    localInbox,
+				Resolver: resolver,
+				Keys:     nobodyKeys,
 			},
 		},
 		{
@@ -443,8 +447,8 @@ func main() {
 			pollResultsUpdateInterval,
 			&outbox.Poller{
 				Domain: *domain,
-				Config: &cfg,
 				DB:     db,
+				Inbox:  localInbox,
 			},
 		},
 		{
@@ -453,6 +457,7 @@ func main() {
 			&outbox.Mover{
 				Domain:   *domain,
 				DB:       db,
+				Inbox:    localInbox,
 				Resolver: resolver,
 				Keys:     nobodyKeys,
 			},
@@ -466,15 +471,15 @@ func main() {
 				DB:       db,
 				Resolver: resolver,
 				Keys:     nobodyKeys,
+				Inbox:    localInbox,
 			},
 		},
 		{
 			"deleter",
 			deleterInterval,
 			&outbox.Deleter{
-				Domain: *domain,
-				Config: &cfg,
-				DB:     db,
+				DB:    db,
+				Inbox: localInbox,
 			},
 		},
 		{

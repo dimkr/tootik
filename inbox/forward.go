@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package outbox
+package inbox
 
 import (
 	"context"
@@ -22,13 +22,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
 
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
 )
 
-func forwardToGroup(ctx context.Context, domain string, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity, firstPostID string) (bool, error) {
+func (inbox *Inbox) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity, firstPostID string) (bool, error) {
 	var group ap.Actor
 	if err := tx.QueryRowContext(
 		ctx,
@@ -71,7 +69,7 @@ func forwardToGroup(ctx context.Context, domain string, tx *sql.Tx, note *ap.Obj
 			)
 		`,
 		firstPostID,
-		domain,
+		inbox.Domain,
 	).Scan(&group); err != nil && errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	} else if err != nil {
@@ -103,7 +101,7 @@ func forwardToGroup(ctx context.Context, domain string, tx *sql.Tx, note *ap.Obj
 	}
 
 	// if this is a new post and we're passing the Create activity to followers, also share the post
-	if err := Announce(ctx, domain, tx, &group, note); err != nil {
+	if err := inbox.Announce(ctx, tx, &group, note); err != nil {
 		return true, err
 	}
 
@@ -119,10 +117,10 @@ func forwardToGroup(ctx context.Context, domain string, tx *sql.Tx, note *ap.Obj
 	return true, nil
 }
 
-// ForwardActivity forwards an activity if needed.
+// forwardActivity forwards an activity if needed.
 // A reply by B in a thread started by A is forwarded to all followers of A.
 // A post by a follower of a local group, which mentions the group or replies to a post in the group, is forwarded to followers of the group.
-func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity string) error {
+func (inbox *Inbox) forwardActivity(ctx context.Context, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity string) error {
 	// poll votes don't need to be forwarded
 	if note.Name != "" && note.Content == "" {
 		return nil
@@ -131,22 +129,20 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, tx *sq
 	firstPostID := note.ID
 	var threadStarterID string
 
-	if note.InReplyTo != "" {
-		var depth int
-		if err := tx.QueryRowContext(ctx, `with recursive thread(id, author, parent, depth) as (select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, 1 as depth from notes where id = $1 union all select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent where t.depth <= $2) select id, author, depth from thread order by depth desc limit 1`, note.ID, cfg.MaxForwardingDepth+1).Scan(&firstPostID, &threadStarterID, &depth); err != nil && errors.Is(err, sql.ErrNoRows) {
-			slog.Debug("Failed to find thread for post", "activity", activity.ID, "note", note.ID)
-			return nil
-		} else if err != nil {
-			return fmt.Errorf("failed to fetch first post in thread: %w", err)
-		}
-		if depth > cfg.MaxForwardingDepth {
-			slog.Debug("Thread exceeds depth limit for forwarding", "activity", activity.ID, "note", note.ID)
-			return nil
-		}
+	var depth int
+	if err := tx.QueryRowContext(ctx, `with recursive thread(id, author, parent, depth) as (select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, 1 as depth from notes where id = $1 union all select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent where t.depth <= $2) select id, author, depth from thread order by depth desc limit 1`, note.ID, inbox.Config.MaxForwardingDepth+1).Scan(&firstPostID, &threadStarterID, &depth); err != nil && errors.Is(err, sql.ErrNoRows) {
+		slog.Info("Failed to find thread for post", "activity", activity.ID, "note", note.ID)
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("failed to fetch first post in thread: %w", err)
+	}
+	if depth > inbox.Config.MaxForwardingDepth {
+		slog.Debug("Thread exceeds depth limit for forwarding", "activity", activity.ID, "note", note.ID)
+		return nil
 	}
 
 	if note.IsPublic() {
-		if groupThread, err := forwardToGroup(ctx, domain, tx, note, activity, rawActivity, firstPostID); err != nil {
+		if groupThread, err := inbox.forwardToGroup(ctx, tx, note, activity, rawActivity, firstPostID); err != nil {
 			return err
 		} else if groupThread {
 			return nil
@@ -154,14 +150,15 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, tx *sq
 	}
 
 	// only replies need to be forwarded
-	if note.InReplyTo == "" {
+	if !ap.IsPortable(threadStarterID) && note.InReplyTo == "" {
 		return nil
 	}
 
-	prefix := fmt.Sprintf("https://%s/", domain)
-	if !strings.HasPrefix(threadStarterID, prefix) {
+	if err := tx.QueryRowContext(ctx, `select id from persons where cid = ? and ed25519privkey is not null`, ap.Canonical(threadStarterID)).Scan(&threadStarterID); errors.Is(err, sql.ErrNoRows) {
 		slog.Debug("Thread starter is federated", "activity", activity.ID, "note", note.ID)
 		return nil
+	} else if err != nil {
+		return err
 	}
 
 	var shouldForward int
@@ -182,6 +179,6 @@ func ForwardActivity(ctx context.Context, domain string, cfg *cfg.Config, tx *sq
 		return err
 	}
 
-	slog.Info("Forwarding activity to followers of thread starter", "activity", activity.ID, "note", note.ID, "thread", firstPostID, "starter", threadStarterID)
+	slog.Info("Forwarding activity to followers of thread starter", "domain", inbox.Domain, "activity", activity.ID, "note", note.ID, "thread", firstPostID, "starter", threadStarterID)
 	return nil
 }

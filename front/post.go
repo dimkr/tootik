@@ -28,7 +28,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/text/plain"
-	"github.com/dimkr/tootik/outbox"
+	"github.com/dimkr/tootik/inbox"
 )
 
 const (
@@ -84,7 +84,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 	var postID string
 	if oldNote == nil {
 		var err error
-		postID, err = outbox.NewID(h.Domain, "post")
+		postID, err = h.Inbox.NewID(r.User.ID, "post")
 		if err != nil {
 			r.Log.Error("Failed to generate post ID", "error", err)
 			w.Error()
@@ -107,9 +107,9 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 		var actorID string
 		var err error
 		if mention[2] == "" && inReplyTo != nil {
-			err = h.DB.QueryRowContext(r.Context, `select id from (select id, case when id = $1 then 3 when id in (select followed from follows where follower = $2 and accepted = 1) then 2 when host = $3 then 1 else 0 end as score from persons where actor->>'$.preferredUsername' = $4) where score > 0 order by score desc limit 1`, inReplyTo.AttributedTo, r.User.ID, h.Domain, mention[1]).Scan(&actorID)
+			err = h.DB.QueryRowContext(r.Context, `select id from (select id, case when id = $1 then 3 when id in (select followed from follows where follower = $2 and accepted = 1) then 2 when ed25519privkey is not null then 1 else 0 end as score from persons where actor->>'$.preferredUsername' = $3) where score > 0 order by score desc limit 1`, inReplyTo.AttributedTo, r.User.ID, mention[1]).Scan(&actorID)
 		} else if mention[2] == "" && inReplyTo == nil {
-			err = h.DB.QueryRowContext(r.Context, `select id from (select id, case when host = $1 then 2 when id in (select followed from follows where follower = $2 and accepted = 1) then 1 else 0 end as score from persons where actor->>'$.preferredUsername' = $3) where score > 0 order by score desc limit 1`, h.Domain, r.User.ID, mention[1]).Scan(&actorID)
+			err = h.DB.QueryRowContext(r.Context, `select id from (select id, case when ed25519privkey is not null then 2 when id in (select followed from follows where follower = $1 and accepted = 1) then 1 else 0 end as score from persons where actor->>'$.preferredUsername' = $2) where score > 0 order by score desc limit 1`, r.User.ID, mention[1]).Scan(&actorID)
 		} else {
 			err = h.DB.QueryRowContext(r.Context, `select id from persons where actor->>'$.preferredUsername' = $1 and host = $2`, mention[1], mention[2]).Scan(&actorID)
 		}
@@ -247,13 +247,13 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 
 		note.Updated = now
 
-		err = outbox.UpdateNote(r.Context, h.Domain, h.Config, h.DB, &note)
+		err = h.Inbox.UpdateNote(r.Context, h.DB, r.User, &note)
 	} else {
-		err = outbox.Create(r.Context, h.Domain, h.Config, h.DB, &note, r.User)
+		err = h.Inbox.Create(r.Context, h.Config, h.DB, &note, r.User)
 	}
 	if err != nil {
 		r.Log.Error("Failed to insert post", "error", err)
-		if errors.Is(err, outbox.ErrDeliveryQueueFull) {
+		if errors.Is(err, inbox.ErrDeliveryQueueFull) {
 			w.Status(40, "Please try again later")
 		} else {
 			w.Error()

@@ -14,21 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package outbox
+package inbox
 
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
 )
 
-// Announce queues an Announce activity for delivery.
-func Announce(ctx context.Context, domain string, tx *sql.Tx, actor *ap.Actor, note *ap.Object) error {
-	now := time.Now()
-	announceID, err := NewID(domain, "announce")
+func (inbox *Inbox) announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, note *ap.Object) error {
+	announceID, err := inbox.NewID(actor.ID, "announce")
 	if err != nil {
 		return err
 	}
@@ -45,46 +44,33 @@ func Announce(ctx context.Context, domain string, tx *sql.Tx, actor *ap.Actor, n
 		ID:        announceID,
 		Type:      ap.Announce,
 		Actor:     actor.ID,
-		Published: ap.Time{Time: now},
+		Published: ap.Time{Time: time.Now()},
 		To:        to,
 		CC:        cc,
 		Object:    note.ID,
 	}
 
-	if _, err := tx.ExecContext(
-		ctx,
-		`INSERT INTO shares (note, by) VALUES(?,?)`,
-		note.ID,
-		actor.ID,
-	); err != nil {
-		return fmt.Errorf("failed to insert share: %w", err)
-	}
-
-	if actor.Type == ap.Person {
-		if _, err := tx.ExecContext(
-			ctx,
-			`
-			INSERT INTO feed (follower, note, author, sharer, inserted)
-			SELECT $1, JSONB($2), authors.actor, JSONB($3), UNIXEPOCH()
-			FROM persons authors
-			WHERE authors.id = $4
-			`,
-			actor.ID,
-			note,
-			actor,
-			note.AttributedTo,
-		); err != nil {
-			return fmt.Errorf("failed to insert announce activity: %w", err)
-		}
+	j, err := json.Marshal(&announce)
+	if err != nil {
+		return err
 	}
 
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
-		&announce,
+		string(j),
 		actor.ID,
 	); err != nil {
-		return fmt.Errorf("failed to insert announce activity: %w", err)
+		return err
+	}
+
+	return inbox.ProcessActivity(ctx, tx, actor, &announce, string(j), 1, false)
+}
+
+// Announce queues an Announce activity for delivery.
+func (inbox *Inbox) Announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, note *ap.Object) error {
+	if err := inbox.announce(ctx, tx, actor, note); err != nil {
+		return fmt.Errorf("failed to announce %s by %s: %w", note.ID, actor.ID, err)
 	}
 
 	return nil

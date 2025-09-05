@@ -32,6 +32,7 @@ import (
 	"github.com/dimkr/tootik/front/text/gmi"
 	"github.com/dimkr/tootik/front/user"
 	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/migrations"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -43,6 +44,8 @@ type server struct {
 	db         *sql.DB
 	dbPath     string
 	handler    front.Handler
+	inbox      *inbox.Inbox
+	queue      *inbox.Queue
 	Alice      *ap.Actor
 	Bob        *ap.Actor
 	Carol      *ap.Actor
@@ -95,7 +98,24 @@ func newTestServer() *server {
 		panic(err)
 	}
 
-	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
+	localInbox := &inbox.Inbox{
+		Domain:    domain,
+		Config:    &cfg,
+		BlockList: &fed.BlockList{},
+		DB:        db,
+	}
+
+	resolver := fed.NewResolver(nil, domain, &cfg, &http.Client{}, db)
+
+	queue := &inbox.Queue{
+		Config:   &cfg,
+		DB:       db,
+		Inbox:    localInbox,
+		Resolver: resolver,
+		Keys:     nobodyKeys,
+	}
+
+	handler, err := front.NewHandler(domain, false, &cfg, resolver, db, localInbox)
 	if err != nil {
 		panic(err)
 	}
@@ -105,6 +125,8 @@ func newTestServer() *server {
 		dbPath:     path,
 		db:         db,
 		handler:    handler,
+		inbox:      localInbox,
+		queue:      queue,
 		Alice:      alice,
 		Bob:        bob,
 		Carol:      carol,

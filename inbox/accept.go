@@ -14,19 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package outbox
+package inbox
 
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
 )
 
-// Accept queues an Accept activity for delivery.
-func Accept(ctx context.Context, domain string, followed, follower, followID string, tx *sql.Tx) error {
-	id, err := NewID(domain, "accept")
+func (inbox *Inbox) accept(ctx context.Context, followed *ap.Actor, follower, followID string, tx *sql.Tx) error {
+	id, err := inbox.NewID(followed.ID, "accept")
 	if err != nil {
 		return err
 	}
@@ -38,7 +38,7 @@ func Accept(ctx context.Context, domain string, followed, follower, followID str
 		Context: "https://www.w3.org/ns/activitystreams",
 		Type:    ap.Accept,
 		ID:      id,
-		Actor:   followed,
+		Actor:   followed.ID,
 		To:      recipients,
 		Object: &ap.Activity{
 			Actor:  follower,
@@ -48,27 +48,27 @@ func Accept(ctx context.Context, domain string, followed, follower, followID str
 		},
 	}
 
+	j, err := json.Marshal(&accept)
+	if err != nil {
+		return err
+	}
+
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
-		&accept,
-		followed,
+		string(j),
+		followed.ID,
 	); err != nil {
-		return fmt.Errorf("failed to accept %s: %w", followID, err)
+		return err
 	}
 
-	if res, err := tx.ExecContext(
-		ctx,
-		`INSERT INTO follows (id, follower, followed, accepted) VALUES($1, $2, $3, 1) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = 1, inserted = UNIXEPOCH()`,
-		followID,
-		follower,
-		followed,
-	); err != nil {
-		return fmt.Errorf("failed to accept %s: %w", followID, err)
-	} else if n, err := res.RowsAffected(); err != nil {
-		return fmt.Errorf("failed to accept %s: %w", followID, err)
-	} else if n == 0 {
-		return fmt.Errorf("failed to accept %s: cannot accept", followID)
+	return inbox.ProcessActivity(ctx, tx, followed, &accept, string(j), 1, false)
+}
+
+// Accept queues an Accept activity for delivery.
+func (inbox *Inbox) Accept(ctx context.Context, followed *ap.Actor, follower, followID string, tx *sql.Tx) error {
+	if err := inbox.accept(ctx, followed, follower, followID, tx); err != nil {
+		return fmt.Errorf("failed to accept %s from %s by %s: %w", followID, follower, followed.ID, err)
 	}
 
 	return nil

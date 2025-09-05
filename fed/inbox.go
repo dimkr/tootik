@@ -19,15 +19,18 @@ package fed
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
-	"net/url"
+	"strings"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/httpsig"
 )
 
 var unsupportedActivityTypes = map[ap.ActivityType]struct{}{
@@ -44,7 +47,7 @@ func (l *Listener) getActivityOrigin(activity *ap.Activity, sender *ap.Actor) (s
 		return "", "", errors.New("unspecified activity ID")
 	}
 
-	activityUrl, err := url.Parse(activity.ID)
+	activityOrigin, err := ap.Origin(activity.ID)
 	if err != nil {
 		return "", "", err
 	}
@@ -53,12 +56,12 @@ func (l *Listener) getActivityOrigin(activity *ap.Activity, sender *ap.Actor) (s
 		return "", "", errors.New("unspecified sender ID")
 	}
 
-	senderUrl, err := url.Parse(sender.ID)
+	senderOrigin, err := ap.Origin(sender.ID)
 	if err != nil {
 		return "", "", err
 	}
 
-	return activityUrl.Host, senderUrl.Host, nil
+	return activityOrigin, senderOrigin, nil
 }
 
 func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth uint) error {
@@ -76,26 +79,26 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 		return errors.New("unspecified activity ID")
 	}
 
-	activityUrl, err := url.Parse(activity.ID)
+	activityOrigin, err := ap.Origin(activity.ID)
 	if err != nil {
 		return err
 	}
 
-	if activityUrl.Host != origin {
-		return fmt.Errorf("invalid activity host: %s", activityUrl.Host)
+	if activityOrigin != origin {
+		return fmt.Errorf("invalid activity host: %s", activityOrigin)
 	}
 
 	if activity.Actor == "" {
 		return errors.New("unspecified actor")
 	}
 
-	actorUrl, err := url.Parse(activity.Actor)
+	actorOrigin, err := ap.Origin(activity.Actor)
 	if err != nil {
 		return err
 	}
 
-	if actorUrl.Host != origin {
-		return fmt.Errorf("invalid actor host: %s", actorUrl.Host)
+	if actorOrigin != origin {
+		return fmt.Errorf("invalid actor host: %s", actorOrigin)
 	}
 
 	switch activity.Type {
@@ -103,17 +106,17 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 		// $origin can only delete objects that belong to $origin
 		switch v := activity.Object.(type) {
 		case *ap.Object:
-			if objectUrl, err := url.Parse(v.ID); err != nil {
+			if objectOrigin, err := ap.Origin(v.ID); err != nil {
 				return err
-			} else if objectUrl.Host != origin {
-				return fmt.Errorf("invalid object host: %s", objectUrl.Host)
+			} else if objectOrigin != origin {
+				return fmt.Errorf("invalid object host: %s", objectOrigin)
 			}
 
 		case string:
-			if objectUrl, err := url.Parse(v); err != nil {
+			if stringOrigin, err := ap.Origin(v); err != nil {
 				return err
-			} else if objectUrl.Host != origin {
-				return fmt.Errorf("invalid object host: %s", objectUrl.Host)
+			} else if stringOrigin != origin {
+				return fmt.Errorf("invalid object host: %s", stringOrigin)
 			}
 
 		default:
@@ -122,11 +125,8 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 
 	case ap.Follow:
 		if inner, ok := activity.Object.(string); ok {
-			if innerUrl, err := url.Parse(inner); err != nil {
+			if _, err := ap.Origin(inner); err != nil {
 				return err
-				// actors from $origin can only follow ours
-			} else if innerUrl.Host != l.Domain {
-				return fmt.Errorf("invalid object host: %s", innerUrl.Host)
 			}
 		} else {
 			return fmt.Errorf("invalid object: %T", activity.Object)
@@ -140,17 +140,17 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 				return fmt.Errorf("invalid object type: %s", v.Type)
 			}
 
-			if activityUrl, err := url.Parse(v.ID); err != nil {
+			if innerOrigin, err := ap.Origin(v.ID); err != nil {
 				return err
-			} else if activityUrl.Host != l.Domain {
-				return fmt.Errorf("invalid object host: %s", activityUrl.Host)
+			} else if innerOrigin != l.Domain && !strings.HasPrefix(innerOrigin, "did:") {
+				return fmt.Errorf("invalid object host: %s", innerOrigin)
 			}
 
 		case string:
-			if activityUrl, err := url.Parse(v); err != nil {
+			if innerOrigin, err := ap.Origin(v); err != nil {
 				return err
-			} else if activityUrl.Host != l.Domain {
-				return fmt.Errorf("invalid object host: %s", activityUrl.Host)
+			} else if innerOrigin != l.Domain && !strings.HasPrefix(innerOrigin, "did:") {
+				return fmt.Errorf("invalid object host: %s", innerOrigin)
 			}
 
 		default:
@@ -174,25 +174,25 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 	case ap.Create, ap.Update:
 		// $origin can only create objects that belong to $origin
 		if obj, ok := activity.Object.(*ap.Object); ok {
-			if objectUrl, err := url.Parse(obj.ID); err != nil {
+			if objectOrigin, err := ap.Origin(obj.ID); err != nil {
 				return err
-			} else if objectUrl.Host != origin {
-				return fmt.Errorf("invalid object host: %s", objectUrl.Host)
+			} else if objectOrigin != origin {
+				return fmt.Errorf("invalid object host: %s", objectOrigin)
 			} else if obj.AttributedTo != "" && obj.AttributedTo != activity.Actor {
-				authorUrl, err := url.Parse(obj.AttributedTo)
+				authorOrigin, err := ap.Origin(obj.AttributedTo)
 				if err != nil {
 					return err
 				}
 
-				if authorUrl.Host != origin {
-					return fmt.Errorf("invalid author host: %s", authorUrl.Host)
+				if authorOrigin != origin {
+					return fmt.Errorf("invalid author host: %s", authorOrigin)
 				}
 			}
 		} else if s, ok := activity.Object.(string); ok {
-			if innerUrl, err := url.Parse(s); err != nil {
+			if stringOrigin, err := ap.Origin(s); err != nil {
 				return err
-			} else if innerUrl.Host != origin {
-				return fmt.Errorf("invalid object host: %s", innerUrl.Host)
+			} else if stringOrigin != origin {
+				return fmt.Errorf("invalid object host: %s", stringOrigin)
 			}
 		} else {
 			return fmt.Errorf("invalid object: %T", obj)
@@ -206,7 +206,7 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 			return fmt.Errorf("invalid object: %T", activity.Object)
 		} else if s == "" {
 			return errors.New("empty ID")
-		} else if _, err := url.Parse(s); err != nil {
+		} else if _, err := ap.Origin(s); err != nil {
 			return err
 		}
 
@@ -217,8 +217,8 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 	return nil
 }
 
-func (l *Listener) fetchObject(ctx context.Context, id string) (bool, []byte, error) {
-	resp, err := l.Resolver.Get(ctx, l.ActorKeys, id)
+func (l *Listener) fetchObject(ctx context.Context, id string, keys [2]httpsig.Key) (bool, []byte, error) {
+	resp, err := l.Resolver.Get(ctx, keys, id)
 	if err != nil {
 		if resp != nil && (resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone) {
 			return false, nil, err
@@ -242,17 +242,39 @@ func (l *Listener) fetchObject(ctx context.Context, id string) (bool, []byte, er
 func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 	receiver := r.PathValue("username")
 
-	var registered int
-	if err := l.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where actor->>'$.preferredUsername' = ? and host = ?)`, receiver, l.Domain).Scan(&registered); err != nil {
-		slog.Warn("Failed to check if receiving user exists", "receiver", receiver, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	} else if registered == 0 {
+	var actor ap.Actor
+	var rsaPrivKeyPem, ed25519PrivKeyMultibase string
+	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519privkey from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null`, receiver).Scan(&actor, &rsaPrivKeyPem, &ed25519PrivKeyMultibase); errors.Is(err, sql.ErrNoRows) {
 		slog.Debug("Receiving user does not exist", "receiver", receiver)
 		w.WriteHeader(http.StatusNotFound)
 		return
+	} else if err != nil {
+		slog.Warn("Failed to check if receiving user exists", "receiver", receiver, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
+	rsaPrivKey, err := data.ParseRSAPrivateKey(rsaPrivKeyPem)
+	if err != nil {
+		slog.Warn("Failed to parse RSA private key", "receiver", receiver, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
+	if err != nil {
+		slog.Warn("Failed to decode Ed25519 private key", "receiver", receiver, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	l.doHandleInbox(w, r, actor.ID, [2]httpsig.Key{
+		{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
+		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey},
+	})
+}
+
+func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, receiver string, keys [2]httpsig.Key) {
 	if r.ContentLength > l.Config.MaxRequestBodySize {
 		slog.Warn("Ignoring big request", "size", r.ContentLength)
 		w.WriteHeader(http.StatusRequestEntityTooLarge)
@@ -280,30 +302,76 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		flags |= ap.Offline
 	}
 
-	sig, sender, err := l.verifyRequest(r, rawActivity, flags)
-	if err != nil {
-		if errors.Is(err, ErrActorGone) {
-			w.WriteHeader(http.StatusOK)
+	var sender *ap.Actor
+	var sig *httpsig.Signature
+	if activity.Proof != (ap.Proof{}) {
+		actorOrigin, err := ap.Origin(activity.Actor)
+		if err != nil {
+			slog.Warn("Failed to verify integrity proof", "activity", &activity, "proof", &activity.Proof, "error", err)
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
 			return
 		}
 
-		if errors.Is(err, ErrActorNotCached) {
-			slog.Debug("Ignoring Delete activity for unknown actor", "error", err)
-			w.WriteHeader(http.StatusOK)
+		proofOrigin, err := ap.Origin(activity.Proof.VerificationMethod)
+		if err != nil {
+			slog.Warn("Failed to verify integrity proof", "activity", &activity, "proof", &activity.Proof, "error", err)
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
 			return
 		}
 
-		if errors.Is(err, ErrBlockedDomain) {
-			slog.Debug("Failed to verify activity", "activity", &activity, "error", err)
-		} else {
-			slog.Warn("Failed to verify activity", "activity", &activity, "error", err)
+		if actorOrigin != proofOrigin {
+			slog.Warn("Integrity proof is invalid", "activity", &activity, "proof", &activity.Proof)
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{"error": "invalid proof origin"})
+			return
 		}
 
+		// if activity has an integrity proof, pretend it was sent by its actor even if forwarded by another
+		sender, err = l.verifyProof(r.Context(), activity.Proof, &activity, rawActivity, flags, keys)
+		if err != nil {
+			slog.Warn("Failed to verify integrity proof", "activity", &activity, "proof", &activity.Proof, "error", err)
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+			return
+		}
+	} else if ap.IsPortable(activity.ID) {
+		slog.Warn("Portable activity has no integrity proof", "activity", &activity)
 		w.WriteHeader(http.StatusUnauthorized)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
-
+		json.NewEncoder(w).Encode(map[string]any{"error": "integrity proof is required"})
 		return
+	} else {
+		sig, sender, err = l.verifyRequest(r, rawActivity, flags, keys)
+		if err != nil {
+			if errors.Is(err, ErrActorGone) {
+				w.WriteHeader(http.StatusAccepted)
+				return
+			}
+
+			if errors.Is(err, ErrActorNotCached) {
+				slog.Debug("Ignoring Delete activity for unknown actor", "error", err)
+				w.WriteHeader(http.StatusAccepted)
+				return
+			}
+
+			if errors.Is(err, ErrBlockedDomain) {
+				slog.Debug("Failed to verify activity", "activity", &activity, "error", err)
+			} else {
+				slog.Warn("Failed to verify activity", "activity", &activity, "error", err)
+			}
+
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+
+			return
+		}
 	}
 
 	/*
@@ -345,7 +413,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 
 	if _, ok := unsupportedActivityTypes[queued.Type]; ok {
 		slog.Debug("Ignoring unsupported activity", "activity", &activity, "sender", sender.ID)
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusAccepted)
 		return
 	}
 
@@ -362,25 +430,10 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 
 	forwarded := origin != senderOrigin
 
-	// if the activity carries a proof generated by the origin that is still valid, we don't need to fetch it
-	if forwarded && len(activity.Proof.VerificationMethod) > len(origin)+9 && activity.Proof.VerificationMethod[0:8] == "https://" && activity.Proof.VerificationMethod[8:8+len(origin)] == origin && activity.Proof.VerificationMethod[8+len(origin)] == '/' {
-		if err := l.verifyProof(r.Context(), activity.Proof, &activity, rawActivity, flags); err != nil {
-			slog.Warn("Failed to verify integrity proof", "activity", &activity, "proof", &activity.Proof, "error", err)
-
-			w.WriteHeader(http.StatusUnauthorized)
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
-			return
-		}
-
-		slog.Info("Verified integrity proof for forwarded activity", "activity", &activity)
-		forwarded = false
-	}
-
 	/* if we don't support this activity or it's invalid, we don't want to fetch it (we validate again later) */
 	if err := l.validateActivity(queued, origin, 0); errors.Is(err, ap.ErrUnsupportedActivity) {
 		slog.Debug("Activity is unsupported", "activity", &activity, "sender", sender.ID, "error", err)
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusAccepted)
 		return
 	} else if err != nil {
 		slog.Warn("Activity is invalid", "activity", &activity, "sender", sender.ID, "error", err)
@@ -404,7 +457,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 
 		slog.Info("Fetching forwarded object", "activity", &activity, "id", id, "sender", sender.ID)
 
-		if exists, fetched, err := l.fetchObject(r.Context(), id); !exists && queued.Type == ap.Delete {
+		if exists, fetched, err := l.fetchObject(r.Context(), id, keys); !exists && queued.Type == ap.Delete {
 			queued = &ap.Activity{
 				ID:     queued.ID,
 				Type:   ap.Delete,
@@ -470,7 +523,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		// we must validate the original activity because the forwarded one can be valid while the original isn't
 		if err := l.validateActivity(queued, origin, 0); errors.Is(err, ap.ErrUnsupportedActivity) {
 			slog.Debug("Activity is unsupported", "activity", &activity, "sender", sender.ID, "error", err)
-			w.WriteHeader(http.StatusOK)
+			w.WriteHeader(http.StatusAccepted)
 			return
 		} else if err != nil {
 			slog.Warn("Activity is invalid", "activity", &activity, "sender", sender.ID, "error", err)
@@ -498,33 +551,39 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	capabilities := ap.CavageDraftSignatures
-	switch sig.Alg {
-	case "rsa-v1_5-sha256":
-		capabilities = ap.RFC9421RSASignatures
-	case "ed25519":
-		capabilities = ap.RFC9421Ed25519Signatures
-	default:
-		for _, imp := range sender.Generator.Implements {
-			switch imp.Href {
-			case "https://datatracker.ietf.org/doc/html/rfc9421":
-				capabilities |= ap.RFC9421RSASignatures
-			case "https://datatracker.ietf.org/doc/html/rfc9421#name-eddsa-using-curve-edwards25":
-				capabilities |= ap.RFC9421Ed25519Signatures
-			}
+	var capabilities ap.Capability
+	if sig != nil {
+		switch sig.Alg {
+		case "rsa-sha256", "hs2019":
+			capabilities = ap.CavageDraftSignatures
+		case "rsa-v1_5-sha256":
+			capabilities = ap.RFC9421RSASignatures
+		case "ed25519":
+			capabilities = ap.RFC9421Ed25519Signatures
 		}
 	}
 
-	if _, err = l.DB.ExecContext(
-		r.Context(),
-		`INSERT INTO servers (host, capabilities) VALUES ($1, $2) ON CONFLICT(host) DO UPDATE SET capabilities = capabilities | $2, updated = UNIXEPOCH()`,
-		senderOrigin,
-		capabilities,
-	); err != nil {
-		slog.Error("Failed to record server capabilities", "server", senderOrigin, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+	for _, imp := range sender.Generator.Implements {
+		switch imp.Href {
+		case "https://datatracker.ietf.org/doc/html/rfc9421":
+			capabilities |= ap.RFC9421RSASignatures
+		case "https://datatracker.ietf.org/doc/html/rfc9421#name-eddsa-using-curve-edwards25":
+			capabilities |= ap.RFC9421Ed25519Signatures
+		}
 	}
 
-	w.WriteHeader(http.StatusOK)
+	if capabilities > 0 {
+		if _, err = l.DB.ExecContext(
+			r.Context(),
+			`INSERT INTO servers (host, capabilities) VALUES ($1, $2) ON CONFLICT(host) DO UPDATE SET capabilities = capabilities | $2, updated = UNIXEPOCH()`,
+			senderOrigin,
+			capabilities,
+		); err != nil {
+			slog.Error("Failed to record server capabilities", "server", senderOrigin, "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+
+	w.WriteHeader(http.StatusAccepted)
 }

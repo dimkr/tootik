@@ -26,8 +26,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/btcsuite/btcutil/base58"
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/proof"
 )
@@ -46,37 +46,44 @@ func getKeyByID(actor *ap.Actor, keyID string) (ed25519.PublicKey, error) {
 			continue
 		}
 
-		if len(key.PublicKeyMultibase) == 0 {
-			return nil, fmt.Errorf("key %s is empty", key.ID)
+		raw, err := data.DecodeEd25519PublicKey(key.PublicKeyMultibase)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse %s: %w", key.ID, err)
 		}
 
-		if key.PublicKeyMultibase[0] != 'z' {
-			return nil, fmt.Errorf("invalid prefix for %s: %c", key.ID, key.PublicKeyMultibase[0])
-		}
-
-		rawKey := base58.Decode(key.PublicKeyMultibase[1:])
-
-		if len(rawKey) != ed25519.PublicKeySize+2 {
-			return nil, fmt.Errorf("invalid key length for %s: %d", key.ID, len(rawKey))
-		}
-
-		if rawKey[0] != 0xed || rawKey[1] != 0x01 {
-			return nil, fmt.Errorf("invalid prefix for %s: %x%x", key.ID, rawKey[0], rawKey[1])
-		}
-
-		return ed25519.PublicKey(rawKey[2:]), nil
+		return raw, nil
 	}
 
 	return nil, fmt.Errorf("key %s does not exist", keyID)
 }
 
-func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.ResolverFlag) (*httpsig.Signature, *ap.Actor, error) {
+func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.ResolverFlag, keys [2]httpsig.Key) (*httpsig.Signature, *ap.Actor, error) {
 	sig, err := httpsig.Extract(r, body, l.Domain, time.Now(), l.Config.MaxRequestAge)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to verify message: %w", err)
 	}
 
-	actor, err := l.Resolver.ResolveID(r.Context(), l.ActorKeys, sig.KeyID, flags)
+	if sig.Alg == "ed25519" {
+		if m := ap.KeyRegex.FindStringSubmatch(sig.KeyID); m != nil {
+			raw, err := data.DecodeEd25519PublicKey(m[1])
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to parse %s: %w", sig.KeyID, err)
+			}
+
+			if err := sig.Verify(raw); err != nil {
+				return nil, nil, fmt.Errorf("failed to verify message using %s: %w", sig.KeyID, err)
+			}
+
+			actor, err := l.Resolver.ResolveID(r.Context(), keys, sig.KeyID, flags)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to fetch %s: %w", sig.KeyID, err)
+			}
+
+			return sig, actor, nil
+		}
+	}
+
+	actor, err := l.Resolver.ResolveID(r.Context(), keys, sig.KeyID, flags)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get key %s to verify message: %w", sig.KeyID, err)
 	}
@@ -111,20 +118,33 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 	return sig, actor, nil
 }
 
-func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Activity, raw []byte, flags ap.ResolverFlag) error {
-	actor, err := l.Resolver.ResolveID(ctx, l.ActorKeys, p.VerificationMethod, flags)
+func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Activity, raw []byte, flags ap.ResolverFlag, keys [2]httpsig.Key) (*ap.Actor, error) {
+	if m := ap.KeyRegex.FindStringSubmatch(p.VerificationMethod); m != nil {
+		publicKey, err := data.DecodeEd25519PublicKey(m[1])
+		if err != nil {
+			return nil, fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
+		}
+
+		if err := proof.Verify(publicKey, activity.Proof, raw); err != nil {
+			return nil, fmt.Errorf("failed to verify proof using %s: %w", p.VerificationMethod, err)
+		}
+
+		return l.Resolver.ResolveID(ctx, keys, activity.Actor, flags)
+	}
+
+	actor, err := l.Resolver.ResolveID(ctx, keys, p.VerificationMethod, flags)
 	if err != nil {
-		return fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
+		return nil, fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
 	}
 
 	publicKey, err := getKeyByID(actor, p.VerificationMethod)
 	if err != nil {
-		return fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
+		return nil, fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
 	}
 
-	if err := proof.Verify(publicKey, activity.Proof, raw); err != nil {
-		return fmt.Errorf("failed to verify proof using %s: %w", p.VerificationMethod, err)
+	if err := proof.Verify(publicKey, p, raw); err != nil {
+		return nil, fmt.Errorf("failed to verify proof using %s: %w", p.VerificationMethod, err)
 	}
 
-	return nil
+	return actor, nil
 }

@@ -496,6 +496,7 @@ func TestEdit_PollAddOption(t *testing.T) {
 	poller := outbox.Poller{
 		Domain: domain,
 		DB:     server.db,
+		Inbox:  server.inbox,
 	}
 	assert.NoError(poller.Run(context.Background()))
 
@@ -508,7 +509,7 @@ func TestEdit_PollAddOption(t *testing.T) {
 	assert.NotContains(strings.Split(view, "\n"), "0          I couldn't care less")
 	assert.NotContains(strings.Split(view, "\n"), "1 ████████ I couldn't care less")
 
-	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = jsonb_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.db.Exec("update notes set object = jsonb_set(object, '$.updated', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?%%5bPOLL%%20So%%2c%%20polls%%20on%%20Station%%20are%%20pretty%%20cool%%2c%%20right%%3f%%5d%%20Nope%%20%%7c%%20Hell%%20yeah%%21%%20%%7c%%20I%%20couldn%%27t%%20care%%20less", id), server.Alice)
@@ -546,6 +547,7 @@ func TestEdit_RemoveQuestion(t *testing.T) {
 	poller := outbox.Poller{
 		Domain: domain,
 		DB:     server.db,
+		Inbox:  server.inbox,
 	}
 	assert.NoError(poller.Run(context.Background()))
 
@@ -558,7 +560,7 @@ func TestEdit_RemoveQuestion(t *testing.T) {
 	assert.NotContains(strings.Split(view, "\n"), "0          I couldn't care less")
 	assert.NotContains(strings.Split(view, "\n"), "1 ████████ I couldn't care less")
 
-	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = jsonb_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.db.Exec("update notes set object = jsonb_set(object, '$.updated', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?This%%20is%%20not%%20a%%20poll", id), server.Alice)

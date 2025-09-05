@@ -14,25 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package outbox
+package inbox
 
 import (
 	"context"
 	"database/sql"
-	"errors"
+	"encoding/json"
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
 )
 
-// Undo queues an Undo activity for delivery.
-func Undo(ctx context.Context, domain string, db *sql.DB, activity *ap.Activity) error {
-	noteID, ok := activity.Object.(string)
-	if !ok {
-		return errors.New("cannot undo activity")
-	}
-
-	id, err := NewID(domain, "undo")
+func (inbox *Inbox) undo(ctx context.Context, db *sql.DB, actor *ap.Actor, activity *ap.Activity) error {
+	id, err := inbox.NewID(actor.ID, "undo")
 	if err != nil {
 		return err
 	}
@@ -44,47 +38,43 @@ func Undo(ctx context.Context, domain string, db *sql.DB, activity *ap.Activity)
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      id,
 		Type:    ap.Undo,
-		Actor:   activity.Actor,
+		Actor:   actor.ID,
 		To:      to,
 		CC:      activity.CC,
 		Object:  activity,
 	}
 
+	j, err := json.Marshal(&undo)
+	if err != nil {
+		return err
+	}
+
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
+		return err
 	}
 	defer tx.Rollback()
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`DELETE FROM shares WHERE note = ? AND by = ?`,
-		noteID,
-		activity.Actor,
-	); err != nil {
-		return fmt.Errorf("failed to remove share: %w", err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`DELETE FROM feed WHERE note->>'$.id' = ? AND sharer->>'$.id' = ?`,
-		noteID,
-		activity.Actor,
-	); err != nil {
-		return fmt.Errorf("failed to remove share: %w", err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
-		&undo,
+		string(j),
 		activity.Actor,
 	); err != nil {
-		return fmt.Errorf("failed to insert undo activity: %w", err)
+		return err
 	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("%s failed to undo %s: %w", activity.Actor, activity.ID, err)
+	if err := inbox.ProcessActivity(ctx, tx, actor, &undo, string(j), 1, false); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+// Undo queues an Undo activity for delivery.
+func (inbox *Inbox) Undo(ctx context.Context, db *sql.DB, actor *ap.Actor, activity *ap.Activity) error {
+	if err := inbox.undo(ctx, db, actor, activity); err != nil {
+		return fmt.Errorf("failed to undo %s by %s: %w", activity.ID, actor.ID, err)
 	}
 
 	return nil
