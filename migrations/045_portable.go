@@ -53,42 +53,6 @@ func portable(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE TABLE nfollows(id TEXT NOT NULL, follower TEXT NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()), accepted INTEGER, followed TEXT NOT NULL, followedcid TEXT NOT NULL AS (CASE WHEN followed LIKE 'https://%' AND followed LIKE '%/.well-known/apgateway/did:key:z6Mk%' THEN 'ap://' || SUBSTR(followed, 9 + INSTR(SUBSTR(followed, 9), '/') + 22, CASE WHEN INSTR(SUBSTR(followed, 9 + INSTR(SUBSTR(followed, 9), '/') + 22), '?') > 0 THEN INSTR(SUBSTR(followed, 9 + INSTR(SUBSTR(followed, 9), '/') + 22), '?') - 1 ELSE LENGTH(followed) END) WHEN followed LIKE 'https://%' THEN followed ELSE NULL END))`); err != nil {
-		return err
-	}
-
-	if _, err := tx.ExecContext(ctx, `INSERT INTO nfollows(id, follower, followed, accepted) SELECT id, follower, followed, accepted FROM follows`); err != nil {
-		return err
-	}
-
-	if _, err := tx.ExecContext(ctx, `DROP TABLE follows`); err != nil {
-		return err
-	}
-
-	if _, err := tx.ExecContext(ctx, `ALTER TABLE nfollows RENAME TO follows`); err != nil {
-		return err
-	}
-
-	if _, err := tx.ExecContext(ctx, `CREATE INDEX followsid ON follows(id)`); err != nil {
-		return err
-	}
-
-	if _, err := tx.ExecContext(ctx, `CREATE INDEX followsfollower ON follows(follower)`); err != nil {
-		return err
-	}
-
-	if _, err := tx.ExecContext(ctx, `CREATE INDEX followsfollowed ON follows(followed)`); err != nil {
-		return err
-	}
-
-	if _, err := tx.ExecContext(ctx, `CREATE UNIQUE INDEX followsfollowerfollowed ON follows(follower, followed)`); err != nil {
-		return err
-	}
-
-	if _, err := tx.ExecContext(ctx, `CREATE INDEX followsfollowedcid ON follows(followedcid)`); err != nil {
-		return err
-	}
-
 	if _, err := tx.ExecContext(ctx, `ALTER TABLE notes ADD COLUMN cid TEXT NOT NULL AS (CASE WHEN id LIKE 'https://%' AND id LIKE '%/.well-known/apgateway/did:key:z6Mk%' THEN 'ap://' || SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22, CASE WHEN INSTR(SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22), '?') > 0 THEN INSTR(SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22), '?') - 1 ELSE LENGTH(id) END) WHEN id LIKE 'https://%' THEN id ELSE NULL END)`); err != nil {
 		return err
 	}
