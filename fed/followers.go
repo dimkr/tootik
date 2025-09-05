@@ -114,7 +114,12 @@ func (f partialFollowers) Digest(ctx context.Context, db *sql.DB, domain string,
 		return "", err
 	}
 
-	header := fmt.Sprintf(`collectionId="%s", url="https://%s/followers_synchronization/%s", digest="%s"`, actor.Followers, domain, actor.PreferredUsername, digest)
+	var header string
+	if m := ap.GatewayURLRegex.FindStringSubmatch(actor.ID); m != nil {
+		header = fmt.Sprintf(`collectionId="%s", url="https://%s/.well-known/apgateway/did:key:%s/actor/followers_synchronization", digest="%s"`, actor.Followers, domain, m[1], digest)
+	} else {
+		header = fmt.Sprintf(`collectionId="%s", url="https://%s/followers_synchronization/%s", digest="%s"`, actor.Followers, domain, actor.PreferredUsername, digest)
+	}
 	byActor[host] = header
 	return header, nil
 }
@@ -300,7 +305,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 
 		var followID string
 		if err := db.QueryRowContext(ctx, `SELECT follows.id FROM follows WHERE follows.follower = ? AND follows.followed = ?`, follower, d.Followed).Scan(&followID); errors.Is(err, sql.ErrNoRows) {
-			followID, err = d.Inbox.NewID(d.Followed, "follow")
+			followID, err = d.Inbox.NewID(actor.ID, "follow")
 			if err != nil {
 				slog.Warn("Failed to generate fake follow ID", "followed", d.Followed, "follower", follower, "error", err)
 				continue

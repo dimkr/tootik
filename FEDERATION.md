@@ -211,26 +211,19 @@ tootik validates the integrity proof using the Ed25519 public key extracted from
 
 tootik's `inbox` doesn't validate HTTP signatures and simply ignores them. Other servers might do the same, therefore automatic detection of RFC9421 and Ed25519 support on other servers ignores `200 OK` or `202 Accepted` responses from `/.well-known/apgateway`.
 
-tootik forwards the activities sent to portable actors to their followers and other actors that share the same DID, according to `gateways`.
+tootik forwards posts by actors that share the same DID with a local actor, and replies in threads started by such actors.
 
 ## Following
 
-When tootik on `b.localdomain` receives a `Follow` activity for `alice@a.localdomain`, it behaves as if this activity targets `bob@b.localdomain` and responds with `Accept` even if `alice@a.localdomain` sent one. However, tootik doesn't know if other servers behave like this, and it doesn't know if all servers with actors that are canonically `ap://did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor` agree about this actor's list of followers.
-
-Therefore:
-* When a user asks to follow a portable actor, tootik behaves as if the user requested to follow a particular actor.
-* Every time an actor that shares the same canonical ID sends an `Accept` activity, tootik behaves as if the user requested to follow this actor and marks the request as accepted.
-* Every time an additional actor that shares the same canonical ID is fetched for the first time, tootik behaves as if the user requested to follow this actor and copies the request status from a previous request.
+Processing of `Follow`, `Undo`, `Accept` and `Reject` activities follows the 'traditional' semantics based on actor IDs: if tootik on `b.localdomain` receives a `Follow` activity for `alice@a.localdomain`, it ignores this activity because `alice@a.localdomain` is not a local actor.
 
 tootik performs [FEP-8fcf](https://codeberg.org/fediverse/fep/src/branch/main/fep/8fcf/fep-8fcf.md) followers synchronization for portable actors, assuming that other servers track follower<>followed relationships using actor IDs and not using their canonical IDs.
 
-However, tootik doesn't add the `Collection-Synchronization` header when it forwards activities by `alice@a.localdomain` to `bob@b.localdomain`, because `alice@a.localdomain` and `bob@b.localdomain` may disagree about the list of followers due to interoperability issues or simply because federation and persistent storage are not 100% reliable.
-
 ## Replication
 
-When `alice@a.localdomain` receives a `Follow`, `Accept` or `Reject` activity by `bob@b.localdomain`, it forwards it to all actors that share the same canonical ID according to `gateways`.
+tootik forwards activites by a portable actor to all actors that share the same canonical ID, according to `gateways`.
 
-When tootik forwards activities, it assumes that other servers use the same URL format: for example, if the `inbox` property of `alice@a.localdomain` is  `https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor/inbox` and it forwards an activity to `bob@b.localdomain`, it sends a `POST` request to `https://b.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor/inbox`.
+When tootik forwards activities, it assumes that other servers use the same URL format: for example, if the `inbox` property of `alice@a.localdomain` is `https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor/inbox` and it forwards an activity to `bob@b.localdomain`, it sends a `POST` request to `https://b.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor/inbox`.
 
 tootik's activities export feature exports activities by all actors that share the same canonical ID as the user.
 

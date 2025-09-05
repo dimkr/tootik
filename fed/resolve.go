@@ -550,22 +550,6 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
 	}
 
-	if ap.IsPortable(actor.ID) {
-		if _, err := tx.ExecContext(
-			ctx,
-			`
-			INSERT OR IGNORE INTO follows (id, follower, followed, accepted)
-			SELECT others.id, others.follower, $1, others.accepted
-			FROM follows others
-			WHERE others.followedcid = $2
-			`,
-			actor.ID,
-			ap.Canonical(actor.ID),
-		); err != nil {
-			return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
-		}
-	}
-
 	if err := tx.Commit(); err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
 	}

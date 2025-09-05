@@ -401,12 +401,8 @@ func (q *Queue) queueTasks(
 		}
 	}
 
-	/*
-		disable followers synchronization when
-		1. forwarding, even if canonical sender is canonical actor, or
-		2. if not sending to followers
-	*/
-	if job.Sender.ID != job.Activity.Actor || !recipients.Contains(job.Sender.Followers) {
+	// disable followers synchronization if not sending to followers
+	if !recipients.Contains(job.Sender.Followers) {
 		followers = nil
 	}
 

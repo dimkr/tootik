@@ -132,8 +132,7 @@ func TestCluster_Gateways(t *testing.T) {
 
 	bob.
 		Follow("⚡️ Follows").
-		Contains(Line{Type: Link, Text: "🚴 alice (alice@a.localdomain)", URL: "/users/outbox/a.localdomain/.well-known/apgateway/" + did + "/actor"}).
-		Contains(Line{Type: Link, Text: "🚴 carol (carol@c.localdomain)", URL: "/users/outbox/c.localdomain/.well-known/apgateway/" + did + "/actor"})
+		Contains(Line{Type: Link, Text: "🚴 alice (alice@a.localdomain)", URL: "/users/outbox/a.localdomain/.well-known/apgateway/" + did + "/actor"})
 
 	post := alice.
 		Follow("📣 New post").
@@ -147,12 +146,10 @@ func TestCluster_Gateways(t *testing.T) {
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "hi"}).
-		Contains(Line{Type: Quote, Text: "hello"})
+		Contains(Line{Type: Quote, Text: "hi"})
 
 	bob.
 		FollowInput("🔭 View profile", "carol@c.localdomain").
-		Contains(Line{Type: Quote, Text: "hi"}).
 		Contains(Line{Type: Quote, Text: "hello"})
 
 	bob.GotoInput(post.Links["💬 Reply"], "hola").
@@ -185,191 +182,6 @@ func TestCluster_Gateways(t *testing.T) {
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
 		NotContains(Line{Type: Quote, Text: "yo"})
-}
-
-func TestCluster_FollowerForwarding(t *testing.T) {
-	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
-
-	cluster["a.localdomain"].Config.EnablePortableActorRegistration = true
-	cluster["c.localdomain"].Config.EnablePortableActorRegistration = true
-
-	pub, priv, err := ed25519.GenerateKey(nil)
-	if err != nil {
-		t.Fatalf("Failed to generate key: %v", err)
-	}
-	registerPortable := "/users/register?" + data.EncodeEd25519PrivateKey(priv)
-
-	did := "did:key:" + data.EncodeEd25519PublicKey(pub)
-
-	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
-	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
-	carol := cluster["c.localdomain"].Handle(carolKeypair, registerPortable).OK()
-
-	alice.
-		Follow("🐕 Followers").
-		Follow("🔒 Approve new follow requests manually").
-		Follow("⚙️ Settings").
-		Follow("🚲 Data portability").
-		FollowInput("➕ Add", "c.localdomain").
-		OK()
-	carol.
-		Follow("🐕 Followers").
-		Follow("🔒 Approve new follow requests manually").
-		Follow("⚙️ Settings").
-		Follow("🚲 Data portability").
-		FollowInput("➕ Add", "a.localdomain").
-		OK()
-	bob.
-		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Follow("⚡ Follow alice (requires approval)").
-		OK()
-	cluster.Settle(t)
-
-	bob.
-		Follow("⚡️ Follows").
-		Contains(Line{Type: Link, Text: "🚴 alice (alice@a.localdomain) - pending approval", URL: "/users/outbox/a.localdomain/.well-known/apgateway/" + did + "/actor"}).
-		NotContains(Line{Type: Link, Text: "🚴 carol (carol@c.localdomain) - pending approval", URL: "/users/outbox/c.localdomain/.well-known/apgateway/" + did + "/actor"}).
-		NotContains(Line{Type: Link, Text: "🚴 carol (carol@c.localdomain)", URL: "/users/outbox/c.localdomain/.well-known/apgateway/" + did + "/actor"})
-
-	alice.
-		Follow("🐕 Followers").
-		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/b.localdomain/user/bob"})
-	carol.
-		Follow("🐕 Followers").
-		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/b.localdomain/user/bob"})
-
-	alice.
-		Follow("🐕 Followers").
-		Follow("🟢 Accept")
-	cluster.Settle(t)
-
-	bob.
-		Follow("⚡️ Follows").
-		Contains(Line{Type: Link, Text: "🚴 alice (alice@a.localdomain)", URL: "/users/outbox/a.localdomain/.well-known/apgateway/" + did + "/actor"}).
-		NotContains(Line{Type: Link, Text: "🚴 carol (carol@c.localdomain) - pending approval", URL: "/users/outbox/c.localdomain/.well-known/apgateway/" + did + "/actor"}).
-		NotContains(Line{Type: Link, Text: "🚴 carol (carol@c.localdomain)", URL: "/users/outbox/c.localdomain/.well-known/apgateway/" + did + "/actor"})
-
-	carol.
-		Follow("🐕 Followers").
-		Follow("🟢 Accept")
-	cluster.Settle(t)
-
-	bob.
-		Follow("⚡️ Follows").
-		Contains(Line{Type: Link, Text: "🚴 alice (alice@a.localdomain)", URL: "/users/outbox/a.localdomain/.well-known/apgateway/" + did + "/actor"}).
-		Contains(Line{Type: Link, Text: "🚴 carol (carol@c.localdomain)", URL: "/users/outbox/c.localdomain/.well-known/apgateway/" + did + "/actor"})
-	alice.
-		Follow("🐕 Followers").
-		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/b.localdomain/user/bob"})
-	carol.
-		Follow("🐕 Followers").
-		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/b.localdomain/user/bob"})
-
-	carol.
-		Follow("📣 New post").
-		FollowInput("🔔 Your followers and mentioned users", "1").
-		OK()
-	cluster.Settle(t)
-
-	bob.
-		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "1"})
-
-	carol.
-		Follow("🐕 Followers").
-		Follow("🔴 Reject")
-	cluster.Settle(t)
-
-	bob.
-		Follow("⚡️ Follows").
-		Contains(Line{Type: Link, Text: "🚴 alice (alice@a.localdomain)", URL: "/users/outbox/a.localdomain/.well-known/apgateway/" + did + "/actor"}).
-		NotContains(Line{Type: Link, Text: "🚴 carol (carol@c.localdomain)", URL: "/users/outbox/c.localdomain/.well-known/apgateway/" + did + "/actor"})
-
-	alice.
-		Follow("📣 New post").
-		FollowInput("🔔 Your followers and mentioned users", "2").
-		OK()
-	carol.
-		Follow("📣 New post").
-		FollowInput("🔔 Your followers and mentioned users", "3").
-		OK()
-	cluster.Settle(t)
-
-	alice.
-		Follow("😈 My profile").
-		Contains(Line{Type: Quote, Text: "1"}).
-		Contains(Line{Type: Quote, Text: "2"}).
-		Contains(Line{Type: Quote, Text: "3"})
-	alice.
-		Follow("😈 My profile").
-		Contains(Line{Type: Quote, Text: "1"}).
-		Contains(Line{Type: Quote, Text: "2"}).
-		Contains(Line{Type: Quote, Text: "3"})
-	alice.
-		FollowInput("🔭 View profile", "carol@c.localdomain").
-		Contains(Line{Type: Quote, Text: "1"}).
-		Contains(Line{Type: Quote, Text: "2"}).
-		Contains(Line{Type: Quote, Text: "3"})
-	carol.
-		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "1"}).
-		Contains(Line{Type: Quote, Text: "2"}).
-		Contains(Line{Type: Quote, Text: "3"})
-	bob.
-		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "1"}).
-		Contains(Line{Type: Quote, Text: "2"}).
-		NotContains(Line{Type: Quote, Text: "3"})
-	bob.
-		FollowInput("🔭 View profile", "carol@c.localdomain").
-		Contains(Line{Type: Quote, Text: "1"}).
-		Contains(Line{Type: Quote, Text: "2"}).
-		NotContains(Line{Type: Quote, Text: "3"})
-}
-
-func TestCluster_FollowForwarding(t *testing.T) {
-	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
-
-	cluster["a.localdomain"].Config.EnablePortableActorRegistration = true
-	cluster["c.localdomain"].Config.EnablePortableActorRegistration = true
-
-	_, priv, err := ed25519.GenerateKey(nil)
-	if err != nil {
-		t.Fatalf("Failed to generate key: %v", err)
-	}
-	registerPortable := "/users/register?" + data.EncodeEd25519PrivateKey(priv)
-
-	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
-	cluster["b.localdomain"].Register(bobKeypair).OK()
-	carol := cluster["c.localdomain"].Handle(carolKeypair, registerPortable).OK()
-
-	alice.
-		Follow("⚙️ Settings").
-		Follow("🚲 Data portability").
-		FollowInput("➕ Add", "c.localdomain").
-		OK()
-	carol.
-		Follow("⚙️ Settings").
-		Follow("🚲 Data portability").
-		FollowInput("➕ Add", "a.localdomain").
-		OK()
-	cluster.Settle(t)
-
-	alice.
-		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Follow("⚡ Follow bob").
-		OK()
-	cluster.Settle(t)
-
-	alice.
-		Follow("⚡️ Follows").
-		Contains(Line{Type: Link, Text: "👽 bob (bob@b.localdomain)", URL: "/users/outbox/b.localdomain/user/bob"})
-
-	carol.
-		Follow("⚡️ Follows").
-		Contains(Line{Type: Link, Text: "👽 bob (bob@b.localdomain)", URL: "/users/outbox/b.localdomain/user/bob"})
 }
 
 func TestCluster_ForwardedLegacyReply(t *testing.T) {

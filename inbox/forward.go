@@ -129,18 +129,16 @@ func (inbox *Inbox) forwardActivity(ctx context.Context, tx *sql.Tx, note *ap.Ob
 	firstPostID := note.ID
 	var threadStarterID string
 
-	if note.InReplyTo != "" {
-		var depth int
-		if err := tx.QueryRowContext(ctx, `with recursive thread(id, author, parent, depth) as (select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, 1 as depth from notes where id = $1 union all select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent where t.depth <= $2) select id, author, depth from thread order by depth desc limit 1`, note.ID, inbox.Config.MaxForwardingDepth+1).Scan(&firstPostID, &threadStarterID, &depth); err != nil && errors.Is(err, sql.ErrNoRows) {
-			slog.Debug("Failed to find thread for post", "activity", activity.ID, "note", note.ID)
-			return nil
-		} else if err != nil {
-			return fmt.Errorf("failed to fetch first post in thread: %w", err)
-		}
-		if depth > inbox.Config.MaxForwardingDepth {
-			slog.Debug("Thread exceeds depth limit for forwarding", "activity", activity.ID, "note", note.ID)
-			return nil
-		}
+	var depth int
+	if err := tx.QueryRowContext(ctx, `with recursive thread(id, author, parent, depth) as (select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, 1 as depth from notes where id = $1 union all select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent where t.depth <= $2) select id, author, depth from thread order by depth desc limit 1`, note.ID, inbox.Config.MaxForwardingDepth+1).Scan(&firstPostID, &threadStarterID, &depth); err != nil && errors.Is(err, sql.ErrNoRows) {
+		slog.Info("Failed to find thread for post", "activity", activity.ID, "note", note.ID)
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("failed to fetch first post in thread: %w", err)
+	}
+	if depth > inbox.Config.MaxForwardingDepth {
+		slog.Debug("Thread exceeds depth limit for forwarding", "activity", activity.ID, "note", note.ID)
+		return nil
 	}
 
 	if note.IsPublic() {
@@ -152,12 +150,11 @@ func (inbox *Inbox) forwardActivity(ctx context.Context, tx *sql.Tx, note *ap.Ob
 	}
 
 	// only replies need to be forwarded
-	if note.InReplyTo == "" {
+	if !ap.IsPortable(threadStarterID) && note.InReplyTo == "" {
 		return nil
 	}
 
-	var local int
-	if err := tx.QueryRowContext(ctx, `select ed25519privkey not null from persons where id = ?`, threadStarterID).Scan(&local); errors.Is(err, sql.ErrNoRows) || (err == nil && local == 0) {
+	if err := tx.QueryRowContext(ctx, `select id from persons where cid = ? and ed25519privkey is not null`, ap.Canonical(threadStarterID)).Scan(&threadStarterID); errors.Is(err, sql.ErrNoRows) {
 		slog.Debug("Thread starter is federated", "activity", activity.ID, "note", note.ID)
 		return nil
 	} else if err != nil {
@@ -182,6 +179,6 @@ func (inbox *Inbox) forwardActivity(ctx context.Context, tx *sql.Tx, note *ap.Ob
 		return err
 	}
 
-	slog.Info("Forwarding activity to followers of thread starter", "activity", activity.ID, "note", note.ID, "thread", firstPostID, "starter", threadStarterID)
+	slog.Info("Forwarding activity to followers of thread starter", "domain", inbox.Domain, "activity", activity.ID, "note", note.ID, "thread", firstPostID, "starter", threadStarterID)
 	return nil
 }

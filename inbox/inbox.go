@@ -248,17 +248,6 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 			return fmt.Errorf("received an invalid follow request for %s by %s", followed.ID, activity.Actor)
 		}
 
-		if localFollowed == 1 && ap.IsPortable(followed.ID) {
-			if _, err := tx.ExecContext(
-				ctx,
-				`insert or ignore into outbox(activity, sender) values(jsonb(?), ?)`,
-				rawActivity,
-				followed.ID,
-			); err != nil {
-				return fmt.Errorf("failed to forward follow: %w", err)
-			}
-		}
-
 	case ap.Accept:
 		if sender.ID != activity.Actor {
 			return fmt.Errorf("received an invalid Accept for %s by %s", activity.Actor, sender.ID)
@@ -274,44 +263,13 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 
 		slog.Info("Follow is accepted", "activity", activity, "follow", followID)
 
-		var localFollowed, localFollower int
-		var followed, follower string
-		if err := tx.QueryRowContext(ctx, `select followed, follower, exists (select 1 from persons where persons.cid = follows.followedcid and ed25519privkey is not null), exists (select 1 from persons where persons.id = follows.follower and ed25519privkey is not null) from follows where id = ? and accepted is null`, followID).Scan(&followed, &follower, &localFollowed, &localFollower); errors.Is(err, sql.ErrNoRows) {
-			slog.Warn("Follow request is unknown", "follow", followID)
-		} else if err != nil {
-			return fmt.Errorf("failed to fetch follow request %s: %w", followID, err)
-		} else if localFollowed == 1 && ap.IsPortable(followed) {
-			if _, err := tx.ExecContext(
-				ctx,
-				`insert or ignore into outbox(activity, sender) values(jsonb(?), ?)`,
-				rawActivity,
-				followed,
-			); err != nil {
-				return fmt.Errorf("failed to forward follow: %w", err)
-			}
-		} else if localFollower == 1 && ap.IsPortable(follower) {
-			if _, err := tx.ExecContext(
-				ctx,
-				`insert or ignore into outbox(activity, sender) values(jsonb(?), ?)`,
-				rawActivity,
-				follower,
-			); err != nil {
-				return fmt.Errorf("failed to forward follow: %w", err)
-			}
-		}
-
 		if _, err := tx.ExecContext(
 			ctx,
 			`
-			INSERT INTO follows (id, follower, followed, accepted)
-			SELECT $1, others.follower, $2, 1
-			FROM follows others
-			WHERE others.id = $1 AND others.followedcid = $3
-			ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = 1, inserted = UNIXEPOCH()
+			UPDATE follows SET accepted = 1 WHERE id = ? AND followed = ?
 			`,
 			followID,
 			sender.ID,
-			ap.Canonical(sender.ID),
 		); err != nil {
 			return fmt.Errorf("failed to insert follow: %w", err)
 		}
@@ -331,22 +289,6 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 		}
 
 		slog.Info("Follow is rejected", "activity", activity, "follow", followID)
-
-		var followed string
-		if err := tx.QueryRowContext(ctx, `select followed from follows where id = ? and (accepted is null or accepted = 1)`, followID).Scan(&followed); errors.Is(err, sql.ErrNoRows) {
-			slog.Warn("Follow request is unknown", "follow", followID)
-		} else if err != nil {
-			return fmt.Errorf("failed to fetch follow request %s: %w", followID, err)
-		} else if ap.IsPortable(followed) {
-			if _, err := tx.ExecContext(
-				ctx,
-				`insert or ignore into outbox(activity, sender) values(jsonb(?), ?)`,
-				rawActivity,
-				followed,
-			); err != nil {
-				return fmt.Errorf("failed to forward Reject: %w", err)
-			}
-		}
 
 		if res, err := tx.ExecContext(ctx, `update follows set accepted = 0 where id = ? and followed = ? and (accepted is null or accepted = 1)`, followID, sender.ID); err != nil {
 			return fmt.Errorf("failed to reject follow %s: %w", followID, err)

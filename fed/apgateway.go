@@ -18,9 +18,12 @@ package fed
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"regexp"
 	"time"
 
@@ -31,8 +34,9 @@ import (
 )
 
 var (
-	inboxRegex          = regexp.MustCompile(`^(did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/actor)\/inbox[#?]{0,1}.*`)
+	inboxRegex          = regexp.MustCompile(`^(did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/actor)\/inbox\?{0,1}.*`)
 	portableObjectRegex = regexp.MustCompile(`^did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/[^#?]+`)
+	followersRegex      = regexp.MustCompile(`^(did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)\/actor\/followers_synchronization`)
 )
 
 func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
@@ -79,8 +83,71 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (l *Listener) handleApGatewayFollowers(w http.ResponseWriter, r *http.Request, did string) {
+	_, sender, err := l.verifyRequest(r, nil, ap.InstanceActor, l.ActorKeys)
+	if err != nil {
+		slog.Warn("Failed to verify followers request", "error", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	u, err := url.Parse(sender.ID)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	rows, err := l.DB.QueryContext(r.Context(), `SELECT follower FROM follows WHERE followed = 'https://' || ? || '/.well-known/apgateway/' || ? || '/actor' AND follower LIKE 'https://' || ? || '/%' AND accepted = 1`, l.Domain, did, u.Host)
+	if err != nil {
+		slog.Warn("Failed to fetch followers", "did", did, "host", u.Host, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	var items ap.Audience
+
+	for rows.Next() {
+		var follower string
+		if err := rows.Scan(&follower); err != nil {
+			slog.Warn("Failed to fetch followers", "did", did, "host", u.Host, "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		items.Add(follower)
+	}
+	defer rows.Close()
+
+	if err := rows.Err(); err != nil {
+		slog.Warn("Failed to fetch followers", "did", did, "host", u.Host, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	collection, err := json.Marshal(map[string]any{
+		"@context":     "https://www.w3.org/ns/activitystreams",
+		"id":           fmt.Sprintf("https://%s/.well-known/apgateway/%s/actor/followers?domain=%s", l.Domain, did, u.Host),
+		"type":         "OrderedCollection",
+		"orderedItems": items,
+	})
+	if err != nil {
+		slog.Warn("Failed to fetch followers", "did", did, "host", u.Host, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	slog.Info("Received followers request", "sender", sender.ID, "did", did, "host", u.Host, "count", len(items.OrderedMap))
+
+	w.Header().Set("Content-Type", `application/activity+json; charset=utf-8`)
+	w.Write([]byte(collection))
+}
+
 func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
 	resource := r.PathValue("resource")
+
+	if m := followersRegex.FindStringSubmatch(resource); m != nil {
+		l.handleApGatewayFollowers(w, r, m[1])
+		return
+	}
 
 	id := portableObjectRegex.FindString(resource)
 	if id == "" {
