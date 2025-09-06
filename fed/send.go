@@ -112,7 +112,7 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request) (*http.Response, e
 	}
 
 	// other servers may ignore the signature if the request includes a valid integrity proof
-	if !ap.IsPortable(keys[1].ID) {
+	if !ap.GatewayURLRegex.MatchString(urlString) {
 		if _, err = s.DB.ExecContext(
 			req.Context(),
 			`INSERT INTO servers (host, capabilities) VALUES ($1, $2) ON CONFLICT(host) DO UPDATE SET capabilities = capabilities | $2, updated = UNIXEPOCH()`,
