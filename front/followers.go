@@ -45,6 +45,7 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 			w.Error()
 			return
 		}
+		defer tx.Rollback()
 
 		switch action {
 		case "lock":

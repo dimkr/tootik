@@ -511,6 +511,7 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 	if err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
 	}
+	defer tx.Rollback()
 
 	if _, err := tx.ExecContext(
 		ctx,
