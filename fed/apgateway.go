@@ -77,7 +77,7 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	l.doHandleInbox(w, r, actor.ID, [2]httpsig.Key{
+	l.doHandleInbox(w, r, [2]httpsig.Key{
 		{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
 		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey},
 	})

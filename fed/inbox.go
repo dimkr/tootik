@@ -268,13 +268,13 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	l.doHandleInbox(w, r, actor.ID, [2]httpsig.Key{
+	l.doHandleInbox(w, r, [2]httpsig.Key{
 		{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
 		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey},
 	})
 }
 
-func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, receiver string, keys [2]httpsig.Key) {
+func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2]httpsig.Key) {
 	if r.ContentLength > l.Config.MaxRequestBodySize {
 		slog.Warn("Ignoring big request", "size", r.ContentLength)
 		w.WriteHeader(http.StatusRequestEntityTooLarge)

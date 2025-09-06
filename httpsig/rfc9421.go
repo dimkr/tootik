@@ -47,7 +47,6 @@ var (
 	signatureRegex          = regexp.MustCompile(`^([^=\s]+)=:([0-9a-zA-Z\/+]+={0,3}):$`)
 	signatureInputRegex     = regexp.MustCompile(`^([^=\s]+)=\(("[^"\s]+"(?: "[^"\s]+")*)\);([^=;\s]+=[^;\s]+(?:;[^=;\s]+=[^;\s]+)*)$`)
 	signatureInputAttrRegex = regexp.MustCompile(`\b([^=;]+)=([^;]+)`)
-	componentsRegex         = regexp.MustCompile(`^\((?:"([^" ]+)")(?: "[^"]+")*\);`)
 	digestRegex             = regexp.MustCompile(`^([^=]+)=:([0-9a-zA-Z\/+]+={0,3}):$`)
 )
 
