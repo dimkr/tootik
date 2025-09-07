@@ -161,7 +161,8 @@ func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
 	slog.Info("Fetching object", "id", id)
 
 	var actor ap.Actor
-	var raw, ed25519PrivKeyMultibase string
+	var ed25519PrivKeyMultibase sql.NullString
+	var raw string
 	if err := l.DB.QueryRowContext(
 		r.Context(),
 		`
@@ -174,7 +175,7 @@ func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
 			join persons on notes.author = persons.id
 			where notes.cid = $1 and notes.public = 1 and persons.ed25519privkey is not null
 			union all
-			select json(persons.actor) as actor, persons.ed25519privkey, json(outbox.activity) as raw from outbox
+			select json(persons.actor) as actor, null as ed25519privkey, json(outbox.activity) as raw from outbox
 			join persons on outbox.activity->>'$.actor' = persons.id
 			where outbox.cid = $1 and (exists (select 1 from json_each(outbox.activity->'$.cc') where value = $2) or exists (select 1 from json_each(outbox.activity->'$.to') where value = $2)) and persons.ed25519privkey is not null
 		)
@@ -192,7 +193,13 @@ func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
+	if !ed25519PrivKeyMultibase.Valid {
+		w.Header().Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
+		w.Write([]byte(raw))
+		return
+	}
+
+	ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase.String)
 	if err != nil {
 		slog.Warn("Failed to decode key", "id", id, "key", actor.AssertionMethod[0].ID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
