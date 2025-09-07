@@ -31,6 +31,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/proof"
 )
 
 var unsupportedActivityTypes = map[ap.ActivityType]struct{}{
@@ -233,6 +234,40 @@ func (l *Listener) fetchObject(ctx context.Context, id string, keys [2]httpsig.K
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, l.Config.MaxRequestBodySize))
 	if err != nil {
+		return true, nil, err
+	}
+
+	if !ap.IsPortable(id) {
+		return true, body, nil
+	}
+
+	var withProof struct {
+		Proof ap.Proof `json:"proof"`
+	}
+	if err := json.Unmarshal(body, &withProof); err != nil {
+		return true, nil, err
+	}
+
+	m := ap.KeyRegex.FindStringSubmatch(withProof.Proof.VerificationMethod)
+	if m == nil {
+		return true, nil, fmt.Errorf("%s does not contain a public key", withProof.Proof.VerificationMethod)
+	}
+
+	origin, err := ap.Origin(id)
+	if err != nil {
+		return true, nil, fmt.Errorf("failed to get origin of %s: %w", id, err)
+	}
+
+	if origin != "did:key:"+m[1] {
+		return true, nil, fmt.Errorf("key %s does not belong to %s", m[1], origin)
+	}
+
+	publicKey, err := data.DecodeEd25519PublicKey(m[1])
+	if err != nil {
+		return true, nil, fmt.Errorf("failed to verify proof using %s: %w", withProof.Proof.VerificationMethod, err)
+	}
+
+	if err := proof.Verify(publicKey, withProof.Proof, body); err != nil {
 		return true, nil, err
 	}
 
