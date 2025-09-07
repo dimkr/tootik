@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/inbox/note"
+	"github.com/dimkr/tootik/inbox"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -53,7 +53,7 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 	)
 
 	assert.NoError(
-		note.Insert(
+		inbox.Insert(
 			context.Background(),
 			tx,
 			&ap.Object{
@@ -120,7 +120,7 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 	)
 
 	assert.NoError(
-		note.Insert(
+		inbox.Insert(
 			context.Background(),
 			tx,
 			&ap.Object{
@@ -225,7 +225,7 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 	)
 
 	assert.NoError(
-		note.Insert(
+		inbox.Insert(
 			context.Background(),
 			tx,
 			&ap.Object{
@@ -239,7 +239,7 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 	)
 
 	assert.NoError(
-		note.Insert(
+		inbox.Insert(
 			context.Background(),
 			tx,
 			&ap.Object{
@@ -304,7 +304,7 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 	)
 
 	assert.NoError(
-		note.Insert(
+		inbox.Insert(
 			context.Background(),
 			tx,
 			&ap.Object{
@@ -368,7 +368,7 @@ func TestForward_ReplyToDM(t *testing.T) {
 	)
 
 	assert.NoError(
-		note.Insert(
+		inbox.Insert(
 			context.Background(),
 			tx,
 			&ap.Object{
@@ -422,7 +422,7 @@ func TestForward_NotFollowingAuthor(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		note.Insert(
+		inbox.Insert(
 			context.Background(),
 			tx,
 			&ap.Object{
@@ -486,7 +486,7 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 	)
 
 	assert.NoError(
-		note.Insert(
+		inbox.Insert(
 			context.Background(),
 			tx,
 			&ap.Object{
@@ -540,7 +540,7 @@ func TestForward_ReplyToFederatedPost(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		note.Insert(
+		inbox.Insert(
 			context.Background(),
 			tx,
 			&ap.Object{
@@ -604,7 +604,7 @@ func TestForward_MaxDepth(t *testing.T) {
 	)
 
 	assert.NoError(
-		note.Insert(
+		inbox.Insert(
 			context.Background(),
 			tx,
 			&ap.Object{
@@ -618,7 +618,7 @@ func TestForward_MaxDepth(t *testing.T) {
 	)
 
 	assert.NoError(
-		note.Insert(
+		inbox.Insert(
 			context.Background(),
 			tx,
 			&ap.Object{
@@ -633,7 +633,7 @@ func TestForward_MaxDepth(t *testing.T) {
 	)
 
 	assert.NoError(
-		note.Insert(
+		inbox.Insert(
 			context.Background(),
 			tx,
 			&ap.Object{
@@ -648,7 +648,7 @@ func TestForward_MaxDepth(t *testing.T) {
 	)
 
 	assert.NoError(
-		note.Insert(
+		inbox.Insert(
 			context.Background(),
 			tx,
 			&ap.Object{
@@ -713,7 +713,7 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 	)
 
 	assert.NoError(
-		note.Insert(
+		inbox.Insert(
 			context.Background(),
 			tx,
 			&ap.Object{
@@ -727,7 +727,7 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 	)
 
 	assert.NoError(
-		note.Insert(
+		inbox.Insert(
 			context.Background(),
 			tx,
 			&ap.Object{
@@ -742,7 +742,7 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 	)
 
 	assert.NoError(
-		note.Insert(
+		inbox.Insert(
 			context.Background(),
 			tx,
 			&ap.Object{
@@ -757,7 +757,7 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 	)
 
 	assert.NoError(
-		note.Insert(
+		inbox.Insert(
 			context.Background(),
 			tx,
 			&ap.Object{
@@ -772,7 +772,7 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 	)
 
 	assert.NoError(
-		note.Insert(
+		inbox.Insert(
 			context.Background(),
 			tx,
 			&ap.Object{
@@ -974,7 +974,7 @@ func TestForward_EditedReplyToPublicPost(t *testing.T) {
 	)
 
 	assert.NoError(
-		note.Insert(
+		inbox.Insert(
 			context.Background(),
 			tx,
 			&ap.Object{
@@ -1073,7 +1073,7 @@ func TestForward_ResentEditedReplyToPublicPost(t *testing.T) {
 	)
 
 	assert.NoError(
-		note.Insert(
+		inbox.Insert(
 			context.Background(),
 			tx,
 			&ap.Object{
@@ -1183,7 +1183,7 @@ func TestForward_DeletedReplyToPublicPost(t *testing.T) {
 	)
 
 	assert.NoError(
-		note.Insert(
+		inbox.Insert(
 			context.Background(),
 			tx,
 			&ap.Object{
@@ -1260,7 +1260,7 @@ func TestForward_DeletedDeletedReplyToPublicPost(t *testing.T) {
 	)
 
 	assert.NoError(
-		note.Insert(
+		inbox.Insert(
 			context.Background(),
 			tx,
 			&ap.Object{

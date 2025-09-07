@@ -23,9 +23,11 @@ import (
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/proof"
 )
 
-func (inbox *Inbox) undo(ctx context.Context, db *sql.DB, actor *ap.Actor, activity *ap.Activity) error {
+func (inbox *Inbox) undo(ctx context.Context, db *sql.DB, actor *ap.Actor, key httpsig.Key, activity *ap.Activity) error {
 	id, err := inbox.NewID(actor.ID, "undo")
 	if err != nil {
 		return err
@@ -34,7 +36,7 @@ func (inbox *Inbox) undo(ctx context.Context, db *sql.DB, actor *ap.Actor, activ
 	to := activity.To
 	to.Add(ap.Public)
 
-	undo := ap.Activity{
+	undo := &ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      id,
 		Type:    ap.Undo,
@@ -44,7 +46,13 @@ func (inbox *Inbox) undo(ctx context.Context, db *sql.DB, actor *ap.Actor, activ
 		Object:  activity,
 	}
 
-	j, err := json.Marshal(&undo)
+	if !inbox.Config.DisableIntegrityProofs {
+		if undo.Proof, err = proof.Create(key, undo); err != nil {
+			return err
+		}
+	}
+
+	j, err := json.Marshal(undo)
 	if err != nil {
 		return err
 	}
@@ -64,7 +72,7 @@ func (inbox *Inbox) undo(ctx context.Context, db *sql.DB, actor *ap.Actor, activ
 		return err
 	}
 
-	if err := inbox.ProcessActivity(ctx, tx, actor, &undo, string(j), 1, false); err != nil {
+	if err := inbox.ProcessActivity(ctx, tx, actor, undo, string(j), 1, false); err != nil {
 		return err
 	}
 
@@ -72,8 +80,8 @@ func (inbox *Inbox) undo(ctx context.Context, db *sql.DB, actor *ap.Actor, activ
 }
 
 // Undo queues an Undo activity for delivery.
-func (inbox *Inbox) Undo(ctx context.Context, db *sql.DB, actor *ap.Actor, activity *ap.Activity) error {
-	if err := inbox.undo(ctx, db, actor, activity); err != nil {
+func (inbox *Inbox) Undo(ctx context.Context, db *sql.DB, actor *ap.Actor, key httpsig.Key, activity *ap.Activity) error {
+	if err := inbox.undo(ctx, db, actor, key, activity); err != nil {
 		return fmt.Errorf("failed to undo %s by %s: %w", activity.ID, actor.ID, err)
 	}
 

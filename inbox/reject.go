@@ -23,9 +23,11 @@ import (
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/proof"
 )
 
-func (inbox *Inbox) reject(ctx context.Context, followed *ap.Actor, follower, followID string, tx *sql.Tx) error {
+func (inbox *Inbox) reject(ctx context.Context, followed *ap.Actor, key httpsig.Key, follower, followID string, tx *sql.Tx) error {
 	id, err := inbox.NewID(followed.ID, "reject")
 	if err != nil {
 		return err
@@ -34,7 +36,7 @@ func (inbox *Inbox) reject(ctx context.Context, followed *ap.Actor, follower, fo
 	recipients := ap.Audience{}
 	recipients.Add(follower)
 
-	reject := ap.Activity{
+	reject := &ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		Type:    ap.Reject,
 		ID:      id,
@@ -48,7 +50,13 @@ func (inbox *Inbox) reject(ctx context.Context, followed *ap.Actor, follower, fo
 		},
 	}
 
-	j, err := json.Marshal(&reject)
+	if !inbox.Config.DisableIntegrityProofs {
+		if reject.Proof, err = proof.Create(key, reject); err != nil {
+			return err
+		}
+	}
+
+	j, err := json.Marshal(reject)
 	if err != nil {
 		return err
 	}
@@ -62,12 +70,12 @@ func (inbox *Inbox) reject(ctx context.Context, followed *ap.Actor, follower, fo
 		return err
 	}
 
-	return inbox.ProcessActivity(ctx, tx, followed, &reject, string(j), 1, false)
+	return inbox.ProcessActivity(ctx, tx, followed, reject, string(j), 1, false)
 }
 
 // Reject queues a Reject activity for delivery.
-func (inbox *Inbox) Reject(ctx context.Context, followed *ap.Actor, follower, followID string, tx *sql.Tx) error {
-	if err := inbox.reject(ctx, followed, follower, followID, tx); err != nil {
+func (inbox *Inbox) Reject(ctx context.Context, followed *ap.Actor, key httpsig.Key, follower, followID string, tx *sql.Tx) error {
+	if err := inbox.reject(ctx, followed, key, follower, followID, tx); err != nil {
 		return fmt.Errorf("failed to reject %s from %s by %s: %w", followID, follower, followed.ID, err)
 	}
 

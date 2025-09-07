@@ -170,7 +170,7 @@ func (h *Handler) gatewayAdd(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := h.Inbox.UpdateActor(r.Context, tx, r.User.ID); err != nil {
+	if err := h.Inbox.UpdateActor(r.Context, tx, r.User.ID, r.Keys[1]); err != nil {
 		r.Log.Error("Failed to add gateway", "gateway", gw, "error", err)
 		w.Error()
 		return
@@ -265,7 +265,7 @@ found:
 		return
 	}
 
-	if err := h.Inbox.UpdateActor(r.Context, tx, r.User.ID); err != nil {
+	if err := h.Inbox.UpdateActor(r.Context, tx, r.User.ID, r.Keys[1]); err != nil {
 		r.Log.Error("Failed to remove gateway", "gateway", gw, "id", id, "error", err)
 		w.Error()
 		return

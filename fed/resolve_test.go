@@ -30,7 +30,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front/user"
-	"github.com/dimkr/tootik/inbox/note"
+	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/migrations"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
@@ -3407,7 +3407,7 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		note.Insert(
+		inbox.Insert(
 			context.Background(),
 			tx,
 			&ap.Object{
@@ -3603,7 +3603,7 @@ func TestResolve_FederatedActorFirstTimeDeleted(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		note.Insert(
+		inbox.Insert(
 			context.Background(),
 			tx,
 			&ap.Object{

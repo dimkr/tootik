@@ -23,9 +23,11 @@ import (
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/proof"
 )
 
-func (inbox *Inbox) unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor, followed, followID string) error {
+func (inbox *Inbox) unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor, key httpsig.Key, followed, followID string) error {
 	if ap.Canonical(followed) == ap.Canonical(follower.ID) {
 		return fmt.Errorf("%s cannot unfollow %s", follower.ID, followed)
 	}
@@ -38,7 +40,7 @@ func (inbox *Inbox) unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor
 	to := ap.Audience{}
 	to.Add(followed)
 
-	unfollow := ap.Activity{
+	unfollow := &ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      undoID,
 		Type:    ap.Undo,
@@ -52,7 +54,13 @@ func (inbox *Inbox) unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor
 		To: to,
 	}
 
-	j, err := json.Marshal(&unfollow)
+	if !inbox.Config.DisableIntegrityProofs {
+		if unfollow.Proof, err = proof.Create(key, unfollow); err != nil {
+			return err
+		}
+	}
+
+	j, err := json.Marshal(unfollow)
 	if err != nil {
 		return err
 	}
@@ -81,7 +89,7 @@ func (inbox *Inbox) unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor
 		return err
 	}
 
-	if err := inbox.ProcessActivity(ctx, tx, follower, &unfollow, string(j), 1, false); err != nil {
+	if err := inbox.ProcessActivity(ctx, tx, follower, unfollow, string(j), 1, false); err != nil {
 		return err
 	}
 
@@ -89,8 +97,8 @@ func (inbox *Inbox) unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor
 }
 
 // Unfollow queues an Undo activity for delivery.
-func (inbox *Inbox) Unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor, followed, followID string) error {
-	if err := inbox.unfollow(ctx, db, follower, followed, followID); err != nil {
+func (inbox *Inbox) Unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor, key httpsig.Key, followed, followID string) error {
+	if err := inbox.unfollow(ctx, db, follower, key, followed, followID); err != nil {
 		return fmt.Errorf("failed to unfollow %s from %s by %s: %w", followID, follower.ID, followed, err)
 	}
 

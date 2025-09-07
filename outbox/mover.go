@@ -23,6 +23,7 @@ import (
 	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 )
 
@@ -75,7 +76,7 @@ func (m *Mover) Run(ctx context.Context) error {
 	rows, err := m.DB.QueryContext(
 		ctx,
 		`
-			select json(persons.actor), old.id, new.id, follows.id, new.id = follows.follower or exists (select 1 from follows where follower = persons.id and followed = new.id) from
+			select json(persons.actor), persons.ed25519privkey, old.id, new.id, follows.id, new.id = follows.follower or exists (select 1 from follows where follower = persons.id and followed = new.id) from
 			persons old
 			join
 			persons new
@@ -102,10 +103,17 @@ func (m *Mover) Run(ctx context.Context) error {
 
 	for rows.Next() {
 		var actor ap.Actor
+		var ed25519PrivKeyMultibase string
 		var oldID, NewID, oldFollowID string
 		var onlyRemove bool
-		if err := rows.Scan(&actor, &oldID, &NewID, &oldFollowID, &onlyRemove); err != nil {
+		if err := rows.Scan(&actor, &ed25519PrivKeyMultibase, &oldID, &NewID, &oldFollowID, &onlyRemove); err != nil {
 			slog.Error("Failed to scan follow to move", "error", err)
+			continue
+		}
+
+		ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
+		if err != nil {
+			slog.Error("Failed to decode Ed25519 private key", "error", err)
 			continue
 		}
 
@@ -113,12 +121,12 @@ func (m *Mover) Run(ctx context.Context) error {
 			slog.Info("Removing follow of moved actor", "follow", oldFollowID, "old", oldID, "new", NewID)
 		} else {
 			slog.Info("Moving follow", "follow", oldFollowID, "old", oldID, "new", NewID)
-			if err := m.Inbox.Follow(ctx, &actor, NewID, m.DB); err != nil {
+			if err := m.Inbox.Follow(ctx, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}, NewID, m.DB); err != nil {
 				slog.Warn("Failed to follow new actor", "follow", oldFollowID, "old", oldID, "new", NewID, "error", err)
 				continue
 			}
 		}
-		if err := m.Inbox.Unfollow(ctx, m.DB, &actor, oldID, oldFollowID); err != nil {
+		if err := m.Inbox.Unfollow(ctx, m.DB, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}, oldID, oldFollowID); err != nil {
 			slog.Warn("Failed to unfollow old actor", "follow", oldFollowID, "old", oldID, "new", NewID, "error", err)
 		}
 	}

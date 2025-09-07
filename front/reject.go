@@ -55,7 +55,7 @@ func (h *Handler) reject(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := h.Inbox.Reject(r.Context, r.User, follower, followID, tx); err != nil {
+	if err := h.Inbox.Reject(r.Context, r.User, r.Keys[1], follower, followID, tx); err != nil {
 		r.Log.Warn("Failed to reject follow request", "follower", follower, "error", err)
 		w.Error()
 		return

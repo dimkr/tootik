@@ -14,8 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package note handles insertion of posts.
-package note
+package inbox
 
 import (
 	"context"
@@ -29,8 +28,8 @@ import (
 	"github.com/dimkr/tootik/front/text/plain"
 )
 
-// Flatten converts a post into text that can be indexed for search purposes.
-func Flatten(note *ap.Object) string {
+// flatten converts a post into text that can be indexed for search purposes.
+func flatten(note *ap.Object) string {
 	content, links := plain.FromHTML(note.Content)
 	for _, mention := range note.Tag {
 		if mention.Type == ap.Mention {
@@ -98,7 +97,7 @@ func Insert(ctx context.Context, tx *sql.Tx, note *ap.Object) error {
 		ctx,
 		`INSERT INTO notesfts (id, content) VALUES(?,?)`,
 		note.ID,
-		Flatten(note),
+		flatten(note),
 	); err != nil {
 		return fmt.Errorf("failed to insert note %s: %w", note.ID, err)
 	}

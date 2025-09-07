@@ -247,9 +247,9 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 
 		note.Updated = now
 
-		err = h.Inbox.UpdateNote(r.Context, h.DB, r.User, &note)
+		err = h.Inbox.UpdateNote(r.Context, h.DB, r.User, r.Keys[1], &note)
 	} else {
-		err = h.Inbox.Create(r.Context, h.Config, h.DB, &note, r.User)
+		err = h.Inbox.Create(r.Context, h.Config, h.DB, &note, r.User, r.Keys[1])
 	}
 	if err != nil {
 		r.Log.Error("Failed to insert post", "error", err)

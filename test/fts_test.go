@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/inbox/note"
+	"github.com/dimkr/tootik/inbox"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -186,7 +186,7 @@ func TestFTS_SearchByMentionUserName(t *testing.T) {
 	to.Add(ap.Public)
 
 	assert.NoError(
-		note.Insert(
+		inbox.Insert(
 			context.Background(),
 			tx,
 			&ap.Object{
@@ -226,7 +226,7 @@ func TestFTS_SearchByMentionID(t *testing.T) {
 	to.Add(ap.Public)
 
 	assert.NoError(
-		note.Insert(
+		inbox.Insert(
 			context.Background(),
 			tx,
 			&ap.Object{

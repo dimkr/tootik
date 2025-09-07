@@ -23,15 +23,17 @@ import (
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/proof"
 )
 
-func (inbox *Inbox) updateNote(ctx context.Context, db *sql.DB, actor *ap.Actor, note *ap.Object) error {
+func (inbox *Inbox) updateNote(ctx context.Context, db *sql.DB, actor *ap.Actor, key httpsig.Key, note *ap.Object) error {
 	updateID, err := inbox.NewID(note.AttributedTo, "update")
 	if err != nil {
 		return err
 	}
 
-	update := ap.Activity{
+	update := &ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      updateID,
 		Type:    ap.Update,
@@ -39,6 +41,12 @@ func (inbox *Inbox) updateNote(ctx context.Context, db *sql.DB, actor *ap.Actor,
 		Object:  note,
 		To:      note.To,
 		CC:      note.CC,
+	}
+
+	if !inbox.Config.DisableIntegrityProofs {
+		if update.Proof, err = proof.Create(key, update); err != nil {
+			return err
+		}
 	}
 
 	j, err := json.Marshal(update)
@@ -75,7 +83,7 @@ func (inbox *Inbox) updateNote(ctx context.Context, db *sql.DB, actor *ap.Actor,
 		}
 	}
 
-	if err := inbox.ProcessActivity(ctx, tx, actor, &update, string(j), 1, false); err != nil {
+	if err := inbox.ProcessActivity(ctx, tx, actor, update, string(j), 1, false); err != nil {
 		return err
 	}
 
@@ -83,15 +91,15 @@ func (inbox *Inbox) updateNote(ctx context.Context, db *sql.DB, actor *ap.Actor,
 }
 
 // UpdateNote queues an Update activity for delivery.
-func (inbox *Inbox) UpdateNote(ctx context.Context, db *sql.DB, actor *ap.Actor, note *ap.Object) error {
-	if err := inbox.updateNote(ctx, db, actor, note); err != nil {
+func (inbox *Inbox) UpdateNote(ctx context.Context, db *sql.DB, actor *ap.Actor, key httpsig.Key, note *ap.Object) error {
+	if err := inbox.updateNote(ctx, db, actor, key, note); err != nil {
 		return fmt.Errorf("failed to update %s by %s: %w", note.ID, actor.ID, err)
 	}
 
 	return nil
 }
 
-func (inbox *Inbox) updateActor(ctx context.Context, tx *sql.Tx, actorID string) error {
+func (inbox *Inbox) updateActor(ctx context.Context, tx *sql.Tx, actorID string, key httpsig.Key) error {
 	updateID, err := inbox.NewID(actorID, "update")
 	if err != nil {
 		return err
@@ -100,7 +108,7 @@ func (inbox *Inbox) updateActor(ctx context.Context, tx *sql.Tx, actorID string)
 	to := ap.Audience{}
 	to.Add(ap.Public)
 
-	update := ap.Activity{
+	update := &ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      updateID,
 		Type:    ap.Update,
@@ -109,18 +117,24 @@ func (inbox *Inbox) updateActor(ctx context.Context, tx *sql.Tx, actorID string)
 		To:      to,
 	}
 
+	if !inbox.Config.DisableIntegrityProofs {
+		if update.Proof, err = proof.Create(key, update); err != nil {
+			return err
+		}
+	}
+
 	_, err = tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
-		&update,
+		update,
 		actorID,
 	)
 	return err
 }
 
 // UpdateActor queues an Update activity for delivery.
-func (inbox *Inbox) UpdateActor(ctx context.Context, tx *sql.Tx, actorID string) error {
-	if err := inbox.updateActor(ctx, tx, actorID); err != nil {
+func (inbox *Inbox) UpdateActor(ctx context.Context, tx *sql.Tx, actorID string, key httpsig.Key) error {
+	if err := inbox.updateActor(ctx, tx, actorID, key); err != nil {
 		return fmt.Errorf("failed to update %s: %w", actorID, err)
 	}
 
