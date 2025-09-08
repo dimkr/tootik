@@ -9,7 +9,7 @@ require (
 	github.com/gowebpki/jcs v1.0.1
 	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/image v0.30.0
+	golang.org/x/image v0.31.0
 	golang.org/x/net v0.43.0
 )
 
