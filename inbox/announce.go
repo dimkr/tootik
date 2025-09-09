@@ -24,9 +24,11 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/proof"
 )
 
-func (inbox *Inbox) announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, note *ap.Object) error {
+func (inbox *Inbox) announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, key httpsig.Key, note *ap.Object) error {
 	announceID, err := inbox.NewID(actor.ID, "announce")
 	if err != nil {
 		return err
@@ -39,7 +41,7 @@ func (inbox *Inbox) announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, n
 	to.Add(note.AttributedTo)
 	to.Add(actor.Followers)
 
-	announce := ap.Activity{
+	announce := &ap.Activity{
 		Context:   "https://www.w3.org/ns/activitystreams",
 		ID:        announceID,
 		Type:      ap.Announce,
@@ -50,7 +52,13 @@ func (inbox *Inbox) announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, n
 		Object:    note.ID,
 	}
 
-	j, err := json.Marshal(&announce)
+	if !inbox.Config.DisableIntegrityProofs {
+		if announce.Proof, err = proof.Create(key, announce); err != nil {
+			return err
+		}
+	}
+
+	j, err := json.Marshal(announce)
 	if err != nil {
 		return err
 	}
@@ -64,12 +72,12 @@ func (inbox *Inbox) announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, n
 		return err
 	}
 
-	return inbox.ProcessActivity(ctx, tx, actor, &announce, string(j), 1, false)
+	return inbox.ProcessActivity(ctx, tx, actor, announce, string(j), 1, false)
 }
 
 // Announce queues an Announce activity for delivery.
-func (inbox *Inbox) Announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, note *ap.Object) error {
-	if err := inbox.announce(ctx, tx, actor, note); err != nil {
+func (inbox *Inbox) Announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, key httpsig.Key, note *ap.Object) error {
+	if err := inbox.announce(ctx, tx, actor, key, note); err != nil {
 		return fmt.Errorf("failed to announce %s by %s: %w", note.ID, actor.ID, err)
 	}
 

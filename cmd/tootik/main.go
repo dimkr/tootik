@@ -46,6 +46,7 @@ import (
 	"github.com/dimkr/tootik/front/guppy"
 	tplain "github.com/dimkr/tootik/front/text/plain"
 	"github.com/dimkr/tootik/front/user"
+	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/icon"
 	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/migrations"
@@ -229,12 +230,18 @@ func main() {
 		}
 		defer tx.Rollback()
 
-		var actorID string
+		var actor ap.Actor
+		var ed25519PrivKeyMultibase string
 		if err := tx.QueryRowContext(
 			ctx,
-			`select id from persons where ed25519privkey is not null and actor->>'$.preferredUsername' = ?`,
+			`select json(actor), ed25519privkey from persons where ed25519privkey is not null and actor->>'$.preferredUsername' = ?`,
 			flag.Arg(1),
-		).Scan(&actorID); err != nil {
+		).Scan(&actor, &ed25519PrivKeyMultibase); err != nil {
+			panic(err)
+		}
+
+		ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
+		if err != nil {
 			panic(err)
 		}
 
@@ -243,12 +250,12 @@ func main() {
 			`update persons set actor = jsonb_set(actor, '$.summary', ?, '$.updated', ?) where id = ?`,
 			tplain.ToHTML(string(summary), nil),
 			time.Now().Format(time.RFC3339Nano),
-			actorID,
+			actor.ID,
 		); err != nil {
 			panic(err)
 		}
 
-		if err := localInbox.UpdateActor(ctx, tx, actorID); err != nil {
+		if err := localInbox.UpdateActor(ctx, tx, actor.ID, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}); err != nil {
 			panic(err)
 		}
 
@@ -277,12 +284,18 @@ func main() {
 
 		userName := flag.Arg(1)
 
-		var actorID string
+		var actor ap.Actor
+		var ed25519PrivKeyMultibase string
 		if err := tx.QueryRowContext(
 			ctx,
-			`select id from persons where ed25519privkey is not null and actor->>'$.preferredUsername' = ?`,
+			`select select json(actor), ed25519privkey from persons where ed25519privkey is not null and actor->>'$.preferredUsername' = ?`,
 			userName,
-		).Scan(&actorID); err != nil {
+		).Scan(&actor, &ed25519PrivKeyMultibase); err != nil {
+			panic(err)
+		}
+
+		ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
+		if err != nil {
 			panic(err)
 		}
 
@@ -293,7 +306,7 @@ func main() {
 			"update persons set actor = jsonb_set(actor, '$.icon.url', $1, '$.icon[0].url', $1, '$.updated', $2) where id = $3",
 			fmt.Sprintf("https://%s/icon/%s%s#%d", *domain, userName, icon.FileNameExtension, now.UnixNano()),
 			now.Format(time.RFC3339Nano),
-			actorID,
+			actor.ID,
 		); err != nil {
 			panic(err)
 		}
@@ -307,7 +320,7 @@ func main() {
 			panic(err)
 		}
 
-		if err := localInbox.UpdateActor(ctx, tx, actorID); err != nil {
+		if err := localInbox.UpdateActor(ctx, tx, actor.ID, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}); err != nil {
 			panic(err)
 		}
 

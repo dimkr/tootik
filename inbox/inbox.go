@@ -31,6 +31,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/fed"
+	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/inbox/note"
 )
 
@@ -193,9 +194,9 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 			return errors.New("received an invalid follow request")
 		}
 
-		var localFollowed int
+		var ed25519PrivKeyMultibase sql.NullString
 		var followed ap.Actor
-		if err := tx.QueryRowContext(ctx, `select ed25519privkey is not null, json(actor) from persons where cid = ? order by ed25519privkey is not null desc limit 1`, ap.Canonical(followedID)).Scan(&localFollowed, &followed); errors.Is(err, sql.ErrNoRows) {
+		if err := tx.QueryRowContext(ctx, `select ed25519privkey, json(actor) from persons where cid = ? order by ed25519privkey is not null desc limit 1`, ap.Canonical(followedID)).Scan(&ed25519PrivKeyMultibase, &followed); errors.Is(err, sql.ErrNoRows) {
 			var localFollowerID string
 			if err := tx.QueryRowContext(ctx, `select id from persons where cid = ? and ed25519privkey is not null`, ap.Canonical(activity.Actor)).Scan(&localFollowerID); errors.Is(err, sql.ErrNoRows) {
 				return fmt.Errorf("received an invalid follow request for %s by %s", followedID, activity.Actor)
@@ -216,7 +217,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 			return fmt.Errorf("failed to fetch %s: %w", followed.ID, err)
 		}
 
-		if localFollowed == 0 || followed.ManuallyApprovesFollowers {
+		if !ed25519PrivKeyMultibase.Valid || followed.ManuallyApprovesFollowers {
 			slog.Info("Not approving follow request", "activity", activity, "follower", activity.Actor, "followed", followed.ID)
 
 			if _, err := tx.ExecContext(
@@ -228,7 +229,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 			); err != nil {
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
-		} else if localFollowed == 1 && !followed.ManuallyApprovesFollowers {
+		} else if ed25519PrivKeyMultibase.Valid && !followed.ManuallyApprovesFollowers {
 			slog.Info("Approving follow request", "activity", activity, "follower", activity.Actor, "followed", followed.ID)
 
 			if _, err := tx.ExecContext(
@@ -241,7 +242,12 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
 
-			if err := inbox.Accept(ctx, &followed, activity.Actor, activity.ID, tx); err != nil {
+			ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase.String)
+			if err != nil {
+				return fmt.Errorf("failed to accept %s: %w", activity.ID, err)
+			}
+
+			if err := inbox.Accept(ctx, &followed, httpsig.Key{ID: followed.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}, activity.Actor, activity.ID, tx); err != nil {
 				return fmt.Errorf("failed to accept %s: %w", activity.ID, err)
 			}
 		} else {

@@ -23,9 +23,11 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/proof"
 )
 
-func (inbox *Inbox) move(ctx context.Context, db *sql.DB, from *ap.Actor, to string) error {
+func (inbox *Inbox) move(ctx context.Context, db *sql.DB, from *ap.Actor, key httpsig.Key, to string) error {
 	aud := ap.Audience{}
 	aud.Add(from.Followers)
 
@@ -34,7 +36,7 @@ func (inbox *Inbox) move(ctx context.Context, db *sql.DB, from *ap.Actor, to str
 		return err
 	}
 
-	move := ap.Activity{
+	move := &ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      id,
 		Actor:   from.ID,
@@ -42,6 +44,12 @@ func (inbox *Inbox) move(ctx context.Context, db *sql.DB, from *ap.Actor, to str
 		Object:  from.ID,
 		Target:  to,
 		To:      aud,
+	}
+
+	if !inbox.Config.DisableIntegrityProofs {
+		if move.Proof, err = proof.Create(key, move); err != nil {
+			return err
+		}
 	}
 
 	tx, err := db.BeginTx(ctx, nil)
@@ -60,14 +68,14 @@ func (inbox *Inbox) move(ctx context.Context, db *sql.DB, from *ap.Actor, to str
 		return err
 	}
 
-	if err := inbox.UpdateActor(ctx, tx, from.ID); err != nil {
+	if err := inbox.UpdateActor(ctx, tx, from.ID, key); err != nil {
 		return err
 	}
 
 	if _, err := tx.ExecContext(
 		ctx,
 		`insert into outbox (activity, sender) values (jsonb(?), ?)`,
-		&move,
+		move,
 		from.ID,
 	); err != nil {
 		return err
@@ -77,8 +85,8 @@ func (inbox *Inbox) move(ctx context.Context, db *sql.DB, from *ap.Actor, to str
 }
 
 // Move queues a Move activity for delivery.
-func (inbox *Inbox) Move(ctx context.Context, db *sql.DB, from *ap.Actor, to string) error {
-	if err := inbox.move(ctx, db, from, to); err != nil {
+func (inbox *Inbox) Move(ctx context.Context, db *sql.DB, from *ap.Actor, key httpsig.Key, to string) error {
+	if err := inbox.move(ctx, db, from, key, to); err != nil {
 		return fmt.Errorf("failed to move %s to %s: %w", from.ID, to, err)
 	}
 

@@ -22,6 +22,8 @@ import (
 	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/httpsig"
 )
 
 const batchSize = 512
@@ -35,7 +37,7 @@ func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 	rows, err := d.DB.QueryContext(
 		ctx,
 		`
-		select json(persons.actor), json(outbox.activity) from persons
+		select json(persons.actor), persons.ed25519privkey, json(outbox.activity) from persons
 		join shares on shares.by = persons.id
 		join outbox on outbox.activity->>'$.actor' = shares.by and outbox.activity->>'$.object' = shares.note
 		where
@@ -55,12 +57,18 @@ func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 	count := 0
 	for rows.Next() {
 		var sharer ap.Actor
+		var ed25519PrivKeyMultibase string
 		var share ap.Activity
-		if err := rows.Scan(&sharer, &share); err != nil {
+		if err := rows.Scan(&sharer, &ed25519PrivKeyMultibase, &share); err != nil {
 			return false, err
 		}
 
-		if err := d.Inbox.Undo(ctx, d.DB, &sharer, &share); err != nil {
+		ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
+		if err != nil {
+			return false, err
+		}
+
+		if err := d.Inbox.Undo(ctx, d.DB, &sharer, httpsig.Key{ID: sharer.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}, &share); err != nil {
 			return false, err
 		}
 
@@ -79,7 +87,7 @@ func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 	rows, err := d.DB.QueryContext(
 		ctx,
 		`
-		select json(persons.actor), json(notes.object) from persons
+		select json(persons.actor), persons.ed25519privkey, json(notes.object) from persons
 		join notes on notes.author = persons.id
 		where
 			persons.ttl is not null and
@@ -98,12 +106,18 @@ func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 	count := 0
 	for rows.Next() {
 		var author ap.Actor
+		var ed25519PrivKeyMultibase string
 		var note ap.Object
-		if err := rows.Scan(&author, &note); err != nil {
+		if err := rows.Scan(&author, &ed25519PrivKeyMultibase, &note); err != nil {
 			return false, err
 		}
 
-		if err := d.Inbox.Delete(ctx, d.DB, &author, &note); err != nil {
+		ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
+		if err != nil {
+			return false, err
+		}
+
+		if err := d.Inbox.Delete(ctx, d.DB, &author, httpsig.Key{ID: author.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}, &note); err != nil {
 			return false, err
 		}
 

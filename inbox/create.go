@@ -25,13 +25,15 @@ import (
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/proof"
 )
 
 const maxDeliveryQueueSize = 128
 
 var ErrDeliveryQueueFull = errors.New("delivery queue is full")
 
-func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *ap.Object, author *ap.Actor) error {
+func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *ap.Object, author *ap.Actor, key httpsig.Key) error {
 	id, err := inbox.NewID(author.ID, "create")
 	if err != nil {
 		return err
@@ -46,7 +48,7 @@ func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, db *sql.DB, pos
 		return ErrDeliveryQueueFull
 	}
 
-	create := ap.Activity{
+	create := &ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		Type:    ap.Create,
 		ID:      id,
@@ -54,6 +56,12 @@ func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, db *sql.DB, pos
 		Object:  post,
 		To:      post.To,
 		CC:      post.CC,
+	}
+
+	if !inbox.Config.DisableIntegrityProofs {
+		if create.Proof, err = proof.Create(key, create); err != nil {
+			return err
+		}
 	}
 
 	j, err := json.Marshal(create)
@@ -71,7 +79,7 @@ func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, db *sql.DB, pos
 		return err
 	}
 
-	if err := inbox.ProcessActivity(ctx, tx, author, &create, string(j), 1, false); err != nil {
+	if err := inbox.ProcessActivity(ctx, tx, author, create, string(j), 1, false); err != nil {
 		return err
 	}
 
@@ -83,8 +91,8 @@ func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, db *sql.DB, pos
 }
 
 // Create queues a Create activity for delivery.
-func (inbox *Inbox) Create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *ap.Object, author *ap.Actor) error {
-	if err := inbox.create(ctx, cfg, db, post, author); err != nil {
+func (inbox *Inbox) Create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *ap.Object, author *ap.Actor, key httpsig.Key) error {
+	if err := inbox.create(ctx, cfg, db, post, author, key); err != nil {
 		return fmt.Errorf("failed to create %s by %s: %w", post.ID, author.ID, err)
 	}
 

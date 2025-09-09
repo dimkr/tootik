@@ -23,9 +23,11 @@ import (
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/proof"
 )
 
-func (inbox *Inbox) accept(ctx context.Context, followed *ap.Actor, follower, followID string, tx *sql.Tx) error {
+func (inbox *Inbox) accept(ctx context.Context, followed *ap.Actor, key httpsig.Key, follower, followID string, tx *sql.Tx) error {
 	id, err := inbox.NewID(followed.ID, "accept")
 	if err != nil {
 		return err
@@ -34,7 +36,7 @@ func (inbox *Inbox) accept(ctx context.Context, followed *ap.Actor, follower, fo
 	recipients := ap.Audience{}
 	recipients.Add(follower)
 
-	accept := ap.Activity{
+	accept := &ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		Type:    ap.Accept,
 		ID:      id,
@@ -48,7 +50,13 @@ func (inbox *Inbox) accept(ctx context.Context, followed *ap.Actor, follower, fo
 		},
 	}
 
-	j, err := json.Marshal(&accept)
+	if !inbox.Config.DisableIntegrityProofs {
+		if accept.Proof, err = proof.Create(key, accept); err != nil {
+			return err
+		}
+	}
+
+	j, err := json.Marshal(accept)
 	if err != nil {
 		return err
 	}
@@ -62,12 +70,12 @@ func (inbox *Inbox) accept(ctx context.Context, followed *ap.Actor, follower, fo
 		return err
 	}
 
-	return inbox.ProcessActivity(ctx, tx, followed, &accept, string(j), 1, false)
+	return inbox.ProcessActivity(ctx, tx, followed, accept, string(j), 1, false)
 }
 
 // Accept queues an Accept activity for delivery.
-func (inbox *Inbox) Accept(ctx context.Context, followed *ap.Actor, follower, followID string, tx *sql.Tx) error {
-	if err := inbox.accept(ctx, followed, follower, followID, tx); err != nil {
+func (inbox *Inbox) Accept(ctx context.Context, followed *ap.Actor, key httpsig.Key, follower, followID string, tx *sql.Tx) error {
+	if err := inbox.accept(ctx, followed, key, follower, followID, tx); err != nil {
 		return fmt.Errorf("failed to accept %s from %s by %s: %w", followID, follower, followed.ID, err)
 	}
 

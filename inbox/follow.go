@@ -23,9 +23,11 @@ import (
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/proof"
 )
 
-func (inbox *Inbox) follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB) error {
+func (inbox *Inbox) follow(ctx context.Context, follower *ap.Actor, key httpsig.Key, followed string, db *sql.DB) error {
 	if followed == follower.ID {
 		return fmt.Errorf("%s cannot follow %s", follower.ID, followed)
 	}
@@ -38,7 +40,7 @@ func (inbox *Inbox) follow(ctx context.Context, follower *ap.Actor, followed str
 	to := ap.Audience{}
 	to.Add(followed)
 
-	follow := ap.Activity{
+	follow := &ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      followID,
 		Type:    ap.Follow,
@@ -47,7 +49,13 @@ func (inbox *Inbox) follow(ctx context.Context, follower *ap.Actor, followed str
 		To:      to,
 	}
 
-	j, err := json.Marshal(&follow)
+	if !inbox.Config.DisableIntegrityProofs {
+		if follow.Proof, err = proof.Create(key, follow); err != nil {
+			return err
+		}
+	}
+
+	j, err := json.Marshal(follow)
 	if err != nil {
 		return err
 	}
@@ -67,7 +75,7 @@ func (inbox *Inbox) follow(ctx context.Context, follower *ap.Actor, followed str
 		return err
 	}
 
-	if err := inbox.ProcessActivity(ctx, tx, follower, &follow, string(j), 1, false); err != nil {
+	if err := inbox.ProcessActivity(ctx, tx, follower, follow, string(j), 1, false); err != nil {
 		return err
 	}
 
@@ -75,8 +83,8 @@ func (inbox *Inbox) follow(ctx context.Context, follower *ap.Actor, followed str
 }
 
 // Follow queues a Follow activity for delivery.
-func (inbox *Inbox) Follow(ctx context.Context, follower *ap.Actor, followed string, db *sql.DB) error {
-	if err := inbox.follow(ctx, follower, followed, db); err != nil {
+func (inbox *Inbox) Follow(ctx context.Context, follower *ap.Actor, key httpsig.Key, followed string, db *sql.DB) error {
+	if err := inbox.follow(ctx, follower, key, followed, db); err != nil {
 		return fmt.Errorf("failed to follow %s by %s: %w", followed, follower.ID, err)
 	}
 

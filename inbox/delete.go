@@ -23,10 +23,12 @@ import (
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/proof"
 )
 
-func (inbox *Inbox) delete(ctx context.Context, db *sql.DB, actor *ap.Actor, note *ap.Object) error {
-	delete := ap.Activity{
+func (inbox *Inbox) delete(ctx context.Context, db *sql.DB, actor *ap.Actor, key httpsig.Key, note *ap.Object) error {
+	delete := &ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      note.ID + "#delete",
 		Type:    ap.Delete,
@@ -37,6 +39,13 @@ func (inbox *Inbox) delete(ctx context.Context, db *sql.DB, actor *ap.Actor, not
 		},
 		To: note.To,
 		CC: note.CC,
+	}
+
+	if !inbox.Config.DisableIntegrityProofs {
+		var err error
+		if delete.Proof, err = proof.Create(key, delete); err != nil {
+			return err
+		}
 	}
 
 	j, err := json.Marshal(delete)
@@ -68,7 +77,7 @@ func (inbox *Inbox) delete(ctx context.Context, db *sql.DB, actor *ap.Actor, not
 		return err
 	}
 
-	if err := inbox.ProcessActivity(ctx, tx, actor, &delete, string(j), 1, false); err != nil {
+	if err := inbox.ProcessActivity(ctx, tx, actor, delete, string(j), 1, false); err != nil {
 		return err
 	}
 
@@ -76,8 +85,8 @@ func (inbox *Inbox) delete(ctx context.Context, db *sql.DB, actor *ap.Actor, not
 }
 
 // Delete queues a Delete activity for delivery.
-func (inbox *Inbox) Delete(ctx context.Context, db *sql.DB, actor *ap.Actor, note *ap.Object) error {
-	if err := inbox.delete(ctx, db, actor, note); err != nil {
+func (inbox *Inbox) Delete(ctx context.Context, db *sql.DB, actor *ap.Actor, key httpsig.Key, note *ap.Object) error {
+	if err := inbox.delete(ctx, db, actor, key, note); err != nil {
 		return fmt.Errorf("failed to delete %s by %s: %w", note.ID, actor.ID, err)
 	}
 

@@ -44,6 +44,11 @@ func normalizeJSON(v any) ([]byte, error) {
 	return jcs.Transform(j)
 }
 
+// Create creates an eddsa-jcs-2022 integrity proof for a JSON object.
+func Create(key httpsig.Key, doc any) (ap.Proof, error) {
+	return create(key, time.Now(), doc, proofContext)
+}
+
 func create(key httpsig.Key, now time.Time, doc, context any) (ap.Proof, error) {
 	edKey, ok := key.PrivateKey.(ed25519.PrivateKey)
 	if !ok {

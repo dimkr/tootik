@@ -89,7 +89,7 @@ func (h *Handler) alias(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := h.Inbox.UpdateActor(r.Context, tx, r.User.ID); err != nil {
+	if err := h.Inbox.UpdateActor(r.Context, tx, r.User.ID, r.Keys[1]); err != nil {
 		r.Log.Error("Failed to update alias", "error", err)
 		w.Error()
 		return
