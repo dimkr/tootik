@@ -201,9 +201,11 @@ Portable actors have both Ed25519 and RSA keys, allowing them to interact with a
 
 In addition, portable actors carry an [FEP-8b32](https://codeberg.org/fediverse/fep/src/branch/main/fep/8b32/fep-8b32.md) integrity proof, allowing other servers to securely determine which servers were "approved" by the owner of `ap://did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor`.
 
+Moreover, all objects and activities owned by a portable actor contain an integrity proof, allowing other servers to validate their authenticity and processes them without having to fetch them from their origin first.
+
 ## Delivery
 
-When tootik receives a `POST` request to `inbox` from a portable actor, it requires a valid [FEP-8b32](https://codeberg.org/fediverse/fep/src/branch/main/fep/8b32/fep-8b32.md) integrity proof and ability to fetch the actor, if not cached.
+When tootik receives a `POST` request to `inbox` from a portable actor, it requires a valid [FEP-8b32](https://codeberg.org/fediverse/fep/src/branch/main/fep/8b32/fep-8b32.md) integrity proof generated using the actor's Ed25519 key and ability to fetch the actor, if not cached.
 
 tootik validates the integrity proof using the Ed25519 public key extracted from the key ID, and doesn't need to fetch the actor first.
 
