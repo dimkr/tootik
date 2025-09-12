@@ -340,32 +340,6 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 	var sender *ap.Actor
 	var sig *httpsig.Signature
 	if activity.Proof != (ap.Proof{}) {
-		actorOrigin, err := ap.Origin(activity.Actor)
-		if err != nil {
-			slog.Warn("Failed to verify integrity proof", "activity", &activity, "proof", &activity.Proof, "error", err)
-			w.WriteHeader(http.StatusUnauthorized)
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
-			return
-		}
-
-		proofOrigin, err := ap.Origin(activity.Proof.VerificationMethod)
-		if err != nil {
-			slog.Warn("Failed to verify integrity proof", "activity", &activity, "proof", &activity.Proof, "error", err)
-			w.WriteHeader(http.StatusUnauthorized)
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
-			return
-		}
-
-		if actorOrigin != proofOrigin {
-			slog.Warn("Integrity proof is invalid", "activity", &activity, "proof", &activity.Proof)
-			w.WriteHeader(http.StatusUnauthorized)
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]any{"error": "invalid proof origin"})
-			return
-		}
-
 		// if activity has an integrity proof, pretend it was sent by its actor even if forwarded by another
 		sender, err = l.verifyProof(r.Context(), activity.Proof, &activity, rawActivity, flags, keys)
 		if err != nil {
