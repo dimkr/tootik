@@ -150,6 +150,10 @@ func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Act
 		return nil, fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
 	}
 
+	if actor.ID != activity.Actor {
+		return nil, fmt.Errorf("key %s belongs to %s, not %s", p.VerificationMethod, actor.ID, activity.Actor)
+	}
+
 	publicKey, err := getKeyByID(actor, p.VerificationMethod)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
