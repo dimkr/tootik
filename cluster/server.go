@@ -118,7 +118,7 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 		t.Fatalf("Failed to run migrations: %v", err)
 	}
 
-	_, nobodyKeys, err := user.CreateNobody(ctx, domain, db)
+	_, nobodyKeys, err := user.CreateNobody(ctx, domain, db, &cfg)
 	if err != nil {
 		t.Fatalf("Failed to run create the nobody user: %v", err)
 	}

@@ -91,33 +91,10 @@ func (h *Handler) doSetBio(w text.Writer, r *Request, readInput func(text.Writer
 		return
 	}
 
-	tx, err := h.DB.BeginTx(r.Context, nil)
-	if err != nil {
-		r.Log.Warn("Failed to update bio", "error", err)
-		w.Error()
-		return
-	}
-	defer tx.Rollback()
+	r.User.Summary = plain.ToHTML(bio, nil)
+	r.User.Updated.Time = now
 
-	if _, err := tx.ExecContext(
-		r.Context,
-		"update persons set actor = jsonb_set(actor, '$.summary', $1, '$.updated', $2) where id = $3",
-		plain.ToHTML(bio, nil),
-		now.Format(time.RFC3339Nano),
-		r.User.ID,
-	); err != nil {
-		r.Log.Error("Failed to update bio", "error", err)
-		w.Error()
-		return
-	}
-
-	if err := h.Inbox.UpdateActor(r.Context, tx, r.User.ID, r.Keys[1]); err != nil {
-		r.Log.Error("Failed to update bio", "error", err)
-		w.Error()
-		return
-	}
-
-	if err := tx.Commit(); err != nil {
+	if err := h.Inbox.UpdateActor(r.Context, r.User, r.Keys[1]); err != nil {
 		r.Log.Error("Failed to update bio", "error", err)
 		w.Error()
 		return

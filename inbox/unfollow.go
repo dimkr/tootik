@@ -18,7 +18,6 @@ package inbox
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 
@@ -27,7 +26,7 @@ import (
 	"github.com/dimkr/tootik/proof"
 )
 
-func (inbox *Inbox) unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor, key httpsig.Key, followed, followID string) error {
+func (inbox *Inbox) unfollow(ctx context.Context, follower *ap.Actor, key httpsig.Key, followed, followID string) error {
 	if ap.Canonical(followed) == ap.Canonical(follower.ID) {
 		return fmt.Errorf("%s cannot unfollow %s", follower.ID, followed)
 	}
@@ -65,7 +64,7 @@ func (inbox *Inbox) unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor
 		return err
 	}
 
-	tx, err := db.BeginTx(ctx, nil)
+	tx, err := inbox.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -97,8 +96,8 @@ func (inbox *Inbox) unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor
 }
 
 // Unfollow queues an Undo activity for delivery.
-func (inbox *Inbox) Unfollow(ctx context.Context, db *sql.DB, follower *ap.Actor, key httpsig.Key, followed, followID string) error {
-	if err := inbox.unfollow(ctx, db, follower, key, followed, followID); err != nil {
+func (inbox *Inbox) Unfollow(ctx context.Context, follower *ap.Actor, key httpsig.Key, followed, followID string) error {
+	if err := inbox.unfollow(ctx, follower, key, followed, followID); err != nil {
 		return fmt.Errorf("failed to unfollow %s from %s by %s: %w", followID, follower.ID, followed, err)
 	}
 

@@ -18,7 +18,6 @@ package inbox
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 
@@ -27,7 +26,7 @@ import (
 	"github.com/dimkr/tootik/proof"
 )
 
-func (inbox *Inbox) follow(ctx context.Context, follower *ap.Actor, key httpsig.Key, followed string, db *sql.DB) error {
+func (inbox *Inbox) follow(ctx context.Context, follower *ap.Actor, key httpsig.Key, followed string) error {
 	if followed == follower.ID {
 		return fmt.Errorf("%s cannot follow %s", follower.ID, followed)
 	}
@@ -60,7 +59,7 @@ func (inbox *Inbox) follow(ctx context.Context, follower *ap.Actor, key httpsig.
 		return err
 	}
 
-	tx, err := db.BeginTx(ctx, nil)
+	tx, err := inbox.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -83,8 +82,8 @@ func (inbox *Inbox) follow(ctx context.Context, follower *ap.Actor, key httpsig.
 }
 
 // Follow queues a Follow activity for delivery.
-func (inbox *Inbox) Follow(ctx context.Context, follower *ap.Actor, key httpsig.Key, followed string, db *sql.DB) error {
-	if err := inbox.follow(ctx, follower, key, followed, db); err != nil {
+func (inbox *Inbox) Follow(ctx context.Context, follower *ap.Actor, key httpsig.Key, followed string) error {
+	if err := inbox.follow(ctx, follower, key, followed); err != nil {
 		return fmt.Errorf("failed to follow %s by %s: %w", followed, follower.ID, err)
 	}
 

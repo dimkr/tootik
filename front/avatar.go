@@ -114,19 +114,6 @@ func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
 
 	if _, err := tx.ExecContext(
 		r.Context,
-		"update persons set actor = jsonb_set(actor, '$.icon.url', $1, '$.icon[0].url', $1, '$.updated', $2) where id = $3",
-		// we add fragment because some servers cache the image until the URL changes
-		fmt.Sprintf("https://%s/icon/%s%s#%d", h.Domain, r.User.PreferredUsername, icon.FileNameExtension, now.UnixNano()),
-		now.Format(time.RFC3339Nano),
-		r.User.ID,
-	); err != nil {
-		r.Log.Error("Failed to set avatar", "error", err)
-		w.Error()
-		return
-	}
-
-	if _, err := tx.ExecContext(
-		r.Context,
 		"insert into icons(name, buf) values($1, $2) on conflict(name) do update set buf = $2",
 		r.User.PreferredUsername,
 		string(resized),
@@ -136,7 +123,13 @@ func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := h.Inbox.UpdateActor(r.Context, tx, r.User.ID, r.Keys[1]); err != nil {
+	// we add fragment because some servers cache the image until the URL changes
+	r.User.Icon = append(r.User.Icon, ap.Attachment{
+		URL: fmt.Sprintf("https://%s/icon/%s%s#%d", h.Domain, r.User.PreferredUsername, icon.FileNameExtension, now.UnixNano()),
+	})
+	r.User.Updated.Time = now
+
+	if err := h.Inbox.UpdateActorTx(r.Context, tx, r.User, r.Keys[1]); err != nil {
 		r.Log.Error("Failed to set avatar", "error", err)
 		w.Error()
 		return

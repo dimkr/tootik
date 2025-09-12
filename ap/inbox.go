@@ -29,14 +29,15 @@ type Inbox interface {
 	NewID(actorID, prefix string) (string, error)
 	Accept(ctx context.Context, followed *Actor, key httpsig.Key, follower, followID string, tx *sql.Tx) error
 	Announce(ctx context.Context, tx *sql.Tx, actor *Actor, key httpsig.Key, note *Object) error
-	Create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *Object, author *Actor, key httpsig.Key) error
-	Delete(ctx context.Context, db *sql.DB, actor *Actor, key httpsig.Key, note *Object) error
-	Follow(ctx context.Context, follower *Actor, key httpsig.Key, followed string, db *sql.DB) error
-	Move(ctx context.Context, db *sql.DB, from *Actor, key httpsig.Key, to string) error
+	Create(ctx context.Context, cfg *cfg.Config, post *Object, author *Actor, key httpsig.Key) error
+	Delete(ctx context.Context, actor *Actor, key httpsig.Key, note *Object) error
+	Follow(ctx context.Context, follower *Actor, key httpsig.Key, followed string) error
+	Move(ctx context.Context, from *Actor, key httpsig.Key, to string) error
 	Reject(ctx context.Context, followed *Actor, key httpsig.Key, follower, followID string, tx *sql.Tx) error
-	Undo(ctx context.Context, db *sql.DB, actor *Actor, key httpsig.Key, activity *Activity) error
-	UpdateActor(ctx context.Context, tx *sql.Tx, actorID string, key httpsig.Key) error
-	UpdateNote(ctx context.Context, db *sql.DB, actor *Actor, key httpsig.Key, note *Object) error
-	Unfollow(ctx context.Context, db *sql.DB, follower *Actor, key httpsig.Key, followed, followID string) error
+	Undo(ctx context.Context, actor *Actor, key httpsig.Key, activity *Activity) error
+	UpdateActorTx(ctx context.Context, tx *sql.Tx, actor *Actor, key httpsig.Key) error
+	UpdateActor(ctx context.Context, actor *Actor, key httpsig.Key) error
+	UpdateNote(ctx context.Context, actor *Actor, key httpsig.Key, note *Object) error
+	Unfollow(ctx context.Context, follower *Actor, key httpsig.Key, followed, followID string) error
 	ProcessActivity(ctx context.Context, tx *sql.Tx, sender *Actor, activity *Activity, rawActivity string, depth int, shared bool) error
 }

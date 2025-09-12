@@ -198,7 +198,7 @@ func main() {
 		panic(err)
 	}
 
-	_, nobodyKeys, err := user.CreateNobody(ctx, *domain, db)
+	_, nobodyKeys, err := user.CreateNobody(ctx, *domain, db, &cfg)
 	if err != nil {
 		panic(err)
 	}
@@ -212,7 +212,7 @@ func main() {
 
 	switch cmd {
 	case "add-community":
-		_, _, err := user.Create(ctx, *domain, db, flag.Arg(1), ap.Group, nil)
+		_, _, err := user.Create(ctx, *domain, db, &cfg, flag.Arg(1), ap.Group, nil)
 		if err != nil {
 			panic(err)
 		}
@@ -245,17 +245,10 @@ func main() {
 			panic(err)
 		}
 
-		if _, err := tx.ExecContext(
-			ctx,
-			`update persons set actor = jsonb_set(actor, '$.summary', ?, '$.updated', ?) where id = ?`,
-			tplain.ToHTML(string(summary), nil),
-			time.Now().Format(time.RFC3339Nano),
-			actor.ID,
-		); err != nil {
-			panic(err)
-		}
+		actor.Summary = tplain.ToHTML(string(summary), nil)
+		actor.Updated.Time = time.Now()
 
-		if err := localInbox.UpdateActor(ctx, tx, actor.ID, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}); err != nil {
+		if err := localInbox.UpdateActorTx(ctx, tx, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}); err != nil {
 			panic(err)
 		}
 
@@ -299,18 +292,6 @@ func main() {
 			panic(err)
 		}
 
-		now := time.Now()
-
-		if _, err := tx.ExecContext(
-			ctx,
-			"update persons set actor = jsonb_set(actor, '$.icon.url', $1, '$.icon[0].url', $1, '$.updated', $2) where id = $3",
-			fmt.Sprintf("https://%s/icon/%s%s#%d", *domain, userName, icon.FileNameExtension, now.UnixNano()),
-			now.Format(time.RFC3339Nano),
-			actor.ID,
-		); err != nil {
-			panic(err)
-		}
-
 		if _, err := tx.ExecContext(
 			ctx,
 			"insert into icons(name, buf) values($1, $2) on conflict(name) do update set buf = $2",
@@ -320,7 +301,13 @@ func main() {
 			panic(err)
 		}
 
-		if err := localInbox.UpdateActor(ctx, tx, actor.ID, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}); err != nil {
+		now := time.Now()
+		actor.Icon = append(actor.Icon, ap.Attachment{
+			URL: fmt.Sprintf("https://%s/icon/%s%s#%d", *domain, userName, icon.FileNameExtension, now.UnixNano()),
+		})
+		actor.Updated.Time = now
+
+		if err := localInbox.UpdateActorTx(ctx, tx, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}); err != nil {
 			panic(err)
 		}
 

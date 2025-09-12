@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/dimkr/tootik/fed"
+	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/outbox"
 	"github.com/stretchr/testify/assert"
 )
@@ -45,8 +46,8 @@ func TestMove_FederatedToFederated(t *testing.T) {
 		server.inbox.Follow(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
-			server.db,
 		),
 	)
 
@@ -100,8 +101,8 @@ func TestMove_FederatedToFederatedTwoAccounts(t *testing.T) {
 		server.inbox.Follow(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
-			server.db,
 		),
 	)
 
@@ -148,8 +149,8 @@ func TestMove_FederatedToFederatedNotLinked(t *testing.T) {
 		server.inbox.Follow(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
-			server.db,
 		),
 	)
 
@@ -189,8 +190,8 @@ func TestMove_FederatedToLocal(t *testing.T) {
 		server.inbox.Follow(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
-			server.db,
 		),
 	)
 
@@ -230,8 +231,8 @@ func TestMove_FederatedToLocalLinked(t *testing.T) {
 		server.inbox.Follow(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
-			server.db,
 		),
 	)
 
@@ -281,8 +282,8 @@ func TestMove_FollowingBoth(t *testing.T) {
 		server.inbox.Follow(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
-			server.db,
 		),
 	)
 
@@ -290,8 +291,8 @@ func TestMove_FollowingBoth(t *testing.T) {
 		server.inbox.Follow(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://::1/user/dan",
-			server.db,
 		),
 	)
 
@@ -334,8 +335,8 @@ func TestMove_LocalToLocal(t *testing.T) {
 		server.inbox.Follow(
 			context.Background(),
 			server.Carol,
+			httpsig.Key{},
 			server.Alice.ID,
-			server.db,
 		),
 	)
 
@@ -420,8 +421,8 @@ func TestMove_LocalToFederated(t *testing.T) {
 		server.inbox.Follow(
 			context.Background(),
 			server.Carol,
+			httpsig.Key{},
 			server.Alice.ID,
-			server.db,
 		),
 	)
 
@@ -468,8 +469,8 @@ func TestMove_LocalToFederatedNoSourceToTargetAlias(t *testing.T) {
 		server.inbox.Follow(
 			context.Background(),
 			server.Carol,
+			httpsig.Key{},
 			server.Alice.ID,
-			server.db,
 		),
 	)
 
@@ -496,8 +497,8 @@ func TestMove_LocalToFederatedNoTargetToSourceAlias(t *testing.T) {
 		server.inbox.Follow(
 			context.Background(),
 			server.Carol,
+			httpsig.Key{},
 			server.Alice.ID,
-			server.db,
 		),
 	)
 
@@ -529,8 +530,8 @@ func TestMove_LocalToFederatedAlreadyMoved(t *testing.T) {
 		server.inbox.Follow(
 			context.Background(),
 			server.Carol,
+			httpsig.Key{},
 			server.Alice.ID,
-			server.db,
 		),
 	)
 

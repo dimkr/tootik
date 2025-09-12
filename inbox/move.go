@@ -18,7 +18,6 @@ package inbox
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"time"
 
@@ -27,7 +26,7 @@ import (
 	"github.com/dimkr/tootik/proof"
 )
 
-func (inbox *Inbox) move(ctx context.Context, db *sql.DB, from *ap.Actor, key httpsig.Key, to string) error {
+func (inbox *Inbox) move(ctx context.Context, from *ap.Actor, key httpsig.Key, to string) error {
 	aud := ap.Audience{}
 	aud.Add(from.Followers)
 
@@ -52,23 +51,15 @@ func (inbox *Inbox) move(ctx context.Context, db *sql.DB, from *ap.Actor, key ht
 		}
 	}
 
-	tx, err := db.BeginTx(ctx, nil)
+	tx, err := inbox.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
-	if _, err := tx.ExecContext(
-		ctx,
-		`update persons set actor = jsonb_set(actor, '$.movedTo', $1, '$.updated', $2) where id = $3`,
-		to,
-		time.Now().Format(time.RFC3339Nano),
-		from.ID,
-	); err != nil {
-		return err
-	}
-
-	if err := inbox.UpdateActor(ctx, tx, from.ID, key); err != nil {
+	from.MovedTo = to
+	from.Updated.Time = time.Now()
+	if err := inbox.UpdateActorTx(ctx, tx, from, key); err != nil {
 		return err
 	}
 
@@ -85,8 +76,8 @@ func (inbox *Inbox) move(ctx context.Context, db *sql.DB, from *ap.Actor, key ht
 }
 
 // Move queues a Move activity for delivery.
-func (inbox *Inbox) Move(ctx context.Context, db *sql.DB, from *ap.Actor, key httpsig.Key, to string) error {
-	if err := inbox.move(ctx, db, from, key, to); err != nil {
+func (inbox *Inbox) Move(ctx context.Context, from *ap.Actor, key httpsig.Key, to string) error {
+	if err := inbox.move(ctx, from, key, to); err != nil {
 		return fmt.Errorf("failed to move %s to %s: %w", from.ID, to, err)
 	}
 

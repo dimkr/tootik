@@ -18,7 +18,6 @@ package inbox
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -33,14 +32,14 @@ const maxDeliveryQueueSize = 128
 
 var ErrDeliveryQueueFull = errors.New("delivery queue is full")
 
-func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *ap.Object, author *ap.Actor, key httpsig.Key) error {
+func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, post *ap.Object, author *ap.Actor, key httpsig.Key) error {
 	id, err := inbox.NewID(author.ID, "create")
 	if err != nil {
 		return err
 	}
 
 	var queueSize int
-	if err := db.QueryRowContext(ctx, `select count(distinct cid) from outbox where sent = 0 and attempts < ?`, cfg.MaxDeliveryAttempts).Scan(&queueSize); err != nil {
+	if err := inbox.DB.QueryRowContext(ctx, `select count(distinct cid) from outbox where sent = 0 and attempts < ?`, cfg.MaxDeliveryAttempts).Scan(&queueSize); err != nil {
 		return fmt.Errorf("failed to query delivery queue size: %w", err)
 	}
 
@@ -59,6 +58,10 @@ func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, db *sql.DB, pos
 	}
 
 	if !inbox.Config.DisableIntegrityProofs {
+		if post.Proof, err = proof.Create(key, post); err != nil {
+			return err
+		}
+
 		if create.Proof, err = proof.Create(key, create); err != nil {
 			return err
 		}
@@ -69,7 +72,7 @@ func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, db *sql.DB, pos
 		return err
 	}
 
-	tx, err := db.BeginTx(ctx, nil)
+	tx, err := inbox.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -91,8 +94,8 @@ func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, db *sql.DB, pos
 }
 
 // Create queues a Create activity for delivery.
-func (inbox *Inbox) Create(ctx context.Context, cfg *cfg.Config, db *sql.DB, post *ap.Object, author *ap.Actor, key httpsig.Key) error {
-	if err := inbox.create(ctx, cfg, db, post, author, key); err != nil {
+func (inbox *Inbox) Create(ctx context.Context, cfg *cfg.Config, post *ap.Object, author *ap.Actor, key httpsig.Key) error {
+	if err := inbox.create(ctx, cfg, post, author, key); err != nil {
 		return fmt.Errorf("failed to create %s by %s: %w", post.ID, author.ID, err)
 	}
 

@@ -73,27 +73,28 @@ func newTestServer() *server {
 
 	var cfg cfg.Config
 	cfg.FillDefaults()
+	cfg.DisableIntegrityProofs = true
 
 	if err := migrations.Run(context.Background(), domain, db); err != nil {
 		panic(err)
 	}
 
-	alice, _, err := user.Create(context.Background(), domain, db, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), domain, db, &cfg, "alice", ap.Person, nil)
 	if err != nil {
 		panic(err)
 	}
 
-	bob, _, err := user.Create(context.Background(), domain, db, "bob", ap.Person, nil)
+	bob, _, err := user.Create(context.Background(), domain, db, &cfg, "bob", ap.Person, nil)
 	if err != nil {
 		panic(err)
 	}
 
-	carol, _, err := user.Create(context.Background(), domain, db, "carol", ap.Person, nil)
+	carol, _, err := user.Create(context.Background(), domain, db, &cfg, "carol", ap.Person, nil)
 	if err != nil {
 		panic(err)
 	}
 
-	_, nobodyKeys, err := user.CreateNobody(context.Background(), domain, db)
+	_, nobodyKeys, err := user.CreateNobody(context.Background(), domain, db, &cfg)
 	if err != nil {
 		panic(err)
 	}

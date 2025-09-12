@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/httpsig"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -62,6 +63,7 @@ func TestCommunity_NewThread(t *testing.T) {
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://127.0.0.1/follow/1",
 			tx,
@@ -122,6 +124,7 @@ func TestCommunity_NewThreadNotFollowing(t *testing.T) {
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://127.0.0.1/follow/1",
 			tx,
@@ -179,6 +182,7 @@ func TestCommunity_NewThreadNotPublic(t *testing.T) {
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://127.0.0.1/follow/1",
 			tx,
@@ -239,6 +243,7 @@ func TestCommunity_ReplyInThread(t *testing.T) {
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://127.0.0.1/follow/1",
 			tx,
@@ -392,6 +397,7 @@ func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://127.0.0.1/follow/1",
 			tx,
@@ -486,6 +492,7 @@ func TestCommunity_DuplicateReplyInThread(t *testing.T) {
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://127.0.0.1/follow/1",
 			tx,
@@ -587,6 +594,7 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://127.0.0.1/follow/1",
 			tx,
@@ -709,6 +717,7 @@ func TestCommunity_UnknownEditedReplyInThread(t *testing.T) {
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://127.0.0.1/follow/1",
 			tx,

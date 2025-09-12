@@ -18,7 +18,6 @@ package inbox
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 
@@ -27,7 +26,7 @@ import (
 	"github.com/dimkr/tootik/proof"
 )
 
-func (inbox *Inbox) undo(ctx context.Context, db *sql.DB, actor *ap.Actor, key httpsig.Key, activity *ap.Activity) error {
+func (inbox *Inbox) undo(ctx context.Context, actor *ap.Actor, key httpsig.Key, activity *ap.Activity) error {
 	id, err := inbox.NewID(actor.ID, "undo")
 	if err != nil {
 		return err
@@ -57,7 +56,7 @@ func (inbox *Inbox) undo(ctx context.Context, db *sql.DB, actor *ap.Actor, key h
 		return err
 	}
 
-	tx, err := db.BeginTx(ctx, nil)
+	tx, err := inbox.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -80,8 +79,8 @@ func (inbox *Inbox) undo(ctx context.Context, db *sql.DB, actor *ap.Actor, key h
 }
 
 // Undo queues an Undo activity for delivery.
-func (inbox *Inbox) Undo(ctx context.Context, db *sql.DB, actor *ap.Actor, key httpsig.Key, activity *ap.Activity) error {
-	if err := inbox.undo(ctx, db, actor, key, activity); err != nil {
+func (inbox *Inbox) Undo(ctx context.Context, actor *ap.Actor, key httpsig.Key, activity *ap.Activity) error {
+	if err := inbox.undo(ctx, actor, key, activity); err != nil {
 		return fmt.Errorf("failed to undo %s by %s: %w", activity.ID, actor.ID, err)
 	}
 

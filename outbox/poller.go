@@ -125,7 +125,7 @@ func (p *Poller) Run(ctx context.Context) error {
 		slog.Info("Updating poll results", "poll", poll.ID)
 
 		author := authors[pollID]
-		if err := p.Inbox.UpdateNote(ctx, p.DB, author, httpsig.Key{ID: author.AssertionMethod[0].ID, PrivateKey: keys[pollID]}, poll); err != nil {
+		if err := p.Inbox.UpdateNote(ctx, author, httpsig.Key{ID: author.AssertionMethod[0].ID, PrivateKey: keys[pollID]}, poll); err != nil {
 			slog.Warn("Failed to update poll results", "poll", poll.ID, "error", err)
 		}
 	}

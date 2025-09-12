@@ -39,49 +39,19 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 			return
 		}
 
-		tx, err := h.DB.BeginTx(r.Context, nil)
-		if err != nil {
-			r.Log.Warn("Failed to toggle manual approval", "error", err)
-			w.Error()
-			return
-		}
-		defer tx.Rollback()
-
 		switch action {
 		case "lock":
-			if _, err := tx.ExecContext(
-				r.Context,
-				"update persons set actor = jsonb_set(actor, '$.manuallyApprovesFollowers', jsonb('true')) where id = ?",
-				r.User.ID,
-			); err != nil {
-				r.Log.Warn("Failed to toggle manual approval", "error", err)
-				w.Error()
-				return
-			}
+			r.User.ManuallyApprovesFollowers = true
 
 		case "unlock":
-			if _, err := tx.ExecContext(
-				r.Context,
-				"update persons set actor = jsonb_set(actor, '$.manuallyApprovesFollowers', jsonb('false')) where id = ?",
-				r.User.ID,
-			); err != nil {
-				r.Log.Warn("Failed to toggle manual approval", "error", err)
-				w.Error()
-				return
-			}
+			r.User.ManuallyApprovesFollowers = false
 
 		default:
 			w.Status(40, "Bad input")
 			return
 		}
 
-		if err := h.Inbox.UpdateActor(r.Context, tx, r.User.ID, r.Keys[1]); err != nil {
-			r.Log.Warn("Failed to toggle manual approval", "error", err)
-			w.Error()
-			return
-		}
-
-		if err := tx.Commit(); err != nil {
+		if err := h.Inbox.UpdateActor(r.Context, r.User, r.Keys[1]); err != nil {
 			r.Log.Warn("Failed to toggle manual approval", "error", err)
 			w.Error()
 			return

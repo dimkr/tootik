@@ -18,7 +18,6 @@ package inbox
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 
@@ -27,7 +26,7 @@ import (
 	"github.com/dimkr/tootik/proof"
 )
 
-func (inbox *Inbox) delete(ctx context.Context, db *sql.DB, actor *ap.Actor, key httpsig.Key, note *ap.Object) error {
+func (inbox *Inbox) delete(ctx context.Context, actor *ap.Actor, key httpsig.Key, note *ap.Object) error {
 	delete := &ap.Activity{
 		Context: "https://www.w3.org/ns/activitystreams",
 		ID:      note.ID + "#delete",
@@ -53,7 +52,7 @@ func (inbox *Inbox) delete(ctx context.Context, db *sql.DB, actor *ap.Actor, key
 		return err
 	}
 
-	tx, err := db.BeginTx(ctx, nil)
+	tx, err := inbox.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -85,8 +84,8 @@ func (inbox *Inbox) delete(ctx context.Context, db *sql.DB, actor *ap.Actor, key
 }
 
 // Delete queues a Delete activity for delivery.
-func (inbox *Inbox) Delete(ctx context.Context, db *sql.DB, actor *ap.Actor, key httpsig.Key, note *ap.Object) error {
-	if err := inbox.delete(ctx, db, actor, key, note); err != nil {
+func (inbox *Inbox) Delete(ctx context.Context, actor *ap.Actor, key httpsig.Key, note *ap.Object) error {
+	if err := inbox.delete(ctx, actor, key, note); err != nil {
 		return fmt.Errorf("failed to delete %s by %s: %w", note.ID, actor.ID, err)
 	}
 

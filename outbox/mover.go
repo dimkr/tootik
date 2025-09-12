@@ -121,12 +121,12 @@ func (m *Mover) Run(ctx context.Context) error {
 			slog.Info("Removing follow of moved actor", "follow", oldFollowID, "old", oldID, "new", NewID)
 		} else {
 			slog.Info("Moving follow", "follow", oldFollowID, "old", oldID, "new", NewID)
-			if err := m.Inbox.Follow(ctx, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}, NewID, m.DB); err != nil {
+			if err := m.Inbox.Follow(ctx, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}, NewID); err != nil {
 				slog.Warn("Failed to follow new actor", "follow", oldFollowID, "old", oldID, "new", NewID, "error", err)
 				continue
 			}
 		}
-		if err := m.Inbox.Unfollow(ctx, m.DB, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}, oldID, oldFollowID); err != nil {
+		if err := m.Inbox.Unfollow(ctx, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}, oldID, oldFollowID); err != nil {
 			slog.Warn("Failed to unfollow old actor", "follow", oldFollowID, "old", oldID, "new", NewID, "error", err)
 		}
 	}

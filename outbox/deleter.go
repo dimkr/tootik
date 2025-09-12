@@ -68,7 +68,7 @@ func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 			return false, err
 		}
 
-		if err := d.Inbox.Undo(ctx, d.DB, &sharer, httpsig.Key{ID: sharer.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}, &share); err != nil {
+		if err := d.Inbox.Undo(ctx, &sharer, httpsig.Key{ID: sharer.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}, &share); err != nil {
 			return false, err
 		}
 
@@ -117,7 +117,7 @@ func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 			return false, err
 		}
 
-		if err := d.Inbox.Delete(ctx, d.DB, &author, httpsig.Key{ID: author.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}, &note); err != nil {
+		if err := d.Inbox.Delete(ctx, &author, httpsig.Key{ID: author.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}, &note); err != nil {
 			return false, err
 		}
 

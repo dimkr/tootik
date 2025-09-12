@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/inbox/note"
 	"github.com/stretchr/testify/assert"
 )
@@ -46,6 +47,7 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -113,6 +115,7 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -175,6 +178,7 @@ func TestForward_LocalReplyToLocalPublicPost(t *testing.T) {
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -218,6 +222,7 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -297,6 +302,7 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -361,6 +367,7 @@ func TestForward_ReplyToDM(t *testing.T) {
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -479,6 +486,7 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -597,6 +605,7 @@ func TestForward_MaxDepth(t *testing.T) {
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -706,6 +715,7 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -827,6 +837,7 @@ func TestForward_ReplyToLocalPostByLocalFollower(t *testing.T) {
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -867,6 +878,7 @@ func TestForward_EditedReplyToLocalPostByLocalFollower(t *testing.T) {
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -914,6 +926,7 @@ func TestForward_DeletedReplyToLocalPostByLocalFollower(t *testing.T) {
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -967,6 +980,7 @@ func TestForward_EditedReplyToPublicPost(t *testing.T) {
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -1066,6 +1080,7 @@ func TestForward_ResentEditedReplyToPublicPost(t *testing.T) {
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -1176,6 +1191,7 @@ func TestForward_DeletedReplyToPublicPost(t *testing.T) {
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,
@@ -1253,6 +1269,7 @@ func TestForward_DeletedDeletedReplyToPublicPost(t *testing.T) {
 		server.inbox.Accept(
 			context.Background(),
 			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
 			tx,

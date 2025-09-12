@@ -68,7 +68,7 @@ func (inbox *Inbox) processCreateActivity(ctx context.Context, tx *sql.Tx, sende
 		return fmt.Errorf("failed to check of %s is a duplicate: %w", post.ID, err)
 	} else if err == nil {
 		if sender.ID == post.Audience && !audience.Valid {
-			if _, err := tx.ExecContext(ctx, `update notes set object = jsonb_set(object, '$.audience', ?) where id = ? and object->>'$.audience' is null`, post.Audience, post.ID); err != nil {
+			if _, err := tx.ExecContext(ctx, `update notes set object = jsonb_set(json_remove(object, '$.proof', '$.signature'), '$.audience', ?) where id = ? and object->>'$.audience' is null`, post.Audience, post.ID); err != nil {
 				return fmt.Errorf("failed to set %s audience to %s: %w", post.ID, audience.String, err)
 			}
 

@@ -46,7 +46,25 @@ func normalizeJSON(v any) ([]byte, error) {
 
 // Create creates an eddsa-jcs-2022 integrity proof for a JSON object.
 func Create(key httpsig.Key, doc any) (ap.Proof, error) {
-	return create(key, time.Now(), doc, proofContext)
+	switch v := doc.(type) {
+	case *ap.Activity:
+		clone := *v
+		clone.Proof = ap.Proof{}
+		return create(key, time.Now(), &clone, proofContext)
+
+	case *ap.Object:
+		clone := *v
+		clone.Proof = ap.Proof{}
+		return create(key, time.Now(), &clone, proofContext)
+
+	case *ap.Actor:
+		clone := *v
+		clone.Proof = ap.Proof{}
+		return create(key, time.Now(), &clone, proofContext)
+
+	default:
+		return ap.Proof{}, fmt.Errorf("cannot create proof for %T", v)
+	}
 }
 
 func create(key httpsig.Key, now time.Time, doc, context any) (ap.Proof, error) {

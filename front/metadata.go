@@ -20,6 +20,7 @@ import (
 	"html"
 	"net/url"
 	"regexp"
+	"slices"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
@@ -104,58 +105,28 @@ func (h *Handler) metadataAdd(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
+	name := html.EscapeString(m[1])
+
+	for _, field := range r.User.Attachment {
+		if field.Name == name {
+			r.Log.Error("Cannot add metadata field", "name", field.Name)
+			w.Status(40, "Cannot add metadata field")
+			return
+		}
+	}
+
 	attachment := ap.Attachment{
 		Type: ap.PropertyValue,
-		Name: html.EscapeString(m[1]),
+		Name: name,
 		Val:  plain.ToHTML(m[2], nil),
 	}
 
 	r.Log.Info("Adding metadata field", "name", attachment.Name)
 
-	tx, err := h.DB.BeginTx(r.Context, nil)
-	if err != nil {
-		r.Log.Warn("Failed to add metadata field", "name", attachment.Name, "error", err)
-		w.Error()
-		return
-	}
-	defer tx.Rollback()
+	r.User.Attachment = append(r.User.Attachment, attachment)
+	r.User.Updated.Time = now
 
-	if res, err := tx.ExecContext(
-		r.Context,
-		`
-		update persons
-		set actor = jsonb_set(jsonb_insert(actor, '$.attachment[#]', json($1)), '$.updated', $2)
-		where
-			id = $3 and
-			coalesce(json_array_length(actor->>'$.attachment'), 0) < $4 and
-			not exists (select 1 from json_each(actor->'$.attachment') where value->>'$.name' = $5)
-		`,
-		&attachment,
-		now.Format(time.RFC3339Nano),
-		r.User.ID,
-		h.Config.MaxMetadataFields,
-		attachment.Name,
-	); err != nil {
-		r.Log.Error("Failed to add metadata field", "name", attachment.Name, "error", err)
-		w.Error()
-		return
-	} else if one, err := res.RowsAffected(); err != nil {
-		r.Log.Error("Failed to add metadata field", "name", attachment.Name, "error", err)
-		w.Error()
-		return
-	} else if one < 1 {
-		r.Log.Error("Cannot add metadata field", "name", attachment.Name)
-		w.Status(40, "Cannot add metadata field")
-		return
-	}
-
-	if err := h.Inbox.UpdateActor(r.Context, tx, r.User.ID, r.Keys[1]); err != nil {
-		r.Log.Error("Failed to add metadata field", "name", attachment.Name, "error", err)
-		w.Error()
-		return
-	}
-
-	if err := tx.Commit(); err != nil {
+	if err := h.Inbox.UpdateActor(r.Context, r.User, r.Keys[1]); err != nil {
 		r.Log.Error("Failed to add metadata field", "name", attachment.Name, "error", err)
 		w.Error()
 		return
@@ -197,48 +168,10 @@ func (h *Handler) metadataRemove(w text.Writer, r *Request, args ...string) {
 found:
 	r.Log.Info("Removing metadata field", "key", key)
 
-	tx, err := h.DB.BeginTx(r.Context, nil)
-	if err != nil {
-		r.Log.Warn("Failed to remove metadata field", "key", key, "error", err)
-		w.Error()
-		return
-	}
-	defer tx.Rollback()
+	r.User.Attachment = slices.Delete(r.User.Attachment, id, id+1)
+	r.User.Updated.Time = time.Now()
 
-	if res, err := tx.ExecContext(
-		r.Context,
-		`
-		update persons
-		set actor = jsonb_set(jsonb_remove(actor, '$.attachment[' || $1 || ']'), '$.updated', $2)
-		where
-			id = $3 and
-			json_extract(actor, '$.attachment[' || $1 || '].name') = $4
-		`,
-		id,
-		time.Now().Format(time.RFC3339Nano),
-		r.User.ID,
-		key,
-	); err != nil {
-		r.Log.Error("Failed to remove metadata field", "key", key, "id", id, "error", err)
-		w.Error()
-		return
-	} else if one, err := res.RowsAffected(); err != nil {
-		r.Log.Error("Failed to remove metadata field", "key", key, "id", id, "error", err)
-		w.Error()
-		return
-	} else if one < 1 {
-		r.Log.Error("Failed to remove metadata field", "key", key, "id", id)
-		w.Status(40, "Field does not exist")
-		return
-	}
-
-	if err := h.Inbox.UpdateActor(r.Context, tx, r.User.ID, r.Keys[1]); err != nil {
-		r.Log.Error("Failed to remove metadata field", "key", key, "id", id, "error", err)
-		w.Error()
-		return
-	}
-
-	if err := tx.Commit(); err != nil {
+	if err := h.Inbox.UpdateActor(r.Context, r.User, r.Keys[1]); err != nil {
 		r.Log.Error("Failed to remove metadata field", "key", key, "id", id, "error", err)
 		w.Error()
 		return

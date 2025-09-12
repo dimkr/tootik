@@ -20,6 +20,7 @@ import (
 	"crypto/ed25519"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -134,49 +135,10 @@ func (h *Handler) gatewayAdd(w text.Writer, r *Request, args ...string) {
 
 	r.Log.Info("Adding gateway", "gateway", gw)
 
-	tx, err := h.DB.BeginTx(r.Context, nil)
-	if err != nil {
-		r.Log.Warn("Failed to add gateway", "gateway", gw, "error", err)
-		w.Error()
-		return
-	}
-	defer tx.Rollback()
+	r.User.Gateways = append(r.User.Gateways, "https://"+gw)
+	r.User.Updated.Time = now
 
-	if res, err := tx.ExecContext(
-		r.Context,
-		`
-		update persons
-		set actor = jsonb_set(jsonb_insert(actor, '$.gateways[#]', $1), '$.updated', $2)
-		where
-			id = $3 and
-			coalesce(json_array_length(actor->>'$.gateways'), 0) < $4 and
-			not exists (select 1 from json_each(actor->'$.gateways') where value = $1)
-		`,
-		"https://"+gw,
-		now.Format(time.RFC3339Nano),
-		r.User.ID,
-		h.Config.MaxGateways,
-	); err != nil {
-		r.Log.Error("Failed to add gateway", "gateway", gw, "error", err)
-		w.Error()
-		return
-	} else if one, err := res.RowsAffected(); err != nil {
-		r.Log.Error("Failed to add gateway", "gateway", gw, "error", err)
-		w.Error()
-		return
-	} else if one < 1 {
-		r.Log.Error("Cannot add gateway", "gateway", gw)
-		w.Status(40, "Cannot add gateway")
-		return
-	}
-
-	if err := h.Inbox.UpdateActor(r.Context, tx, r.User.ID, r.Keys[1]); err != nil {
-		r.Log.Error("Failed to add gateway", "gateway", gw, "error", err)
-		w.Error()
-		return
-	}
-
-	if err := tx.Commit(); err != nil {
+	if err := h.Inbox.UpdateActor(r.Context, r.User, r.Keys[1]); err != nil {
 		r.Log.Error("Failed to add gateway", "gateway", gw, "error", err)
 		w.Error()
 		return
@@ -230,48 +192,10 @@ func (h *Handler) gatewayRemove(w text.Writer, r *Request, args ...string) {
 found:
 	r.Log.Info("Removing gateway", "gateway", gw)
 
-	tx, err := h.DB.BeginTx(r.Context, nil)
-	if err != nil {
-		r.Log.Warn("Failed to remove gateway", "gateway", gw, "error", err)
-		w.Error()
-		return
-	}
-	defer tx.Rollback()
+	r.User.Gateways = slices.Delete(r.User.Gateways, id, id+1)
+	r.User.Updated.Time = time.Now()
 
-	if res, err := tx.ExecContext(
-		r.Context,
-		`
-		update persons
-		set actor = jsonb_set(jsonb_remove(actor, '$.gateways[' || $1 || ']'), '$.updated', $2)
-		where
-			id = $3 and
-			json_extract(actor, '$.gateways[' || $1 || ']') = $4
-		`,
-		id,
-		time.Now().Format(time.RFC3339Nano),
-		r.User.ID,
-		gw,
-	); err != nil {
-		r.Log.Error("Failed to remove gateway", "gateway", gw, "id", id, "error", err)
-		w.Error()
-		return
-	} else if one, err := res.RowsAffected(); err != nil {
-		r.Log.Error("Failed to remove gateway", "gateway", gw, "id", id, "error", err)
-		w.Error()
-		return
-	} else if one < 1 {
-		r.Log.Error("Failed to remove gateway", "gateway", gw, "id", id)
-		w.Status(40, "Field does not exist")
-		return
-	}
-
-	if err := h.Inbox.UpdateActor(r.Context, tx, r.User.ID, r.Keys[1]); err != nil {
-		r.Log.Error("Failed to remove gateway", "gateway", gw, "id", id, "error", err)
-		w.Error()
-		return
-	}
-
-	if err := tx.Commit(); err != nil {
+	if err := h.Inbox.UpdateActor(r.Context, r.User, r.Keys[1]); err != nil {
 		r.Log.Error("Failed to remove gateway", "gateway", gw, "id", id, "error", err)
 		w.Error()
 		return

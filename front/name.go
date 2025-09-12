@@ -89,33 +89,10 @@ func (h *Handler) setName(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	tx, err := h.DB.BeginTx(r.Context, nil)
-	if err != nil {
-		r.Log.Warn("Failed to update name", "error", err)
-		w.Error()
-		return
-	}
-	defer tx.Rollback()
+	r.User.Name = plainDisplayName
+	r.User.Updated.Time = now
 
-	if _, err := tx.ExecContext(
-		r.Context,
-		"update persons set actor = jsonb_set(actor, '$.name', $1, '$.updated', $2) where id = $3",
-		plainDisplayName,
-		now.Format(time.RFC3339Nano),
-		r.User.ID,
-	); err != nil {
-		r.Log.Error("Failed to update name", "error", err)
-		w.Error()
-		return
-	}
-
-	if err := h.Inbox.UpdateActor(r.Context, tx, r.User.ID, r.Keys[1]); err != nil {
-		r.Log.Error("Failed to update name", "error", err)
-		w.Error()
-		return
-	}
-
-	if err := tx.Commit(); err != nil {
+	if err := h.Inbox.UpdateActor(r.Context, r.User, r.Keys[1]); err != nil {
 		r.Log.Error("Failed to update name", "error", err)
 		w.Error()
 		return

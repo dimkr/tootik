@@ -54,6 +54,7 @@ type Object struct {
 	URL               string            `json:"url,omitempty"`
 	Quote             string            `json:"quote,omitempty"`
 	InteractionPolicy InteractionPolicy `json:"interactionPolicy,omitzero"`
+	Proof             Proof             `json:"proof,omitzero"`
 
 	// polls
 	VotersCount int64        `json:"votersCount,omitempty"`

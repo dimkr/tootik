@@ -23,13 +23,14 @@ import (
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 )
 
 // CreateNobody creates the special "nobdoy" user.
 // This user is used to sign outgoing requests not initiated by a particular user.
-func CreateNobody(ctx context.Context, domain string, db *sql.DB) (*ap.Actor, [2]httpsig.Key, error) {
+func CreateNobody(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config) (*ap.Actor, [2]httpsig.Key, error) {
 	var actor ap.Actor
 	var rsaPrivKeyPem, ed25519PrivKeyMultibase string
 	if err := db.QueryRowContext(ctx, `select json(actor), rsaprivkey, ed25519privkey from persons where actor->>'$.preferredUsername' = 'nobody' and host = ?`, domain).Scan(&actor, &rsaPrivKeyPem, &ed25519PrivKeyMultibase); err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -51,5 +52,5 @@ func CreateNobody(ctx context.Context, domain string, db *sql.DB) (*ap.Actor, [2
 		}, err
 	}
 
-	return Create(ctx, domain, db, "nobody", ap.Application, nil)
+	return Create(ctx, domain, db, cfg, "nobody", ap.Application, nil)
 }
