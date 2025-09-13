@@ -258,7 +258,7 @@ func (l *Listener) fetchObject(ctx context.Context, id string, keys [2]httpsig.K
 		return true, nil, fmt.Errorf("failed to get origin of %s: %w", id, err)
 	}
 
-	if origin != "did:key:"+m[1] {
+	if suffix, ok := strings.CutPrefix(origin, "did:key:"); !ok || suffix != m[1] {
 		return true, nil, fmt.Errorf("key %s does not belong to %s", m[1], origin)
 	}
 

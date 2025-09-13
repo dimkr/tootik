@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
@@ -67,7 +68,7 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 		if m := ap.KeyRegex.FindStringSubmatch(sig.KeyID); m != nil {
 			if keyOrigin, err := ap.Origin(sig.KeyID); err != nil {
 				return nil, nil, fmt.Errorf("failed to get origin of %s: %w", sig.KeyID, err)
-			} else if keyOrigin == "did:key:"+m[1] {
+			} else if suffix, ok := strings.CutPrefix(keyOrigin, "did:key:"); ok && suffix == m[1] {
 				raw, err := data.DecodeEd25519PublicKey(m[1])
 				if err != nil {
 					return nil, nil, fmt.Errorf("failed to parse %s: %w", sig.KeyID, err)
@@ -129,7 +130,7 @@ func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Act
 			return nil, fmt.Errorf("failed to get origin of %s: %w", p.VerificationMethod, err)
 		}
 
-		if origin != "did:key:"+m[1] {
+		if suffix, ok := strings.CutPrefix(origin, "did:key:"); !ok || suffix != m[1] {
 			return nil, fmt.Errorf("key %s does not belong to %s", m[1], origin)
 		}
 
