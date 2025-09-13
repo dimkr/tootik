@@ -61,7 +61,7 @@ func proofs(ctx context.Context, domain string, tx *sql.Tx) error {
 				return err
 			}
 
-			note.Proof, err = proof.Create(httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}, &actor)
+			note.Proof, err = proof.Create(httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}, &note)
 			if err != nil {
 				return err
 			}
@@ -94,7 +94,7 @@ func proofs(ctx context.Context, domain string, tx *sql.Tx) error {
 				return err
 			}
 
-			activity.Proof, err = proof.Create(httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}, &actor)
+			activity.Proof, err = proof.Create(httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}, &activity)
 			if err != nil {
 				return err
 			}
