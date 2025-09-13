@@ -34,13 +34,17 @@ func (inbox *Inbox) updateNote(ctx context.Context, actor *ap.Actor, key httpsig
 	}
 
 	update := &ap.Activity{
-		Context: "https://www.w3.org/ns/activitystreams",
-		ID:      updateID,
-		Type:    ap.Update,
-		Actor:   note.AttributedTo,
-		Object:  note,
-		To:      note.To,
-		CC:      note.CC,
+		Context: []string{
+			"https://www.w3.org/ns/activitystreams",
+			"https://w3id.org/security/data-integrity/v1",
+			"https://w3id.org/security/v1",
+		},
+		ID:     updateID,
+		Type:   ap.Update,
+		Actor:  note.AttributedTo,
+		Object: note,
+		To:     note.To,
+		CC:     note.CC,
 	}
 
 	if inbox.Config.DisableIntegrityProofs {
@@ -115,12 +119,16 @@ func (inbox *Inbox) updateActor(ctx context.Context, tx *sql.Tx, actor *ap.Actor
 	to.Add(ap.Public)
 
 	update := &ap.Activity{
-		Context: "https://www.w3.org/ns/activitystreams",
-		ID:      updateID,
-		Type:    ap.Update,
-		Actor:   actor.ID,
-		Object:  actor.ID,
-		To:      to,
+		Context: []string{
+			"https://www.w3.org/ns/activitystreams",
+			"https://w3id.org/security/data-integrity/v1",
+			"https://w3id.org/security/v1",
+		},
+		ID:     updateID,
+		Type:   ap.Update,
+		Actor:  actor.ID,
+		Object: actor.ID,
+		To:     to,
 	}
 
 	if inbox.Config.DisableIntegrityProofs {

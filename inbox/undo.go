@@ -36,13 +36,17 @@ func (inbox *Inbox) undo(ctx context.Context, actor *ap.Actor, key httpsig.Key, 
 	to.Add(ap.Public)
 
 	undo := &ap.Activity{
-		Context: "https://www.w3.org/ns/activitystreams",
-		ID:      id,
-		Type:    ap.Undo,
-		Actor:   actor.ID,
-		To:      to,
-		CC:      activity.CC,
-		Object:  activity,
+		Context: []string{
+			"https://www.w3.org/ns/activitystreams",
+			"https://w3id.org/security/data-integrity/v1",
+			"https://w3id.org/security/v1",
+		},
+		ID:     id,
+		Type:   ap.Undo,
+		Actor:  actor.ID,
+		To:     to,
+		CC:     activity.CC,
+		Object: activity,
 	}
 
 	if !inbox.Config.DisableIntegrityProofs {

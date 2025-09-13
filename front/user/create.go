@@ -160,7 +160,7 @@ func CreatePortable(
 		Context: []string{
 			"https://www.w3.org/ns/activitystreams",
 			"https://w3id.org/security/data-integrity/v1",
-			"https://w3id.org/fep/ef61",
+			"https://w3id.org/security/v1",
 		},
 		ID:                id,
 		Type:              ap.Person,
@@ -212,6 +212,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config, nam
 	actor := ap.Actor{
 		Context: []string{
 			"https://www.w3.org/ns/activitystreams",
+			"https://w3id.org/security/data-integrity/v1",
 			"https://w3id.org/security/v1",
 		},
 		ID:                id,

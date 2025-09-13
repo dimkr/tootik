@@ -18,13 +18,10 @@ package fed
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
-
-	"github.com/dimkr/tootik/ap"
 )
 
 func (l *Listener) handlePost(w http.ResponseWriter, r *http.Request) {
@@ -40,7 +37,7 @@ func (l *Listener) handlePost(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("Fetching post", "post", postID)
 
-	var note ap.Object
+	var note string
 	if err := l.DB.QueryRowContext(r.Context(), `select json(object) from notes where id = ? and public = 1`, postID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -50,15 +47,6 @@ func (l *Listener) handlePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	note.Context = "https://www.w3.org/ns/activitystreams"
-
-	j, err := json.Marshal(note)
-	if err != nil {
-		slog.Warn("Failed to marshal post", "post", postID, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
 	w.Header().Set("Content-Type", "application/activity+json; charset=utf-8")
-	w.Write(j)
+	w.Write([]byte(note))
 }

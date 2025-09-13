@@ -36,13 +36,17 @@ func (inbox *Inbox) move(ctx context.Context, from *ap.Actor, key httpsig.Key, t
 	}
 
 	move := &ap.Activity{
-		Context: "https://www.w3.org/ns/activitystreams",
-		ID:      id,
-		Actor:   from.ID,
-		Type:    ap.Move,
-		Object:  from.ID,
-		Target:  to,
-		To:      aud,
+		Context: []string{
+			"https://www.w3.org/ns/activitystreams",
+			"https://w3id.org/security/data-integrity/v1",
+			"https://w3id.org/security/v1",
+		},
+		ID:     id,
+		Actor:  from.ID,
+		Type:   ap.Move,
+		Object: from.ID,
+		Target: to,
+		To:     aud,
 	}
 
 	if !inbox.Config.DisableIntegrityProofs {

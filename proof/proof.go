@@ -33,8 +33,6 @@ import (
 	"github.com/gowebpki/jcs"
 )
 
-var proofContext = []string{"https://www.w3.org/ns/activitystreams", "https://w3id.org/security/data-integrity/v1"}
-
 func normalizeJSON(v any) ([]byte, error) {
 	j, err := json.Marshal(v)
 	if err != nil {
@@ -50,17 +48,17 @@ func Create(key httpsig.Key, doc any) (ap.Proof, error) {
 	case *ap.Activity:
 		clone := *v
 		clone.Proof = ap.Proof{}
-		return create(key, time.Now(), &clone, proofContext)
+		return create(key, time.Now(), &clone, clone.Context)
 
 	case *ap.Object:
 		clone := *v
 		clone.Proof = ap.Proof{}
-		return create(key, time.Now(), &clone, proofContext)
+		return create(key, time.Now(), &clone, clone.Context)
 
 	case *ap.Actor:
 		clone := *v
 		clone.Proof = ap.Proof{}
-		return create(key, time.Now(), &clone, proofContext)
+		return create(key, time.Now(), &clone, clone.Context)
 
 	default:
 		return ap.Proof{}, fmt.Errorf("cannot create proof for %T", v)
@@ -113,9 +111,7 @@ func Add(key httpsig.Key, now time.Time, raw []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	m["@context"] = proofContext
-
-	proof, err := create(key, now, m, proofContext)
+	proof, err := create(key, now, m, m["@context"])
 	if err != nil {
 		return nil, err
 	}

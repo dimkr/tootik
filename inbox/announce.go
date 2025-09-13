@@ -42,7 +42,11 @@ func (inbox *Inbox) announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, k
 	to.Add(actor.Followers)
 
 	announce := &ap.Activity{
-		Context:   "https://www.w3.org/ns/activitystreams",
+		Context: []string{
+			"https://www.w3.org/ns/activitystreams",
+			"https://w3id.org/security/data-integrity/v1",
+			"https://w3id.org/security/v1",
+		},
 		ID:        announceID,
 		Type:      ap.Announce,
 		Actor:     actor.ID,

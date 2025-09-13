@@ -28,10 +28,14 @@ import (
 
 func (inbox *Inbox) delete(ctx context.Context, actor *ap.Actor, key httpsig.Key, note *ap.Object) error {
 	delete := &ap.Activity{
-		Context: "https://www.w3.org/ns/activitystreams",
-		ID:      note.ID + "#delete",
-		Type:    ap.Delete,
-		Actor:   note.AttributedTo,
+		Context: []string{
+			"https://www.w3.org/ns/activitystreams",
+			"https://w3id.org/security/data-integrity/v1",
+			"https://w3id.org/security/v1",
+		},
+		ID:    note.ID + "#delete",
+		Type:  ap.Delete,
+		Actor: note.AttributedTo,
 		Object: &ap.Object{
 			Type: note.Type,
 			ID:   note.ID,

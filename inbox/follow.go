@@ -40,12 +40,16 @@ func (inbox *Inbox) follow(ctx context.Context, follower *ap.Actor, key httpsig.
 	to.Add(followed)
 
 	follow := &ap.Activity{
-		Context: "https://www.w3.org/ns/activitystreams",
-		ID:      followID,
-		Type:    ap.Follow,
-		Actor:   follower.ID,
-		Object:  followed,
-		To:      to,
+		Context: []string{
+			"https://www.w3.org/ns/activitystreams",
+			"https://w3id.org/security/data-integrity/v1",
+			"https://w3id.org/security/v1",
+		},
+		ID:     followID,
+		Type:   ap.Follow,
+		Actor:  follower.ID,
+		Object: followed,
+		To:     to,
 	}
 
 	if !inbox.Config.DisableIntegrityProofs {

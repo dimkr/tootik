@@ -48,13 +48,17 @@ func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, post *ap.Object
 	}
 
 	create := &ap.Activity{
-		Context: "https://www.w3.org/ns/activitystreams",
-		Type:    ap.Create,
-		ID:      id,
-		Actor:   author.ID,
-		Object:  post,
-		To:      post.To,
-		CC:      post.CC,
+		Context: []string{
+			"https://www.w3.org/ns/activitystreams",
+			"https://w3id.org/security/data-integrity/v1",
+			"https://w3id.org/security/v1",
+		},
+		Type:   ap.Create,
+		ID:     id,
+		Actor:  author.ID,
+		Object: post,
+		To:     post.To,
+		CC:     post.CC,
 	}
 
 	if !inbox.Config.DisableIntegrityProofs {

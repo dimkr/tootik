@@ -37,11 +37,15 @@ func (inbox *Inbox) accept(ctx context.Context, followed *ap.Actor, key httpsig.
 	recipients.Add(follower)
 
 	accept := &ap.Activity{
-		Context: "https://www.w3.org/ns/activitystreams",
-		Type:    ap.Accept,
-		ID:      id,
-		Actor:   followed.ID,
-		To:      recipients,
+		Context: []string{
+			"https://www.w3.org/ns/activitystreams",
+			"https://w3id.org/security/data-integrity/v1",
+			"https://w3id.org/security/v1",
+		},
+		Type:  ap.Accept,
+		ID:    id,
+		Actor: followed.ID,
+		To:    recipients,
 		Object: &ap.Activity{
 			Actor:  follower,
 			Type:   ap.Follow,

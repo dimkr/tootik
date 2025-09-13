@@ -40,10 +40,14 @@ func (inbox *Inbox) unfollow(ctx context.Context, follower *ap.Actor, key httpsi
 	to.Add(followed)
 
 	unfollow := &ap.Activity{
-		Context: "https://www.w3.org/ns/activitystreams",
-		ID:      undoID,
-		Type:    ap.Undo,
-		Actor:   follower.ID,
+		Context: []string{
+			"https://www.w3.org/ns/activitystreams",
+			"https://w3id.org/security/data-integrity/v1",
+			"https://w3id.org/security/v1",
+		},
+		ID:    undoID,
+		Type:  ap.Undo,
+		Actor: follower.ID,
 		Object: &ap.Activity{
 			ID:     followID,
 			Type:   ap.Follow,
