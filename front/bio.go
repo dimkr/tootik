@@ -100,7 +100,11 @@ func (h *Handler) doSetBio(w text.Writer, r *Request, readInput func(text.Writer
 		return
 	}
 
-	w.Redirect("/users/bio")
+	if r.URL.Scheme == "titan" {
+		w.Redirectf("gemini://%s/users/bio", h.Domain)
+	} else {
+		w.Redirect("/users/bio")
+	}
 }
 
 func (h *Handler) setBio(w text.Writer, r *Request, args ...string) {

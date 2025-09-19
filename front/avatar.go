@@ -141,7 +141,7 @@ func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.Redirect("/users/avatar")
+	w.Redirectf("gemini://%s/users/avatar", h.Domain)
 }
 
 func (h *Handler) avatar(w text.Writer, r *Request, args ...string) {
