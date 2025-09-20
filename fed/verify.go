@@ -128,25 +128,22 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 
 func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Activity, raw []byte, flags ap.ResolverFlag, keys [2]httpsig.Key) (*ap.Actor, error) {
 	if m := ap.KeyRegex.FindStringSubmatch(p.VerificationMethod); m != nil {
-		origin, err := ap.Origin(activity.Actor)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get origin of %s: %w", p.VerificationMethod, err)
-		}
+		if m2 := ap.GatewayURLRegex.FindStringSubmatch(activity.Actor); m2 != nil {
+			if m2[1] != m[1] {
+				return nil, fmt.Errorf("key %s does not belong to %s", m[1], activity.Actor)
+			}
 
-		if suffix, ok := strings.CutPrefix(origin, "did:key:"); !ok || suffix != m[1] {
-			return nil, fmt.Errorf("key %s does not belong to %s", m[1], origin)
-		}
+			publicKey, err := data.DecodeEd25519PublicKey(m[1])
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode key %s to verify proof: %w", p.VerificationMethod, err)
+			}
 
-		publicKey, err := data.DecodeEd25519PublicKey(m[1])
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode key %s to verify proof: %w", p.VerificationMethod, err)
-		}
+			if err := proof.Verify(publicKey, activity.Proof, raw); err != nil {
+				return nil, fmt.Errorf("failed to verify proof using %s: %w", p.VerificationMethod, err)
+			}
 
-		if err := proof.Verify(publicKey, activity.Proof, raw); err != nil {
-			return nil, fmt.Errorf("failed to verify proof using %s: %w", p.VerificationMethod, err)
+			return l.Resolver.ResolveID(logcontext.New(ctx, "verification_method", p.VerificationMethod), keys, activity.Actor, flags)
 		}
-
-		return l.Resolver.ResolveID(logcontext.New(ctx, "verification_method", p.VerificationMethod), keys, activity.Actor, flags)
 	}
 
 	actor, err := l.Resolver.ResolveID(logcontext.New(ctx, "verification_method", p.VerificationMethod), keys, p.VerificationMethod, flags)
