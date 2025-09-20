@@ -31,6 +31,7 @@ import (
 
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/logcontext"
 	"github.com/fsnotify/fsnotify"
 )
 
@@ -47,7 +48,19 @@ type Listener struct {
 	Plain     bool
 }
 
+type loggingHandler struct {
+	inner http.Handler
+}
+
 const certReloadDelay = time.Second * 5
+
+func (h loggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.inner.ServeHTTP(w, r.WithContext(logcontext.New(r.Context(), "request", r.URL.String())))
+}
+
+func withLogging(h http.Handler) http.Handler {
+	return &loggingHandler{inner: h}
+}
 
 // NewHandler returns a [http.Handler] that handles ActivityPub requests.
 func (l *Listener) NewHandler() (http.Handler, error) {
@@ -77,7 +90,7 @@ func (l *Listener) NewHandler() (http.Handler, error) {
 
 	addHostMeta(mux, l.Domain)
 
-	return mux, nil
+	return withLogging(mux), nil
 }
 
 // ListenAndServe handles HTTP requests from other servers.

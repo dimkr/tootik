@@ -31,6 +31,7 @@ import (
 	"github.com/dimkr/tootik/buildinfo"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/logcontext"
 )
 
 type sender struct {
@@ -53,15 +54,17 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request) (*http.Response, e
 		return nil, fmt.Errorf("invalid host in %s: %s", urlString, req.URL.Host)
 	}
 
+	req = req.WithContext(logcontext.New(req.Context(), "method", req.Method, "url", urlString))
+
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
-	slog.DebugContext(req.Context(), "Sending request", "url", urlString)
+	slog.DebugContext(req.Context(), "Sending request")
 
 	capabilities := ap.CavageDraftSignatures
 
 	if err := s.DB.QueryRowContext(req.Context(), `select capabilities from servers where host = ?`, req.URL.Host).Scan(&capabilities); errors.Is(err, sql.ErrNoRows) {
-		slog.DebugContext(req.Context(), "Server capabilities are unknown", "url", urlString)
+		slog.DebugContext(req.Context(), "Server capabilities are unknown")
 	} else if err != nil {
 		return nil, fmt.Errorf("failed to query server capabilities for %s: %w", req.URL.Host, err)
 	}
@@ -75,19 +78,19 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request) (*http.Response, e
 	}
 
 	if capabilities&ap.RFC9421Ed25519Signatures > 0 {
-		slog.DebugContext(req.Context(), "Signing request using RFC9421 with Ed25519", "method", req.Method, "url", urlString, "key", keys[1].ID)
+		slog.DebugContext(req.Context(), "Signing request using RFC9421 with Ed25519", "key", keys[1].ID)
 
 		if err := httpsig.SignRFC9421(req, keys[1], time.Now(), time.Time{}, httpsig.RFC9421DigestSHA256, "ed25519", nil); err != nil {
 			return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
 		}
 	} else if capabilities&ap.RFC9421RSASignatures > 0 {
-		slog.DebugContext(req.Context(), "Signing request using RFC9421 with RSA", "method", req.Method, "url", urlString, "key", keys[0].ID)
+		slog.DebugContext(req.Context(), "Signing request using RFC9421 with RSA", "key", keys[0].ID)
 
 		if err := httpsig.SignRFC9421(req, keys[0], time.Now(), time.Time{}, httpsig.RFC9421DigestSHA256, "rsa-v1_5-sha256", nil); err != nil {
 			return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
 		}
 	} else if err := httpsig.Sign(req, keys[0], time.Now()); err != nil {
-		slog.DebugContext(req.Context(), "Signing request using draft-cavage-http-signatures", "method", req.Method, "url", urlString, "key", keys[0].ID)
+		slog.DebugContext(req.Context(), "Signing request using draft-cavage-http-signatures", "key", keys[0].ID)
 
 		return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
 	}

@@ -30,6 +30,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/logcontext"
 	"github.com/dimkr/tootik/proof"
 )
 
@@ -63,6 +64,8 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to verify message: %w", err)
 	}
+
+	r = r.WithContext(logcontext.New(r.Context(), "key_id", sig.KeyID))
 
 	if sig.Alg == "ed25519" && ap.IsPortable(sig.KeyID) {
 		if m := ap.KeyRegex.FindStringSubmatch(sig.KeyID); m != nil {
@@ -143,10 +146,10 @@ func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Act
 			return nil, fmt.Errorf("failed to verify proof using %s: %w", p.VerificationMethod, err)
 		}
 
-		return l.Resolver.ResolveID(ctx, keys, activity.Actor, flags)
+		return l.Resolver.ResolveID(logcontext.New(ctx, "verification_method", p.VerificationMethod), keys, activity.Actor, flags)
 	}
 
-	actor, err := l.Resolver.ResolveID(ctx, keys, p.VerificationMethod, flags)
+	actor, err := l.Resolver.ResolveID(logcontext.New(ctx, "verification_method", p.VerificationMethod), keys, p.VerificationMethod, flags)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
 	}

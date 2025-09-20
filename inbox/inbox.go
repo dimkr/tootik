@@ -59,7 +59,7 @@ func (inbox *Inbox) processCreateActivity(ctx context.Context, tx *sql.Tx, sende
 	}
 
 	if len(post.To.OrderedMap)+len(post.CC.OrderedMap) > inbox.Config.MaxRecipients {
-		slog.WarnContext(ctx, "Post has too many recipients", "activity", activity, "to", len(post.To.OrderedMap), "cc", len(post.CC.OrderedMap))
+		slog.WarnContext(ctx, "Post has too many recipients", "to", len(post.To.OrderedMap), "cc", len(post.CC.OrderedMap))
 		return nil
 	}
 
@@ -99,7 +99,7 @@ func (inbox *Inbox) processCreateActivity(ctx context.Context, tx *sql.Tx, sende
 			}
 		}
 
-		slog.DebugContext(ctx, "Post is a duplicate", "activity", activity, "post", post.ID)
+		slog.DebugContext(ctx, "Post is a duplicate", "post", post.ID)
 		return nil
 	}
 
@@ -128,7 +128,7 @@ func (inbox *Inbox) processCreateActivity(ctx context.Context, tx *sql.Tx, sende
 		return fmt.Errorf("cannot forward %s: %w", post.ID, err)
 	}
 
-	slog.InfoContext(ctx, "Received a new post", "activity", activity, "post", post.ID)
+	slog.InfoContext(ctx, "Received a new post", "post", post.ID)
 
 	return nil
 }
@@ -138,7 +138,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 		return ErrActivityTooNested
 	}
 
-	slog.DebugContext(ctx, "Processing activity", "activity", activity)
+	slog.DebugContext(ctx, "Processing activity")
 
 	switch activity.Type {
 	case ap.Delete:
@@ -152,7 +152,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 			return errors.New("received an invalid delete activity")
 		}
 
-		slog.InfoContext(ctx, "Received delete request", "activity", activity, "deleted", deleted)
+		slog.InfoContext(ctx, "Received delete request", "deleted", deleted)
 
 		if deleted == activity.Actor {
 			if _, err := tx.ExecContext(ctx, `delete from persons where id = ?`, deleted); err != nil {
@@ -161,7 +161,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 		} else {
 			var note ap.Object
 			if err := tx.QueryRowContext(ctx, `select json(object) from notes where id = ?`, deleted).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
-				slog.DebugContext(ctx, "Received delete request for non-existing post", "activity", activity, "deleted", deleted)
+				slog.DebugContext(ctx, "Received delete request for non-existing post", "deleted", deleted)
 				return nil
 			} else if err != nil {
 				return fmt.Errorf("failed to delete %s: %w", deleted, err)
@@ -218,7 +218,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 		}
 
 		if !ed25519PrivKeyMultibase.Valid || followed.ManuallyApprovesFollowers {
-			slog.InfoContext(ctx, "Not approving follow request", "activity", activity, "follower", activity.Actor, "followed", followed.ID)
+			slog.InfoContext(ctx, "Not approving follow request", "follower", activity.Actor, "followed", followed.ID)
 
 			if _, err := tx.ExecContext(
 				ctx,
@@ -230,7 +230,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
 		} else if ed25519PrivKeyMultibase.Valid && !followed.ManuallyApprovesFollowers {
-			slog.InfoContext(ctx, "Approving follow request", "activity", activity, "follower", activity.Actor, "followed", followed.ID)
+			slog.InfoContext(ctx, "Approving follow request", "follower", activity.Actor, "followed", followed.ID)
 
 			if _, err := tx.ExecContext(
 				ctx,
@@ -267,7 +267,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 			return errors.New("received an invalid Accept")
 		}
 
-		slog.InfoContext(ctx, "Follow is accepted", "activity", activity, "follow", followID)
+		slog.InfoContext(ctx, "Follow is accepted", "follow", followID)
 
 		if _, err := tx.ExecContext(
 			ctx,
@@ -294,7 +294,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 			}
 		}
 
-		slog.InfoContext(ctx, "Follow is rejected", "activity", activity, "follow", followID)
+		slog.InfoContext(ctx, "Follow is rejected", "follow", followID)
 
 		if res, err := tx.ExecContext(ctx, `update follows set accepted = 0 where id = ? and followed = ? and (accepted is null or accepted = 1)`, followID, sender.ID); err != nil {
 			return fmt.Errorf("failed to reject follow %s: %w", followID, err)
@@ -327,7 +327,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 		}
 
 		if inner.Type != ap.Follow {
-			slog.DebugContext(ctx, "Ignoring request to undo a non-Follow activity", "activity", activity)
+			slog.DebugContext(ctx, "Ignoring request to undo a non-Follow activity")
 			return nil
 		}
 
@@ -355,7 +355,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 			return fmt.Errorf("failed to remove follow of %s by %s: %w", followed, follower, err)
 		}
 
-		slog.InfoContext(ctx, "Removed a Follow", "activity", activity, "follower", follower, "followed", followed)
+		slog.InfoContext(ctx, "Removed a Follow", "follower", follower, "followed", followed)
 
 	case ap.Create:
 		post, ok := activity.Object.(*ap.Object)
@@ -379,7 +379,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 					return fmt.Errorf("cannot insert share for %s by %s: %w", postID, sender.ID, err)
 				}
 			} else {
-				slog.DebugContext(ctx, "Ignoring unsupported Announce object", "activity", activity)
+				slog.DebugContext(ctx, "Ignoring unsupported Announce object")
 			}
 			return nil
 		}
@@ -390,7 +390,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 	case ap.Update:
 		post, ok := activity.Object.(*ap.Object)
 		if !ok || ap.Canonical(post.ID) == ap.Canonical(activity.Actor) || ap.Canonical(post.ID) == ap.Canonical(sender.ID) {
-			slog.DebugContext(ctx, "Ignoring unsupported Update object", "activity", activity)
+			slog.DebugContext(ctx, "Ignoring unsupported Update object")
 			return nil
 		}
 
@@ -401,7 +401,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 		var oldPost ap.Object
 		var lastChange int64
 		if err := tx.QueryRowContext(ctx, `select max(inserted, updated), json(object) from notes where id = ? and author in (select id from persons where cid = ?)`, post.ID, ap.Canonical(post.AttributedTo)).Scan(&lastChange, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
-			slog.DebugContext(ctx, "Received Update for non-existing post", "activity", activity)
+			slog.DebugContext(ctx, "Received Update for non-existing post")
 			return inbox.processCreateActivity(ctx, tx, sender, activity, rawActivity, post, shared)
 		} else if err != nil {
 			return fmt.Errorf("failed to get last update time for %s: %w", post.ID, err)
@@ -417,7 +417,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 		}
 
 		if (post.Type == ap.Question && post.Updated != (ap.Time{}) && lastChange >= post.Updated.UnixNano()) || (post.Type != ap.Question && (post.Updated == (ap.Time{}) || lastChange >= post.Updated.UnixNano())) {
-			slog.DebugContext(ctx, "Received old update request for new post", "activity", activity)
+			slog.DebugContext(ctx, "Received old update request for new post")
 			return nil
 		}
 
@@ -459,19 +459,19 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 			return fmt.Errorf("failed to forward update post %s: %w", post.ID, err)
 		}
 
-		slog.InfoContext(ctx, "Updated post", "activity", activity, "post", post.ID)
+		slog.InfoContext(ctx, "Updated post", "post", post.ID)
 
 	case ap.Move:
-		slog.DebugContext(ctx, "Ignoring Move activity", "activity", activity)
+		slog.DebugContext(ctx, "Ignoring Move activity")
 
 	case ap.Like, ap.Dislike, ap.EmojiReact, ap.Add, ap.Remove:
-		slog.DebugContext(ctx, "Ignoring activity", "activity", activity)
+		slog.DebugContext(ctx, "Ignoring activity")
 
 	default:
 		if sender.ID == activity.Actor {
-			slog.WarnContext(ctx, "Received unknown request", "activity", activity)
+			slog.WarnContext(ctx, "Received unknown request")
 		} else {
-			slog.WarnContext(ctx, "Received unknown, unauthorized request", "activity", activity)
+			slog.WarnContext(ctx, "Received unknown, unauthorized request")
 		}
 	}
 

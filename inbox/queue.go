@@ -48,6 +48,8 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Ac
 	ctx, cancel := context.WithTimeout(parent, q.Config.ActivityProcessingTimeout)
 	defer cancel()
 
+	ctx = logcontext.New(ctx, "activity", activity, "sender", sender.ID)
+
 	tx, err := q.DB.BeginTx(ctx, nil)
 	if err != nil {
 		slog.WarnContext(ctx, "Failed to start transaction", "error", err)
@@ -112,7 +114,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	}
 
 	for _, item := range batch {
-		q.processActivityWithTimeout(logcontext.New(ctx, "activity", item.Activity), item.Sender, item.Activity, item.RawActivity, item.Shared)
+		q.processActivityWithTimeout(ctx, item.Sender, item.Activity, item.RawActivity, item.Shared)
 	}
 
 	if _, err := q.DB.ExecContext(ctx, `delete from inbox where id <= ?`, maxID); err != nil {

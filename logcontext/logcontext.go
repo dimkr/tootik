@@ -16,6 +16,10 @@ type (
 var key keyType
 
 func New(ctx context.Context, args ...any) context.Context {
+	if v := ctx.Value(key); v != nil {
+		return context.WithValue(ctx, key, append(v.([]any), args...))
+	}
+
 	return context.WithValue(ctx, key, args)
 }
 
@@ -39,5 +43,5 @@ func (h handler) WithGroup(name string) slog.Handler {
 }
 
 func Wrap(inner slog.Handler) slog.Handler {
-	return &handler{}
+	return &handler{inner: inner}
 }
