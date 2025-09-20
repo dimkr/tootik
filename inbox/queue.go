@@ -26,6 +26,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/logcontext"
 )
 
 type Queue struct {
@@ -49,17 +50,17 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Ac
 
 	tx, err := q.DB.BeginTx(ctx, nil)
 	if err != nil {
-		slog.Warn("Failed to start transaction", "activity", activity, "error", err)
+		slog.WarnContext(ctx, "Failed to start transaction", "error", err)
 		return
 	}
 	defer tx.Rollback()
 
 	if _, err := q.Resolver.ResolveID(ctx, q.Keys, activity.Actor, 0); err != nil {
-		slog.Warn("Failed to resolve actor", "activity", activity, "error", err)
+		slog.WarnContext(ctx, "Failed to resolve actor", "error", err)
 	} else if err := q.Inbox.ProcessActivity(ctx, tx, sender, activity, rawActivity, 1, shared); err != nil {
-		slog.Warn("Failed to process activity", "activity", activity, "error", err)
+		slog.WarnContext(ctx, "Failed to process activity", "error", err)
 	} else if err := tx.Commit(); err != nil {
-		slog.Warn("Failed to commit changes", "activity", activity, "error", err)
+		slog.WarnContext(ctx, "Failed to commit changes", "error", err)
 	}
 }
 
@@ -93,7 +94,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		maxID = id
 
 		if !sender.Valid {
-			slog.Warn("Sender is unknown", "id", id)
+			slog.WarnContext(ctx, "Sender is unknown", "id", id)
 			continue
 		}
 
@@ -111,7 +112,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	}
 
 	for _, item := range batch {
-		q.processActivityWithTimeout(ctx, item.Sender, item.Activity, item.RawActivity, item.Shared)
+		q.processActivityWithTimeout(logcontext.New(ctx, "activity", item.Activity), item.Sender, item.Activity, item.RawActivity, item.Shared)
 	}
 
 	if _, err := q.DB.ExecContext(ctx, `delete from inbox where id <= ?`, maxID); err != nil {

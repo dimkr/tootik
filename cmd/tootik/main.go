@@ -49,6 +49,7 @@ import (
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/icon"
 	"github.com/dimkr/tootik/inbox"
+	"github.com/dimkr/tootik/logcontext"
 	"github.com/dimkr/tootik/migrations"
 	"github.com/dimkr/tootik/outbox"
 	_ "github.com/mattn/go-sqlite3"
@@ -141,7 +142,7 @@ func main() {
 		opts.AddSource = true
 	}
 
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &opts)))
+	slog.SetDefault(slog.New(logcontext.Wrap(slog.NewJSONHandler(os.Stderr, &opts))))
 	slog.SetLogLoggerLevel(slog.Level(*logLevel))
 
 	var blockList *fed.BlockList
@@ -385,7 +386,7 @@ func main() {
 		},
 	} {
 		wg.Go(func() {
-			if err := svc.Listener.ListenAndServe(ctx); err != nil {
+			if err := svc.Listener.ListenAndServe(logcontext.New(ctx, "listener", svc.Name)); err != nil {
 				slog.Error("Listener has failed", "listener", svc.Name, "error", err)
 			}
 			cancel()
@@ -419,7 +420,7 @@ func main() {
 		},
 	} {
 		wg.Go(func() {
-			if err := queue.Queue.Process(ctx); err != nil {
+			if err := queue.Queue.Process(logcontext.New(ctx, "queue", queue.Name)); err != nil {
 				slog.Error("Failed to process queue", "queue", queue.Name, "error", err)
 			}
 			cancel()
@@ -498,17 +499,19 @@ func main() {
 			t := time.NewTicker(job.Interval)
 			defer t.Stop()
 
+			jobCtx := logcontext.New(ctx, "job", job.Name)
+
 			for {
 				slog.Info("Running periodic job", "job", job.Name)
 				start := time.Now()
-				if err := job.Runner.Run(ctx); err != nil {
+				if err := job.Runner.Run(jobCtx); err != nil {
 					slog.Error("Periodic job has failed", "job", job.Name, "error", err)
 					break
 				}
 				slog.Info("Done running periodic job", "job", job.Name, "duration", time.Since(start).String())
 
 				select {
-				case <-ctx.Done():
+				case <-jobCtx.Done():
 					return
 
 				case <-t.C:

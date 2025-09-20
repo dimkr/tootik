@@ -128,7 +128,7 @@ func (inbox *Inbox) processCreateActivity(ctx context.Context, tx *sql.Tx, sende
 		return fmt.Errorf("cannot forward %s: %w", post.ID, err)
 	}
 
-	slog.Info("Received a new post", "activity", activity, "post", post.ID)
+	slog.InfoContext(ctx, "Received a new post", "activity", activity, "post", post.ID)
 
 	return nil
 }
@@ -152,7 +152,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 			return errors.New("received an invalid delete activity")
 		}
 
-		slog.Info("Received delete request", "activity", activity, "deleted", deleted)
+		slog.InfoContext(ctx, "Received delete request", "activity", activity, "deleted", deleted)
 
 		if deleted == activity.Actor {
 			if _, err := tx.ExecContext(ctx, `delete from persons where id = ?`, deleted); err != nil {
@@ -218,7 +218,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 		}
 
 		if !ed25519PrivKeyMultibase.Valid || followed.ManuallyApprovesFollowers {
-			slog.Info("Not approving follow request", "activity", activity, "follower", activity.Actor, "followed", followed.ID)
+			slog.InfoContext(ctx, "Not approving follow request", "activity", activity, "follower", activity.Actor, "followed", followed.ID)
 
 			if _, err := tx.ExecContext(
 				ctx,
@@ -230,7 +230,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
 		} else if ed25519PrivKeyMultibase.Valid && !followed.ManuallyApprovesFollowers {
-			slog.Info("Approving follow request", "activity", activity, "follower", activity.Actor, "followed", followed.ID)
+			slog.InfoContext(ctx, "Approving follow request", "activity", activity, "follower", activity.Actor, "followed", followed.ID)
 
 			if _, err := tx.ExecContext(
 				ctx,
@@ -267,7 +267,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 			return errors.New("received an invalid Accept")
 		}
 
-		slog.Info("Follow is accepted", "activity", activity, "follow", followID)
+		slog.InfoContext(ctx, "Follow is accepted", "activity", activity, "follow", followID)
 
 		if _, err := tx.ExecContext(
 			ctx,
@@ -294,7 +294,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 			}
 		}
 
-		slog.Info("Follow is rejected", "activity", activity, "follow", followID)
+		slog.InfoContext(ctx, "Follow is rejected", "activity", activity, "follow", followID)
 
 		if res, err := tx.ExecContext(ctx, `update follows set accepted = 0 where id = ? and followed = ? and (accepted is null or accepted = 1)`, followID, sender.ID); err != nil {
 			return fmt.Errorf("failed to reject follow %s: %w", followID, err)
@@ -355,7 +355,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 			return fmt.Errorf("failed to remove follow of %s by %s: %w", followed, follower, err)
 		}
 
-		slog.Info("Removed a Follow", "activity", activity, "follower", follower, "followed", followed)
+		slog.InfoContext(ctx, "Removed a Follow", "activity", activity, "follower", follower, "followed", followed)
 
 	case ap.Create:
 		post, ok := activity.Object.(*ap.Object)
@@ -459,7 +459,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 			return fmt.Errorf("failed to forward update post %s: %w", post.ID, err)
 		}
 
-		slog.Info("Updated post", "activity", activity, "post", post.ID)
+		slog.InfoContext(ctx, "Updated post", "activity", activity, "post", post.ID)
 
 	case ap.Move:
 		slog.Debug("Ignoring Move activity", "activity", activity)

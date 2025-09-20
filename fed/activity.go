@@ -30,7 +30,7 @@ import (
 func (l *Listener) handleActivity(w http.ResponseWriter, r *http.Request, prefix string) {
 	activityID := fmt.Sprintf("https://%s/%s/%s", l.Domain, prefix, r.PathValue("hash"))
 
-	slog.Info("Fetching activity", "activity", activityID)
+	slog.InfoContext(r.Context(), "Fetching activity", "activity", activityID)
 
 	var raw string
 	var activity ap.Activity
