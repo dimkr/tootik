@@ -65,7 +65,7 @@ func (l *Listener) getActivityOrigin(activity *ap.Activity, sender *ap.Actor) (s
 	return activityOrigin, senderOrigin, nil
 }
 
-func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth uint) error {
+func (l *Listener) validateActivity(ctx context.Context, activity *ap.Activity, origin string, depth uint) error {
 	if depth == ap.MaxActivityDepth {
 		return errors.New("activity is too nested")
 	}
@@ -74,7 +74,7 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 		return errors.New("invalid origin")
 	}
 
-	slog.Debug("Validating activity origin", "activity", activity, "origin", origin, "depth", depth)
+	slog.DebugContext(ctx, "Validating activity origin", "activity", activity, "origin", origin, "depth", depth)
 
 	if activity.ID == "" {
 		return errors.New("unspecified activity ID")
@@ -165,7 +165,7 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 			}
 
 			// $origin can only undo actions performed by actors from $origin
-			if err := l.validateActivity(inner, origin, depth+1); err != nil {
+			if err := l.validateActivity(ctx, inner, origin, depth+1); err != nil {
 				return err
 			}
 		} else {
@@ -280,25 +280,25 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 	var actor ap.Actor
 	var rsaPrivKeyPem, ed25519PrivKeyMultibase string
 	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519privkey from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null`, receiver).Scan(&actor, &rsaPrivKeyPem, &ed25519PrivKeyMultibase); errors.Is(err, sql.ErrNoRows) {
-		slog.Debug("Receiving user does not exist", "receiver", receiver)
+		slog.DebugContext(r.Context(), "Receiving user does not exist", "receiver", receiver)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
-		slog.Warn("Failed to check if receiving user exists", "receiver", receiver, "error", err)
+		slog.WarnContext(r.Context(), "Failed to check if receiving user exists", "receiver", receiver, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	rsaPrivKey, err := data.ParseRSAPrivateKey(rsaPrivKeyPem)
 	if err != nil {
-		slog.Warn("Failed to parse RSA private key", "receiver", receiver, "error", err)
+		slog.WarnContext(r.Context(), "Failed to parse RSA private key", "receiver", receiver, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
 	if err != nil {
-		slog.Warn("Failed to decode Ed25519 private key", "receiver", receiver, "error", err)
+		slog.WarnContext(r.Context(), "Failed to decode Ed25519 private key", "receiver", receiver, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -311,7 +311,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 
 func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2]httpsig.Key) {
 	if r.ContentLength > l.Config.MaxRequestBodySize {
-		slog.Warn("Ignoring big request", "size", r.ContentLength)
+		slog.WarnContext(r.Context(), "Ignoring big request", "size", r.ContentLength)
 		w.WriteHeader(http.StatusRequestEntityTooLarge)
 		return
 	}
@@ -324,7 +324,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 
 	var activity ap.Activity
 	if err := json.Unmarshal(rawActivity, &activity); err != nil {
-		slog.Warn("Failed to unmarshal activity", "body", string(rawActivity), "error", err)
+		slog.WarnContext(r.Context(), "Failed to unmarshal activity", "body", string(rawActivity), "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -343,14 +343,14 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 		// if activity has an integrity proof, pretend it was sent by its actor even if forwarded by another
 		sender, err = l.verifyProof(r.Context(), activity.Proof, &activity, rawActivity, flags, keys)
 		if err != nil {
-			slog.Warn("Failed to verify integrity proof", "activity", &activity, "proof", &activity.Proof, "error", err)
+			slog.WarnContext(r.Context(), "Failed to verify integrity proof", "activity", &activity, "proof", &activity.Proof, "error", err)
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
 			return
 		}
 	} else if ap.IsPortable(activity.ID) {
-		slog.Warn("Portable activity has no integrity proof", "activity", &activity)
+		slog.WarnContext(r.Context(), "Portable activity has no integrity proof", "activity", &activity)
 		w.WriteHeader(http.StatusUnauthorized)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{"error": "integrity proof is required"})
@@ -364,15 +364,15 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 			}
 
 			if errors.Is(err, ErrActorNotCached) {
-				slog.Debug("Ignoring Delete activity for unknown actor", "error", err)
+				slog.DebugContext(r.Context(), "Ignoring Delete activity for unknown actor", "error", err)
 				w.WriteHeader(http.StatusAccepted)
 				return
 			}
 
 			if errors.Is(err, ErrBlockedDomain) {
-				slog.Debug("Failed to verify activity", "activity", &activity, "error", err)
+				slog.DebugContext(r.Context(), "Failed to verify activity", "activity", &activity, "error", err)
 			} else {
-				slog.Warn("Failed to verify activity", "activity", &activity, "error", err)
+				slog.WarnContext(r.Context(), "Failed to verify activity", "activity", &activity, "error", err)
 			}
 
 			w.WriteHeader(http.StatusUnauthorized)
@@ -404,7 +404,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 		if inner, ok := queued.Object.(*ap.Activity); ok {
 			queued = inner
 		} else if o, ok := queued.Object.(*ap.Object); ok {
-			slog.Debug("Wrapping object with Update activity", "activity", &activity, "sender", sender.ID, "object", o.ID)
+			slog.DebugContext(r.Context(), "Wrapping object with Update activity", "activity", &activity, "sender", sender.ID, "object", o.ID)
 
 			// hack for Lemmy: wrap a Page inside Announce with Update
 			queued = &ap.Activity{
@@ -421,7 +421,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 	}
 
 	if _, ok := unsupportedActivityTypes[queued.Type]; ok {
-		slog.Debug("Ignoring unsupported activity", "activity", &activity, "sender", sender.ID)
+		slog.DebugContext(r.Context(), "Ignoring unsupported activity", "activity", &activity, "sender", sender.ID)
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
@@ -432,7 +432,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 	*/
 	origin, senderOrigin, err := l.getActivityOrigin(queued, sender)
 	if err != nil {
-		slog.Warn("Failed to determine whether or not activity is forwarded", "activity", &activity, "sender", sender.ID, "error", err)
+		slog.WarnContext(r.Context(), "Failed to determine whether or not activity is forwarded", "activity", &activity, "sender", sender.ID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -440,12 +440,12 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 	forwarded := origin != senderOrigin
 
 	/* if we don't support this activity or it's invalid, we don't want to fetch it (we validate again later) */
-	if err := l.validateActivity(queued, origin, 0); errors.Is(err, ap.ErrUnsupportedActivity) {
-		slog.Debug("Activity is unsupported", "activity", &activity, "sender", sender.ID, "error", err)
+	if err := l.validateActivity(r.Context(), queued, origin, 0); errors.Is(err, ap.ErrUnsupportedActivity) {
+		slog.DebugContext(r.Context(), "Activity is unsupported", "activity", &activity, "sender", sender.ID, "error", err)
 		w.WriteHeader(http.StatusAccepted)
 		return
 	} else if err != nil {
-		slog.Warn("Activity is invalid", "activity", &activity, "sender", sender.ID, "error", err)
+		slog.WarnContext(r.Context(), "Activity is invalid", "activity", &activity, "sender", sender.ID, "error", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	} else if forwarded {
@@ -458,13 +458,13 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 			case string:
 				id = o
 			default:
-				slog.Warn("Ignoring invalid forwarded Delete activity", "activity", &activity, "sender", sender.ID)
+				slog.WarnContext(r.Context(), "Ignoring invalid forwarded Delete activity", "activity", &activity, "sender", sender.ID)
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
 		}
 
-		slog.Info("Fetching forwarded object", "activity", &activity, "id", id, "sender", sender.ID)
+		slog.InfoContext(r.Context(), "Fetching forwarded object", "activity", &activity, "id", id, "sender", sender.ID)
 
 		if exists, fetched, err := l.fetchObject(r.Context(), id, keys); !exists && queued.Type == ap.Delete {
 			queued = &ap.Activity{
@@ -476,17 +476,17 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 		} else if err == nil && exists && queued.Type == ap.Delete {
 			var parsed ap.Object
 			if err := json.Unmarshal([]byte(fetched), &parsed); err != nil {
-				slog.Warn("Ignoring invalid forwarded Delete activity", "activity", &activity, "sender", sender.ID, "error", err)
+				slog.WarnContext(r.Context(), "Ignoring invalid forwarded Delete activity", "activity", &activity, "sender", sender.ID, "error", err)
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			} else if parsed.Type != ap.Tombstone {
-				slog.Warn("Ignoring forwarded Delete activity for existing object", "activity", &activity, "id", id, "sender", sender.ID)
+				slog.WarnContext(r.Context(), "Ignoring forwarded Delete activity for existing object", "activity", &activity, "id", id, "sender", sender.ID)
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
 
 			// hack for Mastodon: a deleted Note is replaced with a Tombstone
-			slog.Debug("Wrapping Tombstone with Delete", "activity", &activity, "sender", sender.ID)
+			slog.DebugContext(r.Context(), "Wrapping Tombstone with Delete", "activity", &activity, "sender", sender.ID)
 			queued = &ap.Activity{
 				ID:     queued.ID,
 				Type:   ap.Delete,
@@ -494,7 +494,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 				Object: &parsed,
 			}
 		} else if err != nil {
-			slog.Warn("Failed to fetch forwarded object", "activity", &activity, "id", id, "sender", sender.ID, "error", err)
+			slog.WarnContext(r.Context(), "Failed to fetch forwarded object", "activity", &activity, "id", id, "sender", sender.ID, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		} else if queued.Type == ap.Update {
@@ -503,12 +503,12 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 				// hack for Mastodon: we get the updated Note when we fetch an Update activity
 				var post ap.Object
 				if err := json.Unmarshal([]byte(fetched), &post); err != nil {
-					slog.Warn("Ignoring invalid forwarded Update activity", "activity", &activity, "sender", sender.ID, "error", err)
+					slog.WarnContext(r.Context(), "Ignoring invalid forwarded Update activity", "activity", &activity, "sender", sender.ID, "error", err)
 					w.WriteHeader(http.StatusBadRequest)
 					return
 				}
 
-				slog.Debug("Wrapping forwarded Update activity", "activity", &activity, "sender", sender.ID)
+				slog.DebugContext(r.Context(), "Wrapping forwarded Update activity", "activity", &activity, "sender", sender.ID)
 				queued = &ap.Activity{
 					ID:     queued.ID,
 					Type:   ap.Update,
@@ -521,7 +521,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 		} else {
 			var parsed ap.Activity
 			if err := json.Unmarshal([]byte(fetched), &parsed); err != nil {
-				slog.Warn("Ignoring invalid forwarded activity", "activity", &activity, "sender", sender.ID, "error", err)
+				slog.WarnContext(r.Context(), "Ignoring invalid forwarded activity", "activity", &activity, "sender", sender.ID, "error", err)
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
@@ -530,12 +530,12 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 		}
 
 		// we must validate the original activity because the forwarded one can be valid while the original isn't
-		if err := l.validateActivity(queued, origin, 0); errors.Is(err, ap.ErrUnsupportedActivity) {
-			slog.Debug("Activity is unsupported", "activity", &activity, "sender", sender.ID, "error", err)
+		if err := l.validateActivity(r.Context(), queued, origin, 0); errors.Is(err, ap.ErrUnsupportedActivity) {
+			slog.DebugContext(r.Context(), "Activity is unsupported", "activity", &activity, "sender", sender.ID, "error", err)
 			w.WriteHeader(http.StatusAccepted)
 			return
 		} else if err != nil {
-			slog.Warn("Activity is invalid", "activity", &activity, "sender", sender.ID, "error", err)
+			slog.WarnContext(r.Context(), "Activity is invalid", "activity", &activity, "sender", sender.ID, "error", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -548,7 +548,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 		queued,
 		string(rawActivity),
 	); err != nil {
-		slog.Error("Failed to insert activity", "sender", sender.ID, "error", err)
+		slog.ErrorContext(r.Context(), "Failed to insert activity", "sender", sender.ID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -556,7 +556,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 	followersSync := r.Header.Get("Collection-Synchronization")
 	if followersSync != "" {
 		if err := l.saveFollowersDigest(r.Context(), sender, followersSync); err != nil {
-			slog.Warn("Failed to save followers sync header", "sender", sender.ID, "header", followersSync, "error", err)
+			slog.WarnContext(r.Context(), "Failed to save followers sync header", "sender", sender.ID, "header", followersSync, "error", err)
 		}
 	}
 
@@ -588,7 +588,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 			senderOrigin,
 			capabilities,
 		); err != nil {
-			slog.Error("Failed to record server capabilities", "server", senderOrigin, "error", err)
+			slog.ErrorContext(r.Context(), "Failed to record server capabilities", "server", senderOrigin, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}

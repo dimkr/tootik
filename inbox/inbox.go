@@ -59,7 +59,7 @@ func (inbox *Inbox) processCreateActivity(ctx context.Context, tx *sql.Tx, sende
 	}
 
 	if len(post.To.OrderedMap)+len(post.CC.OrderedMap) > inbox.Config.MaxRecipients {
-		slog.Warn("Post has too many recipients", "activity", activity, "to", len(post.To.OrderedMap), "cc", len(post.CC.OrderedMap))
+		slog.WarnContext(ctx, "Post has too many recipients", "activity", activity, "to", len(post.To.OrderedMap), "cc", len(post.CC.OrderedMap))
 		return nil
 	}
 
@@ -99,7 +99,7 @@ func (inbox *Inbox) processCreateActivity(ctx context.Context, tx *sql.Tx, sende
 			}
 		}
 
-		slog.Debug("Post is a duplicate", "activity", activity, "post", post.ID)
+		slog.DebugContext(ctx, "Post is a duplicate", "activity", activity, "post", post.ID)
 		return nil
 	}
 
@@ -138,7 +138,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 		return ErrActivityTooNested
 	}
 
-	slog.Debug("Processing activity", "activity", activity)
+	slog.DebugContext(ctx, "Processing activity", "activity", activity)
 
 	switch activity.Type {
 	case ap.Delete:
@@ -161,7 +161,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 		} else {
 			var note ap.Object
 			if err := tx.QueryRowContext(ctx, `select json(object) from notes where id = ?`, deleted).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
-				slog.Debug("Received delete request for non-existing post", "activity", activity, "deleted", deleted)
+				slog.DebugContext(ctx, "Received delete request for non-existing post", "activity", activity, "deleted", deleted)
 				return nil
 			} else if err != nil {
 				return fmt.Errorf("failed to delete %s: %w", deleted, err)
@@ -327,7 +327,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 		}
 
 		if inner.Type != ap.Follow {
-			slog.Debug("Ignoring request to undo a non-Follow activity", "activity", activity)
+			slog.DebugContext(ctx, "Ignoring request to undo a non-Follow activity", "activity", activity)
 			return nil
 		}
 
@@ -379,7 +379,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 					return fmt.Errorf("cannot insert share for %s by %s: %w", postID, sender.ID, err)
 				}
 			} else {
-				slog.Debug("Ignoring unsupported Announce object", "activity", activity)
+				slog.DebugContext(ctx, "Ignoring unsupported Announce object", "activity", activity)
 			}
 			return nil
 		}
@@ -390,7 +390,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 	case ap.Update:
 		post, ok := activity.Object.(*ap.Object)
 		if !ok || ap.Canonical(post.ID) == ap.Canonical(activity.Actor) || ap.Canonical(post.ID) == ap.Canonical(sender.ID) {
-			slog.Debug("Ignoring unsupported Update object", "activity", activity)
+			slog.DebugContext(ctx, "Ignoring unsupported Update object", "activity", activity)
 			return nil
 		}
 
@@ -401,7 +401,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 		var oldPost ap.Object
 		var lastChange int64
 		if err := tx.QueryRowContext(ctx, `select max(inserted, updated), json(object) from notes where id = ? and author in (select id from persons where cid = ?)`, post.ID, ap.Canonical(post.AttributedTo)).Scan(&lastChange, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
-			slog.Debug("Received Update for non-existing post", "activity", activity)
+			slog.DebugContext(ctx, "Received Update for non-existing post", "activity", activity)
 			return inbox.processCreateActivity(ctx, tx, sender, activity, rawActivity, post, shared)
 		} else if err != nil {
 			return fmt.Errorf("failed to get last update time for %s: %w", post.ID, err)
@@ -417,7 +417,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 		}
 
 		if (post.Type == ap.Question && post.Updated != (ap.Time{}) && lastChange >= post.Updated.UnixNano()) || (post.Type != ap.Question && (post.Updated == (ap.Time{}) || lastChange >= post.Updated.UnixNano())) {
-			slog.Debug("Received old update request for new post", "activity", activity)
+			slog.DebugContext(ctx, "Received old update request for new post", "activity", activity)
 			return nil
 		}
 
@@ -462,16 +462,16 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 		slog.InfoContext(ctx, "Updated post", "activity", activity, "post", post.ID)
 
 	case ap.Move:
-		slog.Debug("Ignoring Move activity", "activity", activity)
+		slog.DebugContext(ctx, "Ignoring Move activity", "activity", activity)
 
 	case ap.Like, ap.Dislike, ap.EmojiReact, ap.Add, ap.Remove:
-		slog.Debug("Ignoring activity", "activity", activity)
+		slog.DebugContext(ctx, "Ignoring activity", "activity", activity)
 
 	default:
 		if sender.ID == activity.Actor {
-			slog.Warn("Received unknown request", "activity", activity)
+			slog.WarnContext(ctx, "Received unknown request", "activity", activity)
 		} else {
-			slog.Warn("Received unknown, unauthorized request", "activity", activity)
+			slog.WarnContext(ctx, "Received unknown, unauthorized request", "activity", activity)
 		}
 	}
 

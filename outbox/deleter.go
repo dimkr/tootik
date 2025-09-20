@@ -76,7 +76,7 @@ func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 	}
 
 	if count > 0 {
-		slog.Info("Removed old shared posts", "count", count)
+		slog.InfoContext(ctx, "Removed old shared posts", "count", count)
 		return true, nil
 	}
 
@@ -125,7 +125,7 @@ func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 	}
 
 	if count > 0 {
-		slog.Info("Deleted old posts", "count", count)
+		slog.InfoContext(ctx, "Deleted old posts", "count", count)
 		return true, nil
 	}
 

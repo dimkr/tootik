@@ -38,13 +38,13 @@ func (l *Listener) handleActivity(w http.ResponseWriter, r *http.Request, prefix
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
-		slog.Warn("Failed to fetch activity", "activity", activityID, "error", err)
+		slog.WarnContext(r.Context(), "Failed to fetch activity", "activity", activityID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	if !activity.IsPublic() {
-		slog.Warn("Refused attempt to fetch a non-public activity", "activity", activityID)
+		slog.WarnContext(r.Context(), "Refused attempt to fetch a non-public activity", "activity", activityID)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}

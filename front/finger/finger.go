@@ -45,7 +45,7 @@ type Listener struct {
 
 func (fl *Listener) handle(ctx context.Context, conn net.Conn) {
 	if err := conn.SetDeadline(time.Now().Add(fl.Config.GuppyRequestTimeout)); err != nil {
-		slog.Warn("Failed to set deadline", "error", err)
+		slog.WarnContext(ctx, "Failed to set deadline", "error", err)
 		return
 	}
 
@@ -54,20 +54,20 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn) {
 	for {
 		n, err := conn.Read(req[total:])
 		if err != nil && total == 0 && errors.Is(err, io.EOF) {
-			slog.Debug("Failed to receive request", "error", err)
+			slog.DebugContext(ctx, "Failed to receive request", "error", err)
 			return
 		} else if err != nil {
-			slog.Warn("Failed to receive request", "error", err)
+			slog.WarnContext(ctx, "Failed to receive request", "error", err)
 			return
 		}
 		if n <= 0 {
-			slog.Warn("Failed to receive request")
+			slog.WarnContext(ctx, "Failed to receive request")
 			return
 		}
 		total += n
 
 		if total == cap(req) {
-			slog.Warn("Request is too big")
+			slog.WarnContext(ctx, "Request is too big")
 			return
 		}
 
@@ -184,7 +184,7 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn) {
 // ListenAndServe handles Finger queries.
 func (fl *Listener) ListenAndServe(ctx context.Context) error {
 	if fl.Config.RequireRegistration {
-		slog.Warn("Disabling the Finger listener because registration is required")
+		slog.WarnContext(ctx, "Disabling the Finger listener because registration is required")
 		<-ctx.Done()
 		return nil
 	}
@@ -207,7 +207,7 @@ func (fl *Listener) ListenAndServe(ctx context.Context) error {
 		for ctx.Err() == nil {
 			conn, err := l.Accept()
 			if err != nil {
-				slog.Warn("Failed to accept a connection", "error", err)
+				slog.WarnContext(ctx, "Failed to accept a connection", "error", err)
 				continue
 			}
 

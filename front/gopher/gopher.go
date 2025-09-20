@@ -41,7 +41,7 @@ type Listener struct {
 
 func (gl *Listener) handle(ctx context.Context, conn net.Conn) {
 	if err := conn.SetDeadline(time.Now().Add(gl.Config.GopherRequestTimeout)); err != nil {
-		slog.Warn("Failed to set deadline", "error", err)
+		slog.WarnContext(ctx, "Failed to set deadline", "error", err)
 		return
 	}
 
@@ -50,20 +50,20 @@ func (gl *Listener) handle(ctx context.Context, conn net.Conn) {
 	for {
 		n, err := conn.Read(req[total:])
 		if err != nil && total == 0 && errors.Is(err, io.EOF) {
-			slog.Debug("Failed to receive request", "error", err)
+			slog.DebugContext(ctx, "Failed to receive request", "error", err)
 			return
 		} else if err != nil {
-			slog.Warn("Failed to receive request", "error", err)
+			slog.WarnContext(ctx, "Failed to receive request", "error", err)
 			return
 		}
 		if n <= 0 {
-			slog.Warn("Failed to receive request")
+			slog.WarnContext(ctx, "Failed to receive request")
 			return
 		}
 		total += n
 
 		if total == cap(req) {
-			slog.Warn("Request is too big")
+			slog.WarnContext(ctx, "Request is too big")
 			return
 		}
 
@@ -85,7 +85,7 @@ func (gl *Listener) handle(ctx context.Context, conn net.Conn) {
 	var err error
 	r.URL, err = url.Parse(path)
 	if err != nil {
-		slog.Warn("Failed to parse request", "path", path, "error", err)
+		slog.WarnContext(ctx, "Failed to parse request", "path", path, "error", err)
 		return
 	}
 
@@ -100,7 +100,7 @@ func (gl *Listener) handle(ctx context.Context, conn net.Conn) {
 // ListenAndServe handles Gopher requests.
 func (gl *Listener) ListenAndServe(ctx context.Context) error {
 	if gl.Config.RequireRegistration {
-		slog.Warn("Disabling the Gopher listener because registration is required")
+		slog.WarnContext(ctx, "Disabling the Gopher listener because registration is required")
 		<-ctx.Done()
 		return nil
 	}
@@ -123,7 +123,7 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 		for ctx.Err() == nil {
 			conn, err := l.Accept()
 			if err != nil {
-				slog.Warn("Failed to accept a connection", "error", err)
+				slog.WarnContext(ctx, "Failed to accept a connection", "error", err)
 				continue
 			}
 

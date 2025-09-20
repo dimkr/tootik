@@ -56,7 +56,7 @@ func (p *Poller) Run(ctx context.Context) error {
 		var option sql.NullString
 		var count int64
 		if err := rows.Scan(&pollID, &option, &count); err != nil {
-			slog.Warn("Failed to scan poll result", "error", err)
+			slog.WarnContext(ctx, "Failed to scan poll result", "error", err)
 			continue
 		}
 
@@ -71,13 +71,13 @@ func (p *Poller) Run(ctx context.Context) error {
 		var author ap.Actor
 		var ed25519PrivKeyMultibase string
 		if err := p.DB.QueryRowContext(ctx, "select json(notes.object), json(persons.actor), persons.ed25519privkey from notes join persons on persons.id = notes.author where notes.id = ?", pollID).Scan(&obj, &author, &ed25519PrivKeyMultibase); err != nil {
-			slog.Warn("Failed to fetch poll", "poll", pollID, "error", err)
+			slog.WarnContext(ctx, "Failed to fetch poll", "poll", pollID, "error", err)
 			continue
 		}
 
 		ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
 		if err != nil {
-			slog.Error("Failed to decode Ed25519 private key", "poll", pollID, "author", author.ID, "error", err)
+			slog.ErrorContext(ctx, "Failed to decode Ed25519 private key", "poll", pollID, "author", author.ID, "error", err)
 			continue
 		}
 
@@ -122,11 +122,11 @@ func (p *Poller) Run(ctx context.Context) error {
 
 		poll.Updated = now
 
-		slog.Info("Updating poll results", "poll", poll.ID)
+		slog.InfoContext(ctx, "Updating poll results", "poll", poll.ID)
 
 		author := authors[pollID]
 		if err := p.Inbox.UpdateNote(ctx, author, httpsig.Key{ID: author.AssertionMethod[0].ID, PrivateKey: keys[pollID]}, poll); err != nil {
-			slog.Warn("Failed to update poll results", "poll", poll.ID, "error", err)
+			slog.WarnContext(ctx, "Failed to update poll results", "poll", poll.ID, "error", err)
 		}
 	}
 

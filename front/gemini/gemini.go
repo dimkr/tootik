@@ -87,7 +87,7 @@ func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn) (*ap.Actor, 
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to decode Ed15519 private key for %s: %w", certHash, err)
 	}
 
-	slog.Debug("Found existing user", "hash", certHash, "user", actor.ID)
+	slog.DebugContext(ctx, "Found existing user", "hash", certHash, "user", actor.ID)
 	return &actor, [2]httpsig.Key{
 		{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
 		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey},
@@ -97,18 +97,18 @@ func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn) (*ap.Actor, 
 // Handle handles a Gemini request.
 func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 	if err := conn.SetDeadline(time.Now().Add(gl.Config.GeminiRequestTimeout)); err != nil {
-		slog.Warn("Failed to set deadline", "error", err)
+		slog.WarnContext(ctx, "Failed to set deadline", "error", err)
 		return
 	}
 
 	tlsConn, ok := conn.(*tls.Conn)
 	if !ok {
-		slog.Warn("Invalid connection")
+		slog.WarnContext(ctx, "Invalid connection")
 		return
 	}
 
 	if err := tlsConn.HandshakeContext(ctx); err != nil {
-		slog.Warn("Handshake failed", "error", err)
+		slog.WarnContext(ctx, "Handshake failed", "error", err)
 		return
 	}
 
@@ -117,20 +117,20 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 	for {
 		n, err := conn.Read(req[total : total+1])
 		if err != nil && total == 0 && errors.Is(err, io.EOF) {
-			slog.Debug("Failed to receive request", "error", err)
+			slog.DebugContext(ctx, "Failed to receive request", "error", err)
 			return
 		} else if err != nil {
-			slog.Warn("Failed to receive request", "error", err)
+			slog.WarnContext(ctx, "Failed to receive request", "error", err)
 			return
 		}
 		if n <= 0 {
-			slog.Warn("Failed to receive request")
+			slog.WarnContext(ctx, "Failed to receive request")
 			return
 		}
 		total += n
 
 		if total == cap(req) {
-			slog.Warn("Request is too big")
+			slog.WarnContext(ctx, "Request is too big")
 			return
 		}
 
@@ -147,7 +147,7 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 	var err error
 	r.URL, err = url.Parse(string(req[:total-2]))
 	if err != nil {
-		slog.Warn("Failed to parse request", "request", string(req[:total-2]), "error", err)
+		slog.WarnContext(ctx, "Failed to parse request", "request", string(req[:total-2]), "error", err)
 		return
 	}
 
@@ -156,14 +156,14 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 
 	r.User, r.Keys, err = gl.getUser(ctx, tlsConn)
 	if err != nil && errors.Is(err, front.ErrNotRegistered) && r.URL.Path == "/users" {
-		slog.Info("Redirecting new user")
+		slog.InfoContext(ctx, "Redirecting new user")
 		w.Redirect("/users/register")
 		return
 	} else if errors.Is(err, front.ErrNotApproved) {
 		w.Status(40, "Client certificate is awaiting approval")
 		return
 	} else if err != nil && !errors.Is(err, front.ErrNotRegistered) {
-		slog.Warn("Failed to get user", "error", err)
+		slog.WarnContext(ctx, "Failed to get user", "error", err)
 		w.Error()
 		return
 	} else if err == nil && r.User == nil && r.URL.Path == "/users" {
@@ -213,7 +213,7 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 		for ctx.Err() == nil {
 			conn, err := l.Accept()
 			if err != nil {
-				slog.Warn("Failed to accept a connection", "error", err)
+				slog.WarnContext(ctx, "Failed to accept a connection", "error", err)
 				continue
 			}
 

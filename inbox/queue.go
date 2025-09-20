@@ -66,7 +66,7 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Ac
 
 // ProcessBatch processes one batch of incoming activites in the queue.
 func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
-	slog.Debug("Polling activities queue")
+	slog.DebugContext(ctx, "Polling activities queue")
 
 	rows, err := q.DB.QueryContext(ctx, `select inbox.id, json(persons.actor), json(inbox.activity), inbox.raw, inbox.raw->>'$.type' = 'Announce' as shared from (select * from inbox limit -1 offset case when (select count(*) from inbox) >= $1 then $1/10 else 0 end) inbox left join persons on persons.id = inbox.sender order by inbox.id limit $2`, q.Config.MaxActivitiesQueueSize, q.Config.ActivitiesBatchSize)
 	if err != nil {
@@ -87,7 +87,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		var sender sql.Null[ap.Actor]
 		var shared bool
 		if err := rows.Scan(&id, &sender, &activity, &activityString, &shared); err != nil {
-			slog.Error("Failed to scan activity", "error", err)
+			slog.ErrorContext(ctx, "Failed to scan activity", "error", err)
 			continue
 		}
 

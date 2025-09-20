@@ -34,15 +34,15 @@ func (l *Listener) handleIcon(w http.ResponseWriter, r *http.Request) {
 	}
 	name = name[:len(name)-len(icon.FileNameExtension)]
 
-	slog.Info("Looking up cached icon", "name", name)
+	slog.InfoContext(r.Context(), "Looking up cached icon", "name", name)
 
 	var cache []byte
 	if err := l.DB.QueryRowContext(r.Context(), `select buf from icons where name = ?`, name).Scan(&cache); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		slog.Warn("Failed to get cached icon", "name", name, "error", err)
+		slog.WarnContext(r.Context(), "Failed to get cached icon", "name", name, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	} else if len(cache) > 0 {
-		slog.Debug("Sending cached icon", "name", name)
+		slog.DebugContext(r.Context(), "Sending cached icon", "name", name)
 		w.Header().Set("Content-Type", icon.MediaType)
 		w.Write(cache)
 		return
@@ -50,27 +50,27 @@ func (l *Listener) handleIcon(w http.ResponseWriter, r *http.Request) {
 
 	var exists int
 	if err := l.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where actor->>'$.preferredUsername' = ? and host = ?)`, name, l.Domain).Scan(&exists); err != nil {
-		slog.Warn("Failed to check if user exists", "name", name, "error", err)
+		slog.WarnContext(r.Context(), "Failed to check if user exists", "name", name, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	if exists == 0 {
-		slog.Warn("No icon for non-existing user", "name", name)
+		slog.WarnContext(r.Context(), "No icon for non-existing user", "name", name)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	slog.Info("Generating an icon", "name", name)
+	slog.InfoContext(r.Context(), "Generating an icon", "name", name)
 
 	buf, err := icon.Generate(name)
 	if err != nil {
-		slog.Warn("Failed to generate icon", "name", name, "error", err)
+		slog.WarnContext(r.Context(), "Failed to generate icon", "name", name, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	if _, err := l.DB.ExecContext(r.Context(), `insert into icons(name, buf) values(?,?)`, name, buf); err != nil {
-		slog.Warn("Failed to cache icon", "name", name, "error", err)
+		slog.WarnContext(r.Context(), "Failed to cache icon", "name", name, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

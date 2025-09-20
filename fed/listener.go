@@ -67,7 +67,7 @@ func (l *Listener) NewHandler() (http.Handler, error) {
 	mux.HandleFunc("GET /{$}", l.handleIndex)
 
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
-		slog.Debug("Received request to non-existing path", "path", r.URL.Path)
+		slog.DebugContext(r.Context(), "Received request to non-existing path", "path", r.URL.Path)
 		w.WriteHeader(http.StatusNotFound)
 	})
 
@@ -132,7 +132,7 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 
 			// shut down gracefully only on reload
 			if ctx.Err() == nil {
-				slog.Info("Shutting down server")
+				slog.InfoContext(ctx, "Shutting down server")
 				server.Shutdown(ctx)
 			}
 
@@ -154,7 +154,7 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 					}
 
 					if (event.Has(fsnotify.Write) || event.Has(fsnotify.Create)) && (event.Name == certAbsPath || event.Name == keyAbsPath) {
-						slog.Info("Stopping server: file has changed", "name", event.Name)
+						slog.InfoContext(ctx, "Stopping server: file has changed", "name", event.Name)
 						timer.Reset(certReloadDelay)
 					}
 
@@ -167,7 +167,7 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 			}
 		})
 
-		slog.Info("Starting server")
+		slog.InfoContext(ctx, "Starting server")
 		var err error
 		if l.Plain {
 			err = server.ListenAndServe()

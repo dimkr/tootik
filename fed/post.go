@@ -29,20 +29,20 @@ func (l *Listener) handlePost(w http.ResponseWriter, r *http.Request) {
 
 	if shouldRedirect(r) {
 		url := fmt.Sprintf("gemini://%s/view/%s%s", l.Domain, l.Domain, r.URL.Path)
-		slog.Info("Redirecting to post over Gemini", "url", url)
+		slog.InfoContext(r.Context(), "Redirecting to post over Gemini", "url", url)
 		w.Header().Set("Location", url)
 		w.WriteHeader(http.StatusMovedPermanently)
 		return
 	}
 
-	slog.Info("Fetching post", "post", postID)
+	slog.InfoContext(r.Context(), "Fetching post", "post", postID)
 
 	var note string
 	if err := l.DB.QueryRowContext(r.Context(), `select json(object) from notes where id = ? and public = 1`, postID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
-		slog.Warn("Failed to fetch post", "post", postID, "error", err)
+		slog.WarnContext(r.Context(), "Failed to fetch post", "post", postID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

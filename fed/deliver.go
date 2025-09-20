@@ -77,7 +77,7 @@ func (q *Queue) Process(ctx context.Context) error {
 
 		case <-t.C:
 			if _, err := q.ProcessBatch(ctx); err != nil {
-				slog.Error("Failed to deliver posts", "error", err)
+				slog.ErrorContext(ctx, "Failed to deliver posts", "error", err)
 			}
 		}
 	}
@@ -85,7 +85,7 @@ func (q *Queue) Process(ctx context.Context) error {
 
 // ProcessBatch delivers one batch of outgoing activites in the queue.
 func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
-	slog.Debug("Polling delivery queue")
+	slog.DebugContext(ctx, "Polling delivery queue")
 
 	rows, err := q.DB.QueryContext(
 		ctx,
@@ -160,10 +160,10 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			&rsaPrivKeyPem,
 			&ed25519PrivKeyMultibase,
 		); err != nil {
-			slog.Error("Failed to fetch post to deliver", "error", err)
+			slog.ErrorContext(ctx, "Failed to fetch post to deliver", "error", err)
 			continue
 		} else if len(actor.AssertionMethod) == 0 {
-			slog.Error("Actor has no Ed25519 key", "error", err)
+			slog.ErrorContext(ctx, "Actor has no Ed25519 key", "error", err)
 			continue
 		}
 
@@ -171,13 +171,13 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 		rsaPrivKey, err := data.ParseRSAPrivateKey(rsaPrivKeyPem)
 		if err != nil {
-			slog.Error("Failed to parse RSA private key", "error", err)
+			slog.ErrorContext(ctx, "Failed to parse RSA private key", "error", err)
 			continue
 		}
 
 		ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
 		if err != nil {
-			slog.Error("Failed to decode Ed25519 private key", "error", err)
+			slog.ErrorContext(ctx, "Failed to decode Ed25519 private key", "error", err)
 			continue
 		}
 
@@ -193,7 +193,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			ap.Canonical(activity.ID),
 			actor.ID,
 		); err != nil {
-			slog.Error("Failed to save last delivery attempt time", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
+			slog.ErrorContext(ctx, "Failed to save last delivery attempt time", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 			continue
 		}
 
@@ -215,7 +215,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			tasks,
 			events,
 		); err != nil {
-			slog.Warn("Failed to queue activity for delivery", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
+			slog.WarnContext(ctx, "Failed to queue activity for delivery", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
 		}
 	}
 
@@ -233,7 +233,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	// receive and save job results
 	for job, done := range <-results {
 		if !done {
-			slog.Info("Failed to deliver an activity to at least one recipient", "id", job.Activity.ID)
+			slog.InfoContext(ctx, "Failed to deliver an activity to at least one recipient", "id", job.Activity.ID)
 			continue
 		}
 
@@ -243,9 +243,9 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			ap.Canonical(job.Activity.ID),
 			job.Sender.ID,
 		); err != nil {
-			slog.Error("Failed to mark delivery as completed", "id", job.Activity.ID, "error", err)
+			slog.ErrorContext(ctx, "Failed to mark delivery as completed", "id", job.Activity.ID, "error", err)
 		} else {
-			slog.Info("Successfully delivered an activity to all recipients", "id", job.Activity.ID)
+			slog.InfoContext(ctx, "Successfully delivered an activity to all recipients", "id", job.Activity.ID)
 		}
 	}
 
@@ -286,22 +286,22 @@ func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, event
 			ap.Canonical(task.Job.Activity.ID),
 			task.Inbox,
 		).Scan(&delivered); err != nil {
-			slog.Error("Failed to check if delivered already", "to", task.Inbox, "activity", task.Job.Activity.ID, "error", err)
+			slog.ErrorContext(ctx, "Failed to check if delivered already", "to", task.Inbox, "activity", task.Job.Activity.ID, "error", err)
 			events <- deliveryEvent{task.Job, false}
 			continue
 		}
 
 		if delivered == 1 {
-			slog.Info("Skipping recipient", "to", task.Inbox, "activity", task.Job.Activity.ID)
+			slog.InfoContext(ctx, "Skipping recipient", "to", task.Inbox, "activity", task.Job.Activity.ID)
 			continue
 		}
 
-		slog.Info("Delivering activity to recipient", "inbox", task.Inbox, "activity", task.Job.Activity.ID)
+		slog.InfoContext(ctx, "Delivering activity to recipient", "inbox", task.Inbox, "activity", task.Job.Activity.ID)
 
 		if err := q.deliverWithTimeout(ctx, task); err == nil {
-			slog.Info("Successfully sent an activity", "from", task.Job.Sender.ID, "to", task.Inbox, "activity", task.Job.Activity.ID)
+			slog.InfoContext(ctx, "Successfully sent an activity", "from", task.Job.Sender.ID, "to", task.Inbox, "activity", task.Job.Activity.ID)
 		} else {
-			slog.Warn("Failed to send an activity", "from", task.Job.Sender.ID, "to", task.Inbox, "activity", task.Job.Activity.ID, "error", err)
+			slog.WarnContext(ctx, "Failed to send an activity", "from", task.Job.Sender.ID, "to", task.Inbox, "activity", task.Job.Activity.ID, "error", err)
 			if !errors.Is(err, ErrBlockedDomain) {
 				events <- deliveryEvent{task.Job, false}
 			}
@@ -315,7 +315,7 @@ func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, event
 			ap.Canonical(task.Job.Activity.ID),
 			task.Inbox,
 		); err != nil {
-			slog.Error("Failed to record delivery", "activity", task.Job.Activity.ID, "inbox", task.Inbox, "error", err)
+			slog.ErrorContext(ctx, "Failed to record delivery", "activity", task.Job.Activity.ID, "inbox", task.Inbox, "error", err)
 			events <- deliveryEvent{task.Job, false}
 		}
 	}
@@ -332,13 +332,13 @@ func (q *Queue) queueTask(
 ) {
 	req, err := http.NewRequest(http.MethodPost, inbox, strings.NewReader(job.RawActivity))
 	if err != nil {
-		slog.Warn("Failed to create new request", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
+		slog.WarnContext(ctx, "Failed to create new request", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
 		events <- deliveryEvent{job, false}
 		return
 	}
 
 	if req.URL.Host == q.Domain {
-		slog.Debug("Skipping local recipient inbox", "to", actorID, "activity", job.Activity.ID, "inbox", inbox)
+		slog.DebugContext(ctx, "Skipping local recipient inbox", "to", actorID, "activity", job.Activity.ID, "inbox", inbox)
 		return
 	}
 
@@ -349,11 +349,11 @@ func (q *Queue) queueTask(
 		if digest, err := followers.Digest(ctx, q.DB, q.Domain, job.Sender, req.URL.Host); err == nil {
 			req.Header.Set("Collection-Synchronization", digest)
 		} else {
-			slog.Warn("Failed to digest followers", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
+			slog.WarnContext(ctx, "Failed to digest followers", "to", actorID, "activity", job.Activity.ID, "inbox", inbox, "error", err)
 		}
 	}
 
-	slog.Info("Queueing activity for delivery", "inbox", inbox, "activity", job.Activity.ID)
+	slog.InfoContext(ctx, "Queueing activity for delivery", "inbox", inbox, "activity", job.Activity.ID)
 
 	// assign a task to a random worker but use one worker per inbox, so activities are delivered once per inbox
 	tasks[crc32.ChecksumIEEE([]byte(inbox))%uint32(len(tasks))] <- deliveryTask{
@@ -408,12 +408,12 @@ func (q *Queue) queueTasks(
 			fmt.Sprintf("https://%s/%%", activityID.Host),
 		)
 		if err != nil {
-			slog.Warn("Failed to list followers", "activity", job.Activity.ID, "error", err)
+			slog.WarnContext(ctx, "Failed to list followers", "activity", job.Activity.ID, "error", err)
 		} else {
 			for followers.Next() {
 				var follower string
 				if err := followers.Scan(&follower); err != nil {
-					slog.Warn("Skipped a follower", "activity", job.Activity.ID, "error", err)
+					slog.WarnContext(ctx, "Skipped a follower", "activity", job.Activity.ID, "error", err)
 					continue
 				}
 
@@ -438,13 +438,13 @@ func (q *Queue) queueTasks(
 
 	for actorID := range actorIDs.Keys() {
 		if ap.Canonical(actorID) == author || actorID == ap.Public {
-			slog.Debug("Skipping recipient", "to", actorID, "activity", job.Activity.ID)
+			slog.DebugContext(ctx, "Skipping recipient", "to", actorID, "activity", job.Activity.ID)
 			continue
 		}
 
 		to, err := q.Resolver.ResolveID(ctx, keys, actorID, ap.Offline)
 		if err != nil {
-			slog.Warn("Failed to resolve a recipient", "to", actorID, "activity", job.Activity.ID, "error", err)
+			slog.WarnContext(ctx, "Failed to resolve a recipient", "to", actorID, "activity", job.Activity.ID, "error", err)
 			if !errors.Is(err, ErrActorGone) && !errors.Is(err, ErrBlockedDomain) {
 				events <- deliveryEvent{job, false}
 			}
@@ -455,7 +455,7 @@ func (q *Queue) queueTasks(
 		inbox := to.Inbox
 		if wideDelivery {
 			if sharedInbox, ok := to.Endpoints["sharedInbox"]; ok && sharedInbox != "" {
-				slog.Debug("Using shared inbox", "to", actorID, "activity", job.Activity.ID, "shared_inbox", inbox)
+				slog.DebugContext(ctx, "Using shared inbox", "to", actorID, "activity", job.Activity.ID, "shared_inbox", inbox)
 				inbox = sharedInbox
 			}
 		}
@@ -476,7 +476,7 @@ func (q *Queue) queueTasks(
 	// if this is an activity by a portable actor, forward it to all gateways
 	if ap.IsPortable(job.Sender.ID) && len(job.Sender.Gateways) > 1 {
 		for _, gw := range job.Sender.Gateways[1:] {
-			slog.Info("Forwarding activity to gateway", "activity", job.Activity.ID, "sender", job.Sender.ID, "gateway", gw)
+			slog.InfoContext(ctx, "Forwarding activity to gateway", "activity", job.Activity.ID, "sender", job.Sender.ID, "gateway", gw)
 
 			q.queueTask(
 				ctx,

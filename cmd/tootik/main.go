@@ -189,7 +189,7 @@ func main() {
 	wg.Go(func() {
 		select {
 		case <-sigs:
-			slog.Info("Received termination signal")
+			slog.InfoContext(ctx, "Received termination signal")
 			cancel()
 		case <-ctx.Done():
 		}
@@ -387,7 +387,7 @@ func main() {
 	} {
 		wg.Go(func() {
 			if err := svc.Listener.ListenAndServe(logcontext.New(ctx, "listener", svc.Name)); err != nil {
-				slog.Error("Listener has failed", "listener", svc.Name, "error", err)
+				slog.ErrorContext(ctx, "Listener has failed", "listener", svc.Name, "error", err)
 			}
 			cancel()
 		})
@@ -421,7 +421,7 @@ func main() {
 	} {
 		wg.Go(func() {
 			if err := queue.Queue.Process(logcontext.New(ctx, "queue", queue.Name)); err != nil {
-				slog.Error("Failed to process queue", "queue", queue.Name, "error", err)
+				slog.ErrorContext(ctx, "Failed to process queue", "queue", queue.Name, "error", err)
 			}
 			cancel()
 		})
@@ -502,13 +502,13 @@ func main() {
 			jobCtx := logcontext.New(ctx, "job", job.Name)
 
 			for {
-				slog.Info("Running periodic job", "job", job.Name)
+				slog.InfoContext(ctx, "Running periodic job", "job", job.Name)
 				start := time.Now()
 				if err := job.Runner.Run(jobCtx); err != nil {
-					slog.Error("Periodic job has failed", "job", job.Name, "error", err)
+					slog.ErrorContext(ctx, "Periodic job has failed", "job", job.Name, "error", err)
 					break
 				}
-				slog.Info("Done running periodic job", "job", job.Name, "duration", time.Since(start).String())
+				slog.InfoContext(ctx, "Done running periodic job", "job", job.Name, "duration", time.Since(start).String())
 
 				select {
 				case <-jobCtx.Done():
@@ -521,6 +521,6 @@ func main() {
 	}
 
 	<-ctx.Done()
-	slog.Info("Shutting down")
+	slog.InfoContext(ctx, "Shutting down")
 	wg.Wait()
 }
