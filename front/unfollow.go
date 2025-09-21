@@ -19,6 +19,7 @@ package front
 import (
 	"database/sql"
 	"errors"
+	"log/slog"
 
 	"github.com/dimkr/tootik/front/text"
 )
@@ -33,17 +34,17 @@ func (h *Handler) unfollow(w text.Writer, r *Request, args ...string) {
 
 	var followID string
 	if err := h.DB.QueryRowContext(r.Context, `select follows.id from persons join follows on persons.id = follows.followed where persons.id = ? and follows.follower = ?`, followed, r.User.ID).Scan(&followID); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.Warn("Cannot undo a non-existing follow", "followed", followed, "error", err)
+		slog.WarnContext(r.Context, "Cannot undo a non-existing follow", "followed", followed, "error", err)
 		w.Status(40, "No such follow")
 		return
 	} else if err != nil {
-		r.Log.Warn("Failed to find followed user", "followed", followed, "error", err)
+		slog.WarnContext(r.Context, "Failed to find followed user", "followed", followed, "error", err)
 		w.Error()
 		return
 	}
 
 	if err := h.Inbox.Unfollow(r.Context, r.User, r.Keys[1], followed, followID); err != nil {
-		r.Log.Warn("Failed undo follow", "followed", followed, "error", err)
+		slog.WarnContext(r.Context, "Failed undo follow", "followed", followed, "error", err)
 		w.Error()
 		return
 	}

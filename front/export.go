@@ -19,6 +19,7 @@ package front
 import (
 	"bufio"
 	"encoding/csv"
+	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
@@ -52,7 +53,7 @@ func (h *Handler) export(w text.Writer, r *Request, args ...string) {
 		csvRows,
 	)
 	if err != nil {
-		r.Log.Warn("Failed to fetch activities", "error", err)
+		slog.WarnContext(r.Context, "Failed to fetch activities", "error", err)
 		w.Error()
 		return
 	}
@@ -61,24 +62,24 @@ func (h *Handler) export(w text.Writer, r *Request, args ...string) {
 	w.Status(20, "text/csv")
 
 	if err := output.Write(csvHeader); err != nil {
-		r.Log.Warn("Failed to write header", "error", err)
+		slog.WarnContext(r.Context, "Failed to write header", "error", err)
 		return
 	}
 
 	var fields [4]string
 	for rows.Next() {
 		if err := rows.Scan(&fields[0], &fields[1], &fields[2], &fields[3]); err != nil {
-			r.Log.Warn("Failed to scan activity", "error", err)
+			slog.WarnContext(r.Context, "Failed to scan activity", "error", err)
 			continue
 		}
 		if err := output.Write(fields[:]); err != nil {
-			r.Log.Warn("Failed to write a line", "error", err)
+			slog.WarnContext(r.Context, "Failed to write a line", "error", err)
 			return
 		}
 	}
 
 	output.Flush()
 	if err := output.Error(); err != nil {
-		r.Log.Warn("Failed to flush output", "error", err)
+		slog.WarnContext(r.Context, "Failed to flush output", "error", err)
 	}
 }

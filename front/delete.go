@@ -19,6 +19,7 @@ package front
 import (
 	"database/sql"
 	"errors"
+	"log/slog"
 	"strings"
 
 	"github.com/dimkr/tootik/ap"
@@ -35,17 +36,17 @@ func (h *Handler) delete(w text.Writer, r *Request, args ...string) {
 
 	var note ap.Object
 	if err := h.DB.QueryRowContext(r.Context, `select json(object) from notes where id = ? and author in (select id from persons where cid = ?)`, postID, ap.Canonical(r.User.ID)).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.Warn("Attempted to delete a non-existing post", "post", postID, "error", err)
+		slog.WarnContext(r.Context, "Attempted to delete a non-existing post", "post", postID, "error", err)
 		w.Error()
 		return
 	} else if err != nil {
-		r.Log.Warn("Failed to fetch post to delete", "post", postID, "error", err)
+		slog.WarnContext(r.Context, "Failed to fetch post to delete", "post", postID, "error", err)
 		w.Error()
 		return
 	}
 
 	if err := h.Inbox.Delete(r.Context, r.User, r.Keys[1], &note); err != nil {
-		r.Log.Error("Failed to delete post", "note", note.ID, "error", err)
+		slog.ErrorContext(r.Context, "Failed to delete post", "note", note.ID, "error", err)
 		w.Error()
 		return
 	}

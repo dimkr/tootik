@@ -19,7 +19,6 @@ package front
 import (
 	"context"
 	"io"
-	"log/slog"
 	"net/url"
 
 	"github.com/dimkr/tootik/ap"
@@ -33,9 +32,6 @@ type Request struct {
 
 	// URL specifies the requested URL.
 	URL *url.URL
-
-	// Log specifies a slog.Logger used while handling the request.
-	Log *slog.Logger
 
 	// Body optionally specifies an io.Reader to read the request body from.
 	Body io.Reader

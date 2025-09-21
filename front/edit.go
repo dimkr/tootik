@@ -19,6 +19,7 @@ package front
 import (
 	"database/sql"
 	"errors"
+	"log/slog"
 	"math"
 	"time"
 
@@ -36,24 +37,24 @@ func (h *Handler) doEdit(w text.Writer, r *Request, args []string, readInput inp
 
 	var note ap.Object
 	if err := h.DB.QueryRowContext(r.Context, `select json(object) from notes where id = ? and author in (select id from persons where cid = ?)`, postID, ap.Canonical(r.User.ID)).Scan(&note); errors.Is(err, sql.ErrNoRows) {
-		r.Log.Warn("Attempted to edit non-existing post", "post", postID, "error", err)
+		slog.WarnContext(r.Context, "Attempted to edit non-existing post", "post", postID, "error", err)
 		w.Error()
 		return
 	} else if err != nil {
-		r.Log.Warn("Failed to fetch post to edit", "post", postID, "error", err)
+		slog.WarnContext(r.Context, "Failed to fetch post to edit", "post", postID, "error", err)
 		w.Error()
 		return
 	}
 
 	if note.Name != "" {
-		r.Log.Warn("Cannot edit votes", "vote", note.ID)
+		slog.WarnContext(r.Context, "Cannot edit votes", "vote", note.ID)
 		w.Status(40, "Cannot edit votes")
 		return
 	}
 
 	var edits int
 	if err := h.DB.QueryRowContext(r.Context, `select count(*) from outbox where activity->>'$.object.id' = ? and sender = ? and (activity->>'$.type' = 'Update' or activity->>'$.type' = 'Create')`, note.ID, r.User.ID).Scan(&edits); err != nil {
-		r.Log.Warn("Failed to count post edits", "post", postID, "error", err)
+		slog.WarnContext(r.Context, "Failed to count post edits", "post", postID, "error", err)
 		w.Error()
 		return
 	}
@@ -66,7 +67,7 @@ func (h *Handler) doEdit(w text.Writer, r *Request, args []string, readInput inp
 	canEdit := lastEditTime.Add(h.Config.EditThrottleUnit * time.Duration(math.Pow(h.Config.EditThrottleFactor, float64(edits))))
 	until := time.Until(canEdit)
 	if until > 0 {
-		r.Log.Warn("Throttled request to edit post", "note", note.ID, "can", canEdit)
+		slog.WarnContext(r.Context, "Throttled request to edit post", "note", note.ID, "can", canEdit)
 		w.Statusf(40, "Please wait for %s", until.Truncate(time.Second).String())
 		return
 	}
@@ -78,9 +79,9 @@ func (h *Handler) doEdit(w text.Writer, r *Request, args []string, readInput inp
 
 	var parent ap.Object
 	if err := h.DB.QueryRowContext(r.Context, `select json(object) from notes where cid = ?`, ap.Canonical(note.InReplyTo)).Scan(&parent); errors.Is(err, sql.ErrNoRows) {
-		r.Log.Warn("Parent post does not exist", "parent", note.InReplyTo)
+		slog.WarnContext(r.Context, "Parent post does not exist", "parent", note.InReplyTo)
 	} else if err != nil {
-		r.Log.Warn("Failed to fetch parent post", "parent", note.InReplyTo, "error", err)
+		slog.WarnContext(r.Context, "Failed to fetch parent post", "parent", note.InReplyTo, "error", err)
 		w.Error()
 		return
 	}

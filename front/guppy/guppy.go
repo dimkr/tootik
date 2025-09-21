@@ -33,6 +33,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/front/text/guppy"
+	"github.com/dimkr/tootik/logcontext"
 )
 
 type Listener struct {
@@ -78,9 +79,7 @@ func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks 
 		return
 	}
 
-	r := front.Request{
-		Context: ctx,
-	}
+	r := front.Request{}
 
 	var err error
 	r.URL, err = url.Parse(string(req[:len(req)-2]))
@@ -88,6 +87,8 @@ func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks 
 		slog.WarnContext(ctx, "Invalid request", "request", string(req[:len(req)-2]), "error", err)
 		return
 	}
+
+	r.Context = logcontext.New(ctx, slog.Group("request", "path", r.URL.Path))
 
 	seq := 6 + rand.IntN(math.MaxInt16/2)
 
@@ -101,7 +102,7 @@ func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks 
 			w.Status(4, "Wrong host")
 		} else {
 			slog.InfoContext(ctx, "Handling request", "path", r.URL.Path, "from", from)
-			r.Log = slog.With(slog.Group("request", "path", r.URL.Path))
+			r.Context = logcontext.New(ctx, slog.Group("request", "path", r.URL.Path))
 
 			gl.Handler.Handle(&r, w)
 		}

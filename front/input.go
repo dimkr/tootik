@@ -18,6 +18,7 @@ package front
 
 import (
 	"io"
+	"log/slog"
 	"net/url"
 	"strconv"
 
@@ -59,32 +60,32 @@ func (h *Handler) readBody(w text.Writer, r *Request, args []string) (string, bo
 		sizeStr = args[2]
 		mimeType = "text/plain"
 	} else {
-		r.Log.Warn("Invalid parameters")
+		slog.WarnContext(r.Context, "Invalid parameters")
 		w.Status(40, "Invalid parameters")
 		return "", false
 	}
 
 	if mimeType != "text/plain" {
-		r.Log.Warn("Content type is unsupported", "type", mimeType)
+		slog.WarnContext(r.Context, "Content type is unsupported", "type", mimeType)
 		w.Status(40, "Only text/plain is supported")
 		return "", false
 	}
 
 	size, err := strconv.ParseInt(sizeStr, 10, 64)
 	if err != nil {
-		r.Log.Warn("Failed to parse content size", "error", err)
+		slog.WarnContext(r.Context, "Failed to parse content size", "error", err)
 		w.Status(40, "Invalid size")
 		return "", false
 	}
 
 	if size == 0 {
-		r.Log.Warn("Content is empty")
+		slog.WarnContext(r.Context, "Content is empty")
 		w.Status(40, "Content is empty")
 		return "", false
 	}
 
 	if size > int64(h.Config.MaxPostsLength)*4 {
-		r.Log.Warn("Content is too big", "size", size)
+		slog.WarnContext(r.Context, "Content is too big", "size", size)
 		w.Status(40, "Content is too big")
 		return "", false
 	}
@@ -92,13 +93,13 @@ func (h *Handler) readBody(w text.Writer, r *Request, args []string) (string, bo
 	buf := make([]byte, size)
 	n, err := io.ReadFull(r.Body, buf)
 	if err != nil {
-		r.Log.Warn("Failed to read content", "error", err)
+		slog.WarnContext(r.Context, "Failed to read content", "error", err)
 		w.Error()
 		return "", false
 	}
 
 	if int64(n) != size {
-		r.Log.Warn("Content is truncated")
+		slog.WarnContext(r.Context, "Content is truncated")
 		w.Error()
 		return "", false
 	}

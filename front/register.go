@@ -20,6 +20,7 @@ import (
 	"crypto/ed25519"
 	"crypto/tls"
 	"database/sql"
+	"log/slog"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
@@ -30,14 +31,14 @@ import (
 
 func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 	if r.User != nil {
-		r.Log.Warn("Registered user cannot register again")
+		slog.WarnContext(r.Context, "Registered user cannot register again")
 		w.Statusf(40, "Already registered as %s", r.User.PreferredUsername)
 		return
 	}
 
 	tlsConn, ok := w.Unwrap().(*tls.Conn)
 	if !ok {
-		r.Log.Error("Invalid connection")
+		slog.ErrorContext(r.Context, "Invalid connection")
 		w.Error()
 		return
 	}
@@ -45,7 +46,7 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 	state := tlsConn.ConnectionState()
 
 	if len(state.PeerCertificates) == 0 {
-		r.Log.Warn("No client certificate")
+		slog.WarnContext(r.Context, "No client certificate")
 		w.Redirect("/users")
 		return
 	}
@@ -54,7 +55,7 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 	userName := clientCert.Subject.CommonName
 
 	if time.Now().After(clientCert.NotAfter) {
-		r.Log.Warn("Client certificate has expired", "name", userName, "expired", clientCert.NotAfter)
+		slog.WarnContext(r.Context, "Client certificate has expired", "name", userName, "expired", clientCert.NotAfter)
 		w.Status(40, "Client certificate has expired")
 		return
 	}
@@ -76,7 +77,7 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 
 	var lastRegister sql.NullInt64
 	if err := h.DB.QueryRowContext(r.Context, `select max(inserted) from certificates`).Scan(&lastRegister); err != nil {
-		r.Log.Warn("Failed to check last registration time", "name", userName, "error", err)
+		slog.WarnContext(r.Context, "Failed to check last registration time", "name", userName, "error", err)
 		w.Error()
 		return
 	}
@@ -89,7 +90,7 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 		}
 	}
 
-	r.Log.Info("Creating new user", "name", userName)
+	slog.InfoContext(r.Context, "Creating new user", "name", userName)
 
 	switch r.URL.RawQuery {
 	case "":
@@ -97,14 +98,14 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 			w.Status(10, "Create portable user? (y/n)")
 			return
 		} else if _, _, err := user.Create(r.Context, h.Domain, h.DB, h.Config, userName, ap.Person, clientCert); err != nil {
-			r.Log.Warn("Failed to create new user", "name", userName, "error", err)
+			slog.WarnContext(r.Context, "Failed to create new user", "name", userName, "error", err)
 			w.Status(40, "Failed to create new user")
 			return
 		}
 
 	case "n":
 		if _, _, err := user.Create(r.Context, h.Domain, h.DB, h.Config, userName, ap.Person, clientCert); err != nil {
-			r.Log.Warn("Failed to create new user", "name", userName, "error", err)
+			slog.WarnContext(r.Context, "Failed to create new user", "name", userName, "error", err)
 			w.Status(40, "Failed to create new user")
 			return
 		}
@@ -125,13 +126,13 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 
 		pub, priv, err := ed25519.GenerateKey(nil)
 		if err != nil {
-			r.Log.Warn("Failed to generate key", "error", err)
+			slog.WarnContext(r.Context, "Failed to generate key", "error", err)
 			w.Status(40, "Failed to generate key")
 			return
 		}
 
 		if _, _, err := user.CreatePortable(r.Context, h.Domain, h.DB, h.Config, userName, clientCert, priv, data.EncodeEd25519PrivateKey(priv), pub); err != nil {
-			r.Log.Warn("Failed to create new portable user", "name", userName, "error", err)
+			slog.WarnContext(r.Context, "Failed to create new portable user", "name", userName, "error", err)
 			w.Status(40, "Failed to create new user")
 			return
 		}
@@ -144,13 +145,13 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 
 		key, err := data.DecodeEd25519PrivateKey(r.URL.RawQuery)
 		if err != nil {
-			r.Log.Warn("Failed to decode Ed25519 private key", "name", userName, "error", err)
+			slog.WarnContext(r.Context, "Failed to decode Ed25519 private key", "name", userName, "error", err)
 			w.Statusf(40, "Invalid key: %s", err.Error())
 			return
 		}
 
 		if _, _, err := user.CreatePortable(r.Context, h.Domain, h.DB, h.Config, userName, clientCert, key, r.URL.RawQuery, key.Public().(ed25519.PublicKey)); err != nil {
-			r.Log.Warn("Failed to create new portable user", "name", userName, "error", err)
+			slog.WarnContext(r.Context, "Failed to create new portable user", "name", userName, "error", err)
 			w.Status(40, "Failed to create new user")
 			return
 		}

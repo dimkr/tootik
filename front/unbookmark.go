@@ -16,7 +16,11 @@ limitations under the License.
 
 package front
 
-import "github.com/dimkr/tootik/front/text"
+import (
+	"log/slog"
+
+	"github.com/dimkr/tootik/front/text"
+)
 
 func (h *Handler) unbookmark(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
@@ -27,7 +31,7 @@ func (h *Handler) unbookmark(w text.Writer, r *Request, args ...string) {
 	postID := "https://" + args[1]
 
 	if _, err := h.DB.ExecContext(r.Context, `delete from bookmarks where note = ? and by = ?`, postID, r.User.ID); err != nil {
-		r.Log.Warn("Failed to delete bookmark", "post", postID, "error", err)
+		slog.WarnContext(r.Context, "Failed to delete bookmark", "post", postID, "error", err)
 		w.Error()
 		return
 	}

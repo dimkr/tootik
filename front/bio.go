@@ -18,6 +18,7 @@ package front
 
 import (
 	"fmt"
+	"log/slog"
 	"time"
 	"unicode/utf8"
 
@@ -76,7 +77,7 @@ func (h *Handler) doSetBio(w text.Writer, r *Request, readInput func(text.Writer
 		can = r.User.Updated.Time.Add(h.Config.MinActorEditInterval)
 	}
 	if now.Before(can) {
-		r.Log.Warn("Throttled request to set bio", "can", can)
+		slog.WarnContext(r.Context, "Throttled request to set bio", "can", can)
 		w.Statusf(40, "Please wait for %s", time.Until(can).Truncate(time.Second).String())
 		return
 	}
@@ -95,7 +96,7 @@ func (h *Handler) doSetBio(w text.Writer, r *Request, readInput func(text.Writer
 	r.User.Updated.Time = now
 
 	if err := h.Inbox.UpdateActor(r.Context, r.User, r.Keys[1]); err != nil {
-		r.Log.Error("Failed to update bio", "error", err)
+		slog.ErrorContext(r.Context, "Failed to update bio", "error", err)
 		w.Error()
 		return
 	}

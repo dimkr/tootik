@@ -16,7 +16,11 @@ limitations under the License.
 
 package front
 
-import "github.com/dimkr/tootik/front/text"
+import (
+	"log/slog"
+
+	"github.com/dimkr/tootik/front/text"
+)
 
 func (h *Handler) revoke(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
@@ -26,7 +30,7 @@ func (h *Handler) revoke(w text.Writer, r *Request, args ...string) {
 
 	hash := args[1]
 
-	r.Log.Info("Revoking certificate", "user", r.User.PreferredUsername, "hash", hash)
+	slog.InfoContext(r.Context, "Revoking certificate", "user", r.User.PreferredUsername, "hash", hash)
 
 	if res, err := h.DB.ExecContext(
 		r.Context,
@@ -37,15 +41,15 @@ func (h *Handler) revoke(w text.Writer, r *Request, args ...string) {
 		r.User.PreferredUsername,
 		hash,
 	); err != nil {
-		r.Log.Warn("Failed to revoke certificate", "user", r.User.PreferredUsername, "hash", hash, "error", err)
+		slog.WarnContext(r.Context, "Failed to revoke certificate", "user", r.User.PreferredUsername, "hash", hash, "error", err)
 		w.Error()
 		return
 	} else if n, err := res.RowsAffected(); err != nil {
-		r.Log.Warn("Failed to revoke certificate", "user", r.User.PreferredUsername, "hash", hash, "error", err)
+		slog.WarnContext(r.Context, "Failed to revoke certificate", "user", r.User.PreferredUsername, "hash", hash, "error", err)
 		w.Error()
 		return
 	} else if n == 0 {
-		r.Log.Warn("Certificate doesn't exist or already revoked", "user", r.User.PreferredUsername, "hash", hash)
+		slog.WarnContext(r.Context, "Certificate doesn't exist or already revoked", "user", r.User.PreferredUsername, "hash", hash)
 		w.Status(40, "Cannot revoke certificate")
 		return
 	}

@@ -19,6 +19,7 @@ package front
 import (
 	"database/sql"
 	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
@@ -52,41 +53,41 @@ func (h *Handler) share(w text.Writer, r *Request, args ...string) {
 
 	var note ap.Object
 	if err := h.DB.QueryRowContext(r.Context, `select json(object) from notes where id = $1 and public = 1 and author != $2 and not exists (select 1 from shares where note = notes.id and by = $2)`, postID, r.User.ID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.Warn("Attempted to share non-existing post", "post", postID, "error", err)
+		slog.WarnContext(r.Context, "Attempted to share non-existing post", "post", postID, "error", err)
 		w.Error()
 		return
 	} else if err != nil {
-		r.Log.Warn("Failed to fetch post to share", "post", postID, "error", err)
+		slog.WarnContext(r.Context, "Failed to fetch post to share", "post", postID, "error", err)
 		w.Error()
 		return
 	}
 
 	if throttle, err := h.shouldThrottleShare(r); err != nil {
-		r.Log.Warn("Failed to check if share needs to be throttled", "error", err)
+		slog.WarnContext(r.Context, "Failed to check if share needs to be throttled", "error", err)
 		w.Error()
 		return
 	} else if throttle {
-		r.Log.Warn("User is sharing and unsharing too frequently")
+		slog.WarnContext(r.Context, "User is sharing and unsharing too frequently")
 		w.Status(40, "Please wait before sharing")
 		return
 	}
 
 	tx, err := h.DB.BeginTx(r.Context, nil)
 	if err != nil {
-		r.Log.Warn("Failed to share post", "post", postID, "error", err)
+		slog.WarnContext(r.Context, "Failed to share post", "post", postID, "error", err)
 		w.Error()
 		return
 	}
 	defer tx.Rollback()
 
 	if err := h.Inbox.Announce(r.Context, tx, r.User, r.Keys[1], &note); err != nil {
-		r.Log.Warn("Failed to share post", "post", postID, "error", err)
+		slog.WarnContext(r.Context, "Failed to share post", "post", postID, "error", err)
 		w.Error()
 		return
 	}
 
 	if err := tx.Commit(); err != nil {
-		r.Log.Warn("Failed to share post", "post", postID, "error", err)
+		slog.WarnContext(r.Context, "Failed to share post", "post", postID, "error", err)
 		w.Error()
 		return
 	}

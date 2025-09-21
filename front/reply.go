@@ -19,6 +19,7 @@ package front
 import (
 	"database/sql"
 	"errors"
+	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
@@ -65,11 +66,11 @@ func (h *Handler) replyOrQuote(w text.Writer, r *Request, args []string, quote b
 		postID,
 		r.User.ID,
 	).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.Warn("Post does not exist", "post", postID)
+		slog.WarnContext(r.Context, "Post does not exist", "post", postID)
 		w.Status(40, "Post not found")
 		return
 	} else if err != nil {
-		r.Log.Warn("Failed to find post by ID", "post", postID, "error", err)
+		slog.WarnContext(r.Context, "Failed to find post by ID", "post", postID, "error", err)
 		w.Error()
 		return
 	}
@@ -78,10 +79,10 @@ func (h *Handler) replyOrQuote(w text.Writer, r *Request, args []string, quote b
 	cc := ap.Audience{}
 
 	if quote {
-		r.Log.Info("Quoting post", "post", note.ID)
+		slog.InfoContext(r.Context, "Quoting post", "post", note.ID)
 
 		if !note.CanQuote() {
-			r.Log.Warn("Post cannot be quoted", "post", postID)
+			slog.WarnContext(r.Context, "Post cannot be quoted", "post", postID)
 			w.Status(40, "Post cannot be quoted")
 			return
 		}
@@ -96,7 +97,7 @@ func (h *Handler) replyOrQuote(w text.Writer, r *Request, args []string, quote b
 		return
 	}
 
-	r.Log.Info("Replying to post", "post", note.ID)
+	slog.InfoContext(r.Context, "Replying to post", "post", note.ID)
 
 	if note.AttributedTo == r.User.ID {
 		to = note.To

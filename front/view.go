@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strings"
 	"time"
@@ -34,12 +35,12 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 
 	offset, err := getOffset(r.URL)
 	if err != nil {
-		r.Log.Info("Failed to parse query", "error", err)
+		slog.InfoContext(r.Context, "Failed to parse query", "error", err)
 		w.Status(40, "Invalid query")
 		return
 	}
 
-	r.Log.Info("Viewing post", "post", postID)
+	slog.InfoContext(r.Context, "Viewing post", "post", postID)
 
 	var note ap.Object
 	var author ap.Actor
@@ -94,11 +95,11 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		).Scan(&note, &author, &group)
 	}
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.Info("Post was not found", "post", postID)
+		slog.InfoContext(r.Context, "Post was not found", "post", postID)
 		w.Status(40, "Post not found")
 		return
 	} else if err != nil {
-		r.Log.Info("Failed to find post", "post", postID, "error", err)
+		slog.InfoContext(r.Context, "Failed to find post", "post", postID, "error", err)
 		w.Error()
 		return
 	}
@@ -137,7 +138,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				note.InReplyTo,
 				h.Config.PostContextDepth,
 			); err != nil {
-				r.Log.Warn("Failed to fetch context", "error", err)
+				slog.WarnContext(r.Context, "Failed to fetch context", "error", err)
 			} else {
 				defer parents.Close()
 
@@ -147,7 +148,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 					var parentAuthor ap.Actor
 					var currentDepth int
 					if err := parents.Scan(&parent, &parentAuthor, &currentDepth); err != nil {
-						r.Log.Info("Failed to fetch context", "error", err)
+						slog.InfoContext(r.Context, "Failed to fetch context", "error", err)
 						break
 					}
 
@@ -200,7 +201,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				}
 
 				if err := parents.Err(); err != nil {
-					r.Log.Info("Failed to fetch context", "error", err)
+					slog.InfoContext(r.Context, "Failed to fetch context", "error", err)
 				}
 			}
 
@@ -221,10 +222,10 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		for mentionID := range mentionedUsers.Keys() {
 			var mentionUserName string
 			if err := h.DB.QueryRowContext(r.Context, `select actor->>'$.preferredUsername' from persons where id = ?`, mentionID).Scan(&mentionUserName); err != nil && errors.Is(err, sql.ErrNoRows) {
-				r.Log.Warn("Mentioned user is unknown", "mention", mentionID)
+				slog.WarnContext(r.Context, "Mentioned user is unknown", "mention", mentionID)
 				continue
 			} else if err != nil {
-				r.Log.Warn("Failed to get mentioned user name", "mention", mentionID, "error", err)
+				slog.WarnContext(r.Context, "Failed to get mentioned user name", "mention", mentionID, "error", err)
 				continue
 			}
 
@@ -308,12 +309,12 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				)
 			}
 			if err != nil && !errors.Is(err, sql.ErrNoRows) {
-				r.Log.Warn("Failed to query sharers", "error", err)
+				slog.WarnContext(r.Context, "Failed to query sharers", "error", err)
 			} else if err == nil {
 				for rows.Next() {
 					var sharerID, sharerName string
 					if err := rows.Scan(&sharerID, &sharerName); err != nil {
-						r.Log.Warn("Failed to scan sharer", "error", err)
+						slog.WarnContext(r.Context, "Failed to scan sharer", "error", err)
 						continue
 					}
 					links.Store("/users/outbox/"+strings.TrimPrefix(sharerID, "https://"), "🔄 "+sharerName)
@@ -334,12 +335,12 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			note.ID,
 			h.Config.QuotesPerPost,
 		); err != nil {
-			r.Log.Warn("Failed to query quotes", "error", err)
+			slog.WarnContext(r.Context, "Failed to query quotes", "error", err)
 		} else {
 			for quotes.Next() {
 				var quoteID, quoter string
 				if err := quotes.Scan(&quoteID, &quoter); err != nil {
-					r.Log.Warn("Failed to scan quoter", "error", err)
+					slog.WarnContext(r.Context, "Failed to scan quoter", "error", err)
 				} else if r.User == nil {
 					links.Store("/view/"+strings.TrimPrefix(quoteID, "https://"), "♻️ "+quoter)
 				} else {
@@ -388,7 +389,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		for tag := range hashtags.Values() {
 			var exists int
 			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from hashtags where hashtag = ? and note != ?)`, tag, note.ID).Scan(&exists); err != nil {
-				r.Log.Warn("Failed to check if hashtag is used by other posts", "note", note.ID, "hashtag", tag)
+				slog.WarnContext(r.Context, "Failed to check if hashtag is used by other posts", "note", note.ID, "hashtag", tag)
 				continue
 			}
 
@@ -419,7 +420,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		if r.User != nil && note.IsPublic() && ap.Canonical(note.AttributedTo) != ap.Canonical(r.User.ID) {
 			var shared int
 			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from shares where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&shared); err != nil {
-				r.Log.Warn("Failed to check if post is shared", "id", note.ID, "error", err)
+				slog.WarnContext(r.Context, "Failed to check if post is shared", "id", note.ID, "error", err)
 			} else if shared == 0 {
 				w.Link("/users/share/"+strings.TrimPrefix(note.ID, "https://"), "🔁 Share")
 			} else {
@@ -430,7 +431,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		if r.User != nil {
 			var bookmarked int
 			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from bookmarks where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&bookmarked); err != nil {
-				r.Log.Warn("Failed to check if post is bookmarked", "id", note.ID, "error", err)
+				slog.WarnContext(r.Context, "Failed to check if post is bookmarked", "id", note.ID, "error", err)
 			} else if bookmarked == 0 {
 				w.Link("/users/bookmark/"+strings.TrimPrefix(note.ID, "https://"), "🔖 Bookmark")
 			} else {
@@ -492,7 +493,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			).Scan(&quote, &quoteAuthor); errors.Is(err, sql.ErrNoRows) {
 				w.Text("[Missing]")
 			} else if err != nil {
-				r.Log.Warn("Failed to scan quote", "error", err)
+				slog.WarnContext(r.Context, "Failed to scan quote", "error", err)
 				w.Text("[Error]")
 			} else {
 				if r.User == nil {
@@ -572,7 +573,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		)
 	}
 	if err != nil {
-		r.Log.Warn("Failed to fetch replies", "error", err)
+		slog.WarnContext(r.Context, "Failed to fetch replies", "error", err)
 	} else {
 		count = h.PrintNotes(w, r, replies, false, false, "No replies.")
 		replies.Close()

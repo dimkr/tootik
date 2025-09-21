@@ -19,6 +19,7 @@ package front
 import (
 	"database/sql"
 	"errors"
+	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
@@ -34,17 +35,17 @@ func (h *Handler) unshare(w text.Writer, r *Request, args ...string) {
 
 	var share ap.Activity
 	if err := h.DB.QueryRowContext(r.Context, `select json(activity) from outbox where activity->>'$.actor' = $1 and sender = $1 and activity->>'$.type' = 'Announce' and activity->>'$.object' = $2`, r.User.ID, postID).Scan(&share); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.Warn("Attempted to unshare non-existing share", "post", postID, "error", err)
+		slog.WarnContext(r.Context, "Attempted to unshare non-existing share", "post", postID, "error", err)
 		w.Error()
 		return
 	} else if err != nil {
-		r.Log.Warn("Failed to fetch share to unshare", "post", postID, "error", err)
+		slog.WarnContext(r.Context, "Failed to fetch share to unshare", "post", postID, "error", err)
 		w.Error()
 		return
 	}
 
 	if err := h.Inbox.Undo(r.Context, r.User, r.Keys[1], &share); err != nil {
-		r.Log.Warn("Failed to unshare post", "post", postID, "error", err)
+		slog.WarnContext(r.Context, "Failed to unshare post", "post", postID, "error", err)
 		w.Error()
 		return
 	}

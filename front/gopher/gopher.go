@@ -30,6 +30,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/front/text/gmap"
+	"github.com/dimkr/tootik/logcontext"
 )
 
 type Listener struct {
@@ -77,10 +78,7 @@ func (gl *Listener) handle(ctx context.Context, conn net.Conn) {
 		path = "/"
 	}
 
-	r := front.Request{
-		Context: ctx,
-		Body:    conn,
-	}
+	var r front.Request
 
 	var err error
 	r.URL, err = url.Parse(path)
@@ -89,7 +87,7 @@ func (gl *Listener) handle(ctx context.Context, conn net.Conn) {
 		return
 	}
 
-	r.Log = slog.With(slog.Group("request", "path", r.URL.Path))
+	r.Context = logcontext.New(ctx, slog.Group("request", "path", r.URL.Path))
 
 	w := gmap.Wrap(conn, gl.Domain, gl.Config)
 	defer w.Flush()

@@ -37,6 +37,7 @@ import (
 	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/front/text/gmi"
 	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/logcontext"
 )
 
 type Listener struct {
@@ -175,9 +176,9 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 	}
 
 	if r.User == nil {
-		r.Log = slog.With(slog.Group("request", "path", r.URL.Path))
+		r.Context = logcontext.New(ctx, slog.Group("request", "path", r.URL.Path))
 	} else {
-		r.Log = slog.With(slog.Group("request", "path", r.URL.Path, "user", r.User.PreferredUsername))
+		r.Context = logcontext.New(ctx, slog.Group("request", "path", r.URL.Path, "user", r.User.PreferredUsername))
 	}
 
 	gl.Handler.Handle(&r, w)

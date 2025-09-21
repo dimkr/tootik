@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strings"
 	"time"
@@ -48,13 +49,13 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 	if oldNote == nil {
 		var today, last sql.NullInt64
 		if err := h.DB.QueryRowContext(r.Context, `select count(*), max(inserted) from outbox where activity->>'$.actor' = $1 and sender = $1 and activity->>'$.type' = 'Create' and inserted > $2`, r.User.ID, now.Add(-24*time.Hour).Unix()).Scan(&today, &last); err != nil {
-			r.Log.Warn("Failed to check if new post needs to be throttled", "error", err)
+			slog.WarnContext(r.Context, "Failed to check if new post needs to be throttled", "error", err)
 			w.Error()
 			return
 		}
 
 		if today.Valid && today.Int64 >= h.Config.MaxPostsPerDay {
-			r.Log.Warn("User has exceeded the daily posts quota", "posts", today.Int64)
+			slog.WarnContext(r.Context, "User has exceeded the daily posts quota", "posts", today.Int64)
 			w.Status(40, "Reached daily posts quota")
 			return
 		}
@@ -64,7 +65,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 			can := t.Add(max(1, time.Duration(today.Int64/h.Config.PostThrottleFactor)) * h.Config.PostThrottleUnit)
 			until := time.Until(can)
 			if until > 0 {
-				r.Log.Warn("User is posting too frequently", "last", t, "can", can)
+				slog.WarnContext(r.Context, "User is posting too frequently", "last", t, "can", can)
 				w.Statusf(40, "Please wait for %s", until.Truncate(time.Second).String())
 				return
 			}
@@ -86,7 +87,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 		var err error
 		postID, err = h.Inbox.NewID(r.User.ID, "post")
 		if err != nil {
-			r.Log.Error("Failed to generate post ID", "error", err)
+			slog.ErrorContext(r.Context, "Failed to generate post ID", "error", err)
 			w.Error()
 			return
 		}
@@ -116,14 +117,14 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				r.Log.Warn("Failed to guess mentioned actor ID", "mention", mention[0])
+				slog.WarnContext(r.Context, "Failed to guess mentioned actor ID", "mention", mention[0])
 			} else {
-				r.Log.Warn("Failed to guess mentioned actor ID", "mention", mention[0], "error", err)
+				slog.WarnContext(r.Context, "Failed to guess mentioned actor ID", "mention", mention[0], "error", err)
 			}
 			continue
 		}
 
-		r.Log.Info("Adding mention", "name", mention[0], "actor", actorID)
+		slog.InfoContext(r.Context, "Adding mention", "name", mention[0], "actor", actorID)
 		tags = append(tags, ap.Tag{Type: ap.Mention, Name: mention[0], Href: actorID})
 		cc.Add(actorID)
 	}
@@ -211,7 +212,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 	if m := pollRegex.FindStringSubmatchIndex(note.Content); m != nil {
 		optionNames := strings.SplitN(note.Content[m[4]:], pollOptionsDelimeter, h.Config.PollMaxOptions+1)
 		if len(optionNames) < pollMinOptions || len(optionNames) > h.Config.PollMaxOptions {
-			r.Log.Info("Received invalid poll", "content", note.Content)
+			slog.InfoContext(r.Context, "Received invalid poll", "content", note.Content)
 			w.Statusf(40, "Polls must have %d to %d options", pollMinOptions, h.Config.PollMaxOptions)
 			return
 		}
@@ -257,7 +258,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 		err = h.Inbox.Create(r.Context, h.Config, &note, r.User, r.Keys[1])
 	}
 	if err != nil {
-		r.Log.Error("Failed to insert post", "error", err)
+		slog.ErrorContext(r.Context, "Failed to insert post", "error", err)
 		if errors.Is(err, inbox.ErrDeliveryQueueFull) {
 			w.Status(40, "Please try again later")
 		} else {
