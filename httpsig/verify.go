@@ -150,7 +150,7 @@ func Extract(r *http.Request, body []byte, domain string, now time.Time, maxAge 
 			}
 
 		default:
-			return nil, errors.New("unsupported atribute: " + m[1])
+			return nil, errors.New("unsupported attribute: " + m[1])
 		}
 	}
 
@@ -259,7 +259,7 @@ func (s *Signature) Verify(key any) error {
 		}
 
 		if len(s.signature) != ed25519.SignatureSize {
-			return fmt.Errorf("invalid signature size size: %d", len(s.signature))
+			return fmt.Errorf("invalid signature size: %d", len(s.signature))
 		}
 
 		if !ed25519.Verify(v, []byte(s.s), s.signature) {
