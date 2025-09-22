@@ -55,7 +55,7 @@ type loggingHandler struct {
 const certReloadDelay = time.Second * 5
 
 func (h loggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.inner.ServeHTTP(w, r.WithContext(logcontext.New(r.Context(), "request", r.URL.String())))
+	h.inner.ServeHTTP(w, r.WithContext(logcontext.Add(r.Context(), "request", r.URL.String())))
 }
 
 func withLogging(h http.Handler) http.Handler {

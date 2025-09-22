@@ -29,5 +29,5 @@ func init() {
 		AddSource: true,
 	}
 
-	slog.SetDefault(slog.New(logcontext.Wrap(slog.NewJSONHandler(os.Stderr, &opts))))
+	slog.SetDefault(slog.New(logcontext.NewHandler(slog.NewJSONHandler(os.Stderr, &opts))))
 }

@@ -48,7 +48,7 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Ac
 	ctx, cancel := context.WithTimeout(parent, q.Config.ActivityProcessingTimeout)
 	defer cancel()
 
-	ctx = logcontext.New(ctx, "activity", activity, "sender", sender.ID)
+	ctx = logcontext.Add(ctx, "activity", activity, "sender", sender.ID)
 
 	tx, err := q.DB.BeginTx(ctx, nil)
 	if err != nil {

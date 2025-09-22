@@ -280,7 +280,7 @@ func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, event
 			tried[task.Job.Activity.ID] = map[string]struct{}{task.Inbox: {}}
 		}
 
-		ctx = logcontext.New(ctx, "sender", task.Job.Sender.ID, "inbox", task.Inbox, "activity", task.Job.Activity.ID)
+		ctx = logcontext.Add(ctx, "sender", task.Job.Sender.ID, "inbox", task.Inbox, "activity", task.Job.Activity.ID)
 
 		var delivered int
 		if err := q.DB.QueryRowContext(
@@ -333,7 +333,7 @@ func (q *Queue) queueTask(
 	tasks []chan deliveryTask,
 	events chan<- deliveryEvent,
 ) {
-	ctx = logcontext.New(ctx, "to", actorID, "activity", job.Activity.ID, "inbox", inbox)
+	ctx = logcontext.Add(ctx, "to", actorID, "activity", job.Activity.ID, "inbox", inbox)
 
 	req, err := http.NewRequest(http.MethodPost, inbox, strings.NewReader(job.RawActivity))
 	if err != nil {
@@ -382,7 +382,7 @@ func (q *Queue) queueTasks(
 		return err
 	}
 
-	ctx = logcontext.New(ctx, "activity", job.Activity.ID, "sender", job.Sender.ID)
+	ctx = logcontext.Add(ctx, "activity", job.Activity.ID, "sender", job.Sender.ID)
 
 	recipients := ap.Audience{}
 

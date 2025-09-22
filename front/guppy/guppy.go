@@ -88,7 +88,7 @@ func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks 
 		return
 	}
 
-	r.Context = logcontext.New(ctx, slog.Group("request", "path", r.URL.Path))
+	r.Context = logcontext.Add(ctx, slog.Group("request", "path", r.URL.Path))
 
 	seq := 6 + rand.IntN(math.MaxInt16/2)
 
@@ -102,7 +102,7 @@ func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks 
 			w.Status(4, "Wrong host")
 		} else {
 			slog.InfoContext(ctx, "Handling request", "path", r.URL.Path, "from", from)
-			r.Context = logcontext.New(ctx, slog.Group("request", "path", r.URL.Path))
+			r.Context = logcontext.Add(ctx, slog.Group("request", "path", r.URL.Path))
 
 			gl.Handler.Handle(&r, w)
 		}

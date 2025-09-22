@@ -176,9 +176,9 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 	}
 
 	if r.User == nil {
-		r.Context = logcontext.New(ctx, slog.Group("request", "path", r.URL.Path))
+		r.Context = logcontext.Add(ctx, slog.Group("request", "path", r.URL.Path))
 	} else {
-		r.Context = logcontext.New(ctx, slog.Group("request", "path", r.URL.Path, "user", r.User.PreferredUsername))
+		r.Context = logcontext.Add(ctx, slog.Group("request", "path", r.URL.Path, "user", r.User.PreferredUsername))
 	}
 
 	gl.Handler.Handle(&r, w)

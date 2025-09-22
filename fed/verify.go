@@ -65,7 +65,7 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 		return nil, nil, fmt.Errorf("failed to verify message: %w", err)
 	}
 
-	r = r.WithContext(logcontext.New(r.Context(), "key_id", sig.KeyID))
+	r = r.WithContext(logcontext.Add(r.Context(), "key_id", sig.KeyID))
 
 	if sig.Alg == "ed25519" && ap.IsPortable(sig.KeyID) {
 		if m := ap.KeyRegex.FindStringSubmatch(sig.KeyID); m != nil {
@@ -142,11 +142,11 @@ func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Act
 				return nil, fmt.Errorf("failed to verify proof using %s: %w", p.VerificationMethod, err)
 			}
 
-			return l.Resolver.ResolveID(logcontext.New(ctx, "verification_method", p.VerificationMethod), keys, activity.Actor, flags)
+			return l.Resolver.ResolveID(logcontext.Add(ctx, "verification_method", p.VerificationMethod), keys, activity.Actor, flags)
 		}
 	}
 
-	actor, err := l.Resolver.ResolveID(logcontext.New(ctx, "verification_method", p.VerificationMethod), keys, p.VerificationMethod, flags)
+	actor, err := l.Resolver.ResolveID(logcontext.Add(ctx, "verification_method", p.VerificationMethod), keys, p.VerificationMethod, flags)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
 	}

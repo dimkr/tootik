@@ -87,7 +87,7 @@ func (gl *Listener) handle(ctx context.Context, conn net.Conn) {
 		return
 	}
 
-	r.Context = logcontext.New(ctx, slog.Group("request", "path", r.URL.Path))
+	r.Context = logcontext.Add(ctx, slog.Group("request", "path", r.URL.Path))
 
 	w := gmap.Wrap(conn, gl.Domain, gl.Config)
 	defer w.Flush()

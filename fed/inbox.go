@@ -330,7 +330,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 		return
 	}
 
-	r = r.WithContext(logcontext.New(r.Context(), "activity", &activity))
+	r = r.WithContext(logcontext.Add(r.Context(), "activity", &activity))
 
 	r.Body = io.NopCloser(bytes.NewReader(rawActivity))
 
@@ -386,7 +386,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 		}
 	}
 
-	r = r.WithContext(logcontext.New(r.Context(), "sender", sender.ID))
+	r = r.WithContext(logcontext.Add(r.Context(), "sender", sender.ID))
 
 	/*
 		we have 4 activities:
@@ -442,7 +442,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 		return
 	}
 
-	r = r.WithContext(logcontext.New(r.Context(), "origin", origin))
+	r = r.WithContext(logcontext.Add(r.Context(), "origin", origin))
 
 	forwarded := origin != senderOrigin
 

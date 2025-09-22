@@ -142,7 +142,7 @@ func main() {
 		opts.AddSource = true
 	}
 
-	slog.SetDefault(slog.New(logcontext.Wrap(slog.NewJSONHandler(os.Stderr, &opts))))
+	slog.SetDefault(slog.New(logcontext.NewHandler(slog.NewJSONHandler(os.Stderr, &opts))))
 	slog.SetLogLoggerLevel(slog.Level(*logLevel))
 
 	var blockList *fed.BlockList
@@ -386,7 +386,7 @@ func main() {
 		},
 	} {
 		wg.Go(func() {
-			if err := svc.Listener.ListenAndServe(logcontext.New(ctx, "listener", svc.Name)); err != nil {
+			if err := svc.Listener.ListenAndServe(logcontext.Add(ctx, "listener", svc.Name)); err != nil {
 				slog.ErrorContext(ctx, "Listener has failed", "listener", svc.Name, "error", err)
 			}
 			cancel()
@@ -420,7 +420,7 @@ func main() {
 		},
 	} {
 		wg.Go(func() {
-			if err := queue.Queue.Process(logcontext.New(ctx, "queue", queue.Name)); err != nil {
+			if err := queue.Queue.Process(logcontext.Add(ctx, "queue", queue.Name)); err != nil {
 				slog.ErrorContext(ctx, "Failed to process queue", "queue", queue.Name, "error", err)
 			}
 			cancel()
@@ -499,7 +499,7 @@ func main() {
 			t := time.NewTicker(job.Interval)
 			defer t.Stop()
 
-			jobCtx := logcontext.New(ctx, "job", job.Name)
+			jobCtx := logcontext.Add(ctx, "job", job.Name)
 
 			for {
 				slog.InfoContext(ctx, "Running periodic job", "job", job.Name)
