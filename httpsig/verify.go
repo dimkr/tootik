@@ -116,6 +116,8 @@ func Extract(r *http.Request, body []byte, domain string, now time.Time, maxAge 
 	values := r.Header.Values("Signature")
 	if len(values) > 1 {
 		return nil, errors.New("more than one signature")
+	} else if len(values) == 0 {
+		return nil, errors.New("no signature")
 	}
 
 	var keyID, headers, signature, algorithm string
