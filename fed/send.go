@@ -54,7 +54,7 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request) (*http.Response, e
 		return nil, fmt.Errorf("invalid host in %s: %s", urlString, req.URL.Host)
 	}
 
-	req = req.WithContext(logcontext.Add(req.Context(), "method", req.Method, "url", urlString))
+	req = req.WithContext(logcontext.Add(req.Context(), slog.Group("outgoing_request", "method", req.Method, "url", urlString)))
 
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)

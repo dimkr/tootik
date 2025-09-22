@@ -84,11 +84,11 @@ func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks 
 	var err error
 	r.URL, err = url.Parse(string(req[:len(req)-2]))
 	if err != nil {
-		slog.WarnContext(ctx, "Invalid request", "request", string(req[:len(req)-2]), "error", err)
+		slog.WarnContext(r.Context, "Invalid request", "request", string(req[:len(req)-2]), "error", err)
 		return
 	}
 
-	r.Context = logcontext.Add(ctx, slog.Group("request", "path", r.URL.Path))
+	r.Context = logcontext.Add(ctx, slog.Group("guppy_request", "path", r.URL.Path, "from", from))
 
 	seq := 6 + rand.IntN(math.MaxInt16/2)
 
@@ -97,12 +97,10 @@ func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks 
 
 	var wg sync.WaitGroup
 	wg.Go(func() {
-
 		if r.URL.Host != gl.Domain {
 			w.Status(4, "Wrong host")
 		} else {
-			slog.InfoContext(ctx, "Handling request", "path", r.URL.Path, "from", from)
-			r.Context = logcontext.Add(ctx, slog.Group("request", "path", r.URL.Path))
+			slog.InfoContext(r.Context, "Handling request")
 
 			gl.Handler.Handle(&r, w)
 		}
@@ -115,7 +113,7 @@ func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks 
 
 	chunk, ok := <-c
 	if !ok {
-		slog.WarnContext(ctx, "Failed to read first respone chunk", "path", r.URL.Path, "from", from)
+		slog.WarnContext(r.Context, "Failed to read first respone chunk")
 		return
 	}
 
@@ -133,45 +131,45 @@ func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks 
 	retry := time.NewTicker(retryInterval)
 	defer retry.Stop()
 
-	slog.DebugContext(ctx, "Sending response", "path", r.URL.Path, "from", from, "first", chunks[0].Seq)
+	slog.DebugContext(r.Context, "Sending response", "first", chunks[0].Seq)
 
 	eofReceived := false
 
 	for {
 		select {
 		case <-ctx.Done():
-			slog.WarnContext(ctx, "Session timed out", "path", r.URL.Path, "from", from)
+			slog.WarnContext(r.Context, "Session timed out")
 			return
 
 		case ack, ok := <-acks:
 			if !ok {
-				slog.WarnContext(ctx, "Session timed out", "path", r.URL.Path, "from", from)
+				slog.WarnContext(r.Context, "Session timed out")
 				return
 			}
 
 			var ackedSeq int
 			n, err := fmt.Sscanf(string(ack), "%d\r\n", &ackedSeq)
 			if err != nil {
-				slog.DebugContext(ctx, "Received invalid ack", "path", r.URL.Path, "from", from, "ack", string(ack), "error", err)
+				slog.DebugContext(r.Context, "Received invalid ack", "ack", string(ack), "error", err)
 				continue
 			}
 			if n < 1 {
-				slog.DebugContext(ctx, "Received invalid ack", "path", r.URL.Path, "from", from, "ack", string(ack))
+				slog.DebugContext(r.Context, "Received invalid ack", "ack", string(ack))
 				continue
 			}
 
 			i := ackedSeq - chunks[0].Seq
 			if i < 0 || i >= len(chunks) {
-				slog.DebugContext(ctx, "Received invalid ack", "path", r.URL.Path, "from", from, "ack", string(ack))
+				slog.DebugContext(r.Context, "Received invalid ack", "ack", string(ack))
 				continue
 			}
 
 			if chunks[i].Acked {
-				slog.DebugContext(ctx, "Received duplicate ack", "path", r.URL.Path, "from", from, "acked", ackedSeq)
+				slog.DebugContext(r.Context, "Received duplicate ack", "acked", ackedSeq)
 				continue
 			}
 
-			slog.DebugContext(ctx, "Marking packet as received", "path", r.URL.Path, "from", from, "acked", ackedSeq)
+			slog.DebugContext(r.Context, "Marking packet as received", "acked", ackedSeq)
 			chunks[i].Acked = true
 
 			// stop if the acked packet is the EOF packet
@@ -204,9 +202,9 @@ func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks 
 				break
 			}
 			if chunks[i].Sent.IsZero() {
-				slog.DebugContext(ctx, "Sending packet", "path", r.URL.Path, "from", from, "seq", chunks[i].Seq)
+				slog.DebugContext(r.Context, "Sending packet", "seq", chunks[i].Seq)
 			} else {
-				slog.DebugContext(ctx, "Resending packet", "path", r.URL.Path, "from", from, "seq", chunks[i].Seq)
+				slog.DebugContext(r.Context, "Resending packet", "seq", chunks[i].Seq)
 			}
 			s.WriteTo(chunks[i].Data, from)
 			chunks[i].Sent = now
