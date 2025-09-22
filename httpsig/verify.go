@@ -116,6 +116,8 @@ func Extract(r *http.Request, body []byte, domain string, now time.Time, maxAge 
 	values := r.Header.Values("Signature")
 	if len(values) > 1 {
 		return nil, errors.New("more than one signature")
+	} else if len(values) == 0 {
+		return nil, errors.New("no signature")
 	}
 
 	var keyID, headers, signature, algorithm string
@@ -148,7 +150,7 @@ func Extract(r *http.Request, body []byte, domain string, now time.Time, maxAge 
 			}
 
 		default:
-			return nil, errors.New("unsupported atribute: " + m[1])
+			return nil, errors.New("unsupported attribute: " + m[1])
 		}
 	}
 
@@ -257,7 +259,7 @@ func (s *Signature) Verify(key any) error {
 		}
 
 		if len(s.signature) != ed25519.SignatureSize {
-			return fmt.Errorf("invalid signature size size: %d", len(s.signature))
+			return fmt.Errorf("invalid signature size: %d", len(s.signature))
 		}
 
 		if !ed25519.Verify(v, []byte(s.s), s.signature) {
