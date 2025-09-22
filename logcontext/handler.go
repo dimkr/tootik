@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package logcontext enriches logs with additional context.
 package logcontext
 
 import (
@@ -22,27 +21,8 @@ import (
 	"log/slog"
 )
 
-type (
-	keyType int
-
-	handler struct {
-		inner slog.Handler
-	}
-)
-
-var key keyType
-
-// Add adds log fields to a [context.Context].
-//
-// Arguments should be in the same format as [slog.Logger.Log].
-//
-// Use [NewHandler] to obtain a [slog.Handler] that logs these fields.
-func Add(ctx context.Context, args ...any) context.Context {
-	if v := ctx.Value(key); v != nil {
-		return context.WithValue(ctx, key, append(v.([]any), args...))
-	}
-
-	return context.WithValue(ctx, key, args)
+type handler struct {
+	inner slog.Handler
 }
 
 func (h handler) Enabled(ctx context.Context, level slog.Level) bool {
@@ -67,5 +47,5 @@ func (h handler) WithGroup(name string) slog.Handler {
 
 // NewHandler returns a [slog.Handler] that adds the log fields passed to [Add].
 func NewHandler(inner slog.Handler) slog.Handler {
-	return &handler{inner: inner}
+	return handler{inner: inner}
 }
