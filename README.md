@@ -49,7 +49,7 @@ Welcome, fedinaut! localhost.localdomain:8443 is a text-based social network.
 
 tootik is a text-based social network.
 
-tootik is federated using [ActivityPub](https://www.w3.org/TR/activitypub/): users can join an existing instance or [set up](SETUP.md) their own, then interact with users on the same instance and users of [compatible servers](FEDERATION.md) like [Mastodon](https://joinmastodon.org/), [Lemmy](https://join-lemmy.org/), [Sharkey](https://activitypub.software/TransFem-org/Sharkey), [Friendica](https://friendi.ca/), [Akkoma](https://akkoma.dev/AkkomaGang/akkoma/), [GoToSocial](https://gotosocial.org/) and [Mitra](https://codeberg.org/silverpill/mitra).
+tootik is federated using [ActivityPub](https://www.w3.org/TR/activitypub/): users can join an existing instance or [set up](SETUP.md) their own, then interact with users on the same instance and users of [compatible servers](FEDERATION.md) like [Mastodon](https://joinmastodon.org/), [Lemmy](https://join-lemmy.org/), [Sharkey](https://activitypub.software/TransFem-org/Sharkey), [Friendica](https://friendi.ca/), [Akkoma](https://akkoma.dev/AkkomaGang/akkoma/), [GoToSocial](https://gotosocial.org/), [Mitra](https://codeberg.org/silverpill/mitra) and [PieFed](https://join.piefed.social/).
 
 Unlike other social networks, tootik doesn't have a browser-based interface or an app: instead, its minimalistic, text-based interface is served over [Gemini](https://geminiprotocol.net/):
 

@@ -67,6 +67,12 @@ For compatibility with servers that allow discovery of the Application Actor, th
 
 	https://example.org/.well-known/webfinger?resource=acct:example.org@example.org
 
+In addition, [for compatibility with PieFed](https://codeberg.org/rimu/pyfedi/src/commit/452375fa17b7e5c89a5808eef168f528a47e52fe/app/activitypub/util.py#L1643), it can be fetched from / if `Accept` is `application/activity+json` or `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`:
+
+```sh
+curl -H "accept: application/activity+json" https://example.org
+```
+
 The `sharedInbox` of other users points to `nobody`'s inbox, to allow wide delivery of posts.
 
 `nobody` advertises support for RFC9421 and Ed25519 using [FEP-844e](https://codeberg.org/fediverse/fep/src/branch/main/fep/844e/fep-844e.md), to encourage other servers to use these capabilities when talking to tootik.

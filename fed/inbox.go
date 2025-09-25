@@ -274,6 +274,10 @@ func (l *Listener) fetchObject(ctx context.Context, id string, keys [2]httpsig.K
 	return true, body, nil
 }
 
+func (l *Listener) handleSharedInbox(w http.ResponseWriter, r *http.Request) {
+	l.doHandleInbox(w, r, l.ActorKeys)
+}
+
 func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 	receiver := r.PathValue("username")
 
