@@ -434,18 +434,8 @@ func TestDeliver_OneFailedRetry(t *testing.T) {
 
 	cfg.DeliveryRetryInterval = 0
 
-	client.Data = map[string]testResponse{
-		"https://ip6-allnodes/inbox/dan": {
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
-			},
-		},
-	}
-
 	_, err = q.ProcessBatch(context.Background())
 	assert.NoError(err)
-	assert.Empty(client.Data)
 
 	_, err = q.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -622,18 +612,8 @@ func TestDeliver_MaxAttempts(t *testing.T) {
 	cfg.DeliveryRetryInterval = 0
 	cfg.MaxDeliveryAttempts = 2
 
-	client.Data = map[string]testResponse{
-		"https://ip6-allnodes/inbox/dan": {
-			Response: &http.Response{
-				StatusCode: http.StatusInternalServerError,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
-			},
-		},
-	}
-
 	_, err = q.ProcessBatch(context.Background())
 	assert.NoError(err)
-	assert.Empty(client.Data)
 
 	_, err = q.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -824,18 +804,8 @@ func TestDeliver_SharedInboxRetry(t *testing.T) {
 
 	cfg.DeliveryRetryInterval = 0
 
-	client.Data = map[string]testResponse{
-		"https://ip6-allnodes/inbox/nobody": {
-			Response: &http.Response{
-				StatusCode: http.StatusInternalServerError,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
-			},
-		},
-	}
-
 	_, err = q.ProcessBatch(context.Background())
 	assert.NoError(err)
-	assert.Empty(client.Data)
 }
 
 func TestDeliver_SharedInboxUnknownActor(t *testing.T) {
@@ -953,12 +923,6 @@ func TestDeliver_SharedInboxSingleWorker(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://ip6-allnodes/inbox/nobody": {
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
-			},
-		},
-		"https://ip6-allnodes/inbox/frank": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
