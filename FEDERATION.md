@@ -73,7 +73,7 @@ In addition, [for compatibility with PieFed](https://codeberg.org/rimu/pyfedi/sr
 curl -H "accept: application/activity+json" https://example.org
 ```
 
-The `sharedInbox` of non-portable actors points to `nobody`'s inbox, to reduce the number of requests from servers that don't deduplicate outgoing requests during wide delivery of posts.
+The `sharedInbox` of non-portable actors points to `nobody`'s inbox, to reduce the number of requests from servers that deduplicate outgoing requests by `sharedInbox` during wide delivery of posts.
 
 `nobody` advertises support for RFC9421 and Ed25519 using [FEP-844e](https://codeberg.org/fediverse/fep/src/branch/main/fep/844e/fep-844e.md), to encourage other servers to use these capabilities when talking to tootik.
 
