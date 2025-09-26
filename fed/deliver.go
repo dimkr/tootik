@@ -442,7 +442,7 @@ func (q *Queue) queueTasks(
 
 	// assume that all other federated recipients are actors and not collections
 	for actorID := range recipients.Keys() {
-		if ap.Canonical(actorID) == author || actorID == ap.Public {
+		if ap.Canonical(actorID) == author || actorID == ap.Public || actorID == job.Sender.Followers {
 			slog.Debug("Skipping recipient", "to", actorID, "activity", job.Activity.ID)
 			continue
 		}
