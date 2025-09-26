@@ -303,7 +303,7 @@ tootik may perform automatic actions and push additional activities to `outbox`,
 
 [Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) is responsible for fetching [Actor](https://pkg.go.dev/github.com/dimkr/tootik/ap#Actor)s that represent users of other servers, using an ID or a `user@domain` pair and [WebFinger](https://datatracker.ietf.org/doc/html/rfc7033). The fetched objects are cached in `persons`, and contain properties like the user's inbox URL and public key.
 
-[fed.Queue](https://pkg.go.dev/github.com/dimkr/tootik/fed#Queue) uses [Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) to make a list of unique inbox URLs each activity should be delivered to. If this is a wide delivery (a public post or a post to followers) and two recipients share the same `sharedInbox`, [fed.Queue](https://pkg.go.dev/github.com/dimkr/tootik/fed#Queue) delivers the activity to both recipients in a single request.
+[fed.Queue](https://pkg.go.dev/github.com/dimkr/tootik/fed#Queue) uses [Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) to make a list of unique inbox URLs each activity should be delivered to. If this is a wide delivery (a public post or a post to followers) and multiple recipients reside on the same server, [fed.Queue](https://pkg.go.dev/github.com/dimkr/tootik/fed#Queue) delivers the activity to this server in a single request.
 
 ```
                                       ┌───────────────┐
