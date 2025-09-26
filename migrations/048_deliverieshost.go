@@ -10,7 +10,7 @@ func deliverieshost(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `INSERT INTO ndeliveries(activity, host) SELECT distinct activity, substr(substr(inbox, 9), 0, instr(substr(inbox, 9), '/')) FROM deliveries`); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO ndeliveries(activity, host) SELECT DISTINCT activity, substr(substr(inbox, 9), 0, instr(substr(inbox, 9), '/')) FROM deliveries`); err != nil {
 		return err
 	}
 
