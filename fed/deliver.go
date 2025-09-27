@@ -65,8 +65,8 @@ type deliveryEvent struct {
 // Process polls the queue of outgoing activities and delivers them to other servers.
 // Delivery happens in batches, with multiple workers, timeout and retries.
 // The listing of additional activities and recipients runs in parallel with delivery.
-// If possible, wide deliveries (e.g. public posts) are performed using the sharedInbox endpoint, greatly reducing the
-// number of outgoing requests when many recipients share the same endpoint.
+// During wide deliveries (e.g. public posts), additional requests to the same server are skipped, greatly reducing the
+// number of outgoing requests when many recipients reside on the same server.
 func (q *Queue) Process(ctx context.Context) error {
 	t := time.NewTicker(q.Config.OutboxPollingInterval)
 	defer t.Stop()
@@ -271,13 +271,13 @@ func (q *Queue) consume(parent context.Context, requests <-chan deliveryTask, ev
 
 	for task := range requests {
 		if m, ok := tried[task.Job.Activity.ID]; ok {
-			if _, ok := m[task.Inbox]; ok {
+			if _, ok := m[task.Request.Host]; ok {
 				// if we have a duplicate task, skip without querying the deliveries table
 				continue
 			}
-			m[task.Inbox] = struct{}{}
+			m[task.Request.Host] = struct{}{}
 		} else {
-			tried[task.Job.Activity.ID] = map[string]struct{}{task.Inbox: {}}
+			tried[task.Job.Activity.ID] = map[string]struct{}{task.Request.Host: {}}
 		}
 
 		ctx := logcontext.Add(parent, slog.Group("delivery", "sender", task.Job.Sender.ID, "inbox", task.Inbox, "activity", task.Job.Activity.ID))
@@ -285,9 +285,9 @@ func (q *Queue) consume(parent context.Context, requests <-chan deliveryTask, ev
 		var delivered int
 		if err := q.DB.QueryRowContext(
 			ctx,
-			`select exists (select 1 from deliveries where activity = ? and inbox = ?)`,
+			`select exists (select 1 from deliveries where activity = ? and host = ?)`,
 			ap.Canonical(task.Job.Activity.ID),
-			task.Inbox,
+			task.Request.Host,
 		).Scan(&delivered); err != nil {
 			slog.ErrorContext(ctx, "Failed to check if delivered already", "error", err)
 			events <- deliveryEvent{task.Job, false}
@@ -314,9 +314,9 @@ func (q *Queue) consume(parent context.Context, requests <-chan deliveryTask, ev
 
 		if _, err := q.DB.ExecContext(
 			ctx,
-			`insert into deliveries(activity, inbox) values (?, ?)`,
+			`insert into deliveries(activity, host) values (?, ?)`,
 			ap.Canonical(task.Job.Activity.ID),
-			task.Inbox,
+			task.Request.Host,
 		); err != nil {
 			slog.ErrorContext(ctx, "Failed to record delivery", "to", task.Inbox, "error", err)
 			events <- deliveryEvent{task.Job, false}
@@ -328,7 +328,7 @@ func (q *Queue) queueTask(
 	ctx context.Context,
 	job deliveryJob,
 	keys [2]httpsig.Key,
-	actorID, inbox, contentLength string,
+	inbox, contentLength string,
 	followers *partialFollowers,
 	tasks []chan deliveryTask,
 	events chan<- deliveryEvent,
@@ -397,43 +397,49 @@ func (q *Queue) queueTasks(
 		}
 	}
 
+	wideDelivery := recipients.Contains(job.Sender.Followers)
+
 	// disable followers synchronization if not sending to followers
-	if !recipients.Contains(job.Sender.Followers) {
+	if !wideDelivery {
 		followers = nil
+
+		wideDelivery = ap.Canonical(job.Activity.Actor) != ap.Canonical(job.Sender.ID) || job.Activity.IsPublic()
 	}
 
-	actorIDs := ap.Audience{}
-	wideDelivery := ap.Canonical(job.Activity.Actor) != ap.Canonical(job.Sender.ID) || job.Activity.IsPublic() || recipients.Contains(job.Sender.Followers)
+	contentLength := strconv.Itoa(len(job.RawActivity))
 
 	// list the actor's federated followers if we're forwarding an activity by another actor, or if addressed by actor
 	if wideDelivery {
-		followers, err := q.DB.QueryContext(
+		inboxes, err := q.DB.QueryContext(
 			ctx,
-			`select distinct follower from follows where followed = ? and follower not like ? and follower not like ? and accepted = 1`,
+			`select distinct coalesce(persons.actor->>'$.endpoints.sharedInbox', persons.actor->>'$.inbox') from persons join follows on follows.follower = persons.id where follows.followed = ? and follows.accepted = 1 and follows.follower not like ? and persons.ed25519privkey is null`,
 			job.Sender.ID,
-			fmt.Sprintf("https://%s/%%", q.Domain),
 			fmt.Sprintf("https://%s/%%", activityID.Host),
 		)
 		if err != nil {
 			slog.WarnContext(ctx, "Failed to list followers", "error", err)
 		} else {
-			for followers.Next() {
-				var follower string
-				if err := followers.Scan(&follower); err != nil {
-					slog.WarnContext(ctx, "Skipped a follower", "error", err)
+			for inboxes.Next() {
+				var inbox string
+				if err := inboxes.Scan(&inbox); err != nil {
+					slog.WarnContext(ctx, "Skipped an inbox", "error", err)
 					continue
 				}
 
-				actorIDs.Add(follower)
+				q.queueTask(
+					ctx,
+					job,
+					keys,
+					inbox,
+					contentLength,
+					followers,
+					tasks,
+					events,
+				)
 			}
 
-			followers.Close()
+			inboxes.Close()
 		}
-	}
-
-	// assume that all other federated recipients are actors and not collections
-	for recipient := range recipients.Keys() {
-		actorIDs.Add(recipient)
 	}
 
 	var author string
@@ -441,10 +447,9 @@ func (q *Queue) queueTasks(
 		author = ap.Canonical(obj.AttributedTo)
 	}
 
-	contentLength := strconv.Itoa(len(job.RawActivity))
-
-	for actorID := range actorIDs.Keys() {
-		if ap.Canonical(actorID) == author || actorID == ap.Public {
+	// assume that all other federated recipients are actors and not collections
+	for actorID := range recipients.Keys() {
+		if ap.Canonical(actorID) == author || actorID == ap.Public || actorID == job.Sender.Followers {
 			slog.DebugContext(ctx, "Skipping recipient", "to", actorID)
 			continue
 		}
@@ -458,7 +463,7 @@ func (q *Queue) queueTasks(
 			continue
 		}
 
-		// if possible, use the recipient's shared inbox and skip other recipients with the same shared inbox
+		// if possible, use the recipient's shared inbox
 		inbox := to.Inbox
 		if wideDelivery {
 			if sharedInbox, ok := to.Endpoints["sharedInbox"]; ok && sharedInbox != "" {
@@ -471,7 +476,6 @@ func (q *Queue) queueTasks(
 			ctx,
 			job,
 			keys,
-			actorID,
 			inbox,
 			contentLength,
 			followers,
@@ -489,7 +493,6 @@ func (q *Queue) queueTasks(
 				ctx,
 				job,
 				keys,
-				ap.Gateway(gw, job.Sender.ID),
 				ap.Gateway(gw, job.Sender.Inbox),
 				contentLength,
 				followers,

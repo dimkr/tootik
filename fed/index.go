@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,12 @@ package fed
 import "net/http"
 
 func (l *Listener) handleIndex(w http.ResponseWriter, r *http.Request) {
+	// this is how PieFed fetches the instance actor to detect its inbox and use it as a shared inbox for this instance
+	if accept := r.Header.Get("Accept"); accept == "application/activity+json" || accept == `application/ld+json; profile="https://www.w3.org/ns/activitystreams"` {
+		l.doHandleUser(w, r, "nobody")
+		return
+	}
+
 	w.Header().Set("Location", "gemini://"+l.Domain)
 	w.WriteHeader(http.StatusMovedPermanently)
 }

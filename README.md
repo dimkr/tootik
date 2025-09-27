@@ -49,7 +49,7 @@ Welcome, fedinaut! localhost.localdomain:8443 is a text-based social network.
 
 tootik is a text-based social network.
 
-tootik is federated using [ActivityPub](https://www.w3.org/TR/activitypub/): users can join an existing instance or [set up](SETUP.md) their own, then interact with users on the same instance and users of [compatible servers](FEDERATION.md) like [Mastodon](https://joinmastodon.org/), [Lemmy](https://join-lemmy.org/), [Sharkey](https://activitypub.software/TransFem-org/Sharkey), [Friendica](https://friendi.ca/), [Akkoma](https://akkoma.dev/AkkomaGang/akkoma/), [GoToSocial](https://gotosocial.org/) and [Mitra](https://codeberg.org/silverpill/mitra).
+tootik is federated using [ActivityPub](https://www.w3.org/TR/activitypub/): users can join an existing instance or [set up](SETUP.md) their own, then interact with users on the same instance and users of [compatible servers](FEDERATION.md) like [Mastodon](https://joinmastodon.org/), [Lemmy](https://join-lemmy.org/), [Sharkey](https://activitypub.software/TransFem-org/Sharkey), [Friendica](https://friendi.ca/), [Akkoma](https://akkoma.dev/AkkomaGang/akkoma/), [GoToSocial](https://gotosocial.org/), [Mitra](https://codeberg.org/silverpill/mitra) and [PieFed](https://join.piefed.social/).
 
 Unlike other social networks, tootik doesn't have a browser-based interface or an app: instead, its minimalistic, text-based interface is served over [Gemini](https://geminiprotocol.net/):
 
@@ -303,7 +303,7 @@ tootik may perform automatic actions and push additional activities to `outbox`,
 
 [Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) is responsible for fetching [Actor](https://pkg.go.dev/github.com/dimkr/tootik/ap#Actor)s that represent users of other servers, using an ID or a `user@domain` pair and [WebFinger](https://datatracker.ietf.org/doc/html/rfc7033). The fetched objects are cached in `persons`, and contain properties like the user's inbox URL and public key.
 
-[fed.Queue](https://pkg.go.dev/github.com/dimkr/tootik/fed#Queue) uses [Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) to make a list of unique inbox URLs each activity should be delivered to. If this is a wide delivery (a public post or a post to followers) and two recipients share the same `sharedInbox`, [fed.Queue](https://pkg.go.dev/github.com/dimkr/tootik/fed#Queue) delivers the activity to both recipients in a single request.
+[fed.Queue](https://pkg.go.dev/github.com/dimkr/tootik/fed#Queue) uses [Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) to make a list of unique inbox URLs each activity should be delivered to. If this is a wide delivery (a public post or a post to followers) and multiple recipients reside on the same server, [fed.Queue](https://pkg.go.dev/github.com/dimkr/tootik/fed#Queue) delivers the activity to this server only once.
 
 ```
                                       ┌───────────────┐

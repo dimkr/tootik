@@ -25,9 +25,7 @@ import (
 	"strings"
 )
 
-func (l *Listener) handleUser(w http.ResponseWriter, r *http.Request) {
-	name := r.PathValue("username")
-
+func (l *Listener) doHandleUser(w http.ResponseWriter, r *http.Request, name string) {
 	slog.InfoContext(r.Context(), "Looking up user", "name", name)
 
 	var actorID, actorString string
@@ -51,4 +49,8 @@ func (l *Listener) handleUser(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", `application/activity+json; charset=utf-8`)
 	w.Write([]byte(actorString))
+}
+
+func (l *Listener) handleUser(w http.ResponseWriter, r *http.Request) {
+	l.doHandleUser(w, r, r.PathValue("username"))
 }
