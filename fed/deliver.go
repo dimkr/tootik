@@ -333,7 +333,7 @@ func (q *Queue) queueTask(
 	tasks []chan deliveryTask,
 	events chan<- deliveryEvent,
 ) {
-	ctx = logcontext.Add(ctx, slog.Group("task", "to", actorID, "activity", job.Activity.ID, "inbox", inbox))
+	ctx = logcontext.Add(ctx, slog.Group("task", "activity", job.Activity.ID, "inbox", inbox))
 
 	req, err := http.NewRequest(http.MethodPost, inbox, strings.NewReader(job.RawActivity))
 	if err != nil {
