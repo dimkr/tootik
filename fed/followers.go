@@ -130,7 +130,7 @@ func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 
 	_, sender, err := l.verifyRequest(r, nil, ap.InstanceActor, l.ActorKeys)
 	if err != nil {
-		slog.Warn("Failed to verify followers request", "error", err)
+		slog.WarnContext(r.Context(), "Failed to verify followers request", "error", err)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -171,7 +171,7 @@ func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	slog.Info("Received followers request", "sender", sender.ID, "username", name, "host", u.Host, "count", len(items.OrderedMap))
+	slog.InfoContext(r.Context(), "Received followers request", "sender", sender.ID, "username", name, "host", u.Host, "count", len(items.OrderedMap))
 
 	w.Header().Set("Content-Type", `application/activity+json; charset=utf-8`)
 	w.Write([]byte(collection))
@@ -237,7 +237,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 	if digest, err := digestFollowers(ctx, db, d.Followed, domain); err != nil {
 		return err
 	} else if digest == d.Digest {
-		slog.Debug("Follower collections are synchronized", "followed", d.Followed)
+		slog.DebugContext(ctx, "Follower collections are synchronized", "followed", d.Followed)
 		return nil
 	}
 
@@ -246,7 +246,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 		return err
 	}
 
-	slog.Info("Synchronizing followers", "followed", d.Followed)
+	slog.InfoContext(ctx, "Synchronizing followers", "followed", d.Followed)
 
 	resp, err := resolver.Get(ctx, keys, d.URL)
 	if err != nil {
@@ -270,7 +270,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 			continue
 		}
 
-		slog.Info("Found unknown local follow", "followed", d.Followed, "follower", follower)
+		slog.InfoContext(ctx, "Found unknown local follow", "followed", d.Followed, "follower", follower)
 
 		if _, err := db.ExecContext(
 			ctx,
@@ -278,7 +278,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 			follower,
 			d.Followed,
 		); err != nil {
-			slog.Warn("Failed to remove local follow", "followed", d.Followed, "follower", follower, "error", err)
+			slog.WarnContext(ctx, "Failed to remove local follow", "followed", d.Followed, "follower", follower, "error", err)
 		}
 	}
 
@@ -293,15 +293,15 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 			continue
 		}
 
-		slog.Info("Found unknown remote follow", "followed", d.Followed, "follower", follower)
+		slog.InfoContext(ctx, "Found unknown remote follow", "followed", d.Followed, "follower", follower)
 
 		var actor ap.Actor
 		var ed25519PrivKeyMultibase string
 		if err := db.QueryRowContext(ctx, `SELECT JSON(persons.actor), persons.ed25519privkey FROM persons WHERE id = ? AND persons.ed25519privkey IS NOT NULL`, follower).Scan(&actor, &ed25519PrivKeyMultibase); errors.Is(err, sql.ErrNoRows) {
-			slog.Info("Follower does not exist", "followed", d.Followed, "follower", follower)
+			slog.InfoContext(ctx, "Follower does not exist", "followed", d.Followed, "follower", follower)
 			continue
 		} else if err != nil {
-			slog.Warn("Failed to fetch actor of unknown remote follow", "followed", d.Followed, "follower", follower, "error", err)
+			slog.WarnContext(ctx, "Failed to fetch actor of unknown remote follow", "followed", d.Followed, "follower", follower, "error", err)
 			continue
 		}
 
@@ -309,23 +309,23 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 		if err := db.QueryRowContext(ctx, `SELECT id FROM follows WHERE follower = ? AND followed = ?`, follower, d.Followed).Scan(&followID); err != nil && errors.Is(err, sql.ErrNoRows) {
 			followID, err = d.Inbox.NewID(actor.ID, "follow")
 			if err != nil {
-				slog.Warn("Failed to generate fake follow ID", "followed", d.Followed, "follower", follower, "error", err)
+				slog.WarnContext(ctx, "Failed to generate fake follow ID", "followed", d.Followed, "follower", follower, "error", err)
 				continue
 			}
-			slog.Warn("Using fake follow ID to remove unknown remote follow", "followed", d.Followed, "follower", follower, "id", followID)
+			slog.WarnContext(ctx, "Using fake follow ID to remove unknown remote follow", "followed", d.Followed, "follower", follower, "id", followID)
 		} else if err != nil {
-			slog.Warn("Failed to fetch follow ID of unknown remote follow", "followed", d.Followed, "follower", follower, "error", err)
+			slog.WarnContext(ctx, "Failed to fetch follow ID of unknown remote follow", "followed", d.Followed, "follower", follower, "error", err)
 			continue
 		}
 
 		ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
 		if err != nil {
-			slog.Error("Failed to decode Ed25519 private key", "followed", d.Followed, "follower", follower, "error", err)
+			slog.ErrorContext(ctx, "Failed to decode Ed25519 private key", "followed", d.Followed, "follower", follower, "error", err)
 			continue
 		}
 
 		if err := d.Inbox.Unfollow(ctx, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}, d.Followed, followID); err != nil {
-			slog.Warn("Failed to remove remote follow", "followed", d.Followed, "follower", follower, "error", err)
+			slog.WarnContext(ctx, "Failed to remove remote follow", "followed", d.Followed, "follower", follower, "error", err)
 		}
 	}
 
@@ -354,7 +354,7 @@ func (s *Syncer) ProcessBatch(ctx context.Context) (int, error) {
 			Inbox: s.Inbox,
 		}
 		if err := rows.Scan(&job.Followed, &job.URL, &job.Digest); err != nil {
-			slog.Error("Failed to scan digest", "error", err)
+			slog.ErrorContext(ctx, "Failed to scan digest", "error", err)
 			continue
 		}
 		jobs = append(jobs, job)
@@ -363,7 +363,7 @@ func (s *Syncer) ProcessBatch(ctx context.Context) (int, error) {
 
 	for _, job := range jobs {
 		if err := job.Sync(ctx, s.Domain, s.Config, s.DB, s.Resolver, s.Keys); err != nil {
-			slog.Warn("Failed to sync followers", "actor", job.Followed, "error", err)
+			slog.WarnContext(ctx, "Failed to sync followers", "actor", job.Followed, "error", err)
 		}
 
 		if _, err := s.DB.ExecContext(ctx, `UPDATE follows_sync SET changed = UNIXEPOCH() WHERE actor = ?`, job.Followed); err != nil {

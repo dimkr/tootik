@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -147,7 +146,6 @@ func (s *server) Handle(request string, user *ap.Actor) string {
 		&front.Request{
 			Context: context.Background(),
 			URL:     u,
-			Log:     slog.Default(),
 			User:    user,
 		},
 		w,
@@ -170,7 +168,6 @@ func (s *server) Upload(request string, user *ap.Actor, body []byte) string {
 		&front.Request{
 			Context: context.Background(),
 			URL:     u,
-			Log:     slog.Default(),
 			Body:    bytes.NewBuffer(body),
 			User:    user,
 		},

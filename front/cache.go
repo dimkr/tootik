@@ -19,6 +19,7 @@ package front
 import (
 	"bytes"
 	"context"
+	"log/slog"
 	"slices"
 	"sync"
 	"time"
@@ -64,7 +65,7 @@ func callAndCache(r *Request, w text.Writer, args []string, f func(text.Writer, 
 		if !ok {
 			// always call Flush()
 			if err := w.Flush(); err != nil && send {
-				r.Log.Warn("Failed to send response", "error", err)
+				slog.WarnContext(r.Context, "Failed to send response", "error", err)
 			}
 
 			break
@@ -73,7 +74,7 @@ func callAndCache(r *Request, w text.Writer, args []string, f func(text.Writer, 
 		// send response chunks to the client, until error
 		if send {
 			if _, err := w.Write(chunk); err != nil {
-				r.Log.Warn("Failed to send response", "error", err)
+				slog.WarnContext(r.Context, "Failed to send response", "error", err)
 				send = false
 			}
 		}
@@ -101,18 +102,18 @@ func withCache(f func(text.Writer, *Request, ...string), d time.Duration, cache 
 
 		entry, cached := cache.Load(key)
 		if !cached {
-			r.Log.Info("Generating first response", "key", key)
+			slog.InfoContext(r.Context, "Generating first response", "key", key)
 			callAndCache(r, w, args, f, key, now, cache)
 			return
 		}
 
 		if entry.(cacheEntry).Created.After(now.Add(-d)) {
-			r.Log.Info("Sending cached response", "key", key)
+			slog.InfoContext(r.Context, "Sending cached response", "key", key)
 			w.Write(entry.(cacheEntry).Value)
 			return
 		}
 
-		r.Log.Info("Generating new response", "key", key)
+		slog.InfoContext(r.Context, "Generating new response", "key", key)
 		callAndCache(r, w, args, f, key, now, cache)
 	}
 }

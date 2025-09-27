@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -56,23 +57,23 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 
 	var actor ap.Actor
 	if err := h.DB.QueryRowContext(r.Context, `select json(actor) from persons where id = ?`, actorID).Scan(&actor); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.Info("Person was not found", "actor", actorID)
+		slog.InfoContext(r.Context, "Person was not found", "actor", actorID)
 		w.Status(40, "User not found")
 		return
 	} else if err != nil {
-		r.Log.Warn("Failed to find person by ID", "actor", actorID, "error", err)
+		slog.WarnContext(r.Context, "Failed to find person by ID", "actor", actorID, "error", err)
 		w.Error()
 		return
 	}
 
 	offset, err := getOffset(r.URL)
 	if err != nil {
-		r.Log.Info("Failed to parse query", "url", r.URL, "error", err)
+		slog.InfoContext(r.Context, "Failed to parse query", "url", r.URL, "error", err)
 		w.Status(40, "Invalid query")
 		return
 	}
 
-	r.Log.Info("Viewing outbox", "actor", actorID, "offset", offset)
+	slog.InfoContext(r.Context, "Viewing outbox", "actor", actorID, "offset", offset)
 
 	var rows *sql.Rows
 	if actor.Type == ap.Group && r.User == nil {
@@ -217,7 +218,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		)
 	}
 	if err != nil {
-		r.Log.Warn("Failed to fetch posts", "actor", actorID, "error", err)
+		slog.WarnContext(r.Context, "Failed to fetch posts", "actor", actorID, "error", err)
 		w.Error()
 		return
 	}
@@ -322,7 +323,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		} else if errors.Is(err, sql.ErrNoRows) {
 			w.Linkf("/users/follow/"+strings.TrimPrefix(actorID, "https://"), "⚡ Follow %s", actor.PreferredUsername)
 		} else if err != nil {
-			r.Log.Warn("Failed to check if user is followed", "actor", actorID, "error", err)
+			slog.WarnContext(r.Context, "Failed to check if user is followed", "actor", actorID, "error", err)
 		} else if accepted.Valid && accepted.Int32 == 0 {
 			w.Linkf("/users/unfollow/"+strings.TrimPrefix(actorID, "https://"), "🔌 Unfollow %s (rejected)", actor.PreferredUsername)
 		} else {

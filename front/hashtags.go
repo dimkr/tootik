@@ -19,6 +19,7 @@ package front
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 
 	"github.com/dimkr/tootik/front/graph"
 	"github.com/dimkr/tootik/front/text"
@@ -30,7 +31,7 @@ func scanHashtags(r *Request, rows *sql.Rows) []string {
 	for rows.Next() {
 		var tag string
 		if err := rows.Scan(&tag); err != nil {
-			r.Log.Warn("Failed to scan hashtag", "error", err)
+			slog.WarnContext(r.Context, "Failed to scan hashtag", "error", err)
 			continue
 		}
 
@@ -88,7 +89,7 @@ func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
 		fmt.Sprintf("https://%s/%%", h.Domain),
 	)
 	if err != nil {
-		r.Log.Warn("Failed to list hashtags", "error", err)
+		slog.WarnContext(r.Context, "Failed to list hashtags", "error", err)
 		w.Error()
 		return
 	}
@@ -120,7 +121,7 @@ func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
 				last desc limit 30
 		`)
 	if err != nil {
-		r.Log.Warn("Failed to list hashtags", "error", err)
+		slog.WarnContext(r.Context, "Failed to list hashtags", "error", err)
 		w.Error()
 		return
 	}
@@ -152,7 +153,7 @@ func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
 				day desc
 		`)
 	if err != nil {
-		r.Log.Warn("Failed to list hashtags", "error", err)
+		slog.WarnContext(r.Context, "Failed to list hashtags", "error", err)
 		w.Error()
 		return
 	}
@@ -163,7 +164,7 @@ func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
 		var label string
 		var value int64
 		if err := rows.Scan(&label, &value); err != nil {
-			r.Log.Warn("Failed to scan hashtag", "error", err)
+			slog.WarnContext(r.Context, "Failed to scan hashtag", "error", err)
 			continue
 		}
 

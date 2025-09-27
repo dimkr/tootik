@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"sync"
 	"time"
@@ -191,7 +192,7 @@ func (h *Handler) Handle(r *Request, w text.Writer) {
 		}
 	}
 
-	r.Log.Warn("Received an invalid request")
+	slog.WarnContext(r.Context, "Received an invalid request")
 
 	if r.URL.Scheme == "titan" && r.User == nil {
 		w.Redirectf("gemini://%s/oops", h.Domain)

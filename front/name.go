@@ -17,6 +17,7 @@ limitations under the License.
 package front
 
 import (
+	"log/slog"
 	"net/url"
 	"strings"
 	"time"
@@ -61,7 +62,7 @@ func (h *Handler) setName(w text.Writer, r *Request, args ...string) {
 		can = r.User.Updated.Time.Add(h.Config.MinActorEditInterval)
 	}
 	if now.Before(can) {
-		r.Log.Warn("Throttled request to set name", "can", can)
+		slog.WarnContext(r.Context, "Throttled request to set name", "can", can)
 		w.Statusf(40, "Please wait for %s", time.Until(can).Truncate(time.Second).String())
 		return
 	}
@@ -93,7 +94,7 @@ func (h *Handler) setName(w text.Writer, r *Request, args ...string) {
 	r.User.Updated.Time = now
 
 	if err := h.Inbox.UpdateActor(r.Context, r.User, r.Keys[1]); err != nil {
-		r.Log.Error("Failed to update name", "error", err)
+		slog.ErrorContext(r.Context, "Failed to update name", "error", err)
 		w.Error()
 		return
 	}

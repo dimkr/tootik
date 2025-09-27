@@ -18,6 +18,7 @@ package front
 
 import (
 	"database/sql"
+	"log/slog"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
@@ -28,7 +29,7 @@ import (
 func (h *Handler) getGraph(r *Request, keys []string, values []int64, query string, args ...any) string {
 	rows, err := h.DB.QueryContext(r.Context, query, args...)
 	if err != nil {
-		r.Log.Warn("Failed to data points", "query", query, "error", err)
+		slog.WarnContext(r.Context, "Failed to data points", "query", query, "error", err)
 		return ""
 	}
 	defer rows.Close()
@@ -36,7 +37,7 @@ func (h *Handler) getGraph(r *Request, keys []string, values []int64, query stri
 	i := 0
 	for rows.Next() {
 		if err := rows.Scan(&keys[i], &values[i]); err != nil {
-			r.Log.Warn("Failed to data point", "error", err)
+			slog.WarnContext(r.Context, "Failed to data point", "error", err)
 			i++
 			continue
 		}
@@ -120,67 +121,67 @@ func (h *Handler) status(w text.Writer, r *Request, args ...string) {
 	var outboxSize, inboxSize int
 
 	if err := h.DB.QueryRowContext(r.Context, `select count(*) from persons where host = ?`, h.Domain).Scan(&usersCount); err != nil {
-		r.Log.Info("Failed to get users count", "error", err)
+		slog.InfoContext(r.Context, "Failed to get users count", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where host = ?`, h.Domain).Scan(&postsCount); err != nil {
-		r.Log.Info("Failed to get posts count", "error", err)
+		slog.InfoContext(r.Context, "Failed to get posts count", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where host = ? and inserted >= unixepoch() - 24*60*60`, h.Domain).Scan(&postsToday); err != nil {
-		r.Log.Info("Failed to get daily posts count", "error", err)
+		slog.InfoContext(r.Context, "Failed to get daily posts count", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where host != ?`, h.Domain).Scan(&federatedPostsCount); err != nil {
-		r.Log.Info("Failed to get federated posts count", "error", err)
+		slog.InfoContext(r.Context, "Failed to get federated posts count", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where host != ? and inserted >= unixepoch() - 24*60*60`, h.Domain).Scan(&federatedPostsToday); err != nil {
-		r.Log.Info("Failed to get daily federated posts count", "error", err)
+		slog.InfoContext(r.Context, "Failed to get daily federated posts count", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := h.DB.QueryRowContext(r.Context, `select max(inserted) from notes where host = ?`, h.Domain).Scan(&lastPost); err != nil {
-		r.Log.Info("Failed to get last post time", "error", err)
+		slog.InfoContext(r.Context, "Failed to get last post time", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := h.DB.QueryRowContext(r.Context, `select max(inserted) from notes where host != ?`, h.Domain).Scan(&lastFederatedPost); err != nil {
-		r.Log.Info("Failed to get last federated post time", "error", err)
+		slog.InfoContext(r.Context, "Failed to get last federated post time", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := h.DB.QueryRowContext(r.Context, `select max(inserted) from persons where host = ?`, h.Domain).Scan(&lastRegister); err != nil {
-		r.Log.Info("Failed to get last post time", "error", err)
+		slog.InfoContext(r.Context, "Failed to get last post time", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := h.DB.QueryRowContext(r.Context, `select max(max(inserted), max(updated)) from persons where host != ?`, h.Domain).Scan(&lastFederatedUser); err != nil {
-		r.Log.Info("Failed to get last post time", "error", err)
+		slog.InfoContext(r.Context, "Failed to get last post time", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := h.DB.QueryRowContext(r.Context, `select count(*) from inbox`).Scan(&inboxSize); err != nil {
-		r.Log.Info("Failed to get activities queue size", "error", err)
+		slog.InfoContext(r.Context, "Failed to get activities queue size", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := h.DB.QueryRowContext(r.Context, `select count(distinct cid) from outbox where sent = 0 and attempts < ?`, h.Config.MaxDeliveryAttempts).Scan(&outboxSize); err != nil {
-		r.Log.Info("Failed to get delivery queue size", "error", err)
+		slog.InfoContext(r.Context, "Failed to get delivery queue size", "error", err)
 		w.Error()
 		return
 	}

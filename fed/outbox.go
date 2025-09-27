@@ -17,6 +17,7 @@ limitations under the License.
 package fed
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -28,7 +29,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 )
 
-func (l *Listener) getCollection(w http.ResponseWriter, username string) {
+func (l *Listener) getCollection(ctx context.Context, w http.ResponseWriter, username string) {
 	first := fmt.Sprintf("https://%s/outbox/%s?0", l.Domain, username)
 
 	collection := map[string]any{
@@ -40,11 +41,11 @@ func (l *Listener) getCollection(w http.ResponseWriter, username string) {
 		"totalItems": 0,
 	}
 
-	slog.Info("Listing activities by user", "username", username)
+	slog.InfoContext(ctx, "Listing activities by user", "username", username)
 
 	j, err := json.Marshal(collection)
 	if err != nil {
-		slog.Warn("Failed to marshal collection", "username", username, "error", err)
+		slog.WarnContext(ctx, "Failed to marshal collection", "username", username, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -58,7 +59,7 @@ func (l *Listener) handleOutbox(w http.ResponseWriter, r *http.Request) {
 
 	var actorID sql.NullString
 	if err := l.DB.QueryRowContext(r.Context(), `select id from persons where actor->>'$.preferredUsername' = ? and host = ?`, username, l.Domain).Scan(&actorID); err != nil {
-		slog.Warn("Failed to check if user exists", "username", username, "error", err)
+		slog.WarnContext(r.Context(), "Failed to check if user exists", "username", username, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -69,22 +70,22 @@ func (l *Listener) handleOutbox(w http.ResponseWriter, r *http.Request) {
 
 	if shouldRedirect(r) {
 		outbox := fmt.Sprintf("gemini://%s/outbox/%s", l.Domain, strings.TrimPrefix(actorID.String, "https://"))
-		slog.Info("Redirecting to outbox over Gemini", "outbox", outbox)
+		slog.InfoContext(r.Context(), "Redirecting to outbox over Gemini", "outbox", outbox)
 		w.Header().Set("Location", outbox)
 		w.WriteHeader(http.StatusMovedPermanently)
 		return
 	}
 
-	slog.Info("Fetching activities by user", "username", username)
+	slog.InfoContext(r.Context(), "Fetching activities by user", "username", username)
 
 	if r.URL.RawQuery == "" {
-		l.getCollection(w, username)
+		l.getCollection(r.Context(), w, username)
 		return
 	}
 
 	since, err := strconv.ParseInt(r.URL.RawQuery, 10, 64)
 	if err != nil {
-		slog.Warn("Failed to parse offset", "username", username, "query", r.URL.RawQuery, "error", err)
+		slog.WarnContext(r.Context(), "Failed to parse offset", "username", username, "query", r.URL.RawQuery, "error", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -108,7 +109,7 @@ func (l *Listener) handleOutbox(w http.ResponseWriter, r *http.Request) {
 
 	j, err := json.Marshal(page)
 	if err != nil {
-		slog.Warn("Failed to marshal page", "username", username, "since", since, "error", err)
+		slog.WarnContext(r.Context(), "Failed to marshal page", "username", username, "since", since, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

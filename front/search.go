@@ -17,6 +17,7 @@ limitations under the License.
 package front
 
 import (
+	"log/slog"
 	"net/url"
 
 	"github.com/dimkr/tootik/front/text"
@@ -30,7 +31,7 @@ func search(w text.Writer, r *Request, args ...string) {
 
 	hashtag, err := url.QueryUnescape(r.URL.RawQuery)
 	if err != nil {
-		r.Log.Info("Failed to decode query", "url", r.URL, "error", err)
+		slog.InfoContext(r.Context, "Failed to decode query", "url", r.URL, "error", err)
 		w.Status(40, "Bad input")
 		return
 	}

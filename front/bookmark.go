@@ -18,6 +18,7 @@ package front
 
 import (
 	"database/sql"
+	"log/slog"
 	"time"
 
 	"github.com/dimkr/tootik/front/text"
@@ -33,7 +34,7 @@ func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
 
 	tx, err := h.DB.BeginTx(r.Context, nil)
 	if err != nil {
-		r.Log.Warn("Failed to insert bookmark", "error", err)
+		slog.WarnContext(r.Context, "Failed to insert bookmark", "error", err)
 		w.Error()
 		return
 	}
@@ -59,11 +60,11 @@ func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
 		postID,
 		r.User.ID,
 	).Scan(&exists); err != nil {
-		r.Log.Warn("Failed to check if bookmarked post exists", "post", postID, "error", err)
+		slog.WarnContext(r.Context, "Failed to check if bookmarked post exists", "post", postID, "error", err)
 		w.Error()
 		return
 	} else if exists == 0 {
-		r.Log.Info("Post was not found", "post", postID)
+		slog.InfoContext(r.Context, "Post was not found", "post", postID)
 		w.Status(40, "Post not found")
 		return
 	}
@@ -73,13 +74,13 @@ func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
 	var count int
 	var last sql.NullInt64
 	if err := tx.QueryRowContext(r.Context, `select count(*), max(inserted) from bookmarks where by = ?`, r.User.ID).Scan(&count, &last); err != nil {
-		r.Log.Warn("Failed to check if bookmark needs to be throttled", "error", err)
+		slog.WarnContext(r.Context, "Failed to check if bookmark needs to be throttled", "error", err)
 		w.Error()
 		return
 	}
 
 	if count >= h.Config.MaxBookmarksPerUser {
-		r.Log.Warn("User has reached bookmarks limit", "post", postID)
+		slog.WarnContext(r.Context, "User has reached bookmarks limit", "post", postID)
 		w.Status(40, "Reached bookmarks limit")
 		return
 	}
@@ -87,20 +88,20 @@ func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
 	if last.Valid {
 		t := time.Unix(last.Int64, 0)
 		if now.Sub(t) < h.Config.MinBookmarkInterval {
-			r.Log.Warn("User is bookmarking too frequently")
+			slog.WarnContext(r.Context, "User is bookmarking too frequently")
 			w.Status(40, "Please wait before bookmarking")
 			return
 		}
 	}
 
 	if _, err := tx.ExecContext(r.Context, `insert into bookmarks(note, by) values(?, ?)`, postID, r.User.ID); err != nil {
-		r.Log.Warn("Failed to insert bookmark", "error", err)
+		slog.WarnContext(r.Context, "Failed to insert bookmark", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := tx.Commit(); err != nil {
-		r.Log.Warn("Failed to insert bookmark", "error", err)
+		slog.WarnContext(r.Context, "Failed to insert bookmark", "error", err)
 		w.Error()
 		return
 	}

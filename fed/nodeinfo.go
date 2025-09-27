@@ -95,7 +95,7 @@ func addNodeInfo(mux *http.ServeMux, domain string, closed bool, cfg *cfg.Config
 
 	mux.HandleFunc("GET /nodeinfo/2.0", func(w http.ResponseWriter, r *http.Request) {
 		if err := l.Lock(r.Context()); err != nil {
-			slog.Warn("Failed to build nodeinfo response", "error", err)
+			slog.WarnContext(r.Context(), "Failed to build nodeinfo response", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -128,7 +128,7 @@ func addNodeInfo(mux *http.ServeMux, domain string, closed bool, cfg *cfg.Config
 				`,
 				domain,
 			).Scan(&total, &activeHalfYear, &activeMonth, &localPosts); err != nil {
-				slog.Warn("Failed to build nodeinfo response", "error", err)
+				slog.WarnContext(r.Context(), "Failed to build nodeinfo response", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
@@ -160,7 +160,7 @@ func addNodeInfo(mux *http.ServeMux, domain string, closed bool, cfg *cfg.Config
 			"openRegistrations": !closed,
 			"metadata":          map[string]any{},
 		}); err != nil {
-			slog.Warn("Failed to build nodeinfo response", "error", err)
+			slog.WarnContext(r.Context(), "Failed to build nodeinfo response", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 		} else {
 			w.Header().Set("Content-Type", "application/json")

@@ -26,6 +26,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/logcontext"
 )
 
 type Queue struct {
@@ -47,25 +48,27 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Ac
 	ctx, cancel := context.WithTimeout(parent, q.Config.ActivityProcessingTimeout)
 	defer cancel()
 
+	ctx = logcontext.Add(ctx, "activity", activity, "sender", sender.ID)
+
 	tx, err := q.DB.BeginTx(ctx, nil)
 	if err != nil {
-		slog.Warn("Failed to start transaction", "activity", activity, "error", err)
+		slog.WarnContext(ctx, "Failed to start transaction", "error", err)
 		return
 	}
 	defer tx.Rollback()
 
 	if _, err := q.Resolver.ResolveID(ctx, q.Keys, activity.Actor, 0); err != nil {
-		slog.Warn("Failed to resolve actor", "activity", activity, "error", err)
+		slog.WarnContext(ctx, "Failed to resolve actor", "error", err)
 	} else if err := q.Inbox.ProcessActivity(ctx, tx, sender, activity, rawActivity, 1, shared); err != nil {
-		slog.Warn("Failed to process activity", "activity", activity, "error", err)
+		slog.WarnContext(ctx, "Failed to process activity", "error", err)
 	} else if err := tx.Commit(); err != nil {
-		slog.Warn("Failed to commit changes", "activity", activity, "error", err)
+		slog.WarnContext(ctx, "Failed to commit changes", "error", err)
 	}
 }
 
 // ProcessBatch processes one batch of incoming activites in the queue.
 func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
-	slog.Debug("Polling activities queue")
+	slog.DebugContext(ctx, "Polling activities queue")
 
 	rows, err := q.DB.QueryContext(ctx, `select inbox.id, json(persons.actor), json(inbox.activity), inbox.raw, inbox.raw->>'$.type' = 'Announce' as shared from (select * from inbox limit -1 offset case when (select count(*) from inbox) >= $1 then $1/10 else 0 end) inbox left join persons on persons.id = inbox.sender order by inbox.id limit $2`, q.Config.MaxActivitiesQueueSize, q.Config.ActivitiesBatchSize)
 	if err != nil {
@@ -86,14 +89,14 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		var sender sql.Null[ap.Actor]
 		var shared bool
 		if err := rows.Scan(&id, &sender, &activity, &activityString, &shared); err != nil {
-			slog.Error("Failed to scan activity", "error", err)
+			slog.ErrorContext(ctx, "Failed to scan activity", "error", err)
 			continue
 		}
 
 		maxID = id
 
 		if !sender.Valid {
-			slog.Warn("Sender is unknown", "id", id)
+			slog.WarnContext(ctx, "Sender is unknown", "id", id)
 			continue
 		}
 

@@ -19,6 +19,7 @@ package front
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"strconv"
 	"time"
 
@@ -47,26 +48,26 @@ func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
 		sizeStr = args[4]
 		mimeType = args[2]
 	} else {
-		r.Log.Warn("Invalid parameters")
+		slog.WarnContext(r.Context, "Invalid parameters")
 		w.Error()
 		return
 	}
 
 	size, err := strconv.ParseInt(sizeStr, 10, 64)
 	if err != nil {
-		r.Log.Warn("Failed to parse avatar size", "error", err)
+		slog.WarnContext(r.Context, "Failed to parse avatar size", "error", err)
 		w.Status(40, "Invalid size")
 		return
 	}
 
 	if size > h.Config.MaxAvatarSize {
-		r.Log.Warn("Image is too big", "size", size)
+		slog.WarnContext(r.Context, "Image is too big", "size", size)
 		w.Status(40, "Image is too big")
 		return
 	}
 
 	if _, ok := supportedImageTypes[mimeType]; !ok {
-		r.Log.Warn("Image type is unsupported", "type", mimeType)
+		slog.WarnContext(r.Context, "Image type is unsupported", "type", mimeType)
 		w.Status(40, "Unsupported image type")
 		return
 	}
@@ -78,7 +79,7 @@ func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
 		can = r.User.Updated.Time.Add(h.Config.MinActorEditInterval)
 	}
 	if now.Before(can) {
-		r.Log.Warn("Throttled request to set avatar", "can", can)
+		slog.WarnContext(r.Context, "Throttled request to set avatar", "can", can)
 		w.Statusf(40, "Please wait for %s", time.Until(can).Truncate(time.Second).String())
 		return
 	}
@@ -86,27 +87,27 @@ func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
 	buf := make([]byte, size)
 	n, err := io.ReadFull(r.Body, buf)
 	if err != nil {
-		r.Log.Warn("Failed to read avatar", "error", err)
+		slog.WarnContext(r.Context, "Failed to read avatar", "error", err)
 		w.Error()
 		return
 	}
 
 	if int64(n) != size {
-		r.Log.Warn("Avatar is truncated")
+		slog.WarnContext(r.Context, "Avatar is truncated")
 		w.Error()
 		return
 	}
 
 	resized, err := icon.Scale(h.Config, buf)
 	if err != nil {
-		r.Log.Warn("Failed to read avatar", "error", err)
+		slog.WarnContext(r.Context, "Failed to read avatar", "error", err)
 		w.Error()
 		return
 	}
 
 	tx, err := h.DB.BeginTx(r.Context, nil)
 	if err != nil {
-		r.Log.Warn("Failed to set avatar", "error", err)
+		slog.WarnContext(r.Context, "Failed to set avatar", "error", err)
 		w.Error()
 		return
 	}
@@ -118,7 +119,7 @@ func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
 		r.User.PreferredUsername,
 		string(resized),
 	); err != nil {
-		r.Log.Error("Failed to set avatar", "error", err)
+		slog.ErrorContext(r.Context, "Failed to set avatar", "error", err)
 		w.Error()
 		return
 	}
@@ -130,13 +131,13 @@ func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
 	r.User.Updated.Time = now
 
 	if err := h.Inbox.UpdateActorTx(r.Context, tx, r.User, r.Keys[1]); err != nil {
-		r.Log.Error("Failed to set avatar", "error", err)
+		slog.ErrorContext(r.Context, "Failed to set avatar", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := tx.Commit(); err != nil {
-		r.Log.Error("Failed to set avatar", "error", err)
+		slog.ErrorContext(r.Context, "Failed to set avatar", "error", err)
 		w.Error()
 		return
 	}

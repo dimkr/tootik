@@ -17,6 +17,7 @@ limitations under the License.
 package front
 
 import (
+	"log/slog"
 	"net/url"
 	"regexp"
 	"strings"
@@ -40,7 +41,7 @@ func (h *Handler) resolve(w text.Writer, r *Request, args ...string) {
 
 	query, err := url.QueryUnescape(r.URL.RawQuery)
 	if err != nil {
-		r.Log.Info("Failed to decode user name", "url", r.URL, "error", err)
+		slog.InfoContext(r.Context, "Failed to decode user name", "url", r.URL, "error", err)
 		w.Status(40, "Bad input")
 		return
 	}
@@ -63,11 +64,11 @@ func (h *Handler) resolve(w text.Writer, r *Request, args ...string) {
 		host = h.Domain
 	}
 
-	r.Log.Info("Resolving user ID", "host", host, "name", name)
+	slog.InfoContext(r.Context, "Resolving user ID", "host", host, "name", name)
 
 	person, err := h.Resolver.Resolve(r.Context, r.Keys, host, name, flags)
 	if err != nil {
-		r.Log.Warn("Failed to resolve user ID", "host", host, "name", name, "error", err)
+		slog.WarnContext(r.Context, "Failed to resolve user ID", "host", host, "name", name, "error", err)
 		w.Statusf(40, "Failed to resolve %s@%s", name, host)
 		return
 	}

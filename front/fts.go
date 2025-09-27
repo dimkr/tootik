@@ -19,6 +19,7 @@ package front
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -36,7 +37,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 
 	query, err := url.QueryUnescape(r.URL.RawQuery)
 	if err != nil {
-		r.Log.Info("Failed to decode query", "url", r.URL, "error", err)
+		slog.InfoContext(r.Context, "Failed to decode query", "url", r.URL, "error", err)
 		w.Status(40, "Bad input")
 		return
 	}
@@ -45,7 +46,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 	if loc := skipRegex.FindStringSubmatchIndex(query); loc != nil {
 		offset64, err := strconv.ParseInt(query[loc[2]:loc[3]], 10, 32)
 		if err != nil {
-			r.Log.Info("Failed to parse offset", "query", query, "error", err)
+			slog.InfoContext(r.Context, "Failed to parse offset", "query", query, "error", err)
 			w.Status(40, "Invalid offset")
 			return
 		}
@@ -146,7 +147,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 		)
 	}
 	if err != nil {
-		r.Log.Warn("Failed to search for posts", "query", query, "error", err)
+		slog.WarnContext(r.Context, "Failed to search for posts", "query", query, "error", err)
 		w.Error()
 		return
 	}

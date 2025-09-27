@@ -225,7 +225,7 @@ func (h *Handler) getNoteContent(note *ap.Object, compact bool) ([]string, data.
 
 func (h *Handler) printCompactNote(w text.Writer, r *Request, note *ap.Object, author *ap.Actor, sharer *ap.Actor, published time.Time, printParentAuthor bool) {
 	if note.AttributedTo == "" {
-		r.Log.Warn("Note has no author", "id", note.ID)
+		slog.WarnContext(r.Context, "Note has no author", "id", note.ID)
 		return
 	}
 
@@ -233,12 +233,12 @@ func (h *Handler) printCompactNote(w text.Writer, r *Request, note *ap.Object, a
 
 	var replies int
 	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where object->>'$.inReplyTo' = ?`, note.ID).Scan(&replies); err != nil {
-		r.Log.Warn("Failed to count replies", "id", note.ID, "error", err)
+		slog.WarnContext(r.Context, "Failed to count replies", "id", note.ID, "error", err)
 	}
 
 	var quotes int
 	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where object->>'$.quote' = ?`, note.ID).Scan(&quotes); err != nil {
-		r.Log.Warn("Failed to count quotes", "id", note.ID, "error", err)
+		slog.WarnContext(r.Context, "Failed to count quotes", "id", note.ID, "error", err)
 	}
 
 	authorDisplayName := author.PreferredUsername
@@ -257,9 +257,9 @@ func (h *Handler) printCompactNote(w text.Writer, r *Request, note *ap.Object, a
 	var parentAuthor sql.Null[ap.Actor]
 	if note.InReplyTo != "" {
 		if err := h.DB.QueryRowContext(r.Context, `select json(persons.actor) from notes join persons on persons.id = notes.author where notes.id = ?`, note.InReplyTo).Scan(&parentAuthor); err != nil && errors.Is(err, sql.ErrNoRows) {
-			r.Log.Info("Parent post or author is missing", "id", note.InReplyTo)
+			slog.InfoContext(r.Context, "Parent post or author is missing", "id", note.InReplyTo)
 		} else if err != nil {
-			r.Log.Warn("Failed to query parent post author", "id", note.InReplyTo, "error", err)
+			slog.WarnContext(r.Context, "Failed to query parent post author", "id", note.InReplyTo, "error", err)
 		}
 	}
 
@@ -322,17 +322,17 @@ func (h *Handler) PrintNotes(w text.Writer, r *Request, rows *sql.Rows, printPar
 		var sharer sql.Null[ap.Actor]
 		var published int64
 		if err := rows.Scan(&note, &author, &sharer, &published); err != nil {
-			r.Log.Warn("Failed to scan post", "error", err)
+			slog.WarnContext(r.Context, "Failed to scan post", "error", err)
 			continue
 		}
 
 		if note.Type != ap.Note && note.Type != ap.Page && note.Type != ap.Article && note.Type != ap.Question {
-			r.Log.Warn("Post type is unsupported", "type", note.Type)
+			slog.WarnContext(r.Context, "Post type is unsupported", "type", note.Type)
 			continue
 		}
 
 		if !author.Valid {
-			r.Log.Warn("Post author is unknown", "note", note.ID, "author", note.AttributedTo)
+			slog.WarnContext(r.Context, "Post author is unknown", "note", note.ID, "author", note.AttributedTo)
 			continue
 		}
 

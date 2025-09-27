@@ -31,6 +31,7 @@ import (
 
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/logcontext"
 	"github.com/fsnotify/fsnotify"
 )
 
@@ -47,7 +48,19 @@ type Listener struct {
 	Plain     bool
 }
 
+type loggingHandler struct {
+	inner http.Handler
+}
+
 const certReloadDelay = time.Second * 5
+
+func (h loggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.inner.ServeHTTP(w, r.WithContext(logcontext.Add(r.Context(), slog.Group("http_request", "path", r.URL.String()))))
+}
+
+func withLogging(h http.Handler) http.Handler {
+	return &loggingHandler{inner: h}
+}
 
 // NewHandler returns a [http.Handler] that handles ActivityPub requests.
 func (l *Listener) NewHandler() (http.Handler, error) {
@@ -68,7 +81,7 @@ func (l *Listener) NewHandler() (http.Handler, error) {
 	mux.HandleFunc("GET /{$}", l.handleIndex)
 
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
-		slog.Debug("Received request to non-existing path", "path", r.URL.Path)
+		slog.DebugContext(r.Context(), "Received request to non-existing path", "path", r.URL.Path)
 		w.WriteHeader(http.StatusNotFound)
 	})
 
@@ -78,7 +91,7 @@ func (l *Listener) NewHandler() (http.Handler, error) {
 
 	addHostMeta(mux, l.Domain)
 
-	return mux, nil
+	return withLogging(mux), nil
 }
 
 // ListenAndServe handles HTTP requests from other servers.
@@ -133,7 +146,7 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 
 			// shut down gracefully only on reload
 			if ctx.Err() == nil {
-				slog.Info("Shutting down server")
+				slog.InfoContext(ctx, "Shutting down server")
 				server.Shutdown(ctx)
 			}
 
@@ -155,7 +168,7 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 					}
 
 					if (event.Has(fsnotify.Write) || event.Has(fsnotify.Create)) && (event.Name == certAbsPath || event.Name == keyAbsPath) {
-						slog.Info("Stopping server: file has changed", "name", event.Name)
+						slog.InfoContext(ctx, "Stopping server: file has changed", "name", event.Name)
 						timer.Reset(certReloadDelay)
 					}
 
@@ -168,7 +181,7 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 			}
 		})
 
-		slog.Info("Starting server")
+		slog.InfoContext(ctx, "Starting server")
 		var err error
 		if l.Plain {
 			err = server.ListenAndServe()

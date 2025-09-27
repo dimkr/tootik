@@ -17,6 +17,7 @@ limitations under the License.
 package front
 
 import (
+	"log/slog"
 	"strings"
 	"time"
 
@@ -52,7 +53,7 @@ func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
 		h.Domain,
 	)
 	if err != nil {
-		r.Log.Error("Failed to list communities", "error", err)
+		slog.ErrorContext(r.Context, "Failed to list communities", "error", err)
 		w.Error()
 		return
 	}
@@ -67,7 +68,7 @@ func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
 		var id, username string
 		var last int64
 		if err := rows.Scan(&id, &username, &last); err != nil {
-			r.Log.Warn("Failed to scan community", "error", err)
+			slog.WarnContext(r.Context, "Failed to scan community", "error", err)
 			continue
 		}
 

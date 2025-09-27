@@ -18,6 +18,7 @@ package front
 
 import (
 	"crypto/ed25519"
+	"log/slog"
 	"net/url"
 	"regexp"
 	"slices"
@@ -100,7 +101,7 @@ func (h *Handler) gatewayAdd(w text.Writer, r *Request, args ...string) {
 		can = r.User.Updated.Time.Add(h.Config.MinActorEditInterval)
 	}
 	if now.Before(can) {
-		r.Log.Warn("Throttled request to add gateway", "can", can)
+		slog.WarnContext(r.Context, "Throttled request to add gateway", "can", can)
 		w.Statusf(40, "Please wait for %s", time.Until(can).Truncate(time.Second).String())
 		return
 	}
@@ -117,13 +118,13 @@ func (h *Handler) gatewayAdd(w text.Writer, r *Request, args ...string) {
 
 	gw, err := url.QueryUnescape(r.URL.RawQuery)
 	if err != nil {
-		r.Log.Warn("Failed to parse gateway", "raw", r.URL.RawQuery, "error", err)
+		slog.WarnContext(r.Context, "Failed to parse gateway", "raw", r.URL.RawQuery, "error", err)
 		w.Status(40, "Bad input")
 		return
 	}
 
 	if !gatewayRegex.MatchString(gw) {
-		r.Log.Warn("Invalid gateway", "gateway", gw)
+		slog.WarnContext(r.Context, "Invalid gateway", "gateway", gw)
 		w.Status(40, "Bad input")
 		return
 	}
@@ -133,13 +134,13 @@ func (h *Handler) gatewayAdd(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	r.Log.Info("Adding gateway", "gateway", gw)
+	slog.InfoContext(r.Context, "Adding gateway", "gateway", gw)
 
 	r.User.Gateways = append(r.User.Gateways, "https://"+gw)
 	r.User.Updated.Time = now
 
 	if err := h.Inbox.UpdateActor(r.Context, r.User, r.Keys[1]); err != nil {
-		r.Log.Error("Failed to add gateway", "gateway", gw, "error", err)
+		slog.ErrorContext(r.Context, "Failed to add gateway", "gateway", gw, "error", err)
 		w.Error()
 		return
 	}
@@ -165,7 +166,7 @@ func (h *Handler) gatewayRemove(w text.Writer, r *Request, args ...string) {
 
 	gw, err := url.QueryUnescape(r.URL.RawQuery)
 	if err != nil {
-		r.Log.Warn("Failed to parse gateway", "raw", r.URL.RawQuery, "error", err)
+		slog.WarnContext(r.Context, "Failed to parse gateway", "raw", r.URL.RawQuery, "error", err)
 		w.Status(40, "Bad input")
 		return
 	}
@@ -185,18 +186,18 @@ func (h *Handler) gatewayRemove(w text.Writer, r *Request, args ...string) {
 		}
 	}
 
-	r.Log.Warn("Gateway does not exist", "gw", gw)
+	slog.WarnContext(r.Context, "Gateway does not exist", "gw", gw)
 	w.Status(40, "Gateway does not exist")
 	return
 
 found:
-	r.Log.Info("Removing gateway", "gateway", gw)
+	slog.InfoContext(r.Context, "Removing gateway", "gateway", gw)
 
 	r.User.Gateways = slices.Delete(r.User.Gateways, id, id+1)
 	r.User.Updated.Time = time.Now()
 
 	if err := h.Inbox.UpdateActor(r.Context, r.User, r.Keys[1]); err != nil {
-		r.Log.Error("Failed to remove gateway", "gateway", gw, "id", id, "error", err)
+		slog.ErrorContext(r.Context, "Failed to remove gateway", "gateway", gw, "id", id, "error", err)
 		w.Error()
 		return
 	}

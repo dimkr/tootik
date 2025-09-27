@@ -18,6 +18,7 @@ package front
 
 import (
 	"html"
+	"log/slog"
 	"net/url"
 	"regexp"
 	"slices"
@@ -76,7 +77,7 @@ func (h *Handler) metadataAdd(w text.Writer, r *Request, args ...string) {
 		can = r.User.Updated.Time.Add(h.Config.MinActorEditInterval)
 	}
 	if now.Before(can) {
-		r.Log.Warn("Throttled request to add metadata field", "can", can)
+		slog.WarnContext(r.Context, "Throttled request to add metadata field", "can", can)
 		w.Statusf(40, "Please wait for %s", time.Until(can).Truncate(time.Second).String())
 		return
 	}
@@ -93,14 +94,14 @@ func (h *Handler) metadataAdd(w text.Writer, r *Request, args ...string) {
 
 	s, err := url.QueryUnescape(r.URL.RawQuery)
 	if err != nil {
-		r.Log.Warn("Failed to parse metadata field", "raw", r.URL.RawQuery, "error", err)
+		slog.WarnContext(r.Context, "Failed to parse metadata field", "raw", r.URL.RawQuery, "error", err)
 		w.Status(40, "Bad input")
 		return
 	}
 
 	m := metadataRegex.FindStringSubmatch(s)
 	if m == nil {
-		r.Log.Warn("Invalid metadata field", "field", s)
+		slog.WarnContext(r.Context, "Invalid metadata field", "field", s)
 		w.Status(40, "Bad input")
 		return
 	}
@@ -109,7 +110,7 @@ func (h *Handler) metadataAdd(w text.Writer, r *Request, args ...string) {
 
 	for _, field := range r.User.Attachment {
 		if field.Name == name {
-			r.Log.Error("Cannot add metadata field", "name", field.Name)
+			slog.ErrorContext(r.Context, "Cannot add metadata field", "name", field.Name)
 			w.Status(40, "Cannot add metadata field")
 			return
 		}
@@ -121,13 +122,13 @@ func (h *Handler) metadataAdd(w text.Writer, r *Request, args ...string) {
 		Val:  plain.ToHTML(m[2], nil),
 	}
 
-	r.Log.Info("Adding metadata field", "name", attachment.Name)
+	slog.InfoContext(r.Context, "Adding metadata field", "name", attachment.Name)
 
 	r.User.Attachment = append(r.User.Attachment, attachment)
 	r.User.Updated.Time = now
 
 	if err := h.Inbox.UpdateActor(r.Context, r.User, r.Keys[1]); err != nil {
-		r.Log.Error("Failed to add metadata field", "name", attachment.Name, "error", err)
+		slog.ErrorContext(r.Context, "Failed to add metadata field", "name", attachment.Name, "error", err)
 		w.Error()
 		return
 	}
@@ -148,7 +149,7 @@ func (h *Handler) metadataRemove(w text.Writer, r *Request, args ...string) {
 
 	key, err := url.QueryUnescape(r.URL.RawQuery)
 	if err != nil {
-		r.Log.Warn("Failed to parse metadata field key", "raw", r.URL.RawQuery, "error", err)
+		slog.WarnContext(r.Context, "Failed to parse metadata field key", "raw", r.URL.RawQuery, "error", err)
 		w.Status(40, "Bad input")
 		return
 	}
@@ -161,18 +162,18 @@ func (h *Handler) metadataRemove(w text.Writer, r *Request, args ...string) {
 		}
 	}
 
-	r.Log.Warn("Metadata field key does not exist", "raw", r.URL.RawQuery)
+	slog.WarnContext(r.Context, "Metadata field key does not exist", "raw", r.URL.RawQuery)
 	w.Status(40, "Field does not exist")
 	return
 
 found:
-	r.Log.Info("Removing metadata field", "key", key)
+	slog.InfoContext(r.Context, "Removing metadata field", "key", key)
 
 	r.User.Attachment = slices.Delete(r.User.Attachment, id, id+1)
 	r.User.Updated.Time = time.Now()
 
 	if err := h.Inbox.UpdateActor(r.Context, r.User, r.Keys[1]); err != nil {
-		r.Log.Error("Failed to remove metadata field", "key", key, "id", id, "error", err)
+		slog.ErrorContext(r.Context, "Failed to remove metadata field", "key", key, "id", id, "error", err)
 		w.Error()
 		return
 	}

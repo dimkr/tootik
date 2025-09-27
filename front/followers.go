@@ -18,6 +18,7 @@ package front
 
 import (
 	"database/sql"
+	"log/slog"
 	"net/url"
 	"strings"
 	"time"
@@ -52,7 +53,7 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 		}
 
 		if err := h.Inbox.UpdateActor(r.Context, r.User, r.Keys[1]); err != nil {
-			r.Log.Warn("Failed to toggle manual approval", "error", err)
+			slog.WarnContext(r.Context, "Failed to toggle manual approval", "error", err)
 			w.Error()
 			return
 		}
@@ -75,7 +76,7 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 		r.User.ID,
 	)
 	if err != nil {
-		r.Log.Warn("Failed to list followers", "error", err)
+		slog.WarnContext(r.Context, "Failed to list followers", "error", err)
 		w.Error()
 		return
 	}
@@ -88,7 +89,7 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 		var follower ap.Actor
 		var accepted sql.NullInt32
 		if err := rows.Scan(&inserted, &follower, &accepted); err != nil {
-			r.Log.Warn("Failed to list a follow request", "error", err)
+			slog.WarnContext(r.Context, "Failed to list a follow request", "error", err)
 			continue
 		}
 

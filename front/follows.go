@@ -18,6 +18,7 @@ package front
 
 import (
 	"database/sql"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -63,7 +64,7 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 		r.User.ID,
 	)
 	if err != nil {
-		r.Log.Warn("Failed to list followed users", "error", err)
+		slog.WarnContext(r.Context, "Failed to list followed users", "error", err)
 		w.Error()
 		return
 	}
@@ -80,7 +81,7 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 		var last sql.NullInt64
 		var accepted sql.NullInt32
 		if err := rows.Scan(&actor, &last, &accepted); err != nil {
-			r.Log.Warn("Failed to list a followed user", "error", err)
+			slog.WarnContext(r.Context, "Failed to list a followed user", "error", err)
 			continue
 		}
 

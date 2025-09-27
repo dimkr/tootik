@@ -19,6 +19,7 @@ package front
 import (
 	"database/sql"
 	"errors"
+	"log/slog"
 
 	"github.com/dimkr/tootik/front/text"
 )
@@ -33,20 +34,20 @@ func (h *Handler) follow(w text.Writer, r *Request, args ...string) {
 
 	var exists int
 	if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from persons where id = ?)`, followed).Scan(&exists); err != nil {
-		r.Log.Warn("Failed to check if user exists", "followed", followed, "error", err)
+		slog.WarnContext(r.Context, "Failed to check if user exists", "followed", followed, "error", err)
 		w.Error()
 		return
 	}
 
 	if exists == 0 {
-		r.Log.Warn("Cannot follow a non-existing user", "followed", followed)
+		slog.WarnContext(r.Context, "Cannot follow a non-existing user", "followed", followed)
 		w.Status(40, "No such user")
 		return
 	}
 
 	var follows int
 	if err := h.DB.QueryRowContext(r.Context, `select count(*) from follows where follower = ?`, r.User.ID).Scan(&follows); err != nil {
-		r.Log.Warn("Failed to count follows", "error", err)
+		slog.WarnContext(r.Context, "Failed to count follows", "error", err)
 		w.Error()
 		return
 	}
@@ -58,7 +59,7 @@ func (h *Handler) follow(w text.Writer, r *Request, args ...string) {
 
 	var accepted sql.NullInt32
 	if err := h.DB.QueryRowContext(r.Context, `select accepted from follows where follower = ? and followed = ?`, r.User.ID, followed).Scan(&accepted); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		r.Log.Warn("Failed to check if user is already followed", "followed", followed, "error", err)
+		slog.WarnContext(r.Context, "Failed to check if user is already followed", "followed", followed, "error", err)
 		w.Error()
 		return
 	} else if err == nil && accepted.Valid && accepted.Int32 == 1 {
@@ -70,7 +71,7 @@ func (h *Handler) follow(w text.Writer, r *Request, args ...string) {
 	}
 
 	if err := h.Inbox.Follow(r.Context, r.User, r.Keys[1], followed); err != nil {
-		r.Log.Warn("Failed to follow user", "followed", followed, "error", err)
+		slog.WarnContext(r.Context, "Failed to follow user", "followed", followed, "error", err)
 		w.Error()
 		return
 	}

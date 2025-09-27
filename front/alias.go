@@ -17,6 +17,7 @@ limitations under the License.
 package front
 
 import (
+	"log/slog"
 	"net/url"
 	"strings"
 	"time"
@@ -38,7 +39,7 @@ func (h *Handler) alias(w text.Writer, r *Request, args ...string) {
 		can = r.User.Updated.Time.Add(h.Config.MinActorEditInterval)
 	}
 	if now.Before(can) {
-		r.Log.Warn("Throttled request to set alias", "can", can)
+		slog.WarnContext(r.Context, "Throttled request to set alias", "can", can)
 		w.Statusf(40, "Please wait for %s", time.Until(can).Truncate(time.Second).String())
 		return
 	}
@@ -50,21 +51,21 @@ func (h *Handler) alias(w text.Writer, r *Request, args ...string) {
 
 	alias, err := url.QueryUnescape(r.URL.RawQuery)
 	if err != nil {
-		r.Log.Warn("Failed to decode alias", "query", r.URL.RawQuery, "error", err)
+		slog.WarnContext(r.Context, "Failed to decode alias", "query", r.URL.RawQuery, "error", err)
 		w.Status(40, "Bad input")
 		return
 	}
 
 	tokens := strings.SplitN(alias, "@", 3)
 	if len(tokens) != 2 {
-		r.Log.Warn("Alias is invalid", "alias", alias)
+		slog.WarnContext(r.Context, "Alias is invalid", "alias", alias)
 		w.Status(40, "Bad input")
 		return
 	}
 
 	actor, err := h.Resolver.Resolve(r.Context, r.Keys, tokens[1], tokens[0], 0)
 	if err != nil {
-		r.Log.Warn("Failed to resolve alias", "alias", alias, "error", err)
+		slog.WarnContext(r.Context, "Failed to resolve alias", "alias", alias, "error", err)
 		w.Status(40, "Failed to resolve "+alias)
 		return
 	}
@@ -73,7 +74,7 @@ func (h *Handler) alias(w text.Writer, r *Request, args ...string) {
 	r.User.Updated.Time = now
 
 	if err := h.Inbox.UpdateActor(r.Context, r.User, r.Keys[1]); err != nil {
-		r.Log.Error("Failed to update alias", "error", err)
+		slog.ErrorContext(r.Context, "Failed to update alias", "error", err)
 		w.Error()
 		return
 	}

@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,27 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package front
+package cluster
 
 import (
 	"log/slog"
+	"os"
 
-	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/logcontext"
 )
 
-func (h *Handler) unbookmark(w text.Writer, r *Request, args ...string) {
-	if r.User == nil {
-		w.Redirect("/users")
-		return
+func init() {
+	opts := slog.HandlerOptions{
+		Level:     slog.LevelDebug,
+		AddSource: true,
 	}
 
-	postID := "https://" + args[1]
-
-	if _, err := h.DB.ExecContext(r.Context, `delete from bookmarks where note = ? and by = ?`, postID, r.User.ID); err != nil {
-		slog.WarnContext(r.Context, "Failed to delete bookmark", "post", postID, "error", err)
-		w.Error()
-		return
-	}
-
-	w.Redirectf("/users/view/" + args[1])
+	slog.SetDefault(slog.New(logcontext.NewHandler(slog.NewJSONHandler(os.Stderr, &opts))))
 }

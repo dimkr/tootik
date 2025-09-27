@@ -17,6 +17,7 @@ limitations under the License.
 package front
 
 import (
+	"log/slog"
 	"net/url"
 	"strings"
 	"time"
@@ -32,7 +33,7 @@ func (h *Handler) move(w text.Writer, r *Request, args ...string) {
 	}
 
 	if r.User.MovedTo != "" {
-		r.Log.Warn("User cannot be moved again", "movedTo", r.User.MovedTo)
+		slog.WarnContext(r.Context, "User cannot be moved again", "movedTo", r.User.MovedTo)
 		w.Status(40, "Already moved to "+r.User.MovedTo)
 		return
 	}
@@ -44,7 +45,7 @@ func (h *Handler) move(w text.Writer, r *Request, args ...string) {
 		can = r.User.Updated.Time.Add(h.Config.MinActorEditInterval)
 	}
 	if now.Before(can) {
-		r.Log.Warn("Throttled request to move account", "can", can)
+		slog.WarnContext(r.Context, "Throttled request to move account", "can", can)
 		w.Statusf(40, "Please wait for %s", time.Until(can).Truncate(time.Second).String())
 		return
 	}
@@ -56,39 +57,39 @@ func (h *Handler) move(w text.Writer, r *Request, args ...string) {
 
 	target, err := url.QueryUnescape(r.URL.RawQuery)
 	if err != nil {
-		r.Log.Warn("Failed to decode move target", "query", r.URL.RawQuery, "error", err)
+		slog.WarnContext(r.Context, "Failed to decode move target", "query", r.URL.RawQuery, "error", err)
 		w.Status(40, "Bad input")
 		return
 	}
 
 	tokens := strings.SplitN(target, "@", 3)
 	if len(tokens) != 2 {
-		r.Log.Warn("Target is invalid", "target", target)
+		slog.WarnContext(r.Context, "Target is invalid", "target", target)
 		w.Status(40, "Bad input")
 		return
 	}
 
 	actor, err := h.Resolver.Resolve(r.Context, r.Keys, tokens[1], tokens[0], 0)
 	if err != nil {
-		r.Log.Warn("Failed to resolve target", "target", target, "error", err)
+		slog.WarnContext(r.Context, "Failed to resolve target", "target", target, "error", err)
 		w.Status(40, "Failed to resolve "+target)
 		return
 	}
 
 	if !r.User.AlsoKnownAs.Contains(actor.ID) {
-		r.Log.Warn("Move source is not an alias for target", "target", target)
+		slog.WarnContext(r.Context, "Move source is not an alias for target", "target", target)
 		w.Statusf(40, "%s is not an alias for %s", r.User.ID, actor.ID)
 		return
 	}
 
 	if !actor.AlsoKnownAs.Contains(r.User.ID) {
-		r.Log.Warn("Move target is not an alias for source", "target", target)
+		slog.WarnContext(r.Context, "Move target is not an alias for source", "target", target)
 		w.Statusf(40, "%s is not an alias for %s", actor.ID, r.User.ID)
 		return
 	}
 
 	if err := h.Inbox.Move(r.Context, r.User, r.Keys[1], actor.ID); err != nil {
-		r.Log.Error("Failed to move user", "error", err)
+		slog.ErrorContext(r.Context, "Failed to move user", "error", err)
 		w.Error()
 		return
 	}

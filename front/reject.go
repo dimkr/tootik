@@ -19,6 +19,7 @@ package front
 import (
 	"database/sql"
 	"errors"
+	"log/slog"
 
 	"github.com/dimkr/tootik/front/text"
 )
@@ -33,7 +34,7 @@ func (h *Handler) reject(w text.Writer, r *Request, args ...string) {
 
 	tx, err := h.DB.BeginTx(r.Context, nil)
 	if err != nil {
-		r.Log.Warn("Failed to reject follow request", "follower", follower, "error", err)
+		slog.WarnContext(r.Context, "Failed to reject follow request", "follower", follower, "error", err)
 		w.Error()
 		return
 	}
@@ -46,23 +47,23 @@ func (h *Handler) reject(w text.Writer, r *Request, args ...string) {
 		follower,
 		r.User.ID,
 	).Scan(&followID); errors.Is(err, sql.ErrNoRows) {
-		r.Log.Warn("Failed to fetch follow request to reject", "follower", follower)
+		slog.WarnContext(r.Context, "Failed to fetch follow request to reject", "follower", follower)
 		w.Status(40, "No such follow request")
 		return
 	} else if err != nil {
-		r.Log.Warn("Failed to reject follow request", "follower", follower, "error", err)
+		slog.WarnContext(r.Context, "Failed to reject follow request", "follower", follower, "error", err)
 		w.Error()
 		return
 	}
 
 	if err := h.Inbox.Reject(r.Context, r.User, r.Keys[1], follower, followID, tx); err != nil {
-		r.Log.Warn("Failed to reject follow request", "follower", follower, "error", err)
+		slog.WarnContext(r.Context, "Failed to reject follow request", "follower", follower, "error", err)
 		w.Error()
 		return
 	}
 
 	if err := tx.Commit(); err != nil {
-		r.Log.Warn("Failed to reject follow request", "follower", follower, "error", err)
+		slog.WarnContext(r.Context, "Failed to reject follow request", "follower", follower, "error", err)
 		w.Error()
 		return
 	}

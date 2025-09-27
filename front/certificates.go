@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ limitations under the License.
 package front
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/dimkr/tootik/front/text"
@@ -38,7 +39,7 @@ func (h *Handler) certificates(w text.Writer, r *Request, args ...string) {
 		r.User.PreferredUsername,
 	)
 	if err != nil {
-		r.Log.Warn("Failed to fetch certificates", "user", r.User.PreferredUsername, "error", err)
+		slog.WarnContext(r.Context, "Failed to fetch certificates", "user", r.User.PreferredUsername, "error", err)
 		w.Error()
 		return
 	}
@@ -54,7 +55,7 @@ func (h *Handler) certificates(w text.Writer, r *Request, args ...string) {
 		var hash string
 		var approved int
 		if err := rows.Scan(&inserted, &hash, &approved, &expires); err != nil {
-			r.Log.Warn("Failed to fetch certificate", "user", r.User.PreferredUsername, "error", err)
+			slog.WarnContext(r.Context, "Failed to fetch certificate", "user", r.User.PreferredUsername, "error", err)
 			continue
 		}
 

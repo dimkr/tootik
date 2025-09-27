@@ -18,6 +18,7 @@ package front
 
 import (
 	"database/sql"
+	"log/slog"
 	"net/url"
 	"strconv"
 
@@ -40,27 +41,27 @@ func (h *Handler) ttl(w text.Writer, r *Request, args ...string) {
 			`select ttl from persons where id = ?`,
 			r.User.ID,
 		).Scan(&ttl); err != nil {
-			r.Log.Warn("Failed to fetch TTL", "error", err)
+			slog.WarnContext(r.Context, "Failed to fetch TTL", "error", err)
 			w.Error()
 			return
 		}
 	} else {
 		s, err := url.QueryUnescape(r.URL.RawQuery)
 		if err != nil {
-			r.Log.Warn("Failed to decode number of days", "query", r.URL.RawQuery, "error", err)
+			slog.WarnContext(r.Context, "Failed to decode number of days", "query", r.URL.RawQuery, "error", err)
 			w.Status(40, "Bad input")
 			return
 		}
 
 		days, err := strconv.ParseInt(s, 10, 64)
 		if err != nil {
-			r.Log.Warn("Failed to parse number of days", "query", r.URL.RawQuery, "error", err)
+			slog.WarnContext(r.Context, "Failed to parse number of days", "query", r.URL.RawQuery, "error", err)
 			w.Status(40, "Bad input")
 			return
 		}
 
 		if days < 0 || days > maxDays {
-			r.Log.Warn("Failed to parse number of days", "query", r.URL.RawQuery, "error", err)
+			slog.WarnContext(r.Context, "Failed to parse number of days", "query", r.URL.RawQuery, "error", err)
 			w.Status(40, "Bad input")
 			return
 		}
@@ -72,7 +73,7 @@ func (h *Handler) ttl(w text.Writer, r *Request, args ...string) {
 				days,
 				r.User.ID,
 			); err != nil {
-				r.Log.Error("Failed to set TTL", "error", err)
+				slog.ErrorContext(r.Context, "Failed to set TTL", "error", err)
 				w.Error()
 				return
 			}
@@ -84,7 +85,7 @@ func (h *Handler) ttl(w text.Writer, r *Request, args ...string) {
 			`update persons set ttl = null where id = ?`,
 			r.User.ID,
 		); err != nil {
-			r.Log.Error("Failed to clear TTL", "error", err)
+			slog.ErrorContext(r.Context, "Failed to clear TTL", "error", err)
 			w.Error()
 			return
 		}

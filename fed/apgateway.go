@@ -42,7 +42,7 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 
 	m := inboxRegex.FindStringSubmatch(resource)
 	if m == nil {
-		slog.Info("Invalid resource", "resource", resource)
+		slog.InfoContext(r.Context(), "Invalid resource", "resource", resource)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -52,25 +52,25 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 	var actor ap.Actor
 	var rsaPrivKeyPem, ed25519PrivKeyMultibase string
 	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519privkey from persons where cid = ? and ed25519privkey is not null`, receiver).Scan(&actor, &rsaPrivKeyPem, &ed25519PrivKeyMultibase); errors.Is(err, sql.ErrNoRows) {
-		slog.Debug("Receiving user does not exist", "receiver", receiver)
+		slog.DebugContext(r.Context(), "Receiving user does not exist", "receiver", receiver)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
-		slog.Warn("Failed to check if receiving user exists", "receiver", receiver, "error", err)
+		slog.WarnContext(r.Context(), "Failed to check if receiving user exists", "receiver", receiver, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	rsaPrivKey, err := data.ParseRSAPrivateKey(rsaPrivKeyPem)
 	if err != nil {
-		slog.Warn("Failed to parse RSA private key", "receiver", receiver, "error", err)
+		slog.WarnContext(r.Context(), "Failed to parse RSA private key", "receiver", receiver, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
 	if err != nil {
-		slog.Warn("Failed to decode Ed25519 private key", "receiver", receiver, "error", err)
+		slog.WarnContext(r.Context(), "Failed to decode Ed25519 private key", "receiver", receiver, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -84,7 +84,7 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 func (l *Listener) handleApGatewayFollowers(w http.ResponseWriter, r *http.Request, did string) {
 	_, sender, err := l.verifyRequest(r, nil, ap.InstanceActor, l.ActorKeys)
 	if err != nil {
-		slog.Warn("Failed to verify followers request", "error", err)
+		slog.WarnContext(r.Context(), "Failed to verify followers request", "error", err)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -97,7 +97,7 @@ func (l *Listener) handleApGatewayFollowers(w http.ResponseWriter, r *http.Reque
 
 	rows, err := l.DB.QueryContext(r.Context(), `SELECT follower FROM follows WHERE followed = 'https://' || ? || '/.well-known/apgateway/' || ? || '/actor' AND follower LIKE 'https://' || ? || '/%' AND accepted = 1`, l.Domain, did, u.Host)
 	if err != nil {
-		slog.Warn("Failed to fetch followers", "did", did, "host", u.Host, "error", err)
+		slog.WarnContext(r.Context(), "Failed to fetch followers", "did", did, "host", u.Host, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -107,7 +107,7 @@ func (l *Listener) handleApGatewayFollowers(w http.ResponseWriter, r *http.Reque
 	for rows.Next() {
 		var follower string
 		if err := rows.Scan(&follower); err != nil {
-			slog.Warn("Failed to fetch followers", "did", did, "host", u.Host, "error", err)
+			slog.WarnContext(r.Context(), "Failed to fetch followers", "did", did, "host", u.Host, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -116,7 +116,7 @@ func (l *Listener) handleApGatewayFollowers(w http.ResponseWriter, r *http.Reque
 	defer rows.Close()
 
 	if err := rows.Err(); err != nil {
-		slog.Warn("Failed to fetch followers", "did", did, "host", u.Host, "error", err)
+		slog.WarnContext(r.Context(), "Failed to fetch followers", "did", did, "host", u.Host, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -128,12 +128,12 @@ func (l *Listener) handleApGatewayFollowers(w http.ResponseWriter, r *http.Reque
 		"orderedItems": items,
 	})
 	if err != nil {
-		slog.Warn("Failed to fetch followers", "did", did, "host", u.Host, "error", err)
+		slog.WarnContext(r.Context(), "Failed to fetch followers", "did", did, "host", u.Host, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	slog.Info("Received followers request", "sender", sender.ID, "did", did, "host", u.Host, "count", len(items.OrderedMap))
+	slog.InfoContext(r.Context(), "Received followers request", "sender", sender.ID, "did", did, "host", u.Host, "count", len(items.OrderedMap))
 
 	w.Header().Set("Content-Type", `application/activity+json; charset=utf-8`)
 	w.Write([]byte(collection))
@@ -149,14 +149,14 @@ func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
 
 	id := portableObjectRegex.FindString(resource)
 	if id == "" {
-		slog.Info("Invalid resource", "resource", resource)
+		slog.InfoContext(r.Context(), "Invalid resource", "resource", resource)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
 	id = "ap://" + id
 
-	slog.Info("Fetching object", "id", id)
+	slog.InfoContext(r.Context(), "Fetching object", "id", id)
 
 	var raw string
 	if err := l.DB.QueryRowContext(
@@ -180,11 +180,11 @@ func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
 		id,
 		ap.Public,
 	).Scan(&raw); errors.Is(err, sql.ErrNoRows) {
-		slog.Info("Notifying about missing object", "id", id)
+		slog.InfoContext(r.Context(), "Notifying about missing object", "id", id)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
-		slog.Warn("Failed to fetch object", "id", id, "error", err)
+		slog.WarnContext(r.Context(), "Failed to fetch object", "id", id, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

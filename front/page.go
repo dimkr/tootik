@@ -19,6 +19,7 @@ package front
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strconv"
 
@@ -46,20 +47,20 @@ func getOffset(requestUrl *url.URL) (int, error) {
 func (h *Handler) showFeedPage(w text.Writer, r *Request, title string, query func(int) (*sql.Rows, error), printDaySeparators bool) {
 	offset, err := getOffset(r.URL)
 	if err != nil {
-		r.Log.Info("Failed to parse query", "url", r.URL, "error", err)
+		slog.InfoContext(r.Context, "Failed to parse query", "url", r.URL, "error", err)
 		w.Status(40, "Invalid query")
 		return
 	}
 
 	if offset > h.Config.MaxOffset {
-		r.Log.Warn("Offset is too big", "offset", offset)
+		slog.WarnContext(r.Context, "Offset is too big", "offset", offset)
 		w.Statusf(40, "Offset must be <= %d", h.Config.MaxOffset)
 		return
 	}
 
 	rows, err := query(offset)
 	if err != nil {
-		r.Log.Warn("Failed to fetch posts", "error", err)
+		slog.WarnContext(r.Context, "Failed to fetch posts", "error", err)
 		w.Error()
 		return
 	}

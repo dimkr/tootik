@@ -45,18 +45,18 @@ func (m *Mover) updatedMoveTargets(ctx context.Context, prefix string) error {
 	for rows.Next() {
 		var oldID, newID string
 		if err := rows.Scan(&oldID, &newID); err != nil {
-			slog.Error("Failed to scan moved actor", "error", err)
+			slog.ErrorContext(ctx, "Failed to scan moved actor", "error", err)
 			continue
 		}
 
 		actor, err := m.Resolver.ResolveID(ctx, m.Keys, newID, 0)
 		if err != nil {
-			slog.Warn("Failed to resolve move target", "old", oldID, "new", newID, "error", err)
+			slog.WarnContext(ctx, "Failed to resolve move target", "old", oldID, "new", newID, "error", err)
 			continue
 		}
 
 		if !actor.AlsoKnownAs.Contains(oldID) {
-			slog.Warn("New account does not point to old account", "new", newID, "old", oldID)
+			slog.WarnContext(ctx, "New account does not point to old account", "new", newID, "old", oldID)
 		}
 	}
 
@@ -107,27 +107,27 @@ func (m *Mover) Run(ctx context.Context) error {
 		var oldID, NewID, oldFollowID string
 		var onlyRemove bool
 		if err := rows.Scan(&actor, &ed25519PrivKeyMultibase, &oldID, &NewID, &oldFollowID, &onlyRemove); err != nil {
-			slog.Error("Failed to scan follow to move", "error", err)
+			slog.ErrorContext(ctx, "Failed to scan follow to move", "error", err)
 			continue
 		}
 
 		ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
 		if err != nil {
-			slog.Error("Failed to decode Ed25519 private key", "error", err)
+			slog.ErrorContext(ctx, "Failed to decode Ed25519 private key", "error", err)
 			continue
 		}
 
 		if onlyRemove {
-			slog.Info("Removing follow of moved actor", "follow", oldFollowID, "old", oldID, "new", NewID)
+			slog.InfoContext(ctx, "Removing follow of moved actor", "follow", oldFollowID, "old", oldID, "new", NewID)
 		} else {
-			slog.Info("Moving follow", "follow", oldFollowID, "old", oldID, "new", NewID)
+			slog.InfoContext(ctx, "Moving follow", "follow", oldFollowID, "old", oldID, "new", NewID)
 			if err := m.Inbox.Follow(ctx, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}, NewID); err != nil {
-				slog.Warn("Failed to follow new actor", "follow", oldFollowID, "old", oldID, "new", NewID, "error", err)
+				slog.WarnContext(ctx, "Failed to follow new actor", "follow", oldFollowID, "old", oldID, "new", NewID, "error", err)
 				continue
 			}
 		}
 		if err := m.Inbox.Unfollow(ctx, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}, oldID, oldFollowID); err != nil {
-			slog.Warn("Failed to unfollow old actor", "follow", oldFollowID, "old", oldID, "new", NewID, "error", err)
+			slog.WarnContext(ctx, "Failed to unfollow old actor", "follow", oldFollowID, "old", oldID, "new", NewID, "error", err)
 		}
 	}
 

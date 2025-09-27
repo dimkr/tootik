@@ -55,7 +55,7 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 
 	resource, err := url.QueryUnescape(query.Get("resource"))
 	if err != nil {
-		slog.Info("Failed to decode query", "resource", r.URL.RawQuery, "error", err)
+		slog.InfoContext(r.Context(), "Failed to decode query", "resource", r.URL.RawQuery, "error", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -71,14 +71,14 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 		var fields = strings.Split(resource, "@")
 
 		if len(fields) > 2 {
-			slog.Info("Received invalid resource", "resource", resource)
+			slog.InfoContext(r.Context(), "Received invalid resource", "resource", resource)
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte("Resource must contain zero or one @"))
 			return
 		}
 
 		if len(fields) == 2 && fields[1] != l.Domain {
-			slog.Info("Received invalid resource", "resource", resource, "domain", fields[1])
+			slog.InfoContext(r.Context(), "Received invalid resource", "resource", resource, "domain", fields[1])
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprintf(w, "Resource must end with @%s", l.Domain)
 			return
@@ -92,11 +92,11 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 		username = "nobody"
 	}
 
-	slog.Info("Looking up resource", "resource", resource, "user", username)
+	slog.InfoContext(r.Context(), "Looking up resource", "resource", resource, "user", username)
 
 	rows, err := l.DB.QueryContext(r.Context(), `select id, actor->>'$.type' from persons where actor->>'$.preferredUsername' = ? and host = ?`, username, l.Domain)
 	if err != nil {
-		slog.Warn("Failed to fetch user", "user", username, "error", err)
+		slog.WarnContext(r.Context(), "Failed to fetch user", "user", username, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -110,7 +110,7 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 		var actorID sql.NullString
 		var actorType string
 		if err := rows.Scan(&actorID, &actorType); err != nil {
-			slog.Warn("Failed to scan user", "user", username, "error", err)
+			slog.WarnContext(r.Context(), "Failed to scan user", "user", username, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -126,7 +126,7 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(resp.Links) == 0 {
-		slog.Info("Notifying that user does not exist", "user", username)
+		slog.InfoContext(r.Context(), "Notifying that user does not exist", "user", username)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
