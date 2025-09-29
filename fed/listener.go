@@ -30,7 +30,6 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/fsnotify/fsnotify"
 )
@@ -46,7 +45,7 @@ type Listener struct {
 	Cert      string
 	Key       string
 	Plain     bool
-	BlockList *fed.BlockList
+	BlockList *BlockList
 }
 
 const certReloadDelay = time.Second * 5
