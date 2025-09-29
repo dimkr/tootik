@@ -467,6 +467,20 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 		}
 	}
 
+	if u, err := url.Parse(actor.Inbox); err != nil {
+		return nil, cachedActor, fmt.Errorf("failed to parse inbox %s: %w", actor.Inbox, err)
+	} else if u.Host != req.URL.Host {
+		return nil, cachedActor, fmt.Errorf("inbox %s origin is not %s", actor.Inbox, req.URL.Host)
+	}
+
+	if sharedInbox, ok := actor.Endpoints["sharedInbox"]; ok {
+		if u, err := url.Parse(sharedInbox); err != nil {
+			return nil, cachedActor, fmt.Errorf("failed to parse shared inbox %s: %w", sharedInbox, err)
+		} else if u.Host != req.URL.Host {
+			return nil, cachedActor, fmt.Errorf("shared inbox %s origin is not %s", sharedInbox, req.URL.Host)
+		}
+	}
+
 	keyIDs := make(map[string]struct{}, 2)
 
 	actorOrigin, err := ap.Origin(actor.ID)
