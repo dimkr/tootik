@@ -441,6 +441,13 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 		return
 	}
 
+	if l.BlockList != nil && l.BlockList.Contains(origin) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]any{"error": "blocked"})
+		return
+	}
+
 	forwarded := origin != senderOrigin
 
 	/* if we don't support this activity or it's invalid, we don't want to fetch it (we validate again later) */
