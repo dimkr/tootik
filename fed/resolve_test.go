@@ -2914,6 +2914,7 @@ func TestResolve_FederatedActorFirstTimeThroughKey(t *testing.T) {
 					],
 					"id": "https://0.0.0.0/user/dan",
 					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
 					"publicKey": {
 						"id": "https://0.0.0.0/user/dan#main-key",
 						"owner": "https://0.0.0.0/user/dan",
@@ -2936,7 +2937,7 @@ func TestResolve_FederatedActorFirstTimeThroughKey(t *testing.T) {
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
-	assert.Empty(actor.Inbox)
+	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
