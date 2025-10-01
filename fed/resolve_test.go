@@ -853,12 +853,12 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 					],
 					"id": "https://tootik.0.0.0.0/user/dan",
 					"type": "Person",
-					"inbox": "https://0.0.0.0/inbox/dan",
-					"outbox": "https://0.0.0.0/outbox/dan",
+					"inbox": "https://tootik.0.0.0.0/inbox/dan",
+					"outbox": "https://tootik.0.0.0.0/outbox/dan",
 					"preferredUsername": "dan",
-					"followers": "https://0.0.0.0/followers/dan",
+					"followers": "https://tootik.0.0.0.0/followers/dan",
 					"endpoints": {
-						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+						"sharedInbox": "https://tootik.0.0.0.0/inbox/nobody"
 					}
 				}`,
 			),
@@ -877,7 +877,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 	assert.Empty(client.Data)
 
 	assert.Equal("https://tootik.0.0.0.0/user/dan", actor.ID)
-	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
+	assert.Equal("https://tootik.0.0.0.0/inbox/dan", actor.Inbox)
 
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
@@ -916,12 +916,12 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 					],
 					"id": "https://tootik.0.0.0.0/user/dan",
 					"type": "Person",
-					"inbox": "https://0.0.0.0/inbox/dan",
-					"outbox": "https://0.0.0.0/outbox/dan",
+					"inbox": "https://tootik.0.0.0.0/inbox/dan",
+					"outbox": "https://tootik.0.0.0.0/outbox/dan",
 					"preferredUsername": "dan",
-					"followers": "https://0.0.0.0/followers/dan",
+					"followers": "https://tootik.0.0.0.0/followers/dan",
 					"endpoints": {
-						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+						"sharedInbox": "https://tootik.0.0.0.0/inbox/nobody"
 					}
 				}`,
 			),
@@ -933,7 +933,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 	assert.Empty(client.Data)
 
 	assert.Equal("https://tootik.0.0.0.0/user/dan", actor.ID)
-	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
+	assert.Equal("https://tootik.0.0.0.0/inbox/dan", actor.Inbox)
 }
 
 func TestResolve_FederatedActorCachedActorHostSubdomainFetchedRecently(t *testing.T) {
@@ -989,12 +989,12 @@ func TestResolve_FederatedActorCachedActorHostSubdomainFetchedRecently(t *testin
 					],
 					"id": "https://tootik.0.0.0.0/user/dan",
 					"type": "Person",
-					"inbox": "https://0.0.0.0/inbox/dan",
-					"outbox": "https://0.0.0.0/outbox/dan",
+					"inbox": "https://tootik.0.0.0.0/inbox/dan",
+					"outbox": "https://tootik.0.0.0.0/outbox/dan",
 					"preferredUsername": "dan",
-					"followers": "https://0.0.0.0/followers/dan",
+					"followers": "https://tootik.0.0.0.0/followers/dan",
 					"endpoints": {
-						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+						"sharedInbox": "https://tootik.0.0.0.0/inbox/nobody"
 					}
 				}`,
 			),
@@ -1013,7 +1013,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomainFetchedRecently(t *testin
 	assert.Empty(client.Data)
 
 	assert.Equal("https://tootik.0.0.0.0/user/dan", actor.ID)
-	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
+	assert.Equal("https://tootik.0.0.0.0/inbox/dan", actor.Inbox)
 
 	client.Data = map[string]testResponse{}
 
@@ -1022,7 +1022,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomainFetchedRecently(t *testin
 	assert.Empty(client.Data)
 
 	assert.Equal("https://tootik.0.0.0.0/user/dan", actor.ID)
-	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
+	assert.Equal("https://tootik.0.0.0.0/inbox/dan", actor.Inbox)
 }
 
 func TestResolve_FederatedActorCachedActorIDChanged(t *testing.T) {
@@ -2914,6 +2914,7 @@ func TestResolve_FederatedActorFirstTimeThroughKey(t *testing.T) {
 					],
 					"id": "https://0.0.0.0/user/dan",
 					"type": "Person",
+					"inbox": "https://0.0.0.0/inbox/dan",
 					"publicKey": {
 						"id": "https://0.0.0.0/user/dan#main-key",
 						"owner": "https://0.0.0.0/user/dan",
@@ -2936,7 +2937,7 @@ func TestResolve_FederatedActorFirstTimeThroughKey(t *testing.T) {
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
-	assert.Empty(actor.Inbox)
+	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
 	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
