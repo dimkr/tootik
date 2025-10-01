@@ -405,7 +405,7 @@ func (q *Queue) queueTasks(
 	if wideDelivery {
 		inboxes, err := q.DB.QueryContext(
 			ctx,
-			`select distinct coalesce(persons.actor->>'$.endpoints.sharedInbox', persons.actor->>'$.inbox') from persons join follows on follows.follower = persons.id where follows.followed = ? and follows.accepted = 1 and follows.follower not like ? and persons.ed25519privkey is null`,
+			`select distinct coalesce(persons.actor->>'$.endpoints.sharedInbox', persons.actor->>'$.inbox') as inbox from persons join follows on follows.follower = persons.id where follows.followed = ? and follows.accepted = 1 and follows.follower not like ? and persons.ed25519privkey is null order by persons.actor->>'$.endpoints.sharedInbox' is not null desc, inbox`,
 			job.Sender.ID,
 			fmt.Sprintf("https://%s/%%", activityID.Host),
 		)
