@@ -29,6 +29,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/dimkr/tootik/cfg"
@@ -65,6 +66,9 @@ const (
 )
 
 var (
+	migrationsCache = map[string][]byte{}
+	migrationsLock  sync.Mutex
+
 	/*
 	   openssl ecparam -name prime256v1 -genkey -out /tmp/ec.pem
 	   openssl req -new -x509 -key /tmp/ec.pem -sha256 -nodes -subj "/CN=localhost.localdomain:8965" -out cert.pem -keyout key.pem -days 3650
@@ -88,6 +92,48 @@ GrFYie4rnLsQuvc+vZ5i9+7tdp/xAaNsZDEve7YnN21o0J8/M3jUSTZk
 -----END PRIVATE KEY-----`
 )
 
+func createDB(ctx context.Context, domain, path string, cfg *cfg.Config) (*sql.DB, error) {
+	migrationsLock.Lock()
+
+	cache, ok := migrationsCache[domain]
+	if ok {
+		migrationsLock.Unlock()
+
+		if err := os.WriteFile(path, cache, 0o600); err != nil {
+			return nil, err
+		}
+	} else {
+		defer migrationsLock.Unlock()
+	}
+
+	db, err := sql.Open("sqlite3", fmt.Sprintf("%s?%s", path, cfg.DatabaseOptions))
+	if ok {
+		return db, err
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if err := migrations.Run(ctx, domain, db); err != nil {
+		db.Close()
+		return nil, err
+	}
+
+	if _, err := db.ExecContext(ctx, `PRAGMA wal_checkpoint`); err != nil {
+		db.Close()
+		return nil, err
+	}
+
+	buf, err := os.ReadFile(path)
+	if err != nil {
+		db.Close()
+		return nil, err
+	}
+
+	migrationsCache[domain] = buf
+	return db, err
+}
+
 func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Client) *Server {
 	var cfg cfg.Config
 
@@ -107,16 +153,12 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 
 	dbPath := filepath.Join(t.TempDir(), domain+".sqlite3")
 
-	db, err := sql.Open("sqlite3", fmt.Sprintf("%s?%s", dbPath, cfg.DatabaseOptions))
+	db, err := createDB(t.Context(), domain, dbPath, &cfg)
 	if err != nil {
-		t.Fatalf("Failed to open database: %v", err)
+		t.Fatalf("Failed to create database: %v", err)
 	}
 
 	resolver := fed.NewResolver(nil, domain, &cfg, client, db)
-
-	if err := migrations.Run(ctx, domain, db); err != nil {
-		t.Fatalf("Failed to run migrations: %v", err)
-	}
 
 	_, nobodyKeys, err := user.CreateNobody(ctx, domain, db, &cfg)
 	if err != nil {
