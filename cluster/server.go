@@ -95,19 +95,21 @@ GrFYie4rnLsQuvc+vZ5i9+7tdp/xAaNsZDEve7YnN21o0J8/M3jUSTZk
 func createDB(ctx context.Context, domain, path string, cfg *cfg.Config) (*sql.DB, error) {
 	migrationsLock.Lock()
 
-	if cache, ok := migrationsCache[domain]; ok {
+	cache, ok := migrationsCache[domain]
+	if ok {
 		migrationsLock.Unlock()
 
 		if err := os.WriteFile(path, cache, 0o600); err != nil {
 			return nil, err
 		}
-
-		return sql.Open("sqlite3", fmt.Sprintf("%s?%s", path, cfg.DatabaseOptions))
+	} else {
+		defer migrationsLock.Unlock()
 	}
 
-	defer migrationsLock.Unlock()
-
 	db, err := sql.Open("sqlite3", fmt.Sprintf("%s?%s", path, cfg.DatabaseOptions))
+	if ok {
+		return db, err
+	}
 	if err != nil {
 		return nil, err
 	}
