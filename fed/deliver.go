@@ -355,8 +355,8 @@ func (q *Queue) queueTask(
 
 	slog.Info("Queueing activity for delivery", "inbox", inbox, "activity", job.Activity.ID)
 
-	// assign a task to a random worker but use one worker per inbox, so activities are delivered once per inbox
-	tasks[crc32.ChecksumIEEE([]byte(inbox))%uint32(len(tasks))] <- deliveryTask{
+	// assign a task to a random worker but use one worker per host
+	tasks[crc32.ChecksumIEEE([]byte(req.URL.Host))%uint32(len(tasks))] <- deliveryTask{
 		Job:     job,
 		Keys:    keys,
 		Request: req,

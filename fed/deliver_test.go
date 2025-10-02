@@ -58,12 +58,6 @@ func TestDeliver_TwoUsersTwoPosts(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-		"https://ip6-allnodes/inbox/erin": {
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
-			},
-		},
 	})
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
@@ -163,12 +157,6 @@ func TestDeliver_ForwardedPost(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://ip6-allnodes/inbox/dan": {
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
-			},
-		},
-		"https://ip6-allnodes/inbox/erin": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -324,6 +312,15 @@ func TestDeliver_OneFailed(t *testing.T) {
 	)
 	assert.NoError(err)
 
+	client.Data = map[string]testResponse{
+		"https://ip6-allnodes/inbox/dan": {
+			Response: &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
+			},
+		},
+	}
+
 	_, err = q.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Empty(client.Data)
@@ -377,12 +374,6 @@ func TestDeliver_OneFailedRetry(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-		"https://ip6-allnodes/inbox/erin": {
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
-			},
-		},
 	})
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
@@ -427,6 +418,15 @@ func TestDeliver_OneFailedRetry(t *testing.T) {
 		alice.ID,
 	)
 	assert.NoError(err)
+
+	client.Data = map[string]testResponse{
+		"https://ip6-allnodes/inbox/dan": {
+			Response: &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
+			},
+		},
+	}
 
 	_, err = q.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -605,6 +605,15 @@ func TestDeliver_MaxAttempts(t *testing.T) {
 	)
 	assert.NoError(err)
 
+	client.Data = map[string]testResponse{
+		"https://ip6-allnodes/inbox/dan": {
+			Response: &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
+			},
+		},
+	}
+
 	_, err = q.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Empty(client.Data)
@@ -640,12 +649,6 @@ func TestDeliver_SharedInbox(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://ip6-allnodes/inbox/nobody": {
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
-			},
-		},
-		"https://ip6-allnodes/inbox/frank": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -737,12 +740,6 @@ func TestDeliver_SharedInboxRetry(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-		"https://ip6-allnodes/inbox/frank": {
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
-			},
-		},
 	})
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
@@ -798,11 +795,29 @@ func TestDeliver_SharedInboxRetry(t *testing.T) {
 	)
 	assert.NoError(err)
 
+	client.Data = map[string]testResponse{
+		"https://ip6-allnodes/inbox/nobody": {
+			Response: &http.Response{
+				StatusCode: http.StatusInternalServerError,
+				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
+			},
+		},
+	}
+
 	_, err = q.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	cfg.DeliveryRetryInterval = 0
+
+	client.Data = map[string]testResponse{
+		"https://ip6-allnodes/inbox/nobody": {
+			Response: &http.Response{
+				StatusCode: http.StatusInternalServerError,
+				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
+			},
+		},
+	}
 
 	_, err = q.ProcessBatch(context.Background())
 	assert.NoError(err)
@@ -829,12 +844,6 @@ func TestDeliver_SharedInboxUnknownActor(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://ip6-allnodes/inbox/nobody": {
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
-			},
-		},
-		"https://ip6-allnodes/inbox/frank": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -1014,12 +1023,6 @@ func TestDeliver_SameInbox(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-		"https://ip6-allnodes/inbox/frank": {
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
-			},
-		},
 	})
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
@@ -1101,12 +1104,6 @@ func TestDeliver_ToAndCCDuplicates(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://ip6-allnodes/inbox/dan": {
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
-			},
-		},
-		"https://ip6-allnodes/inbox/erin": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -1216,12 +1213,6 @@ func TestDeliver_PublicInTo(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-		"https://ip6-allnodes/inbox/erin": {
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
-			},
-		},
 	})
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
@@ -1321,12 +1312,6 @@ func TestDeliver_AuthorInTo(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{
 		"https://ip6-allnodes/inbox/dan": {
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
-			},
-		},
-		"https://ip6-allnodes/inbox/erin": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
