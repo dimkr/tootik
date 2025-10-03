@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,18 +24,19 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/data"
-	"github.com/dimkr/tootik/front"
-	"github.com/dimkr/tootik/front/text/gmi"
-	"github.com/dimkr/tootik/httpsig"
 	"io"
 	"log/slog"
 	"net"
 	"net/url"
 	"sync"
 	"time"
+
+	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/front"
+	"github.com/dimkr/tootik/front/text/gmi"
+	"github.com/dimkr/tootik/httpsig"
 )
 
 type Listener struct {
@@ -48,32 +49,49 @@ type Listener struct {
 	KeyPath  string
 }
 
-func (gl *Listener) getUser(ctx context.Context, conn net.Conn, tlsConn *tls.Conn) (*ap.Actor, httpsig.Key, error) {
+func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn) (*ap.Actor, [2]httpsig.Key, error) {
 	state := tlsConn.ConnectionState()
 
 	if len(state.PeerCertificates) == 0 {
-		return nil, httpsig.Key{}, nil
+		return nil, [2]httpsig.Key{}, nil
 	}
 
 	clientCert := state.PeerCertificates[0]
 
-	certHash := fmt.Sprintf("%x", sha256.Sum256(clientCert.Raw))
+	if time.Now().After(clientCert.NotAfter) {
+		return nil, [2]httpsig.Key{}, nil
+	}
 
-	var id, privKeyPem string
+	certHash := fmt.Sprintf("%X", sha256.Sum256(clientCert.Raw))
+
+	var rsaPrivKeyPem, ed25519PrivKeyMultibase string
 	var actor ap.Actor
-	if err := gl.DB.QueryRowContext(ctx, `select id, actor, privkey from persons where host = ? and certhash = ?`, gl.Domain, certHash).Scan(&id, &actor, &privKeyPem); err != nil && errors.Is(err, sql.ErrNoRows) {
-		return nil, httpsig.Key{}, front.ErrNotRegistered
+	var approved int
+	if err := gl.DB.QueryRowContext(ctx, `select json(persons.actor), persons.rsaprivkey, persons.ed25519privkey, certificates.approved from certificates join persons on persons.actor->>'$.preferredUsername' = certificates.user where persons.host = ? and certificates.hash = ? and certificates.expires > unixepoch()`, gl.Domain, certHash).Scan(&actor, &rsaPrivKeyPem, &ed25519PrivKeyMultibase, &approved); err != nil && errors.Is(err, sql.ErrNoRows) {
+		return nil, [2]httpsig.Key{}, front.ErrNotRegistered
 	} else if err != nil {
-		return nil, httpsig.Key{}, fmt.Errorf("failed to fetch user for %s: %w", certHash, err)
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to fetch user for %s: %w", certHash, err)
 	}
 
-	privKey, err := data.ParsePrivateKey(privKeyPem)
+	if approved == 0 {
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to fetch user for %s: %w", certHash, front.ErrNotApproved)
+	}
+
+	rsaPrivKey, err := data.ParseRSAPrivateKey(rsaPrivKeyPem)
 	if err != nil {
-		return nil, httpsig.Key{}, fmt.Errorf("failed to parse private key for %s: %w", certHash, err)
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to parse RSA private key for %s: %w", certHash, err)
 	}
 
-	slog.Debug("Found existing user", "hash", certHash, "user", id)
-	return &actor, httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, nil
+	ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
+	if err != nil {
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to decode Ed15519 private key for %s: %w", certHash, err)
+	}
+
+	slog.Debug("Found existing user", "hash", certHash, "user", actor.ID)
+	return &actor, [2]httpsig.Key{
+		{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
+		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey},
+	}, nil
 }
 
 // Handle handles a Gemini request.
@@ -136,10 +154,13 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 	w := gmi.Wrap(conn)
 	defer w.Flush()
 
-	r.User, r.Key, err = gl.getUser(ctx, conn, tlsConn)
+	r.User, r.Keys, err = gl.getUser(ctx, tlsConn)
 	if err != nil && errors.Is(err, front.ErrNotRegistered) && r.URL.Path == "/users" {
 		slog.Info("Redirecting new user")
 		w.Redirect("/users/register")
+		return
+	} else if errors.Is(err, front.ErrNotApproved) {
+		w.Status(40, "Client certificate is awaiting approval")
 		return
 	} else if err != nil && !errors.Is(err, front.ErrNotRegistered) {
 		slog.Warn("Failed to get user", "error", err)
@@ -147,6 +168,9 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 		return
 	} else if err == nil && r.User == nil && r.URL.Path == "/users" {
 		w.Status(60, "Client certificate required")
+		return
+	} else if r.User == nil && gl.Config.RequireRegistration && r.URL.Path != "/" && r.URL.Path != "/help" && r.URL.Path != "/users/register" {
+		w.Status(40, "Must register first")
 		return
 	}
 
@@ -178,17 +202,14 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 
 	var wg sync.WaitGroup
 
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		<-ctx.Done()
 		l.Close()
-		wg.Done()
-	}()
+	})
 
 	conns := make(chan net.Conn)
 
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		for ctx.Err() == nil {
 			conn, err := l.Accept()
 			if err != nil {
@@ -198,8 +219,7 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 
 			conns <- conn
 		}
-		wg.Done()
-	}()
+	})
 
 	for ctx.Err() == nil {
 		select {
@@ -209,20 +229,16 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 
 			timer := time.AfterFunc(gl.Config.GeminiRequestTimeout, cancelRequest)
 
-			wg.Add(1)
-			go func() {
+			wg.Go(func() {
 				<-requestCtx.Done()
 				conn.Close()
-				wg.Done()
-			}()
+			})
 
-			wg.Add(1)
-			go func() {
+			wg.Go(func() {
 				gl.Handle(requestCtx, conn)
 				timer.Stop()
 				cancelRequest()
-				wg.Done()
-			}()
+			})
 		}
 	}
 

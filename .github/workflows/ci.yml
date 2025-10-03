@@ -9,6 +9,7 @@ on:
 
 jobs:
   build:
+    permissions: {}
     uses: ./.github/workflows/build.yml
     with:
-      version: 99.99.${{ github.run_number }}
+      version: v99.99.${{ github.run_number }}

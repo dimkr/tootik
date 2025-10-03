@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,8 +20,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/dimkr/tootik/cfg"
 	"time"
+
+	"github.com/dimkr/tootik/cfg"
 )
 
 type GarbageCollector struct {
@@ -34,11 +35,11 @@ type GarbageCollector struct {
 func (gc *GarbageCollector) Run(ctx context.Context) error {
 	now := time.Now()
 
-	if _, err := gc.DB.ExecContext(ctx, `delete from notesfts where id in (select notes.id from notes left join follows on follows.followed in (notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = follows.followed)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = follows.followed)) where follows.accepted = 1 and notes.inserted < $1 and notes.host != $2 and follows.id is null and not exists (select 1 from bookmarks where bookmarks.note = notesfts.id))`, now.Add(-gc.Config.InvisiblePostsTTL).Unix(), gc.Domain); err != nil {
+	if _, err := gc.DB.ExecContext(ctx, `delete from notesfts where id in (select notes.id from notes left join follows on follows.followed in (notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = follows.followed)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = follows.followed)) where follows.accepted = 1 and notes.inserted < $1 and notes.host != $2 and follows.id is null and not exists (select 1 from bookmarks where bookmarks.note = notesfts.id) and not exists (select 1 from shares where shares.note = notesfts.id and exists (select 1 from persons where persons.id = shares.by and persons.host = $2)))`, now.Add(-gc.Config.InvisiblePostsTTL).Unix(), gc.Domain); err != nil {
 		return fmt.Errorf("failed to remove invisible posts: %w", err)
 	}
 
-	if _, err := gc.DB.ExecContext(ctx, `delete from notes where id in (select notes.id from notes left join follows on follows.followed in (notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = follows.followed)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = follows.followed)) where follows.accepted = 1 and notes.inserted < $1 and notes.host != $2 and follows.id is null and not exists (select 1 from bookmarks where bookmarks.note = notes.id))`, now.Add(-gc.Config.InvisiblePostsTTL).Unix(), gc.Domain); err != nil {
+	if _, err := gc.DB.ExecContext(ctx, `delete from notes where id in (select notes.id from notes left join follows on follows.followed in (notes.author, notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or (notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = follows.followed)) or (notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = follows.followed)) where follows.accepted = 1 and notes.inserted < $1 and notes.host != $2 and follows.id is null and not exists (select 1 from bookmarks where bookmarks.note = notes.id) and not exists (select 1 from shares where shares.note = notes.id and exists (select 1 from persons where persons.id = shares.by and persons.host = $2)))`, now.Add(-gc.Config.InvisiblePostsTTL).Unix(), gc.Domain); err != nil {
 		return fmt.Errorf("failed to remove invisible posts: %w", err)
 	}
 
@@ -58,11 +59,11 @@ func (gc *GarbageCollector) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to remove old posts: %w", err)
 	}
 
-	if _, err := gc.DB.ExecContext(ctx, `delete from hashtags where not exists (select 1 from notes where notes.id = hashtags.note)`); err != nil {
+	if _, err := gc.DB.ExecContext(ctx, `delete from hashtags where note not in (select id from notes)`); err != nil {
 		return fmt.Errorf("failed to remove old hashtags: %w", err)
 	}
 
-	if _, err := gc.DB.ExecContext(ctx, `delete from shares where not exists (select 1 from persons where persons.id = shares.by) or (inserted < ? and not exists (select 1 from notes where notes.id = shares.note))`, now.Add(-gc.Config.SharesTTL).Unix()); err != nil {
+	if _, err := gc.DB.ExecContext(ctx, `delete from shares where by not in (select id from persons) or note not in (select id from notes)`); err != nil {
 		return fmt.Errorf("failed to remove old shares: %w", err)
 	}
 
@@ -70,11 +71,7 @@ func (gc *GarbageCollector) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to remove old posts: %w", err)
 	}
 
-	if _, err := gc.DB.ExecContext(ctx, `delete from follows where accepted = 0 and inserted < ?`, now.Add(-gc.Config.FollowAcceptTimeout).Unix()); err != nil {
-		return fmt.Errorf("failed to remove failed follow requests: %w", err)
-	}
-
-	if _, err := gc.DB.ExecContext(ctx, `delete from persons where updated < ? and host != ? and not exists (select 1 from follows where followed = persons.id) and not exists (select 1 from follows where follower = persons.id) and not exists (select 1 from notes where notes.author = persons.id) and not exists (select 1 from shares where shares.by = persons.id)`, now.Add(-gc.Config.ActorTTL).Unix(), gc.Domain); err != nil {
+	if _, err := gc.DB.ExecContext(ctx, `delete from persons where updated < ? and ed25519privkey is null and not exists (select 1 from follows where followed = persons.id) and not exists (select 1 from follows where follower = persons.id) and not exists (select 1 from notes where notes.author = persons.id) and not exists (select 1 from shares where shares.by = persons.id)`, now.Add(-gc.Config.ActorTTL).Unix()); err != nil {
 		return fmt.Errorf("failed to remove idle actors: %w", err)
 	}
 
@@ -82,7 +79,7 @@ func (gc *GarbageCollector) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to trim feed: %w", err)
 	}
 
-	if _, err := gc.DB.ExecContext(ctx, `delete from bookmarks where not exists (select 1 from persons where persons.id = bookmarks.by)`); err != nil {
+	if _, err := gc.DB.ExecContext(ctx, `delete from bookmarks where by not in (select id from persons)`); err != nil {
 		return fmt.Errorf("failed to remove bookmarks by deleted users: %w", err)
 	}
 
@@ -103,6 +100,14 @@ func (gc *GarbageCollector) Run(ctx context.Context) error {
 		)`,
 	); err != nil {
 		return fmt.Errorf("failed to invisible bookmarks: %w", err)
+	}
+
+	if _, err := gc.DB.ExecContext(ctx, `delete from certificates where approved = 0 and inserted < ?`, now.Add(-gc.Config.CertificateApprovalTimeout).Unix()); err != nil {
+		return fmt.Errorf("failed to remove timed out certificate approval requests: %w", err)
+	}
+
+	if _, err := gc.DB.ExecContext(ctx, `delete from certificates where expires < unixepoch()`); err != nil {
+		return fmt.Errorf("failed to remove expired certificates: %w", err)
 	}
 
 	return nil

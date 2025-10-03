@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,11 +19,12 @@ package gmap
 
 import (
 	"fmt"
-	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/front/text"
 	"io"
 	"net/url"
 	"strings"
+
+	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/front/text"
 )
 
 type writer struct {
@@ -136,12 +137,16 @@ func (w *writer) Quote(quote string) {
 	w.wrap('i', "> ", "> ", quote, "/", "0", "0")
 }
 
+func (w *writer) Quotef(format string, a ...any) {
+	w.wrap('i', "> ", "  ", fmt.Sprintf(format, a...), "/", "0", "0")
+}
+
 func (w *writer) Raw(alt, raw string) {
 	end := len(raw)
 	if raw[end-1] == '\n' {
 		end -= 1
 	}
-	for _, line := range strings.Split(raw[:end], "\n") {
+	for line := range strings.SplitSeq(raw[:end], "\n") {
 		w.Write([]byte{'i'})
 		w.Write([]byte(line))
 		w.Write([]byte("\t/\t0\t0\r\n"))

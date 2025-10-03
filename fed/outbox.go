@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,59 +20,27 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/dimkr/tootik/ap"
 	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/dimkr/tootik/ap"
 )
 
-const activitiesPerPage = 30
+func (l *Listener) getCollection(w http.ResponseWriter, username string) {
+	first := fmt.Sprintf("https://%s/outbox/%s?0", l.Domain, username)
 
-func (l *Listener) getCollection(w http.ResponseWriter, r *http.Request, username, actorID string) {
 	collection := map[string]any{
-		"@context": "https://www.w3.org/ns/activitystreams",
-		"id":       fmt.Sprintf("https://%s/outbox/%s", l.Domain, username),
-		"type":     "OrderedCollection",
+		"@context":   "https://www.w3.org/ns/activitystreams",
+		"id":         fmt.Sprintf("https://%s/outbox/%s", l.Domain, username),
+		"type":       "OrderedCollection",
+		"first":      first,
+		"last":       first,
+		"totalItems": 0,
 	}
 
 	slog.Info("Listing activities by user", "username", username)
-
-	var totalItems sql.NullInt64
-	if err := l.DB.QueryRowContext(r.Context(), `select count(*) from notes join outbox on outbox.activity->>'$.object.id' = notes.id where outbox.sender = $1 and notes.author = $1 and notes.public = 1`, actorID).Scan(&totalItems); err != nil {
-		slog.Warn("Failed to count activities", "username", username, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	if totalItems.Valid {
-		collection["totalItems"] = totalItems.Int64
-	} else {
-		collection["totalItems"] = 0
-	}
-
-	var firstSince sql.NullInt64
-	if err := l.DB.QueryRowContext(r.Context(), `select min(outbox.inserted) from notes join outbox on outbox.activity->>'$.object.id' = notes.id where outbox.sender = $1 and notes.author = $1 and notes.public = 1`, actorID, activitiesPerPage).Scan(&firstSince); err != nil {
-		slog.Warn("Failed to get first page timestamp", "username", username, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	if firstSince.Valid {
-		collection["first"] = fmt.Sprintf("https://%s/outbox/%s?0%d", l.Domain, username, firstSince.Int64)
-	}
-
-	if totalItems.Valid && totalItems.Int64 > activitiesPerPage {
-		var lastSince sql.NullInt64
-		if err := l.DB.QueryRowContext(r.Context(), `select min(inserted) from (select outbox.inserted from notes join outbox on outbox.activity->>'$.object.id' = notes.id where outbox.sender = $1 and notes.author = $1 and notes.public = 1 order by outbox.inserted desc limit $2)`, actorID, activitiesPerPage).Scan(&lastSince); err != nil {
-			slog.Warn("Failed to get last page timestamp", "username", username, "error", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		if lastSince.Valid {
-			collection["last"] = fmt.Sprintf("https://%s/outbox/%s?%d", l.Domain, username, lastSince.Int64)
-		}
-	} else if firstSince.Valid {
-		collection["last"] = collection["first"]
-	}
 
 	j, err := json.Marshal(collection)
 	if err != nil {
@@ -110,7 +78,7 @@ func (l *Listener) handleOutbox(w http.ResponseWriter, r *http.Request) {
 	slog.Info("Fetching activities by user", "username", username)
 
 	if r.URL.RawQuery == "" {
-		l.getCollection(w, r, username, actorID.String)
+		l.getCollection(w, username)
 		return
 	}
 
@@ -126,55 +94,16 @@ func (l *Listener) handleOutbox(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := l.DB.QueryContext(r.Context(), `select outbox.activity from notes join outbox on outbox.activity->>'$.object.id' = notes.id where outbox.sender = $1 and outbox.activity->>'$.actor' = $1 and notes.author = $1 and notes.public = 1 and outbox.inserted >= $2 order by notes.inserted limit $3`, actorID.String, since, activitiesPerPage)
-	if err != nil {
-		slog.Warn("Failed to fetch activities", "username", username, "since", since, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	defer rows.Close()
-
-	activities := make([]ap.Activity, 0, activitiesPerPage)
-
-	for rows.Next() {
-		var activity ap.Activity
-		if err := rows.Scan(&activity); err != nil {
-			slog.Warn("Failed to scan activity", "error", err)
-			continue
-		}
-
-		activity.Context = nil
-		activities = append(activities, activity)
-	}
-	rows.Close()
+	first := fmt.Sprintf("https://%s/outbox/%s?0", l.Domain, username)
 
 	page := map[string]any{
 		"@context":     []string{"https://www.w3.org/ns/activitystreams"},
 		"id":           fmt.Sprintf("https://%s/outbox/%s?%d", l.Domain, username, since),
 		"type":         "OrderedCollectionPage",
 		"partOf":       fmt.Sprintf("https://%s/outbox/%s", l.Domain, username),
-		"orderedItems": activities,
-	}
-
-	var nextSince sql.NullInt64
-	if err := l.DB.QueryRowContext(r.Context(), `select max(inserted) from (select outbox.inserted from notes join outbox on outbox.activity->>'$.object.id' = notes.id where outbox.sender = $1 and outbox.activity->>'$.actor' = $1 and notes.author = $1 and notes.public = 1 and outbox.inserted > $2 order by outbox.inserted limit $2 offset $3)`, actorID, since, activitiesPerPage).Scan(&nextSince); err != nil {
-		slog.Warn("Failed to get next page timestamp", "username", username, "since", since, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	if nextSince.Valid {
-		page["next"] = fmt.Sprintf("https://%s/outbox/%s?%d", l.Domain, username, nextSince.Int64)
-	}
-
-	var prevSince sql.NullInt64
-	if err := l.DB.QueryRowContext(r.Context(), `select min(inserted) from (select outbox.inserted from notes join outbox on outbox.activity->>'$.object.id' = notes.id where outbox.sender = $1 and outbox.activity->>'$.actor' = $1 and notes.author = $1 and notes.public = 1 and outbox.inserted < $2 order by outbox.inserted desc limit $3)`, actorID, since, activitiesPerPage).Scan(&prevSince); err != nil {
-		slog.Warn("Failed to get previous page timestamp", "username", username, "since", since, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	if prevSince.Valid {
-		page["prev"] = fmt.Sprintf("https://%s/outbox/%s?%d", l.Domain, username, prevSince.Int64)
+		"orderedItems": []ap.Activity{},
+		"next":         first,
+		"prev":         first,
 	}
 
 	j, err := json.Marshal(page)

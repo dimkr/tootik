@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,6 +27,13 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/google/uuid"
+
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/buildinfo"
 	"github.com/dimkr/tootik/cfg"
@@ -39,15 +46,12 @@ import (
 	"github.com/dimkr/tootik/front/guppy"
 	tplain "github.com/dimkr/tootik/front/text/plain"
 	"github.com/dimkr/tootik/front/user"
+	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/icon"
 	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/migrations"
 	"github.com/dimkr/tootik/outbox"
 	_ "github.com/mattn/go-sqlite3"
-	"os/signal"
-	"sync"
-	"syscall"
-	"time"
 )
 
 const (
@@ -55,6 +59,7 @@ const (
 	garbageCollectionInterval = time.Hour * 12
 	followMoveInterval        = time.Hour * 6
 	followSyncInterval        = time.Hour * 6
+	deleterInterval           = time.Hour * 12
 )
 
 var (
@@ -101,6 +106,8 @@ func main() {
 	if !((cmd == "" && flag.NArg() == 0) || (cmd == "add-community" && flag.NArg() == 2 && flag.Arg(1) != "") || ((cmd == "set-bio" || cmd == "set-avatar") && flag.NArg() == 3 && flag.Arg(1) != "" && flag.Arg(2) != "")) {
 		flag.Usage()
 	}
+
+	uuid.EnableRandPool()
 
 	var cfg cfg.Config
 
@@ -178,30 +185,33 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		select {
 		case <-sigs:
 			slog.Info("Received termination signal")
 			cancel()
-			wg.Done()
 		case <-ctx.Done():
-			wg.Done()
 		}
-	}()
+	})
 
 	if err := migrations.Run(ctx, *domain, db); err != nil {
 		panic(err)
 	}
 
-	_, nobodyKey, err := user.CreateNobody(ctx, *domain, db)
+	_, nobodyKeys, err := user.CreateNobody(ctx, *domain, db, &cfg)
 	if err != nil {
 		panic(err)
 	}
 
+	localInbox := &inbox.Inbox{
+		Domain: *domain,
+		Config: &cfg,
+		DB:     db,
+	}
+
 	switch cmd {
 	case "add-community":
-		_, _, err := user.Create(ctx, *domain, db, flag.Arg(1), ap.Group, nil)
+		_, _, err := user.Create(ctx, *domain, db, &cfg, flag.Arg(1), ap.Group, nil)
 		if err != nil {
 			panic(err)
 		}
@@ -219,27 +229,25 @@ func main() {
 		}
 		defer tx.Rollback()
 
-		var actorID string
+		var actor ap.Actor
+		var ed25519PrivKeyMultibase string
 		if err := tx.QueryRowContext(
 			ctx,
-			`select id from persons where host = ? and actor->>'$.preferredUsername' = ?`,
-			*domain,
+			`select json(actor), ed25519privkey from persons where ed25519privkey is not null and actor->>'$.preferredUsername' = ?`,
 			flag.Arg(1),
-		).Scan(&actorID); err != nil {
+		).Scan(&actor, &ed25519PrivKeyMultibase); err != nil {
 			panic(err)
 		}
 
-		if _, err := tx.ExecContext(
-			ctx,
-			`update persons set actor = json_set(actor, '$.summary', ?, '$.updated', ?) where id = ?`,
-			tplain.ToHTML(string(summary), nil),
-			time.Now().Format(time.RFC3339Nano),
-			actorID,
-		); err != nil {
+		ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
+		if err != nil {
 			panic(err)
 		}
 
-		if err := outbox.UpdateActor(ctx, *domain, tx, actorID); err != nil {
+		actor.Summary = tplain.ToHTML(string(summary), nil)
+		actor.Updated.Time = time.Now()
+
+		if err := localInbox.UpdateActorTx(ctx, tx, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}); err != nil {
 			panic(err)
 		}
 
@@ -268,25 +276,18 @@ func main() {
 
 		userName := flag.Arg(1)
 
-		var actorID string
+		var actor ap.Actor
+		var ed25519PrivKeyMultibase string
 		if err := tx.QueryRowContext(
 			ctx,
-			`select id from persons where host = ? and actor->>'$.preferredUsername' = ?`,
-			*domain,
+			`select select json(actor), ed25519privkey from persons where ed25519privkey is not null and actor->>'$.preferredUsername' = ?`,
 			userName,
-		).Scan(&actorID); err != nil {
+		).Scan(&actor, &ed25519PrivKeyMultibase); err != nil {
 			panic(err)
 		}
 
-		now := time.Now()
-
-		if _, err := tx.ExecContext(
-			ctx,
-			"update persons set actor = json_set(actor, '$.icon.url', $1, '$.icon[0].url', $1, '$.updated', $2) where id = $3",
-			fmt.Sprintf("https://%s/icon/%s%s#%d", *domain, userName, icon.FileNameExtension, now.UnixNano()),
-			now.Format(time.RFC3339Nano),
-			actorID,
-		); err != nil {
+		ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
+		if err != nil {
 			panic(err)
 		}
 
@@ -299,7 +300,13 @@ func main() {
 			panic(err)
 		}
 
-		if err := outbox.UpdateActor(ctx, *domain, tx, actorID); err != nil {
+		now := time.Now()
+		actor.Icon = append(actor.Icon, ap.Attachment{
+			URL: fmt.Sprintf("https://%s/icon/%s%s#%d", *domain, userName, icon.FileNameExtension, now.UnixNano()),
+		})
+		actor.Updated.Time = now
+
+		if err := localInbox.UpdateActorTx(ctx, tx, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}); err != nil {
 			panic(err)
 		}
 
@@ -310,7 +317,7 @@ func main() {
 		return
 	}
 
-	handler, err := front.NewHandler(*domain, *closed, &cfg, resolver, db)
+	handler, err := front.NewHandler(*domain, *closed, &cfg, resolver, db, localInbox)
 	if err != nil {
 		panic(err)
 	}
@@ -324,16 +331,17 @@ func main() {
 		{
 			"HTTPS",
 			&fed.Listener{
-				Domain:   *domain,
-				Closed:   *closed,
-				Config:   &cfg,
-				DB:       db,
-				ActorKey: nobodyKey,
-				Resolver: resolver,
-				Addr:     *addr,
-				Cert:     *cert,
-				Key:      *key,
-				Plain:    *plain,
+				Domain:    *domain,
+				Closed:    *closed,
+				Config:    &cfg,
+				DB:        db,
+				ActorKeys: nobodyKeys,
+				Resolver:  resolver,
+				Addr:      *addr,
+				Cert:      *cert,
+				Key:       *key,
+				Plain:     *plain,
+				BlockList: blockList,
 			},
 		},
 		{
@@ -376,14 +384,12 @@ func main() {
 			},
 		},
 	} {
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			if err := svc.Listener.ListenAndServe(ctx); err != nil {
 				slog.Error("Listener has failed", "listener", svc.Name, "error", err)
 			}
 			cancel()
-			wg.Done()
-		}()
+		})
 	}
 
 	for _, queue := range []struct {
@@ -395,12 +401,11 @@ func main() {
 		{
 			"incoming",
 			&inbox.Queue{
-				Domain:    *domain,
-				Config:    &cfg,
-				BlockList: blockList,
-				DB:        db,
-				Resolver:  resolver,
-				Key:       nobodyKey,
+				Config:   &cfg,
+				DB:       db,
+				Inbox:    localInbox,
+				Resolver: resolver,
+				Keys:     nobodyKeys,
 			},
 		},
 		{
@@ -413,14 +418,12 @@ func main() {
 			},
 		},
 	} {
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			if err := queue.Queue.Process(ctx); err != nil {
 				slog.Error("Failed to process queue", "queue", queue.Name, "error", err)
 			}
 			cancel()
-			wg.Done()
-		}()
+		})
 	}
 
 	for _, job := range []struct {
@@ -444,8 +447,8 @@ func main() {
 			pollResultsUpdateInterval,
 			&outbox.Poller{
 				Domain: *domain,
-				Config: &cfg,
 				DB:     db,
+				Inbox:  localInbox,
 			},
 		},
 		{
@@ -454,8 +457,9 @@ func main() {
 			&outbox.Mover{
 				Domain:   *domain,
 				DB:       db,
+				Inbox:    localInbox,
 				Resolver: resolver,
-				Key:      nobodyKey,
+				Keys:     nobodyKeys,
 			},
 		},
 		{
@@ -466,7 +470,16 @@ func main() {
 				Config:   &cfg,
 				DB:       db,
 				Resolver: resolver,
-				Key:      nobodyKey,
+				Keys:     nobodyKeys,
+				Inbox:    localInbox,
+			},
+		},
+		{
+			"deleter",
+			deleterInterval,
+			&outbox.Deleter{
+				DB:    db,
+				Inbox: localInbox,
 			},
 		},
 		{
@@ -479,9 +492,7 @@ func main() {
 			},
 		},
 	} {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			defer cancel()
 
 			t := time.NewTicker(job.Interval)
@@ -503,7 +514,7 @@ func main() {
 				case <-t.C:
 				}
 			}
-		}()
+		})
 	}
 
 	<-ctx.Done()

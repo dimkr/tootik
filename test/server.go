@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +20,11 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"log/slog"
+	"net/http"
+	"net/url"
+	"os"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/fed"
@@ -27,25 +32,24 @@ import (
 	"github.com/dimkr/tootik/front/text/gmi"
 	"github.com/dimkr/tootik/front/user"
 	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/migrations"
 	_ "github.com/mattn/go-sqlite3"
-	"log/slog"
-	"net/http"
-	"net/url"
-	"os"
 )
 
 const domain = "localhost.localdomain:8443"
 
 type server struct {
-	cfg       *cfg.Config
-	db        *sql.DB
-	dbPath    string
-	handler   front.Handler
-	Alice     *ap.Actor
-	Bob       *ap.Actor
-	Carol     *ap.Actor
-	NobodyKey httpsig.Key
+	cfg        *cfg.Config
+	db         *sql.DB
+	dbPath     string
+	handler    front.Handler
+	inbox      *inbox.Inbox
+	queue      *inbox.Queue
+	Alice      *ap.Actor
+	Bob        *ap.Actor
+	Carol      *ap.Actor
+	NobodyKeys [2]httpsig.Key
 }
 
 func (s *server) Shutdown() {
@@ -69,45 +73,64 @@ func newTestServer() *server {
 
 	var cfg cfg.Config
 	cfg.FillDefaults()
+	cfg.DisableIntegrityProofs = true
 
 	if err := migrations.Run(context.Background(), domain, db); err != nil {
 		panic(err)
 	}
 
-	alice, _, err := user.Create(context.Background(), domain, db, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), domain, db, &cfg, "alice", ap.Person, nil)
 	if err != nil {
 		panic(err)
 	}
 
-	bob, _, err := user.Create(context.Background(), domain, db, "bob", ap.Person, nil)
+	bob, _, err := user.Create(context.Background(), domain, db, &cfg, "bob", ap.Person, nil)
 	if err != nil {
 		panic(err)
 	}
 
-	carol, _, err := user.Create(context.Background(), domain, db, "carol", ap.Person, nil)
+	carol, _, err := user.Create(context.Background(), domain, db, &cfg, "carol", ap.Person, nil)
 	if err != nil {
 		panic(err)
 	}
 
-	_, nobodyKey, err := user.CreateNobody(context.Background(), domain, db)
+	_, nobodyKeys, err := user.CreateNobody(context.Background(), domain, db, &cfg)
 	if err != nil {
 		panic(err)
 	}
 
-	handler, err := front.NewHandler(domain, false, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db)
+	localInbox := &inbox.Inbox{
+		Domain: domain,
+		Config: &cfg,
+		DB:     db,
+	}
+
+	resolver := fed.NewResolver(nil, domain, &cfg, &http.Client{}, db)
+
+	queue := &inbox.Queue{
+		Config:   &cfg,
+		DB:       db,
+		Inbox:    localInbox,
+		Resolver: resolver,
+		Keys:     nobodyKeys,
+	}
+
+	handler, err := front.NewHandler(domain, false, &cfg, resolver, db, localInbox)
 	if err != nil {
 		panic(err)
 	}
 
 	return &server{
-		cfg:       &cfg,
-		dbPath:    path,
-		db:        db,
-		handler:   handler,
-		Alice:     alice,
-		Bob:       bob,
-		Carol:     carol,
-		NobodyKey: nobodyKey,
+		cfg:        &cfg,
+		dbPath:     path,
+		db:         db,
+		handler:    handler,
+		inbox:      localInbox,
+		queue:      queue,
+		Alice:      alice,
+		Bob:        bob,
+		Carol:      carol,
+		NobodyKeys: nobodyKeys,
 	}
 }
 

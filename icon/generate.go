@@ -31,11 +31,11 @@ func Generate(s string) ([]byte, error) {
 
 	fg := color.RGBA{128 + (hash[0]^hash[29])%128, 128 + (hash[1]^hash[30])%128, 128 + (hash[2]^hash[31])%128, 255}
 	alt := []color.RGBA{
-		color.RGBA{fg.R, fg.B, fg.G, 255},
-		color.RGBA{fg.G, fg.B, fg.R, 255},
-		color.RGBA{fg.G, fg.R, fg.B, 255},
-		color.RGBA{fg.B, fg.R, fg.G, 255},
-		color.RGBA{fg.B, fg.G, fg.R, 255},
+		{fg.R, fg.B, fg.G, 255},
+		{fg.G, fg.B, fg.R, 255},
+		{fg.G, fg.R, fg.B, 255},
+		{fg.B, fg.R, fg.G, 255},
+		{fg.B, fg.G, fg.R, 255},
 	}[hash[0]%5]
 	bg := color.RGBA{255 - fg.R, 255 - fg.G, 255 - fg.B, 255}
 

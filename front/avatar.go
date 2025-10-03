@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,13 +18,13 @@ package front
 
 import (
 	"fmt"
-	"github.com/dimkr/tootik/front/text"
-	"github.com/dimkr/tootik/icon"
-	"github.com/dimkr/tootik/outbox"
 	"io"
 	"strconv"
-	"strings"
 	"time"
+
+	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/icon"
 )
 
 var supportedImageTypes = map[string]struct{}{
@@ -34,13 +34,8 @@ var supportedImageTypes = map[string]struct{}{
 }
 
 func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
-	if r.User == nil {
-		w.Redirect("/users")
-		return
-	}
-
-	if r.Body == nil {
-		w.Redirect("/users/oops")
+	if r.User == nil || r.Body == nil {
+		w.Redirectf("gemini://%s/users/oops", h.Domain)
 		return
 	}
 
@@ -79,7 +74,7 @@ func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
 	now := time.Now()
 
 	can := r.User.Published.Time.Add(h.Config.MinActorEditInterval)
-	if r.User.Updated != nil {
+	if r.User.Updated != (ap.Time{}) {
 		can = r.User.Updated.Time.Add(h.Config.MinActorEditInterval)
 	}
 	if now.Before(can) {
@@ -119,19 +114,6 @@ func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
 
 	if _, err := tx.ExecContext(
 		r.Context,
-		"update persons set actor = json_set(actor, '$.icon.url', $1, '$.icon[0].url', $1, '$.updated', $2) where id = $3",
-		// we add fragment because some servers cache the image until the URL changes
-		fmt.Sprintf("https://%s/icon/%s%s#%d", h.Domain, r.User.PreferredUsername, icon.FileNameExtension, now.UnixNano()),
-		now.Format(time.RFC3339Nano),
-		r.User.ID,
-	); err != nil {
-		r.Log.Error("Failed to set avatar", "error", err)
-		w.Error()
-		return
-	}
-
-	if _, err := tx.ExecContext(
-		r.Context,
 		"insert into icons(name, buf) values($1, $2) on conflict(name) do update set buf = $2",
 		r.User.PreferredUsername,
 		string(resized),
@@ -141,7 +123,13 @@ func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := outbox.UpdateActor(r.Context, h.Domain, tx, r.User.ID); err != nil {
+	// we add fragment because some servers cache the image until the URL changes
+	r.User.Icon = append(r.User.Icon, ap.Attachment{
+		URL: fmt.Sprintf("https://%s/icon/%s%s#%d", h.Domain, r.User.PreferredUsername, icon.FileNameExtension, now.UnixNano()),
+	})
+	r.User.Updated.Time = now
+
+	if err := h.Inbox.UpdateActorTx(r.Context, tx, r.User, r.Keys[1]); err != nil {
 		r.Log.Error("Failed to set avatar", "error", err)
 		w.Error()
 		return
@@ -153,5 +141,26 @@ func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.Redirectf("gemini://%s/users/outbox/%s", h.Domain, strings.TrimPrefix(r.User.ID, "https://"))
+	w.Redirectf("gemini://%s/users/avatar", h.Domain)
+}
+
+func (h *Handler) avatar(w text.Writer, r *Request, args ...string) {
+	if r.User == nil {
+		w.Redirect("/users")
+		return
+	}
+
+	w.OK()
+
+	w.Title("🗿 Avatar")
+
+	if len(r.User.Icon) == 0 || r.User.Icon[0].URL == "" {
+		w.Text("Avatar is not set.")
+	} else {
+		w.Link(r.User.Icon[0].URL, "Current avatar")
+	}
+
+	w.Empty()
+
+	w.Link(fmt.Sprintf("titan://%s/users/avatar/upload", h.Domain), "Upload")
 }

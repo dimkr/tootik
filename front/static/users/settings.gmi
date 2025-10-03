@@ -2,12 +2,19 @@
 
 ## Profile
 
-=> /users/name 👺 Set display name
-=> /users/bio 📜 Set bio
-=> titan://{{.Domain}}/users/upload/bio Upload bio
-=> titan://{{.Domain}}/users/upload/avatar Upload avatar
+=> /users/name 📛 Display name
+=> /users/bio 📜 Bio
+=> /users/metadata 💳 Metadata
+=> /users/avatar 🗿 Avatar
+
+## Account
+
+=> /users/certificates 🎓 Certificates
+=> /users/ttl ⏳ Post deletion policy
+=> /users/export 🥡 Export recent activities
 
 ## Migration
 
 => /users/alias 🔗 Set account alias
 => /users/move 📦 Move account
+=> /users/portability 🚲 Data portability

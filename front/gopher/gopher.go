@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,15 +20,16 @@ package gopher
 import (
 	"context"
 	"errors"
-	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/front"
-	"github.com/dimkr/tootik/front/text/gmap"
 	"io"
 	"log/slog"
 	"net"
 	"net/url"
 	"sync"
 	"time"
+
+	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/front"
+	"github.com/dimkr/tootik/front/text/gmap"
 )
 
 type Listener struct {
@@ -98,6 +99,12 @@ func (gl *Listener) handle(ctx context.Context, conn net.Conn) {
 
 // ListenAndServe handles Gopher requests.
 func (gl *Listener) ListenAndServe(ctx context.Context) error {
+	if gl.Config.RequireRegistration {
+		slog.Warn("Disabling the Gopher listener because registration is required")
+		<-ctx.Done()
+		return nil
+	}
+
 	l, err := net.Listen("tcp", gl.Addr)
 	if err != nil {
 		return err
@@ -105,17 +112,14 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 
 	var wg sync.WaitGroup
 
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		<-ctx.Done()
 		l.Close()
-		wg.Done()
-	}()
+	})
 
 	conns := make(chan net.Conn)
 
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		for ctx.Err() == nil {
 			conn, err := l.Accept()
 			if err != nil {
@@ -125,8 +129,7 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 
 			conns <- conn
 		}
-		wg.Done()
-	}()
+	})
 
 	for ctx.Err() == nil {
 		select {
@@ -136,15 +139,13 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 
 			timer := time.AfterFunc(gl.Config.GopherRequestTimeout, cancelRequest)
 
-			wg.Add(1)
-			go func() {
+			wg.Go(func() {
 				gl.handle(requestCtx, conn)
 				conn.Write([]byte(".\r\n"))
 				conn.Close()
 				timer.Stop()
 				cancelRequest()
-				wg.Done()
-			}()
+			})
 		}
 	}
 

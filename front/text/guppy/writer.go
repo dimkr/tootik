@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,9 +19,10 @@ package guppy
 
 import (
 	"fmt"
+	"io"
+
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/text/gmi"
-	"io"
 )
 
 type Writer struct {
@@ -35,15 +36,16 @@ func Wrap(w io.Writer, seq int) *Writer {
 }
 
 func (w *Writer) Status(code int, meta string) {
-	if code == w.seq {
+	switch code {
+	case w.seq:
 		fmt.Fprintf(w, "%d %s\r\n", code, meta)
-	} else if code == 3 || code == 4 {
+	case 3, 4:
 		fmt.Fprintf(w, "%d %s\r\n", code, meta)
 		w.Flush()
-	} else if code == 10 {
+	case 10:
 		fmt.Fprintf(w, "1 Input required: %s\r\n", meta)
 		w.Flush()
-	} else {
+	default:
 		fmt.Fprintf(w, "4 %s\r\n", meta)
 		w.Flush()
 	}

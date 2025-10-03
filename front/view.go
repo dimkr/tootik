@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,10 +20,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/url"
+	"strings"
+	"time"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/graph"
 	"github.com/dimkr/tootik/front/text"
-	"strings"
 )
 
 func (h *Handler) view(w text.Writer, r *Request, args ...string) {
@@ -46,7 +49,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		err = h.DB.QueryRowContext(
 			r.Context,
 			`
-			select notes.object, persons.actor, groups.actor from notes
+			select json(notes.object), json(persons.actor), json(groups.actor) from notes
 			join persons on persons.id = notes.author
 			left join (select id, actor from persons where actor->>'$.type' = 'Group') groups on exists (select 1 from shares where shares.by = groups.id and shares.note = $1)
 			where
@@ -59,7 +62,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		err = h.DB.QueryRowContext(
 			r.Context,
 			`
-			select notes.object, persons.actor, groups.actor from notes
+			select json(notes.object), json(persons.actor), json(groups.actor) from notes
 			join persons on persons.id = notes.author
 			left join (select id, actor from persons where actor->>'$.type' = 'Group') groups on exists (select 1 from shares where shares.by = groups.id and shares.note = $1)
 			where
@@ -75,8 +78,8 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 							select persons.id, persons.actor->>'$.followers' as followers, persons.actor->>'$.type' as type from persons
 							join follows on follows.followed = persons.id
 							where
-								follows.accepted = 1 and
-								follows.follower = $2
+								follows.follower = $2 and
+								follows.accepted = 1
 						) follows
 						where
 							follows.followers in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
@@ -100,12 +103,427 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	var rows *sql.Rows
-	if r.User == nil {
-		rows, err = h.DB.QueryContext(
+	w.OK()
+
+	if offset > 0 {
+		w.Titlef("💬 Replies to %s (%d-%d)", author.PreferredUsername, offset, offset+h.Config.RepliesPerPage)
+	} else {
+		if note.InReplyTo != "" {
+			w.Titlef("💬 Reply by %s", author.PreferredUsername)
+
+			w.Subtitle("Context")
+
+			contextPosts := 0
+			if parents, err := h.DB.QueryContext(
+				r.Context,
+				`
+				select json(note), json(author), depth from
+				(
+					with recursive thread(note, author, depth) as (
+						select notes.object as note, persons.actor as author, 1 as depth
+						from notes
+						join persons on persons.id = notes.author
+						where notes.id = ?
+						union all
+						select notes.object as note, persons.actor as author, t.depth + 1
+						from thread t
+						join notes on notes.id = t.note->>'$.inReplyTo'
+						join persons on persons.id = notes.author
+					)
+					select * from thread order by note->'$.inReplyTo' is null desc, depth limit ?
+				)
+				order by depth desc
+				`,
+				note.InReplyTo,
+				h.Config.PostContextDepth,
+			); err != nil {
+				r.Log.Warn("Failed to fetch context", "error", err)
+			} else {
+				defer parents.Close()
+
+				headDepth := 0
+				for parents.Next() {
+					var parent ap.Object
+					var parentAuthor ap.Actor
+					var currentDepth int
+					if err := parents.Scan(&parent, &parentAuthor, &currentDepth); err != nil {
+						r.Log.Info("Failed to fetch context", "error", err)
+						break
+					}
+
+					if contextPosts == 0 && parent.InReplyTo != "" {
+						// show a marker if the thread head is a reply (i.e. we don't have the actual head)
+						w.Text("[…]")
+						w.Empty()
+					} else if contextPosts == 1 && headDepth-currentDepth == 2 {
+						// show the number of hidden replies if we only display the head and the bottom replies
+						w.Empty()
+
+						if r.User == nil {
+							w.Link("/view/"+strings.TrimPrefix(parent.InReplyTo, "https://"), "[1 reply]")
+						} else {
+							w.Link("/users/view/"+strings.TrimPrefix(parent.InReplyTo, "https://"), "[1 reply]")
+						}
+
+						w.Empty()
+					} else if contextPosts == 1 && currentDepth < headDepth-1 {
+						w.Empty()
+
+						if r.User == nil {
+							w.Linkf("/view/"+strings.TrimPrefix(parent.InReplyTo, "https://"), "[%d replies]", headDepth-currentDepth-1)
+						} else {
+							w.Linkf("/users/view/"+strings.TrimPrefix(parent.InReplyTo, "https://"), "[%d replies]", headDepth-currentDepth-1)
+						}
+
+						w.Empty()
+					} else if contextPosts > 0 {
+						// put an empty line between replies
+						w.Empty()
+					}
+
+					if r.User == nil {
+						w.Linkf("/view/"+strings.TrimPrefix(parent.ID, "https://"), "%s %s", parent.Published.Time.Format(time.DateOnly), parentAuthor.PreferredUsername)
+					} else {
+						w.Linkf("/users/view/"+strings.TrimPrefix(parent.ID, "https://"), "%s %s", parent.Published.Time.Format(time.DateOnly), parentAuthor.PreferredUsername)
+					}
+
+					contentLines, _ := h.getCompactNoteContent(&parent)
+					for _, line := range contentLines {
+						w.Quote(line)
+					}
+
+					contextPosts++
+
+					if parent.InReplyTo == "" {
+						headDepth = currentDepth
+					}
+				}
+
+				if err := parents.Err(); err != nil {
+					r.Log.Info("Failed to fetch context", "error", err)
+				}
+			}
+
+			if contextPosts == 0 {
+				w.Text("No context.")
+			}
+
+			w.Empty()
+			w.Subtitle("Reply")
+		} else if note.IsPublic() {
+			w.Titlef("📣 Post by %s", author.PreferredUsername)
+		} else {
+			w.Titlef("🔔 Post by %s", author.PreferredUsername)
+		}
+
+		contentLines, links, hashtags, mentionedUsers := h.getNoteContent(&note, false)
+
+		for mentionID := range mentionedUsers.Keys() {
+			var mentionUserName string
+			if err := h.DB.QueryRowContext(r.Context, `select actor->>'$.preferredUsername' from persons where id = ?`, mentionID).Scan(&mentionUserName); err != nil && errors.Is(err, sql.ErrNoRows) {
+				r.Log.Warn("Mentioned user is unknown", "mention", mentionID)
+				continue
+			} else if err != nil {
+				r.Log.Warn("Failed to get mentioned user name", "mention", mentionID, "error", err)
+				continue
+			}
+
+			if r.User == nil {
+				links.Store("/outbox/"+strings.TrimPrefix(mentionID, "https://"), mentionUserName)
+			} else {
+				links.Store("/users/outbox/"+strings.TrimPrefix(mentionID, "https://"), mentionUserName)
+			}
+		}
+
+		if r.User == nil && group.Valid {
+			links.Store("/outbox/"+strings.TrimPrefix(group.V.ID, "https://"), "🔄 "+group.V.PreferredUsername)
+		} else if group.Valid {
+			links.Store("/users/outbox/"+strings.TrimPrefix(group.V.ID, "https://"), "🔄️ "+group.V.PreferredUsername)
+		} else if note.IsPublic() {
+			var rows *sql.Rows
+			var err error
+			if r.User == nil {
+				rows, err = h.DB.QueryContext(
+					r.Context,
+					`select id, username from
+					(
+						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 1 as rank from shares
+						join notes on notes.id = shares.note
+						join persons on persons.id = shares.by
+						where shares.note = $1 and persons.actor->>'$.type' = 'Group'
+						union all
+						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 2 as rank from shares
+						join notes on notes.id = shares.note
+						join persons on persons.id = shares.by
+						where shares.note = $1
+						union all
+						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 3 as rank from shares
+						join persons on persons.id = shares.by
+						where shares.note = $1 and persons.host = $2
+						union all
+						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 4 as rank from shares
+						join persons on persons.id = shares.by
+						where shares.note = $1 and persons.host != $2
+					)
+					group by id
+					order by min(rank), inserted limit $3`,
+					note.ID,
+					h.Domain,
+					h.Config.SharesPerPost,
+				)
+			} else {
+				rows, err = h.DB.QueryContext(
+					r.Context,
+					`select id, username from
+					(
+						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 1 as rank from shares
+						join notes on notes.id = shares.note
+						join persons on persons.id = shares.by
+						where shares.note = $1 and persons.actor->>'$.type' = 'Group'
+						union all
+						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 2 as rank from shares
+						join notes on notes.id = shares.note
+						join persons on persons.id = shares.by
+						where shares.note = $1
+						union all
+						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 3 as rank from shares
+						join follows on follows.followed = shares.by
+						join persons on persons.id = follows.followed
+						where shares.note = $1 and follows.follower = $2 and follows.accepted = 1
+						union all
+						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 4 as rank from shares
+						join persons on persons.id = shares.by
+						where shares.note = $1 and persons.host = $3
+						union all
+						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 5 as rank from shares
+						join persons on persons.id = shares.by
+						where shares.note = $1 and persons.host != $3
+					)
+					group by id
+					order by min(rank), inserted limit $4`,
+					note.ID,
+					r.User.ID,
+					h.Domain,
+					h.Config.SharesPerPost,
+				)
+			}
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				r.Log.Warn("Failed to query sharers", "error", err)
+			} else if err == nil {
+				for rows.Next() {
+					var sharerID, sharerName string
+					if err := rows.Scan(&sharerID, &sharerName); err != nil {
+						r.Log.Warn("Failed to scan sharer", "error", err)
+						continue
+					}
+					links.Store("/users/outbox/"+strings.TrimPrefix(sharerID, "https://"), "🔄 "+sharerName)
+				}
+				rows.Close()
+			}
+		}
+
+		if quotes, err := h.DB.QueryContext(
 			r.Context,
 			`
-			select replies.object, persons.actor, null as sharer, replies.inserted from notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
+			select notes.id, persons.actor->>'$.preferredUsername' from
+			notes join persons on persons.id = notes.author
+			where notes.object->>'$.quote' = ?
+			order by notes.inserted desc
+			limit ?
+			`,
+			note.ID,
+			h.Config.QuotesPerPost,
+		); err != nil {
+			r.Log.Warn("Failed to query quotes", "error", err)
+		} else {
+			for quotes.Next() {
+				var quoteID, quoter string
+				if err := quotes.Scan(&quoteID, &quoter); err != nil {
+					r.Log.Warn("Failed to scan quoter", "error", err)
+				} else if r.User == nil {
+					links.Store("/view/"+strings.TrimPrefix(quoteID, "https://"), "♻️ "+quoter)
+				} else {
+					links.Store("/users/view/"+strings.TrimPrefix(quoteID, "https://"), "♻️ "+quoter)
+				}
+			}
+
+			quotes.Close()
+		}
+
+		title := note.Published.Format(time.DateOnly)
+		if note.Updated != (ap.Time{}) {
+			title += " ┃ edited"
+		}
+
+		prefix := fmt.Sprintf("https://%s/", h.Domain)
+		if strings.HasPrefix(note.ID, prefix) {
+			w.Text(title)
+		} else {
+			w.Link(note.ID, title)
+		}
+
+		for _, line := range contentLines {
+			w.Quote(line)
+		}
+
+		if r.User == nil {
+			w.Link("/outbox/"+strings.TrimPrefix(author.ID, "https://"), author.PreferredUsername)
+		} else {
+			w.Link("/users/outbox/"+strings.TrimPrefix(author.ID, "https://"), author.PreferredUsername)
+		}
+
+		for link, alt := range links.All() {
+			if alt == "" {
+				w.Link(link, link)
+			} else {
+				lineBreak := strings.IndexByte(alt, '\n')
+				if lineBreak == -1 {
+					w.Link(link, alt)
+				} else {
+					w.Link(link, alt[:lineBreak]+"[…]")
+				}
+			}
+		}
+
+		for tag := range hashtags.Values() {
+			var exists int
+			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from hashtags where hashtag = ? and note != ?)`, tag, note.ID).Scan(&exists); err != nil {
+				r.Log.Warn("Failed to check if hashtag is used by other posts", "note", note.ID, "hashtag", tag)
+				continue
+			}
+
+			if exists == 1 && r.User == nil {
+				w.Linkf("/hashtag/"+tag, "Posts tagged #%s", tag)
+			} else if exists == 1 {
+				w.Linkf("/users/hashtag/"+tag, "Posts tagged #%s", tag)
+			}
+		}
+
+		if r.User != nil && ap.Canonical(note.AttributedTo) == ap.Canonical(r.User.ID) && note.Type != ap.Question && note.Name == "" { // polls and votes cannot be edited
+			w.Link("/users/edit/"+strings.TrimPrefix(note.ID, "https://"), "🩹 Edit")
+			w.Link(fmt.Sprintf("titan://%s/users/upload/edit/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload edited post")
+		}
+		if r.User != nil && ap.Canonical(note.AttributedTo) == ap.Canonical(r.User.ID) {
+			w.Link("/users/delete/"+strings.TrimPrefix(note.ID, "https://"), "💣 Delete")
+		}
+		if r.User != nil && note.Type == ap.Question && note.Closed == (ap.Time{}) && (note.EndTime == (ap.Time{}) || time.Now().Before(note.EndTime.Time)) {
+			options := note.OneOf
+			if len(options) == 0 {
+				options = note.AnyOf
+			}
+			for _, option := range options {
+				w.Linkf(fmt.Sprintf("/users/reply/%s?%s", strings.TrimPrefix(note.ID, "https://"), url.PathEscape(option.Name)), "📮 Vote %s", option.Name)
+			}
+		}
+
+		if r.User != nil && note.IsPublic() && ap.Canonical(note.AttributedTo) != ap.Canonical(r.User.ID) {
+			var shared int
+			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from shares where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&shared); err != nil {
+				r.Log.Warn("Failed to check if post is shared", "id", note.ID, "error", err)
+			} else if shared == 0 {
+				w.Link("/users/share/"+strings.TrimPrefix(note.ID, "https://"), "🔁 Share")
+			} else {
+				w.Link("/users/unshare/"+strings.TrimPrefix(note.ID, "https://"), "🔄️ Unshare")
+			}
+		}
+
+		if r.User != nil {
+			var bookmarked int
+			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from bookmarks where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&bookmarked); err != nil {
+				r.Log.Warn("Failed to check if post is bookmarked", "id", note.ID, "error", err)
+			} else if bookmarked == 0 {
+				w.Link("/users/bookmark/"+strings.TrimPrefix(note.ID, "https://"), "🔖 Bookmark")
+			} else {
+				w.Link("/users/unbookmark/"+strings.TrimPrefix(note.ID, "https://"), "🔖 Unbookmark")
+			}
+		}
+
+		if r.User != nil {
+			if note.CanQuote() {
+				w.Link("/users/quote/"+strings.TrimPrefix(note.ID, "https://"), "♻️ Quote")
+				w.Link(fmt.Sprintf("titan://%s/users/upload/quote/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload quote")
+			}
+
+			w.Link("/users/reply/"+strings.TrimPrefix(note.ID, "https://"), "💬 Reply")
+			w.Link(fmt.Sprintf("titan://%s/users/upload/reply/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload reply")
+		}
+
+		if note.Type == ap.Question && offset == 0 {
+			options := note.OneOf
+			if len(options) == 0 {
+				options = note.AnyOf
+			}
+
+			if len(options) > 0 {
+				w.Empty()
+
+				if note.VotersCount == 1 {
+					w.Subtitle("📊 Results (one voter)")
+				} else {
+					w.Subtitlef("📊 Results (%d voters)", note.VotersCount)
+				}
+
+				labels := make([]string, 0, len(options))
+				votes := make([]int64, 0, len(options))
+
+				for _, option := range options {
+					labels = append(labels, option.Name)
+					votes = append(votes, option.Replies.TotalItems)
+				}
+
+				w.Raw("Results graph", graph.Bars(labels, votes))
+			}
+		}
+
+		if note.Quote != "" {
+			w.Empty()
+			w.Subtitle("Quote")
+
+			var quote ap.Object
+			var quoteAuthor string
+			if err := h.DB.QueryRowContext(
+				r.Context,
+				`
+				select json(notes.object), persons.actor->>'$.preferredUsername' from notes
+				join persons on persons.id = notes.author
+				where notes.id = ?
+				`,
+				note.Quote,
+			).Scan(&quote, &quoteAuthor); errors.Is(err, sql.ErrNoRows) {
+				w.Text("[Missing]")
+			} else if err != nil {
+				r.Log.Warn("Failed to scan quote", "error", err)
+				w.Text("[Error]")
+			} else {
+				if r.User == nil {
+					w.Linkf("/view/"+strings.TrimPrefix(quote.ID, "https://"), "%s %s", quote.Published.Time.Format(time.DateOnly), quoteAuthor)
+				} else {
+					w.Linkf("/users/view/"+strings.TrimPrefix(quote.ID, "https://"), "%s %s", quote.Published.Time.Format(time.DateOnly), quoteAuthor)
+				}
+
+				quoteLines, _ := h.getCompactNoteContent(&quote)
+				for _, line := range quoteLines {
+					w.Quote(line)
+				}
+			}
+		}
+
+		if offset > 0 {
+			w.Empty()
+			w.Subtitlef("💬 Replies to %s (%d-%d)", author.PreferredUsername, offset, offset+h.Config.RepliesPerPage)
+		} else {
+			w.Empty()
+			w.Subtitlef("💬 Replies to %s", author.PreferredUsername)
+		}
+	}
+
+	var replies *sql.Rows
+	var count int
+	if r.User == nil {
+		replies, err = h.DB.QueryContext(
+			r.Context,
+			`
+			select json(replies.object), json(persons.actor), null as sharer, replies.inserted from notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
 			left join persons on persons.id = replies.author
 			where
 				notes.id = $1 and
@@ -117,10 +535,10 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			offset,
 		)
 	} else {
-		rows, err = h.DB.QueryContext(
+		replies, err = h.DB.QueryContext(
 			r.Context,
 			`
-			select replies.object, persons.actor, null as sharer, replies.inserted from
+			select json(replies.object), json(persons.actor), null as sharer, replies.inserted from
 			notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
 			left join persons on persons.id = replies.author
 			where
@@ -154,108 +572,15 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		)
 	}
 	if err != nil {
-		r.Log.Info("Failed to fetch replies", "error", err)
-		w.Error()
-		return
-	}
-
-	w.OK()
-
-	if offset > 0 {
-		w.Titlef("💬 Replies to %s (%d-%d)", author.PreferredUsername, offset, offset+h.Config.RepliesPerPage)
+		r.Log.Warn("Failed to fetch replies", "error", err)
 	} else {
-		if note.InReplyTo != "" {
-			w.Titlef("💬 Reply by %s", author.PreferredUsername)
-		} else if note.IsPublic() {
-			w.Titlef("📣 Post by %s", author.PreferredUsername)
-		} else {
-			w.Titlef("🔔 Post by %s", author.PreferredUsername)
-		}
-
-		if group.Valid {
-			h.PrintNote(w, r, &note, &author, &group.V, note.Published.Time, false, false, true, false)
-		} else {
-			h.PrintNote(w, r, &note, &author, nil, note.Published.Time, false, false, true, false)
-		}
-
-		if note.Type == ap.Question && note.VotersCount > 0 && offset == 0 {
-			options := note.OneOf
-			if len(options) == 0 {
-				options = note.AnyOf
-			}
-
-			if len(options) > 0 {
-				w.Empty()
-
-				if note.VotersCount == 1 {
-					w.Subtitle("📊 Results (one voter)")
-				} else {
-					w.Subtitlef("📊 Results (%d voters)", note.VotersCount)
-				}
-
-				labels := make([]string, 0, len(options))
-				votes := make([]int64, 0, len(options))
-
-				for _, option := range options {
-					labels = append(labels, option.Name)
-					votes = append(votes, option.Replies.TotalItems)
-				}
-
-				w.Raw("Results graph", graph.Bars(labels, votes))
-			}
-		}
-
-		if offset > 0 {
-			w.Empty()
-			w.Subtitlef("💬 Replies to %s (%d-%d)", author.PreferredUsername, offset, offset+h.Config.RepliesPerPage)
-		} else {
-			w.Empty()
-			w.Subtitle("💬 Replies")
-		}
+		count = h.PrintNotes(w, r, replies, false, false, "No replies.")
+		replies.Close()
 	}
 
-	count := h.PrintNotes(w, r, rows, false, false, "No replies.")
-	rows.Close()
-
-	var originalPostExists int
-	var threadHead sql.NullString
-	if note.InReplyTo != "" {
-		if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from notes where id = ?)`, note.InReplyTo).Scan(&originalPostExists); err != nil {
-			r.Log.Warn("Failed to check if parent post exists", "error", err)
-		}
-
-		if err := h.DB.QueryRowContext(r.Context, `with recursive thread(id, parent, depth) as (select notes.id, notes.object->>'$.inReplyTo' as parent, 1 as depth from notes where id = ? union all select notes.id, notes.object->>'$.inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent) select id from thread order by depth desc limit 1`, note.InReplyTo).Scan(&threadHead); err != nil && errors.Is(err, sql.ErrNoRows) {
-			r.Log.Debug("First post in thread is missing")
-		} else if err != nil {
-			r.Log.Warn("Failed to fetch first post in thread", "error", err)
-		}
-	}
-
-	var threadDepth int
-	if err := h.DB.QueryRowContext(r.Context, `with recursive thread(id, depth) as (select notes.id, 0 as depth from notes where id = ? union all select notes.id, t.depth + 1 from thread t join notes on notes.object->>'$.inReplyTo' = t.id where t.depth <= 3) select max(thread.depth) from thread`, note.ID).Scan(&threadDepth); err != nil {
-		r.Log.Warn("Failed to query thread depth", "error", err)
-	}
-
-	if originalPostExists == 1 || (threadHead.Valid && threadHead.String != note.ID && threadHead.String != note.InReplyTo) || threadDepth > 2 || offset > h.Config.RepliesPerPage || offset >= h.Config.RepliesPerPage || count == h.Config.RepliesPerPage {
-		w.Separator()
-	}
-
-	if originalPostExists == 1 && r.User == nil {
-		w.Link("/view/"+strings.TrimPrefix(note.InReplyTo, "https://"), "View parent post")
-	} else if originalPostExists == 1 {
-		w.Link("/users/view/"+strings.TrimPrefix(note.InReplyTo, "https://"), "View parent post")
-	}
-
-	if threadHead.Valid && threadHead.String != note.ID && threadHead.String != note.InReplyTo && r.User == nil {
-		w.Link("/view/"+strings.TrimPrefix(threadHead.String, "https://"), "View first post in thread")
-	} else if threadHead.Valid && threadHead.String != note.ID && threadHead.String != note.InReplyTo {
-		w.Link("/users/view/"+strings.TrimPrefix(threadHead.String, "https://"), "View first post in thread")
-	}
-
-	if threadDepth > 2 && r.User == nil {
-		w.Link("/thread/"+strings.TrimPrefix(postID, "https://"), "View thread")
-	} else if threadDepth > 2 {
-		w.Link("/users/thread/"+strings.TrimPrefix(postID, "https://"), "View thread")
+	if offset > h.Config.RepliesPerPage || offset >= h.Config.RepliesPerPage || count == h.Config.RepliesPerPage {
+		w.Empty()
+		w.Subtitle("Navigation")
 	}
 
 	if offset > h.Config.RepliesPerPage {

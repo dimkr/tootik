@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,15 +20,16 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/data"
-	"github.com/dimkr/tootik/front/text"
-	"github.com/dimkr/tootik/front/text/plain"
 	"log/slog"
 	"net/url"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/front/text/plain"
 )
 
 var verifiedRegex = regexp.MustCompile(`(\s*:[a-zA-Z0-9_]+:\s*)+`)
@@ -46,9 +47,13 @@ func getTextAndLinks(s string, maxRunes, maxLines int) ([]string, data.OrderedMa
 		}
 	}
 
-	lines := strings.Split(raw, "\n")
+	if maxLines <= 0 {
+		return strings.Split(raw, "\n"), links
+	}
 
-	if maxLines <= 0 || len(lines) <= maxLines {
+	lines := strings.SplitN(raw, "\n", maxLines+1)
+
+	if len(lines) <= maxLines {
 		return lines, links
 	}
 
@@ -88,16 +93,20 @@ func getTextAndLinks(s string, maxRunes, maxLines int) ([]string, data.OrderedMa
 }
 
 func (h *Handler) getDisplayName(id, preferredUsername, name string, t ap.ActorType) string {
-	prefix := fmt.Sprintf("https://%s/user/", h.Domain)
-
-	isLocal := strings.HasPrefix(id, prefix)
+	origin, err := ap.Origin(id)
+	if err != nil {
+		slog.Warn("Failed to get origin of actor", "id", id, "error", err)
+		origin = ""
+	}
 
 	emoji := "👽"
 	if t == ap.Group {
 		emoji = "👥"
 	} else if t != ap.Person {
 		emoji = "🤖"
-	} else if isLocal {
+	} else if strings.HasPrefix(origin, "did:") {
+		emoji = "🚴"
+	} else if origin == h.Domain {
 		emoji = "😈"
 	} else if strings.Contains(id, "masto") || strings.Contains(id, "mstdn") {
 		emoji = "🐘"
@@ -127,31 +136,29 @@ func (h *Handler) getActorDisplayName(actor *ap.Actor) string {
 	return h.getDisplayName(actor.ID, userName, name, actor.Type)
 }
 
-func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *ap.Actor, sharer *ap.Actor, published time.Time, compact, printAuthor, printParentAuthor, titleIsLink bool) {
-	if note.AttributedTo == "" {
-		r.Log.Warn("Note has no author", "id", note.ID)
-		return
-	}
-
-	maxLines := -1
-	maxRunes := -1
-	if compact {
-		maxLines = h.Config.CompactViewMaxLines
-		maxRunes = h.Config.CompactViewMaxRunes
-	}
-
+func (h *Handler) getCompactNoteContent(note *ap.Object) ([]string, data.OrderedMap[string, string]) {
 	noteBody := note.Content
+	if note.Sensitive && note.Summary != "" {
+		noteBody = fmt.Sprintf("[%s]", note.Summary)
+	} else if note.Sensitive {
+		noteBody = "[Content warning]"
+	} else if note.Name != "" { // Page has a title, or this Note is a poll vote
+		noteBody = note.Name
+	} else if note.Summary != "" {
+		noteBody = note.Summary
+	}
+
+	return getTextAndLinks(noteBody, h.Config.CompactViewMaxRunes, h.Config.CompactViewMaxLines)
+}
+
+func (h *Handler) getNoteContent(note *ap.Object, compact bool) ([]string, data.OrderedMap[string, string], data.OrderedMap[string, string], ap.Audience) {
+	var content []string
+	var inlineLinks data.OrderedMap[string, string]
 	if compact {
-		if note.Sensitive && note.Summary != "" {
-			noteBody = fmt.Sprintf("[%s]", note.Summary)
-		} else if note.Sensitive {
-			noteBody = "[Content warning]"
-		} else if note.Name != "" { // Page has a title, or this Note is a poll vote
-			noteBody = note.Name
-		} else if note.Summary != "" {
-			noteBody = note.Summary
-		}
+		content, inlineLinks = h.getCompactNoteContent(note)
 	} else {
+		noteBody := note.Content
+
 		if note.Sensitive && note.Summary != "" {
 			noteBody = fmt.Sprintf("[%s]<br>%s", note.Summary, note.Content)
 		} else if note.Sensitive {
@@ -161,9 +168,9 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 		} else if note.Name != "" {
 			noteBody = note.Name
 		}
-	}
 
-	contentLines, inlineLinks := getTextAndLinks(noteBody, maxRunes, maxLines)
+		content, inlineLinks = getTextAndLinks(noteBody, -1, -1)
+	}
 
 	links := data.OrderedMap[string, string]{}
 
@@ -195,7 +202,7 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 			}
 
 		default:
-			r.Log.Warn("Skipping unsupported mention type", "post", note.ID, "type", tag.Type)
+			slog.Warn("Skipping unsupported mention type", "post", note.ID, "type", tag.Type)
 		}
 	}
 
@@ -213,66 +220,80 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 		}
 	}
 
+	return content, links, hashtags, mentionedUsers
+}
+
+func (h *Handler) printCompactNote(w text.Writer, r *Request, note *ap.Object, author *ap.Actor, sharer *ap.Actor, published time.Time, printParentAuthor bool) {
+	if note.AttributedTo == "" {
+		r.Log.Warn("Note has no author", "id", note.ID)
+		return
+	}
+
+	contentLines, links, hashtags, mentionedUsers := h.getNoteContent(note, true)
+
 	var replies int
 	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where object->>'$.inReplyTo' = ?`, note.ID).Scan(&replies); err != nil {
 		r.Log.Warn("Failed to count replies", "id", note.ID, "error", err)
 	}
 
+	var quotes int
+	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where object->>'$.quote' = ?`, note.ID).Scan(&quotes); err != nil {
+		r.Log.Warn("Failed to count quotes", "id", note.ID, "error", err)
+	}
+
 	authorDisplayName := author.PreferredUsername
 
 	var title string
-	if printAuthor && sharer == nil {
-		title = fmt.Sprintf("%s %s", published.Format(time.DateOnly), authorDisplayName)
-	} else if printAuthor && sharer != nil {
+	if sharer != nil {
 		title = fmt.Sprintf("%s %s ┃ 🔄 %s", published.Format(time.DateOnly), authorDisplayName, sharer.PreferredUsername)
-	} else if sharer != nil {
-		title = fmt.Sprintf("%s 🔄 %s", published.Format(time.DateOnly), sharer.PreferredUsername)
 	} else {
-		title = published.Format(time.DateOnly)
+		title = fmt.Sprintf("%s %s", published.Format(time.DateOnly), authorDisplayName)
 	}
 
-	if note.Updated != nil && *note.Updated != (ap.Time{}) {
+	if note.Updated != (ap.Time{}) {
 		title += " ┃ edited"
 	}
 
 	var parentAuthor sql.Null[ap.Actor]
 	if note.InReplyTo != "" {
-		if err := h.DB.QueryRowContext(r.Context, `select persons.actor from notes join persons on persons.id = notes.author where notes.id = ?`, note.InReplyTo).Scan(&parentAuthor); err != nil && errors.Is(err, sql.ErrNoRows) {
+		if err := h.DB.QueryRowContext(r.Context, `select json(persons.actor) from notes join persons on persons.id = notes.author where notes.id = ?`, note.InReplyTo).Scan(&parentAuthor); err != nil && errors.Is(err, sql.ErrNoRows) {
 			r.Log.Info("Parent post or author is missing", "id", note.InReplyTo)
 		} else if err != nil {
 			r.Log.Warn("Failed to query parent post author", "id", note.InReplyTo, "error", err)
 		}
 	}
 
-	if compact {
-		meta := ""
+	meta := ""
 
-		// show link # only if at least one link doesn't point to the post
-		if note.URL == "" && len(links) > 0 {
-			meta += fmt.Sprintf(" %d🔗", len(links))
-		} else if note.URL != "" && len(links) > 1 {
-			meta += fmt.Sprintf(" %d🔗", len(links)-1)
-		}
+	// show link # only if at least one link doesn't point to the post
+	if note.URL == "" && len(links) > 0 {
+		meta += fmt.Sprintf(" %d🔗", len(links))
+	} else if note.URL != "" && len(links) > 1 {
+		meta += fmt.Sprintf(" %d🔗", len(links)-1)
+	}
 
-		if len(hashtags) > 0 {
-			meta += fmt.Sprintf(" %d#️", len(hashtags))
-		}
+	if len(hashtags) > 0 {
+		meta += fmt.Sprintf(" %d#️", len(hashtags))
+	}
 
-		if len(mentionedUsers.OrderedMap) == 1 && (!parentAuthor.Valid || !mentionedUsers.Contains(parentAuthor.V.ID)) {
-			meta += " 1👤"
-		} else if len(mentionedUsers.OrderedMap) > 1 && (!parentAuthor.Valid || !mentionedUsers.Contains(parentAuthor.V.ID)) {
-			meta += fmt.Sprintf(" %d👤", len(mentionedUsers.OrderedMap))
-		} else if len(mentionedUsers.OrderedMap) > 1 && parentAuthor.Valid && mentionedUsers.Contains(parentAuthor.V.ID) {
-			meta += fmt.Sprintf(" %d👤", len(mentionedUsers.OrderedMap)-1)
-		}
+	if len(mentionedUsers.OrderedMap) == 1 && (!parentAuthor.Valid || !mentionedUsers.Contains(parentAuthor.V.ID)) {
+		meta += " 1👤"
+	} else if len(mentionedUsers.OrderedMap) > 1 && (!parentAuthor.Valid || !mentionedUsers.Contains(parentAuthor.V.ID)) {
+		meta += fmt.Sprintf(" %d👤", len(mentionedUsers.OrderedMap))
+	} else if len(mentionedUsers.OrderedMap) > 1 && parentAuthor.Valid && mentionedUsers.Contains(parentAuthor.V.ID) {
+		meta += fmt.Sprintf(" %d👤", len(mentionedUsers.OrderedMap)-1)
+	}
 
-		if replies > 0 {
-			meta += fmt.Sprintf(" %d💬", replies)
-		}
+	if replies > 0 {
+		meta += fmt.Sprintf(" %d💬", replies)
+	}
 
-		if meta != "" {
-			title += " ┃" + meta
-		}
+	if quotes > 0 {
+		meta += fmt.Sprintf(" %d♻️", quotes)
+	}
+
+	if meta != "" {
+		title += " ┃" + meta
 	}
 
 	if printParentAuthor && parentAuthor.Valid && parentAuthor.V.PreferredUsername != "" {
@@ -281,9 +302,7 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 		title += " ┃ RE: ?"
 	}
 
-	if !titleIsLink {
-		w.Link(note.ID, title)
-	} else if r.User == nil {
+	if r.User == nil {
 		w.Link("/view/"+strings.TrimPrefix(note.ID, "https://"), title)
 	} else {
 		w.Link("/users/view/"+strings.TrimPrefix(note.ID, "https://"), title)
@@ -291,184 +310,6 @@ func (h *Handler) PrintNote(w text.Writer, r *Request, note *ap.Object, author *
 
 	for _, line := range contentLines {
 		w.Quote(line)
-	}
-
-	if !compact {
-		if r.User == nil {
-			w.Link("/outbox/"+strings.TrimPrefix(author.ID, "https://"), authorDisplayName)
-		} else {
-			w.Link("/users/outbox/"+strings.TrimPrefix(author.ID, "https://"), authorDisplayName)
-		}
-
-		for mentionID := range mentionedUsers.Keys() {
-			var mentionUserName string
-			if err := h.DB.QueryRowContext(r.Context, `select actor->>'$.preferredUsername' from persons where id = ?`, mentionID).Scan(&mentionUserName); err != nil && errors.Is(err, sql.ErrNoRows) {
-				r.Log.Warn("Mentioned user is unknown", "mention", mentionID)
-				continue
-			} else if err != nil {
-				r.Log.Warn("Failed to get mentioned user name", "mention", mentionID, "error", err)
-				continue
-			}
-
-			if r.User == nil {
-				links.Store("/outbox/"+strings.TrimPrefix(mentionID, "https://"), mentionUserName)
-			} else {
-				links.Store("/users/outbox/"+strings.TrimPrefix(mentionID, "https://"), mentionUserName)
-			}
-		}
-
-		if r.User == nil && sharer != nil {
-			links.Store("/outbox/"+strings.TrimPrefix(sharer.ID, "https://"), "🔄 "+sharer.PreferredUsername)
-		} else if sharer != nil {
-			links.Store("/users/outbox/"+strings.TrimPrefix(sharer.ID, "https://"), "🔄️ "+sharer.PreferredUsername)
-		} else if note.IsPublic() {
-			var rows *sql.Rows
-			var err error
-			if r.User == nil {
-				rows, err = h.DB.QueryContext(
-					r.Context,
-					`select id, username from
-					(
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 1 as rank from shares
-						join notes on notes.id = shares.note
-						join persons on persons.id = shares.by
-						where shares.note = $1 and persons.actor->>'$.type' = 'Group'
-						union all
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 2 as rank from shares
-						join notes on notes.id = shares.note
-						join persons on persons.id = shares.by
-						where shares.note = $1
-						union all
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 3 as rank from shares
-						join persons on persons.id = shares.by
-						where shares.note = $1 and persons.host = $2
-						union all
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 4 as rank from shares
-						join persons on persons.id = shares.by
-						where shares.note = $1 and persons.host != $2
-					)
-					group by id
-					order by min(rank), inserted limit $3`,
-					note.ID,
-					h.Domain,
-					h.Config.SharesPerPost,
-				)
-			} else {
-				rows, err = h.DB.QueryContext(
-					r.Context,
-					`select id, username from
-					(
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 1 as rank from shares
-						join notes on notes.id = shares.note
-						join persons on persons.id = shares.by
-						where shares.note = $1 and persons.actor->>'$.type' = 'Group'
-						union all
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 2 as rank from shares
-						join notes on notes.id = shares.note
-						join persons on persons.id = shares.by
-						where shares.note = $1
-						union all
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 3 as rank from shares
-						join follows on follows.followed = shares.by
-						join persons on persons.id = follows.followed
-						where shares.note = $1 and follows.follower = $2
-						union all
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 4 as rank from shares
-						join persons on persons.id = shares.by
-						where shares.note = $1 and persons.host = $3
-						union all
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 5 as rank from shares
-						join persons on persons.id = shares.by
-						where shares.note = $1 and persons.host != $3
-					)
-					group by id
-					order by min(rank), inserted limit $4`,
-					note.ID,
-					r.User.ID,
-					h.Domain,
-					h.Config.SharesPerPost,
-				)
-			}
-			if err != nil && !errors.Is(err, sql.ErrNoRows) {
-				r.Log.Warn("Failed to query sharers", "error", err)
-			} else if err == nil {
-				for rows.Next() {
-					var sharerID, sharerName string
-					if err := rows.Scan(&sharerID, &sharerName); err != nil {
-						r.Log.Warn("Failed to scan sharer", "error", err)
-						continue
-					}
-					links.Store("/users/outbox/"+strings.TrimPrefix(sharerID, "https://"), "🔄 "+sharerName)
-				}
-				rows.Close()
-			}
-		}
-
-		for link, alt := range links.All() {
-			if alt == "" {
-				w.Link(link, link)
-			} else {
-				w.Link(link, alt)
-			}
-		}
-
-		for tag := range hashtags.Values() {
-			var exists int
-			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from hashtags where hashtag = ? and note != ?)`, tag, note.ID).Scan(&exists); err != nil {
-				r.Log.Warn("Failed to check if hashtag is used by other posts", "note", note.ID, "hashtag", tag)
-				continue
-			}
-
-			if exists == 1 && r.User == nil {
-				w.Linkf("/hashtag/"+tag, "Posts tagged #%s", tag)
-			} else if exists == 1 {
-				w.Linkf("/users/hashtag/"+tag, "Posts tagged #%s", tag)
-			}
-		}
-
-		if r.User != nil && note.AttributedTo == r.User.ID && note.Type != ap.Question && note.Name == "" { // polls and votes cannot be edited
-			w.Link("/users/edit/"+strings.TrimPrefix(note.ID, "https://"), "🩹 Edit")
-			w.Link(fmt.Sprintf("titan://%s/users/upload/edit/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload edited post")
-		}
-		if r.User != nil && note.AttributedTo == r.User.ID {
-			w.Link("/users/delete/"+strings.TrimPrefix(note.ID, "https://"), "💣 Delete")
-		}
-		if r.User != nil && note.Type == ap.Question && note.Closed == nil && (note.EndTime == nil || time.Now().Before(note.EndTime.Time)) {
-			options := note.OneOf
-			if len(options) == 0 {
-				options = note.AnyOf
-			}
-			for _, option := range options {
-				w.Linkf(fmt.Sprintf("/users/reply/%s?%s", strings.TrimPrefix(note.ID, "https://"), url.PathEscape(option.Name)), "📮 Vote %s", option.Name)
-			}
-		}
-
-		if r.User != nil && note.IsPublic() && note.AttributedTo != r.User.ID {
-			var shared int
-			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from shares where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&shared); err != nil {
-				r.Log.Warn("Failed to check if post is shared", "id", note.ID, "error", err)
-			} else if shared == 0 {
-				w.Link("/users/share/"+strings.TrimPrefix(note.ID, "https://"), "🔁 Share")
-			} else {
-				w.Link("/users/unshare/"+strings.TrimPrefix(note.ID, "https://"), "🔄️ Unshare")
-			}
-		}
-
-		if r.User != nil {
-			var bookmarked int
-			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from bookmarks where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&bookmarked); err != nil {
-				r.Log.Warn("Failed to check if post is bookmarked", "id", note.ID, "error", err)
-			} else if bookmarked == 0 {
-				w.Link("/users/bookmark/"+strings.TrimPrefix(note.ID, "https://"), "🔖 Bookmark")
-			} else {
-				w.Link("/users/unbookmark/"+strings.TrimPrefix(note.ID, "https://"), "🔖 Unbookmark")
-			}
-		}
-
-		if r.User != nil {
-			w.Link("/users/reply/"+strings.TrimPrefix(note.ID, "https://"), "💬 Reply")
-			w.Link(fmt.Sprintf("titan://%s/users/upload/reply/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload reply")
-		}
 	}
 }
 
@@ -504,9 +345,9 @@ func (h *Handler) PrintNotes(w text.Writer, r *Request, rows *sql.Rows, printPar
 		}
 
 		if sharer.Valid {
-			h.PrintNote(w, r, &note, &author.V, &sharer.V, time.Unix(published, 0), true, true, printParentAuthor, true)
+			h.printCompactNote(w, r, &note, &author.V, &sharer.V, time.Unix(published, 0), printParentAuthor)
 		} else {
-			h.PrintNote(w, r, &note, &author.V, nil, time.Unix(published, 0), true, true, printParentAuthor, true)
+			h.printCompactNote(w, r, &note, &author.V, nil, time.Unix(published, 0), printParentAuthor)
 		}
 
 		lastDay = currentDay

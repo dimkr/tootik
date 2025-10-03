@@ -2,7 +2,7 @@
 
 ## About {{.Domain}}
 
-This is an instance of tootik, a "slow", "boring" and non-addictive social network in the small internet that is also connected to the fediverse.
+This server runs tootik, a text-based social network.
 => https://github.com/dimkr/tootik The tootik project
 
 ## Menu
@@ -15,9 +15,15 @@ This page shows posts by followed users.
 
 This page shows posts by followed users that mention you.
 
-> ⚡️ Followed users
+> ⚡️ Follows
 
 This page shows a list of users you follow, sorted by last activity.
+
+> 🐕 Followers
+
+This page shows a list of users that follow you.
+
+By default, incoming follow requests are approved automatically on your behalf. This page allows you to enable manual approval of follow requests and reject previously approved requests.
 
 > 😈 My profile
 
@@ -65,18 +71,26 @@ You can join an existing game or start a new one and join it. You can join only 
 Follow this link to publish a post visible to:
 * Mentioned users only, or
 * Your followers and mentioned users, or
-* Anyone
+* Anyone (public)
 
 You can upload a plain text file over Titan, instead of typing your post in the input prompt (use your client certificate for authentication).
+
+Only public posts can be quoted.
 
 > ⚙️ Settings
 
 This page allows you to:
 * Set your display name (up to {{.Config.MaxDisplayNameLength}} characters long)
 * Set the short (up to {{.Config.MaxBioLength}} characters long) description that appears at the top of your profile
+* Define up to {{.Config.MaxMetadataFields}} profile metadata fields
+* Enable manual approval of follow requests and manage pending ones
 * Set an account alias, to allow account migration to this instance
 * Notify followers about account migration from this instance
+* Configure data portability
 * Upload a .png, .jpg or .gif image to serve as your avatar (use your client certificate for authentication): up to {{.Config.MaxAvatarWidth}}x{{.Config.MaxAvatarHeight}} and {{.Config.MaxAvatarSize}} bytes, downscaled to {{.Config.AvatarWidth}}x{{.Config.AvatarHeight}}
+* Manage client certificates associated with your account
+* Enable automatic deletion of old posts; bookmarked posts are not deleted
+* Export your 200 most recent activities to a CSV file containing raw ActivityPub data
 
 > 📊 Status
 
@@ -113,6 +127,35 @@ For example:
 ```
 
 Polls must have between 2 and {{.Config.PollMaxOptions}} multi-choice options, and end after {{printf "%s" .Config.PollDuration}}.
+
+## Registration.
+
+The username of a newly created account is the Common Name property of the client certificate used.
+
+There are two kinds of accounts:
+* Traditional
+* Portable
+
+Traditional accounts are tied to this particular server, but provide good interoperability.
+
+Portable accounts may suffer from interoperability issues but have several advantages:
+* They're identified by an Ed25519 key pair and not tied to a particular server
+* They allow replication of your data across multiple servers ("gateways"); this replication is not 100% reliable, though
+* They allow migration away from this server even if it's offline
+
+Settings → Data portability allows one to view the private key used to prove the ownership over a portable account and configure the list of gateways.
+
+Only one portable account on this server can use a particular private key: if all client certificates associated with your account are lost or expired, you won't be able to register again with same key to restore access to your account.
+
+## Client Certificates ("Identities")
+
+To associate an additional client certificate with your account:
+* Create a new client certificate with the same Common Name as your current certificate
+* Register using the new certificate: this will add the certificate to the list of certificates waiting for your approval
+* While authenticated using the old certificate, use Settings → Certificates to approve the new one
+* To secure your account, use Settings → Certificates to revoke access for certificates you don't use anymore
+
+Client certificates get rejected automatically after {{.Config.CertificateApprovalTimeout}} without approval.
 
 ## Account Migration
 

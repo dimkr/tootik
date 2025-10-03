@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,51 +25,63 @@ import (
 type ObjectType string
 
 const (
-	Note     ObjectType = "Note"
-	Page     ObjectType = "Page"
-	Article  ObjectType = "Article"
-	Question ObjectType = "Question"
+	Note      ObjectType = "Note"
+	Page      ObjectType = "Page"
+	Article   ObjectType = "Article"
+	Question  ObjectType = "Question"
+	Tombstone ObjectType = "Tombstone"
 )
 
 // Object represents most ActivityPub objects.
 // Actors are represented by [Actor].
 type Object struct {
-	Context      any          `json:"@context,omitempty"`
-	ID           string       `json:"id"`
-	Type         ObjectType   `json:"type"`
-	AttributedTo string       `json:"attributedTo,omitempty"`
-	InReplyTo    string       `json:"inReplyTo,omitempty"`
-	Content      string       `json:"content,omitempty"`
-	Summary      string       `json:"summary,omitempty"`
-	Sensitive    bool         `json:"sensitive,omitempty"`
-	Name         string       `json:"name,omitempty"`
-	Published    Time         `json:"published"`
-	Updated      *Time        `json:"updated,omitempty"`
-	To           Audience     `json:"to,omitempty"`
-	CC           Audience     `json:"cc,omitempty"`
-	Audience     string       `json:"audience,omitempty"`
-	Tag          Array[Tag]   `json:"tag,omitempty"`
-	Attachment   []Attachment `json:"attachment,omitempty"`
-	URL          string       `json:"url,omitempty"`
+	Context           any               `json:"@context,omitempty"`
+	ID                string            `json:"id"`
+	Type              ObjectType        `json:"type"`
+	AttributedTo      string            `json:"attributedTo,omitempty"`
+	InReplyTo         string            `json:"inReplyTo,omitempty"`
+	Content           string            `json:"content,omitempty"`
+	Summary           string            `json:"summary,omitempty"`
+	Sensitive         bool              `json:"sensitive,omitempty"`
+	Name              string            `json:"name,omitempty"`
+	Published         Time              `json:"published,omitzero"`
+	Updated           Time              `json:"updated,omitzero"`
+	To                Audience          `json:"to,omitzero"`
+	CC                Audience          `json:"cc,omitzero"`
+	Audience          string            `json:"audience,omitempty"`
+	Tag               Array[Tag]        `json:"tag,omitzero"`
+	Attachment        []Attachment      `json:"attachment,omitempty"`
+	URL               string            `json:"url,omitempty"`
+	Quote             string            `json:"quote,omitempty"`
+	InteractionPolicy InteractionPolicy `json:"interactionPolicy,omitzero"`
+	Proof             Proof             `json:"proof,omitzero"`
 
 	// polls
 	VotersCount int64        `json:"votersCount,omitempty"`
 	OneOf       []PollOption `json:"oneOf,omitempty"`
 	AnyOf       []PollOption `json:"anyOf,omitempty"`
-	EndTime     *Time        `json:"endTime,omitempty"`
-	Closed      *Time        `json:"closed,omitempty"`
+	EndTime     Time         `json:"endTime,omitzero"`
+	Closed      Time         `json:"closed,omitzero"`
 }
 
 func (o *Object) IsPublic() bool {
 	return o.To.Contains(Public) || o.CC.Contains(Public)
 }
 
+// CanQuote determines whether or not a post can be quoted.
+func (o *Object) CanQuote() bool {
+	return o.InReplyTo == "" && o.IsPublic() && o.InteractionPolicy.CanQuote.AutomaticApproval.Contains(Public) && o.InteractionPolicy.CanQuote.ManualApproval.IsZero()
+}
+
 func (o *Object) Scan(src any) error {
-	s, ok := src.(string)
-	if !ok {
+	switch v := src.(type) {
+	case []byte:
+		return json.Unmarshal(v, o)
+	case string:
+		return json.Unmarshal([]byte(v), o)
+	default:
 		return fmt.Errorf("unsupported conversion from %T to %T", src, o)
 	}
-	return json.Unmarshal([]byte(s), o)
 }
 
 func (o *Object) Value() (driver.Value, error) {

@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,26 +17,37 @@ limitations under the License.
 package front
 
 import (
-	"github.com/dimkr/tootik/front/text"
 	"strings"
 	"time"
+
+	"github.com/dimkr/tootik/front/text"
 )
 
 func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
 	rows, err := h.DB.QueryContext(
 		r.Context,
 		`
-			select persons.id, persons.actor->>'preferredUsername', max(notes.inserted) from notes
+		select u.id, u.username, max(u.inserted) from (
+			select persons.id, persons.actor->>'preferredUsername' as username, shares.inserted from shares
 			join persons
 			on
-				persons.id = notes.object->>'$.audience'
+				persons.id = shares.by
 			where
 				persons.host = $1 and
 				persons.actor->>'$.type' = 'Group'
-			group by
-				persons.id
-			order by
-				max(notes.inserted) desc
+			union all
+			select persons.id, persons.actor->>'preferredUsername' as username, notes.inserted from notes
+			join persons
+			on
+				persons.id = notes.author
+			where
+				persons.host = $1 and
+				persons.actor->>'$.type' = 'Group'
+		) u
+		group by
+			u.id
+		order by
+			max(u.inserted) desc
 		`,
 		h.Domain,
 	)

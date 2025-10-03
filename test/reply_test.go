@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,10 +19,11 @@ package test
 import (
 	"context"
 	"fmt"
-	"github.com/dimkr/tootik/inbox"
-	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
+
+	"github.com/dimkr/tootik/inbox"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestReply_AuthorNotFollowed(t *testing.T) {
@@ -264,7 +265,7 @@ func TestReply_SelfReply(t *testing.T) {
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
 
 	users := server.Handle("/users", server.Bob)
-	assert.NotContains(users, "Welcome me")
+	assert.Contains(users, "Welcome me")
 
 	local := server.Handle("/local", nil)
 	assert.NotContains(local, "Hello world")
@@ -359,7 +360,7 @@ func TestReply_DM(t *testing.T) {
 	assert.NotContains(users, "Hello Bob")
 
 	users = server.Handle("/users", server.Bob)
-	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(users, "Hello Bob")
 
 	id := dm[15 : len(dm)-2]
@@ -374,10 +375,10 @@ func TestReply_DM(t *testing.T) {
 
 	users = server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
-	assert.NotContains(users, "Hello Bob")
+	assert.Contains(users, "Hello Bob")
 
 	users = server.Handle("/users", server.Bob)
-	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.Contains(users, "Hello Bob")
 }
 
@@ -400,7 +401,7 @@ func TestReply_DMUnfollowed(t *testing.T) {
 	assert.NotContains(users, "Hello Bob")
 
 	users = server.Handle("/users", server.Bob)
-	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(users, "Hello Bob")
 
 	id := dm[15 : len(dm)-2]
@@ -418,10 +419,10 @@ func TestReply_DMUnfollowed(t *testing.T) {
 
 	users = server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
-	assert.NotContains(users, "Hello Bob")
+	assert.Contains(users, "Hello Bob")
 
 	users = server.Handle("/users", server.Bob)
-	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.Contains(users, "Hello Bob")
 }
 
@@ -442,7 +443,7 @@ func TestReply_DMUnfollowedBeforeFeedUpdate(t *testing.T) {
 	assert.NotContains(users, "Hello Bob")
 
 	users = server.Handle("/users", server.Bob)
-	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(users, "Hello Bob")
 
 	id := dm[15 : len(dm)-2]
@@ -460,10 +461,10 @@ func TestReply_DMUnfollowedBeforeFeedUpdate(t *testing.T) {
 
 	users = server.Handle("/users", server.Alice)
 	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
-	assert.NotContains(users, "Hello Bob")
+	assert.Contains(users, "Hello Bob")
 
 	users = server.Handle("/users", server.Bob)
-	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.Contains(users, "Hello Bob")
 }
 
@@ -486,7 +487,7 @@ func TestReply_DMToAnotherUser(t *testing.T) {
 	assert.NotContains(users, "Hello Bob")
 
 	users = server.Handle("/users", server.Bob)
-	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(users, "Hello Bob")
 
 	id := dm[15 : len(dm)-2]
@@ -504,7 +505,7 @@ func TestReply_DMToAnotherUser(t *testing.T) {
 	assert.NotContains(users, "Hello Bob")
 
 	users = server.Handle("/users", server.Bob)
-	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
+	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
 	assert.NotContains(users, "Hello Bob")
 }
 

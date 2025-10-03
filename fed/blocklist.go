@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ package fed
 
 import (
 	"encoding/csv"
-	"github.com/fsnotify/fsnotify"
 	"io"
 	"log/slog"
 	"math"
@@ -27,6 +26,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/fsnotify/fsnotify"
 )
 
 // BlockList is a list of blocked domains.
@@ -93,10 +94,7 @@ func NewBlockList(path string) (*BlockList, error) {
 	timer := time.NewTimer(math.MaxInt64)
 	timer.Stop()
 
-	b.wg.Add(1)
-	go func() {
-		defer b.wg.Done()
-
+	b.wg.Go(func() {
 		for {
 			select {
 			case event, ok := <-w.Events:
@@ -128,7 +126,7 @@ func NewBlockList(path string) (*BlockList, error) {
 				slog.Info("Reloaded blocklist", "path", path, "length", len(newDomains))
 			}
 		}
-	}()
+	})
 
 	return b, nil
 }

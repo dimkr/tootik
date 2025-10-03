@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,11 +28,12 @@ import (
 	"sync"
 	"time"
 
+	"log/slog"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text/plain"
-	"log/slog"
 )
 
 type Listener struct {
@@ -42,7 +43,7 @@ type Listener struct {
 	Addr   string
 }
 
-func (fl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGroup) {
+func (fl *Listener) handle(ctx context.Context, conn net.Conn) {
 	if err := conn.SetDeadline(time.Now().Add(fl.Config.GuppyRequestTimeout)); err != nil {
 		slog.Warn("Failed to set deadline", "error", err)
 		return
@@ -92,7 +93,7 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 	}
 
 	var actor ap.Actor
-	if err := fl.DB.QueryRowContext(ctx, `select actor from persons where actor->>'$.preferredUsername' = ? and host = ?`, user, fl.Domain).Scan(&actor); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := fl.DB.QueryRowContext(ctx, `select json(actor) from persons where actor->>'$.preferredUsername' = ? and host = ?`, user, fl.Domain).Scan(&actor); err != nil && errors.Is(err, sql.ErrNoRows) {
 		log.Info("User does not exist")
 		fmt.Fprintf(conn, "Login: %s\r\nPlan:\r\nNo Plan.\r\n", user)
 		return
@@ -125,7 +126,7 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 
 	fmt.Fprintf(conn, "Login: %s\r\nPlan:\r\n", user)
 
-	for _, line := range strings.Split(summary, "\n") {
+	for line := range strings.SplitSeq(summary, "\n") {
 		conn.Write([]byte(line))
 		conn.Write([]byte{'\r', '\n'})
 	}
@@ -152,7 +153,7 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 
 		conn.Write([]byte(time.Unix(inserted, 0).Format(time.DateOnly)))
 		conn.Write([]byte{'\r', '\n'})
-		for _, line := range strings.Split(text, "\n") {
+		for line := range strings.SplitSeq(text, "\n") {
 			conn.Write([]byte(line))
 			conn.Write([]byte{'\r', '\n'})
 		}
@@ -182,6 +183,12 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn, wg *sync.WaitGrou
 
 // ListenAndServe handles Finger queries.
 func (fl *Listener) ListenAndServe(ctx context.Context) error {
+	if fl.Config.RequireRegistration {
+		slog.Warn("Disabling the Finger listener because registration is required")
+		<-ctx.Done()
+		return nil
+	}
+
 	l, err := net.Listen("tcp", fl.Addr)
 	if err != nil {
 		return err
@@ -189,17 +196,14 @@ func (fl *Listener) ListenAndServe(ctx context.Context) error {
 
 	var wg sync.WaitGroup
 
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		<-ctx.Done()
 		l.Close()
-		wg.Done()
-	}()
+	})
 
 	conns := make(chan net.Conn)
 
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		for ctx.Err() == nil {
 			conn, err := l.Accept()
 			if err != nil {
@@ -209,8 +213,7 @@ func (fl *Listener) ListenAndServe(ctx context.Context) error {
 
 			conns <- conn
 		}
-		wg.Done()
-	}()
+	})
 
 	for ctx.Err() == nil {
 		select {
@@ -220,14 +223,12 @@ func (fl *Listener) ListenAndServe(ctx context.Context) error {
 
 			timer := time.AfterFunc(fl.Config.GuppyRequestTimeout, cancelRequest)
 
-			wg.Add(1)
-			go func() {
-				fl.handle(requestCtx, conn, &wg)
+			wg.Go(func() {
+				fl.handle(requestCtx, conn)
 				conn.Close()
 				timer.Stop()
 				cancelRequest()
-				wg.Done()
-			}()
+			})
 		}
 	}
 

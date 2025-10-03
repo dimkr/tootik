@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,16 +20,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/fed"
-	"github.com/dimkr/tootik/inbox"
-	"github.com/dimkr/tootik/inbox/note"
-	"github.com/dimkr/tootik/outbox"
-	"github.com/stretchr/testify/assert"
-	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/inbox/note"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestForward_ReplyToPostByFollower(t *testing.T) {
@@ -38,23 +36,23 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 
 	assert := assert.New(t)
 
-	assert.NoError(
-		outbox.Accept(
-			context.Background(),
-			domain,
-			server.Alice.ID,
-			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain:8443/follow/1",
-			server.db,
-		),
-	)
-
 	to := ap.Audience{}
 	to.Add(server.Alice.Followers)
 
 	tx, err := server.db.BeginTx(context.Background(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
+
+	assert.NoError(
+		server.inbox.Accept(
+			context.Background(),
+			server.Alice,
+			httpsig.Key{},
+			"https://127.0.0.1/user/dan",
+			"https://localhost.localdomain:8443/follow/1",
+			tx,
+		),
+	)
 
 	assert.NoError(
 		note.Insert(
@@ -73,7 +71,7 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -82,26 +80,18 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/1","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, reply, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = jsonb(?) and sender = ?)`, reply, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 }
 
@@ -110,17 +100,6 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 	defer server.Shutdown()
 
 	assert := assert.New(t)
-
-	assert.NoError(
-		outbox.Accept(
-			context.Background(),
-			domain,
-			server.Alice.ID,
-			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain:8443/follow/1",
-			server.db,
-		),
-	)
 
 	to := ap.Audience{}
 	to.Add(ap.Public)
@@ -131,6 +110,17 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 	tx, err := server.db.BeginTx(context.Background(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
+
+	assert.NoError(
+		server.inbox.Accept(
+			context.Background(),
+			server.Alice,
+			httpsig.Key{},
+			"https://127.0.0.1/user/dan",
+			"https://localhost.localdomain:8443/follow/1",
+			tx,
+		),
+	)
 
 	assert.NoError(
 		note.Insert(
@@ -150,7 +140,7 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -159,26 +149,18 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/1","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, reply, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = jsonb(?) and sender = ?)`, reply, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 }
 
@@ -188,19 +170,25 @@ func TestForward_LocalReplyToLocalPublicPost(t *testing.T) {
 
 	assert := assert.New(t)
 
+	tx, err := server.db.BeginTx(context.Background(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
 	assert.NoError(
-		outbox.Accept(
+		server.inbox.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
-			server.db,
+			tx,
 		),
 	)
 
-	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+	assert.NoError(tx.Commit())
+
+	_, err = server.db.Exec(
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -223,23 +211,23 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 
 	assert := assert.New(t)
 
-	assert.NoError(
-		outbox.Accept(
-			context.Background(),
-			domain,
-			server.Alice.ID,
-			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain:8443/follow/1",
-			server.db,
-		),
-	)
-
 	to := ap.Audience{}
 	to.Add(server.Alice.Followers)
 
 	tx, err := server.db.BeginTx(context.Background(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
+
+	assert.NoError(
+		server.inbox.Accept(
+			context.Background(),
+			server.Alice,
+			httpsig.Key{},
+			"https://127.0.0.1/user/dan",
+			"https://localhost.localdomain:8443/follow/1",
+			tx,
+		),
+	)
 
 	assert.NoError(
 		note.Insert(
@@ -273,7 +261,7 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -282,26 +270,18 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/2","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/bob"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/bob"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, reply, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = jsonb(?) and sender = ?)`, reply, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 }
 
@@ -311,23 +291,23 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 
 	assert := assert.New(t)
 
-	assert.NoError(
-		outbox.Accept(
-			context.Background(),
-			domain,
-			server.Alice.ID,
-			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain:8443/follow/1",
-			server.db,
-		),
-	)
-
 	to := ap.Audience{}
 	to.Add(server.Alice.Followers)
 
 	tx, err := server.db.BeginTx(context.Background(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
+
+	assert.NoError(
+		server.inbox.Accept(
+			context.Background(),
+			server.Alice,
+			httpsig.Key{},
+			"https://127.0.0.1/user/dan",
+			"https://localhost.localdomain:8443/follow/1",
+			tx,
+		),
+	)
 
 	assert.NoError(
 		note.Insert(
@@ -346,7 +326,7 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -355,26 +335,18 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/3","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ?)`, reply).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = jsonb(?))`, reply).Scan(&forwarded))
 	assert.Equal(0, forwarded)
 }
 
@@ -384,23 +356,23 @@ func TestForward_ReplyToDM(t *testing.T) {
 
 	assert := assert.New(t)
 
-	assert.NoError(
-		outbox.Accept(
-			context.Background(),
-			domain,
-			server.Alice.ID,
-			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain:8443/follow/1",
-			server.db,
-		),
-	)
-
 	to := ap.Audience{}
 	to.Add(server.Bob.ID)
 
 	tx, err := server.db.BeginTx(context.Background(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
+
+	assert.NoError(
+		server.inbox.Accept(
+			context.Background(),
+			server.Alice,
+			httpsig.Key{},
+			"https://127.0.0.1/user/dan",
+			"https://localhost.localdomain:8443/follow/1",
+			tx,
+		),
+	)
 
 	assert.NoError(
 		note.Insert(
@@ -419,7 +391,7 @@ func TestForward_ReplyToDM(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -428,26 +400,18 @@ func TestForward_ReplyToDM(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/1","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ?)`, reply).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = jsonb(?))`, reply).Scan(&forwarded))
 	assert.Equal(0, forwarded)
 }
 
@@ -481,7 +445,7 @@ func TestForward_NotFollowingAuthor(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -490,26 +454,18 @@ func TestForward_NotFollowingAuthor(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/1","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, reply, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = jsonb(?) and sender = ?)`, reply, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 }
 
@@ -519,23 +475,23 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 
 	assert := assert.New(t)
 
-	assert.NoError(
-		outbox.Accept(
-			context.Background(),
-			domain,
-			server.Alice.ID,
-			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain:8443/follow/1",
-			server.db,
-		),
-	)
-
 	to := ap.Audience{}
 	to.Add(server.Alice.Followers)
 
 	tx, err := server.db.BeginTx(context.Background(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
+
+	assert.NoError(
+		server.inbox.Accept(
+			context.Background(),
+			server.Alice,
+			httpsig.Key{},
+			"https://127.0.0.1/user/dan",
+			"https://localhost.localdomain:8443/follow/1",
+			tx,
+		),
+	)
 
 	assert.NoError(
 		note.Insert(
@@ -554,7 +510,7 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -563,26 +519,18 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://127.0.0.1/note/2","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ?)`, reply).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = jsonb(?))`, reply).Scan(&forwarded))
 	assert.Equal(0, forwarded)
 }
 
@@ -616,7 +564,7 @@ func TestForward_ReplyToFederatedPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -625,26 +573,18 @@ func TestForward_ReplyToFederatedPost(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://127.0.0.1/note/1","content":"bye","to":["https://127.0.0.1/user/erin"],"cc":["https://127.0.0.1/followers/erin"]},"to":["https://127.0.0.1/user/erin"],"cc":["https://127.0.0.1/followers/erin"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ?)`, reply).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = jsonb(?))`, reply).Scan(&forwarded))
 	assert.Equal(0, forwarded)
 }
 
@@ -654,23 +594,23 @@ func TestForward_MaxDepth(t *testing.T) {
 
 	assert := assert.New(t)
 
-	assert.NoError(
-		outbox.Accept(
-			context.Background(),
-			domain,
-			server.Alice.ID,
-			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain:8443/follow/1",
-			server.db,
-		),
-	)
-
 	to := ap.Audience{}
 	to.Add(server.Alice.Followers)
 
 	tx, err := server.db.BeginTx(context.Background(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
+
+	assert.NoError(
+		server.inbox.Accept(
+			context.Background(),
+			server.Alice,
+			httpsig.Key{},
+			"https://127.0.0.1/user/dan",
+			"https://localhost.localdomain:8443/follow/1",
+			tx,
+		),
+	)
 
 	assert.NoError(
 		note.Insert(
@@ -734,7 +674,7 @@ func TestForward_MaxDepth(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -743,26 +683,18 @@ func TestForward_MaxDepth(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/4","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/bob"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/bob"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, reply, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = jsonb(?) and sender = ?)`, reply, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 }
 
@@ -772,23 +704,23 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 
 	assert := assert.New(t)
 
-	assert.NoError(
-		outbox.Accept(
-			context.Background(),
-			domain,
-			server.Alice.ID,
-			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain:8443/follow/1",
-			server.db,
-		),
-	)
-
 	to := ap.Audience{}
 	to.Add(server.Alice.Followers)
 
 	tx, err := server.db.BeginTx(context.Background(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
+
+	assert.NoError(
+		server.inbox.Accept(
+			context.Background(),
+			server.Alice,
+			httpsig.Key{},
+			"https://127.0.0.1/user/dan",
+			"https://localhost.localdomain:8443/follow/1",
+			tx,
+		),
+	)
 
 	assert.NoError(
 		note.Insert(
@@ -867,7 +799,7 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -876,26 +808,18 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/5","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/bob"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/bob"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, reply, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = jsonb(?) and sender = ?)`, reply, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(0, forwarded)
 }
 
@@ -905,22 +829,28 @@ func TestForward_ReplyToLocalPostByLocalFollower(t *testing.T) {
 
 	assert := assert.New(t)
 
+	tx, err := server.db.BeginTx(context.Background(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
 	assert.NoError(
-		outbox.Accept(
+		server.inbox.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
-			server.db,
+			tx,
 		),
 	)
+
+	assert.NoError(tx.Commit())
 
 	whisper := server.Handle("/users/say?Hello%20world", server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
-	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+	_, err = server.db.Exec(
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -940,22 +870,28 @@ func TestForward_EditedReplyToLocalPostByLocalFollower(t *testing.T) {
 
 	assert := assert.New(t)
 
+	tx, err := server.db.BeginTx(context.Background(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
 	assert.NoError(
-		outbox.Accept(
+		server.inbox.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
-			server.db,
+			tx,
 		),
 	)
+
+	assert.NoError(tx.Commit())
 
 	whisper := server.Handle("/users/say?Hello%20world", server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
-	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+	_, err = server.db.Exec(
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -982,22 +918,28 @@ func TestForward_DeletedReplyToLocalPostByLocalFollower(t *testing.T) {
 
 	assert := assert.New(t)
 
+	tx, err := server.db.BeginTx(context.Background(), nil)
+	assert.NoError(err)
+	defer tx.Rollback()
+
 	assert.NoError(
-		outbox.Accept(
+		server.inbox.Accept(
 			context.Background(),
-			domain,
-			server.Alice.ID,
+			server.Alice,
+			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
 			"https://localhost.localdomain:8443/follow/1",
-			server.db,
+			tx,
 		),
 	)
+
+	assert.NoError(tx.Commit())
 
 	whisper := server.Handle("/users/say?Hello%20world", server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
-	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+	_, err = server.db.Exec(
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -1024,17 +966,6 @@ func TestForward_EditedReplyToPublicPost(t *testing.T) {
 
 	assert := assert.New(t)
 
-	assert.NoError(
-		outbox.Accept(
-			context.Background(),
-			domain,
-			server.Alice.ID,
-			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain:8443/follow/1",
-			server.db,
-		),
-	)
-
 	to := ap.Audience{}
 	to.Add(ap.Public)
 
@@ -1044,6 +975,17 @@ func TestForward_EditedReplyToPublicPost(t *testing.T) {
 	tx, err := server.db.BeginTx(context.Background(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
+
+	assert.NoError(
+		server.inbox.Accept(
+			context.Background(),
+			server.Alice,
+			httpsig.Key{},
+			"https://127.0.0.1/user/dan",
+			"https://localhost.localdomain:8443/follow/1",
+			tx,
+		),
+	)
 
 	assert.NoError(
 		note.Insert(
@@ -1063,7 +1005,7 @@ func TestForward_EditedReplyToPublicPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","id":"https://127.0.0.1/user/dan","preferredUsername":"dan"}`,
 	)
@@ -1072,21 +1014,13 @@ func TestForward_EditedReplyToPublicPost(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/1","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -1101,7 +1035,7 @@ func TestForward_EditedReplyToPublicPost(t *testing.T) {
 			AttributedTo: "https://127.0.0.1/user/dan",
 			InReplyTo:    "https://localhost.localdomain:8443/note/1",
 			Content:      "bye",
-			Updated:      &ap.Time{Time: time.Now().Add(time.Second)},
+			Updated:      ap.Time{Time: time.Now().Add(time.Second)},
 			To:           to,
 			CC:           cc,
 		},
@@ -1111,18 +1045,18 @@ func TestForward_EditedReplyToPublicPost(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		string(update),
 	)
 	assert.NoError(err)
 
-	n, err = queue.ProcessBatch(context.Background())
+	n, err = server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, string(update), server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = jsonb(?) and sender = ?)`, string(update), server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 }
 
@@ -1132,17 +1066,6 @@ func TestForward_ResentEditedReplyToPublicPost(t *testing.T) {
 
 	assert := assert.New(t)
 
-	assert.NoError(
-		outbox.Accept(
-			context.Background(),
-			domain,
-			server.Alice.ID,
-			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain:8443/follow/1",
-			server.db,
-		),
-	)
-
 	to := ap.Audience{}
 	to.Add(ap.Public)
 
@@ -1152,6 +1075,17 @@ func TestForward_ResentEditedReplyToPublicPost(t *testing.T) {
 	tx, err := server.db.BeginTx(context.Background(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
+
+	assert.NoError(
+		server.inbox.Accept(
+			context.Background(),
+			server.Alice,
+			httpsig.Key{},
+			"https://127.0.0.1/user/dan",
+			"https://localhost.localdomain:8443/follow/1",
+			tx,
+		),
+	)
 
 	assert.NoError(
 		note.Insert(
@@ -1171,7 +1105,7 @@ func TestForward_ResentEditedReplyToPublicPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","id":"https://127.0.0.1/user/dan","preferredUsername":"dan"}`,
 	)
@@ -1180,21 +1114,13 @@ func TestForward_ResentEditedReplyToPublicPost(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/1","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -1209,7 +1135,7 @@ func TestForward_ResentEditedReplyToPublicPost(t *testing.T) {
 			AttributedTo: "https://127.0.0.1/user/dan",
 			InReplyTo:    "https://localhost.localdomain:8443/note/1",
 			Content:      "bye",
-			Updated:      &ap.Time{Time: time.Now().Add(time.Second)},
+			Updated:      ap.Time{Time: time.Now().Add(time.Second)},
 			To:           to,
 			CC:           cc,
 		},
@@ -1219,29 +1145,29 @@ func TestForward_ResentEditedReplyToPublicPost(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		string(update),
 	)
 	assert.NoError(err)
 
-	n, err = queue.ProcessBatch(context.Background())
+	n, err = server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		string(update),
 	)
 	assert.NoError(err)
 
-	n, err = queue.ProcessBatch(context.Background())
+	n, err = server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity = ? and sender = ?`, string(update), server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity = jsonb(?) and sender = ?`, string(update), server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 }
 
@@ -1251,17 +1177,6 @@ func TestForward_DeletedReplyToPublicPost(t *testing.T) {
 
 	assert := assert.New(t)
 
-	assert.NoError(
-		outbox.Accept(
-			context.Background(),
-			domain,
-			server.Alice.ID,
-			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain:8443/follow/1",
-			server.db,
-		),
-	)
-
 	to := ap.Audience{}
 	to.Add(ap.Public)
 
@@ -1271,6 +1186,17 @@ func TestForward_DeletedReplyToPublicPost(t *testing.T) {
 	tx, err := server.db.BeginTx(context.Background(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
+
+	assert.NoError(
+		server.inbox.Accept(
+			context.Background(),
+			server.Alice,
+			httpsig.Key{},
+			"https://127.0.0.1/user/dan",
+			"https://localhost.localdomain:8443/follow/1",
+			tx,
+		),
+	)
 
 	assert.NoError(
 		note.Insert(
@@ -1290,7 +1216,7 @@ func TestForward_DeletedReplyToPublicPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","id":"https://127.0.0.1/user/dan","preferredUsername":"dan"}`,
 	)
@@ -1299,7 +1225,7 @@ func TestForward_DeletedReplyToPublicPost(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/1","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
@@ -1308,26 +1234,18 @@ func TestForward_DeletedReplyToPublicPost(t *testing.T) {
 	delete := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/delete/1","type":"Delete","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note"},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		delete,
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(2, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = ? and sender = ?)`, delete, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where activity = jsonb(?) and sender = ?)`, delete, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 }
 
@@ -1337,17 +1255,6 @@ func TestForward_DeletedDeletedReplyToPublicPost(t *testing.T) {
 
 	assert := assert.New(t)
 
-	assert.NoError(
-		outbox.Accept(
-			context.Background(),
-			domain,
-			server.Alice.ID,
-			"https://127.0.0.1/user/dan",
-			"https://localhost.localdomain:8443/follow/1",
-			server.db,
-		),
-	)
-
 	to := ap.Audience{}
 	to.Add(ap.Public)
 
@@ -1357,6 +1264,17 @@ func TestForward_DeletedDeletedReplyToPublicPost(t *testing.T) {
 	tx, err := server.db.BeginTx(context.Background(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
+
+	assert.NoError(
+		server.inbox.Accept(
+			context.Background(),
+			server.Alice,
+			httpsig.Key{},
+			"https://127.0.0.1/user/dan",
+			"https://localhost.localdomain:8443/follow/1",
+			tx,
+		),
+	)
 
 	assert.NoError(
 		note.Insert(
@@ -1376,7 +1294,7 @@ func TestForward_DeletedDeletedReplyToPublicPost(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","id":"https://127.0.0.1/user/dan","preferredUsername":"dan"}`,
 	)
@@ -1385,7 +1303,7 @@ func TestForward_DeletedDeletedReplyToPublicPost(t *testing.T) {
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","inReplyTo":"https://localhost.localdomain:8443/note/1","content":"bye","to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		reply,
 	)
@@ -1394,36 +1312,28 @@ func TestForward_DeletedDeletedReplyToPublicPost(t *testing.T) {
 	delete := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/delete/1","type":"Delete","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note"},"to":["https://localhost.localdomain:8443/user/alice"],"cc":["https://localhost.localdomain:8443/followers/alice"]}`
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		delete,
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(2, n)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/dan",
 		delete,
 	)
 	assert.NoError(err)
 
-	n, err = queue.ProcessBatch(context.Background())
+	n, err = server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity = ? and sender = ?`, delete, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity = jsonb(?) and sender = ?`, delete, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 }

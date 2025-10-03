@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,9 +21,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/front"
-	"github.com/dimkr/tootik/front/text/guppy"
 	"log/slog"
 	"math"
 	"math/rand/v2"
@@ -32,6 +29,10 @@ import (
 	"slices"
 	"sync"
 	"time"
+
+	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/front"
+	"github.com/dimkr/tootik/front/text/guppy"
 )
 
 type Listener struct {
@@ -94,9 +95,7 @@ func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks 
 	w := guppy.Wrap(&chanWriter{c}, seq)
 
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 
 		if r.URL.Host != gl.Domain {
 			w.Status(4, "Wrong host")
@@ -109,7 +108,7 @@ func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks 
 
 		w.Flush()
 		close(c)
-	}()
+	})
 
 	defer wg.Wait()
 
@@ -127,7 +126,7 @@ func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks 
 	// TODO: something less ugly
 	space := bytes.IndexByte(chunk, ' ')
 	if string(chunk[:space]) != "1" && string(chunk[:space]) != "3" && string(chunk[:space]) != "4" {
-		chunks[0].Data = append([]byte(fmt.Sprintf("%d", seq)), chunk[space:]...)
+		chunks[0].Data = append(fmt.Appendf(nil, "%d", seq), chunk[space:]...)
 	}
 
 	retry := time.NewTicker(retryInterval)
@@ -203,7 +202,7 @@ func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks 
 			if sent == gl.Config.MaxSentGuppyChunks {
 				break
 			}
-			if chunks[i].Sent == (time.Time{}) {
+			if chunks[i].Sent.IsZero() {
 				slog.Debug("Sending packet", "path", r.URL.Path, "from", from, "seq", chunks[i].Seq)
 			} else {
 				slog.Debug("Resending packet", "path", r.URL.Path, "from", from, "seq", chunks[i].Seq)
@@ -217,6 +216,12 @@ func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks 
 
 // ListenAndServe handles Guppy requests.
 func (gl *Listener) ListenAndServe(ctx context.Context) error {
+	if gl.Config.RequireRegistration {
+		slog.Warn("Disabling the Guppy listener because registration is required")
+		<-ctx.Done()
+		return nil
+	}
+
 	l, err := net.ListenPacket("udp", gl.Addr)
 	if err != nil {
 		return err
@@ -226,10 +231,8 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 
 	incoming := make(chan incomingPacket)
 
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		defer close(incoming)
-		defer wg.Done()
 
 		buf := make([]byte, maxRequestSize)
 		for {
@@ -240,7 +243,7 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 			}
 			incoming <- incomingPacket{buf[:n], from}
 		}
-	}()
+	})
 
 	sessions := make(map[string]chan []byte)
 	done := make(chan string, gl.Config.MaxGuppySessions)
@@ -288,12 +291,10 @@ loop:
 
 			requestCtx, cancelRequest := context.WithTimeout(ctx, gl.Config.GuppyRequestTimeout)
 
-			wg.Add(1)
-			go func() {
+			wg.Go(func() {
 				gl.handle(requestCtx, pkt.From, pkt.Data, acks, done, l)
 				cancelRequest()
-				wg.Done()
-			}()
+			})
 		}
 	}
 

@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,9 +17,10 @@ limitations under the License.
 package front
 
 import (
+	"testing"
+
 	"github.com/dimkr/tootik/data"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestGetTextAndLinks_EmptyPost(t *testing.T) {
@@ -67,7 +68,7 @@ func TestGetTextAndLinks_ManyLinesExtraLineBreak(t *testing.T) {
 	post := `<p>this is line 1</p><br><p>this is line 2</p><p>this is line 3</p><p>this is line 4</p><p>this is line 5</p><p>this is line 6</p>`
 	expected := []string{
 		"this is line 1",
-		"[…]",
+		"",
 		"this is line 2",
 		"[…]",
 	}
@@ -82,7 +83,7 @@ func TestGetTextAndLinks_ManyLinesExtraLineBreaks(t *testing.T) {
 	post := `<p>this is line 1</p><br><br><p>this is line 2</p><p>this is line 3</p><p>this is line 4</p><p>this is line 5</p><p>this is line 6</p>`
 	expected := []string{
 		"this is line 1",
-		"[…]",
+		"",
 		"this is line 2",
 		"[…]",
 	}
@@ -140,7 +141,7 @@ func TestGetTextAndLinks_EmptyLinesInMiddle(t *testing.T) {
 	post := `this is line 1<br><br><br><br><br><br><br><br>this is line 2`
 	expected := []string{
 		"this is line 1",
-		"[…]",
+		"",
 		"this is line 2",
 	}
 	expectedLinks := data.OrderedMap[string, string]{}
@@ -154,9 +155,9 @@ func TestGetTextAndLinks_EmptyLinesInMiddleThenMoreLines(t *testing.T) {
 	post := `this is line 1<br><br><br><br><br><br><br><br>this is line 2<br>this is line 3`
 	expected := []string{
 		"this is line 1",
-		"[…]",
+		"",
 		"this is line 2",
-		"[…]",
+		"this is line 3",
 	}
 	expectedLinks := data.OrderedMap[string, string]{}
 

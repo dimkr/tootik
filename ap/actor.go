@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,8 +25,10 @@ import (
 type ActorType string
 
 const (
-	Person ActorType = "Person"
-	Group  ActorType = "Group"
+	Person      ActorType = "Person"
+	Group       ActorType = "Group"
+	Application ActorType = "Application"
+	Service     ActorType = "Service"
 )
 
 // Actor represents an ActivityPub actor.
@@ -45,20 +47,27 @@ type Actor struct {
 	Icon                      Array[Attachment] `json:"icon,omitempty"`
 	Image                     *Attachment       `json:"image,omitempty"`
 	ManuallyApprovesFollowers bool              `json:"manuallyApprovesFollowers"`
-	AlsoKnownAs               Audience          `json:"alsoKnownAs,omitempty"`
-	Published                 *Time             `json:"published"`
-	Updated                   *Time             `json:"updated,omitempty"`
+	AlsoKnownAs               Audience          `json:"alsoKnownAs,omitzero"`
+	Published                 Time              `json:"published,omitzero"`
+	Updated                   Time              `json:"updated,omitzero"`
 	MovedTo                   string            `json:"movedTo,omitempty"`
 	Suspended                 bool              `json:"suspended,omitempty"`
 	Attachment                []Attachment      `json:"attachment,omitempty"`
+	AssertionMethod           []AssertionMethod `json:"assertionMethod,omitempty"`
+	Generator                 Generator         `json:"generator,omitzero"`
+	Gateways                  []string          `json:"gateways,omitempty"`
+	Proof                     Proof             `json:"proof,omitzero"`
 }
 
 func (a *Actor) Scan(src any) error {
-	s, ok := src.(string)
-	if !ok {
+	switch v := src.(type) {
+	case []byte:
+		return json.Unmarshal(v, a)
+	case string:
+		return json.Unmarshal([]byte(v), a)
+	default:
 		return fmt.Errorf("unsupported conversion from %T to %T", src, a)
 	}
-	return json.Unmarshal([]byte(s), a)
 }
 
 func (a *Actor) Value() (driver.Value, error) {

@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,10 +18,8 @@ package fed
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dimkr/tootik/ap"
 	"log/slog"
 	"net/http"
 )
@@ -39,8 +37,8 @@ func (l *Listener) handlePost(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("Fetching post", "post", postID)
 
-	var note ap.Object
-	if err := l.DB.QueryRowContext(r.Context(), `select object from notes where id = ? and public = 1`, postID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
+	var note string
+	if err := l.DB.QueryRowContext(r.Context(), `select json(object) from notes where id = ? and public = 1`, postID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
@@ -49,15 +47,6 @@ func (l *Listener) handlePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	note.Context = "https://www.w3.org/ns/activitystreams"
-
-	j, err := json.Marshal(note)
-	if err != nil {
-		slog.Warn("Failed to marshal post", "post", postID, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
 	w.Header().Set("Content-Type", "application/activity+json; charset=utf-8")
-	w.Write(j)
+	w.Write([]byte(note))
 }

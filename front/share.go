@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,10 +19,10 @@ package front
 import (
 	"database/sql"
 	"errors"
+	"time"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
-	"github.com/dimkr/tootik/outbox"
-	"time"
 )
 
 func (h *Handler) shouldThrottleShare(r *Request) (bool, error) {
@@ -51,7 +51,7 @@ func (h *Handler) share(w text.Writer, r *Request, args ...string) {
 	postID := "https://" + args[1]
 
 	var note ap.Object
-	if err := h.DB.QueryRowContext(r.Context, `select object from notes where id = $1 and public = 1 and author != $2 and not exists (select 1 from shares where note = notes.id and by = $2)`, postID, r.User.ID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := h.DB.QueryRowContext(r.Context, `select json(object) from notes where id = $1 and public = 1 and author != $2 and not exists (select 1 from shares where note = notes.id and by = $2)`, postID, r.User.ID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Attempted to share non-existing post", "post", postID, "error", err)
 		w.Error()
 		return
@@ -79,7 +79,7 @@ func (h *Handler) share(w text.Writer, r *Request, args ...string) {
 	}
 	defer tx.Rollback()
 
-	if err := outbox.Announce(r.Context, h.Domain, tx, r.User, &note); err != nil {
+	if err := h.Inbox.Announce(r.Context, tx, r.User, r.Keys[1], &note); err != nil {
 		r.Log.Warn("Failed to share post", "post", postID, "error", err)
 		w.Error()
 		return

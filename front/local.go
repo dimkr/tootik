@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package front
 
 import (
 	"database/sql"
+
 	"github.com/dimkr/tootik/front/text"
 )
 
@@ -30,7 +31,7 @@ func (h *Handler) local(w text.Writer, r *Request, args ...string) {
 			return h.DB.QueryContext(
 				r.Context,
 				`
-					select object, actor, sharer, inserted from
+					select json(object), json(actor), json(sharer), inserted from
 					(
 						select notes.object, persons.actor, null as sharer, notes.inserted from persons
 						join notes

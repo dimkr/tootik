@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,10 +18,11 @@ package test
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCommunities_OneCommunity(t *testing.T) {
@@ -31,7 +32,7 @@ func TestCommunities_OneCommunity(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`update persons set actor = json_set(actor, '$.type', 'Group') where id = $1`,
+		`update persons set actor = jsonb_set(actor, '$.type', 'Group') where id = $1`,
 		server.Alice.ID,
 	)
 	assert.NoError(err)

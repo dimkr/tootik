@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,19 +20,42 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
-	"github.com/dimkr/tootik/front/text/plain"
-	"strings"
-	"time"
 )
+
+func writeMetadataField(field ap.Attachment, w text.Writer) {
+	raw, links := getTextAndLinks(field.Val, 64, 2)
+
+	if len(raw) > 1 {
+		w.Quotef("%s: %s […]", field.Name, raw[0])
+		return
+	}
+
+	if len(links) == 0 || len(links) > 1 {
+		w.Quotef("%s: %s", field.Name, raw[0])
+		return
+	}
+
+	for link := range links.Keys() {
+		if link == raw[0] {
+			w.Link(link, field.Name)
+		} else {
+			w.Linkf(link, "%s: %s", field.Name, raw[0])
+		}
+		break
+	}
+}
 
 func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 	actorID := "https://" + args[1]
 
 	var actor ap.Actor
-	if err := h.DB.QueryRowContext(r.Context, `select actor from persons where id = ?`, actorID).Scan(&actor); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := h.DB.QueryRowContext(r.Context, `select json(actor) from persons where id = ?`, actorID).Scan(&actor); err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Info("Person was not found", "actor", actorID)
 		w.Status(40, "User not found")
 		return
@@ -56,7 +79,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// unauthenticated users can only see public posts in a group
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select u.object, authors.actor, null, max(u.inserted, coalesce(max(replies.inserted), 0)) from (
+			`select json(u.object), json(authors.actor), null, max(u.inserted, coalesce(max(replies.inserted), 0)) from (
 				select notes.id, notes.object, notes.author, shares.inserted from shares
 				join notes on notes.id = shares.note
 				where shares.by = $1 and notes.public = 1 and notes.object->>'$.inReplyTo' is null
@@ -76,7 +99,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// users can see public posts in a group and non-public posts if they follow the group
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select u.object, authors.actor, null, max(u.inserted, coalesce(max(replies.inserted), 0)) from (
+			`select json(u.object), json(authors.actor), null, max(u.inserted, coalesce(max(replies.inserted), 0)) from (
 				select notes.id, notes.object, notes.author, shares.inserted from shares
 				join notes on notes.id = shares.note
 				where
@@ -109,7 +132,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// unauthenticated users can only see public posts
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select object, actor, sharer, max(inserted) from (
+			`select json(object), json(actor), json(sharer), max(inserted) from (
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
 				join persons on persons.id = $1
 				where notes.author = $1 and notes.public = 1
@@ -131,7 +154,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// users can see all their posts
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select object, actor, sharer, max(inserted) from (
+			`select json(object), json(actor), json(sharer), max(inserted) from (
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
 				join persons on persons.id = notes.author
 				where notes.author = $1
@@ -152,7 +175,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// users can see only public posts by others, posts to followers if following, and DMs
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select object, actor, sharer, max(inserted) from (
+			`select json(object), json(actor), json(sharer), max(inserted) from (
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
 				join persons on persons.id = $1
 				where notes.author = $1 and notes.public = 1
@@ -219,91 +242,66 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		w.Title(displayName)
 	}
 
-	showSeparator := false
-
 	if offset == 0 && len(actor.Icon) > 0 && actor.Icon[0].URL != "" {
 		w.Link(actor.Icon[0].URL, "Avatar")
-		showSeparator = true
+	} else if offset == 0 {
+		w.Text("No avatar.")
 	}
 
 	if offset == 0 && actor.Image != nil && actor.Image.URL != "" {
 		w.Link(actor.Image.URL, "Header")
-		showSeparator = true
 	}
 
 	if offset == 0 && actor.MovedTo != "" {
 		w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.MovedTo, "https://"), "Moved to %s", actor.MovedTo)
-		showSeparator = true
-	}
-
-	if len(summary) > 0 {
-		if showSeparator {
-			w.Empty()
-		}
-
-		for _, line := range summary {
-			w.Quote(line)
-		}
-		for link, alt := range links.All() {
-			if alt == "" {
-				w.Link(link, link)
-			} else {
-				w.Linkf(link, "%s [%s]", link, alt)
-			}
-		}
 	}
 
 	if offset == 0 {
-		firstProperty := true
+		w.Empty()
+		w.Subtitle("Bio")
 
-		if actor.Published != nil {
-			if showSeparator {
-				w.Empty()
+		if len(summary) > 0 {
+			for _, line := range summary {
+				w.Quote(line)
 			}
+			for link, alt := range links.All() {
+				if alt == "" {
+					w.Link(link, link)
+				} else {
+					w.Link(link, alt)
+				}
+			}
+		} else {
+			w.Text("No bio.")
+		}
 
+		w.Empty()
+		w.Subtitle("Metadata")
+
+		if actor.Published == (ap.Time{}) {
+			w.Text("Joined: ?")
+		} else {
 			w.Textf("Joined: %s", actor.Published.Format(time.DateOnly))
-
-			firstProperty = false
-			showSeparator = true
 		}
 
 		for _, prop := range actor.Attachment {
-			if prop.Type != ap.PropertyValue || prop.Name == "" || prop.Value == "" {
+			if prop.Type != ap.PropertyValue || prop.Name == "" {
 				continue
 			}
 
-			raw, links := plain.FromHTML(prop.Value)
-			if len(links) > 1 {
-				continue
-			}
-
-			if len(summary) > 0 && firstProperty {
-				w.Empty()
-			}
-
-			if len(links) == 0 {
-				w.Textf("%s: %s", prop.Name, raw)
-			} else {
-				for link := range links.Keys() {
-					w.Linkf(link, prop.Name)
-					break
-				}
-			}
-
-			firstProperty = false
-			showSeparator = true
+			writeMetadataField(prop, w)
 		}
 	}
 
-	if showSeparator {
-		w.Separator()
-	}
+	w.Empty()
+	w.Subtitle("Posts")
 
 	count := h.PrintNotes(w, r, rows, true, actor.Type != ap.Group, "No posts.")
 	rows.Close()
 
 	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
-		w.Separator()
+		w.Empty()
+		w.Subtitle("Navigation")
 	}
 
 	if offset >= h.Config.PostsPerPage {
@@ -315,14 +313,19 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 	}
 
 	if r.User != nil && actorID != r.User.ID {
-		var followed int
-		if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from follows where follower = ? and followed = ?)`, r.User.ID, actorID).Scan(&followed); err != nil {
-			r.Log.Warn("Failed to check if user is followed", "actor", actorID, "error", err)
-		} else if followed == 0 {
-			w.Separator()
+		w.Empty()
+		w.Subtitle("Actions")
+
+		var accepted sql.NullInt32
+		if err := h.DB.QueryRowContext(r.Context, `select accepted from follows where follower = ? and followed = ?`, r.User.ID, actorID).Scan(&accepted); actor.ManuallyApprovesFollowers && errors.Is(err, sql.ErrNoRows) {
+			w.Linkf("/users/follow/"+strings.TrimPrefix(actorID, "https://"), "⚡ Follow %s (requires approval)", actor.PreferredUsername)
+		} else if errors.Is(err, sql.ErrNoRows) {
 			w.Linkf("/users/follow/"+strings.TrimPrefix(actorID, "https://"), "⚡ Follow %s", actor.PreferredUsername)
+		} else if err != nil {
+			r.Log.Warn("Failed to check if user is followed", "actor", actorID, "error", err)
+		} else if accepted.Valid && accepted.Int32 == 0 {
+			w.Linkf("/users/unfollow/"+strings.TrimPrefix(actorID, "https://"), "🔌 Unfollow %s (rejected)", actor.PreferredUsername)
 		} else {
-			w.Separator()
 			w.Linkf("/users/unfollow/"+strings.TrimPrefix(actorID, "https://"), "🔌 Unfollow %s", actor.PreferredUsername)
 		}
 	}

@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,38 +18,147 @@ package fed
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
-	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/httpsig"
 	"net/http"
+	"strings"
 	"time"
+
+	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/proof"
 )
 
-func (l *Listener) verify(ctx context.Context, r *http.Request, body []byte, flags ap.ResolverFlag) (*ap.Actor, error) {
+func getKeyByID(actor *ap.Actor, keyID string) (ed25519.PublicKey, error) {
+	for _, key := range actor.AssertionMethod {
+		if key.ID != keyID {
+			continue
+		}
+
+		if key.Type != "Multikey" {
+			continue
+		}
+
+		if key.Controller != actor.ID {
+			continue
+		}
+
+		raw, err := data.DecodeEd25519PublicKey(key.PublicKeyMultibase)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse %s: %w", key.ID, err)
+		}
+
+		return raw, nil
+	}
+
+	return nil, fmt.Errorf("key %s does not exist", keyID)
+}
+
+func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.ResolverFlag, keys [2]httpsig.Key) (*httpsig.Signature, *ap.Actor, error) {
 	sig, err := httpsig.Extract(r, body, l.Domain, time.Now(), l.Config.MaxRequestAge)
 	if err != nil {
-		return nil, fmt.Errorf("failed to verify message: %w", err)
+		return nil, nil, fmt.Errorf("failed to verify message: %w", err)
 	}
 
-	actor, err := l.Resolver.ResolveID(r.Context(), l.ActorKey, sig.KeyID, flags)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get key %s to verify message: %w", sig.KeyID, err)
-	}
+	if sig.Alg == "ed25519" && ap.IsPortable(sig.KeyID) {
+		if m := ap.KeyRegex.FindStringSubmatch(sig.KeyID); m != nil {
+			if keyOrigin, err := ap.Origin(sig.KeyID); err != nil {
+				return nil, nil, fmt.Errorf("failed to get origin of %s: %w", sig.KeyID, err)
+			} else if suffix, ok := strings.CutPrefix(keyOrigin, "did:key:"); ok && suffix == m[1] {
+				raw, err := data.DecodeEd25519PublicKey(m[1])
+				if err != nil {
+					return nil, nil, fmt.Errorf("failed to parse %s: %w", sig.KeyID, err)
+				}
 
-	publicKeyPem, _ := pem.Decode([]byte(actor.PublicKey.PublicKeyPem))
+				if err := sig.Verify(raw); err != nil {
+					return nil, nil, fmt.Errorf("failed to verify message using %s: %w", sig.KeyID, err)
+				}
 
-	publicKey, err := x509.ParsePKIXPublicKey(publicKeyPem.Bytes)
-	if err != nil {
-		publicKey, err = x509.ParsePKCS1PublicKey(publicKeyPem.Bytes)
-		if err != nil {
-			return nil, fmt.Errorf("failed to verify message using %s: %w", sig.KeyID, err)
+				actor, err := l.Resolver.ResolveID(r.Context(), keys, sig.KeyID, flags)
+				if err != nil {
+					return nil, nil, fmt.Errorf("failed to fetch %s: %w", sig.KeyID, err)
+				}
+
+				return sig, actor, nil
+			}
 		}
 	}
 
+	actor, err := l.Resolver.ResolveID(r.Context(), keys, sig.KeyID, flags)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get key %s to verify message: %w", sig.KeyID, err)
+	}
+
+	var publicKey any
+	if actor.PublicKey.ID == sig.KeyID {
+		publicKeyPem, _ := pem.Decode([]byte(actor.PublicKey.PublicKeyPem))
+
+		var err error
+		publicKey, err = x509.ParsePKIXPublicKey(publicKeyPem.Bytes)
+		if err != nil {
+			publicKey, err = x509.ParsePKCS1PublicKey(publicKeyPem.Bytes)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to verify message using %s: %w", sig.KeyID, err)
+			}
+		}
+	} else {
+		publicKey, err = getKeyByID(actor, sig.KeyID)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	if publicKey == nil {
+		return nil, nil, errors.New("cannot verify message using non-existing key " + sig.KeyID)
+	}
+
 	if err := sig.Verify(publicKey); err != nil {
-		return nil, fmt.Errorf("failed to verify message using %s: %w", sig.KeyID, err)
+		return nil, nil, fmt.Errorf("failed to verify message using %s: %w", sig.KeyID, err)
+	}
+
+	return sig, actor, nil
+}
+
+func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Activity, raw []byte, flags ap.ResolverFlag, keys [2]httpsig.Key) (*ap.Actor, error) {
+	if m := ap.KeyRegex.FindStringSubmatch(p.VerificationMethod); m != nil {
+		if m2 := ap.GatewayURLRegex.FindStringSubmatch(activity.Actor); m2 != nil {
+			if m2[1] != m[1] {
+				return nil, fmt.Errorf("key %s does not belong to %s", m[1], activity.Actor)
+			}
+
+			publicKey, err := data.DecodeEd25519PublicKey(m[1])
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode key %s to verify proof: %w", p.VerificationMethod, err)
+			}
+
+			if err := proof.Verify(publicKey, activity.Proof, raw); err != nil {
+				return nil, fmt.Errorf("failed to verify proof using %s: %w", p.VerificationMethod, err)
+			}
+
+			return l.Resolver.ResolveID(ctx, keys, activity.Actor, flags)
+		}
+	}
+
+	actor, err := l.Resolver.ResolveID(ctx, keys, p.VerificationMethod, flags)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
+	}
+
+	if actor.ID != activity.Actor {
+		return nil, fmt.Errorf("key %s belongs to %s, not %s", p.VerificationMethod, actor.ID, activity.Actor)
+	}
+
+	publicKey, err := getKeyByID(actor, p.VerificationMethod)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
+	}
+
+	if err := proof.Verify(publicKey, p, raw); err != nil {
+		return nil, fmt.Errorf("failed to verify proof using %s: %w", p.VerificationMethod, err)
 	}
 
 	return actor, nil

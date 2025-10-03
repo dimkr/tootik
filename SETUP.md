@@ -192,6 +192,14 @@ systemctl daemon-reload
 systemctl restart tootik
 ```
 
+For example, to restrict access to registered users:
+
+```
+jq '.RequireRegistration = true' /tootik-cfg/cfg.json > /tmp/cfg.json
+mv -f /tmp/cfg.json /tootik-cfg/cfg.json
+systemctl restart tootik
+```
+
 To update and restart tootik:
 
 ```
@@ -219,11 +227,77 @@ tootik -domain $domain -db /tootik-data/db.sqlite3 set-avatar fountainpens /tmp/
    * If tootik runs on `example.com` with `-addr 127.0.0.1:8080 -plain` with a reverse proxy on port 443, pass `-domain example.com`
    * If tootik runs on `example.com` with `-addr 127.0.0.1:8080 -plain` with a reverse proxy on port 8443, pass `-domain example.com:8443`
 * Forward requests from the reverse proxy to tootik.
-   * Preserve the `Signature` header when forwarding POST requests to `/inbox/$user`, otherwise tootik cannot validate incoming requests
+   * Preserve the `Signature` and `Signature-Input` headers when forwarding POST requests to `/inbox/$user`, otherwise tootik cannot validate incoming requests
    * Preserve the `Collection-Synchronization` header when forwarding POST requests to `/inbox/$user` if you want follower synchronization to work (recommended)
 
 ## Troubleshooting
 
 * If tootik's HTTPS listener uses a port other than 443 (say, tootik runs with `-addr :8888`) and this is the port other instances use to talk to tootik, `-domain` must include the port (for example, `-domain example.com:8888`).
-* If tootik is behind a proxy, make sure the proxy passes the `Signature` header to tootik.
+* If tootik is behind a proxy, make sure the proxy passes the `Signature` and `Signature-Input` headers to tootik.
 * grep logs for `actor is too young` and decrease `MinActorAge` if the federated account you're trying to talk to is newly registered.
+
+## Restricting SSH Access
+
+To protect the server and the user data on it, it's recommended to restrict SSH access.
+
+First, change the SSH port from the default of 22 to something else:
+
+```
+sed -i 's/^#Port 22/Port 7676/' /etc/ssh/sshd_config
+systemctl restart ssh.service
+```
+
+Then, hide this listening port from scanners using [port knocking](https://wiki.archlinux.org/title/Port_knocking):
+
+```
+for x in iptables ip6tables; do
+    $x -N ssh
+    $x -A INPUT -p tcp --dport 7676 -j ssh
+    $x -A ssh -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+    $x -A ssh -p tcp --sport 1234 -m recent --name knock1 --set -j DROP
+    $x -A ssh -m conntrack --ctstate NEW -m recent --name knock1 \! --rcheck --seconds 50 -j DROP
+    $x -A ssh -p tcp --sport 2345 -m recent --name knock2 --set -j DROP
+    $x -A ssh -m conntrack --ctstate NEW -m recent --name knock2 \! --rcheck --seconds 40 -j DROP
+    $x -A ssh -p tcp --sport 3456 -m recent --name knock3 --set -j DROP
+    $x -A ssh -m conntrack --ctstate NEW -m recent --name knock3 \! --rcheck --seconds 30 -j DROP
+    $x -A ssh -j ACCEPT
+done
+```
+
+To connect:
+
+```
+for x in 1234 2345 3456; do nc -vw1 -p $x example.com 7676; done
+ssh -p 7676 root@example.com
+```
+
+To reapply these SSH port restrictions after reboot:
+
+```
+apt install iptables-persistent
+iptables-save > /etc/iptables/rules.v4
+ip6tables-save > /etc/iptables/rules.v6
+```
+
+## Rate Limiting
+
+tootik handles /robots.txt requests over both HTTP and [Gemini](gemini://geminiprotocol.net/docs/companion/robots.gmi): it asks all kinds of crawlers to leave it alone. However, some crawlers don't obey what robots.txt says and flood the server with requests. They visit all posts they can find, discover users (post authors, reply authors and mentioned users), then view the profiles of these users to discover more posts and more users.
+
+Therefore, it's recommended to have some kind of rate limiting for Gemini requests:
+
+```
+for x in iptables ip6tables; do
+   $x -N ratelimit
+   $x -A ratelimit -j LOG --log-prefix "rate limit "
+   $x -A ratelimit -j DROP
+   $x -I INPUT -p tcp --dport 1965 -m conntrack --ctstate NEW -m hashlimit --hashlimit-name rate --hashlimit-mode srcip --hashlimit-above 100/hour -j ratelimit
+done
+```
+
+To reapply rate limiting after reboot:
+
+```
+apt install iptables-persistent
+iptables-save > /etc/iptables/rules.v4
+ip6tables-save > /etc/iptables/rules.v6
+```

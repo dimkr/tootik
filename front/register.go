@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,19 +17,16 @@ limitations under the License.
 package front
 
 import (
-	"crypto/sha256"
+	"crypto/ed25519"
 	"crypto/tls"
 	"database/sql"
-	"fmt"
+	"time"
+
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/user"
-	"net/url"
-	"regexp"
-	"time"
 )
-
-var userNameRegex = regexp.MustCompile(`^[a-zA-Z0-9-_]{4,32}$`)
 
 func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 	if r.User != nil {
@@ -54,59 +51,31 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 	}
 
 	clientCert := state.PeerCertificates[0]
-	certHash := fmt.Sprintf("%x", sha256.Sum256(clientCert.Raw))
-
-	var taken int
-	if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from persons where host = ? and certhash = ?)`, h.Domain, certHash).Scan(&taken); err != nil {
-		r.Log.Warn("Failed to check if cerificate hash is already in use", "hash", certHash, "error", err)
-		w.Error()
-		return
-	}
-
-	if taken == 1 {
-		r.Log.Warn("Cerificate hash is already in use", "hash", certHash)
-		w.Status(40, "Client certificate is already in use")
-		return
-	}
-
 	userName := clientCert.Subject.CommonName
 
-	if r.URL.RawQuery != "" {
-		altName, err := url.QueryUnescape(r.URL.RawQuery)
-		if err != nil {
-			r.Log.Info("Failed to decode user name", "query", r.URL.RawQuery, "error", err)
-			w.Status(40, "Bad input")
-			return
-		}
-		if altName != "" {
-			userName = altName
-		}
+	if time.Now().After(clientCert.NotAfter) {
+		r.Log.Warn("Client certificate has expired", "name", userName, "expired", clientCert.NotAfter)
+		w.Status(40, "Client certificate has expired")
+		return
 	}
 
 	if userName == "" {
-		w.Status(10, "New user name")
+		w.Status(40, "Invalid user name")
 		return
 	}
 
-	if !userNameRegex.MatchString(userName) {
-		w.Statusf(10, "%s is invalid, enter user name", userName)
+	if !h.Config.CompiledUserNameRegex.MatchString(userName) {
+		w.Status(40, "Invalid user name")
 		return
 	}
 
-	if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from persons where actor->>'$.preferredUsername' = ? and host = ?)`, userName, h.Domain).Scan(&taken); err != nil {
-		r.Log.Warn("Failed to check if username is taken", "name", userName, "error", err)
-		w.Error()
-		return
-	}
-
-	if taken == 1 {
-		r.Log.Warn("Username is already taken", "name", userName)
-		w.Statusf(10, "%s is already taken, enter user name", userName)
+	if h.Config.CompiledForbiddenUserNameRegex.MatchString(userName) {
+		w.Status(40, "Forbidden user name")
 		return
 	}
 
 	var lastRegister sql.NullInt64
-	if err := h.DB.QueryRowContext(r.Context, `select max(inserted) from persons where host = ?`, h.Domain).Scan(&lastRegister); err != nil {
+	if err := h.DB.QueryRowContext(r.Context, `select max(inserted) from certificates`).Scan(&lastRegister); err != nil {
 		r.Log.Warn("Failed to check last registration time", "name", userName, "error", err)
 		w.Error()
 		return
@@ -122,10 +91,69 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 
 	r.Log.Info("Creating new user", "name", userName)
 
-	if _, _, err := user.Create(r.Context, h.Domain, h.DB, userName, ap.Person, &certHash); err != nil {
-		r.Log.Warn("Failed to create new user", "name", userName, "error", err)
-		w.Status(40, "Failed to create new user")
+	switch r.URL.RawQuery {
+	case "":
+		if h.Config.EnablePortableActorRegistration {
+			w.Status(10, "Create portable user? (y/n)")
+			return
+		} else if _, _, err := user.Create(r.Context, h.Domain, h.DB, h.Config, userName, ap.Person, clientCert); err != nil {
+			r.Log.Warn("Failed to create new user", "name", userName, "error", err)
+			w.Status(40, "Failed to create new user")
+			return
+		}
+
+	case "n":
+		if _, _, err := user.Create(r.Context, h.Domain, h.DB, h.Config, userName, ap.Person, clientCert); err != nil {
+			r.Log.Warn("Failed to create new user", "name", userName, "error", err)
+			w.Status(40, "Failed to create new user")
+			return
+		}
+
+	case "y":
+		if h.Config.EnablePortableActorRegistration {
+			w.Status(11, "base58-encoded Ed25519 private key or 'generate' to generate")
+		} else {
+			w.Status(40, "Registration of portable actors is disabled")
+		}
 		return
+
+	case "generate":
+		if !h.Config.EnablePortableActorRegistration {
+			w.Status(40, "Registration of portable actors is disabled")
+			return
+		}
+
+		pub, priv, err := ed25519.GenerateKey(nil)
+		if err != nil {
+			r.Log.Warn("Failed to generate key", "error", err)
+			w.Status(40, "Failed to generate key")
+			return
+		}
+
+		if _, _, err := user.CreatePortable(r.Context, h.Domain, h.DB, h.Config, userName, clientCert, priv, data.EncodeEd25519PrivateKey(priv), pub); err != nil {
+			r.Log.Warn("Failed to create new portable user", "name", userName, "error", err)
+			w.Status(40, "Failed to create new user")
+			return
+		}
+
+	default:
+		if !h.Config.EnablePortableActorRegistration {
+			w.Status(40, "Registration of portable actors is disabled")
+			return
+		}
+
+		key, err := data.DecodeEd25519PrivateKey(r.URL.RawQuery)
+		if err != nil {
+			r.Log.Warn("Failed to decode Ed25519 private key", "name", userName, "error", err)
+			w.Statusf(40, "Invalid key: %s", err.Error())
+			return
+		}
+
+		if _, _, err := user.CreatePortable(r.Context, h.Domain, h.DB, h.Config, userName, clientCert, key, r.URL.RawQuery, key.Public().(ed25519.PublicKey)); err != nil {
+			r.Log.Warn("Failed to create new portable user", "name", userName, "error", err)
+			w.Status(40, "Failed to create new user")
+			return
+		}
 	}
 
 	w.Redirect("/users")

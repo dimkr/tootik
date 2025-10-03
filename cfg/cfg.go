@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package cfg
 
 import (
 	"math"
+	"regexp"
 	"time"
 )
 
@@ -26,7 +27,14 @@ import (
 type Config struct {
 	DatabaseOptions string
 
-	RegistrationInterval time.Duration
+	RequireRegistration             bool
+	RegistrationInterval            time.Duration
+	CertificateApprovalTimeout      time.Duration
+	UserNameRegex                   string
+	CompiledUserNameRegex           *regexp.Regexp `json:"-"`
+	ForbiddenUserNameRegex          string
+	CompiledForbiddenUserNameRegex  *regexp.Regexp `json:"-"`
+	EnablePortableActorRegistration bool
 
 	MaxPostsLength     int
 	MaxPostsPerDay     int64
@@ -44,6 +52,7 @@ type Config struct {
 
 	MaxDisplayNameLength int
 	MaxBioLength         int
+	MaxMetadataFields    int
 	MaxAvatarSize        int64
 	MaxAvatarWidth       int
 	MaxAvatarHeight      int
@@ -51,20 +60,18 @@ type Config struct {
 	AvatarHeight         int
 	MinActorEditInterval time.Duration
 
-	MaxFollowsPerUser   int
-	FollowAcceptTimeout time.Duration
+	MaxFollowsPerUser int
 
 	MaxBookmarksPerUser int
 	MinBookmarkInterval time.Duration
 
-	MinCheckersInterval     time.Duration
-	CheckersRandomizePlayer *bool
-
-	PostsPerPage   int
-	RepliesPerPage int
-	MaxOffset      int
+	PostsPerPage     int
+	PostContextDepth int
+	RepliesPerPage   int
+	MaxOffset        int
 
 	SharesPerPost int
+	QuotesPerPost int
 
 	MaxRequestBodySize int64
 	MaxRequestAge      time.Duration
@@ -120,9 +127,19 @@ type Config struct {
 	NotesTTL          time.Duration
 	InvisiblePostsTTL time.Duration
 	DeliveryTTL       time.Duration
-	SharesTTL         time.Duration
 	ActorTTL          time.Duration
 	FeedTTL           time.Duration
+
+	FillNodeInfoUsage bool
+
+	RFC9421Threshold float32
+	Ed25519Threshold float32
+
+	DisableIntegrityProofs bool
+	MaxGateways            int
+
+	MinCheckersInterval     time.Duration
+	CheckersRandomizePlayer *bool
 }
 
 // FillDefaults replaces missing or invalid settings with defaults.
@@ -134,6 +151,22 @@ func (c *Config) FillDefaults() {
 	if c.RegistrationInterval <= 0 {
 		c.RegistrationInterval = time.Hour
 	}
+
+	if c.CertificateApprovalTimeout <= 0 {
+		c.CertificateApprovalTimeout = time.Hour * 48
+	}
+
+	if c.UserNameRegex == "" {
+		c.UserNameRegex = `^[a-zA-Z0-9-_]{4,32}$`
+	}
+
+	c.CompiledUserNameRegex = regexp.MustCompile(c.UserNameRegex)
+
+	if c.ForbiddenUserNameRegex == "" {
+		c.ForbiddenUserNameRegex = `^(root|localhost|ip6-.*|.*(admin|tootik).*)$`
+	}
+
+	c.CompiledForbiddenUserNameRegex = regexp.MustCompile(c.ForbiddenUserNameRegex)
 
 	if c.MaxPostsLength <= 0 {
 		c.MaxPostsLength = 500
@@ -183,6 +216,10 @@ func (c *Config) FillDefaults() {
 		c.MaxBioLength = 500
 	}
 
+	if c.MaxMetadataFields <= 0 {
+		c.MaxMetadataFields = 4
+	}
+
 	if c.MaxAvatarSize <= 0 {
 		c.MaxAvatarSize = 2 * 1024 * 1024
 	}
@@ -211,10 +248,6 @@ func (c *Config) FillDefaults() {
 		c.MaxFollowsPerUser = 150
 	}
 
-	if c.FollowAcceptTimeout <= 0 {
-		c.FollowAcceptTimeout = time.Hour * 24 * 2
-	}
-
 	if c.MaxBookmarksPerUser <= 0 {
 		c.MaxBookmarksPerUser = 100
 	}
@@ -223,17 +256,12 @@ func (c *Config) FillDefaults() {
 		c.MinBookmarkInterval = time.Second * 5
 	}
 
-	if c.MinCheckersInterval <= 0 {
-		c.MinCheckersInterval = time.Hour
-	}
-
-	if c.CheckersRandomizePlayer == nil {
-		tmp := true
-		c.CheckersRandomizePlayer = &tmp
-	}
-
 	if c.PostsPerPage <= 0 {
 		c.PostsPerPage = 30
+	}
+
+	if c.PostContextDepth <= 0 {
+		c.PostContextDepth = 5
 	}
 
 	if c.RepliesPerPage <= 0 {
@@ -246,6 +274,10 @@ func (c *Config) FillDefaults() {
 
 	if c.SharesPerPost <= 0 {
 		c.SharesPerPost = 10
+	}
+
+	if c.QuotesPerPost <= 0 {
+		c.QuotesPerPost = 10
 	}
 
 	if c.MaxRequestBodySize <= 0 {
@@ -407,15 +439,32 @@ func (c *Config) FillDefaults() {
 		c.DeliveryTTL = time.Hour * 24 * 7
 	}
 
-	if c.SharesTTL <= 0 {
-		c.SharesTTL = time.Hour * 24 * 2
-	}
-
 	if c.ActorTTL <= 0 {
 		c.ActorTTL = time.Hour * 24 * 7
 	}
 
 	if c.FeedTTL <= 0 {
 		c.FeedTTL = time.Hour * 24 * 7
+	}
+
+	if c.RFC9421Threshold <= 0 || c.RFC9421Threshold > 1 {
+		c.RFC9421Threshold = 0.95
+	}
+
+	if c.Ed25519Threshold <= 0 || c.Ed25519Threshold > 1 {
+		c.Ed25519Threshold = 0.98
+	}
+
+	if c.MaxGateways <= 0 {
+		c.MaxGateways = 10
+	}
+
+	if c.MinCheckersInterval <= 0 {
+		c.MinCheckersInterval = time.Hour
+	}
+
+	if c.CheckersRandomizePlayer == nil {
+		tmp := true
+		c.CheckersRandomizePlayer = &tmp
 	}
 }

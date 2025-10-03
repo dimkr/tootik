@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,10 +19,11 @@ package front
 import (
 	"database/sql"
 	"fmt"
-	"github.com/dimkr/tootik/front/text"
 	"net/url"
 	"regexp"
 	"strconv"
+
+	"github.com/dimkr/tootik/front/text"
 )
 
 var skipRegex = regexp.MustCompile(` skip (\d+)$`)
@@ -58,7 +59,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 		rows, err = h.DB.QueryContext(
 			r.Context,
 			`
-				select notes.object, authors.actor, groups.actor, notes.inserted from
+				select json(notes.object), json(authors.actor), json(groups.actor), notes.inserted from
 				notesfts
 				join notes on
 					notes.id = notesfts.id
@@ -81,7 +82,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 		rows, err = h.DB.QueryContext(
 			r.Context,
 			`
-				select u.object, authors.actor, groups.actor, u.inserted from
+				select json(u.object), json(authors.actor), json(groups.actor), u.inserted from
 				(
 					select notes.id, notes.object, notes.author, notes.inserted, rank, 2 as aud from
 					notesfts
@@ -162,7 +163,8 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 	rows.Close()
 
 	if offset > 0 || count == h.Config.PostsPerPage {
-		w.Separator()
+		w.Empty()
+		w.Subtitle("Navigation")
 	}
 
 	if offset >= h.Config.PostsPerPage {

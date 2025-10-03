@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,11 +19,11 @@ package front
 import (
 	"bytes"
 	"context"
-	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/front/text"
 	"slices"
 	"sync"
 	"time"
+
+	"github.com/dimkr/tootik/front/text"
 )
 
 type chanWriter struct {
@@ -94,7 +94,7 @@ func callAndCache(r *Request, w text.Writer, args []string, f func(text.Writer, 
 	cache.Store(key, cacheEntry{buf.Bytes(), now})
 }
 
-func withCache(f func(text.Writer, *Request, ...string), d time.Duration, cache *sync.Map, cfg *cfg.Config) func(text.Writer, *Request, ...string) {
+func withCache(f func(text.Writer, *Request, ...string), d time.Duration, cache *sync.Map) func(text.Writer, *Request, ...string) {
 	return func(w text.Writer, r *Request, args ...string) {
 		key := r.URL.String()
 		now := time.Now()

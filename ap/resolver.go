@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@ package ap
 
 import (
 	"context"
+	"net/http"
+
 	"github.com/dimkr/tootik/httpsig"
 )
 
@@ -29,10 +31,14 @@ const (
 
 	// InstanceActor enables discovery of the "instance actor" instead of the regular actor discovery flow.
 	InstanceActor = 2
+
+	// GroupActor makes [Resolver] prefer the first [Group] actor in the WebFinger response.
+	GroupActor = 4
 )
 
-// Resolver retrieves [Actor] objects given their ID.
+// Resolver retrieves [Actor], [Object] and [Activity] objects.
 type Resolver interface {
-	ResolveID(ctx context.Context, key httpsig.Key, id string, flags ResolverFlag) (*Actor, error)
-	Resolve(ctx context.Context, key httpsig.Key, host, name string, flags ResolverFlag) (*Actor, error)
+	ResolveID(ctx context.Context, keys [2]httpsig.Key, id string, flags ResolverFlag) (*Actor, error)
+	Resolve(ctx context.Context, keys [2]httpsig.Key, host, name string, flags ResolverFlag) (*Actor, error)
+	Get(ctx context.Context, keys [2]httpsig.Key, url string) (*http.Response, error)
 }

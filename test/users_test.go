@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,11 +19,10 @@ package test
 import (
 	"context"
 	"fmt"
-	"github.com/dimkr/tootik/fed"
+	"strings"
+
 	"github.com/dimkr/tootik/inbox"
 	"github.com/stretchr/testify/assert"
-	"net/http"
-	"strings"
 
 	"testing"
 )
@@ -164,14 +163,14 @@ func TestUsers_PublicPostShared(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/erin",
 		`{"id":"https://127.0.0.1/user/erin","type":"Person","preferredUsername":"erin","followers":"https://127.0.0.1/followers/erin"}`,
 	)
@@ -184,21 +183,13 @@ func TestUsers_PublicPostShared(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/erin",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/1","type":"Announce","actor":"https://127.0.0.1/user/erin","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/erin"]}`,
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -215,14 +206,14 @@ func TestUsers_PublicPostSharedNotFollowing(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/erin",
 		`{"id":"https://127.0.0.1/user/erin","type":"Person","preferredUsername":"erin","followers":"https://127.0.0.1/followers/erin"}`,
 	)
@@ -235,21 +226,13 @@ func TestUsers_PublicPostSharedNotFollowing(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into inbox (sender, activity) values(?,?)`,
+		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
 		"https://127.0.0.1/user/erin",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/1","type":"Announce","actor":"https://127.0.0.1/user/erin","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/erin"]}`,
 	)
 	assert.NoError(err)
 
-	queue := inbox.Queue{
-		Domain:    domain,
-		Config:    server.cfg,
-		BlockList: &fed.BlockList{},
-		DB:        server.db,
-		Resolver:  fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db),
-		Key:       server.NobodyKey,
-	}
-	n, err := queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(context.Background())
 	assert.NoError(err)
 	assert.Equal(1, n)
 

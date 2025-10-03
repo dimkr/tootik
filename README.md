@@ -22,13 +22,14 @@
 
 # localhost.localdomain:8443
 
-Welcome, fedinaut! localhost.localdomain:8443 is an instance of tootik, a federated nanoblogging service.
+Welcome, fedinaut! localhost.localdomain:8443 is a text-based social network.
 
 ────
 
 📻 My feed
 📞 Mentions
-⚡️ Followed users
+⚡️ Follows
+🐕 Followers
 😈 My profile
 📡 Local feed
 🏕️ Communities
@@ -49,7 +50,7 @@ Welcome, fedinaut! localhost.localdomain:8443 is an instance of tootik, a federa
 
 tootik is a text-based social network.
 
-tootik is federated: users can join an existing server or [set up](SETUP.md) their own instance. A tootik user can interact with others on the same instance, users on other tootik instances, [Mastodon](https://joinmastodon.org/) users, [Lemmy](https://join-lemmy.org/) users and users of other [ActivityPub](https://www.w3.org/TR/activitypub/)-compatible server.
+tootik is federated using [ActivityPub](https://www.w3.org/TR/activitypub/): users can join an existing instance or [set up](SETUP.md) their own, then interact with users on the same instance and users of [compatible servers](FEDERATION.md) like [Mastodon](https://joinmastodon.org/), [Lemmy](https://join-lemmy.org/), [Sharkey](https://activitypub.software/TransFem-org/Sharkey), [Friendica](https://friendi.ca/), [Akkoma](https://akkoma.dev/AkkomaGang/akkoma/), [GoToSocial](https://gotosocial.org/), [Mitra](https://codeberg.org/silverpill/mitra) and [PieFed](https://join.piefed.social/).
 
 Unlike other social networks, tootik doesn't have a browser-based interface or an app: instead, its minimalistic, text-based interface is served over [Gemini](https://geminiprotocol.net/):
 
@@ -91,7 +92,7 @@ This makes tootik lightweight, private and accessible:
 * All instance data is stored in a single file, a [sqlite](https://sqlite.org/) database that is easy to backup and restore.
 * It's lightweight: a <=$5/mo VPS or a SBC is more than enough for a small instance.
 * It implements the subset of ActivityPub required for its feature set but not more, to stay small, reliable and maintainable.
-* It's written in two languages ([Go](https://go.dev/) and SQL), making the codebase suitable for educational purposes and easy to hack on.
+* It's written from scratch (not forked from some other project) in two languages ([Go](https://go.dev/) and SQL), making the codebase suitable for educational purposes and easy to hack on.
 * It's permissively-licensed.
 
 ## Features
@@ -102,8 +103,13 @@ This makes tootik lightweight, private and accessible:
   * To followers
   * To mentioned users
 * Sharing of public posts
+* [FEP-044f](https://codeberg.org/fediverse/fep/src/branch/main/fep/044f/fep-044f.md) quote posts, without support for approval
 * Users can follow each other to see non-public posts
+  * With support for manual approval of follow requests
   * With support for [Mastodon's follower synchronization mechanism](https://docs.joinmastodon.org/spec/activitypub/#follower-synchronization-mechanism), aka [FEP-8fcf](https://codeberg.org/fediverse/fep/src/branch/main/fep/8fcf/fep-8fcf.md)
+* [FEP-ef61](https://codeberg.org/fediverse/fep/src/branch/main/fep/ef61/fep-ef61.md) portable accounts
+  * Accounts on different servers use one Ed25519 keypair
+  * User activity is replicated across all servers
 * Multi-choice polls
 * [Lemmy](https://join-lemmy.org/)-style communities
   * Follow to join
@@ -113,7 +119,9 @@ This makes tootik lightweight, private and accessible:
 * Games
 * Full-text search within posts
 * Upload of posts and user avatars, over [Titan](gemini://transjovian.org/titan)
+* Automatic deletion of old posts
 * Account migration, in both directions
+* Support for multiple client certificates
 
 ## Using tootik
 
@@ -295,9 +303,9 @@ tootik may perform automatic actions and push additional activities to `outbox`,
                   ┗━━━━━━━━━━━━━━┛
 ```
 
-[Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) is responsible for fetching [Actor](https://pkg.go.dev/github.com/dimkr/tootik/ap#Actor)s that represent users of other servers, using `user@domain` pairs and [WebFinger](https://datatracker.ietf.org/doc/html/rfc7033). The fetched objects are cached in `persons`, and contain properties like the user's inbox URL and public key.
+[Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) is responsible for fetching [Actor](https://pkg.go.dev/github.com/dimkr/tootik/ap#Actor)s that represent users of other servers, using an ID or a `user@domain` pair and [WebFinger](https://datatracker.ietf.org/doc/html/rfc7033). The fetched objects are cached in `persons`, and contain properties like the user's inbox URL and public key.
 
-[fed.Queue](https://pkg.go.dev/github.com/dimkr/tootik/fed#Queue) uses [Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) to make a list of unique inbox URLs each activity should be delivered to. If this is a wide delivery (a public post or a post to followers) and two recipients share the same `sharedInbox`, [fed.Queue](https://pkg.go.dev/github.com/dimkr/tootik/fed#Queue) delivers the activity to both recipients in a single request.
+[fed.Queue](https://pkg.go.dev/github.com/dimkr/tootik/fed#Queue) uses [Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) to make a list of unique inbox URLs each activity should be delivered to. If this is a wide delivery (a public post or a post to followers) and multiple recipients reside on the same server, [fed.Queue](https://pkg.go.dev/github.com/dimkr/tootik/fed#Queue) delivers the activity to this server only once.
 
 ```
                                       ┌───────────────┐
@@ -326,8 +334,6 @@ tootik may perform automatic actions and push additional activities to `outbox`,
 Requests from other servers are handled by [fed.Listener](https://pkg.go.dev/github.com/dimkr/tootik/fed#Listener), a HTTP server.
 
 It extracts the signature and key ID from a request using [httpsig.Extract](https://pkg.go.dev/github.com/dimkr/tootik/httpsig#Extract), uses [Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver) to fetch the public key if needed, validates the request using [Verify](https://pkg.go.dev/github.com/dimkr/tootik/httpsig#Signature.Verify) and inserts the received [Activity](https://pkg.go.dev/github.com/dimkr/tootik/ap#Activity) object into `inbox`.
-
-In addition, [fed.Listener](https://pkg.go.dev/github.com/dimkr/tootik/fed#Listener) allows other servers to fetch public activity (like public posts) from `outbox`, so they can fetch some past activity by a newly-followed user.
 
 ```
                                       ┌───────────────┐
@@ -446,6 +452,55 @@ To display details like the user's name and speed up the verification of future 
 ```
 
 To speed up each user's feed, [inbox.FeedUpdater](https://pkg.go.dev/github.com/dimkr/tootik/inbox#FeedUpdater) periodically appends rows to the `feed` table. This table holds all information that appears in the user's feed: posts written or shared by followed users, author information and more, eliminating the need for `join` queries, slow filtering by post visibility, deduplication and sorting by time when a user views their feed. This table is indexed by user and time, allowing fast querying of a single feed page for a particular user.
+
+```
+                                      ┏━━━━━━━━━━━━━━━━┓
+                        ┏━━━━━━━━━━━━━┫ cluster.Server ┣━━━━━━┓
+                        ┃             ┗━━━━━━━━━━━━━━━━┛      ┃
+                        ┃          ┌──────────────────────────╂───────────┐
+                        ┃          │  ┌───────────────┐       ┃           │
+  ┌──────────┐ ┌────────┸────────┐ │  │ outbox.Mover  │       ┃           │
+  │ gmi.Wrap ├─┤ gemini.Listener │ │  │ outbox.Poller │       ┃           │
+  └──────────┘ └────────┬────────┘ │  │ fed.Syncer    │       ┃           │
+                ┌───────┴──────────┴┐ └───┬─────┬─────┘ ┌─────┸────────┐  │
+    ┌───────────┤   front.Handler   ├─────┼────┐│    ┌──┤ fed.Listener ├──┼───┐
+    │           └┬────────┬───────┬─┘     │    ││    │  └─────┬────────┘  │   │
+┌───┴───┐ ┌──────┴─┐ ┌────┴────┐ ┌┴───────┴┐ ┌─┴┴────┴┐ ┌─────┴──┐ ┌──────┴─┐ │
+│ notes │ │ shares │ │ persons │ │ follows │ │ outbox │ │ inbox  │ │  feed  │ │
+├───────┤ ├────────┤ ├─────────┤ ├─────────┤ ├────────┤ ├────────┤ ├────────┤ │
+│object │ │note    │ │actor    │ │follower │ │activity│ │activity│ │follower│ │
+│author │ │by      │ │...      │ │followed │ │sender  │ │sender  │ │note    │ │
+│...    │ │...     │ │         │ │...      │ │...     │ │...     │ │...     │ │
+└─┬─┬───┘ └─┬─┬────┘ └──┬─┬────┘ └──┬─┬──┬─┘ └┬──────┬┘ └──────┬─┘ └──────┬─┘ │
+  │ │       │ │ ┌───────┘ │         │ │ ┌┴────┴─────┐│    ┌────┴────────┐ │   │
+  │ │       │ │ │ ┌───────┴──────┐ ┌┼─┼─┤ fed.Queue │└────┤ inbox.Queue │ │   │
+  │ │       │ │ │ │ fed.Resolver ├─┘│ │ └───────────┘     └─┬─┬─┬─┬─────┘ │   │
+  │ │       │ │ │ └─────┰─┬─┬────┘  │ └─────────────────────┘ │ │ │       │   │
+  │ │       │ └─┼───────╂─┼─┼───────┼─────────────────────────┘ │ │       │   │
+  │ └───────┼───┼───────╂─┼─┼───────┼───────────────────────────┘ │       │   │
+  │         │   │       ┃ └─┼───────┼─────────────────────────────┼───────┼───┘
+┌─┴─────────┴───┴───┐   ┃   └───────┼─────────────────────────────┘       │
+│ inbox.FeedUpdater ├───╂───────────┘                                     │
+└─────────┬─────────┘   ┃                                                 │
+          └─────────────╂─────────────────────────────────────────────────┘
+               ┏━━━━━━━━┻━━━━━━━┓
+               ┃ cluster.Client ┃
+               ┗━━━━━━━━━━━━━━━━┛
+```
+
+The [cluster](https://pkg.go.dev/github.com/dimkr/tootik/cluster) package contains complex tests that simulate interaction between users on multiple servers. These tests are easy to write, they're fast and they run in parallel without affecting each other.
+
+The tests use three main constructs: [Client](https://pkg.go.dev/github.com/dimkr/tootik/cluster#Client), [Server](https://pkg.go.dev/github.com/dimkr/tootik/cluster#Server) and [Cluster](https://pkg.go.dev/github.com/dimkr/tootik/cluster#Cluster).
+
+During tests, all [http.Request](https://pkg.go.dev/net/http#Request)s sent by tootik (like those sent by [fed.Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver)) are sent through [Client](https://pkg.go.dev/github.com/dimkr/tootik/cluster#Client).
+
+[Server](https://pkg.go.dev/github.com/dimkr/tootik/cluster#Server) handles all kinds of incoming requests:
+* It uses a Unix socket wrapped with TLS and [gemini.Listener](https://pkg.go.dev/github.com/dimkr/tootik/front/gemini#Listener) to allow tests to simulate interaction with the [Gemini](https://geminiprotocol.net/) interface, including user authentication through client certificates
+* It uses the same [http.Handler](https://pkg.go.dev/net/http#Handler) as [fed.Listener](https://pkg.go.dev/github.com/dimkr/tootik/front/fed#Listener) to handle an incoming [http.Request](https://pkg.go.dev/net/http#Request) but without needing an actual HTTP server
+
+[Client](https://pkg.go.dev/github.com/dimkr/tootik/cluster#Client) holds a mapping between domain names and [Server](https://pkg.go.dev/github.com/dimkr/tootik/cluster#Server)s: it allows these servers to talk to each other by passing the [http.Request](https://pkg.go.dev/net/http#Request) sent by one server to the [http.Handler](https://pkg.go.dev/net/http#Handler) of another.
+
+[Cluster](https://pkg.go.dev/github.com/dimkr/tootik/cluster#Cluster) is a high-level wrapper for easy creation of multiple [Server](https://pkg.go.dev/github.com/dimkr/tootik/cluster#Server)s capable of federating with each other, given a list of domain names.
 
 ## More Documentation
 

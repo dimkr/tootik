@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,10 +17,11 @@ limitations under the License.
 package front
 
 import (
-	"github.com/dimkr/tootik/front/text"
 	"io"
 	"net/url"
 	"strconv"
+
+	"github.com/dimkr/tootik/front/text"
 )
 
 // inputFunc is a callback that returns user-provided text or false
@@ -43,17 +44,20 @@ func readQuery(w text.Writer, r *Request, prompt string) (string, bool) {
 
 func (h *Handler) readBody(w text.Writer, r *Request, args []string) (string, bool) {
 	if r.Body == nil {
-		w.Redirect("/users/oops")
+		w.Redirectf("gemini://%s/users/oops", h.Domain)
 		return "", false
 	}
 
 	var sizeStr, mimeType string
-	if args[1] == "size" && args[3] == "mime" {
+	if len(args) == 5 && args[1] == "size" && args[3] == "mime" {
 		sizeStr = args[2]
 		mimeType = args[4]
-	} else if args[1] == "mime" && args[3] == "size" {
+	} else if len(args) == 5 && args[1] == "mime" && args[3] == "size" {
 		sizeStr = args[4]
 		mimeType = args[2]
+	} else if args[1] == "size" {
+		sizeStr = args[2]
+		mimeType = "text/plain"
 	} else {
 		r.Log.Warn("Invalid parameters")
 		w.Status(40, "Invalid parameters")

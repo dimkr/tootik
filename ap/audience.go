@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+
 	"github.com/dimkr/tootik/data"
 )
 
@@ -28,9 +29,13 @@ type Audience struct {
 	data.OrderedMap[string, struct{}]
 }
 
+func (a Audience) IsZero() bool {
+	return len(a.OrderedMap) == 0
+}
+
 func (a *Audience) Add(s string) {
 	if a.OrderedMap == nil {
-		a.OrderedMap = data.OrderedMap[string, struct{}]{}
+		a.OrderedMap = make(data.OrderedMap[string, struct{}], 1)
 	}
 
 	a.OrderedMap.Store(s, struct{}{})
@@ -45,14 +50,17 @@ func (a *Audience) UnmarshalJSON(b []byte) error {
 			return err
 		}
 
-		a.OrderedMap = data.OrderedMap[string, struct{}]{}
+		a.OrderedMap = make(data.OrderedMap[string, struct{}], 1)
 		a.Add(s)
 
 		return nil
 	}
 
-	a.OrderedMap = data.OrderedMap[string, struct{}]{}
+	if len(l) == 0 {
+		return nil
+	}
 
+	a.OrderedMap = make(data.OrderedMap[string, struct{}], len(l))
 	for _, s := range l {
 		a.Add(s)
 	}
@@ -61,7 +69,7 @@ func (a *Audience) UnmarshalJSON(b []byte) error {
 }
 
 func (a Audience) MarshalJSON() ([]byte, error) {
-	if a.OrderedMap == nil {
+	if len(a.OrderedMap) == 0 {
 		return []byte("[]"), nil
 	}
 
@@ -70,7 +78,6 @@ func (a Audience) MarshalJSON() ([]byte, error) {
 
 func (a *Audience) Scan(src any) error {
 	if src == nil {
-		a.OrderedMap = data.OrderedMap[string, struct{}]{}
 		return nil
 	}
 

@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -122,7 +122,7 @@ func TestArrayMarshal_OneTag(t *testing.T) {
 	}{
 		ID: "a",
 		Tag: []Tag{
-			Tag{
+			{
 				Type: Hashtag,
 				Name: "b",
 			},
@@ -140,11 +140,11 @@ func TestArrayMarshal_TwoTags(t *testing.T) {
 	}{
 		ID: "a",
 		Tag: []Tag{
-			Tag{
+			{
 				Type: Hashtag,
 				Name: "b",
 			},
-			Tag{
+			{
 				Type: Emoji,
 				Name: "c",
 			},
@@ -153,4 +153,27 @@ func TestArrayMarshal_TwoTags(t *testing.T) {
 	j, err := json.Marshal(o)
 	assert.NoError(t, err)
 	assert.Equal(t, `{"id":"a","tag":[{"type":"Hashtag","name":"b"},{"type":"Emoji","name":"c"}]}`, string(j))
+}
+
+func TestArrayMarshal_NilOmitZero(t *testing.T) {
+	j, err := json.Marshal(struct {
+		ID  string     `json:"id"`
+		Tag Array[Tag] `json:"tag,omitzero"`
+	}{
+		ID: "a",
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, `{"id":"a"}`, string(j))
+}
+
+func TestArrayMarshal_EmptyOmitZero(t *testing.T) {
+	j, err := json.Marshal(struct {
+		ID  string     `json:"id"`
+		Tag Array[Tag] `json:"tag,omitzero"`
+	}{
+		ID:  "a",
+		Tag: Array[Tag]{},
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, `{"id":"a"}`, string(j))
 }

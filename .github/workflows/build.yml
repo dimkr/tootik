@@ -8,6 +8,7 @@ on:
 
 jobs:
   static:
+    permissions: {}
     runs-on: ubuntu-latest
     container:
       image: debian:bookworm-slim
@@ -18,24 +19,25 @@ jobs:
           apt-get install -y --no-install-recommends ca-certificates gcc libc6-dev
       - uses: actions/setup-go@v5
         with:
-          go-version: '>=1.23.0'
+          go-version: '>=1.25.0'
       - run: |
           go generate ./migrations
           go vet ./...
-          (cd /tmp && go install honnef.co/go/tools/cmd/staticcheck@latest)
-          ~/go/bin/staticcheck ./...
           go test ./... -failfast -vet off -tags netgo,sqlite_omit_load_extension,fts5 -race
       - run: |
-          CGO_CFLAGS="-O2 -fomit-frame-pointer -ffunction-sections -fdata-sections -fmerge-all-constants" go build -tags netgo,sqlite_omit_load_extension,fts5 -ldflags "-w -s -linkmode external -extldflags '-static -Wl,--gc-sections' -X github.com/dimkr/tootik/buildinfo.Version=${{ inputs.version }}" -trimpath -o tootik-amd64 ./cmd/tootik
+          version="${{ inputs.version }}"
+          echo "TOOTIK_VERSION=${version#v}" >> "$GITHUB_ENV"
+      - run: |
+          CGO_CFLAGS="-O2 -fomit-frame-pointer -ffunction-sections -fdata-sections -fmerge-all-constants" go build -tags netgo,sqlite_omit_load_extension,fts5 -ldflags "-w -s -linkmode external -extldflags '-static -Wl,--gc-sections' -X github.com/dimkr/tootik/buildinfo.Version=${TOOTIK_VERSION}" -trimpath -o tootik-amd64 ./cmd/tootik
       - run: |
           apt-get install -y gcc-aarch64-linux-gnu
-          CGO_CFLAGS="-O2 -fomit-frame-pointer -ffunction-sections -fdata-sections -fmerge-all-constants" GOARCH=arm64 CC=aarch64-linux-gnu-gcc CGO_ENABLED=1 go build -tags netgo,sqlite_omit_load_extension,fts5 -ldflags "-w -s -linkmode external -extldflags '-static -Wl,--gc-sections' -X github.com/dimkr/tootik/buildinfo.Version=${{ inputs.version }}" -trimpath -o tootik-arm64 ./cmd/tootik
+          CGO_CFLAGS="-O2 -fomit-frame-pointer -ffunction-sections -fdata-sections -fmerge-all-constants" GOARCH=arm64 CC=aarch64-linux-gnu-gcc CGO_ENABLED=1 go build -tags netgo,sqlite_omit_load_extension,fts5 -ldflags "-w -s -linkmode external -extldflags '-static -Wl,--gc-sections' -X github.com/dimkr/tootik/buildinfo.Version=${TOOTIK_VERSION}" -trimpath -o tootik-arm64 ./cmd/tootik
       - run: |
           apt-get install -y gcc-arm-linux-gnueabihf
-          CGO_CFLAGS="-O2 -fomit-frame-pointer -ffunction-sections -fdata-sections -fmerge-all-constants" GOARCH=arm CC=arm-linux-gnueabihf-gcc CGO_ENABLED=1 go build -tags netgo,sqlite_omit_load_extension,fts5 -ldflags "-w -s -linkmode external -extldflags '-static -Wl,--gc-sections' -X github.com/dimkr/tootik/buildinfo.Version=${{ inputs.version }}" -trimpath -o tootik-arm ./cmd/tootik
+          CGO_CFLAGS="-O2 -fomit-frame-pointer -ffunction-sections -fdata-sections -fmerge-all-constants" GOARCH=arm CC=arm-linux-gnueabihf-gcc CGO_ENABLED=1 go build -tags netgo,sqlite_omit_load_extension,fts5 -ldflags "-w -s -linkmode external -extldflags '-static -Wl,--gc-sections' -X github.com/dimkr/tootik/buildinfo.Version=${TOOTIK_VERSION}" -trimpath -o tootik-arm ./cmd/tootik
       - run: |
           apt-get install -y gcc-multilib
-          CGO_CFLAGS="-O2 -fomit-frame-pointer -ffunction-sections -fdata-sections -fmerge-all-constants" GOARCH=386 CGO_ENABLED=1 go build -tags netgo,sqlite_omit_load_extension,fts5 -ldflags "-w -s -linkmode external -extldflags '-static -Wl,--gc-sections' -X github.com/dimkr/tootik/buildinfo.Version=${{ inputs.version }}" -trimpath -o tootik-386 ./cmd/tootik
+          CGO_CFLAGS="-O2 -fomit-frame-pointer -ffunction-sections -fdata-sections -fmerge-all-constants" GOARCH=386 CGO_ENABLED=1 go build -tags netgo,sqlite_omit_load_extension,fts5 -ldflags "-w -s -linkmode external -extldflags '-static -Wl,--gc-sections' -X github.com/dimkr/tootik/buildinfo.Version=${TOOTIK_VERSION}" -trimpath -o tootik-386 ./cmd/tootik
       - uses: actions/upload-artifact@v4
         with:
           name: tootik-${{ inputs.version }}

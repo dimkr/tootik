@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,8 +18,9 @@ package front
 
 import (
 	"database/sql"
-	"github.com/dimkr/tootik/front/text"
 	"time"
+
+	"github.com/dimkr/tootik/front/text"
 )
 
 func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
@@ -48,8 +49,8 @@ func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
 				(
 					notes.author = $2 or
 					notes.public = 1 or
-					exists (select 1 from json_each(notes.object->'$.to') where exists (select 1 from follows join persons on persons.id = follows.followed where follows.follower = $2 and follows.followed = notes.author and (notes.author = value or persons.actor->>'$.followers' = value))) or
-					exists (select 1 from json_each(notes.object->'$.cc') where exists (select 1 from follows join persons on persons.id = follows.followed where follows.follower = $2 and follows.followed = notes.author and (notes.author = value or persons.actor->>'$.followers' = value))) or
+					exists (select 1 from json_each(notes.object->'$.to') where exists (select 1 from follows join persons on persons.id = follows.followed where follows.follower = $2 and follows.followed = notes.author and follows.accepted = 1 and (notes.author = value or persons.actor->>'$.followers' = value))) or
+					exists (select 1 from json_each(notes.object->'$.cc') where exists (select 1 from follows join persons on persons.id = follows.followed where follows.follower = $2 and follows.followed = notes.author and follows.accepted = 1 and (notes.author = value or persons.actor->>'$.followers' = value))) or
 					exists (select 1 from json_each(notes.object->'$.to') where value = $2) or
 					exists (select 1 from json_each(notes.object->'$.cc') where value = $2)
 				)

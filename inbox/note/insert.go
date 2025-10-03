@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,9 +23,10 @@ import (
 	"fmt"
 	"strings"
 
+	"log/slog"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text/plain"
-	"log/slog"
 )
 
 // Flatten converts a post into text that can be indexed for search purposes.
@@ -48,10 +49,10 @@ func Flatten(note *ap.Object) string {
 	b.WriteByte(' ')
 	b.WriteString(note.AttributedTo)
 	for link, alt := range links.All() {
-		if alt == "" {
-			continue
+		if alt != "" {
+			b.WriteString(alt)
+			b.WriteByte(' ')
 		}
-		b.WriteByte(' ')
 		b.WriteString(link)
 	}
 	return b.String()
@@ -84,7 +85,7 @@ func Insert(ctx context.Context, tx *sql.Tx, note *ap.Object) error {
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO notes (id, author, object, public) VALUES(?,?,?,?)`,
+		`INSERT INTO notes (id, author, object, public) VALUES (?, ?, JSONB(?), ?)`,
 		note.ID,
 		note.AttributedTo,
 		&note,

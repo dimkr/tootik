@@ -22,7 +22,8 @@ import (
 )
 
 func writeUserMenu(w text.Writer, user *ap.Actor) {
-	w.Separator()
+	w.Empty()
+	w.Subtitle("Menu")
 
 	prefix := ""
 	if user != nil {
@@ -32,7 +33,8 @@ func writeUserMenu(w text.Writer, user *ap.Actor) {
 	if user != nil {
 		w.Link("/users", "📻 My feed")
 		w.Link("/users/mentions", "📞 Mentions")
-		w.Link("/users/follows", "⚡️ Followed users")
+		w.Link("/users/follows", "⚡️ Follows")
+		w.Link("/users/followers", "🐕 Followers")
 		w.Link("/users/me", "😈 My profile")
 	}
 

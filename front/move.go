@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,11 +17,12 @@ limitations under the License.
 package front
 
 import (
-	"github.com/dimkr/tootik/front/text"
-	"github.com/dimkr/tootik/outbox"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/front/text"
 )
 
 func (h *Handler) move(w text.Writer, r *Request, args ...string) {
@@ -39,7 +40,7 @@ func (h *Handler) move(w text.Writer, r *Request, args ...string) {
 	now := time.Now()
 
 	can := r.User.Published.Time.Add(h.Config.MinActorEditInterval)
-	if r.User.Updated != nil {
+	if r.User.Updated != (ap.Time{}) {
 		can = r.User.Updated.Time.Add(h.Config.MinActorEditInterval)
 	}
 	if now.Before(can) {
@@ -67,7 +68,7 @@ func (h *Handler) move(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	actor, err := h.Resolver.Resolve(r.Context, r.Key, tokens[1], tokens[0], 0)
+	actor, err := h.Resolver.Resolve(r.Context, r.Keys, tokens[1], tokens[0], 0)
 	if err != nil {
 		r.Log.Warn("Failed to resolve target", "target", target, "error", err)
 		w.Status(40, "Failed to resolve "+target)
@@ -86,7 +87,7 @@ func (h *Handler) move(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := outbox.Move(r.Context, h.DB, h.Domain, r.User, actor.ID); err != nil {
+	if err := h.Inbox.Move(r.Context, r.User, r.Keys[1], actor.ID); err != nil {
 		r.Log.Error("Failed to move user", "error", err)
 		w.Error()
 		return

@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,10 +18,11 @@ package front
 
 import (
 	"database/sql"
-	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/front/text"
 	"strings"
 	"time"
+
+	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/front/text"
 )
 
 func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
@@ -33,35 +34,32 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 	rows, err := h.DB.QueryContext(
 		r.Context,
 		`
-		select persons.actor, g.ninserted/(24*60*60) from
+		select json(persons.actor), g.inserted/(24*60*60), follows.accepted from
+		follows
+		left join
 		(
-			select followed, max(ninserted) as ninserted, max(finserted) as finserted from
+			select followed, max(inserted) as inserted from
 			(
-				select follows.followed, feed.inserted as ninserted, follows.inserted as finserted from
-				follows
-				join feed
-				on
-					feed.author->>'$.id' = follows.followed or
-					feed.sharer->>'$.id' = follows.followed
+				select coalesce(sharer->>'$.id', author->>'$.id') as followed, inserted
+				from feed
 				where
-					follows.follower = $1 and
-					feed.follower = $1 and
-					feed.inserted >= unixepoch() - 7*24*60*60
-				union all
-				select follows.followed, null as ninserted, follows.inserted as finserted from
-				follows
-				where
-					follows.follower = $1
+					follower = $1 and
+					inserted >= unixepoch() - 7*24*60*60
 			)
 			group by followed
 		) g
+		on
+			g.followed = follows.followed
 		join persons
 		on
-			persons.id = g.followed
+			persons.id = follows.followed
+		where
+			follows.follower = $1
 		order by
-			g.ninserted/(24*60*60) desc,
-			g.ninserted desc,
-			g.finserted desc
+			g.inserted/(24*60*60) desc,
+			g.inserted desc,
+			follows.inserted desc,
+			follows.followed
 		`,
 		r.User.ID,
 	)
@@ -74,14 +72,15 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 	defer rows.Close()
 
 	w.OK()
-	w.Title("⚡ Followed Users")
+	w.Title("⚡ Follows")
 
 	i := 0
 	var lastDay sql.NullInt64
 	for rows.Next() {
 		var actor ap.Actor
 		var last sql.NullInt64
-		if err := rows.Scan(&actor, &last); err != nil {
+		var accepted sql.NullInt32
+		if err := rows.Scan(&actor, &last, &accepted); err != nil {
 			r.Log.Warn("Failed to list a followed user", "error", err)
 			continue
 		}
@@ -93,12 +92,19 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 
 		displayName := h.getActorDisplayName(&actor)
 
-		if last.Valid {
+		if !accepted.Valid && last.Valid {
+			w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.ID, "https://"), "%s %s - pending approval", time.Unix(last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
+		} else if !accepted.Valid {
+			w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.ID, "https://"), "%s - pending approval", displayName)
+		} else if last.Valid && accepted.Int32 == 1 {
 			w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.ID, "https://"), "%s %s", time.Unix(last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
-		} else {
+		} else if accepted.Int32 == 1 {
 			w.Link("/users/outbox/"+strings.TrimPrefix(actor.ID, "https://"), displayName)
+		} else if last.Valid {
+			w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.ID, "https://"), "%s %s - rejected", time.Unix(last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
+		} else {
+			w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.ID, "https://"), "%s - rejected", displayName)
 		}
-
 		i++
 	}
 

@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,22 +21,36 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 )
 
 // CreateNobody creates the special "nobdoy" user.
 // This user is used to sign outgoing requests not initiated by a particular user.
-func CreateNobody(ctx context.Context, domain string, db *sql.DB) (*ap.Actor, httpsig.Key, error) {
+func CreateNobody(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config) (*ap.Actor, [2]httpsig.Key, error) {
 	var actor ap.Actor
-	var privKeyPem string
-	if err := db.QueryRowContext(ctx, `select actor, privkey from persons where actor->>'$.preferredUsername' = 'nobody' and host = ?`, domain).Scan(&actor, &privKeyPem); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return nil, httpsig.Key{}, fmt.Errorf("failed to create nobody user: %w", err)
+	var rsaPrivKeyPem, ed25519PrivKeyMultibase string
+	if err := db.QueryRowContext(ctx, `select json(actor), rsaprivkey, ed25519privkey from persons where actor->>'$.preferredUsername' = 'nobody' and host = ?`, domain).Scan(&actor, &rsaPrivKeyPem, &ed25519PrivKeyMultibase); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to create nobody user: %w", err)
 	} else if err == nil {
-		privKey, err := data.ParsePrivateKey(privKeyPem)
-		return &actor, httpsig.Key{ID: actor.PublicKey.ID, PrivateKey: privKey}, err
+		rsaPrivKey, err := data.ParseRSAPrivateKey(rsaPrivKeyPem)
+		if err != nil {
+			return nil, [2]httpsig.Key{}, err
+		}
+
+		ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
+		if err != nil {
+			return nil, [2]httpsig.Key{}, err
+		}
+
+		return &actor, [2]httpsig.Key{
+			{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
+			{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey},
+		}, err
 	}
 
-	return Create(ctx, domain, db, "nobody", ap.Person, nil)
+	return Create(ctx, domain, db, cfg, "nobody", ap.Application, nil)
 }

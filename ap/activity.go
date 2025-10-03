@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,33 +21,40 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dimkr/tootik/data"
 	"log/slog"
 )
 
 type ActivityType string
 
 const (
+	MaxActivityDepth = 3
+
 	Create   ActivityType = "Create"
 	Follow   ActivityType = "Follow"
 	Accept   ActivityType = "Accept"
+	Reject   ActivityType = "Reject"
 	Undo     ActivityType = "Undo"
 	Delete   ActivityType = "Delete"
 	Announce ActivityType = "Announce"
 	Update   ActivityType = "Update"
-	Like     ActivityType = "Like"
-	Dislike  ActivityType = "Dislike"
 	Move     ActivityType = "Move"
+
+	Like       ActivityType = "Like"
+	Dislike    ActivityType = "Dislike"
+	EmojiReact ActivityType = "EmojiReact"
+	Add        ActivityType = "Add"
+	Remove     ActivityType = "Remove"
 )
 
 type anyActivity struct {
 	Context any             `json:"@context"`
 	ID      string          `json:"id"`
 	Type    ActivityType    `json:"type"`
-	Actor   string          `json:"actor"`
+	Actor   json.RawMessage `json:"actor"`
 	Object  json.RawMessage `json:"object"`
 	To      Audience        `json:"to"`
 	CC      Audience        `json:"cc"`
+	Proof   Proof           `json:"proof"`
 }
 
 // Activity represents an ActivityPub activity.
@@ -59,17 +66,33 @@ type Activity struct {
 	Actor     string       `json:"actor"`
 	Object    any          `json:"object"`
 	Target    string       `json:"target,omitempty"`
-	To        Audience     `json:"to,omitempty"`
-	CC        Audience     `json:"cc,omitempty"`
-	Published *Time        `json:"published,omitempty"`
+	To        Audience     `json:"to"`
+	CC        Audience     `json:"cc"`
+	Published Time         `json:"published,omitzero"`
+	Proof     Proof        `json:"proof,omitzero"`
 }
 
-// RawActivity is a serialized or serializable [Activity]
-type RawActivity interface {
-	data.JSON | *Activity
-}
+var (
+	ErrInvalidActivity     = errors.New("invalid activity")
+	ErrUnsupportedActivity = errors.New("unsupported activity")
 
-var ErrInvalidActivity = errors.New("invalid activity")
+	knownActivityTypes = map[ActivityType]struct{}{
+		Create:     {},
+		Follow:     {},
+		Accept:     {},
+		Reject:     {},
+		Undo:       {},
+		Delete:     {},
+		Announce:   {},
+		Update:     {},
+		Move:       {},
+		Like:       {},
+		Dislike:    {},
+		EmojiReact: {},
+		Add:        {},
+		Remove:     {},
+	}
+)
 
 func (a *Activity) IsPublic() bool {
 	return a.To.Contains(Public) || a.CC.Contains(Public)
@@ -81,12 +104,28 @@ func (a *Activity) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
+	if _, ok := knownActivityTypes[common.Type]; !ok {
+		return fmt.Errorf("%w: %s", ErrUnsupportedActivity, common.Type)
+	}
+
 	a.Context = common.Context
 	a.ID = common.ID
 	a.Type = common.Type
-	a.Actor = common.Actor
 	a.To = common.To
 	a.CC = common.CC
+	a.Proof = common.Proof
+
+	var actor struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(common.Actor, &actor.ID); err == nil {
+		a.Actor = actor.ID
+	} else if err := json.Unmarshal(common.Actor, &actor); err == nil {
+		// PieFed sends an actor object instead of its ID
+		a.Actor = actor.ID
+	} else {
+		return ErrInvalidActivity
+	}
 
 	var object Object
 	var activity Activity
@@ -105,11 +144,14 @@ func (a *Activity) UnmarshalJSON(b []byte) error {
 }
 
 func (a *Activity) Scan(src any) error {
-	s, ok := src.(string)
-	if !ok {
+	switch v := src.(type) {
+	case []byte:
+		return json.Unmarshal(v, a)
+	case string:
+		return json.Unmarshal([]byte(v), a)
+	default:
 		return fmt.Errorf("unsupported conversion from %T to %T", src, a)
 	}
-	return json.Unmarshal([]byte(s), a)
 }
 
 func (a *Activity) Value() (driver.Value, error) {

@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,18 +19,24 @@ package front
 import (
 	"database/sql"
 	"errors"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
 )
 
-func (h *Handler) doReply(w text.Writer, r *Request, args []string, readInput inputFunc) {
+func (h *Handler) replyOrQuote(w text.Writer, r *Request, args []string, quote bool, readInput inputFunc) {
+	if r.User == nil {
+		w.Redirect("/users")
+		return
+	}
+
 	postID := "https://" + args[1]
 
 	var note ap.Object
 	if err := h.DB.QueryRowContext(
 		r.Context,
 		`
-		select notes.object from notes
+		select json(notes.object) from notes
 		join persons on persons.id = notes.author
 		where
 			notes.id = $1 and
@@ -68,10 +74,29 @@ func (h *Handler) doReply(w text.Writer, r *Request, args []string, readInput in
 		return
 	}
 
-	r.Log.Info("Replying to post", "post", note.ID)
-
 	to := ap.Audience{}
 	cc := ap.Audience{}
+
+	if quote {
+		r.Log.Info("Quoting post", "post", note.ID)
+
+		if !note.CanQuote() {
+			r.Log.Warn("Post cannot be quoted", "post", postID)
+			w.Status(40, "Post cannot be quoted")
+			return
+		}
+
+		note.Quote = postID
+
+		to.Add(note.AttributedTo)
+		cc.Add(r.User.Followers)
+		cc.Add(ap.Public)
+
+		h.post(w, r, nil, nil, note.ID, to, cc, note.Audience, readInput)
+		return
+	}
+
+	r.Log.Info("Replying to post", "post", note.ID)
 
 	if note.AttributedTo == r.User.ID {
 		to = note.To
@@ -94,17 +119,29 @@ func (h *Handler) doReply(w text.Writer, r *Request, args []string, readInput in
 		}
 	}
 
-	h.post(w, r, nil, &note, to, cc, note.Audience, readInput)
+	h.post(w, r, nil, &note, "", to, cc, note.Audience, readInput)
 }
 
 func (h *Handler) reply(w text.Writer, r *Request, args ...string) {
-	h.doReply(w, r, args, func() (string, bool) {
+	h.replyOrQuote(w, r, args, false, func() (string, bool) {
 		return readQuery(w, r, "Reply content")
 	})
 }
 
 func (h *Handler) replyUpload(w text.Writer, r *Request, args ...string) {
-	h.doReply(w, r, args, func() (string, bool) {
+	h.replyOrQuote(w, r, args, false, func() (string, bool) {
+		return h.readBody(w, r, args[1:])
+	})
+}
+
+func (h *Handler) quote(w text.Writer, r *Request, args ...string) {
+	h.replyOrQuote(w, r, args, true, func() (string, bool) {
+		return readQuery(w, r, "Reply content")
+	})
+}
+
+func (h *Handler) quoteUpload(w text.Writer, r *Request, args ...string) {
+	h.replyOrQuote(w, r, args, true, func() (string, bool) {
 		return h.readBody(w, r, args[1:])
 	})
 }

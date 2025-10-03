@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@ package front
 import (
 	"database/sql"
 	"errors"
+
 	"github.com/dimkr/tootik/front/text"
-	"github.com/dimkr/tootik/outbox"
 )
 
 func (h *Handler) unfollow(w text.Writer, r *Request, args ...string) {
@@ -35,13 +35,14 @@ func (h *Handler) unfollow(w text.Writer, r *Request, args ...string) {
 	if err := h.DB.QueryRowContext(r.Context, `select follows.id from persons join follows on persons.id = follows.followed where persons.id = ? and follows.follower = ?`, followed, r.User.ID).Scan(&followID); err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Cannot undo a non-existing follow", "followed", followed, "error", err)
 		w.Status(40, "No such follow")
+		return
 	} else if err != nil {
 		r.Log.Warn("Failed to find followed user", "followed", followed, "error", err)
 		w.Error()
 		return
 	}
 
-	if err := outbox.Unfollow(r.Context, h.Domain, h.DB, r.User.ID, followed, followID); err != nil {
+	if err := h.Inbox.Unfollow(r.Context, r.User, r.Keys[1], followed, followID); err != nil {
 		r.Log.Warn("Failed undo follow", "followed", followed, "error", err)
 		w.Error()
 		return

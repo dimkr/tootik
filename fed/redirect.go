@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,5 +23,5 @@ import (
 
 func shouldRedirect(r *http.Request) bool {
 	accept := strings.ReplaceAll(r.Header.Get("Accept"), " ", "")
-	return (accept == "text/html" || strings.HasPrefix(accept, "text/html,") || strings.HasSuffix(accept, ",text/html") || strings.Contains(accept, ",text/html,")) && !strings.Contains(accept, "application/activity+json")
+	return (accept == "text/html" || strings.HasPrefix(accept, "text/html,") || strings.HasSuffix(accept, ",text/html") || strings.Contains(accept, ",text/html,")) && !strings.Contains(accept, "application/activity+json") && !strings.Contains(accept, `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 }

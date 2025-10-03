@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,10 +18,11 @@ package test
 
 import (
 	"context"
+	"testing"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/inbox/note"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestFTS_Happyflow(t *testing.T) {
@@ -195,7 +196,7 @@ func TestFTS_SearchByMentionUserName(t *testing.T) {
 				Content:      "Hello @abc",
 				To:           to,
 				Tag: []ap.Tag{
-					ap.Tag{
+					{
 						Type: ap.Mention,
 						Name: "@abc@localhost.localdomain:8443",
 						Href: server.Bob.ID,
@@ -235,7 +236,7 @@ func TestFTS_SearchByMentionID(t *testing.T) {
 				Content:      "Hello @abc",
 				To:           to,
 				Tag: []ap.Tag{
-					ap.Tag{
+					{
 						Type: ap.Mention,
 						Name: "@abc@localhost.localdomain:8443",
 						Href: server.Bob.ID,

@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,11 +18,12 @@ package front
 
 import (
 	"context"
-	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/httpsig"
 	"io"
 	"log/slog"
 	"net/url"
+
+	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/httpsig"
 )
 
 // Request represents a request.
@@ -42,6 +43,6 @@ type Request struct {
 	// User optionally specifies a signed in user.
 	User *ap.Actor
 
-	// Key optionally specifies the signing key associated with User.
-	Key httpsig.Key
+	// Keys optionally specifies the signing keys associated with User.
+	Keys [2]httpsig.Key
 }

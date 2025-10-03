@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,12 +19,14 @@ package test
 import (
 	"context"
 	"fmt"
-	"github.com/dimkr/tootik/fed"
-	"github.com/dimkr/tootik/outbox"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/dimkr/tootik/fed"
+	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/outbox"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMove_FederatedToFederated(t *testing.T) {
@@ -33,28 +35,27 @@ func TestMove_FederatedToFederated(t *testing.T) {
 
 	assert := assert.New(t)
 
-	assert.NoError(
-		outbox.Follow(
-			context.Background(),
-			domain,
-			server.Alice,
-			"https://127.0.0.1/user/dan",
-			server.db,
-		),
-	)
-
-	_, err := server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
-	assert.NoError(err)
-
-	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+	_, err := server.db.Exec(
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://::1/user/dan"}`,
 	)
 	assert.NoError(err)
 
+	assert.NoError(
+		server.inbox.Follow(
+			context.Background(),
+			server.Alice,
+			httpsig.Key{},
+			"https://127.0.0.1/user/dan",
+		),
+	)
+
+	_, err = server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
+	assert.NoError(err)
+
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://::1/user/dan",
 		`{"id":"https://::1/user/dan","type":"Person","preferredUsername":"dan","alsoKnownAs":"https://127.0.0.1/user/dan"}`,
 	)
@@ -66,12 +67,13 @@ func TestMove_FederatedToFederated(t *testing.T) {
 		Domain:   domain,
 		DB:       server.db,
 		Resolver: resolver,
-		Key:      server.NobodyKey,
+		Keys:     server.NobodyKeys,
+		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
 	var followed int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 0) and exists (select 1 from outbox where activity->>'$.type' = 'Follow' and activity->>'$.actor' = $1 and activity->>'$.object' = $2)`, server.Alice.ID, "https://::1/user/dan").Scan(&followed))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted is null) and exists (select 1 from outbox where activity->>'$.type' = 'Follow' and activity->>'$.actor' = $1 and activity->>'$.object' = $2)`, server.Alice.ID, "https://::1/user/dan").Scan(&followed))
 	assert.Equal(1, followed)
 }
 
@@ -81,31 +83,30 @@ func TestMove_FederatedToFederatedTwoAccounts(t *testing.T) {
 
 	assert := assert.New(t)
 
-	assert.NoError(
-		outbox.Follow(
-			context.Background(),
-			domain,
-			server.Alice,
-			"https://127.0.0.1/user/dan",
-			server.db,
-		),
-	)
-
-	_, err := server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
-	assert.NoError(err)
-
-	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+	_, err := server.db.Exec(
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://::1/user/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://::1/user/dan",
 		`{"id":"https://::1/user/dan","type":"Person","preferredUsername":"dan","alsoKnownAs":["https://::1/user/dan","https://127.0.0.1/user/dan"]}`,
 	)
+	assert.NoError(err)
+
+	assert.NoError(
+		server.inbox.Follow(
+			context.Background(),
+			server.Alice,
+			httpsig.Key{},
+			"https://127.0.0.1/user/dan",
+		),
+	)
+
+	_, err = server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
 	assert.NoError(err)
 
 	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db)
@@ -114,12 +115,13 @@ func TestMove_FederatedToFederatedTwoAccounts(t *testing.T) {
 		Domain:   domain,
 		DB:       server.db,
 		Resolver: resolver,
-		Key:      server.NobodyKey,
+		Keys:     server.NobodyKeys,
+		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
 	var followed int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 0) and exists (select 1 from outbox where activity->>'$.type' = 'Follow' and activity->>'$.actor' = $1 and activity->>'$.object' = $2)`, server.Alice.ID, "https://::1/user/dan").Scan(&followed))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted is null) and exists (select 1 from outbox where activity->>'$.type' = 'Follow' and activity->>'$.actor' = $1 and activity->>'$.object' = $2)`, server.Alice.ID, "https://::1/user/dan").Scan(&followed))
 	assert.Equal(1, followed)
 }
 
@@ -129,31 +131,30 @@ func TestMove_FederatedToFederatedNotLinked(t *testing.T) {
 
 	assert := assert.New(t)
 
-	assert.NoError(
-		outbox.Follow(
-			context.Background(),
-			domain,
-			server.Alice,
-			"https://127.0.0.1/user/dan",
-			server.db,
-		),
-	)
-
-	_, err := server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
-	assert.NoError(err)
-
-	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+	_, err := server.db.Exec(
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://::1/user/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://::1/user/dan",
 		`{"id":"https://::1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
+	assert.NoError(err)
+
+	assert.NoError(
+		server.inbox.Follow(
+			context.Background(),
+			server.Alice,
+			httpsig.Key{},
+			"https://127.0.0.1/user/dan",
+		),
+	)
+
+	_, err = server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
 	assert.NoError(err)
 
 	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db)
@@ -162,12 +163,13 @@ func TestMove_FederatedToFederatedNotLinked(t *testing.T) {
 		Domain:   domain,
 		DB:       server.db,
 		Resolver: resolver,
-		Key:      server.NobodyKey,
+		Keys:     server.NobodyKeys,
+		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
 	var followed int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 0) or exists (select 1 from outbox where activity->>'$.type' = 'Follow' and activity->>'$.actor' = $1 and activity->>'$.object' = $2)`, server.Alice.ID, "https://::1/user/dan").Scan(&followed))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted is null) or exists (select 1 from outbox where activity->>'$.type' = 'Follow' and activity->>'$.actor' = $1 and activity->>'$.object' = $2)`, server.Alice.ID, "https://::1/user/dan").Scan(&followed))
 	assert.Equal(0, followed)
 }
 
@@ -177,24 +179,23 @@ func TestMove_FederatedToLocal(t *testing.T) {
 
 	assert := assert.New(t)
 
-	assert.NoError(
-		outbox.Follow(
-			context.Background(),
-			domain,
-			server.Alice,
-			"https://127.0.0.1/user/dan",
-			server.db,
-		),
-	)
-
-	_, err := server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
-	assert.NoError(err)
-
-	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+	_, err := server.db.Exec(
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://localhost.localdomain:8443/user/bob"}`,
 	)
+	assert.NoError(err)
+
+	assert.NoError(
+		server.inbox.Follow(
+			context.Background(),
+			server.Alice,
+			httpsig.Key{},
+			"https://127.0.0.1/user/dan",
+		),
+	)
+
+	_, err = server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
 	assert.NoError(err)
 
 	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db)
@@ -203,7 +204,8 @@ func TestMove_FederatedToLocal(t *testing.T) {
 		Domain:   domain,
 		DB:       server.db,
 		Resolver: resolver,
-		Key:      server.NobodyKey,
+		Keys:     server.NobodyKeys,
+		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
@@ -218,27 +220,26 @@ func TestMove_FederatedToLocalLinked(t *testing.T) {
 
 	assert := assert.New(t)
 
-	assert.NoError(
-		outbox.Follow(
-			context.Background(),
-			domain,
-			server.Alice,
-			"https://127.0.0.1/user/dan",
-			server.db,
-		),
-	)
-
-	_, err := server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
-	assert.NoError(err)
-
-	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+	_, err := server.db.Exec(
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://localhost.localdomain:8443/user/bob"}`,
 	)
 	assert.NoError(err)
 
-	_, err = server.db.Exec(`UPDATE persons SET actor = json_set(actor, '$.alsoKnownAs', $1) WHERE id = $2`, "https://127.0.0.1/user/dan", server.Bob.ID)
+	assert.NoError(
+		server.inbox.Follow(
+			context.Background(),
+			server.Alice,
+			httpsig.Key{},
+			"https://127.0.0.1/user/dan",
+		),
+	)
+
+	_, err = server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
+	assert.NoError(err)
+
+	_, err = server.db.Exec(`UPDATE persons SET actor = jsonb_set(actor, '$.alsoKnownAs', $1) WHERE id = $2`, "https://127.0.0.1/user/dan", server.Bob.ID)
 	assert.NoError(err)
 
 	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db)
@@ -247,12 +248,13 @@ func TestMove_FederatedToLocalLinked(t *testing.T) {
 		Domain:   domain,
 		DB:       server.db,
 		Resolver: resolver,
-		Key:      server.NobodyKey,
+		Keys:     server.NobodyKeys,
+		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
 	var followed int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 1) and not exists (select 1 from outbox where activity->>'$.type' = 'Follow' and activity->>'$.actor' = $1 and activity->>'$.object' = $2)`, server.Alice.ID, server.Bob.ID).Scan(&followed))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 1) and exists (select 1 from outbox where activity->>'$.type' = 'Follow' and activity->>'$.actor' = $1 and activity->>'$.object' = $2)`, server.Alice.ID, server.Bob.ID).Scan(&followed))
 	assert.Equal(1, followed)
 }
 
@@ -262,41 +264,39 @@ func TestMove_FollowingBoth(t *testing.T) {
 
 	assert := assert.New(t)
 
-	assert.NoError(
-		outbox.Follow(
-			context.Background(),
-			domain,
-			server.Alice,
-			"https://127.0.0.1/user/dan",
-			server.db,
-		),
-	)
-
-	assert.NoError(
-		outbox.Follow(
-			context.Background(),
-			domain,
-			server.Alice,
-			"https://::1/user/dan",
-			server.db,
-		),
-	)
-
-	_, err := server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
-	assert.NoError(err)
-
-	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+	_, err := server.db.Exec(
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://::1/user/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://::1/user/dan",
 		`{"id":"https://::1/user/dan","type":"Person","preferredUsername":"dan","alsoKnownAs":"https://127.0.0.1/user/dan"}`,
 	)
+	assert.NoError(err)
+
+	assert.NoError(
+		server.inbox.Follow(
+			context.Background(),
+			server.Alice,
+			httpsig.Key{},
+			"https://127.0.0.1/user/dan",
+		),
+	)
+
+	assert.NoError(
+		server.inbox.Follow(
+			context.Background(),
+			server.Alice,
+			httpsig.Key{},
+			"https://::1/user/dan",
+		),
+	)
+
+	_, err = server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
 	assert.NoError(err)
 
 	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db)
@@ -305,7 +305,8 @@ func TestMove_FollowingBoth(t *testing.T) {
 		Domain:   domain,
 		DB:       server.db,
 		Resolver: resolver,
-		Key:      server.NobodyKey,
+		Keys:     server.NobodyKeys,
+		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
@@ -331,12 +332,11 @@ func TestMove_LocalToLocal(t *testing.T) {
 	assert := assert.New(t)
 
 	assert.NoError(
-		outbox.Follow(
+		server.inbox.Follow(
 			context.Background(),
-			domain,
 			server.Carol,
+			httpsig.Key{},
 			server.Alice.ID,
-			server.db,
 		),
 	)
 
@@ -348,7 +348,7 @@ func TestMove_LocalToLocal(t *testing.T) {
 	alias = server.Handle("/users/alias?alice%40localhost.localdomain%3a8443", server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), alias)
 
-	assert.NoError(server.db.QueryRow(`select actor from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
+	assert.NoError(server.db.QueryRow(`select json(actor) from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
 
 	move := server.Handle("/users/move?bob%40localhost.localdomain%3a8443", server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), move)
@@ -359,7 +359,8 @@ func TestMove_LocalToLocal(t *testing.T) {
 		Domain:   domain,
 		DB:       server.db,
 		Resolver: resolver,
-		Key:      server.NobodyKey,
+		Keys:     server.NobodyKeys,
+		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
@@ -382,7 +383,7 @@ func TestMove_LocalToLocalNoFollowers(t *testing.T) {
 	alias = server.Handle("/users/alias?alice%40localhost.localdomain%3a8443", server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), alias)
 
-	assert.NoError(server.db.QueryRow(`select actor from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
+	assert.NoError(server.db.QueryRow(`select json(actor) from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
 
 	move := server.Handle("/users/move?bob%40localhost.localdomain%3a8443", server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), move)
@@ -393,7 +394,8 @@ func TestMove_LocalToLocalNoFollowers(t *testing.T) {
 		Domain:   domain,
 		DB:       server.db,
 		Resolver: resolver,
-		Key:      server.NobodyKey,
+		Keys:     server.NobodyKeys,
+		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
@@ -409,19 +411,18 @@ func TestMove_LocalToFederated(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/alice",
 		`{"id":"https://127.0.0.1/user/alice","type":"Person","preferredUsername":"alice","alsoKnownAs":["https://localhost.localdomain:8443/user/alice"]}`,
 	)
 	assert.NoError(err)
 
 	assert.NoError(
-		outbox.Follow(
+		server.inbox.Follow(
 			context.Background(),
-			domain,
 			server.Carol,
+			httpsig.Key{},
 			server.Alice.ID,
-			server.db,
 		),
 	)
 
@@ -430,7 +431,7 @@ func TestMove_LocalToFederated(t *testing.T) {
 	alias := server.Handle("/users/alias?alice%40127.0.0.1", server.Alice)
 	assert.Equal("30 /users/outbox/127.0.0.1/user/alice\r\n", alias)
 
-	assert.NoError(server.db.QueryRow(`select actor from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
+	assert.NoError(server.db.QueryRow(`select json(actor) from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
 
 	move := server.Handle("/users/move?alice%40127.0.0.1", server.Alice)
 	assert.Equal("30 /users/outbox/127.0.0.1/user/alice\r\n", move)
@@ -441,12 +442,13 @@ func TestMove_LocalToFederated(t *testing.T) {
 		Domain:   domain,
 		DB:       server.db,
 		Resolver: resolver,
-		Key:      server.NobodyKey,
+		Keys:     server.NobodyKeys,
+		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
 	var moved int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 0) and not exists (select 1 from follows where follower = $1 and followed = $3)`, server.Carol.ID, "https://127.0.0.1/user/alice", server.Alice.ID).Scan(&moved))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted is null) and not exists (select 1 from follows where follower = $1 and followed = $3)`, server.Carol.ID, "https://127.0.0.1/user/alice", server.Alice.ID).Scan(&moved))
 	assert.Equal(1, moved)
 }
 
@@ -457,19 +459,18 @@ func TestMove_LocalToFederatedNoSourceToTargetAlias(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/alice",
 		`{"id":"https://127.0.0.1/user/alice","type":"Person","preferredUsername":"alice","alsoKnownAs":["https://localhost.localdomain:8443/user/alice"]}`,
 	)
 	assert.NoError(err)
 
 	assert.NoError(
-		outbox.Follow(
+		server.inbox.Follow(
 			context.Background(),
-			domain,
 			server.Carol,
+			httpsig.Key{},
 			server.Alice.ID,
-			server.db,
 		),
 	)
 
@@ -486,19 +487,18 @@ func TestMove_LocalToFederatedNoTargetToSourceAlias(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/alice",
 		`{"id":"https://127.0.0.1/user/alice","type":"Person","preferredUsername":"alice","alsoKnownAs":[]}`,
 	)
 	assert.NoError(err)
 
 	assert.NoError(
-		outbox.Follow(
+		server.inbox.Follow(
 			context.Background(),
-			domain,
 			server.Carol,
+			httpsig.Key{},
 			server.Alice.ID,
-			server.db,
 		),
 	)
 
@@ -507,7 +507,7 @@ func TestMove_LocalToFederatedNoTargetToSourceAlias(t *testing.T) {
 	alias := server.Handle("/users/alias?alice%40127.0.0.1", server.Alice)
 	assert.Equal("30 /users/outbox/127.0.0.1/user/alice\r\n", alias)
 
-	assert.NoError(server.db.QueryRow(`select actor from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
+	assert.NoError(server.db.QueryRow(`select json(actor) from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
 
 	move := server.Handle("/users/move?alice%40127.0.0.1", server.Alice)
 	assert.Equal("40 https://127.0.0.1/user/alice is not an alias for https://localhost.localdomain:8443/user/alice\r\n", move)
@@ -520,19 +520,18 @@ func TestMove_LocalToFederatedAlreadyMoved(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values(?,?)`,
+		`insert into persons (id, actor) values (?, jsonb(?))`,
 		"https://127.0.0.1/user/alice",
 		`{"id":"https://127.0.0.1/user/alice","type":"Person","preferredUsername":"alice","alsoKnownAs":["https://localhost.localdomain:8443/user/alice"]}`,
 	)
 	assert.NoError(err)
 
 	assert.NoError(
-		outbox.Follow(
+		server.inbox.Follow(
 			context.Background(),
-			domain,
 			server.Carol,
+			httpsig.Key{},
 			server.Alice.ID,
-			server.db,
 		),
 	)
 
@@ -541,7 +540,7 @@ func TestMove_LocalToFederatedAlreadyMoved(t *testing.T) {
 	alias := server.Handle("/users/alias?alice%40127.0.0.1", server.Alice)
 	assert.Equal("30 /users/outbox/127.0.0.1/user/alice\r\n", alias)
 
-	assert.NoError(server.db.QueryRow(`select actor from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
+	assert.NoError(server.db.QueryRow(`select json(actor) from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
 
 	move := server.Handle("/users/move?alice%40127.0.0.1", server.Alice)
 	assert.Equal("30 /users/outbox/127.0.0.1/user/alice\r\n", move)
@@ -552,15 +551,16 @@ func TestMove_LocalToFederatedAlreadyMoved(t *testing.T) {
 		Domain:   domain,
 		DB:       server.db,
 		Resolver: resolver,
-		Key:      server.NobodyKey,
+		Keys:     server.NobodyKeys,
+		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
 
 	var moved int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted = 0) and not exists (select 1 from follows where follower = $1 and followed = $3)`, server.Carol.ID, "https://127.0.0.1/user/alice", server.Alice.ID).Scan(&moved))
+	assert.NoError(server.db.QueryRow(`select exists (select 1 from follows where follower = $1 and followed = $2 and accepted is null) and not exists (select 1 from follows where follower = $1 and followed = $3)`, server.Carol.ID, "https://127.0.0.1/user/alice", server.Alice.ID).Scan(&moved))
 	assert.Equal(1, moved)
 
-	assert.NoError(server.db.QueryRow(`select actor from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
+	assert.NoError(server.db.QueryRow(`select json(actor) from persons where id = ?`, server.Alice.ID).Scan(&server.Alice))
 
 	move = server.Handle("/users/move?alice%40%3a%3a1", server.Alice)
 	assert.Equal("40 Already moved to https://127.0.0.1/user/alice\r\n", move)

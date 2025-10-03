@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,18 +17,18 @@ limitations under the License.
 package front
 
 import (
-	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/front/text"
-	"github.com/dimkr/tootik/front/text/plain"
-	"github.com/dimkr/tootik/outbox"
 	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/front/text/plain"
+	"github.com/dimkr/tootik/inbox"
 )
 
 const (
@@ -42,12 +42,7 @@ var (
 	pollRegex    = regexp.MustCompile(`^\[(?:(?i)POLL)\s+(.+)\s*\]\s*(.+)`)
 )
 
-func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo *ap.Object, to ap.Audience, cc ap.Audience, audience string, readInput inputFunc) {
-	if r.User == nil {
-		w.Redirect("/users")
-		return
-	}
-
+func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo *ap.Object, quoteID string, to ap.Audience, cc ap.Audience, audience string, readInput inputFunc) {
 	now := ap.Time{Time: time.Now()}
 
 	if oldNote == nil {
@@ -88,7 +83,13 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 
 	var postID string
 	if oldNote == nil {
-		postID = fmt.Sprintf("https://%s/post/%x", h.Domain, sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d", r.User.ID, content, now.Unix()))))
+		var err error
+		postID, err = h.Inbox.NewID(r.User.ID, "post")
+		if err != nil {
+			r.Log.Error("Failed to generate post ID", "error", err)
+			w.Error()
+			return
+		}
 	} else {
 		postID = oldNote.ID
 	}
@@ -106,9 +107,9 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 		var actorID string
 		var err error
 		if mention[2] == "" && inReplyTo != nil {
-			err = h.DB.QueryRowContext(r.Context, `select id from (select id, case when id = $1 then 3 when id in (select followed from follows where follower = $2 and accepted = 1) then 2 when host = $3 then 1 else 0 end as score from persons where actor->>'$.preferredUsername' = $4) where score > 0 order by score desc limit 1`, inReplyTo.AttributedTo, r.User.ID, h.Domain, mention[1]).Scan(&actorID)
+			err = h.DB.QueryRowContext(r.Context, `select id from (select id, case when id = $1 then 3 when id in (select followed from follows where follower = $2 and accepted = 1) then 2 when ed25519privkey is not null then 1 else 0 end as score from persons where actor->>'$.preferredUsername' = $3) where score > 0 order by score desc limit 1`, inReplyTo.AttributedTo, r.User.ID, mention[1]).Scan(&actorID)
 		} else if mention[2] == "" && inReplyTo == nil {
-			err = h.DB.QueryRowContext(r.Context, `select id from (select id, case when host = $1 then 2 when id in (select followed from follows where follower = $2 and accepted = 1) then 1 else 0 end as score from persons where actor->>'$.preferredUsername' = $3) where score > 0 order by score desc limit 1`, h.Domain, r.User.ID, mention[1]).Scan(&actorID)
+			err = h.DB.QueryRowContext(r.Context, `select id from (select id, case when ed25519privkey is not null then 2 when id in (select followed from follows where follower = $1 and accepted = 1) then 1 else 0 end as score from persons where actor->>'$.preferredUsername' = $2) where score > 0 order by score desc limit 1`, r.User.ID, mention[1]).Scan(&actorID)
 		} else {
 			err = h.DB.QueryRowContext(r.Context, `select id from persons where actor->>'$.preferredUsername' = $1 and host = $2`, mention[1], mention[2]).Scan(&actorID)
 		}
@@ -128,6 +129,11 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 	}
 
 	note := ap.Object{
+		Context: []string{
+			"https://www.w3.org/ns/activitystreams",
+			"https://w3id.org/security/data-integrity/v1",
+			"https://w3id.org/security/v1",
+		},
 		Type:         ap.Note,
 		ID:           postID,
 		AttributedTo: r.User.ID,
@@ -137,6 +143,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 		CC:           cc,
 		Audience:     audience,
 		Tag:          tags,
+		Quote:        quoteID,
 	}
 
 	anyRecipient := false
@@ -157,7 +164,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 
 			for _, option := range options {
 				if option.Name == note.Content {
-					if inReplyTo.Closed != nil || inReplyTo.EndTime != nil && time.Now().After(inReplyTo.EndTime.Time) {
+					if inReplyTo.Closed != (ap.Time{}) || (inReplyTo.EndTime != (ap.Time{}) && time.Now().After(inReplyTo.EndTime.Time)) {
 						w.Status(40, "Cannot vote in a closed poll")
 						return
 					}
@@ -223,12 +230,15 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 
 		note.Type = ap.Question
 		note.Content = note.Content[m[2]:m[3]]
-		endTime := ap.Time{Time: time.Now().Add(h.Config.PollDuration)}
-		note.EndTime = &endTime
+		note.EndTime = ap.Time{Time: time.Now().Add(h.Config.PollDuration)}
 	}
 
 	if inReplyTo == nil || inReplyTo.Type != ap.Question {
 		note.Content = plain.ToHTML(note.Content, note.Tag)
+	}
+
+	if note.IsPublic() {
+		note.InteractionPolicy.CanQuote.AutomaticApproval.Add(ap.Public)
 	}
 
 	var err error
@@ -240,15 +250,15 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 			note.Summary = oldNote.Summary
 		}
 
-		note.Updated = &now
+		note.Updated = now
 
-		err = outbox.UpdateNote(r.Context, h.Domain, h.Config, h.DB, &note)
+		err = h.Inbox.UpdateNote(r.Context, r.User, r.Keys[1], &note)
 	} else {
-		err = outbox.Create(r.Context, h.Domain, h.Config, h.DB, &note, r.User)
+		err = h.Inbox.Create(r.Context, h.Config, &note, r.User, r.Keys[1])
 	}
 	if err != nil {
 		r.Log.Error("Failed to insert post", "error", err)
-		if errors.Is(err, outbox.ErrDeliveryQueueFull) {
+		if errors.Is(err, inbox.ErrDeliveryQueueFull) {
 			w.Status(40, "Please try again later")
 		} else {
 			w.Error()

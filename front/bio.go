@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,15 +17,53 @@ limitations under the License.
 package front
 
 import (
-	"github.com/dimkr/tootik/front/text"
-	"github.com/dimkr/tootik/front/text/plain"
-	"github.com/dimkr/tootik/outbox"
-	"strings"
+	"fmt"
 	"time"
 	"unicode/utf8"
+
+	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/front/text/plain"
 )
 
-func (h *Handler) doBio(w text.Writer, r *Request, readInput func(text.Writer, *Request) (string, bool)) {
+func (h *Handler) bio(w text.Writer, r *Request, args ...string) {
+	if r.User == nil {
+		w.Redirect("/users")
+		return
+	}
+
+	w.OK()
+
+	w.Title("📜 Bio")
+
+	if len(r.User.Summary) == 0 {
+		w.Text("Bio is empty.")
+	} else {
+		w.Text("Current bio:")
+		w.Empty()
+
+		bio, links := getTextAndLinks(r.User.Summary, -1, -1)
+
+		for _, line := range bio {
+			w.Quote(line)
+		}
+
+		for link, alt := range links.All() {
+			if alt == "" {
+				w.Link(link, link)
+			} else {
+				w.Link(link, alt)
+			}
+		}
+	}
+
+	w.Empty()
+
+	w.Link("/users/bio/set", "Set")
+	w.Link(fmt.Sprintf("titan://%s/users/bio/upload", h.Domain), "Upload")
+}
+
+func (h *Handler) doSetBio(w text.Writer, r *Request, readInput func(text.Writer, *Request) (string, bool)) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -34,62 +72,43 @@ func (h *Handler) doBio(w text.Writer, r *Request, readInput func(text.Writer, *
 	now := time.Now()
 
 	can := r.User.Published.Time.Add(h.Config.MinActorEditInterval)
-	if r.User.Updated != nil {
+	if r.User.Updated != (ap.Time{}) {
 		can = r.User.Updated.Time.Add(h.Config.MinActorEditInterval)
 	}
 	if now.Before(can) {
-		r.Log.Warn("Throttled request to set summary", "can", can)
+		r.Log.Warn("Throttled request to set bio", "can", can)
 		w.Statusf(40, "Please wait for %s", time.Until(can).Truncate(time.Second).String())
 		return
 	}
 
-	summary, ok := readInput(w, r)
+	bio, ok := readInput(w, r)
 	if !ok {
 		return
 	}
 
-	if utf8.RuneCountInString(summary) > h.Config.MaxBioLength {
-		w.Status(40, "Summary is too long")
+	if utf8.RuneCountInString(bio) > h.Config.MaxBioLength {
+		w.Status(40, "Bio is too long")
 		return
 	}
 
-	tx, err := h.DB.BeginTx(r.Context, nil)
-	if err != nil {
-		r.Log.Warn("Failed to update summary", "error", err)
-		w.Error()
-		return
-	}
-	defer tx.Rollback()
+	r.User.Summary = plain.ToHTML(bio, nil)
+	r.User.Updated.Time = now
 
-	if _, err := tx.ExecContext(
-		r.Context,
-		"update persons set actor = json_set(actor, '$.summary', $1, '$.updated', $2) where id = $3",
-		plain.ToHTML(summary, nil),
-		now.Format(time.RFC3339Nano),
-		r.User.ID,
-	); err != nil {
-		r.Log.Error("Failed to update summary", "error", err)
+	if err := h.Inbox.UpdateActor(r.Context, r.User, r.Keys[1]); err != nil {
+		r.Log.Error("Failed to update bio", "error", err)
 		w.Error()
 		return
 	}
 
-	if err := outbox.UpdateActor(r.Context, h.Domain, tx, r.User.ID); err != nil {
-		r.Log.Error("Failed to update summary", "error", err)
-		w.Error()
-		return
+	if r.URL.Scheme == "titan" {
+		w.Redirectf("gemini://%s/users/bio", h.Domain)
+	} else {
+		w.Redirect("/users/bio")
 	}
-
-	if err := tx.Commit(); err != nil {
-		r.Log.Error("Failed to update summary", "error", err)
-		w.Error()
-		return
-	}
-
-	w.Redirect("/users/outbox/" + strings.TrimPrefix(r.User.ID, "https://"))
 }
 
-func (h *Handler) bio(w text.Writer, r *Request, args ...string) {
-	h.doBio(
+func (h *Handler) setBio(w text.Writer, r *Request, args ...string) {
+	h.doSetBio(
 		w,
 		r,
 		func(w text.Writer, r *Request) (string, bool) {
@@ -99,7 +118,7 @@ func (h *Handler) bio(w text.Writer, r *Request, args ...string) {
 }
 
 func (h *Handler) uploadBio(w text.Writer, r *Request, args ...string) {
-	h.doBio(
+	h.doSetBio(
 		w,
 		r,
 		func(w text.Writer, r *Request) (string, bool) {

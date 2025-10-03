@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,13 +25,11 @@ import (
 	"strings"
 )
 
-func (l *Listener) handleUser(w http.ResponseWriter, r *http.Request) {
-	name := r.PathValue("username")
-
+func (l *Listener) doHandleUser(w http.ResponseWriter, r *http.Request, name string) {
 	slog.Info("Looking up user", "name", name)
 
 	var actorID, actorString string
-	if err := l.DB.QueryRowContext(r.Context(), `select id, actor from persons where actor->>'$.preferredUsername' = ? and host = ?`, name, l.Domain).Scan(&actorID, &actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := l.DB.QueryRowContext(r.Context(), `select id, json(actor) from persons where actor->>'$.preferredUsername' = ? and host = ?`, name, l.Domain).Scan(&actorID, &actorString); err != nil && errors.Is(err, sql.ErrNoRows) {
 		slog.Info("Notifying about deleted user", "name", name)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -51,4 +49,8 @@ func (l *Listener) handleUser(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", `application/activity+json; charset=utf-8`)
 	w.Write([]byte(actorString))
+}
+
+func (l *Listener) handleUser(w http.ResponseWriter, r *http.Request) {
+	l.doHandleUser(w, r, r.PathValue("username"))
 }

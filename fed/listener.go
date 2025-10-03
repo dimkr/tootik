@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,9 +21,6 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"errors"
-	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/httpsig"
-	"github.com/fsnotify/fsnotify"
 	"log/slog"
 	"math"
 	"net"
@@ -31,33 +28,43 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/httpsig"
+	"github.com/fsnotify/fsnotify"
 )
 
 type Listener struct {
-	Domain   string
-	Closed   bool
-	Config   *cfg.Config
-	DB       *sql.DB
-	Resolver *Resolver
-	ActorKey httpsig.Key
-	Addr     string
-	Cert     string
-	Key      string
-	Plain    bool
+	Domain    string
+	Closed    bool
+	Config    *cfg.Config
+	DB        *sql.DB
+	Resolver  *Resolver
+	ActorKeys [2]httpsig.Key
+	Addr      string
+	Cert      string
+	Key       string
+	Plain     bool
+	BlockList *BlockList
 }
 
 const certReloadDelay = time.Second * 5
 
-// ListenAndServe handles HTTP requests from other servers.
-func (l *Listener) ListenAndServe(ctx context.Context) error {
+// NewHandler returns a [http.Handler] that handles ActivityPub requests.
+func (l *Listener) NewHandler() (http.Handler, error) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /robots.txt", robots)
 	mux.HandleFunc("GET /.well-known/webfinger", l.handleWebFinger)
+	mux.HandleFunc("GET /.well-known/apgateway/{resource...}", l.handleAPGatewayGet)
+	mux.HandleFunc("POST /.well-known/apgateway/{resource...}", l.handleAPGatewayPost)
 	mux.HandleFunc("GET /user/{username}", l.handleUser)
 	mux.HandleFunc("GET /icon/{username}", l.handleIcon)
 	mux.HandleFunc("POST /inbox/{username}", l.handleInbox)
+	mux.HandleFunc("POST /inbox", l.handleSharedInbox) // PieFed falls back https://$domain/inbox if it can't fetch instance actor
 	mux.HandleFunc("GET /outbox/{username}", l.handleOutbox)
 	mux.HandleFunc("GET /post/{hash}", l.handlePost)
+	mux.HandleFunc("GET /create/{hash}", l.handleCreate)
+	mux.HandleFunc("GET /update/{hash}", l.handleUpdate)
 	mux.HandleFunc("GET /followers_synchronization/{username}", l.handleFollowers)
 	mux.HandleFunc("GET /{$}", l.handleIndex)
 
@@ -66,11 +73,21 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 		w.WriteHeader(http.StatusNotFound)
 	})
 
-	if err := addNodeInfo(mux, l.Domain, l.Closed); err != nil {
-		return err
+	if err := addNodeInfo(mux, l.Domain, l.Closed, l.Config, l.DB); err != nil {
+		return nil, err
 	}
 
 	addHostMeta(mux, l.Domain)
+
+	return mux, nil
+}
+
+// ListenAndServe handles HTTP requests from other servers.
+func (l *Listener) ListenAndServe(ctx context.Context) error {
+	mux, err := l.NewHandler()
+	if err != nil {
+		return err
+	}
 
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -112,8 +129,7 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 			},
 		}
 
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			<-serverCtx.Done()
 
 			// shut down gracefully only on reload
@@ -123,16 +139,12 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 			}
 
 			server.Close()
-			wg.Done()
-		}()
+		})
 
 		timer := time.NewTimer(math.MaxInt64)
 		timer.Stop()
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
+		wg.Go(func() {
 			for {
 				select {
 				case <-serverCtx.Done():
@@ -155,7 +167,7 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 				case <-w.Errors:
 				}
 			}
-		}()
+		})
 
 		slog.Info("Starting server")
 		var err error

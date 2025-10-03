@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,13 +17,14 @@ limitations under the License.
 package front
 
 import (
-	"github.com/dimkr/tootik/front/text"
-	"github.com/dimkr/tootik/front/text/plain"
-	"github.com/dimkr/tootik/outbox"
 	"net/url"
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/front/text/plain"
 )
 
 func (h *Handler) name(w text.Writer, r *Request, args ...string) {
@@ -32,10 +33,31 @@ func (h *Handler) name(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
+	w.OK()
+
+	w.Title("📛 Display name")
+
+	if len(r.User.Name) == 0 {
+		w.Text("Display name is not set.")
+	} else {
+		w.Textf("Current display name: %s.", r.User.Name)
+	}
+
+	w.Empty()
+
+	w.Link("/users/name/set", "Set")
+}
+
+func (h *Handler) setName(w text.Writer, r *Request, args ...string) {
+	if r.User == nil {
+		w.Redirect("/users")
+		return
+	}
+
 	now := time.Now()
 
 	can := r.User.Published.Time.Add(h.Config.MinActorEditInterval)
-	if r.User.Updated != nil {
+	if r.User.Updated != (ap.Time{}) {
 		can = r.User.Updated.Time.Add(h.Config.MinActorEditInterval)
 	}
 	if now.Before(can) {
@@ -67,37 +89,14 @@ func (h *Handler) name(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	tx, err := h.DB.BeginTx(r.Context, nil)
-	if err != nil {
-		r.Log.Warn("Failed to update name", "error", err)
-		w.Error()
-		return
-	}
-	defer tx.Rollback()
+	r.User.Name = plainDisplayName
+	r.User.Updated.Time = now
 
-	if _, err := tx.ExecContext(
-		r.Context,
-		"update persons set actor = json_set(actor, '$.name', $1, '$.updated', $2) where id = $3",
-		plainDisplayName,
-		now.Format(time.RFC3339Nano),
-		r.User.ID,
-	); err != nil {
+	if err := h.Inbox.UpdateActor(r.Context, r.User, r.Keys[1]); err != nil {
 		r.Log.Error("Failed to update name", "error", err)
 		w.Error()
 		return
 	}
 
-	if err := outbox.UpdateActor(r.Context, h.Domain, tx, r.User.ID); err != nil {
-		r.Log.Error("Failed to update name", "error", err)
-		w.Error()
-		return
-	}
-
-	if err := tx.Commit(); err != nil {
-		r.Log.Error("Failed to update name", "error", err)
-		w.Error()
-		return
-	}
-
-	w.Redirect("/users/outbox/" + strings.TrimPrefix(r.User.ID, "https://"))
+	w.Redirect("/users/name")
 }

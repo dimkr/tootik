@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,15 +20,16 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"io"
+	"net/http"
+	"os"
+	"testing"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front/user"
 	"github.com/dimkr/tootik/migrations"
 	"github.com/stretchr/testify/assert"
-	"io"
-	"net/http"
-	"os"
-	"testing"
 )
 
 func TestDeliver_TwoUsersTwoPosts(t *testing.T) {
@@ -51,13 +52,7 @@ func TestDeliver_TwoUsersTwoPosts(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
-			},
-		},
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/dan": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -67,10 +62,10 @@ func TestDeliver_TwoUsersTwoPosts(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
 	assert.NoError(err)
 
-	bob, _, err := user.Create(context.Background(), "localhost.localdomain", db, "bob", ap.Person, nil)
+	bob, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "bob", ap.Person, nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -114,7 +109,8 @@ func TestDeliver_TwoUsersTwoPosts(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(q.process(context.Background()))
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/2","type":"Create","actor":"https://localhost.localdomain/user/bob","object":{"id":"https://localhost.localdomain/note/2","type":"Note","attributedTo":"https://localhost.localdomain/user/bob","content":"bye","inReplyTo":"https://localhost.localdomain/note/1","to":["https://localhost.localdomain/user/alice","https://localhost.localdomain/followers/bob"],"cc":[]},"to":["https://localhost.localdomain/user/alice","https://localhost.localdomain/followers/bob"],"cc":[]}`
@@ -127,7 +123,7 @@ func TestDeliver_TwoUsersTwoPosts(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/erin": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -135,7 +131,8 @@ func TestDeliver_TwoUsersTwoPosts(t *testing.T) {
 		},
 	}
 
-	assert.NoError(q.process(context.Background()))
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
 	assert.Empty(client.Data)
 }
 
@@ -159,13 +156,7 @@ func TestDeliver_ForwardedPost(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
-			},
-		},
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/dan": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -175,10 +166,10 @@ func TestDeliver_ForwardedPost(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
 	assert.NoError(err)
 
-	bob, _, err := user.Create(context.Background(), "localhost.localdomain", db, "bob", ap.Person, nil)
+	bob, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "bob", ap.Person, nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -222,7 +213,8 @@ func TestDeliver_ForwardedPost(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(q.process(context.Background()))
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	_, err = db.Exec(
@@ -232,7 +224,8 @@ func TestDeliver_ForwardedPost(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(q.process(context.Background()))
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
 	assert.Empty(client.Data)
 }
 
@@ -256,13 +249,13 @@ func TestDeliver_OneFailed(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/dan": testResponse{
+		"https://ip6-allnodes/inbox/dan": {
 			Response: &http.Response{
 				StatusCode: http.StatusInternalServerError,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/erin": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -272,10 +265,10 @@ func TestDeliver_OneFailed(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
 	assert.NoError(err)
 
-	bob, _, err := user.Create(context.Background(), "localhost.localdomain", db, "bob", ap.Person, nil)
+	bob, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "bob", ap.Person, nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -319,7 +312,17 @@ func TestDeliver_OneFailed(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(q.process(context.Background()))
+	client.Data = map[string]testResponse{
+		"https://ip6-allnodes/inbox/dan": {
+			Response: &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
+			},
+		},
+	}
+
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/2","type":"Create","actor":"https://localhost.localdomain/user/bob","object":{"id":"https://localhost.localdomain/note/2","type":"Note","attributedTo":"https://localhost.localdomain/user/bob","content":"bye","inReplyTo":"https://localhost.localdomain/note/1","to":["https://localhost.localdomain/user/alice","https://localhost.localdomain/followers/bob"],"cc":[]},"to":["https://localhost.localdomain/user/alice","https://localhost.localdomain/followers/bob"],"cc":[]}`
@@ -332,7 +335,7 @@ func TestDeliver_OneFailed(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/erin": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -340,7 +343,8 @@ func TestDeliver_OneFailed(t *testing.T) {
 		},
 	}
 
-	assert.NoError(q.process(context.Background()))
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
 	assert.Empty(client.Data)
 }
 
@@ -364,15 +368,9 @@ func TestDeliver_OneFailedRetry(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/dan": testResponse{
+		"https://ip6-allnodes/inbox/dan": {
 			Response: &http.Response{
 				StatusCode: http.StatusInternalServerError,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
-			},
-		},
-		"https://ip6-allnodes/inbox/erin": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
@@ -380,7 +378,7 @@ func TestDeliver_OneFailedRetry(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -421,13 +419,8 @@ func TestDeliver_OneFailedRetry(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(q.process(context.Background()))
-	assert.Empty(client.Data)
-
-	cfg.DeliveryRetryInterval = 0
-
 	client.Data = map[string]testResponse{
-		"https://ip6-allnodes/inbox/dan": testResponse{
+		"https://ip6-allnodes/inbox/dan": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -435,10 +428,17 @@ func TestDeliver_OneFailedRetry(t *testing.T) {
 		},
 	}
 
-	assert.NoError(q.process(context.Background()))
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
 	assert.Empty(client.Data)
 
-	assert.NoError(q.process(context.Background()))
+	cfg.DeliveryRetryInterval = 0
+
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
+
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
 }
 
 func TestDeliver_OneInvalidURLRetry(t *testing.T) {
@@ -461,7 +461,7 @@ func TestDeliver_OneInvalidURLRetry(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/erin": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -471,7 +471,7 @@ func TestDeliver_OneInvalidURLRetry(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -512,17 +512,20 @@ func TestDeliver_OneInvalidURLRetry(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(q.process(context.Background()))
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	cfg.DeliveryRetryInterval = 0
 
 	client.Data = map[string]testResponse{}
 
-	assert.NoError(q.process(context.Background()))
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
 	assert.Empty(client.Data)
 
-	assert.NoError(q.process(context.Background()))
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
 }
 
 func TestDeliver_MaxAttempts(t *testing.T) {
@@ -545,13 +548,13 @@ func TestDeliver_MaxAttempts(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/dan": testResponse{
+		"https://ip6-allnodes/inbox/dan": {
 			Response: &http.Response{
 				StatusCode: http.StatusInternalServerError,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/erin": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -561,7 +564,7 @@ func TestDeliver_MaxAttempts(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -602,25 +605,27 @@ func TestDeliver_MaxAttempts(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(q.process(context.Background()))
-	assert.Empty(client.Data)
-
-	cfg.DeliveryRetryInterval = 0
-	cfg.MaxDeliveryAttempts = 2
-
 	client.Data = map[string]testResponse{
-		"https://ip6-allnodes/inbox/dan": testResponse{
+		"https://ip6-allnodes/inbox/dan": {
 			Response: &http.Response{
-				StatusCode: http.StatusInternalServerError,
+				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
 	}
 
-	assert.NoError(q.process(context.Background()))
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
 	assert.Empty(client.Data)
 
-	assert.NoError(q.process(context.Background()))
+	cfg.DeliveryRetryInterval = 0
+	cfg.MaxDeliveryAttempts = 2
+
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
+
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
 }
 
 func TestDeliver_SharedInbox(t *testing.T) {
@@ -643,13 +648,7 @@ func TestDeliver_SharedInbox(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/nobody": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
-			},
-		},
-		"https://ip6-allnodes/inbox/frank": testResponse{
+		"https://ip6-allnodes/inbox/nobody": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -659,7 +658,7 @@ func TestDeliver_SharedInbox(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -710,7 +709,8 @@ func TestDeliver_SharedInbox(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(q.process(context.Background()))
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
 	assert.Empty(client.Data)
 }
 
@@ -734,15 +734,9 @@ func TestDeliver_SharedInboxRetry(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/nobody": testResponse{
+		"https://ip6-allnodes/inbox/nobody": {
 			Response: &http.Response{
 				StatusCode: http.StatusInternalServerError,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
-			},
-		},
-		"https://ip6-allnodes/inbox/frank": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 			},
 		},
@@ -750,7 +744,7 @@ func TestDeliver_SharedInboxRetry(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -801,13 +795,8 @@ func TestDeliver_SharedInboxRetry(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(q.process(context.Background()))
-	assert.Empty(client.Data)
-
-	cfg.DeliveryRetryInterval = 0
-
 	client.Data = map[string]testResponse{
-		"https://ip6-allnodes/inbox/nobody": testResponse{
+		"https://ip6-allnodes/inbox/nobody": {
 			Response: &http.Response{
 				StatusCode: http.StatusInternalServerError,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -815,8 +804,23 @@ func TestDeliver_SharedInboxRetry(t *testing.T) {
 		},
 	}
 
-	assert.NoError(q.process(context.Background()))
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
 	assert.Empty(client.Data)
+
+	cfg.DeliveryRetryInterval = 0
+
+	client.Data = map[string]testResponse{
+		"https://ip6-allnodes/inbox/nobody": {
+			Response: &http.Response{
+				StatusCode: http.StatusInternalServerError,
+				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
+			},
+		},
+	}
+
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
 }
 
 func TestDeliver_SharedInboxUnknownActor(t *testing.T) {
@@ -839,13 +843,7 @@ func TestDeliver_SharedInboxUnknownActor(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/nobody": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
-			},
-		},
-		"https://ip6-allnodes/inbox/frank": testResponse{
+		"https://ip6-allnodes/inbox/nobody": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -855,7 +853,7 @@ func TestDeliver_SharedInboxUnknownActor(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -899,14 +897,16 @@ func TestDeliver_SharedInboxUnknownActor(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(q.process(context.Background()))
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	cfg.DeliveryRetryInterval = 0
 
 	client.Data = map[string]testResponse{}
 
-	assert.NoError(q.process(context.Background()))
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
 	assert.Empty(client.Data)
 }
 
@@ -931,13 +931,7 @@ func TestDeliver_SharedInboxSingleWorker(t *testing.T) {
 	cfg.DeliveryWorkers = 1
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/nobody": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
-			},
-		},
-		"https://ip6-allnodes/inbox/frank": testResponse{
+		"https://ip6-allnodes/inbox/nobody": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -947,7 +941,7 @@ func TestDeliver_SharedInboxSingleWorker(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -998,7 +992,8 @@ func TestDeliver_SharedInboxSingleWorker(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(q.process(context.Background()))
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
 	assert.Empty(client.Data)
 }
 
@@ -1022,13 +1017,7 @@ func TestDeliver_SameInbox(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
-			},
-		},
-		"https://ip6-allnodes/inbox/frank": testResponse{
+		"https://ip6-allnodes/inbox/dan": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -1038,7 +1027,7 @@ func TestDeliver_SameInbox(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -1089,7 +1078,8 @@ func TestDeliver_SameInbox(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(q.process(context.Background()))
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
 	assert.Empty(client.Data)
 }
 
@@ -1113,13 +1103,7 @@ func TestDeliver_ToAndCCDuplicates(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
-			},
-		},
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/dan": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -1129,10 +1113,10 @@ func TestDeliver_ToAndCCDuplicates(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
 	assert.NoError(err)
 
-	bob, _, err := user.Create(context.Background(), "localhost.localdomain", db, "bob", ap.Person, nil)
+	bob, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "bob", ap.Person, nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -1176,7 +1160,8 @@ func TestDeliver_ToAndCCDuplicates(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(q.process(context.Background()))
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/2","type":"Create","actor":"https://localhost.localdomain/user/bob","object":{"id":"https://localhost.localdomain/note/2","type":"Note","attributedTo":"https://localhost.localdomain/user/bob","content":"bye","inReplyTo":"https://localhost.localdomain/note/1","to":["https://localhost.localdomain/user/alice","https://localhost.localdomain/followers/bob"],"cc":[]},"to":["https://localhost.localdomain/user/alice","https://localhost.localdomain/followers/bob"],"cc":[]}`
@@ -1189,7 +1174,7 @@ func TestDeliver_ToAndCCDuplicates(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/erin": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -1197,7 +1182,8 @@ func TestDeliver_ToAndCCDuplicates(t *testing.T) {
 		},
 	}
 
-	assert.NoError(q.process(context.Background()))
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
 	assert.Empty(client.Data)
 }
 
@@ -1221,13 +1207,7 @@ func TestDeliver_PublicInTo(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
-			},
-		},
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/dan": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -1237,10 +1217,10 @@ func TestDeliver_PublicInTo(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
 	assert.NoError(err)
 
-	bob, _, err := user.Create(context.Background(), "localhost.localdomain", db, "bob", ap.Person, nil)
+	bob, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "bob", ap.Person, nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -1284,7 +1264,8 @@ func TestDeliver_PublicInTo(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(q.process(context.Background()))
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/2","type":"Create","actor":"https://localhost.localdomain/user/bob","object":{"id":"https://localhost.localdomain/note/2","type":"Note","attributedTo":"https://localhost.localdomain/user/bob","content":"bye","inReplyTo":"https://localhost.localdomain/note/1","to":["https://localhost.localdomain/user/alice","https://localhost.localdomain/followers/bob"],"cc":[]},"to":["https://localhost.localdomain/user/alice","https://localhost.localdomain/followers/bob"],"cc":[]}`
@@ -1297,7 +1278,7 @@ func TestDeliver_PublicInTo(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/erin": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -1305,7 +1286,8 @@ func TestDeliver_PublicInTo(t *testing.T) {
 		},
 	}
 
-	assert.NoError(q.process(context.Background()))
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
 	assert.Empty(client.Data)
 }
 
@@ -1329,13 +1311,7 @@ func TestDeliver_AuthorInTo(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://ip6-allnodes/inbox/dan": testResponse{
-			Response: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
-			},
-		},
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/dan": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -1345,10 +1321,10 @@ func TestDeliver_AuthorInTo(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
 	assert.NoError(err)
 
-	bob, _, err := user.Create(context.Background(), "localhost.localdomain", db, "bob", ap.Person, nil)
+	bob, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "bob", ap.Person, nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -1392,7 +1368,8 @@ func TestDeliver_AuthorInTo(t *testing.T) {
 	)
 	assert.NoError(err)
 
-	assert.NoError(q.process(context.Background()))
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	reply := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://localhost.localdomain/create/2","type":"Create","actor":"https://localhost.localdomain/user/bob","object":{"id":"https://localhost.localdomain/note/2","type":"Note","attributedTo":"https://localhost.localdomain/user/bob","content":"bye","inReplyTo":"https://localhost.localdomain/note/1","to":["https://localhost.localdomain/user/bob","https://localhost.localdomain/followers/bob"],"cc":[]},"to":["https://localhost.localdomain/user/bob","https://localhost.localdomain/followers/bob"],"cc":[]}`
@@ -1405,7 +1382,7 @@ func TestDeliver_AuthorInTo(t *testing.T) {
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
-		"https://ip6-allnodes/inbox/erin": testResponse{
+		"https://ip6-allnodes/inbox/erin": {
 			Response: &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
@@ -1413,6 +1390,7 @@ func TestDeliver_AuthorInTo(t *testing.T) {
 		},
 	}
 
-	assert.NoError(q.process(context.Background()))
+	_, err = q.ProcessBatch(context.Background())
+	assert.NoError(err)
 	assert.Empty(client.Data)
 }

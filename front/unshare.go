@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024, 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,9 +19,9 @@ package front
 import (
 	"database/sql"
 	"errors"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
-	"github.com/dimkr/tootik/outbox"
 )
 
 func (h *Handler) unshare(w text.Writer, r *Request, args ...string) {
@@ -33,7 +33,7 @@ func (h *Handler) unshare(w text.Writer, r *Request, args ...string) {
 	postID := "https://" + args[1]
 
 	var share ap.Activity
-	if err := h.DB.QueryRowContext(r.Context, `select activity from outbox where activity->>'$.actor' = $1 and sender = $1 and activity->>'$.type' = 'Announce' and activity->>'$.object' = $2`, r.User.ID, postID).Scan(&share); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := h.DB.QueryRowContext(r.Context, `select json(activity) from outbox where activity->>'$.actor' = $1 and sender = $1 and activity->>'$.type' = 'Announce' and activity->>'$.object' = $2`, r.User.ID, postID).Scan(&share); err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Attempted to unshare non-existing share", "post", postID, "error", err)
 		w.Error()
 		return
@@ -43,7 +43,7 @@ func (h *Handler) unshare(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := outbox.Undo(r.Context, h.Domain, h.DB, &share); err != nil {
+	if err := h.Inbox.Undo(r.Context, r.User, r.Keys[1], &share); err != nil {
 		r.Log.Warn("Failed to unshare post", "post", postID, "error", err)
 		w.Error()
 		return

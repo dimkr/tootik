@@ -1,0 +1,89 @@
+/*
+Copyright 2023 - 2025 Dima Krasner
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package inbox
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/proof"
+)
+
+func (inbox *Inbox) move(ctx context.Context, from *ap.Actor, key httpsig.Key, to string) error {
+	aud := ap.Audience{}
+	aud.Add(from.Followers)
+
+	id, err := inbox.NewID(from.ID, "move")
+	if err != nil {
+		return err
+	}
+
+	move := &ap.Activity{
+		Context: []string{
+			"https://www.w3.org/ns/activitystreams",
+			"https://w3id.org/security/data-integrity/v1",
+			"https://w3id.org/security/v1",
+		},
+		ID:     id,
+		Actor:  from.ID,
+		Type:   ap.Move,
+		Object: from.ID,
+		Target: to,
+		To:     aud,
+	}
+
+	if !inbox.Config.DisableIntegrityProofs {
+		if move.Proof, err = proof.Create(key, move); err != nil {
+			return err
+		}
+	}
+
+	tx, err := inbox.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	from.MovedTo = to
+	from.Updated.Time = time.Now()
+	if err := inbox.UpdateActorTx(ctx, tx, from, key); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`insert into outbox (activity, sender) values (jsonb(?), ?)`,
+		move,
+		from.ID,
+	); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+// Move queues a Move activity for delivery.
+func (inbox *Inbox) Move(ctx context.Context, from *ap.Actor, key httpsig.Key, to string) error {
+	if err := inbox.move(ctx, from, key, to); err != nil {
+		return fmt.Errorf("failed to move %s to %s: %w", from.ID, to, err)
+	}
+
+	return nil
+}
