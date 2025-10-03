@@ -58,7 +58,8 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 		order by
 			g.inserted/(24*60*60) desc,
 			g.inserted desc,
-			follows.inserted desc
+			follows.inserted desc,
+			follows.followed desc
 		`,
 		r.User.ID,
 	)
