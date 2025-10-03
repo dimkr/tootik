@@ -204,10 +204,9 @@ func main() {
 	}
 
 	localInbox := &inbox.Inbox{
-		Domain:    *domain,
-		Config:    &cfg,
-		BlockList: blockList,
-		DB:        db,
+		Domain: *domain,
+		Config: &cfg,
+		DB:     db,
 	}
 
 	switch cmd {
@@ -342,6 +341,7 @@ func main() {
 				Cert:      *cert,
 				Key:       *key,
 				Plain:     *plain,
+				BlockList: blockList,
 			},
 		},
 		{

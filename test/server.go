@@ -100,10 +100,9 @@ func newTestServer() *server {
 	}
 
 	localInbox := &inbox.Inbox{
-		Domain:    domain,
-		Config:    &cfg,
-		BlockList: &fed.BlockList{},
-		DB:        db,
+		Domain: domain,
+		Config: &cfg,
+		DB:     db,
 	}
 
 	resolver := fed.NewResolver(nil, domain, &cfg, &http.Client{}, db)

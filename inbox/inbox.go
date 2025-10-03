@@ -30,16 +30,14 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
-	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/inbox/note"
 )
 
 type Inbox struct {
-	Domain    string
-	Config    *cfg.Config
-	BlockList *fed.BlockList
-	DB        *sql.DB
+	Domain string
+	Config *cfg.Config
+	DB     *sql.DB
 }
 
 var ErrActivityTooNested = errors.New("exceeded activity depth limit")
@@ -52,10 +50,6 @@ func (inbox *Inbox) processCreateActivity(ctx context.Context, tx *sql.Tx, sende
 
 	if !data.IsIDValid(u) {
 		return fmt.Errorf("received invalid post ID: %s", post.ID)
-	}
-
-	if inbox.BlockList != nil && inbox.BlockList.Contains(u.Host) {
-		return fmt.Errorf("ignoring post %s: %w", post.ID, fed.ErrBlockedDomain)
 	}
 
 	if len(post.To.OrderedMap)+len(post.CC.OrderedMap) > inbox.Config.MaxRecipients {
