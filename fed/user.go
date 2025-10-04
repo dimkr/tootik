@@ -54,3 +54,7 @@ func (l *Listener) doHandleUser(w http.ResponseWriter, r *http.Request, name str
 func (l *Listener) handleUser(w http.ResponseWriter, r *http.Request) {
 	l.doHandleUser(w, r, r.PathValue("username"))
 }
+
+func (l *Listener) handleActor(w http.ResponseWriter, r *http.Request) {
+	l.doHandleUser(w, r, "nobody")
+}

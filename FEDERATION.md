@@ -59,18 +59,36 @@ By default, tootik uses `draft-cavage-http-signatures` when it signs outgoing re
 
 tootik creates a special user named `nobody`, which acts as an [Application Actor](https://codeberg.org/fediverse/fep/src/branch/main/fep/2677/fep-2677.md). Its key is used to sign outgoing requests not initiated by a particular user.
 
-This user can be discovered using [WebFinger](https://www.rfc-editor.org/rfc/rfc7033), just like any other user:
+There are multiple ways to "discover" this actor:
 
-	https://example.org/.well-known/webfinger?resource=acct:nobody@example.org
+1. Using [WebFinger](https://www.rfc-editor.org/rfc/rfc7033), just like any other user:
 
-For compatibility with servers that allow discovery of the Application Actor, the domain is an alias of `nobody`:
+```sh
+curl https://example.org/.well-known/webfinger?resource=acct:nobody@example.org
+```
 
-	https://example.org/.well-known/webfinger?resource=acct:example.org@example.org
+2. For compatibility with servers that allow discovery of the Application Actor, the domain is an alias of `nobody`:
 
-In addition, [for compatibility with PieFed](https://codeberg.org/rimu/pyfedi/src/commit/452375fa17b7e5c89a5808eef168f528a47e52fe/app/activitypub/util.py#L1643), it can be fetched from / if `Accept` is `application/activity+json` or `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`:
+```sh
+curl https://example.org/.well-known/webfinger?resource=acct:example.org@example.org
+```
+
+3. [For compatibility with PieFed](https://codeberg.org/rimu/pyfedi/src/commit/452375fa17b7e5c89a5808eef168f528a47e52fe/app/activitypub/util.py#L1643), it can be fetched from / if `Accept` is `application/activity+json` or `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`:
 
 ```sh
 curl -H "accept: application/activity+json" https://example.org
+```
+
+4. `/actor` returns the Application Actor, for compatibility with servers that do this and assume that other servers do the same
+
+```sh
+curl https://example.org/actor
+```
+
+5. The `links` array returned by `/.well-known/nodeinfo` links to `nobody`, as [FEP-2677](https://codeberg.org/fediverse/fep/src/branch/main/fep/2677/fep-2677.md) requires
+
+```sh
+curl https://example.org/.well-known/nodeinfo
 ```
 
 The `sharedInbox` of non-portable actors points to `nobody`'s inbox, to reduce the number of requests from servers that deduplicate outgoing requests by `sharedInbox` during wide delivery of posts.

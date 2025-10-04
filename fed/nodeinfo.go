@@ -75,6 +75,10 @@ func addNodeInfo(mux *http.ServeMux, domain string, closed bool, cfg *cfg.Config
 				"rel":  "http://nodeinfo.diaspora.software/ns/schema/2.0",
 				"href": fmt.Sprintf("https://%s/nodeinfo/2.0", domain),
 			},
+			{
+				"rel":  "https://www.w3.org/ns/activitystreams#Application",
+				"href": fmt.Sprintf("https://%s/user/nobody", domain),
+			},
 		},
 	}); err != nil {
 		return err

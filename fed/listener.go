@@ -58,6 +58,7 @@ func (l *Listener) NewHandler() (http.Handler, error) {
 	mux.HandleFunc("GET /.well-known/apgateway/{resource...}", l.handleAPGatewayGet)
 	mux.HandleFunc("POST /.well-known/apgateway/{resource...}", l.handleAPGatewayPost)
 	mux.HandleFunc("GET /user/{username}", l.handleUser)
+	mux.HandleFunc("GET /actor", l.handleActor)
 	mux.HandleFunc("GET /icon/{username}", l.handleIcon)
 	mux.HandleFunc("POST /inbox/{username}", l.handleInbox)
 	mux.HandleFunc("POST /inbox", l.handleSharedInbox) // PieFed falls back https://$domain/inbox if it can't fetch instance actor
