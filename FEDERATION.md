@@ -116,11 +116,11 @@ By default, tootik returns 0 in user and post counters unless `FillNodeInfoUsage
 tootik partially supports [FEP-ef61](https://codeberg.org/fediverse/fep/src/branch/main/fep/ef61/fep-ef61.md) portable actors, activities and objects.
 
 If
-* `alice@a.localdomain` is `https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor`
-* `bob@b.localdomain` is `https://b.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor`
-* and `carol@c.localdomain` is `https://c.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor`
+* `alice@a.localdomain` is `https://a.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor`
+* `bob@b.localdomain` is `https://b.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor`
+* and `carol@c.localdomain` is `https://c.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor`
 
-then tootik canonicalizes all three to `ap://did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor` and in some cases, allows one of them to operate on objects and activities "owned" by another. However, tootik is still primarily based on the 'classical mechanics' of `https://` URLs as IDs, and most "actor x is allowed to operate on object/activity y" checks are done using a strict `==` check.
+then tootik canonicalizes all three to `ap://did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor` and in some cases, allows one of them to operate on objects and activities "owned" by another. However, tootik is still primarily based on the 'classical mechanics' of `https://` URLs as IDs, and most "actor x is allowed to operate on object/activity y" checks are done using a strict `==` check.
 
 Support for data portability comes into play in 5 main areas:
 * Registration
@@ -152,7 +152,7 @@ The response points to a `https://` gateway that returns the actor object:
 		"links": [
 			{
 				...
-				"href": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor",
+				"href": "https://a.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor",
 			}
 		]
 	}
@@ -163,41 +163,43 @@ The response points to a `https://` gateway that returns the actor object:
 {
     "@context": [
         "https://www.w3.org/ns/activitystreams",
-        "https://w3id.org/security/data-integrity/v1"
+        "https://w3id.org/security/data-integrity/v1",
+        "https://w3id.org/security/v1"
     ],
-    "id": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor",
+    "id": "https://a.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor",
     "type": "Person",
     "preferredUsername": "alice",
-    "inbox": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor/inbox",
-    "outbox": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor/outbox",
-    "followers": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor/followers",
+    "inbox": "https://a.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor/inbox",
+    "outbox": "https://a.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor/outbox",
+    "followers": "https://a.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor/followers",
     "gateways": [
         "https://a.localdomain"
     ],
     "assertionMethod": [
         {
-            "controller": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor",
-            "id": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor#ed25519-key",
-            "publicKeyMultibase": "z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN",
+            "controller": "https://a.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor",
+            "id": "https://a.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor#ed25519-key",
+            "publicKeyMultibase": "z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8",
             "type": "Multikey"
         }
     ],
     "proof": {
         "@context": [
             "https://www.w3.org/ns/activitystreams",
-            "https://w3id.org/security/data-integrity/v1"
+            "https://w3id.org/security/data-integrity/v1",
+            "https://w3id.org/security/v1"
         ],
-        "created": "2025-08-21T19:07:24Z",
+        "created": "2025-10-04T14:19:20Z",
         "cryptosuite": "eddsa-jcs-2022",
         "proofPurpose": "assertionMethod",
-        "proofValue": "z4ykaucb9f6XZPGBM7bRPfDHPzwvyVGPedvFbiKibmgHc9fE5nyYUFa5b6Nc3YqFYL8A5L5jQ7HBVpNs14FsxsomW",
+        "proofValue": "z3ijraF3GjA6Rb7aY3q75KAnwm5ZEdVGsn64dRaYtkNxPhne88EcrzgtP1C1pE6CfKCtCpy338hvcttBmiudGUsbi",
         "type": "DataIntegrityProof",
-        "verificationMethod": "did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN"
+        "verificationMethod": "did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8#z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8"
     },
     "publicKey": {
-        "id": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor#main-key",
-        "owner": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor",
-        "publicKeyPem": "-----BEGIN RSA PUBLIC KEY-----\nMIIBCgKCAQEAo1kH9SLrhJynDBwEcdzHD1wkTq96qZuj8VTMHSOh2mNcCoQap8Fw\ndlzggcXu4yQyPVg/dZTvf12xijCGOpfm6/1+4OfRL6la7FBqVDGBtmKjrjt+KEZE\ny9apO0tUEcRyvX39gbdnrX5VV/8RA4+fPD/BU6GipKhIvnBmxr/qfE9JSMlcn3YE\nSYhdjb+QryMVfs50qKtxjonHi4crkTg222qNScf7hsF31nEvrhWLkD8Pii6JPaZ+\nKp+wftNAQahYxDh0TZSKx+2ZqB8fakMqT5qNY0+ZXUk+b3FQ6XBXmf2RdMKl/HOM\nEdol4X6ZQts/qDmMx0m1hHvrxTbB6gBvcQIDAQAB\n-----END RSA PUBLIC KEY-----\n"
+        "id": "https://a.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor#main-key",
+        "owner": "https://a.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor",
+        "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAs28wI+POzhRamoFp5IaK\n2zWeFtOsQYDiSuE3t9uQeqntRTNHRY4KUUYiQlvuZTxhxjLN15GpcDiRgnaR0I54\nTaPbTUHGSQkjnjvKJaZn1PltRXBlsgvibUtQHlNvGa33UMjKdFa8+IJNYJBXeoxi\nf+HKcBAMGd5hfz7xjLIaRv5usm+MHDa9tF+YDojczy2JRrxlTHq8UCrSnwp+8GxX\nleox3//Qa5S3ZMdGxk16FxJYUjd3cdC/bIkXo8UwTUm4HKi5rzoszQjnt9monYcg\nx0ldHWoYkdF386MR07irm3wvEnf9FAcolA8oMtWOWkRhyTinZWRKBuXbfpqvitdl\ndQIDAQAB\n-----END PUBLIC KEY-----\n"
     },
     "manuallyApprovesFollowers": false
 }
@@ -205,7 +207,7 @@ The response points to a `https://` gateway that returns the actor object:
 
 Portable actors have both Ed25519 and RSA keys, allowing them to interact with actors on ActivityPub servers that don't support Ed25519 signatures.
 
-In addition, portable actors carry an [FEP-8b32](https://codeberg.org/fediverse/fep/src/branch/main/fep/8b32/fep-8b32.md) integrity proof, allowing other servers to securely determine which servers were "approved" by the owner of `ap://did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor`.
+In addition, portable actors carry an [FEP-8b32](https://codeberg.org/fediverse/fep/src/branch/main/fep/8b32/fep-8b32.md) integrity proof, allowing other servers to securely determine which servers were "approved" by the owner of `ap://did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor`.
 
 Moreover, all objects and activities owned by a portable actor contain an integrity proof, allowing other servers to validate their authenticity and processes them without having to fetch them from their origin first.
 
@@ -229,7 +231,7 @@ tootik performs [FEP-8fcf](https://codeberg.org/fediverse/fep/src/branch/main/fe
 
 tootik forwards activites by a portable actor to all actors that share the same canonical ID, according to `gateways`.
 
-When tootik forwards activities, it assumes that other servers use the same URL format: for example, if the `inbox` property of `alice@a.localdomain` is `https://a.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor/inbox` and it forwards an activity to `bob@b.localdomain`, it sends a `POST` request to `https://b.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor/inbox`.
+When tootik forwards activities, it assumes that other servers use the same URL format: for example, if the `inbox` property of `alice@a.localdomain` is `https://a.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor/inbox` and it forwards an activity to `bob@b.localdomain`, it sends a `POST` request to `https://b.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor/inbox`.
 
 tootik's activities export feature exports activities by all actors that share the same canonical ID as the user. The exported activities carry integrity proofs and tootik doesn't require a valid HTTP signature, therefore they can be "imported" into a tootik server by sending them to `inbox`:
 
@@ -239,7 +241,7 @@ import requests
 
 with open('export.csv') as f:
     for r in csv.DictReader(f):
-        requests.post("https://b.localdomain/.well-known/apgateway/did:key:z6Mkmg7XquTdrWR7ZfUt8xADs9P4kDft9ztSZN5wq8PjuHSN/actor/inbox", data=r["Activity"].encode('utf-8'))
+        requests.post("https://b.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor/inbox", data=r["Activity"].encode('utf-8'))
 ```
 
 ## Limitations
