@@ -45,7 +45,7 @@ func (gl *Listener) handle(ctx context.Context, conn net.Conn) {
 		return
 	}
 
-	req := make([]byte, 128)
+	req := make([]byte, 256)
 	total := 0
 	for {
 		n, err := conn.Read(req[total:])
