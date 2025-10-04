@@ -54,12 +54,17 @@ func generateRSAKey() (any, string, []byte, error) {
 		return nil, "", nil, fmt.Errorf("failed to generate private key PEM: %w", err)
 	}
 
+	pubDer, err := x509.MarshalPKIXPublicKey(&priv.PublicKey)
+	if err != nil {
+		return nil, "", nil, fmt.Errorf("failed to encode public key: %w", err)
+	}
+
 	var pubPem bytes.Buffer
 	if err := pem.Encode(
 		&pubPem,
 		&pem.Block{
-			Type:  "RSA PUBLIC KEY",
-			Bytes: x509.MarshalPKCS1PublicKey(&priv.PublicKey),
+			Type:  "PUBLIC KEY",
+			Bytes: pubDer,
 		},
 	); err != nil {
 		return nil, "", nil, fmt.Errorf("failed to generate public key PEM: %w", err)
