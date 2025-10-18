@@ -43,32 +43,29 @@ type Listener struct {
 	Addr   string
 }
 
-func (fl *Listener) handle(ctx context.Context, conn net.Conn) {
-	if err := conn.SetDeadline(time.Now().Add(fl.Config.GuppyRequestTimeout)); err != nil {
-		slog.Warn("Failed to set deadline", "error", err)
-		return
-	}
+func (fl *Listener) readRequest(conn net.Conn, buffers *sync.Pool) string {
+	req := buffers.Get().([]byte)
+	defer buffers.Put(req)
 
-	req := make([]byte, 34)
 	total := 0
 	for {
 		n, err := conn.Read(req[total:])
 		if err != nil && total == 0 && errors.Is(err, io.EOF) {
 			slog.Debug("Failed to receive request", "error", err)
-			return
+			return ""
 		} else if err != nil {
 			slog.Warn("Failed to receive request", "error", err)
-			return
+			return ""
 		}
 		if n <= 0 {
 			slog.Warn("Failed to receive request")
-			return
+			return ""
 		}
 		total += n
 
 		if total == cap(req) {
 			slog.Warn("Request is too big")
-			return
+			return ""
 		}
 
 		if total >= 2 && req[total-2] == '\r' && req[total-1] == '\n' {
@@ -76,7 +73,20 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn) {
 		}
 	}
 
-	user := string(req[:total-2])
+	return string(req[:total-2])
+}
+
+func (fl *Listener) handle(ctx context.Context, conn net.Conn, buffers *sync.Pool) {
+	if err := conn.SetDeadline(time.Now().Add(fl.Config.GuppyRequestTimeout)); err != nil {
+		slog.Warn("Failed to set deadline", "error", err)
+		return
+	}
+
+	user := fl.readRequest(conn, buffers)
+	if user == "" {
+		return
+	}
+
 	log := slog.With(slog.String("user", user))
 
 	if user == "" {
@@ -203,6 +213,12 @@ func (fl *Listener) ListenAndServe(ctx context.Context) error {
 
 	conns := make(chan net.Conn)
 
+	buffers := &sync.Pool{
+		New: func() any {
+			return make([]byte, 34)
+		},
+	}
+
 	wg.Go(func() {
 		for ctx.Err() == nil {
 			conn, err := l.Accept()
@@ -224,7 +240,7 @@ func (fl *Listener) ListenAndServe(ctx context.Context) error {
 			timer := time.AfterFunc(fl.Config.GuppyRequestTimeout, cancelRequest)
 
 			wg.Go(func() {
-				fl.handle(requestCtx, conn)
+				fl.handle(requestCtx, conn, buffers)
 				conn.Close()
 				timer.Stop()
 				cancelRequest()
