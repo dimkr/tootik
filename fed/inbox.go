@@ -43,26 +43,26 @@ var unsupportedActivityTypes = map[ap.ActivityType]struct{}{
 	ap.Move:       {},
 }
 
-func (l *Listener) getActivityOrigin(activity *ap.Activity, sender *ap.Actor) (string, string, error) {
+func (l *Listener) getActivityOrigin(activity *ap.Activity, sender *ap.Actor) (string, string, string, error) {
 	if activity.ID == "" {
-		return "", "", errors.New("unspecified activity ID")
+		return "", "", "", errors.New("unspecified activity ID")
 	}
 
 	activityOrigin, err := ap.Origin(activity.ID)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	if sender.ID == "" {
-		return "", "", errors.New("unspecified sender ID")
+		return "", "", "", errors.New("unspecified sender ID")
 	}
 
-	senderOrigin, err := ap.Origin(sender.ID)
+	senderOrigin, senderHost, err := ap.Origins(sender.ID)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
-	return activityOrigin, senderOrigin, nil
+	return activityOrigin, senderOrigin, senderHost, nil
 }
 
 func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth uint) error {
@@ -434,7 +434,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 		if an activity wasn't sent by an actor on the same server, we must fetch the activity from its origin instead
 		of trusting the sender to pass it as-is
 	*/
-	origin, senderOrigin, err := l.getActivityOrigin(queued, sender)
+	origin, senderOrigin, senderHost, err := l.getActivityOrigin(queued, sender)
 	if err != nil {
 		slog.Warn("Failed to determine whether or not activity is forwarded", "activity", &activity, "sender", sender.ID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -596,7 +596,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 		if _, err = l.DB.ExecContext(
 			r.Context(),
 			`INSERT INTO servers (host, capabilities) VALUES ($1, $2) ON CONFLICT(host) DO UPDATE SET capabilities = capabilities | $2, updated = UNIXEPOCH()`,
-			senderOrigin,
+			senderHost,
 			capabilities,
 		); err != nil {
 			slog.Error("Failed to record server capabilities", "server", senderOrigin, "error", err)
