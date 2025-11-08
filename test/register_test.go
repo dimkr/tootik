@@ -1223,7 +1223,11 @@ func TestRegister_ForbiddenUserName(t *testing.T) {
 		Config:  &cfg,
 		Handler: handler,
 		DB:      db,
-		Buffers: buffers,
+		Buffers: sync.Pool{
+			New: func() any {
+				return make([]byte, 1024)
+			},
+		},
 	}
 	l.Handle(context.Background(), tlsWriter)
 
