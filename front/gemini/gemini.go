@@ -221,6 +221,7 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 	})
 
 	conns := make(chan net.Conn)
+
 	wg.Go(func() {
 		for ctx.Err() == nil {
 			conn, err := l.Accept()
