@@ -46,6 +46,7 @@ type Listener struct {
 	Key       string
 	Plain     bool
 	BlockList *BlockList
+	Buffers   sync.Pool
 }
 
 const certReloadDelay = time.Second * 5

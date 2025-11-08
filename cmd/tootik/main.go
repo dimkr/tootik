@@ -342,6 +342,11 @@ func main() {
 				Key:       *key,
 				Plain:     *plain,
 				BlockList: blockList,
+				Buffers: sync.Pool{
+					New: func() any {
+						return make([]byte, cfg.MaxRequestBodySize)
+					},
+				},
 			},
 		},
 		{

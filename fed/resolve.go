@@ -23,12 +23,12 @@ import (
 	"errors"
 	"fmt"
 	"hash/crc32"
-	"io"
 	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
@@ -69,6 +69,11 @@ func NewResolver(blockedDomains *BlockList, domain string, cfg *cfg.Config, clie
 			Config: cfg,
 			client: client,
 			DB:     db,
+			Buffers: sync.Pool{
+				New: func() any {
+					return make([]byte, cfg.MaxResponseBodySize)
+				},
+			},
 		},
 		BlockedDomains: blockedDomains,
 		db:             db,
@@ -174,8 +179,8 @@ func deleteActor(ctx context.Context, db *sql.DB, id string) {
 	}
 }
 
-func (r *Resolver) handleFetchFailure(ctx context.Context, fetched string, cachedActor *ap.Actor, sinceLastUpdate time.Duration, resp *http.Response, err error) (*ap.Actor, *ap.Actor, error) {
-	if resp != nil && (resp.StatusCode == http.StatusGone || resp.StatusCode == http.StatusNotFound) {
+func (r *Resolver) handleFetchFailure(ctx context.Context, fetched string, cachedActor *ap.Actor, sinceLastUpdate time.Duration, statusCode int, err error) (*ap.Actor, *ap.Actor, error) {
+	if statusCode == http.StatusGone || statusCode == http.StatusNotFound {
 		if cachedActor != nil {
 			slog.Warn("Actor is gone, deleting associated objects", "id", cachedActor.ID)
 			deleteActor(ctx, r.db, cachedActor.ID)
@@ -289,18 +294,14 @@ func (r *Resolver) tryResolve(ctx context.Context, keys [2]httpsig.Key, host, na
 	}
 	req.Header.Add("Accept", "application/json")
 
-	resp, err := r.send(keys, req)
+	statusCode, body, cleanup, err := r.send(keys, req)
 	if err != nil {
-		return r.handleFetchFailure(ctx, finger, cachedActor, sinceLastUpdate, resp, err)
+		return r.handleFetchFailure(ctx, finger, cachedActor, sinceLastUpdate, statusCode, err)
 	}
-	defer resp.Body.Close()
-
-	if resp.ContentLength > r.Config.MaxResponseBodySize {
-		return nil, cachedActor, fmt.Errorf("failed to decode %s response: response is too big", finger)
-	}
+	defer cleanup()
 
 	var webFingerResponse webFingerResponse
-	if err := json.NewDecoder(io.LimitReader(resp.Body, r.Config.MaxResponseBodySize)).Decode(&webFingerResponse); err != nil {
+	if err := json.Unmarshal(body, &webFingerResponse); err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to decode %s response: %w", finger, err)
 	}
 
@@ -432,20 +433,11 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 
 	req.Header.Add("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
-	resp, err := r.send(keys, req)
+	resp, body, cleanup, err := r.send(keys, req)
 	if err != nil {
 		return r.handleFetchFailure(ctx, profile, cachedActor, sinceLastUpdate, resp, err)
 	}
-	defer resp.Body.Close()
-
-	if resp.ContentLength > r.Config.MaxResponseBodySize {
-		return nil, cachedActor, fmt.Errorf("failed to fetch %s: response is too big", profile)
-	}
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, r.Config.MaxResponseBodySize))
-	if err != nil {
-		return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", profile, err)
-	}
+	defer cleanup()
 
 	var actor ap.Actor
 	if err := json.Unmarshal(body, &actor); err != nil {

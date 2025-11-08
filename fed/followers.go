@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -248,20 +247,16 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 
 	slog.Info("Synchronizing followers", "followed", d.Followed)
 
-	resp, err := resolver.Get(ctx, keys, d.URL)
+	_, body, cleanup, err := resolver.Get(ctx, keys, d.URL)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
-
-	if resp.ContentLength > cfg.MaxResponseBodySize {
-		return errors.New("response is too big")
-	}
+	defer cleanup()
 
 	var remote struct {
 		OrderedItems ap.Audience `json:"orderedItems"`
 	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, cfg.MaxResponseBodySize)).Decode(&remote); err != nil {
+	if err := json.Unmarshal(body, &remote); err != nil {
 		return err
 	}
 
