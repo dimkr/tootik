@@ -37,15 +37,16 @@ import (
 )
 
 type Listener struct {
-	Domain string
-	Config *cfg.Config
-	DB     *sql.DB
-	Addr   string
+	Domain  string
+	Config  *cfg.Config
+	DB      *sql.DB
+	Addr    string
+	Buffers sync.Pool
 }
 
-func (fl *Listener) readRequest(conn net.Conn, buffers *sync.Pool) string {
-	req := buffers.Get().([]byte)
-	defer buffers.Put(req)
+func (fl *Listener) readRequest(conn net.Conn) string {
+	req := fl.Buffers.Get().([]byte)
+	defer fl.Buffers.Put(req)
 
 	total := 0
 	for {
@@ -76,13 +77,13 @@ func (fl *Listener) readRequest(conn net.Conn, buffers *sync.Pool) string {
 	return string(req[:total-2])
 }
 
-func (fl *Listener) handle(ctx context.Context, conn net.Conn, buffers *sync.Pool) {
+func (fl *Listener) handle(ctx context.Context, conn net.Conn) {
 	if err := conn.SetDeadline(time.Now().Add(fl.Config.GuppyRequestTimeout)); err != nil {
 		slog.Warn("Failed to set deadline", "error", err)
 		return
 	}
 
-	user := fl.readRequest(conn, buffers)
+	user := fl.readRequest(conn)
 	if user == "" {
 		return
 	}
@@ -213,12 +214,6 @@ func (fl *Listener) ListenAndServe(ctx context.Context) error {
 
 	conns := make(chan net.Conn)
 
-	buffers := &sync.Pool{
-		New: func() any {
-			return make([]byte, 34)
-		},
-	}
-
 	wg.Go(func() {
 		for ctx.Err() == nil {
 			conn, err := l.Accept()
@@ -240,7 +235,7 @@ func (fl *Listener) ListenAndServe(ctx context.Context) error {
 			timer := time.AfterFunc(fl.Config.GuppyRequestTimeout, cancelRequest)
 
 			wg.Go(func() {
-				fl.handle(requestCtx, conn, buffers)
+				fl.handle(requestCtx, conn)
 				conn.Close()
 				timer.Stop()
 				cancelRequest()

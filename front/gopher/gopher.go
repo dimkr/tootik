@@ -37,11 +37,12 @@ type Listener struct {
 	Config  *cfg.Config
 	Handler front.Handler
 	Addr    string
+	Buffers sync.Pool
 }
 
-func (gl *Listener) readRequest(ctx context.Context, conn net.Conn, buffers *sync.Pool) *front.Request {
-	req := buffers.Get().([]byte)
-	defer buffers.Put(req)
+func (gl *Listener) readRequest(ctx context.Context, conn net.Conn) *front.Request {
+	req := gl.Buffers.Get().([]byte)
+	defer gl.Buffers.Put(req)
 
 	total := 0
 	for {
@@ -91,13 +92,13 @@ func (gl *Listener) readRequest(ctx context.Context, conn net.Conn, buffers *syn
 	return r
 }
 
-func (gl *Listener) handle(ctx context.Context, conn net.Conn, buffers *sync.Pool) {
+func (gl *Listener) handle(ctx context.Context, conn net.Conn) {
 	if err := conn.SetDeadline(time.Now().Add(gl.Config.GopherRequestTimeout)); err != nil {
 		slog.Warn("Failed to set deadline", "error", err)
 		return
 	}
 
-	if r := gl.readRequest(ctx, conn, buffers); r != nil {
+	if r := gl.readRequest(ctx, conn); r != nil {
 		w := gmap.Wrap(conn, gl.Domain, gl.Config)
 		defer w.Flush()
 
@@ -127,12 +128,6 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 
 	conns := make(chan net.Conn)
 
-	buffers := &sync.Pool{
-		New: func() any {
-			return make([]byte, 256)
-		},
-	}
-
 	wg.Go(func() {
 		for ctx.Err() == nil {
 			conn, err := l.Accept()
@@ -154,7 +149,7 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 			timer := time.AfterFunc(gl.Config.GopherRequestTimeout, cancelRequest)
 
 			wg.Go(func() {
-				gl.handle(requestCtx, conn, buffers)
+				gl.handle(requestCtx, conn)
 				conn.Write([]byte(".\r\n"))
 				conn.Close()
 				timer.Stop()

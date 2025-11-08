@@ -220,6 +220,11 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 			Config:  &cfg,
 			DB:      db,
 			Handler: handler,
+			Buffers: sync.Pool{
+				New: func() any {
+					return make([]byte, 1024)
+				},
+			},
 		},
 		Backend: backend,
 		Inbox:   localInbox,

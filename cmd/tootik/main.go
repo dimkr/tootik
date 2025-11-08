@@ -354,6 +354,11 @@ func main() {
 				Addr:     *gemAddr,
 				CertPath: *gemCert,
 				KeyPath:  *gemKey,
+				Buffers: sync.Pool{
+					New: func() any {
+						return make([]byte, 1024+2)
+					},
+				},
 			},
 		},
 		{
@@ -363,6 +368,11 @@ func main() {
 				Config:  &cfg,
 				Handler: handler,
 				Addr:    *gopherAddr,
+				Buffers: sync.Pool{
+					New: func() any {
+						return make([]byte, 256)
+					},
+				},
 			},
 		},
 		{
@@ -372,6 +382,11 @@ func main() {
 				Config: &cfg,
 				DB:     db,
 				Addr:   *fingerAddr,
+				Buffers: sync.Pool{
+					New: func() any {
+						return make([]byte, 34)
+					},
+				},
 			},
 		},
 		{

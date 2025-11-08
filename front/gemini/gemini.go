@@ -47,6 +47,7 @@ type Listener struct {
 	Addr     string
 	CertPath string
 	KeyPath  string
+	Buffers  sync.Pool
 }
 
 func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn) (*ap.Actor, [2]httpsig.Key, error) {
@@ -94,9 +95,9 @@ func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn) (*ap.Actor, 
 	}, nil
 }
 
-func (gl *Listener) readRequest(ctx context.Context, conn net.Conn, buffers *sync.Pool) *front.Request {
-	req := buffers.Get().([]byte)
-	defer buffers.Put(req)
+func (gl *Listener) readRequest(ctx context.Context, conn net.Conn) *front.Request {
+	req := gl.Buffers.Get().([]byte)
+	defer gl.Buffers.Put(req)
 
 	total := 0
 	for {
@@ -140,7 +141,7 @@ func (gl *Listener) readRequest(ctx context.Context, conn net.Conn, buffers *syn
 }
 
 // Handle handles a Gemini request.
-func (gl *Listener) Handle(ctx context.Context, conn net.Conn, buffers *sync.Pool) {
+func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 	if err := conn.SetDeadline(time.Now().Add(gl.Config.GeminiRequestTimeout)); err != nil {
 		slog.Warn("Failed to set deadline", "error", err)
 		return
@@ -157,7 +158,7 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn, buffers *sync.Poo
 		return
 	}
 
-	r := gl.readRequest(ctx, conn, buffers)
+	r := gl.readRequest(ctx, conn)
 	if r == nil {
 		return
 	}
@@ -220,13 +221,6 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 	})
 
 	conns := make(chan net.Conn)
-
-	buffers := &sync.Pool{
-		New: func() any {
-			return make([]byte, 1024+2)
-		},
-	}
-
 	wg.Go(func() {
 		for ctx.Err() == nil {
 			conn, err := l.Accept()
@@ -253,7 +247,7 @@ func (gl *Listener) ListenAndServe(ctx context.Context) error {
 			})
 
 			wg.Go(func() {
-				gl.Handle(requestCtx, conn, buffers)
+				gl.Handle(requestCtx, conn)
 				timer.Stop()
 				cancelRequest()
 			})
