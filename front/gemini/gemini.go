@@ -105,7 +105,7 @@ func (gl *Listener) readRequest(ctx context.Context, conn net.Conn) *front.Reque
 		if err != nil && total == 0 && errors.Is(err, io.EOF) {
 			slog.Debug("Failed to receive request", "error", err)
 			return nil
-		} else if err != nil && !errors.Is(err, io.EOF) {
+		} else if err != nil {
 			slog.Warn("Failed to receive request", "error", err)
 			return nil
 		}
