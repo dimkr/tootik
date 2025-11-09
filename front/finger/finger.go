@@ -54,7 +54,7 @@ func (fl *Listener) readRequest(conn net.Conn) string {
 		if err != nil && total == 0 && errors.Is(err, io.EOF) {
 			slog.Debug("Failed to receive request", "error", err)
 			return ""
-		} else if err != nil {
+		} else if err != nil && !errors.Is(err, io.EOF) {
 			slog.Warn("Failed to receive request", "error", err)
 			return ""
 		}

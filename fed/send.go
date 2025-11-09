@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
@@ -104,7 +105,7 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request) (int, []byte, func
 		defer s.Buffers.Put(buf)
 
 		n, err := resp.Body.Read(buf)
-		if err != nil {
+		if err != nil && !errors.Is(err, io.EOF) {
 			return resp.StatusCode, nil, nil, fmt.Errorf("failed to send request to %s: %d, %w", urlString, resp.StatusCode, err)
 		}
 
@@ -124,7 +125,7 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request) (int, []byte, func
 	}
 
 	buf := s.Buffers.Get().([]byte)
-	if n, err := resp.Body.Read(buf); err != nil {
+	if n, err := resp.Body.Read(buf); err != nil && !errors.Is(err, io.EOF) {
 		s.Buffers.Put(buf)
 		return resp.StatusCode, nil, nil, fmt.Errorf("failed to send request to %s: %d, %w", urlString, resp.StatusCode, err)
 	} else {

@@ -315,7 +315,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 	defer l.Buffers.Put(buf)
 
 	n, err := r.Body.Read(buf)
-	if err != nil {
+	if err != nil && !errors.Is(err, io.EOF) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
