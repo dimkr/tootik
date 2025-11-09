@@ -219,23 +219,14 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 }
 
 func (l *Listener) fetchObject(ctx context.Context, id string, keys [2]httpsig.Key) (bool, []byte, error) {
-	resp, err := l.Resolver.Get(ctx, keys, id)
+	statusCode, body, cleanup, err := l.Resolver.Get(ctx, keys, id)
 	if err != nil {
-		if resp != nil && (resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone) {
+		if statusCode == http.StatusNotFound || statusCode == http.StatusGone {
 			return false, nil, err
 		}
 		return true, nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.ContentLength > l.Config.MaxRequestBodySize {
-		return true, nil, fmt.Errorf("object is too big: %d", resp.ContentLength)
-	}
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, l.Config.MaxRequestBodySize))
-	if err != nil {
-		return true, nil, err
-	}
+	defer cleanup()
 
 	if !ap.IsPortable(id) {
 		return true, body, nil
@@ -320,11 +311,15 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 		return
 	}
 
-	rawActivity, err := io.ReadAll(io.LimitReader(r.Body, l.Config.MaxRequestBodySize))
-	if err != nil {
+	buf := l.Buffers.Get().([]byte)
+	defer l.Buffers.Put(buf)
+
+	n, err := r.Body.Read(buf)
+	if err != nil && !errors.Is(err, io.EOF) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	rawActivity := buf[:n]
 
 	var activity ap.Activity
 	if err := json.Unmarshal(rawActivity, &activity); err != nil {

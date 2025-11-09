@@ -2614,7 +2614,11 @@ func TestResolve_FederatedActorOldCacheBigWebFingerResponse(t *testing.T) {
 		},
 	}
 
-	cfg.MaxResponseBodySize = 1
+	resolver.Buffers = sync.Pool{
+		New: func() any {
+			return make([]byte, 1)
+		},
+	}
 
 	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
@@ -2874,7 +2878,11 @@ func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 		},
 	}
 
-	cfg.MaxResponseBodySize = 419
+	resolver.Buffers = sync.Pool{
+		New: func() any {
+			return make([]byte, 419)
+		},
+	}
 
 	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)

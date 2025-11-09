@@ -193,6 +193,11 @@ func TestRegister_RedirectNoCertificate(t *testing.T) {
 		Config:  &cfg,
 		Handler: handler,
 		DB:      db,
+		Buffers: sync.Pool{
+			New: func() any {
+				return make([]byte, 1024)
+			},
+		},
 	}
 	l.Handle(context.Background(), tlsWriter)
 
@@ -273,6 +278,11 @@ func TestRegister_Redirect(t *testing.T) {
 		Config:  &cfg,
 		Handler: handler,
 		DB:      db,
+		Buffers: sync.Pool{
+			New: func() any {
+				return make([]byte, 1024)
+			},
+		},
 	}
 	l.Handle(context.Background(), tlsWriter)
 
@@ -350,6 +360,11 @@ func TestRegister_NoCertificate(t *testing.T) {
 		Config:  &cfg,
 		Handler: handler,
 		DB:      db,
+		Buffers: sync.Pool{
+			New: func() any {
+				return make([]byte, 1024)
+			},
+		},
 	}
 	l.Handle(context.Background(), tlsWriter)
 
@@ -430,6 +445,11 @@ func TestRegister_HappyFlow(t *testing.T) {
 		Config:  &cfg,
 		Handler: handler,
 		DB:      db,
+		Buffers: sync.Pool{
+			New: func() any {
+				return make([]byte, 1024)
+			},
+		},
 	}
 	l.Handle(context.Background(), tlsWriter)
 
@@ -510,6 +530,11 @@ func TestRegister_HappyFlowRegistrationClosed(t *testing.T) {
 		Config:  &cfg,
 		Handler: handler,
 		DB:      db,
+		Buffers: sync.Pool{
+			New: func() any {
+				return make([]byte, 1024)
+			},
+		},
 	}
 	l.Handle(context.Background(), tlsWriter)
 
@@ -594,6 +619,11 @@ func TestRegister_AlreadyRegistered(t *testing.T) {
 		Config:  &cfg,
 		Handler: handler,
 		DB:      db,
+		Buffers: sync.Pool{
+			New: func() any {
+				return make([]byte, 1024)
+			},
+		},
 	}
 	l.Handle(context.Background(), tlsWriter)
 
@@ -680,6 +710,11 @@ func TestRegister_Twice(t *testing.T) {
 			Config:  &cfg,
 			Handler: handler,
 			DB:      db,
+			Buffers: sync.Pool{
+				New: func() any {
+					return make([]byte, 1024)
+				},
+			},
 		}
 		l.Handle(context.Background(), tlsWriter)
 
@@ -776,6 +811,11 @@ func TestRegister_Throttling(t *testing.T) {
 			Config:  &cfg,
 			Handler: handler,
 			DB:      db,
+			Buffers: sync.Pool{
+				New: func() any {
+					return make([]byte, 1024)
+				},
+			},
 		}
 		l.Handle(context.Background(), tlsWriter)
 
@@ -872,6 +912,11 @@ func TestRegister_Throttling30Minutes(t *testing.T) {
 			Config:  &cfg,
 			Handler: handler,
 			DB:      db,
+			Buffers: sync.Pool{
+				New: func() any {
+					return make([]byte, 1024)
+				},
+			},
 		}
 		l.Handle(context.Background(), tlsWriter)
 
@@ -971,6 +1016,11 @@ func TestRegister_Throttling1Hour(t *testing.T) {
 			Config:  &cfg,
 			Handler: handler,
 			DB:      db,
+			Buffers: sync.Pool{
+				New: func() any {
+					return make([]byte, 1024)
+				},
+			},
 		}
 		l.Handle(context.Background(), tlsWriter)
 
@@ -1086,6 +1136,11 @@ func TestRegister_TwoCertificates(t *testing.T) {
 			Config:  &cfg,
 			Handler: handler,
 			DB:      db,
+			Buffers: sync.Pool{
+				New: func() any {
+					return make([]byte, 1024)
+				},
+			},
 		}
 		l.Handle(context.Background(), tlsWriter)
 
@@ -1168,6 +1223,11 @@ func TestRegister_ForbiddenUserName(t *testing.T) {
 		Config:  &cfg,
 		Handler: handler,
 		DB:      db,
+		Buffers: sync.Pool{
+			New: func() any {
+				return make([]byte, 1024)
+			},
+		},
 	}
 	l.Handle(context.Background(), tlsWriter)
 

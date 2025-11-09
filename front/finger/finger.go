@@ -37,10 +37,44 @@ import (
 )
 
 type Listener struct {
-	Domain string
-	Config *cfg.Config
-	DB     *sql.DB
-	Addr   string
+	Domain  string
+	Config  *cfg.Config
+	DB      *sql.DB
+	Addr    string
+	Buffers sync.Pool
+}
+
+func (fl *Listener) readRequest(conn net.Conn) string {
+	req := fl.Buffers.Get().([]byte)
+	defer fl.Buffers.Put(req)
+
+	total := 0
+	for {
+		n, err := conn.Read(req[total:])
+		if err != nil && total == 0 && errors.Is(err, io.EOF) {
+			slog.Debug("Failed to receive request", "error", err)
+			return ""
+		} else if err != nil {
+			slog.Warn("Failed to receive request", "error", err)
+			return ""
+		}
+		if n <= 0 {
+			slog.Warn("Failed to receive request")
+			return ""
+		}
+		total += n
+
+		if total == cap(req) {
+			slog.Warn("Request is too big")
+			return ""
+		}
+
+		if total >= 2 && req[total-2] == '\r' && req[total-1] == '\n' {
+			break
+		}
+	}
+
+	return string(req[:total-2])
 }
 
 func (fl *Listener) handle(ctx context.Context, conn net.Conn) {
@@ -49,40 +83,13 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn) {
 		return
 	}
 
-	req := make([]byte, 34)
-	total := 0
-	for {
-		n, err := conn.Read(req[total:])
-		if err != nil && total == 0 && errors.Is(err, io.EOF) {
-			slog.Debug("Failed to receive request", "error", err)
-			return
-		} else if err != nil {
-			slog.Warn("Failed to receive request", "error", err)
-			return
-		}
-		if n <= 0 {
-			slog.Warn("Failed to receive request")
-			return
-		}
-		total += n
-
-		if total == cap(req) {
-			slog.Warn("Request is too big")
-			return
-		}
-
-		if total >= 2 && req[total-2] == '\r' && req[total-1] == '\n' {
-			break
-		}
-	}
-
-	user := string(req[:total-2])
-	log := slog.With(slog.String("user", user))
-
+	user := fl.readRequest(conn)
 	if user == "" {
-		log.Warn("Invalid username specified")
+		slog.Warn("Invalid username specified")
 		return
 	}
+
+	log := slog.With(slog.String("user", user))
 
 	sep := strings.IndexByte(user, '@')
 	if sep > 0 && user[sep+1:] != fl.Domain {

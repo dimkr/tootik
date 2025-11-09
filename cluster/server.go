@@ -188,6 +188,11 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 		DB:        db,
 		ActorKeys: nobodyKeys,
 		Resolver:  resolver,
+		Buffers: sync.Pool{
+			New: func() any {
+				return make([]byte, cfg.MaxRequestBodySize)
+			},
+		},
 	}).NewHandler()
 	if err != nil {
 		t.Fatalf("Failed to run create the federation handler: %v", err)
@@ -220,6 +225,11 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 			Config:  &cfg,
 			DB:      db,
 			Handler: handler,
+			Buffers: sync.Pool{
+				New: func() any {
+					return make([]byte, 1024)
+				},
+			},
 		},
 		Backend: backend,
 		Inbox:   localInbox,

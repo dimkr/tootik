@@ -37,34 +37,32 @@ type Listener struct {
 	Config  *cfg.Config
 	Handler front.Handler
 	Addr    string
+	Buffers sync.Pool
 }
 
-func (gl *Listener) handle(ctx context.Context, conn net.Conn) {
-	if err := conn.SetDeadline(time.Now().Add(gl.Config.GopherRequestTimeout)); err != nil {
-		slog.Warn("Failed to set deadline", "error", err)
-		return
-	}
+func (gl *Listener) readRequest(ctx context.Context, conn net.Conn) *front.Request {
+	req := gl.Buffers.Get().([]byte)
+	defer gl.Buffers.Put(req)
 
-	req := make([]byte, 256)
 	total := 0
 	for {
 		n, err := conn.Read(req[total:])
 		if err != nil && total == 0 && errors.Is(err, io.EOF) {
 			slog.Debug("Failed to receive request", "error", err)
-			return
+			return nil
 		} else if err != nil {
 			slog.Warn("Failed to receive request", "error", err)
-			return
+			return nil
 		}
 		if n <= 0 {
 			slog.Warn("Failed to receive request")
-			return
+			return nil
 		}
 		total += n
 
 		if total == cap(req) {
 			slog.Warn("Request is too big")
-			return
+			return nil
 		}
 
 		if total >= 2 && req[total-2] == '\r' && req[total-1] == '\n' {
@@ -77,7 +75,7 @@ func (gl *Listener) handle(ctx context.Context, conn net.Conn) {
 		path = "/"
 	}
 
-	r := front.Request{
+	r := &front.Request{
 		Context: ctx,
 		Body:    conn,
 	}
@@ -86,15 +84,26 @@ func (gl *Listener) handle(ctx context.Context, conn net.Conn) {
 	r.URL, err = url.Parse(path)
 	if err != nil {
 		slog.Warn("Failed to parse request", "path", path, "error", err)
-		return
+		return nil
 	}
 
 	r.Log = slog.With(slog.Group("request", "path", r.URL.Path))
 
-	w := gmap.Wrap(conn, gl.Domain, gl.Config)
-	defer w.Flush()
+	return r
+}
 
-	gl.Handler.Handle(&r, w)
+func (gl *Listener) handle(ctx context.Context, conn net.Conn) {
+	if err := conn.SetDeadline(time.Now().Add(gl.Config.GopherRequestTimeout)); err != nil {
+		slog.Warn("Failed to set deadline", "error", err)
+		return
+	}
+
+	if r := gl.readRequest(ctx, conn); r != nil {
+		w := gmap.Wrap(conn, gl.Domain, gl.Config)
+		defer w.Flush()
+
+		gl.Handler.Handle(r, w)
+	}
 }
 
 // ListenAndServe handles Gopher requests.

@@ -47,6 +47,7 @@ type Listener struct {
 	Addr     string
 	CertPath string
 	KeyPath  string
+	Buffers  sync.Pool
 }
 
 func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn) (*ap.Actor, [2]httpsig.Key, error) {
@@ -94,6 +95,51 @@ func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn) (*ap.Actor, 
 	}, nil
 }
 
+func (gl *Listener) readRequest(ctx context.Context, conn net.Conn) *front.Request {
+	req := gl.Buffers.Get().([]byte)
+	defer gl.Buffers.Put(req)
+
+	total := 0
+	for {
+		n, err := conn.Read(req[total : total+1])
+		if err != nil && total == 0 && errors.Is(err, io.EOF) {
+			slog.Debug("Failed to receive request", "error", err)
+			return nil
+		} else if err != nil {
+			slog.Warn("Failed to receive request", "error", err)
+			return nil
+		}
+		if n <= 0 {
+			slog.Warn("Failed to receive request")
+			return nil
+		}
+		total += n
+
+		if total == cap(req) {
+			slog.Warn("Request is too big")
+			return nil
+		}
+
+		if total > 2 && req[total-2] == '\r' && req[total-1] == '\n' {
+			break
+		}
+	}
+
+	r := &front.Request{
+		Context: ctx,
+		Body:    conn,
+	}
+
+	var err error
+	r.URL, err = url.Parse(string(req[:total-2]))
+	if err != nil {
+		slog.Warn("Failed to parse request", "request", string(req[:total-2]), "error", err)
+		return nil
+	}
+
+	return r
+}
+
 // Handle handles a Gemini request.
 func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 	if err := conn.SetDeadline(time.Now().Add(gl.Config.GeminiRequestTimeout)); err != nil {
@@ -112,48 +158,15 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 		return
 	}
 
-	req := make([]byte, 1024+2)
-	total := 0
-	for {
-		n, err := conn.Read(req[total : total+1])
-		if err != nil && total == 0 && errors.Is(err, io.EOF) {
-			slog.Debug("Failed to receive request", "error", err)
-			return
-		} else if err != nil {
-			slog.Warn("Failed to receive request", "error", err)
-			return
-		}
-		if n <= 0 {
-			slog.Warn("Failed to receive request")
-			return
-		}
-		total += n
-
-		if total == cap(req) {
-			slog.Warn("Request is too big")
-			return
-		}
-
-		if total > 2 && req[total-2] == '\r' && req[total-1] == '\n' {
-			break
-		}
-	}
-
-	r := front.Request{
-		Context: ctx,
-		Body:    conn,
-	}
-
-	var err error
-	r.URL, err = url.Parse(string(req[:total-2]))
-	if err != nil {
-		slog.Warn("Failed to parse request", "request", string(req[:total-2]), "error", err)
+	r := gl.readRequest(ctx, conn)
+	if r == nil {
 		return
 	}
 
 	w := gmi.Wrap(conn)
 	defer w.Flush()
 
+	var err error
 	r.User, r.Keys, err = gl.getUser(ctx, tlsConn)
 	if err != nil && errors.Is(err, front.ErrNotRegistered) && r.URL.Path == "/users" {
 		slog.Info("Redirecting new user")
@@ -180,7 +193,7 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 		r.Log = slog.With(slog.Group("request", "path", r.URL.Path, "user", r.User.PreferredUsername))
 	}
 
-	gl.Handler.Handle(&r, w)
+	gl.Handler.Handle(r, w)
 }
 
 // ListenAndServe handles Gemini requests.

@@ -18,7 +18,6 @@ package ap
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/dimkr/tootik/httpsig"
 )
@@ -40,5 +39,5 @@ const (
 type Resolver interface {
 	ResolveID(ctx context.Context, keys [2]httpsig.Key, id string, flags ResolverFlag) (*Actor, error)
 	Resolve(ctx context.Context, keys [2]httpsig.Key, host, name string, flags ResolverFlag) (*Actor, error)
-	Get(ctx context.Context, keys [2]httpsig.Key, url string) (*http.Response, error)
+	Get(ctx context.Context, keys [2]httpsig.Key, url string) (int, []byte, func(), error)
 }
