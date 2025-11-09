@@ -85,15 +85,11 @@ func (fl *Listener) handle(ctx context.Context, conn net.Conn) {
 
 	user := fl.readRequest(conn)
 	if user == "" {
+		slog.Warn("Invalid username specified")
 		return
 	}
 
 	log := slog.With(slog.String("user", user))
-
-	if user == "" {
-		log.Warn("Invalid username specified")
-		return
-	}
 
 	sep := strings.IndexByte(user, '@')
 	if sep > 0 && user[sep+1:] != fl.Domain {
