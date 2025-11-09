@@ -117,14 +117,14 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	defer rows.Close()
 
 	events := make(chan deliveryEvent)
-	tasks := make([]chan deliveryTask, 0, q.Config.DeliveryWorkers)
+	tasks := make([]chan *deliveryTask, 0, q.Config.DeliveryWorkers)
 	var wg sync.WaitGroup
 	results := make(chan map[deliveryJob]bool)
 
 	// start worker routines, each with its own task queue
 	wg.Add(q.Config.DeliveryWorkers)
 	for range q.Config.DeliveryWorkers {
-		ch := make(chan deliveryTask, q.Config.DeliveryWorkerBuffer)
+		ch := make(chan *deliveryTask, q.Config.DeliveryWorkerBuffer)
 
 		go func() {
 			q.consume(ctx, ch, events)
@@ -252,7 +252,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	return count, nil
 }
 
-func (q *Queue) deliverWithTimeout(parent context.Context, task deliveryTask) error {
+func (q *Queue) deliverWithTimeout(parent context.Context, task *deliveryTask) error {
 	ctx, cancel := context.WithTimeout(parent, q.Config.DeliveryTimeout)
 	defer cancel()
 
@@ -265,7 +265,7 @@ func (q *Queue) deliverWithTimeout(parent context.Context, task deliveryTask) er
 	return err
 }
 
-func (q *Queue) consume(ctx context.Context, requests <-chan deliveryTask, events chan<- deliveryEvent) {
+func (q *Queue) consume(ctx context.Context, requests <-chan *deliveryTask, events chan<- deliveryEvent) {
 	tried := map[string]map[string]struct{}{}
 
 	for task := range requests {
@@ -327,7 +327,7 @@ func (q *Queue) queueTask(
 	keys [2]httpsig.Key,
 	inbox, contentLength string,
 	followers *partialFollowers,
-	tasks []chan deliveryTask,
+	tasks []chan *deliveryTask,
 	events chan<- deliveryEvent,
 ) {
 	req, err := http.NewRequest(http.MethodPost, inbox, strings.NewReader(job.RawActivity))
@@ -356,7 +356,7 @@ func (q *Queue) queueTask(
 	slog.Info("Queueing activity for delivery", "inbox", inbox, "activity", job.Activity.ID)
 
 	// assign a task to a random worker but use one worker per host, so activities are delivered once per host
-	tasks[crc32.ChecksumIEEE([]byte(req.URL.Host))%uint32(len(tasks))] <- deliveryTask{
+	tasks[crc32.ChecksumIEEE([]byte(req.URL.Host))%uint32(len(tasks))] <- &deliveryTask{
 		Job:     job,
 		Keys:    keys,
 		Request: req,
@@ -369,7 +369,7 @@ func (q *Queue) queueTasks(
 	job deliveryJob,
 	keys [2]httpsig.Key,
 	followers *partialFollowers,
-	tasks []chan deliveryTask,
+	tasks []chan *deliveryTask,
 	events chan<- deliveryEvent,
 ) error {
 	activityID, err := url.Parse(job.Activity.ID)
