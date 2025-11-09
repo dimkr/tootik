@@ -21,14 +21,13 @@ import (
 	"io"
 	"net"
 	"slices"
-	"sync"
 	"time"
 )
 
 // LineWriter wraps an [io.Writer] with line-based buffering and writes in a separate routine.
 type LineWriter struct {
 	inner  io.Writer
-	buffer []byte
+	buffer bytes.Buffer
 	c      chan []byte
 	closed bool
 	done   chan error
@@ -40,25 +39,14 @@ const (
 	flushInterval = time.Millisecond * 100
 )
 
-var buffers = &sync.Pool{
-	New: func() any {
-		return make([]byte, 0, 1024)
-	},
-}
-
 func LineBuffered(inner io.Writer) *LineWriter {
 	w := &LineWriter{
-		inner:  inner,
-		buffer: buffers.Get().([]byte),
-		c:      make(chan []byte),
-		done:   make(chan error, 1),
+		inner: inner,
+		c:     make(chan []byte),
+		done:  make(chan error, 1),
 	}
 
 	go func() {
-		defer func() {
-			buffers.Put(w.buffer[:0])
-		}()
-
 		lines := 0
 
 		t := time.NewTicker(flushInterval)
@@ -93,13 +81,13 @@ func LineBuffered(inner io.Writer) *LineWriter {
 
 					i := bytes.IndexByte(buf, '\n')
 					if i == -1 {
-						w.buffer = append(w.buffer, buf...)
+						w.buffer.Write(buf)
 						t.Stop()
 						drain()
 						break
 					}
 
-					w.buffer = append(w.buffer, buf[:i+1]...)
+					w.buffer.Write(buf[:i+1])
 					lines++
 
 					// flush if we have $bufferSize lines in the buffer
@@ -107,12 +95,12 @@ func LineBuffered(inner io.Writer) *LineWriter {
 						t.Stop()
 						drain()
 
-						if _, err := w.inner.Write(w.buffer); err != nil {
+						if _, err := w.inner.Write(w.buffer.Bytes()); err != nil {
 							w.stop(err)
 							return
 						}
 
-						w.buffer = w.buffer[:0]
+						w.buffer.Reset()
 						lines = 0
 					} else if lines > 0 {
 						t.Reset(flushInterval)
@@ -123,25 +111,27 @@ func LineBuffered(inner io.Writer) *LineWriter {
 
 				// flush if we have lines waiting for >=$flushInterval in the buffer
 			case <-t.C:
-				if len(w.buffer) == 0 || w.buffer[len(w.buffer)-1] != '\n' {
+				buf := w.buffer.Bytes()
+
+				if len(buf) == 0 || buf[len(buf)-1] != '\n' {
 					continue
 				}
 
 				t.Stop()
 				drain()
 
-				if _, err := w.inner.Write(w.buffer); err != nil {
+				if _, err := w.inner.Write(buf); err != nil {
 					w.stop(err)
 					return
 				}
 
-				w.buffer = w.buffer[:0]
+				w.buffer.Reset()
 				lines = 0
 			}
 		}
 
-		if len(w.buffer) > 0 {
-			if _, err := w.inner.Write(w.buffer); err != nil {
+		if w.buffer.Len() > 0 {
+			if _, err := w.inner.Write(w.buffer.Bytes()); err != nil {
 				w.done <- err
 				return
 			}
