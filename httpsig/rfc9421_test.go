@@ -303,8 +303,6 @@ func TestRFC9421_Sign(t *testing.T) {
 				t.Fatalf("Failed to create request: %v", err)
 			}
 
-			r.ContentLength = max(r.ContentLength, 1)
-
 			r.Header.Set("Date", "Tue, 20 Apr 2021 02:07:55 GMT")
 			r.Header.Set("Content-Type", "application/json")
 			r.Header.Set("Content-Length", "18")
