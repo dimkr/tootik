@@ -117,6 +117,7 @@ func TestSign_ReadFailure(t *testing.T) {
 	req, err := http.NewRequest(http.MethodPost, "http://localhost/inbox/nobody", &closedPipe{})
 	assert.NoError(t, err)
 
+	req.ContentLength = 1
 	req.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
