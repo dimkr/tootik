@@ -232,7 +232,13 @@ func (l *Listener) fetchObject(ctx context.Context, id string, keys [2]httpsig.K
 		return true, nil, fmt.Errorf("object is too big: %d", resp.ContentLength)
 	}
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, l.Config.MaxRequestBodySize))
+	var body []byte
+	if resp.ContentLength >= 0 {
+		body = make([]byte, resp.ContentLength)
+		_, err = io.ReadFull(resp.Body, body)
+	} else {
+		body, err = io.ReadAll(io.LimitReader(resp.Body, l.Config.MaxRequestBodySize))
+	}
 	if err != nil {
 		return true, nil, err
 	}
@@ -320,7 +326,14 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 		return
 	}
 
-	rawActivity, err := io.ReadAll(io.LimitReader(r.Body, l.Config.MaxRequestBodySize))
+	var rawActivity []byte
+	var err error
+	if r.ContentLength >= 0 {
+		rawActivity = make([]byte, r.ContentLength)
+		_, err = io.ReadFull(r.Body, rawActivity)
+	} else {
+		rawActivity, err = io.ReadAll(io.LimitReader(r.Body, l.Config.MaxRequestBodySize))
+	}
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return

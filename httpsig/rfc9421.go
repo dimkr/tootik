@@ -141,7 +141,14 @@ func SignRFC9421(
 	}
 
 	if r.Method == http.MethodPost {
-		body, err := io.ReadAll(r.Body)
+		var body []byte
+		var err error
+		if r.ContentLength >= 0 {
+			body = make([]byte, r.ContentLength)
+			_, err = io.ReadFull(r.Body, body)
+		} else {
+			body, err = io.ReadAll(r.Body)
+		}
 		if err != nil {
 			return err
 		}

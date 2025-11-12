@@ -104,10 +104,17 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request) (*http.Response, e
 			return resp, fmt.Errorf("failed to send request to %s: %d", urlString, resp.StatusCode)
 		}
 
-		body, err := io.ReadAll(io.LimitReader(resp.Body, s.Config.MaxResponseBodySize))
+		var body []byte
+		if resp.ContentLength >= 0 {
+			body = make([]byte, resp.ContentLength)
+			_, err = io.ReadFull(resp.Body, body)
+		} else {
+			body, err = io.ReadAll(io.LimitReader(resp.Body, s.Config.MaxResponseBodySize))
+		}
 		if err != nil {
 			return resp, fmt.Errorf("failed to send request to %s: %d, %w", urlString, resp.StatusCode, err)
 		}
+
 		return resp, fmt.Errorf("failed to send request to %s: %d, %s", urlString, resp.StatusCode, string(body))
 	}
 
