@@ -41,7 +41,7 @@ func TestSign_HappyFlow(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	sig, err := Extract(req, body, "localhost", now, time.Minute)
 	assert.NoError(t, err)
@@ -58,7 +58,7 @@ func TestSign_Get(t *testing.T) {
 	assert.NoError(t, err)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	sig, err := Extract(req, nil, "localhost", now, time.Minute)
 	assert.NoError(t, err)
@@ -78,7 +78,7 @@ func TestSign_NoKeyID(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.Error(t, Sign(req, Key{PrivateKey: priv}, now))
+	assert.Error(t, Sign(req, body, Key{PrivateKey: priv}, now))
 }
 
 func TestSign_WrongKeyType(t *testing.T) {
@@ -93,7 +93,7 @@ func TestSign_WrongKeyType(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.Error(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.Error(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 }
 
 func TestSign_MissingHeader(t *testing.T) {
@@ -107,22 +107,7 @@ func TestSign_MissingHeader(t *testing.T) {
 	req.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.Error(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
-}
-
-func TestSign_ReadFailure(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
-	assert.NoError(t, err)
-
-	req, err := http.NewRequest(http.MethodPost, "http://localhost/inbox/nobody", &closedPipe{})
-	assert.NoError(t, err)
-
-	req.ContentLength = 1
-	req.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
-	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
-
-	now := time.Now()
-	assert.Error(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.Error(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 }
 
 func TestSign_SignFailure(t *testing.T) {
@@ -134,5 +119,5 @@ func TestSign_SignFailure(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.Error(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: &rsa.PrivateKey{PublicKey: rsa.PublicKey{N: big.NewInt(1)}}}, now))
+	assert.Error(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: &rsa.PrivateKey{PublicKey: rsa.PublicKey{N: big.NewInt(1)}}}, now))
 }

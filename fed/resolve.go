@@ -289,7 +289,7 @@ func (r *Resolver) tryResolve(ctx context.Context, keys [2]httpsig.Key, host, na
 	}
 	req.Header.Add("Accept", "application/json")
 
-	resp, err := r.send(keys, req)
+	resp, err := r.send(keys, req, nil)
 	if err != nil {
 		return r.handleFetchFailure(ctx, finger, cachedActor, sinceLastUpdate, resp, err)
 	}
@@ -432,7 +432,7 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 
 	req.Header.Add("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
-	resp, err := r.send(keys, req)
+	resp, err := r.send(keys, req, nil)
 	if err != nil {
 		return r.handleFetchFailure(ctx, profile, cachedActor, sinceLastUpdate, resp, err)
 	}

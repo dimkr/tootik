@@ -20,19 +20,12 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"io"
 	"math/big"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
 )
-
-type closedPipe struct{}
-
-func (*closedPipe) Read(p []byte) (int, error) {
-	return 0, io.ErrClosedPipe
-}
 
 // B.1.4.  Example Ed25519 Test Key
 const (
@@ -180,8 +173,7 @@ func TestRFC9421_Sign(t *testing.T) {
 	for _, data := range []struct {
 		Name                             string
 		Key                              Key
-		Method, URL                      string
-		Body                             io.Reader
+		Method, URL, Body                string
 		Components                       []string
 		Alg                              string
 		Digest                           func(*http.Request, []byte)
@@ -193,7 +185,7 @@ func TestRFC9421_Sign(t *testing.T) {
 			Key:               Key{ID: "test-key-rsa", PrivateKey: rsaPrivate},
 			Method:            http.MethodPost,
 			URL:               "http://origin.host.internal.example/foo",
-			Body:              strings.NewReader(`{"hello": "world"}`),
+			Body:              `{"hello": "world"}`,
 			Components:        []string{"@method", "@authority", "@path", "content-digest", "content-type", "content-length", "forwarded"},
 			Alg:               "rsa-v1_5-sha256",
 			Digest:            RFC9421DigestSHA512,
@@ -207,7 +199,7 @@ func TestRFC9421_Sign(t *testing.T) {
 			Key:               Key{ID: "test-key-ed25519", PrivateKey: ed25519Private},
 			Method:            http.MethodPost,
 			URL:               "http://example.com/foo",
-			Body:              strings.NewReader(`{"hello": "world"}`),
+			Body:              `{"hello": "world"}`,
 			Components:        []string{"date", "@method", "@path", "@authority", "content-type", "content-length"},
 			Digest:            RFC9421DigestSHA256,
 			Now:               time.Unix(1618884473, 0),
@@ -215,23 +207,11 @@ func TestRFC9421_Sign(t *testing.T) {
 			ExpectedSignature: "sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:",
 		},
 		{
-			Name:       "BodyReadFailure",
-			Key:        Key{ID: "test-key-rsa", PrivateKey: rsaPrivate},
-			Method:     http.MethodPost,
-			URL:        "http://origin.host.internal.example/foo",
-			Body:       &closedPipe{},
-			Components: []string{"@method", "@authority", "@path", "content-digest", "content-type", "content-length", "forwarded"},
-			Alg:        "rsa-v1_5-sha256",
-			Digest:     RFC9421DigestSHA512,
-			Now:        time.Unix(1618884480, 0),
-			Expires:    time.Unix(1618884540, 0),
-		},
-		{
 			Name:       "EmptyKeyID",
 			Key:        Key{PrivateKey: ed25519Private},
 			Method:     http.MethodPost,
 			URL:        "http://example.com/foo",
-			Body:       strings.NewReader(`{"hello": "world"}`),
+			Body:       `{"hello": "world"}`,
 			Components: []string{"date", "@method", "@path", "@authority", "content-type", "content-length"},
 			Digest:     RFC9421DigestSHA256,
 			Now:        time.Unix(1618884473, 0),
@@ -241,7 +221,7 @@ func TestRFC9421_Sign(t *testing.T) {
 			Key:        Key{ID: "test-key-ed25519", PrivateKey: []byte{}},
 			Method:     http.MethodPost,
 			URL:        "http://example.com/foo",
-			Body:       strings.NewReader(`{"hello": "world"}`),
+			Body:       `{"hello": "world"}`,
 			Components: []string{"date", "@method", "@path", "@authority", "content-type", "content-length"},
 			Digest:     RFC9421DigestSHA256,
 			Now:        time.Unix(1618884473, 0),
@@ -251,7 +231,7 @@ func TestRFC9421_Sign(t *testing.T) {
 			Key:        Key{ID: "test-key-rsa", PrivateKey: &rsa.PrivateKey{PublicKey: rsa.PublicKey{N: big.NewInt(512)}}},
 			Method:     http.MethodPost,
 			URL:        "http://origin.host.internal.example/foo",
-			Body:       strings.NewReader(`{"hello": "world"}`),
+			Body:       `{"hello": "world"}`,
 			Components: []string{"@method", "@authority", "@path", "content-digest", "content-type", "content-length", "forwarded"},
 			Alg:        "rsa-v1_5-sha256",
 			Digest:     RFC9421DigestSHA512,
@@ -263,7 +243,7 @@ func TestRFC9421_Sign(t *testing.T) {
 			Key:        Key{ID: "test-key-rsa", PrivateKey: rsaPrivate},
 			Method:     http.MethodPost,
 			URL:        "http://origin.host.internal.example/foo",
-			Body:       strings.NewReader(`{"hello": "world"}`),
+			Body:       `{"hello": "world"}`,
 			Components: []string{"@method", "@authority", "@path", "content-digest", "content-type", "content-length", "forwarded", "@date"},
 			Alg:        "rsa-v1_5-sha256",
 			Digest:     RFC9421DigestSHA512,
@@ -274,7 +254,7 @@ func TestRFC9421_Sign(t *testing.T) {
 			Name:              "PostWithQuery",
 			Method:            http.MethodPost,
 			URL:               "http://example.com/foo?a=b",
-			Body:              strings.NewReader(`{"hello": "world"}`),
+			Body:              `{"hello": "world"}`,
 			Digest:            RFC9421DigestSHA256,
 			Now:               time.Unix(1618884473, 0),
 			Key:               Key{ID: "test-key-ed25519", PrivateKey: ed25519Private},
@@ -285,7 +265,7 @@ func TestRFC9421_Sign(t *testing.T) {
 			Name:              "PostWithoutQuery",
 			Method:            http.MethodPost,
 			URL:               "http://example.com/foo",
-			Body:              strings.NewReader(`{"hello": "world"}`),
+			Body:              `{"hello": "world"}`,
 			Digest:            RFC9421DigestSHA256,
 			Now:               time.Unix(1618884473, 0),
 			Key:               Key{ID: "test-key-ed25519", PrivateKey: ed25519Private},
@@ -296,7 +276,7 @@ func TestRFC9421_Sign(t *testing.T) {
 			Name:              "GetWithQuery",
 			Method:            http.MethodGet,
 			URL:               "http://example.com/foo?a=b",
-			Body:              strings.NewReader(`{"hello": "world"}`),
+			Body:              `{"hello": "world"}`,
 			Digest:            RFC9421DigestSHA256,
 			Now:               time.Unix(1618884473, 0),
 			Key:               Key{ID: "test-key-ed25519", PrivateKey: ed25519Private},
@@ -307,7 +287,7 @@ func TestRFC9421_Sign(t *testing.T) {
 			Name:              "GetWithoutQuery",
 			Method:            http.MethodGet,
 			URL:               "http://example.com/foo",
-			Body:              strings.NewReader(`{"hello": "world"}`),
+			Body:              `{"hello": "world"}`,
 			Digest:            RFC9421DigestSHA256,
 			Now:               time.Unix(1618884473, 0),
 			Key:               Key{ID: "test-key-ed25519", PrivateKey: ed25519Private},
@@ -318,7 +298,7 @@ func TestRFC9421_Sign(t *testing.T) {
 		t.Run(data.Name, func(tt *testing.T) {
 			tt.Parallel()
 
-			r, err := http.NewRequest(data.Method, data.URL, data.Body)
+			r, err := http.NewRequest(data.Method, data.URL, strings.NewReader(data.Body))
 			if err != nil {
 				t.Fatalf("Failed to create request: %v", err)
 			}
@@ -332,6 +312,7 @@ func TestRFC9421_Sign(t *testing.T) {
 
 			if err := SignRFC9421(
 				r,
+				[]byte(data.Body),
 				data.Key,
 				data.Now,
 				data.Expires,

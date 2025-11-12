@@ -17,14 +17,12 @@ limitations under the License.
 package httpsig
 
 import (
-	"bytes"
 	"crypto"
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -36,26 +34,13 @@ var (
 )
 
 // Sign adds a signature to an outgoing HTTP request.
-func Sign(r *http.Request, key Key, now time.Time) error {
+func Sign(r *http.Request, body []byte, key Key, now time.Time) error {
 	if key.ID == "" {
 		return errors.New("empty key ID")
 	}
 
 	headers := defaultHeaders
 	if r.Method == http.MethodPost {
-		var body []byte
-		var err error
-		if r.ContentLength >= 0 {
-			body = make([]byte, r.ContentLength) // codeql[go/uncontrolled-allocation-size]
-			_, err = io.ReadFull(r.Body, body)
-		} else {
-			body, err = io.ReadAll(r.Body)
-		}
-		if err != nil {
-			return err
-		}
-
-		r.Body = io.NopCloser(bytes.NewReader(body))
 		hash := sha256.Sum256(body)
 		r.Header.Set("Digest", "SHA-256="+base64.StdEncoding.EncodeToString(hash[:]))
 

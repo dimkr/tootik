@@ -258,7 +258,7 @@ func (q *Queue) deliverWithTimeout(parent context.Context, task *deliveryTask) e
 
 	req := task.Request.WithContext(ctx)
 
-	resp, err := q.Resolver.send(task.Keys, req)
+	resp, err := q.Resolver.send(task.Keys, req, []byte(task.Job.RawActivity))
 	if err == nil {
 		resp.Body.Close()
 	}
