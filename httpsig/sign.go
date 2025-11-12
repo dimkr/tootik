@@ -46,7 +46,7 @@ func Sign(r *http.Request, key Key, now time.Time) error {
 		var body []byte
 		var err error
 		if r.ContentLength >= 0 {
-			body = make([]byte, r.ContentLength)
+			body = make([]byte, r.ContentLength) //nolint:go/uncontrolled-allocation-size
 			_, err = io.ReadFull(r.Body, body)
 		} else {
 			body, err = io.ReadAll(r.Body)
