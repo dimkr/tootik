@@ -60,8 +60,9 @@ func (f Client) Do(r *http.Request) (*http.Response, error) {
 	dst.Backend.ServeHTTP(&w, r)
 
 	return &http.Response{
-		StatusCode: w.StatusCode,
-		Header:     w.Headers,
-		Body:       io.NopCloser(bytes.NewReader(w.Body.Bytes())),
+		StatusCode:    w.StatusCode,
+		Header:        w.Headers,
+		Body:          io.NopCloser(bytes.NewReader(w.Body.Bytes())),
+		ContentLength: int64(w.Body.Len()),
 	}, nil
 }

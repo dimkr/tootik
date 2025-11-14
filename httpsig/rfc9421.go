@@ -26,7 +26,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/textproto"
 	"regexp"
@@ -130,6 +129,7 @@ func RFC9421DigestSHA512(r *http.Request, body []byte) {
 // SignRFC9421 adds a RFC9421 signature to an outgoing HTTP request.
 func SignRFC9421(
 	r *http.Request,
+	body []byte,
 	key Key,
 	now, expires time.Time,
 	digest func(*http.Request, []byte),
@@ -141,12 +141,6 @@ func SignRFC9421(
 	}
 
 	if r.Method == http.MethodPost {
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			return err
-		}
-
-		r.Body = io.NopCloser(bytes.NewReader(body))
 		digest(r, body)
 
 		if components == nil && r.URL.RawQuery != "" {

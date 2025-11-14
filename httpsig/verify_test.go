@@ -41,7 +41,7 @@ func TestVerify_TooOld(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now.Add(-time.Minute*2)))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now.Add(-time.Minute*2)))
 
 	_, err = Extract(req, body, "localhost", now, time.Minute)
 	assert.Error(t, err)
@@ -59,7 +59,7 @@ func TestVerify_TooNew(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now.Add(time.Minute*2)))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now.Add(time.Minute*2)))
 
 	_, err = Extract(req, body, "localhost", now, time.Minute)
 	assert.Error(t, err)
@@ -77,7 +77,7 @@ func TestVerify_NoDate(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Del("Date")
 
@@ -97,7 +97,7 @@ func TestVerify_InvalidDate(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Date", "a")
 
@@ -117,7 +117,7 @@ func TestVerify_WrongHost(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	_, err = Extract(req, body, "wrong", now, time.Minute)
 	assert.Error(t, err)
@@ -135,7 +135,7 @@ func TestVerify_EmptyHost(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Del("Host")
 	req.Host = ""
@@ -156,7 +156,7 @@ func TestVerify_NoHostFallback(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Del("Host")
 
@@ -178,7 +178,7 @@ func TestVerify_NoHostWrongFallback(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Del("Host")
 
@@ -198,7 +198,7 @@ func TestVerify_TwoSignatureHeaders(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Add("Signature", "")
 
@@ -218,7 +218,7 @@ func TestVerify_TwoKeyIDs(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Signature", req.Header.Get("Signature")+`,keyId="a"`)
 
@@ -238,7 +238,7 @@ func TestVerify_TwoSignatures(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Signature", req.Header.Get("Signature")+`,signature="a"`)
 
@@ -258,7 +258,7 @@ func TestVerify_TwoHeaders(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Signature", req.Header.Get("Signature")+`,headers="a"`)
 
@@ -278,7 +278,7 @@ func TestVerify_InvalidAttribute(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Signature", req.Header.Get("Signature")+`,a="b"`)
 
@@ -298,7 +298,7 @@ func TestVerify_NoKeyID(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Signature", strings.Replace(req.Header.Get("Signature"), "keyId", "algorithm", 1))
 
@@ -318,7 +318,7 @@ func TestVerify_NoSignature(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Signature", strings.Replace(req.Header.Get("Signature"), "signature", "algorithm", 1))
 
@@ -338,7 +338,7 @@ func TestVerify_NoHeaders(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Signature", strings.Replace(req.Header.Get("Signature"), "headers", "algorithm", 1))
 
@@ -358,7 +358,7 @@ func TestVerify_InvalidSignatureBase64(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Signature", strings.Replace(req.Header.Get("Signature"), `signature="`, `signature="a`, 1))
 
@@ -378,7 +378,7 @@ func TestVerify_DuplicateHeaders(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Signature", strings.Replace(req.Header.Get("Signature"), `(request-target)`, `(request-target) (request-target)`, 1))
 
@@ -398,7 +398,7 @@ func TestVerify_HeadersOnlyWhitespace(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Signature", strings.Replace(req.Header.Get("Signature"), `headers="`+strings.Join(postHeaders, " ")+`"`, `headers=" "`, 1))
 
@@ -418,7 +418,7 @@ func TestVerify_HeadersLeadingWhitespace(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Signature", "\t\t"+req.Header.Get("Signature"))
 
@@ -440,7 +440,7 @@ func TestVerify_HeadersTrailingWhitespace(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Signature", req.Header.Get("Signature")+"\t\t")
 
@@ -462,7 +462,7 @@ func TestVerify_HeadersContainsWhitespace(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Signature", strings.Replace(req.Header.Get("Signature"), " content-type", " content-type\t\t", 1))
 
@@ -484,7 +484,7 @@ func TestVerify_TargetNotSigned(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Signature", strings.Replace(req.Header.Get("Signature"), "(request-target) ", "", 1))
 
@@ -504,7 +504,7 @@ func TestVerify_HostNotSigned(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Signature", strings.Replace(req.Header.Get("Signature"), " host ", " ", 1))
 
@@ -524,7 +524,7 @@ func TestVerify_DateNotSigned(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Signature", strings.Replace(req.Header.Get("Signature"), " date ", " ", 1))
 
@@ -544,7 +544,7 @@ func TestVerify_DigestNotSigned(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Signature", strings.Replace(req.Header.Get("Signature"), ` digest"`, `"`, 1))
 
@@ -564,7 +564,7 @@ func TestVerify_MissingSignedHeader(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Signature", strings.Replace(req.Header.Get("Signature"), `(request-target)`, `(request-target) aaa`, 1))
 
@@ -584,7 +584,7 @@ func TestVerify_MissingSpecialSignedHeader(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Signature", strings.Replace(req.Header.Get("Signature"), `(request-target)`, `(request-target) (request-aaa)`, 1))
 
@@ -604,7 +604,7 @@ func TestVerify_DuplicateSignedHeader(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Add("Date", req.Header.Get("Date"))
 
@@ -626,7 +626,7 @@ func TestVerify_NoDigest(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Del("Digest")
 
@@ -646,7 +646,7 @@ func TestVerify_ShortDigest(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Digest", "a")
 
@@ -666,7 +666,7 @@ func TestVerify_InvalidDigestAlgorithm(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Digest", "SHA-512=a")
 
@@ -686,7 +686,7 @@ func TestVerify_InvalidDigestBase64(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Digest", req.Header.Get("Digest")+"a")
 
@@ -706,7 +706,7 @@ func TestVerify_InvalidDigestHashSize(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Digest", "SHA-256=DMF1ucDxtqgxw5niaXcmYQ==")
 
@@ -726,7 +726,7 @@ func TestVerify_WrongHash(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Digest", "SHA-256=ypeBEsobvcr6wjGzmiPcTaeG7/gUfE5yuYB3ha/uSLs=")
 
@@ -746,7 +746,7 @@ func TestVerify_DifferentMethod(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Method = http.MethodGet
 
@@ -768,7 +768,7 @@ func TestVerify_DifferentHost(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://invalid/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://invalid/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Host", "localhost")
 
@@ -790,7 +790,7 @@ func TestVerify_DifferentDate(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Date", now.Add(-time.Second).UTC().Format(http.TimeFormat))
 
@@ -812,7 +812,7 @@ func TestVerify_DifferentContentType(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	req.Header.Set("Content-Type", "text/plain")
 
@@ -834,7 +834,7 @@ func TestVerify_WrongKey(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	sig, err := Extract(req, body, "localhost", now, time.Minute)
 	assert.NoError(t, err)
@@ -858,7 +858,7 @@ func TestVerify_SmallKey(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	sig, err := Extract(req, body, "localhost", now, time.Minute)
 	assert.NoError(t, err)
@@ -878,7 +878,7 @@ func TestVerify_WrongKeyType(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.NoError(t, Sign(req, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
+	assert.NoError(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: priv}, now))
 
 	sig, err := Extract(req, body, "localhost", now, time.Minute)
 	assert.NoError(t, err)

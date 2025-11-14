@@ -289,7 +289,7 @@ func (r *Resolver) tryResolve(ctx context.Context, keys [2]httpsig.Key, host, na
 	}
 	req.Header.Add("Accept", "application/json")
 
-	resp, err := r.send(keys, req)
+	resp, err := r.send(keys, req, nil)
 	if err != nil {
 		return r.handleFetchFailure(ctx, finger, cachedActor, sinceLastUpdate, resp, err)
 	}
@@ -432,7 +432,7 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 
 	req.Header.Add("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
-	resp, err := r.send(keys, req)
+	resp, err := r.send(keys, req, nil)
 	if err != nil {
 		return r.handleFetchFailure(ctx, profile, cachedActor, sinceLastUpdate, resp, err)
 	}
@@ -442,7 +442,13 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 		return nil, cachedActor, fmt.Errorf("failed to fetch %s: response is too big", profile)
 	}
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, r.Config.MaxResponseBodySize))
+	var body []byte
+	if resp.ContentLength >= 0 {
+		body = make([]byte, resp.ContentLength)
+		_, err = io.ReadFull(resp.Body, body)
+	} else {
+		body, err = io.ReadAll(io.LimitReader(resp.Body, r.Config.MaxResponseBodySize))
+	}
 	if err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", profile, err)
 	}

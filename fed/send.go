@@ -42,7 +42,7 @@ type sender struct {
 
 var userAgent = "tootik/" + buildinfo.Version
 
-func (s *sender) send(keys [2]httpsig.Key, req *http.Request) (*http.Response, error) {
+func (s *sender) send(keys [2]httpsig.Key, req *http.Request, body []byte) (*http.Response, error) {
 	urlString := req.URL.String()
 
 	if req.URL.Scheme != "https" {
@@ -77,16 +77,16 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request) (*http.Response, e
 	if capabilities&ap.RFC9421Ed25519Signatures > 0 {
 		slog.Debug("Signing request using RFC9421 with Ed25519", "method", req.Method, "url", urlString, "key", keys[1].ID)
 
-		if err := httpsig.SignRFC9421(req, keys[1], time.Now(), time.Time{}, httpsig.RFC9421DigestSHA256, "ed25519", nil); err != nil {
+		if err := httpsig.SignRFC9421(req, body, keys[1], time.Now(), time.Time{}, httpsig.RFC9421DigestSHA256, "ed25519", nil); err != nil {
 			return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
 		}
 	} else if capabilities&ap.RFC9421RSASignatures > 0 {
 		slog.Debug("Signing request using RFC9421 with RSA", "method", req.Method, "url", urlString, "key", keys[0].ID)
 
-		if err := httpsig.SignRFC9421(req, keys[0], time.Now(), time.Time{}, httpsig.RFC9421DigestSHA256, "rsa-v1_5-sha256", nil); err != nil {
+		if err := httpsig.SignRFC9421(req, body, keys[0], time.Now(), time.Time{}, httpsig.RFC9421DigestSHA256, "rsa-v1_5-sha256", nil); err != nil {
 			return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
 		}
-	} else if err := httpsig.Sign(req, keys[0], time.Now()); err != nil {
+	} else if err := httpsig.Sign(req, body, keys[0], time.Now()); err != nil {
 		slog.Debug("Signing request using draft-cavage-http-signatures", "method", req.Method, "url", urlString, "key", keys[0].ID)
 
 		return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
@@ -104,10 +104,17 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request) (*http.Response, e
 			return resp, fmt.Errorf("failed to send request to %s: %d", urlString, resp.StatusCode)
 		}
 
-		body, err := io.ReadAll(io.LimitReader(resp.Body, s.Config.MaxResponseBodySize))
+		var body []byte
+		if resp.ContentLength >= 0 {
+			body = make([]byte, resp.ContentLength)
+			_, err = io.ReadFull(resp.Body, body)
+		} else {
+			body, err = io.ReadAll(io.LimitReader(resp.Body, s.Config.MaxResponseBodySize))
+		}
 		if err != nil {
 			return resp, fmt.Errorf("failed to send request to %s: %d, %w", urlString, resp.StatusCode, err)
 		}
+
 		return resp, fmt.Errorf("failed to send request to %s: %d, %s", urlString, resp.StatusCode, string(body))
 	}
 
@@ -134,5 +141,5 @@ func (s *sender) Get(ctx context.Context, keys [2]httpsig.Key, url string) (*htt
 
 	req.Header.Set("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
-	return s.send(keys, req)
+	return s.send(keys, req, nil)
 }
