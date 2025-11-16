@@ -37,26 +37,31 @@ import (
 	"github.com/dimkr/tootik/proof"
 )
 
-func generateRSAKey() (any, string, []byte, error) {
+func generateRSAKey() (any, string, string, error) {
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		return nil, "", nil, fmt.Errorf("failed to generate key: %w", err)
+		return nil, "", "", fmt.Errorf("failed to generate key: %w", err)
+	}
+
+	privDer, err := x509.MarshalPKCS8PrivateKey(priv)
+	if err != nil {
+		return nil, "", "", fmt.Errorf("failed to encode private key: %w", err)
 	}
 
 	var privPem bytes.Buffer
 	if err := pem.Encode(
 		&privPem,
 		&pem.Block{
-			Type:  "RSA PRIVATE KEY",
-			Bytes: x509.MarshalPKCS1PrivateKey(priv),
+			Type:  "PRIVATE KEY",
+			Bytes: privDer,
 		},
 	); err != nil {
-		return nil, "", nil, fmt.Errorf("failed to generate private key PEM: %w", err)
+		return nil, "", "", fmt.Errorf("failed to generate private key PEM: %w", err)
 	}
 
 	pubDer, err := x509.MarshalPKIXPublicKey(&priv.PublicKey)
 	if err != nil {
-		return nil, "", nil, fmt.Errorf("failed to encode public key: %w", err)
+		return nil, "", "", fmt.Errorf("failed to encode public key: %w", err)
 	}
 
 	var pubPem bytes.Buffer
@@ -67,10 +72,10 @@ func generateRSAKey() (any, string, []byte, error) {
 			Bytes: pubDer,
 		},
 	); err != nil {
-		return nil, "", nil, fmt.Errorf("failed to generate public key PEM: %w", err)
+		return nil, "", "", fmt.Errorf("failed to generate public key PEM: %w", err)
 	}
 
-	return priv, privPem.String(), pubPem.Bytes(), nil
+	return priv, privPem.String(), pubPem.String(), nil
 }
 
 func generateEd25519Key() (ed25519.PrivateKey, string, ed25519.PublicKey, error) {
@@ -177,7 +182,7 @@ func CreatePortable(
 		PublicKey: ap.PublicKey{
 			ID:           id + "#main-key",
 			Owner:        id,
-			PublicKeyPem: string(rsaPubPem),
+			PublicKeyPem: rsaPubPem,
 		},
 		AssertionMethod: []ap.AssertionMethod{
 			{
@@ -240,7 +245,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config, nam
 		PublicKey: ap.PublicKey{
 			ID:           fmt.Sprintf("https://%s/user/%s#main-key", domain, name),
 			Owner:        id,
-			PublicKeyPem: string(rsaPubPem),
+			PublicKeyPem: rsaPubPem,
 		},
 		AssertionMethod: []ap.AssertionMethod{
 			{

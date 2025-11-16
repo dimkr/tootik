@@ -18,6 +18,7 @@ package data
 
 import (
 	"crypto/ed25519"
+	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
@@ -32,11 +33,11 @@ func ParseRSAPrivateKey(privateKeyPemString string) (any, error) {
 
 	privateKey, err := x509.ParsePKCS8PrivateKey(privateKeyPem.Bytes)
 	if err != nil {
-		// fallback for openssl<3.0.0
-		privateKey, err = x509.ParsePKCS1PrivateKey(privateKeyPem.Bytes)
-		if err != nil {
-			return nil, err
-		}
+		return nil, err
+	}
+
+	if _, ok := privateKey.(*rsa.PrivateKey); !ok {
+		return nil, errors.New("not an RSA private key")
 	}
 
 	return privateKey, nil
