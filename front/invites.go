@@ -19,6 +19,7 @@ package front
 import (
 	"crypto/ed25519"
 	"database/sql"
+	"fmt"
 	"strings"
 	"time"
 
@@ -71,7 +72,9 @@ func (h *Handler) invites(w text.Writer, r *Request, args ...string) {
 			continue
 		}
 
-		w.Empty()
+		if count > 0 {
+			w.Empty()
+		}
 
 		w.Text("ID: " + data.EncodeEd25519PublicKey(decodedKey.Public().(ed25519.PublicKey)))
 		w.Text("Created: " + time.Unix(inviteInserted, 0).Format(time.DateOnly))
@@ -80,11 +83,16 @@ func (h *Handler) invites(w text.Writer, r *Request, args ...string) {
 			w.Text("Used: " + time.Unix(actorInserted.Int64, 0).Format(time.DateOnly))
 			w.Link("/users/outbox/"+strings.TrimPrefix(actor.V.ID, "https://"), "Used by: "+actor.V.PreferredUsername)
 		} else {
+			w.Link(fmt.Sprintf("gemini://%s/users/register?%s", h.Domain, privString), "Link")
 			w.Link("/users/invite/delete?"+privString, "➖ Delete")
 		}
+
+		count++
 	}
 
-	w.Empty()
+	if count > 0 {
+		w.Empty()
+	}
 
 	if count >= *h.Config.MaxInvitesPerUser {
 		w.Text("Reached the maximum number of invitations.")
@@ -170,6 +178,12 @@ func (h *Handler) invite(w text.Writer, r *Request, priv ed25519.PrivateKey) {
 		data.EncodeEd25519PrivateKey(priv),
 		r.User.ID,
 	); err != nil {
+		r.Log.Warn("Failed to insert invite", "error", err)
+		w.Error()
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
 		r.Log.Warn("Failed to insert invite", "error", err)
 		w.Error()
 		return
