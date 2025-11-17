@@ -34,7 +34,7 @@ func (h *Handler) invites(w text.Writer, r *Request, args ...string) {
 	}
 
 	w.OK()
-	w.Title("🎟️ Invitation")
+	w.Title("🎟️ Invitations")
 
 	rows, err := h.DB.QueryContext(
 		r.Context,
@@ -86,15 +86,20 @@ func (h *Handler) invites(w text.Writer, r *Request, args ...string) {
 
 	w.Empty()
 
-	if count < *h.Config.MaxInvitesPerUser {
+	if count >= *h.Config.MaxInvitesPerUser {
 		w.Text("Reached the maximum number of invitations.")
 	} else {
-		w.Link("/users/invite/generate", "➕ Invite by newly generated key")
-		w.Link("/users/invite/create", "➕ Invite by pre-generated key")
+		w.Link("/users/invites/generate", "➕ Invite by newly generated key")
+		w.Link("/users/invites/create", "➕ Invite by pre-generated key")
 	}
 }
 
 func (h *Handler) generateAndInvite(w text.Writer, r *Request, args ...string) {
+	if r.User == nil {
+		w.Redirect("/users")
+		return
+	}
+
 	_, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		r.Log.Warn("Failed to generate key", "error", err)
@@ -106,6 +111,11 @@ func (h *Handler) generateAndInvite(w text.Writer, r *Request, args ...string) {
 }
 
 func (h *Handler) decodeAndInvite(w text.Writer, r *Request, args ...string) {
+	if r.User == nil {
+		w.Redirect("/users")
+		return
+	}
+
 	if r.URL.RawQuery == "" {
 		w.Status(11, "base58-encoded Ed25519 private key or 'generate' to generate")
 		return
@@ -122,11 +132,6 @@ func (h *Handler) decodeAndInvite(w text.Writer, r *Request, args ...string) {
 }
 
 func (h *Handler) invite(w text.Writer, r *Request, priv ed25519.PrivateKey) {
-	if r.User == nil {
-		w.Redirect("/users")
-		return
-	}
-
 	tx, err := h.DB.BeginTx(r.Context, nil)
 	if err != nil {
 		r.Log.Warn("Cannot generate invite", "error", err)
