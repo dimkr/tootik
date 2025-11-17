@@ -28,7 +28,7 @@ import (
 	"github.com/dimkr/tootik/front/user"
 )
 
-func (h *Handler) register(w text.Writer, r *Request, args ...string) {
+func (h *Handler) register(w text.Writer, r *Request, closed bool) {
 	if r.User != nil {
 		r.Log.Warn("Registered user cannot register again")
 		w.Statusf(40, "Already registered as %s", r.User.PreferredUsername)
@@ -96,6 +96,9 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 		if h.Config.EnablePortableActorRegistration {
 			w.Status(10, "Create portable user? (y/n)")
 			return
+		} else if closed {
+			w.Status(40, "Registration is closed")
+			return
 		} else if _, _, err := user.Create(r.Context, h.Domain, h.DB, h.Config, userName, ap.Person, clientCert); err != nil {
 			r.Log.Warn("Failed to create new user", "name", userName, "error", err)
 			w.Status(40, "Failed to create new user")
@@ -103,7 +106,10 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 		}
 
 	case "n":
-		if _, _, err := user.Create(r.Context, h.Domain, h.DB, h.Config, userName, ap.Person, clientCert); err != nil {
+		if closed {
+			w.Status(40, "Registration is closed")
+			return
+		} else if _, _, err := user.Create(r.Context, h.Domain, h.DB, h.Config, userName, ap.Person, clientCert); err != nil {
 			r.Log.Warn("Failed to create new user", "name", userName, "error", err)
 			w.Status(40, "Failed to create new user")
 			return
@@ -118,7 +124,10 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 		return
 
 	case "generate":
-		if !h.Config.EnablePortableActorRegistration {
+		if closed {
+			w.Status(40, "Registration is closed")
+			return
+		} else if !h.Config.EnablePortableActorRegistration {
 			w.Status(40, "Registration of portable actors is disabled")
 			return
 		}
@@ -130,7 +139,7 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 			return
 		}
 
-		if _, _, err := user.CreatePortable(r.Context, h.Domain, h.DB, h.Config, userName, clientCert, priv, data.EncodeEd25519PrivateKey(priv), pub); err != nil {
+		if _, _, err := user.CreatePortable(r.Context, h.Domain, h.DB, h.Config, userName, clientCert, priv, data.EncodeEd25519PrivateKey(priv), pub, closed); err != nil {
 			r.Log.Warn("Failed to create new portable user", "name", userName, "error", err)
 			w.Status(40, "Failed to create new user")
 			return
@@ -149,7 +158,7 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 			return
 		}
 
-		if _, _, err := user.CreatePortable(r.Context, h.Domain, h.DB, h.Config, userName, clientCert, key, r.URL.RawQuery, key.Public().(ed25519.PublicKey)); err != nil {
+		if _, _, err := user.CreatePortable(r.Context, h.Domain, h.DB, h.Config, userName, clientCert, key, r.URL.RawQuery, key.Public().(ed25519.PublicKey), closed); err != nil {
 			r.Log.Warn("Failed to create new portable user", "name", userName, "error", err)
 			w.Status(40, "Failed to create new user")
 			return

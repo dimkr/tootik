@@ -26,6 +26,7 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"time"
 
@@ -94,7 +95,7 @@ func insertActor(
 	ed25519PrivMultibase string,
 	keys [2]httpsig.Key,
 	cert *x509.Certificate,
-	db *sql.DB,
+	tx *sql.Tx,
 	cfg *cfg.Config,
 ) error {
 	if !cfg.DisableIntegrityProofs {
@@ -105,7 +106,7 @@ func insertActor(
 	}
 
 	if cert == nil {
-		_, err := db.ExecContext(
+		_, err := tx.ExecContext(
 			ctx,
 			`INSERT INTO persons (id,  actor, rsaprivkey, ed25519privkey) VALUES (?, JSONB(?), ?, ?)`,
 			actor.ID,
@@ -116,13 +117,7 @@ func insertActor(
 		return err
 	}
 
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	if _, err = tx.ExecContext(
+	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT OR IGNORE INTO persons (id, actor, rsaprivkey, ed25519privkey) VALUES (?, JSONB(?), ?, ?)`,
 		actor.ID,
@@ -133,7 +128,7 @@ func insertActor(
 		return err
 	}
 
-	if _, err = tx.ExecContext(
+	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT OR IGNORE INTO certificates (user, hash, approved, expires) VALUES($1, $2, (SELECT NOT EXISTS (SELECT 1 FROM certificates WHERE user = $1)), $3)`,
 		actor.PreferredUsername,
@@ -143,7 +138,7 @@ func insertActor(
 		return err
 	}
 
-	return tx.Commit()
+	return nil
 }
 
 // CreatePortable creates a new portable user.
@@ -157,7 +152,33 @@ func CreatePortable(
 	ed25519Priv ed25519.PrivateKey,
 	ed25519PrivMultibase string,
 	ed25519Pub ed25519.PublicKey,
+	closed bool,
 ) (*ap.Actor, [2]httpsig.Key, error) {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	if closed {
+		var invited int
+		if err := tx.QueryRowContext(
+			ctx,
+			`
+			SELECT EXISTS (
+				SELECT 1 FROM invites
+				WHERE ed25519privkey = $1
+				AND NOT EXISTS (SELECT 1 FROM persons WHERE persons.ed25519privkey = invites.ed25519privkey)
+			)
+			`,
+			ed25519PrivMultibase,
+		).Scan(&invited); err != nil {
+			return nil, [2]httpsig.Key{}, fmt.Errorf("failed to check if invited: %w", err)
+		} else if invited == 0 {
+			return nil, [2]httpsig.Key{}, errors.New("not invited")
+		}
+	}
+
 	rsaPriv, rsaPrivPem, rsaPubPem, err := generateRSAKey()
 	if err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate RSA key pair: %w", err)
@@ -199,8 +220,12 @@ func CreatePortable(
 		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519Priv},
 	}
 
-	if err := insertActor(ctx, &actor, rsaPrivPem, ed25519PrivMultibase, keys, cert, db, cfg); err != nil {
+	if err := insertActor(ctx, &actor, rsaPrivPem, ed25519PrivMultibase, keys, cert, tx, cfg); err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to commit %s: %w", id, err)
 	}
 
 	return &actor, keys, nil
@@ -217,6 +242,12 @@ func Create(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config, nam
 	if err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate Ed25519 key pair: %w", err)
 	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
 
 	id := fmt.Sprintf("https://%s/user/%s", domain, name)
 	actor := ap.Actor{
@@ -278,8 +309,12 @@ func Create(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config, nam
 		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519Priv},
 	}
 
-	if err := insertActor(ctx, &actor, rsaPrivPem, ed25519PrivMultibase, keys, cert, db, cfg); err != nil {
+	if err := insertActor(ctx, &actor, rsaPrivPem, ed25519PrivMultibase, keys, cert, tx, cfg); err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to commit %s: %w", id, err)
 	}
 
 	return &actor, keys, nil

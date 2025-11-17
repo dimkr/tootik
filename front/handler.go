@@ -68,14 +68,9 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 	h.handlers[regexp.MustCompile(`^/$`)] = withUserMenu(h.home)
 
 	h.handlers[regexp.MustCompile(`^/users$`)] = withUserMenu(h.users)
-	if closed {
-		h.handlers[regexp.MustCompile(`^/users/register$`)] = func(w text.Writer, r *Request, args ...string) {
-			w.Status(40, "Registration is closed")
-		}
-	} else {
-		h.handlers[regexp.MustCompile(`^/users/register$`)] = h.register
+	h.handlers[regexp.MustCompile(`^/users/register$`)] = func(w text.Writer, r *Request, args ...string) {
+		h.register(w, r, closed)
 	}
-
 	h.handlers[regexp.MustCompile(`^/users/mentions$`)] = withUserMenu(h.mentions)
 
 	h.handlers[regexp.MustCompile(`^/local$`)] = withCache(withUserMenu(h.local), time.Minute*15, &cache)
@@ -106,6 +101,10 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 	h.handlers[regexp.MustCompile(`^/users/portability$`)] = withUserMenu(h.portability)
 	h.handlers[regexp.MustCompile(`^/users/gateway/add$`)] = h.gatewayAdd
 	h.handlers[regexp.MustCompile(`^/users/gateway/remove$`)] = h.gatewayRemove
+	h.handlers[regexp.MustCompile(`^/users/invites$`)] = withUserMenu(h.invites)
+	h.handlers[regexp.MustCompile(`^/users/invites/generate$`)] = h.generateAndInvite
+	h.handlers[regexp.MustCompile(`^/users/invites/create$`)] = h.decodeAndInvite
+	h.handlers[regexp.MustCompile(`^/users/invites/delete$`)] = h.inviteDelete
 
 	h.handlers[regexp.MustCompile(`^/view/(\S+)$`)] = withUserMenu(h.view)
 	h.handlers[regexp.MustCompile(`^/users/view/(\S+)$`)] = withUserMenu(h.view)
