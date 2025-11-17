@@ -67,16 +67,18 @@ func (inbox *Inbox) announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, k
 		return err
 	}
 
+	s := string(j)
+
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
-		string(j),
+		s,
 		actor.ID,
 	); err != nil {
 		return err
 	}
 
-	return inbox.ProcessActivity(ctx, tx, actor, announce, string(j), 1, false)
+	return inbox.ProcessActivity(ctx, tx, actor, announce, s, 1, false)
 }
 
 // Announce queues an Announce activity for delivery.

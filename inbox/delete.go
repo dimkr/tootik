@@ -71,16 +71,18 @@ func (inbox *Inbox) delete(ctx context.Context, actor *ap.Actor, key httpsig.Key
 		return err
 	}
 
+	s := string(j)
+
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
-		string(j),
+		s,
 		note.AttributedTo,
 	); err != nil {
 		return err
 	}
 
-	if err := inbox.ProcessActivity(ctx, tx, actor, delete, string(j), 1, false); err != nil {
+	if err := inbox.ProcessActivity(ctx, tx, actor, delete, s, 1, false); err != nil {
 		return err
 	}
 

@@ -83,16 +83,18 @@ func (inbox *Inbox) unfollow(ctx context.Context, follower *ap.Actor, key httpsi
 		return err
 	}
 
+	s := string(j)
+
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
-		string(j),
+		s,
 		follower.ID,
 	); err != nil {
 		return err
 	}
 
-	if err := inbox.ProcessActivity(ctx, tx, follower, unfollow, string(j), 1, false); err != nil {
+	if err := inbox.ProcessActivity(ctx, tx, follower, unfollow, s, 1, false); err != nil {
 		return err
 	}
 

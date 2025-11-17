@@ -148,20 +148,22 @@ func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks 
 				return
 			}
 
+			ackString := string(ack)
+
 			var ackedSeq int
-			n, err := fmt.Sscanf(string(ack), "%d\r\n", &ackedSeq)
+			n, err := fmt.Sscanf(ackString, "%d\r\n", &ackedSeq)
 			if err != nil {
-				slog.Debug("Received invalid ack", "path", r.URL.Path, "from", from, "ack", string(ack), "error", err)
+				slog.Debug("Received invalid ack", "path", r.URL.Path, "from", from, "ack", ackString, "error", err)
 				continue
 			}
 			if n < 1 {
-				slog.Debug("Received invalid ack", "path", r.URL.Path, "from", from, "ack", string(ack))
+				slog.Debug("Received invalid ack", "path", r.URL.Path, "from", from, "ack", ackString)
 				continue
 			}
 
 			i := ackedSeq - chunks[0].Seq
 			if i < 0 || i >= len(chunks) {
-				slog.Debug("Received invalid ack", "path", r.URL.Path, "from", from, "ack", string(ack))
+				slog.Debug("Received invalid ack", "path", r.URL.Path, "from", from, "ack", ackString)
 				continue
 			}
 
