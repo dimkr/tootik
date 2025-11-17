@@ -56,18 +56,18 @@ func (h *Handler) invites(w text.Writer, r *Request, args ...string) {
 
 	count := 0
 	for rows.Next() {
-		var key string
+		var privString string
 		var inviteInserted int64
 		var actor sql.Null[ap.Actor]
 		var actorInserted sql.NullInt64
-		if err := rows.Scan(&key, &inviteInserted, &actor, &actorInserted); err != nil {
+		if err := rows.Scan(&privString, &inviteInserted, &actor, &actorInserted); err != nil {
 			r.Log.Warn("Failed to scan invite", "error", err)
 			continue
 		}
 
-		decodedKey, err := data.DecodeEd25519PrivateKey(key)
+		decodedKey, err := data.DecodeEd25519PrivateKey(privString)
 		if err != nil {
-			r.Log.Warn("Failed to decode key", "key", key, "error", err)
+			r.Log.Warn("Failed to decode key", "key", privString, "error", err)
 			continue
 		}
 
@@ -80,7 +80,7 @@ func (h *Handler) invites(w text.Writer, r *Request, args ...string) {
 			w.Text("Used: " + time.Unix(actorInserted.Int64, 0).Format(time.DateOnly))
 			w.Link("/users/outbox/"+strings.TrimPrefix(actor.V.ID, "https://"), "Used by: "+actor.V.PreferredUsername)
 		} else {
-			w.Link("/users/invite/delete?"+key, "➖ Delete")
+			w.Link("/users/invite/delete?"+privString, "➖ Delete")
 		}
 	}
 
