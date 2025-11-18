@@ -139,7 +139,7 @@ func (h *Handler) register(w text.Writer, r *Request, closed bool) {
 			return
 		}
 
-		if _, _, err := user.CreatePortable(r.Context, h.Domain, h.DB, h.Config, userName, clientCert, priv, data.EncodeEd25519PrivateKey(priv), pub, closed); err != nil {
+		if _, _, err := user.CreatePortable(r.Context, h.Domain, h.DB, h.Config, userName, clientCert, priv, data.EncodeEd25519PrivateKey(priv), pub); err != nil {
 			r.Log.Warn("Failed to create new portable user", "name", userName, "error", err)
 			w.Status(40, "Failed to create new user")
 			return
@@ -158,7 +158,7 @@ func (h *Handler) register(w text.Writer, r *Request, closed bool) {
 			return
 		}
 
-		if _, _, err := user.CreatePortable(r.Context, h.Domain, h.DB, h.Config, userName, clientCert, key, r.URL.RawQuery, key.Public().(ed25519.PublicKey), closed); err != nil {
+		if _, _, err := user.CreatePortable(r.Context, h.Domain, h.DB, h.Config, userName, clientCert, key, r.URL.RawQuery, key.Public().(ed25519.PublicKey)); err != nil {
 			r.Log.Warn("Failed to create new portable user", "name", userName, "error", err)
 			w.Status(40, "Failed to create new user")
 			return

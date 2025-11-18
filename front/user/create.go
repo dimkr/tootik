@@ -152,7 +152,6 @@ func CreatePortable(
 	ed25519Priv ed25519.PrivateKey,
 	ed25519PrivMultibase string,
 	ed25519Pub ed25519.PublicKey,
-	closed bool,
 ) (*ap.Actor, [2]httpsig.Key, error) {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -160,21 +159,13 @@ func CreatePortable(
 	}
 	defer tx.Rollback()
 
-	if closed {
-		var invited int
-		if err := tx.QueryRowContext(
-			ctx,
-			`
-			SELECT EXISTS (
-				SELECT 1 FROM invites
-				WHERE ed25519privkey = $1
-				AND NOT EXISTS (SELECT 1 FROM persons WHERE persons.ed25519privkey = invites.ed25519privkey)
-			)
-			`,
-			ed25519PrivMultibase,
-		).Scan(&invited); err != nil {
+	if cfg.RequireInvite {
+		var accepted int
+		if err := tx.QueryRowContext(ctx, `SELECT EXISTS (select 1 FROM invites WHERE certhash = $1)`, fmt.Sprintf("%X", sha256.Sum256(cert.Raw))).Scan(&accepted); err != nil {
 			return nil, [2]httpsig.Key{}, fmt.Errorf("failed to check if invited: %w", err)
-		} else if invited == 0 {
+		}
+
+		if accepted == 0 {
 			return nil, [2]httpsig.Key{}, errors.New("not invited")
 		}
 	}
@@ -248,6 +239,17 @@ func Create(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config, nam
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
+
+	if cfg.RequireInvite {
+		var accepted int
+		if err := tx.QueryRowContext(ctx, `SELECT EXISTS (select 1 FROM invites WHERE certhash = $1)`, fmt.Sprintf("%X", sha256.Sum256(cert.Raw))).Scan(&accepted); err != nil {
+			return nil, [2]httpsig.Key{}, fmt.Errorf("failed to check if invited: %w", err)
+		}
+
+		if accepted == 0 {
+			return nil, [2]httpsig.Key{}, errors.New("not invited")
+		}
+	}
 
 	id := fmt.Sprintf("https://%s/user/%s", domain, name)
 	actor := ap.Actor{

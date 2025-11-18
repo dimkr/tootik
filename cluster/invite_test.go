@@ -16,27 +16,32 @@ limitations under the License.
 
 package cluster
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestCluster_Invite(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
 	defer cluster.Stop()
 
-	cluster["a.localdomain"].Config.EnablePortableActorRegistration = true
-	cluster["b.localdomain"].Config.EnablePortableActorRegistration = true
-	cluster["c.localdomain"].Config.EnablePortableActorRegistration = true
+	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 
-	alice := cluster["a.localdomain"].RegisterPortable(aliceKeypair).OK()
-	bob := cluster["b.localdomain"].RegisterPortable(bobKeypair).OK()
-	carol := cluster["c.localdomain"].RegisterPortable(carolKeypair).OK()
+	cluster["a.localdomain"].Config.RequireInvite = true
 
-	alice.
+	invites := alice.
 		Follow("⚙️ Settings").
 		Follow("🎟️ Invitations").
-		Follow("➕ Invite by newly generated key").
-		OK()
-	cluster.Settle(t)
+		Follow("➕ Create").
+		Follow("➕ Create")
 
-	_ = bob
-	_ = carol
+	for _, line := range invites.Lines {
+		if line.Type != Text {
+			continue
+		}
+
+		if id, ok := strings.CutPrefix(line.Text, "ID: "); ok {
+			cluster["a.localdomain"].HandleInput(bobKeypair, "/users/invites/accept", id).OK()
+		}
+	}
 }

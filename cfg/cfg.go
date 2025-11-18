@@ -28,6 +28,7 @@ type Config struct {
 	DatabaseOptions string
 
 	RequireRegistration             bool
+	RequireInvite                   bool
 	MaxInvitesPerUser               *int
 	RegistrationInterval            time.Duration
 	CertificateApprovalTimeout      time.Duration

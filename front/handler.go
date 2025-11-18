@@ -42,6 +42,7 @@ type Handler struct {
 
 var (
 	ErrNotRegistered = errors.New("user is not registered")
+	ErrNotInvited    = errors.New("user is not invited")
 	ErrNotApproved   = errors.New("client certificate is not approved")
 )
 
@@ -102,9 +103,9 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 	h.handlers[regexp.MustCompile(`^/users/gateway/add$`)] = h.gatewayAdd
 	h.handlers[regexp.MustCompile(`^/users/gateway/remove$`)] = h.gatewayRemove
 	h.handlers[regexp.MustCompile(`^/users/invites$`)] = withUserMenu(h.invites)
-	h.handlers[regexp.MustCompile(`^/users/invites/generate$`)] = h.generateAndInvite
-	h.handlers[regexp.MustCompile(`^/users/invites/create$`)] = h.decodeAndInvite
-	h.handlers[regexp.MustCompile(`^/users/invites/delete$`)] = h.inviteDelete
+	h.handlers[regexp.MustCompile(`^/users/invites/create$`)] = h.createInvite
+	h.handlers[regexp.MustCompile(`^/users/invites/delete$`)] = h.deleteInvite
+	h.handlers[regexp.MustCompile(`^/users/invites/accept$`)] = h.acceptInvite
 
 	h.handlers[regexp.MustCompile(`^/view/(\S+)$`)] = withUserMenu(h.view)
 	h.handlers[regexp.MustCompile(`^/users/view/(\S+)$`)] = withUserMenu(h.view)

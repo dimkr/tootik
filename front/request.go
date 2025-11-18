@@ -43,6 +43,9 @@ type Request struct {
 	// User optionally specifies a signed in user.
 	User *ap.Actor
 
+	// CertHash optionally specifies the client certificate hash of User.
+	CertHash string
+
 	// Keys optionally specifies the signing keys associated with User.
 	Keys [2]httpsig.Key
 }
