@@ -10,7 +10,7 @@ func invites(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE UNIQUE INDEX invitescerthash ON invites(certhash)`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX invitescerthash ON invites(certhash) WHERE certhash IS NOT NULL`); err != nil {
 		return err
 	}
 

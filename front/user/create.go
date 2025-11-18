@@ -138,6 +138,15 @@ func insertActor(
 		return err
 	}
 
+	if _, err := tx.ExecContext(
+		ctx,
+		`UPDATE invites SET invited = ? WHERE certhash = ?`,
+		actor.ID,
+		fmt.Sprintf("%X", sha256.Sum256(cert.Raw)),
+	); err != nil {
+		return err
+	}
+
 	return nil
 }
 

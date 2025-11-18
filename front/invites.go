@@ -38,7 +38,7 @@ func (h *Handler) invites(w text.Writer, r *Request, args ...string) {
 	rows, err := h.DB.QueryContext(
 		r.Context,
 		`
-		SELECT invites.id, invites.inserted, persons.actor, persons.inserted
+		SELECT invites.id, invites.inserted, JSON(persons.actor), persons.inserted
 		FROM invites
 		LEFT JOIN persons ON persons.id = invites.invited
 		WHERE invites.inviter = $1
@@ -212,7 +212,7 @@ func (h *Handler) acceptInvite(w text.Writer, r *Request, args ...string) {
 		`
 		UPDATE invites
 		SET certhash = $1
-		WHERE id = $2 AND (certhash IS NULL OR certhash = $1)
+		WHERE id = $2 AND certhash IS NULL
 		`,
 		r.CertHash,
 		r.URL.RawQuery,
