@@ -168,14 +168,14 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 		slog.Info("Redirecting new user")
 		w.Redirect("/users/register")
 		return
-	} else if errors.Is(err, front.ErrNotInvited) {
+	} else if errors.Is(err, front.ErrNotInvited) && r.URL.Path != "/users/invites/accept" {
 		slog.Info("Redirecting uninvited user")
 		w.Redirect("/users/invites/accept")
 		return
 	} else if errors.Is(err, front.ErrNotApproved) {
 		w.Status(40, "Client certificate is awaiting approval")
 		return
-	} else if err != nil && !errors.Is(err, front.ErrNotRegistered) {
+	} else if err != nil && !errors.Is(err, front.ErrNotRegistered) && !errors.Is(err, front.ErrNotInvited) {
 		slog.Warn("Failed to get user", "error", err)
 		w.Error()
 		return
