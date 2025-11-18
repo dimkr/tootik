@@ -18,7 +18,6 @@ package inbox
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
@@ -63,7 +62,7 @@ func (inbox *Inbox) unfollow(ctx context.Context, follower *ap.Actor, key httpsi
 		}
 	}
 
-	j, err := json.Marshal(unfollow)
+	s, err := marshal(unfollow)
 	if err != nil {
 		return err
 	}
@@ -82,8 +81,6 @@ func (inbox *Inbox) unfollow(ctx context.Context, follower *ap.Actor, key httpsi
 	); err != nil {
 		return err
 	}
-
-	s := string(j)
 
 	if _, err := tx.ExecContext(
 		ctx,

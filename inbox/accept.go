@@ -19,7 +19,6 @@ package inbox
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
@@ -60,12 +59,10 @@ func (inbox *Inbox) accept(ctx context.Context, followed *ap.Actor, key httpsig.
 		}
 	}
 
-	j, err := json.Marshal(accept)
+	s, err := marshal(accept)
 	if err != nil {
 		return err
 	}
-
-	s := string(j)
 
 	if _, err := tx.ExecContext(
 		ctx,

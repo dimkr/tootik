@@ -18,7 +18,6 @@ package inbox
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
@@ -51,7 +50,7 @@ func (inbox *Inbox) delete(ctx context.Context, actor *ap.Actor, key httpsig.Key
 		}
 	}
 
-	j, err := json.Marshal(delete)
+	s, err := marshal(delete)
 	if err != nil {
 		return err
 	}
@@ -70,8 +69,6 @@ func (inbox *Inbox) delete(ctx context.Context, actor *ap.Actor, key httpsig.Key
 	); err != nil {
 		return err
 	}
-
-	s := string(j)
 
 	if _, err := tx.ExecContext(
 		ctx,

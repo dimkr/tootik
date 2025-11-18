@@ -19,7 +19,6 @@ package inbox
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -62,12 +61,10 @@ func (inbox *Inbox) announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, k
 		}
 	}
 
-	j, err := json.Marshal(announce)
+	s, err := marshal(announce)
 	if err != nil {
 		return err
 	}
-
-	s := string(j)
 
 	if _, err := tx.ExecContext(
 		ctx,

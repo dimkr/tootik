@@ -18,7 +18,6 @@ package inbox
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
@@ -55,7 +54,7 @@ func (inbox *Inbox) undo(ctx context.Context, actor *ap.Actor, key httpsig.Key, 
 		}
 	}
 
-	j, err := json.Marshal(undo)
+	s, err := marshal(undo)
 	if err != nil {
 		return err
 	}
@@ -65,8 +64,6 @@ func (inbox *Inbox) undo(ctx context.Context, actor *ap.Actor, key httpsig.Key, 
 		return err
 	}
 	defer tx.Rollback()
-
-	s := string(j)
 
 	if _, err := tx.ExecContext(
 		ctx,

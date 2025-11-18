@@ -19,7 +19,6 @@ package inbox
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
@@ -59,7 +58,7 @@ func (inbox *Inbox) updateNote(ctx context.Context, actor *ap.Actor, key httpsig
 		}
 	}
 
-	j, err := json.Marshal(update)
+	s, err := marshal(update)
 	if err != nil {
 		return err
 	}
@@ -69,8 +68,6 @@ func (inbox *Inbox) updateNote(ctx context.Context, actor *ap.Actor, key httpsig
 		return err
 	}
 	defer tx.Rollback()
-
-	s := string(j)
 
 	if _, err := tx.ExecContext(
 		ctx,

@@ -18,7 +18,6 @@ package inbox
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -71,7 +70,7 @@ func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, post *ap.Object
 		}
 	}
 
-	j, err := json.Marshal(create)
+	s, err := marshal(create)
 	if err != nil {
 		return err
 	}
@@ -81,8 +80,6 @@ func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, post *ap.Object
 		return err
 	}
 	defer tx.Rollback()
-
-	s := string(j)
 
 	if _, err = tx.ExecContext(ctx, `insert into outbox (activity, sender) values (jsonb(?),?)`, s, author.ID); err != nil {
 		return err
