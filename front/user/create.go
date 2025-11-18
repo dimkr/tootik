@@ -104,13 +104,8 @@ func insertActor(
 		}
 	}
 
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-
 	if cert == nil {
-		_, err := tx.ExecContext(
+		_, err := db.ExecContext(
 			ctx,
 			`INSERT INTO persons (id,  actor, rsaprivkey, ed25519privkey) VALUES (?, JSONB(?), ?, ?)`,
 			actor.ID,
@@ -118,6 +113,11 @@ func insertActor(
 			rsaPrivPem,
 			ed25519PrivMultibase,
 		)
+		return err
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
 		return err
 	}
 
@@ -132,11 +132,13 @@ func insertActor(
 		return err
 	}
 
+	certHash := fmt.Sprintf("%X", sha256.Sum256(cert.Raw))
+
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT OR IGNORE INTO certificates (user, hash, approved, expires) VALUES($1, $2, (SELECT NOT EXISTS (SELECT 1 FROM certificates WHERE user = $1)), $3)`,
 		actor.PreferredUsername,
-		fmt.Sprintf("%X", sha256.Sum256(cert.Raw)),
+		certHash,
 		cert.NotAfter.Unix(),
 	); err != nil {
 		return err
@@ -144,9 +146,9 @@ func insertActor(
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`UPDATE invites SET invited = ? WHERE certhash = ?`,
+		`UPDATE invites SET invited = ? WHERE certhash = ? AND invited IS NULL`,
 		actor.ID,
-		fmt.Sprintf("%X", sha256.Sum256(cert.Raw)),
+		certHash,
 	); err != nil {
 		return err
 	}
