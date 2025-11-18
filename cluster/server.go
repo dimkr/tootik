@@ -171,7 +171,7 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 		DB:     db,
 	}
 
-	handler, err := front.NewHandler(domain, false, &cfg, resolver, db, localInbox)
+	handler, err := front.NewHandler(domain, &cfg, resolver, db, localInbox)
 	if err != nil {
 		t.Fatalf("Failed to run create a Handler: %v", err)
 	}

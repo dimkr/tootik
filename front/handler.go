@@ -55,7 +55,7 @@ func serveStaticFile(lines []string, w text.Writer, _ *Request, _ ...string) {
 }
 
 // NewHandler returns a new [Handler].
-func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolver, db *sql.DB, inbox ap.Inbox) (Handler, error) {
+func NewHandler(domain string, cfg *cfg.Config, resolver ap.Resolver, db *sql.DB, inbox ap.Inbox) (Handler, error) {
 	h := Handler{
 		handlers: map[*regexp.Regexp]func(text.Writer, *Request, ...string){},
 		Domain:   domain,
@@ -69,9 +69,7 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 	h.handlers[regexp.MustCompile(`^/$`)] = withUserMenu(h.home)
 
 	h.handlers[regexp.MustCompile(`^/users$`)] = withUserMenu(h.users)
-	h.handlers[regexp.MustCompile(`^/users/register$`)] = func(w text.Writer, r *Request, args ...string) {
-		h.register(w, r, closed)
-	}
+	h.handlers[regexp.MustCompile(`^/users/register$`)] = h.register
 	h.handlers[regexp.MustCompile(`^/users/mentions$`)] = withUserMenu(h.mentions)
 
 	h.handlers[regexp.MustCompile(`^/local$`)] = withCache(withUserMenu(h.local), time.Minute*15, &cache)

@@ -26,7 +26,6 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"time"
 
@@ -95,7 +94,7 @@ func insertActor(
 	ed25519PrivMultibase string,
 	keys [2]httpsig.Key,
 	cert *x509.Certificate,
-	tx *sql.Tx,
+	db *sql.DB,
 	cfg *cfg.Config,
 ) error {
 	if !cfg.DisableIntegrityProofs {
@@ -103,6 +102,11 @@ func insertActor(
 		if actor.Proof, err = proof.Create(keys[1], actor); err != nil {
 			return err
 		}
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
 	}
 
 	if cert == nil {
@@ -147,7 +151,7 @@ func insertActor(
 		return err
 	}
 
-	return nil
+	return tx.Commit()
 }
 
 // CreatePortable creates a new portable user.
@@ -162,23 +166,6 @@ func CreatePortable(
 	ed25519PrivMultibase string,
 	ed25519Pub ed25519.PublicKey,
 ) (*ap.Actor, [2]httpsig.Key, error) {
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	if cfg.RequireInvite {
-		var accepted int
-		if err := tx.QueryRowContext(ctx, `SELECT EXISTS (select 1 FROM invites WHERE certhash = $1)`, fmt.Sprintf("%X", sha256.Sum256(cert.Raw))).Scan(&accepted); err != nil {
-			return nil, [2]httpsig.Key{}, fmt.Errorf("failed to check if invited: %w", err)
-		}
-
-		if accepted == 0 {
-			return nil, [2]httpsig.Key{}, errors.New("not invited")
-		}
-	}
-
 	rsaPriv, rsaPrivPem, rsaPubPem, err := generateRSAKey()
 	if err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate RSA key pair: %w", err)
@@ -220,12 +207,8 @@ func CreatePortable(
 		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519Priv},
 	}
 
-	if err := insertActor(ctx, &actor, rsaPrivPem, ed25519PrivMultibase, keys, cert, tx, cfg); err != nil {
+	if err := insertActor(ctx, &actor, rsaPrivPem, ed25519PrivMultibase, keys, cert, db, cfg); err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to commit %s: %w", id, err)
 	}
 
 	return &actor, keys, nil
@@ -241,23 +224,6 @@ func Create(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config, nam
 	ed25519Priv, ed25519PrivMultibase, ed25519Pub, err := generateEd25519Key()
 	if err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate Ed25519 key pair: %w", err)
-	}
-
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	if cfg.RequireInvite {
-		var accepted int
-		if err := tx.QueryRowContext(ctx, `SELECT EXISTS (select 1 FROM invites WHERE certhash = $1)`, fmt.Sprintf("%X", sha256.Sum256(cert.Raw))).Scan(&accepted); err != nil {
-			return nil, [2]httpsig.Key{}, fmt.Errorf("failed to check if invited: %w", err)
-		}
-
-		if accepted == 0 {
-			return nil, [2]httpsig.Key{}, errors.New("not invited")
-		}
 	}
 
 	id := fmt.Sprintf("https://%s/user/%s", domain, name)
@@ -320,12 +286,8 @@ func Create(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config, nam
 		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519Priv},
 	}
 
-	if err := insertActor(ctx, &actor, rsaPrivPem, ed25519PrivMultibase, keys, cert, tx, cfg); err != nil {
+	if err := insertActor(ctx, &actor, rsaPrivPem, ed25519PrivMultibase, keys, cert, db, cfg); err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to commit %s: %w", id, err)
 	}
 
 	return &actor, keys, nil

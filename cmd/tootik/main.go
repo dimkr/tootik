@@ -144,6 +144,12 @@ func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &opts)))
 	slog.SetLogLoggerLevel(slog.Level(*logLevel))
 
+	if *closed {
+		slog.Warn("-closed is deprecated, set RequireInvite and MaxInvitesPerUser instead")
+		cfg.RequireInvite = true
+		cfg.MaxInvitesPerUser = new(int)
+	}
+
 	var blockList *fed.BlockList
 	if *blockListPath != "" {
 		var err error
@@ -317,7 +323,7 @@ func main() {
 		return
 	}
 
-	handler, err := front.NewHandler(*domain, *closed, &cfg, resolver, db, localInbox)
+	handler, err := front.NewHandler(*domain, &cfg, resolver, db, localInbox)
 	if err != nil {
 		panic(err)
 	}

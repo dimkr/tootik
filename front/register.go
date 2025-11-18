@@ -28,7 +28,7 @@ import (
 	"github.com/dimkr/tootik/front/user"
 )
 
-func (h *Handler) register(w text.Writer, r *Request, closed bool) {
+func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 	if r.User != nil {
 		r.Log.Warn("Registered user cannot register again")
 		w.Statusf(40, "Already registered as %s", r.User.PreferredUsername)
@@ -96,9 +96,6 @@ func (h *Handler) register(w text.Writer, r *Request, closed bool) {
 		if h.Config.EnablePortableActorRegistration {
 			w.Status(10, "Create portable user? (y/n)")
 			return
-		} else if closed {
-			w.Status(40, "Registration is closed")
-			return
 		} else if _, _, err := user.Create(r.Context, h.Domain, h.DB, h.Config, userName, ap.Person, clientCert); err != nil {
 			r.Log.Warn("Failed to create new user", "name", userName, "error", err)
 			w.Status(40, "Failed to create new user")
@@ -106,10 +103,7 @@ func (h *Handler) register(w text.Writer, r *Request, closed bool) {
 		}
 
 	case "n":
-		if closed {
-			w.Status(40, "Registration is closed")
-			return
-		} else if _, _, err := user.Create(r.Context, h.Domain, h.DB, h.Config, userName, ap.Person, clientCert); err != nil {
+		if _, _, err := user.Create(r.Context, h.Domain, h.DB, h.Config, userName, ap.Person, clientCert); err != nil {
 			r.Log.Warn("Failed to create new user", "name", userName, "error", err)
 			w.Status(40, "Failed to create new user")
 			return
@@ -124,10 +118,7 @@ func (h *Handler) register(w text.Writer, r *Request, closed bool) {
 		return
 
 	case "generate":
-		if closed {
-			w.Status(40, "Registration is closed")
-			return
-		} else if !h.Config.EnablePortableActorRegistration {
+		if !h.Config.EnablePortableActorRegistration {
 			w.Status(40, "Registration of portable actors is disabled")
 			return
 		}
