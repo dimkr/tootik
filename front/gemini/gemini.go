@@ -168,9 +168,9 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 		slog.Info("Redirecting new user")
 		w.Redirect("/users/register")
 		return
-	} else if errors.Is(err, front.ErrNotInvited) && r.URL.Path != "/users/invites/accept" {
+	} else if errors.Is(err, front.ErrNotInvited) && r.URL.Path != "/users/invitations/accept" {
 		slog.Info("Redirecting uninvited user")
-		w.Redirect("/users/invites/accept")
+		w.Redirect("/users/invitations/accept")
 		return
 	} else if errors.Is(err, front.ErrNotApproved) {
 		w.Status(40, "Client certificate is awaiting approval")
@@ -182,7 +182,7 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 	} else if err == nil && r.User == nil && r.URL.Path == "/users" {
 		w.Status(60, "Client certificate required")
 		return
-	} else if r.User == nil && gl.Config.RequireRegistration && r.URL.Path != "/" && r.URL.Path != "/help" && r.URL.Path != "/users/register" && r.URL.Path != "/users/invites/accept" {
+	} else if r.User == nil && gl.Config.RequireRegistration && r.URL.Path != "/" && r.URL.Path != "/help" && r.URL.Path != "/users/register" && r.URL.Path != "/users/invitations/accept" {
 		w.Status(40, "Must register first")
 		return
 	}

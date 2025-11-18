@@ -41,7 +41,7 @@ func TestCluster_Invite(t *testing.T) {
 		}
 
 		if id, ok := strings.CutPrefix(line.Text, "ID: "); ok {
-			cluster["a.localdomain"].HandleInput(bobKeypair, "/users/invites/accept", id).OK()
+			cluster["a.localdomain"].HandleInput(bobKeypair, "/users/invitations/accept", id).OK()
 		}
 	}
 }

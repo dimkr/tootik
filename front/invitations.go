@@ -26,7 +26,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func (h *Handler) invites(w text.Writer, r *Request, args ...string) {
+func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -88,11 +88,11 @@ func (h *Handler) invites(w text.Writer, r *Request, args ...string) {
 	if count >= *h.Config.MaxInvitesPerUser {
 		w.Text("Reached the maximum number of invitations.")
 	} else {
-		w.Link("/users/invites/create", "➕ Create")
+		w.Link("/users/invitations/create", "➕ Create")
 	}
 }
 
-func (h *Handler) createInvite(w text.Writer, r *Request, args ...string) {
+func (h *Handler) createInvitation(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -157,10 +157,10 @@ func (h *Handler) createInvite(w text.Writer, r *Request, args ...string) {
 
 	r.Log.Info("Generated invite", "id", id)
 
-	w.Redirect("/users/invites")
+	w.Redirect("/users/invitations")
 }
 
-func (h *Handler) deleteInvite(w text.Writer, r *Request, args ...string) {
+func (h *Handler) deleteInvitation(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -193,10 +193,10 @@ func (h *Handler) deleteInvite(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.Redirect("/users/invites")
+	w.Redirect("/users/invitations")
 }
 
-func (h *Handler) acceptInvite(w text.Writer, r *Request, args ...string) {
+func (h *Handler) acceptInvitation(w text.Writer, r *Request, args ...string) {
 	if r.CertHash == "" {
 		w.Redirect("/users")
 		return
