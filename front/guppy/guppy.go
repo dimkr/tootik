@@ -83,9 +83,10 @@ func (gl *Listener) handle(ctx context.Context, from net.Addr, req []byte, acks 
 	}
 
 	var err error
-	r.URL, err = url.Parse(string(req[:len(req)-2]))
+	reqString := string(req[:len(req)-2])
+	r.URL, err = url.Parse(reqString)
 	if err != nil {
-		slog.Warn("Invalid request", "request", string(req[:len(req)-2]), "error", err)
+		slog.Warn("Invalid request", "request", reqString, "error", err)
 		return
 	}
 
