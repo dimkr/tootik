@@ -76,7 +76,7 @@ var (
 	key           = flag.String("key", "key.pem", "HTTPS TLS key")
 	addr          = flag.String("addr", ":8443", "HTTPS listening address")
 	blockListPath = flag.String("blocklist", "", "Blocklist CSV")
-	closed        = flag.Bool("closed", false, "Disable new user registration")
+	closed        = flag.Bool("closed", false, "Disable new user registration (deprecated)")
 	plain         = flag.Bool("plain", false, "Use HTTP instead of HTTPS")
 	cfgPath       = flag.String("cfg", "", "Configuration file")
 	dumpCfg       = flag.Bool("dumpcfg", false, "Print default configuration and exit")
