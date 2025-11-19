@@ -39,6 +39,7 @@ Registered users can:
 * View private posts
 * View a feed of posts by followed users
 * Bookmark posts
+* Invite other users
 
 The Common Name property of the client certificate ("identity") you use will determine your username.
 

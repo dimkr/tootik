@@ -76,6 +76,7 @@ This page allows you to:
 * Configure data portability
 * Upload a .png, .jpg or .gif image to serve as your avatar (use your client certificate for authentication): up to {{.Config.MaxAvatarWidth}}x{{.Config.MaxAvatarHeight}} and {{.Config.MaxAvatarSize}} bytes, downscaled to {{.Config.AvatarWidth}}x{{.Config.AvatarHeight}}
 * Manage client certificates associated with your account
+* Create up to {{.Config.MaxInvitationsPerUser}} invitations for new users
 * Enable automatic deletion of old posts; bookmarked posts are not deleted
 * Export your 200 most recent activities to a CSV file containing raw ActivityPub data
 

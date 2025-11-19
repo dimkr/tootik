@@ -87,7 +87,7 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 		w.Empty()
 	}
 
-	if unused >= *h.Config.MaxInvitesPerUser {
+	if unused >= *h.Config.MaxInvitationsPerUser {
 		w.Text("Reached the maximum number of invitations.")
 	} else {
 		w.Link("/users/invitations/create", "➕ Create")
@@ -138,7 +138,7 @@ func (h *Handler) createInvitation(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if count >= *h.Config.MaxInvitesPerUser {
+	if count >= *h.Config.MaxInvitationsPerUser {
 		r.Log.Warn("Reached the maximum number of invitations")
 		w.Status(40, "Reached the maximum number of invitations")
 		return

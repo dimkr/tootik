@@ -68,7 +68,7 @@ func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn, cfg *cfg.Con
 	var actor ap.Actor
 	var approved int
 	if err := gl.DB.QueryRowContext(ctx, `select json(persons.actor), persons.rsaprivkey, persons.ed25519privkey, certificates.approved from certificates join persons on persons.actor->>'$.preferredUsername' = certificates.user where persons.host = ? and certificates.hash = ? and certificates.expires > unixepoch()`, gl.Domain, certHash).Scan(&actor, &rsaPrivKeyPem, &ed25519PrivKeyMultibase, &approved); err != nil && errors.Is(err, sql.ErrNoRows) {
-		if cfg.RequireInvite {
+		if cfg.RequireInvitation {
 			var accepted int
 			if err := gl.DB.QueryRowContext(ctx, `select exists (select 1 from invites where certhash = ?)`, certHash).Scan(&accepted); err != nil {
 				return certHash, nil, [2]httpsig.Key{}, err

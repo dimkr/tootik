@@ -146,8 +146,8 @@ func main() {
 
 	if *closed {
 		slog.Warn("-closed is deprecated, set RequireInvite and MaxInvitesPerUser instead")
-		cfg.RequireInvite = true
-		cfg.MaxInvitesPerUser = new(int)
+		cfg.RequireInvitation = true
+		cfg.MaxInvitationsPerUser = new(int)
 	}
 
 	var blockList *fed.BlockList

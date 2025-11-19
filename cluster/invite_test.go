@@ -27,7 +27,7 @@ func TestCluster_InvitationHappyFlow(t *testing.T) {
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 
-	cluster["a.localdomain"].Config.RequireInvite = true
+	cluster["a.localdomain"].Config.RequireInvitation = true
 
 	bobCode := "70bc9fdf-74a4-41e5-973d-08ba3fd23d74"
 	carolCode := "ded3626c-ea4b-44cc-adf3-18510e7634e1"
@@ -56,7 +56,7 @@ func TestCluster_WrongCode(t *testing.T) {
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 
-	cluster["a.localdomain"].Config.RequireInvite = true
+	cluster["a.localdomain"].Config.RequireInvitation = true
 
 	bobCode := "70bc9fdf-74a4-41e5-973d-08ba3fd23d74"
 	carolCode := "ded3626c-ea4b-44cc-adf3-18510e7634e1"
@@ -78,7 +78,7 @@ func TestCluster_CodeReuse(t *testing.T) {
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 
-	cluster["a.localdomain"].Config.RequireInvite = true
+	cluster["a.localdomain"].Config.RequireInvitation = true
 
 	bobCode := "70bc9fdf-74a4-41e5-973d-08ba3fd23d74"
 
@@ -100,9 +100,9 @@ func TestCluster_InvitationLimit(t *testing.T) {
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 
-	cluster["a.localdomain"].Config.RequireInvite = true
+	cluster["a.localdomain"].Config.RequireInvitation = true
 	limit := 1
-	cluster["a.localdomain"].Config.MaxInvitesPerUser = &limit
+	cluster["a.localdomain"].Config.MaxInvitationsPerUser = &limit
 
 	bobCode := "70bc9fdf-74a4-41e5-973d-08ba3fd23d74"
 	carolCode := "ded3626c-ea4b-44cc-adf3-18510e7634e1"
@@ -161,7 +161,7 @@ func TestCluster_InvitationCreateDeleteAccept(t *testing.T) {
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 
-	cluster["a.localdomain"].Config.RequireInvite = true
+	cluster["a.localdomain"].Config.RequireInvitation = true
 
 	page := alice.
 		Follow("⚙️ Settings").
@@ -205,7 +205,7 @@ func TestCluster_InvitationCreateAcceptDelete(t *testing.T) {
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 
-	cluster["a.localdomain"].Config.RequireInvite = true
+	cluster["a.localdomain"].Config.RequireInvitation = true
 
 	page := alice.
 		Follow("⚙️ Settings").

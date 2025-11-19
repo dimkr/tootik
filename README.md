@@ -120,6 +120,7 @@ This makes tootik lightweight, private and accessible:
 * Automatic deletion of old posts
 * Account migration, in both directions
 * Support for multiple client certificates
+* Support for invite-only registration
 
 ## Using tootik
 

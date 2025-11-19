@@ -28,8 +28,8 @@ type Config struct {
 	DatabaseOptions string
 
 	RequireRegistration             bool
-	RequireInvite                   bool
-	MaxInvitesPerUser               *int
+	RequireInvitation               bool
+	MaxInvitationsPerUser           *int
 	RegistrationInterval            time.Duration
 	CertificateApprovalTimeout      time.Duration
 	UserNameRegex                   string
@@ -149,8 +149,8 @@ func (c *Config) FillDefaults() {
 		c.DatabaseOptions = "_journal_mode=WAL&_synchronous=1&_busy_timeout=5000"
 	}
 
-	if c.MaxInvitesPerUser == nil {
-		c.MaxInvitesPerUser = &defaultMaxInvitesPerUser
+	if c.MaxInvitationsPerUser == nil {
+		c.MaxInvitationsPerUser = &defaultMaxInvitesPerUser
 	}
 
 	if c.RegistrationInterval <= 0 {
