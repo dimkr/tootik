@@ -17,7 +17,10 @@ limitations under the License.
 package front
 
 import (
+	"crypto/sha256"
+	"crypto/tls"
 	"database/sql"
+	"fmt"
 	"strings"
 	"time"
 
@@ -206,7 +209,17 @@ func (h *Handler) deleteInvitation(w text.Writer, r *Request, args ...string) {
 }
 
 func (h *Handler) acceptInvitation(w text.Writer, r *Request, args ...string) {
-	if r.CertHash == "" {
+	tlsConn, ok := w.Unwrap().(*tls.Conn)
+	if !ok {
+		r.Log.Error("Invalid connection")
+		w.Error()
+		return
+	}
+
+	state := tlsConn.ConnectionState()
+
+	if len(state.PeerCertificates) == 0 {
+		r.Log.Warn("No client certificate")
 		w.Redirect("/users")
 		return
 	}
@@ -216,6 +229,8 @@ func (h *Handler) acceptInvitation(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
+	certHash := fmt.Sprintf("%X", sha256.Sum256(state.PeerCertificates[0].Raw))
+
 	if res, err := h.DB.ExecContext(
 		r.Context,
 		`
@@ -223,7 +238,7 @@ func (h *Handler) acceptInvitation(w text.Writer, r *Request, args ...string) {
 		SET certhash = $1
 		WHERE code = $2 AND certhash IS NULL
 		`,
-		r.CertHash,
+		certHash,
 		r.URL.RawQuery,
 	); err != nil {
 		r.Log.Warn("Failed to accept invitation", "error", err)
@@ -239,7 +254,7 @@ func (h *Handler) acceptInvitation(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	r.Log.Info("Accepted invitation", "code", r.URL.RawQuery, "hash", r.CertHash)
+	r.Log.Info("Accepted invitation", "code", r.URL.RawQuery, "hash", certHash)
 
 	w.Redirect("/users/register")
 }

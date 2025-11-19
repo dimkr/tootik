@@ -49,17 +49,17 @@ type Listener struct {
 	KeyPath  string
 }
 
-func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn, cfg *cfg.Config) (string, *ap.Actor, [2]httpsig.Key, error) {
+func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn, cfg *cfg.Config) (*ap.Actor, [2]httpsig.Key, error) {
 	state := tlsConn.ConnectionState()
 
 	if len(state.PeerCertificates) == 0 {
-		return "", nil, [2]httpsig.Key{}, nil
+		return nil, [2]httpsig.Key{}, nil
 	}
 
 	clientCert := state.PeerCertificates[0]
 
 	if time.Now().After(clientCert.NotAfter) {
-		return "", nil, [2]httpsig.Key{}, nil
+		return nil, [2]httpsig.Key{}, nil
 	}
 
 	certHash := fmt.Sprintf("%X", sha256.Sum256(clientCert.Raw))
@@ -71,33 +71,33 @@ func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn, cfg *cfg.Con
 		if cfg.RequireInvitation {
 			var accepted int
 			if err := gl.DB.QueryRowContext(ctx, `select exists (select 1 from invites where certhash = ?)`, certHash).Scan(&accepted); err != nil {
-				return certHash, nil, [2]httpsig.Key{}, err
+				return nil, [2]httpsig.Key{}, err
 			} else if accepted == 0 {
-				return certHash, nil, [2]httpsig.Key{}, front.ErrNotInvited
+				return nil, [2]httpsig.Key{}, front.ErrNotInvited
 			}
 		}
 
-		return certHash, nil, [2]httpsig.Key{}, front.ErrNotRegistered
+		return nil, [2]httpsig.Key{}, front.ErrNotRegistered
 	} else if err != nil {
-		return certHash, nil, [2]httpsig.Key{}, fmt.Errorf("failed to fetch user for %s: %w", certHash, err)
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to fetch user for %s: %w", certHash, err)
 	}
 
 	if approved == 0 {
-		return certHash, nil, [2]httpsig.Key{}, fmt.Errorf("failed to fetch user for %s: %w", certHash, front.ErrNotApproved)
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to fetch user for %s: %w", certHash, front.ErrNotApproved)
 	}
 
 	rsaPrivKey, err := data.ParseRSAPrivateKey(rsaPrivKeyPem)
 	if err != nil {
-		return certHash, nil, [2]httpsig.Key{}, fmt.Errorf("failed to parse RSA private key for %s: %w", certHash, err)
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to parse RSA private key for %s: %w", certHash, err)
 	}
 
 	ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
 	if err != nil {
-		return certHash, nil, [2]httpsig.Key{}, fmt.Errorf("failed to decode Ed15519 private key for %s: %w", certHash, err)
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to decode Ed15519 private key for %s: %w", certHash, err)
 	}
 
 	slog.Debug("Found existing user", "hash", certHash, "user", actor.ID)
-	return certHash, &actor, [2]httpsig.Key{
+	return &actor, [2]httpsig.Key{
 		{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
 		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey},
 	}, nil
@@ -164,7 +164,7 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 	w := gmi.Wrap(conn)
 	defer w.Flush()
 
-	r.CertHash, r.User, r.Keys, err = gl.getUser(ctx, tlsConn, gl.Config)
+	r.User, r.Keys, err = gl.getUser(ctx, tlsConn, gl.Config)
 	if err != nil && errors.Is(err, front.ErrNotRegistered) && r.URL.Path == "/users" {
 		slog.Info("Redirecting new user")
 		w.Redirect("/users/register")
