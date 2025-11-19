@@ -38,7 +38,7 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 	rows, err := h.DB.QueryContext(
 		r.Context,
 		`
-		SELECT invites.id, invites.inserted, JSON(persons.actor), persons.inserted
+		SELECT invites.code, invites.inserted, JSON(persons.actor), persons.inserted
 		FROM invites
 		LEFT JOIN persons ON persons.id = invites.invited
 		WHERE invites.inviter = $1
@@ -54,13 +54,14 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 	defer rows.Close()
 
 	count := 0
+	unused := 0
 	for rows.Next() {
-		var id string
+		var code string
 		var inviteInserted int64
 		var actor sql.Null[ap.Actor]
 		var actorInserted sql.NullInt64
-		if err := rows.Scan(&id, &inviteInserted, &actor, &actorInserted); err != nil {
-			r.Log.Warn("Failed to scan invite", "error", err)
+		if err := rows.Scan(&code, &inviteInserted, &actor, &actorInserted); err != nil {
+			r.Log.Warn("Failed to scan invitation", "error", err)
 			continue
 		}
 
@@ -68,14 +69,15 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 			w.Empty()
 		}
 
-		w.Text("ID: " + id)
+		w.Text("Code: " + code)
 		w.Text("Created: " + time.Unix(inviteInserted, 0).Format(time.DateOnly))
 
 		if actor.Valid {
 			w.Text("Used: " + time.Unix(actorInserted.Int64, 0).Format(time.DateOnly))
 			w.Link("/users/outbox/"+strings.TrimPrefix(actor.V.ID, "https://"), "Used by: "+actor.V.PreferredUsername)
 		} else {
-			w.Link("/users/invite/delete?"+id, "➖ Delete")
+			w.Link("/users/invitations/delete?"+code, "➖ Delete")
+			unused++
 		}
 
 		count++
@@ -85,7 +87,7 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 		w.Empty()
 	}
 
-	if count >= *h.Config.MaxInvitesPerUser {
+	if unused >= *h.Config.MaxInvitesPerUser {
 		w.Text("Reached the maximum number of invitations.")
 	} else {
 		w.Link("/users/invitations/create", "➕ Create")
@@ -98,9 +100,24 @@ func (h *Handler) createInvitation(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
+	code := r.URL.RawQuery
+	if code == "" {
+		if u, err := uuid.NewRandom(); err != nil {
+			r.Log.Warn("Failed to generate invitation code", "error", err)
+			w.Error()
+			return
+		} else {
+			code = u.String()
+		}
+	} else if err := uuid.Validate(r.URL.RawQuery); err != nil {
+		r.Log.Warn("Invitation code is invalid", "code", r.URL.RawQuery, "error", err)
+		w.Status(40, "Invalid invitation code")
+		return
+	}
+
 	tx, err := h.DB.BeginTx(r.Context, nil)
 	if err != nil {
-		r.Log.Warn("Cannot generate invite", "error", err)
+		r.Log.Warn("Cannot generate invitation", "error", err)
 		w.Error()
 		return
 	}
@@ -112,7 +129,7 @@ func (h *Handler) createInvitation(w text.Writer, r *Request, args ...string) {
 		`
 		SELECT COUNT(*)
 		FROM invites
-		WHERE invites.inviter = $1 AND NOT EXISTS (SELECT 1 FROM persons WHERE persons.id = invites.invited)
+		WHERE inviter = $1 AND certhash IS NULL
 		`,
 		r.User.ID,
 	).Scan(&count); err != nil {
@@ -127,35 +144,27 @@ func (h *Handler) createInvitation(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	u, err := uuid.NewRandom()
-	if err != nil {
-		r.Log.Warn("Failed to generate invite ID", "error", err)
-		w.Error()
-		return
-	}
-	id := u.String()
-
 	if _, err := tx.ExecContext(
 		r.Context,
 		`
-		INSERT INTO invites (id, inviter)
+		INSERT INTO invites (code, inviter)
 		VALUES ($1, $2)
 		`,
-		id,
+		code,
 		r.User.ID,
 	); err != nil {
-		r.Log.Warn("Failed to insert invite", "error", err)
+		r.Log.Warn("Failed to insert invitation", "error", err)
 		w.Error()
 		return
 	}
 
 	if err := tx.Commit(); err != nil {
-		r.Log.Warn("Failed to insert invite", "error", err)
+		r.Log.Warn("Failed to insert invitation", "error", err)
 		w.Error()
 		return
 	}
 
-	r.Log.Info("Generated invite", "id", id)
+	r.Log.Info("Generated invitation", "code", code)
 
 	w.Redirect("/users/invitations")
 }
@@ -167,7 +176,7 @@ func (h *Handler) deleteInvitation(w text.Writer, r *Request, args ...string) {
 	}
 
 	if r.URL.RawQuery == "" {
-		w.Status(10, "ID")
+		w.Status(10, "Code")
 		return
 	}
 
@@ -175,21 +184,21 @@ func (h *Handler) deleteInvitation(w text.Writer, r *Request, args ...string) {
 		r.Context,
 		`
 		DELETE FROM invites
-		WHERE id = $1 AND inviter = $2 AND NOT EXISTS (SELECT 1 FROM persons WHERE persons.id = invites.invited)
+		WHERE code = $1 AND inviter = $2 AND NOT EXISTS (SELECT 1 FROM persons WHERE persons.id = invites.invited)
 		`,
 		r.URL.RawQuery,
 		r.User.ID,
 	); err != nil {
-		r.Log.Warn("Failed to delete invite", "error", err)
+		r.Log.Warn("Failed to delete invitation", "error", err)
 		w.Error()
 		return
 	} else if n, err := res.RowsAffected(); err != nil {
-		r.Log.Warn("Failed to delete invite", "error", err)
+		r.Log.Warn("Failed to delete invitation", "error", err)
 		w.Error()
 		return
 	} else if n == 0 {
-		r.Log.Warn("No such invite", "id", r.URL.RawQuery)
-		w.Status(40, "No such invite")
+		r.Log.Warn("Invalid invitation code", "code", r.URL.RawQuery)
+		w.Status(40, "Invalid invitation code")
 		return
 	}
 
@@ -212,25 +221,25 @@ func (h *Handler) acceptInvitation(w text.Writer, r *Request, args ...string) {
 		`
 		UPDATE invites
 		SET certhash = $1
-		WHERE id = $2 AND certhash IS NULL
+		WHERE code = $2 AND certhash IS NULL
 		`,
 		r.CertHash,
 		r.URL.RawQuery,
 	); err != nil {
-		r.Log.Warn("Failed to accept invite", "error", err)
+		r.Log.Warn("Failed to accept invitation", "error", err)
 		w.Error()
 		return
 	} else if n, err := res.RowsAffected(); err != nil {
-		r.Log.Warn("Failed to accept invite", "error", err)
+		r.Log.Warn("Failed to accept invitation", "error", err)
 		w.Error()
 		return
 	} else if n == 0 {
-		r.Log.Warn("No such invite", "id", r.URL.RawQuery)
-		w.Status(40, "No such invite")
+		r.Log.Warn("Invalid invitation code", "code", r.URL.RawQuery)
+		w.Status(40, "Invalid invitation code")
 		return
 	}
 
-	r.Log.Info("Accepted invite", "id", r.URL.RawQuery, "hash", r.CertHash)
+	r.Log.Info("Accepted invitation", "code", r.URL.RawQuery, "hash", r.CertHash)
 
 	w.Redirect("/users/register")
 }
