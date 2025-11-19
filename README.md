@@ -83,7 +83,7 @@ Unlike other social networks, tootik doesn't have a browser-based interface or a
 ```
 
 This makes tootik lightweight, private and accessible:
-* Its UI supports [Gemini](https://geminiprotocol.net/) but also Gopher, Finger and [Guppy](https://github.com/dimkr/guppy-protocol): there's a wide variety of clients to choose from and some work great on old devices.
+* Its UI is [Gemini](https://geminiprotocol.net/)-based: there's a wide variety of clients to choose from and some work great on old devices.
 * Rich content is reduced to plain text and links: it's a fast, low-bandwidth UI suitable for screen readers.
 * Anonymity: you authenticate using a TLS client certificate and don't have to share your email address or real name.
 * No promoted content, tracking or analytics: social networking, with the slow and non-commercial vibe of the small internet.
