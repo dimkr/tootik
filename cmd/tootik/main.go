@@ -40,10 +40,7 @@ import (
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/front"
-	"github.com/dimkr/tootik/front/finger"
 	"github.com/dimkr/tootik/front/gemini"
-	"github.com/dimkr/tootik/front/gopher"
-	"github.com/dimkr/tootik/front/guppy"
 	tplain "github.com/dimkr/tootik/front/text/plain"
 	"github.com/dimkr/tootik/front/user"
 	"github.com/dimkr/tootik/httpsig"
@@ -69,9 +66,6 @@ var (
 	gemCert       = flag.String("gemcert", "gemini-cert.pem", "Gemini TLS certificate")
 	gemKey        = flag.String("gemkey", "gemini-key.pem", "Gemini TLS key")
 	gemAddr       = flag.String("gemaddr", ":8965", "Gemini listening address")
-	gopherAddr    = flag.String("gopheraddr", ":8070", "Gopher listening address")
-	fingerAddr    = flag.String("fingeraddr", ":8079", "Finger listening address")
-	guppyAddr     = flag.String("guppyaddr", ":6775", "Guppy listening address")
 	cert          = flag.String("cert", "cert.pem", "HTTPS TLS certificate")
 	key           = flag.String("key", "key.pem", "HTTPS TLS key")
 	addr          = flag.String("addr", ":8443", "HTTPS listening address")
@@ -361,33 +355,6 @@ func main() {
 				Addr:     *gemAddr,
 				CertPath: *gemCert,
 				KeyPath:  *gemKey,
-			},
-		},
-		{
-			"Gopher",
-			&gopher.Listener{
-				Domain:  *domain,
-				Config:  &cfg,
-				Handler: handler,
-				Addr:    *gopherAddr,
-			},
-		},
-		{
-			"Finger",
-			&finger.Listener{
-				Domain: *domain,
-				Config: &cfg,
-				DB:     db,
-				Addr:   *fingerAddr,
-			},
-		},
-		{
-			"Guppy",
-			&guppy.Listener{
-				Domain:  *domain,
-				Config:  &cfg,
-				Handler: handler,
-				Addr:    *guppyAddr,
 			},
 		},
 	} {

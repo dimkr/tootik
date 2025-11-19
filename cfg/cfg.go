@@ -88,14 +88,6 @@ type Config struct {
 
 	GeminiRequestTimeout time.Duration
 
-	GopherRequestTimeout time.Duration
-	LineWidth            int
-
-	GuppyRequestTimeout time.Duration
-	MaxGuppySessions    int
-	GuppyChunkTimeout   time.Duration
-	MaxSentGuppyChunks  int
-
 	DeliveryBatchSize     int
 	DeliveryRetryInterval int64
 	MaxDeliveryAttempts   int
@@ -315,30 +307,6 @@ func (c *Config) FillDefaults() {
 
 	if c.GeminiRequestTimeout <= 0 {
 		c.GeminiRequestTimeout = time.Second * 30
-	}
-
-	if c.GopherRequestTimeout <= 0 {
-		c.GopherRequestTimeout = time.Second * 30
-	}
-
-	if c.LineWidth <= 0 {
-		c.LineWidth = 70
-	}
-
-	if c.GuppyRequestTimeout <= 0 {
-		c.GuppyRequestTimeout = time.Second * 30
-	}
-
-	if c.MaxGuppySessions <= 0 {
-		c.MaxGuppySessions = 30
-	}
-
-	if c.GuppyChunkTimeout <= 0 {
-		c.GuppyChunkTimeout = time.Second * 2
-	}
-
-	if c.MaxSentGuppyChunks <= 0 {
-		c.MaxSentGuppyChunks = 8
 	}
 
 	if c.DeliveryBatchSize <= 0 {

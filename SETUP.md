@@ -76,7 +76,7 @@ useradd -mr tootik
 chown -R tootik:tootik /tootik-cfg /tootik-data
 curl -L https://github.com/dimkr/tootik/releases/latest/download/tootik-$(case `uname -m` in x86_64) echo amd64;; aarch64) echo arm64;; i686) echo 386;; armv7l) echo arm;; esac) -o /usr/local/bin/tootik
 chmod 755 /usr/local/bin/tootik
-tootik -domain $domain -addr :443 -gemaddr :1965 -gopheraddr :70 -fingeraddr :79 -blocklist /tootik-cfg/gardenfence-mastodon.csv -cert /tootik-cfg/https-cert.pem -key /tootik-cfg/https-key.pem -gemcert /tootik-cfg/gemini-cert.pem -gemkey /tootik-cfg/gemini-key.pem -db /tootik-data/db.sqlite3
+tootik -domain $domain -addr :443 -gemaddr :1965 -blocklist /tootik-cfg/gardenfence-mastodon.csv -cert /tootik-cfg/https-cert.pem -key /tootik-cfg/https-key.pem -gemcert /tootik-cfg/gemini-cert.pem -gemkey /tootik-cfg/gemini-key.pem -db /tootik-data/db.sqlite3
 ```
 
 To enable more verbose logging, add `-loglevel -4`.
@@ -127,7 +127,7 @@ Description=tootik
 After=network.target
 
 [Service]
-ExecStart=tootik -domain $domain -addr :443 -gemaddr :1965 -gopheraddr :70 -fingeraddr :79 -blocklist /tootik-cfg/gardenfence-mastodon.csv -cert /tootik-cfg/https-cert.pem -key /tootik-cfg/https-key.pem -gemcert /tootik-cfg/gemini-cert.pem -gemkey /tootik-cfg/gemini-key.pem -db /tootik-data/db.sqlite3
+ExecStart=tootik -domain $domain -addr :443 -gemaddr :1965 -blocklist /tootik-cfg/gardenfence-mastodon.csv -cert /tootik-cfg/https-cert.pem -key /tootik-cfg/https-key.pem -gemcert /tootik-cfg/gemini-cert.pem -gemkey /tootik-cfg/gemini-key.pem -db /tootik-data/db.sqlite3
 User=tootik
 Group=tootik
 AmbientCapabilities=CAP_NET_BIND_SERVICE
