@@ -120,6 +120,7 @@ func insertActor(
 	if err != nil {
 		return err
 	}
+	defer tx.Rollback()
 
 	if _, err := tx.ExecContext(
 		ctx,
