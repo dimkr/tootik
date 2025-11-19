@@ -206,20 +206,21 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 					attrBytes, value, more := tok.TagAttr()
 
 					attr := string(attrBytes)
+					valueString := string(value)
 					if tt == tokenizer.StartTagToken && tag == "span" && attr == "class" {
-						if string(value) == "invisible" {
+						if valueString == "invisible" {
 							invisibleDepth = len(openTags)
-						} else if string(value) == "ellipsis" {
+						} else if valueString == "ellipsis" {
 							ellipsisDepth = len(openTags)
 						}
 					} else if tag == "a" && attr == "class" {
-						class = string(value)
+						class = valueString
 					} else if tag == "a" && attr == "href" {
-						href = string(value)
+						href = valueString
 					} else if tag == "img" && attr == "alt" {
-						alt = string(value)
+						alt = valueString
 					} else if tag == "img" && attr == "src" {
-						src = string(value)
+						src = valueString
 					}
 
 					if !more {

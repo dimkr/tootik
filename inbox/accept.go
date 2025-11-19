@@ -19,7 +19,6 @@ package inbox
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
@@ -60,7 +59,7 @@ func (inbox *Inbox) accept(ctx context.Context, followed *ap.Actor, key httpsig.
 		}
 	}
 
-	j, err := json.Marshal(accept)
+	s, err := marshal(accept)
 	if err != nil {
 		return err
 	}
@@ -68,13 +67,13 @@ func (inbox *Inbox) accept(ctx context.Context, followed *ap.Actor, key httpsig.
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
-		string(j),
+		s,
 		followed.ID,
 	); err != nil {
 		return err
 	}
 
-	return inbox.ProcessActivity(ctx, tx, followed, accept, string(j), 1, false)
+	return inbox.ProcessActivity(ctx, tx, followed, accept, s, 1, false)
 }
 
 // Accept queues an Accept activity for delivery.

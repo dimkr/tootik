@@ -533,11 +533,13 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 	}
 	defer tx.Rollback()
 
+	bodyString := string(body)
+
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO persons(id, actor, fetched) VALUES ($1, JSONB($2), UNIXEPOCH()) ON CONFLICT(id) DO UPDATE SET actor = JSONB($2), updated = UNIXEPOCH()`,
 		actor.ID,
-		string(body),
+		bodyString,
 	); err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
 	}
@@ -556,7 +558,7 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 	if _, err := tx.ExecContext(
 		ctx,
 		`UPDATE feed SET author = JSONB(?) WHERE author->>'$.id' = ?`,
-		string(body),
+		bodyString,
 		actor.ID,
 	); err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
@@ -565,7 +567,7 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 	if _, err := tx.ExecContext(
 		ctx,
 		`UPDATE feed SET sharer = JSONB(?) WHERE sharer->>'$.id' = ?`,
-		string(body),
+		bodyString,
 		actor.ID,
 	); err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
