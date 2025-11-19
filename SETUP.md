@@ -166,11 +166,19 @@ To check the tootik version:
 tootik -version
 ```
 
-To disable new user registration, add `-closed` to the tootik command-line in `ExecStart` and restart it:
+To enable invite-only user registration:
 
 ```
-sed -i 's/^ExecStart=.*/& -closed/' /etc/systemd/system/tootik.service
-systemctl daemon-reload
+jq '.RequireInvitation = true' /tootik-cfg/cfg.json > /tmp/cfg.json
+mv -f /tmp/cfg.json /tootik-cfg/cfg.json
+systemctl restart tootik
+```
+
+To disable user registration, enable invite-only registration, then forbid creation of invitations:
+
+```
+jq '.RequireInvitation = true | .MaxInvitationsPerUser = 0' /tootik-cfg/cfg.json > /tmp/cfg.json
+mv -f /tmp/cfg.json /tootik-cfg/cfg.json
 systemctl restart tootik
 ```
 
