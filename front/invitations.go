@@ -187,7 +187,7 @@ func (h *Handler) deleteInvitation(w text.Writer, r *Request, args ...string) {
 		r.Context,
 		`
 		DELETE FROM invites
-		WHERE code = $1 AND inviter = $2 AND NOT EXISTS (SELECT 1 FROM persons WHERE persons.id = invites.invited)
+		WHERE code = $1 AND inviter = $2 AND invited IS NULL
 		`,
 		r.URL.RawQuery,
 		r.User.ID,
