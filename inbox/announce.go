@@ -19,7 +19,6 @@ package inbox
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -62,7 +61,7 @@ func (inbox *Inbox) announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, k
 		}
 	}
 
-	j, err := json.Marshal(announce)
+	s, err := marshal(announce)
 	if err != nil {
 		return err
 	}
@@ -70,13 +69,13 @@ func (inbox *Inbox) announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, k
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
-		string(j),
+		s,
 		actor.ID,
 	); err != nil {
 		return err
 	}
 
-	return inbox.ProcessActivity(ctx, tx, actor, announce, string(j), 1, false)
+	return inbox.ProcessActivity(ctx, tx, actor, announce, s, 1, false)
 }
 
 // Announce queues an Announce activity for delivery.

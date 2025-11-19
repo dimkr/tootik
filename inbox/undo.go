@@ -18,7 +18,6 @@ package inbox
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
@@ -55,7 +54,7 @@ func (inbox *Inbox) undo(ctx context.Context, actor *ap.Actor, key httpsig.Key, 
 		}
 	}
 
-	j, err := json.Marshal(undo)
+	s, err := marshal(undo)
 	if err != nil {
 		return err
 	}
@@ -69,13 +68,13 @@ func (inbox *Inbox) undo(ctx context.Context, actor *ap.Actor, key httpsig.Key, 
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
-		string(j),
+		s,
 		activity.Actor,
 	); err != nil {
 		return err
 	}
 
-	if err := inbox.ProcessActivity(ctx, tx, actor, undo, string(j), 1, false); err != nil {
+	if err := inbox.ProcessActivity(ctx, tx, actor, undo, s, 1, false); err != nil {
 		return err
 	}
 

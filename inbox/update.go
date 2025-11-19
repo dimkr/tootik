@@ -19,7 +19,6 @@ package inbox
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
@@ -59,7 +58,7 @@ func (inbox *Inbox) updateNote(ctx context.Context, actor *ap.Actor, key httpsig
 		}
 	}
 
-	j, err := json.Marshal(update)
+	s, err := marshal(update)
 	if err != nil {
 		return err
 	}
@@ -73,7 +72,7 @@ func (inbox *Inbox) updateNote(ctx context.Context, actor *ap.Actor, key httpsig
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
-		string(j),
+		s,
 		note.AttributedTo,
 	); err != nil {
 		return err
@@ -93,7 +92,7 @@ func (inbox *Inbox) updateNote(ctx context.Context, actor *ap.Actor, key httpsig
 		}
 	}
 
-	if err := inbox.ProcessActivity(ctx, tx, actor, update, string(j), 1, false); err != nil {
+	if err := inbox.ProcessActivity(ctx, tx, actor, update, s, 1, false); err != nil {
 		return err
 	}
 

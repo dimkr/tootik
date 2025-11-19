@@ -154,9 +154,10 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 	}
 
 	var err error
-	r.URL, err = url.Parse(string(req[:total-2]))
+	reqString := string(req[:total-2])
+	r.URL, err = url.Parse(reqString)
 	if err != nil {
-		slog.Warn("Failed to parse request", "request", string(req[:total-2]), "error", err)
+		slog.Warn("Failed to parse request", "request", reqString, "error", err)
 		return
 	}
 
