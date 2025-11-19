@@ -141,7 +141,7 @@ type Config struct {
 	MaxGateways            int
 }
 
-var defaultMaxInvitesPerUser = 5
+var defaultMaxInvitationsPerUser = 5
 
 // FillDefaults replaces missing or invalid settings with defaults.
 func (c *Config) FillDefaults() {
@@ -150,7 +150,7 @@ func (c *Config) FillDefaults() {
 	}
 
 	if c.MaxInvitationsPerUser == nil {
-		c.MaxInvitationsPerUser = &defaultMaxInvitesPerUser
+		c.MaxInvitationsPerUser = &defaultMaxInvitationsPerUser
 	}
 
 	if c.RegistrationInterval <= 0 {
