@@ -176,7 +176,7 @@ func (h *Handler) deleteInvitation(w text.Writer, r *Request, args ...string) {
 	}
 
 	if r.URL.RawQuery == "" {
-		w.Status(10, "Code")
+		w.Status(10, "Invitation code")
 		return
 	}
 
@@ -212,7 +212,7 @@ func (h *Handler) acceptInvitation(w text.Writer, r *Request, args ...string) {
 	}
 
 	if r.URL.RawQuery == "" {
-		w.Status(10, "Code")
+		w.Status(10, "Invitation code")
 		return
 	}
 
