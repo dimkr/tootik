@@ -35,7 +35,7 @@ func TestCluster_InvitationHappyFlow(t *testing.T) {
 	alice.
 		Follow("⚙️ Settings").
 		Follow("🎟️ Invitations").
-		FollowInput("➕ Create", bobCode).
+		FollowInput("➕ Generate", bobCode).
 		Contains(Line{Type: Text, Text: "Code: " + bobCode})
 
 	cluster["a.localdomain"].HandleInput(bobKeypair, "/users/invitations/accept", bobCode).Follow("😈 My profile").OK()
@@ -44,7 +44,7 @@ func TestCluster_InvitationHappyFlow(t *testing.T) {
 		Follow("⚙️ Settings").
 		Follow("🎟️ Invitations").
 		Contains(Line{Type: Link, Text: "Used by: bob", URL: "/users/outbox/a.localdomain/user/bob"}).
-		FollowInput("➕ Create", carolCode).
+		FollowInput("➕ Generate", carolCode).
 		Contains(Line{Type: Text, Text: "Code: " + carolCode})
 
 	cluster["a.localdomain"].HandleInput(carolKeypair, "/users/invitations/accept", carolCode).Follow("😈 My profile").OK()
@@ -64,7 +64,7 @@ func TestCluster_WrongCode(t *testing.T) {
 	alice.
 		Follow("⚙️ Settings").
 		Follow("🎟️ Invitations").
-		FollowInput("➕ Create", bobCode).
+		FollowInput("➕ Generate", bobCode).
 		Contains(Line{Type: Text, Text: "Code: " + bobCode})
 
 	cluster["a.localdomain"].HandleInput(bobKeypair, "/users/invitations/accept", carolCode).Error("40 Invalid invitation code")
@@ -85,7 +85,7 @@ func TestCluster_CodeReuse(t *testing.T) {
 	alice.
 		Follow("⚙️ Settings").
 		Follow("🎟️ Invitations").
-		FollowInput("➕ Create", bobCode).
+		FollowInput("➕ Generate", bobCode).
 		Contains(Line{Type: Text, Text: "Code: " + bobCode})
 
 	cluster["a.localdomain"].HandleInput(bobKeypair, "/users/invitations/accept", bobCode).Follow("😈 My profile").OK()
@@ -110,14 +110,14 @@ func TestCluster_InvitationLimit(t *testing.T) {
 	alice.
 		Follow("⚙️ Settings").
 		Follow("🎟️ Invitations").
-		Contains(Line{Type: Link, Text: "➕ Create", URL: "/users/invitations/create"}).
+		Contains(Line{Type: Link, Text: "➕ Generate", URL: "/users/invitations/generate"}).
 		NotContains(Line{Type: Text, Text: "Reached the maximum number of invitations."}).
-		FollowInput("➕ Create", bobCode).
+		FollowInput("➕ Generate", bobCode).
 		Contains(Line{Type: Text, Text: "Code: " + bobCode}).
-		NotContains(Line{Type: Link, Text: "➕ Create", URL: "/users/invitations/create"}).
+		NotContains(Line{Type: Link, Text: "➕ Generate", URL: "/users/invitations/generate"}).
 		Contains(Line{Type: Text, Text: "Reached the maximum number of invitations."})
 
-	alice.Goto("/users/invitations/create").
+	alice.Goto("/users/invitations/generate").
 		Error("40 Reached the maximum number of invitations")
 
 	cluster["a.localdomain"].HandleInput(bobKeypair, "/users/invitations/accept", bobCode).Follow("😈 My profile").OK()
@@ -126,9 +126,9 @@ func TestCluster_InvitationLimit(t *testing.T) {
 		Follow("⚙️ Settings").
 		Follow("🎟️ Invitations").
 		Contains(Line{Type: Link, Text: "Used by: bob", URL: "/users/outbox/a.localdomain/user/bob"}).
-		FollowInput("➕ Create", carolCode).
+		FollowInput("➕ Generate", carolCode).
 		Contains(Line{Type: Text, Text: "Code: " + carolCode}).
-		NotContains(Line{Type: Link, Text: "➕ Create", URL: "/users/invitations/create"}).
+		NotContains(Line{Type: Link, Text: "➕ Generate", URL: "/users/invitations/generate"}).
 		Contains(Line{Type: Text, Text: "Reached the maximum number of invitations."})
 
 	cluster["a.localdomain"].HandleInput(carolKeypair, "/users/invitations/accept", carolCode).Follow("😈 My profile").OK()
@@ -137,21 +137,21 @@ func TestCluster_InvitationLimit(t *testing.T) {
 	alice.
 		Follow("⚙️ Settings").
 		Follow("🎟️ Invitations").
-		Follow("➕ Create").
-		Follow("➕ Create").
-		Follow("➕ Create").
-		NotContains(Line{Type: Link, Text: "➕ Create", URL: "/users/invitations/create"}).
+		Follow("➕ Generate").
+		Follow("➕ Generate").
+		Follow("➕ Generate").
+		NotContains(Line{Type: Link, Text: "➕ Generate", URL: "/users/invitations/generate"}).
 		Contains(Line{Type: Text, Text: "Reached the maximum number of invitations."})
 
-	alice.Goto("/users/invitations/create").
+	alice.Goto("/users/invitations/generate").
 		Error("40 Reached the maximum number of invitations")
 
 	alice.
 		Follow("⚙️ Settings").
 		Follow("🎟️ Invitations").
-		Follow("➖ Delete").
+		Follow("➖ Revoke").
 		NotContains(Line{Type: Text, Text: "Reached the maximum number of invitations."}).
-		Follow("➕ Create").
+		Follow("➕ Generate").
 		Contains(Line{Type: Text, Text: "Reached the maximum number of invitations."})
 }
 
@@ -166,7 +166,7 @@ func TestCluster_InvitationCreateDeleteAccept(t *testing.T) {
 	page := alice.
 		Follow("⚙️ Settings").
 		Follow("🎟️ Invitations").
-		Follow("➕ Create")
+		Follow("➕ Generate")
 
 	var code string
 	found := false
@@ -186,7 +186,7 @@ func TestCluster_InvitationCreateDeleteAccept(t *testing.T) {
 
 	page.
 		Contains(Line{Type: Text, Text: "Code: " + code}).
-		Follow("➖ Delete").
+		Follow("➖ Revoke").
 		NotContains(Line{Type: Text, Text: "Code: " + code})
 
 	cluster["a.localdomain"].
@@ -210,7 +210,7 @@ func TestCluster_InvitationCreateAcceptDelete(t *testing.T) {
 	page := alice.
 		Follow("⚙️ Settings").
 		Follow("🎟️ Invitations").
-		Follow("➕ Create")
+		Follow("➕ Generate")
 
 	var code string
 	found := false
@@ -233,6 +233,6 @@ func TestCluster_InvitationCreateAcceptDelete(t *testing.T) {
 		OK()
 
 	page.
-		Follow("➖ Delete").
+		Follow("➖ Revoke").
 		Error("40 Invalid invitation code")
 }

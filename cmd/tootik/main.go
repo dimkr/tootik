@@ -145,8 +145,9 @@ func main() {
 	slog.SetLogLoggerLevel(slog.Level(*logLevel))
 
 	if *closed {
-		slog.Warn("-closed is deprecated, set RequireInvitation and MaxInvitationsPerUser instead")
+		slog.Warn("-closed is deprecated, set RequireInvitation, InvitationTimeout and MaxInvitationsPerUser instead")
 		cfg.RequireInvitation = true
+		cfg.InvitationTimeout = 0
 		cfg.MaxInvitationsPerUser = new(int)
 	}
 

@@ -56,30 +56,40 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 	}
 	defer rows.Close()
 
+	now := time.Now()
+
 	count := 0
 	unused := 0
 	for rows.Next() {
 		var code string
-		var inviteInserted int64
+		var inviteInsertedSec int64
 		var actor sql.Null[ap.Actor]
 		var actorInserted sql.NullInt64
-		if err := rows.Scan(&code, &inviteInserted, &actor, &actorInserted); err != nil {
+		if err := rows.Scan(&code, &inviteInsertedSec, &actor, &actorInserted); err != nil {
 			r.Log.Warn("Failed to scan invitation", "error", err)
 			continue
 		}
+
+		inserted := time.Unix(inviteInsertedSec, 0)
 
 		if count > 0 {
 			w.Empty()
 		}
 
 		w.Text("Code: " + code)
-		w.Text("Created: " + time.Unix(inviteInserted, 0).Format(time.DateOnly))
+		w.Text("Generated: " + inserted.Format(time.DateOnly))
 
 		if actor.Valid {
 			w.Text("Used: " + time.Unix(actorInserted.Int64, 0).Format(time.DateOnly))
 			w.Link("/users/outbox/"+strings.TrimPrefix(actor.V.ID, "https://"), "Used by: "+actor.V.PreferredUsername)
 		} else {
-			w.Link("/users/invitations/delete?"+code, "➖ Delete")
+			if expires := inserted.Add(h.Config.InvitationTimeout); now.After(expires) {
+				w.Text("Expired: " + expires.Format(time.DateOnly))
+			} else {
+				w.Text("Expires: " + expires.Format(time.DateOnly))
+			}
+
+			w.Link("/users/invitations/revoke?"+code, "➖ Revoke")
 			unused++
 		}
 
@@ -90,14 +100,16 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 		w.Empty()
 	}
 
-	if unused >= *h.Config.MaxInvitationsPerUser {
+	if !h.Config.RequireInvitation {
+		w.Text("Invitations are disabled.")
+	} else if unused >= *h.Config.MaxInvitationsPerUser {
 		w.Text("Reached the maximum number of invitations.")
 	} else {
-		w.Link("/users/invitations/create", "➕ Create")
+		w.Link("/users/invitations/generate", "➕ Generate")
 	}
 }
 
-func (h *Handler) createInvitation(w text.Writer, r *Request, args ...string) {
+func (h *Handler) generateInvitation(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -172,7 +184,7 @@ func (h *Handler) createInvitation(w text.Writer, r *Request, args ...string) {
 	w.Redirect("/users/invitations")
 }
 
-func (h *Handler) deleteInvitation(w text.Writer, r *Request, args ...string) {
+func (h *Handler) revokeInvitation(w text.Writer, r *Request, args ...string) {
 	if r.User == nil {
 		w.Redirect("/users")
 		return
@@ -192,11 +204,11 @@ func (h *Handler) deleteInvitation(w text.Writer, r *Request, args ...string) {
 		r.URL.RawQuery,
 		r.User.ID,
 	); err != nil {
-		r.Log.Warn("Failed to delete invitation", "error", err)
+		r.Log.Warn("Failed to revoke invitation", "error", err)
 		w.Error()
 		return
 	} else if n, err := res.RowsAffected(); err != nil {
-		r.Log.Warn("Failed to delete invitation", "error", err)
+		r.Log.Warn("Failed to revoke invitation", "error", err)
 		w.Error()
 		return
 	} else if n == 0 {
@@ -236,10 +248,11 @@ func (h *Handler) acceptInvitation(w text.Writer, r *Request, args ...string) {
 		`
 		UPDATE invites
 		SET certhash = $1
-		WHERE code = $2 AND certhash IS NULL
+		WHERE code = $2 AND certhash IS NULL AND inserted > $3
 		`,
 		certHash,
 		r.URL.RawQuery,
+		time.Now().Add(-h.Config.InvitationTimeout).Unix(),
 	); err != nil {
 		r.Log.Warn("Failed to accept invitation", "error", err)
 		w.Error()

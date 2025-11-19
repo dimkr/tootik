@@ -101,8 +101,8 @@ func NewHandler(domain string, cfg *cfg.Config, resolver ap.Resolver, db *sql.DB
 	h.handlers[regexp.MustCompile(`^/users/gateway/add$`)] = h.gatewayAdd
 	h.handlers[regexp.MustCompile(`^/users/gateway/remove$`)] = h.gatewayRemove
 	h.handlers[regexp.MustCompile(`^/users/invitations$`)] = withUserMenu(h.invitations)
-	h.handlers[regexp.MustCompile(`^/users/invitations/create$`)] = h.createInvitation
-	h.handlers[regexp.MustCompile(`^/users/invitations/delete$`)] = h.deleteInvitation
+	h.handlers[regexp.MustCompile(`^/users/invitations/generate$`)] = h.generateInvitation
+	h.handlers[regexp.MustCompile(`^/users/invitations/revoke$`)] = h.revokeInvitation
 	h.handlers[regexp.MustCompile(`^/users/invitations/accept$`)] = h.acceptInvitation
 
 	h.handlers[regexp.MustCompile(`^/view/(\S+)$`)] = withUserMenu(h.view)

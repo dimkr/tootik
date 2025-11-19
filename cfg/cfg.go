@@ -30,6 +30,7 @@ type Config struct {
 	RequireRegistration             bool
 	RequireInvitation               bool
 	MaxInvitationsPerUser           *int
+	InvitationTimeout               time.Duration
 	RegistrationInterval            time.Duration
 	CertificateApprovalTimeout      time.Duration
 	UserNameRegex                   string
@@ -151,6 +152,10 @@ func (c *Config) FillDefaults() {
 
 	if c.MaxInvitationsPerUser == nil {
 		c.MaxInvitationsPerUser = &defaultMaxInvitationsPerUser
+	}
+
+	if c.InvitationTimeout == 0 {
+		c.InvitationTimeout = time.Hour * 24 * 14
 	}
 
 	if c.RegistrationInterval <= 0 {
