@@ -19,6 +19,7 @@ package cluster
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestServer_InvitationHappyFlow(t *testing.T) {
@@ -68,6 +69,34 @@ func TestServer_WrongCode(t *testing.T) {
 	s.HandleInput(bobKeypair, "/users/invitations/accept", carolCode).Error("40 Invalid invitation code")
 
 	s.HandleInput(bobKeypair, "/users/invitations/accept", bobCode).Follow("😈 My profile").OK()
+}
+
+func TestServer_ExpiredCode(t *testing.T) {
+	s := NewServer(t, "a.localdomain", Client{})
+
+	alice := s.Register(aliceKeypair).OK()
+
+	s.Config.RequireInvitation = true
+	s.Config.InvitationTimeout = 1
+
+	bobCode := "70bc9fdf-74a4-41e5-973d-08ba3fd23d74"
+
+	alice.
+		Follow("⚙️ Settings").
+		Follow("🎟️ Invitations").
+		FollowInput("➕ Generate", bobCode).
+		Contains(Line{Type: Text, Text: "Code: " + bobCode})
+
+	select {
+	case <-time.After(1):
+		s.HandleInput(bobKeypair, "/users/invitations/accept", bobCode).Error("40 Invalid invitation code")
+
+		s.Config.InvitationTimeout = time.Hour
+		s.HandleInput(bobKeypair, "/users/invitations/accept", bobCode).Follow("😈 My profile").OK()
+
+	case <-t.Context().Done():
+		t.Fail()
+	}
 }
 
 func TestServer_CodeReuse(t *testing.T) {
