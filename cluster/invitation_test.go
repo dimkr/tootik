@@ -21,13 +21,12 @@ import (
 	"testing"
 )
 
-func TestCluster_InvitationHappyFlow(t *testing.T) {
-	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
+func TestServer_InvitationHappyFlow(t *testing.T) {
+	s := NewServer(t.Context(), t, "a.localdomain", Client{})
 
-	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	alice := s.Register(aliceKeypair).OK()
 
-	cluster["a.localdomain"].Config.RequireInvitation = true
+	s.Config.RequireInvitation = true
 
 	bobCode := "70bc9fdf-74a4-41e5-973d-08ba3fd23d74"
 	carolCode := "ded3626c-ea4b-44cc-adf3-18510e7634e1"
@@ -38,7 +37,7 @@ func TestCluster_InvitationHappyFlow(t *testing.T) {
 		FollowInput("➕ Generate", bobCode).
 		Contains(Line{Type: Text, Text: "Code: " + bobCode})
 
-	cluster["a.localdomain"].HandleInput(bobKeypair, "/users/invitations/accept", bobCode).Follow("😈 My profile").OK()
+	s.HandleInput(bobKeypair, "/users/invitations/accept", bobCode).Follow("😈 My profile").OK()
 
 	alice.
 		Follow("⚙️ Settings").
@@ -47,16 +46,15 @@ func TestCluster_InvitationHappyFlow(t *testing.T) {
 		FollowInput("➕ Generate", carolCode).
 		Contains(Line{Type: Text, Text: "Code: " + carolCode})
 
-	cluster["a.localdomain"].HandleInput(carolKeypair, "/users/invitations/accept", carolCode).Follow("😈 My profile").OK()
+	s.HandleInput(carolKeypair, "/users/invitations/accept", carolCode).Follow("😈 My profile").OK()
 }
 
-func TestCluster_WrongCode(t *testing.T) {
-	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
+func TestServer_WrongCode(t *testing.T) {
+	s := NewServer(t.Context(), t, "a.localdomain", Client{})
 
-	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	alice := s.Register(aliceKeypair).OK()
 
-	cluster["a.localdomain"].Config.RequireInvitation = true
+	s.Config.RequireInvitation = true
 
 	bobCode := "70bc9fdf-74a4-41e5-973d-08ba3fd23d74"
 	carolCode := "ded3626c-ea4b-44cc-adf3-18510e7634e1"
@@ -67,18 +65,17 @@ func TestCluster_WrongCode(t *testing.T) {
 		FollowInput("➕ Generate", bobCode).
 		Contains(Line{Type: Text, Text: "Code: " + bobCode})
 
-	cluster["a.localdomain"].HandleInput(bobKeypair, "/users/invitations/accept", carolCode).Error("40 Invalid invitation code")
+	s.HandleInput(bobKeypair, "/users/invitations/accept", carolCode).Error("40 Invalid invitation code")
 
-	cluster["a.localdomain"].HandleInput(bobKeypair, "/users/invitations/accept", bobCode).Follow("😈 My profile").OK()
+	s.HandleInput(bobKeypair, "/users/invitations/accept", bobCode).Follow("😈 My profile").OK()
 }
 
-func TestCluster_CodeReuse(t *testing.T) {
-	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
+func TestServer_CodeReuse(t *testing.T) {
+	s := NewServer(t.Context(), t, "a.localdomain", Client{})
 
-	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	alice := s.Register(aliceKeypair).OK()
 
-	cluster["a.localdomain"].Config.RequireInvitation = true
+	s.Config.RequireInvitation = true
 
 	bobCode := "70bc9fdf-74a4-41e5-973d-08ba3fd23d74"
 
@@ -88,21 +85,20 @@ func TestCluster_CodeReuse(t *testing.T) {
 		FollowInput("➕ Generate", bobCode).
 		Contains(Line{Type: Text, Text: "Code: " + bobCode})
 
-	cluster["a.localdomain"].HandleInput(bobKeypair, "/users/invitations/accept", bobCode).Follow("😈 My profile").OK()
+	s.HandleInput(bobKeypair, "/users/invitations/accept", bobCode).Follow("😈 My profile").OK()
 
-	cluster["a.localdomain"].HandleInput(bobKeypair, "/users/invitations/accept", bobCode).Error("40 Invalid invitation code")
-	cluster["a.localdomain"].HandleInput(carolKeypair, "/users/invitations/accept", bobCode).Error("40 Invalid invitation code")
+	s.HandleInput(bobKeypair, "/users/invitations/accept", bobCode).Error("40 Invalid invitation code")
+	s.HandleInput(carolKeypair, "/users/invitations/accept", bobCode).Error("40 Invalid invitation code")
 }
 
-func TestCluster_InvitationLimit(t *testing.T) {
-	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
+func TestServer_InvitationLimit(t *testing.T) {
+	s := NewServer(t.Context(), t, "a.localdomain", Client{})
 
-	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	alice := s.Register(aliceKeypair).OK()
 
-	cluster["a.localdomain"].Config.RequireInvitation = true
+	s.Config.RequireInvitation = true
 	limit := 1
-	cluster["a.localdomain"].Config.MaxInvitationsPerUser = &limit
+	s.Config.MaxInvitationsPerUser = &limit
 
 	bobCode := "70bc9fdf-74a4-41e5-973d-08ba3fd23d74"
 	carolCode := "ded3626c-ea4b-44cc-adf3-18510e7634e1"
@@ -120,7 +116,7 @@ func TestCluster_InvitationLimit(t *testing.T) {
 	alice.Goto("/users/invitations/generate").
 		Error("40 Reached the maximum number of invitations")
 
-	cluster["a.localdomain"].HandleInput(bobKeypair, "/users/invitations/accept", bobCode).Follow("😈 My profile").OK()
+	s.HandleInput(bobKeypair, "/users/invitations/accept", bobCode).Follow("😈 My profile").OK()
 
 	alice.
 		Follow("⚙️ Settings").
@@ -131,7 +127,7 @@ func TestCluster_InvitationLimit(t *testing.T) {
 		NotContains(Line{Type: Link, Text: "➕ Generate", URL: "/users/invitations/generate"}).
 		Contains(Line{Type: Text, Text: "Reached the maximum number of invitations."})
 
-	cluster["a.localdomain"].HandleInput(carolKeypair, "/users/invitations/accept", carolCode).Follow("😈 My profile").OK()
+	s.HandleInput(carolKeypair, "/users/invitations/accept", carolCode).Follow("😈 My profile").OK()
 
 	limit = 3
 	alice.
@@ -155,13 +151,12 @@ func TestCluster_InvitationLimit(t *testing.T) {
 		Contains(Line{Type: Text, Text: "Reached the maximum number of invitations."})
 }
 
-func TestCluster_InvitationCreateDeleteAccept(t *testing.T) {
-	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
+func TestServer_InvitationCreateDeleteAccept(t *testing.T) {
+	s := NewServer(t.Context(), t, "a.localdomain", Client{})
 
-	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	alice := s.Register(aliceKeypair).OK()
 
-	cluster["a.localdomain"].Config.RequireInvitation = true
+	s.Config.RequireInvitation = true
 
 	page := alice.
 		Follow("⚙️ Settings").
@@ -189,7 +184,7 @@ func TestCluster_InvitationCreateDeleteAccept(t *testing.T) {
 		Follow("➖ Revoke").
 		NotContains(Line{Type: Text, Text: "Code: " + code})
 
-	cluster["a.localdomain"].
+	s.
 		HandleInput(bobKeypair, "/users/invitations/accept", code).
 		Error("40 Invalid invitation code")
 
@@ -199,13 +194,12 @@ func TestCluster_InvitationCreateDeleteAccept(t *testing.T) {
 		NotContains(Line{Type: Text, Text: "Code: " + code})
 }
 
-func TestCluster_InvitationCreateAcceptDelete(t *testing.T) {
-	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
+func TestServer_InvitationCreateAcceptDelete(t *testing.T) {
+	s := NewServer(t.Context(), t, "a.localdomain", Client{})
 
-	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	alice := s.Register(aliceKeypair).OK()
 
-	cluster["a.localdomain"].Config.RequireInvitation = true
+	s.Config.RequireInvitation = true
 
 	page := alice.
 		Follow("⚙️ Settings").
@@ -228,7 +222,7 @@ func TestCluster_InvitationCreateAcceptDelete(t *testing.T) {
 		t.Fatalf("Not found")
 	}
 
-	cluster["a.localdomain"].
+	s.
 		HandleInput(bobKeypair, "/users/invitations/accept", code).
 		OK()
 
