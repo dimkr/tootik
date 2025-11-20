@@ -134,7 +134,7 @@ func createDB(ctx context.Context, domain, path string, cfg *cfg.Config) (*sql.D
 	return db, err
 }
 
-func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Client) *Server {
+func NewServer(t *testing.T, domain string, client fed.Client) *Server {
 	var cfg cfg.Config
 
 	cfg.FillDefaults()
@@ -160,7 +160,7 @@ func NewServer(ctx context.Context, t *testing.T, domain string, client fed.Clie
 
 	resolver := fed.NewResolver(nil, domain, &cfg, client, db)
 
-	_, nobodyKeys, err := user.CreateNobody(ctx, domain, db, &cfg)
+	_, nobodyKeys, err := user.CreateNobody(t.Context(), domain, db, &cfg)
 	if err != nil {
 		t.Fatalf("Failed to run create the nobody user: %v", err)
 	}

@@ -70,7 +70,6 @@ var (
 	key           = flag.String("key", "key.pem", "HTTPS TLS key")
 	addr          = flag.String("addr", ":8443", "HTTPS listening address")
 	blockListPath = flag.String("blocklist", "", "Blocklist CSV")
-	closed        = flag.Bool("closed", false, "Disable new user registration (deprecated)")
 	plain         = flag.Bool("plain", false, "Use HTTP instead of HTTPS")
 	cfgPath       = flag.String("cfg", "", "Configuration file")
 	dumpCfg       = flag.Bool("dumpcfg", false, "Print default configuration and exit")
@@ -137,13 +136,6 @@ func main() {
 
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &opts)))
 	slog.SetLogLoggerLevel(slog.Level(*logLevel))
-
-	if *closed {
-		slog.Warn("-closed is deprecated, set RequireInvitation, InvitationTimeout and MaxInvitationsPerUser instead")
-		cfg.RequireInvitation = true
-		cfg.InvitationTimeout = 0
-		cfg.MaxInvitationsPerUser = new(int)
-	}
 
 	var blockList *fed.BlockList
 	if *blockListPath != "" {

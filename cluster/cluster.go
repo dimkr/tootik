@@ -33,7 +33,7 @@ func NewCluster(t *testing.T, domain ...string) Cluster {
 	c := Client{}
 
 	for _, d := range domain {
-		c[d] = NewServer(t.Context(), t, d, c)
+		c[d] = NewServer(t, d, c)
 	}
 
 	return Cluster(c)

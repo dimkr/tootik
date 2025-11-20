@@ -22,7 +22,7 @@ import (
 )
 
 func TestServer_InvitationHappyFlow(t *testing.T) {
-	s := NewServer(t.Context(), t, "a.localdomain", Client{})
+	s := NewServer(t, "a.localdomain", Client{})
 
 	alice := s.Register(aliceKeypair).OK()
 
@@ -50,7 +50,7 @@ func TestServer_InvitationHappyFlow(t *testing.T) {
 }
 
 func TestServer_WrongCode(t *testing.T) {
-	s := NewServer(t.Context(), t, "a.localdomain", Client{})
+	s := NewServer(t, "a.localdomain", Client{})
 
 	alice := s.Register(aliceKeypair).OK()
 
@@ -71,7 +71,7 @@ func TestServer_WrongCode(t *testing.T) {
 }
 
 func TestServer_CodeReuse(t *testing.T) {
-	s := NewServer(t.Context(), t, "a.localdomain", Client{})
+	s := NewServer(t, "a.localdomain", Client{})
 
 	alice := s.Register(aliceKeypair).OK()
 
@@ -92,7 +92,7 @@ func TestServer_CodeReuse(t *testing.T) {
 }
 
 func TestServer_InvitationLimit(t *testing.T) {
-	s := NewServer(t.Context(), t, "a.localdomain", Client{})
+	s := NewServer(t, "a.localdomain", Client{})
 
 	alice := s.Register(aliceKeypair).OK()
 
@@ -152,7 +152,7 @@ func TestServer_InvitationLimit(t *testing.T) {
 }
 
 func TestServer_InvitationCreateDeleteAccept(t *testing.T) {
-	s := NewServer(t.Context(), t, "a.localdomain", Client{})
+	s := NewServer(t, "a.localdomain", Client{})
 
 	alice := s.Register(aliceKeypair).OK()
 
@@ -195,7 +195,7 @@ func TestServer_InvitationCreateDeleteAccept(t *testing.T) {
 }
 
 func TestServer_InvitationCreateAcceptDelete(t *testing.T) {
-	s := NewServer(t.Context(), t, "a.localdomain", Client{})
+	s := NewServer(t, "a.localdomain", Client{})
 
 	alice := s.Register(aliceKeypair).OK()
 
