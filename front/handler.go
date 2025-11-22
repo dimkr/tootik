@@ -42,7 +42,7 @@ type Handler struct {
 
 var (
 	ErrNotRegistered = errors.New("user is not registered")
-	ErrNotInvited    = errors.New("user is not invited")
+	ErrNotInvited    = errors.New("user was not invited")
 	ErrNotApproved   = errors.New("client certificate is not approved")
 )
 
