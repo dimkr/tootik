@@ -47,6 +47,10 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Ac
 	ctx, cancel := context.WithTimeout(parent, q.Config.ActivityProcessingTimeout)
 	defer cancel()
 
+	if _, err := q.Resolver.ResolveID(ctx, q.Keys, activity.Actor, 0); err != nil {
+		slog.Warn("Failed to resolve actor", "activity", activity, "error", err)
+	}
+
 	tx, err := q.DB.BeginTx(ctx, nil)
 	if err != nil {
 		slog.Warn("Failed to start transaction", "activity", activity, "error", err)
@@ -54,9 +58,7 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Ac
 	}
 	defer tx.Rollback()
 
-	if _, err := q.Resolver.ResolveID(ctx, q.Keys, activity.Actor, 0); err != nil {
-		slog.Warn("Failed to resolve actor", "activity", activity, "error", err)
-	} else if err := q.Inbox.ProcessActivity(ctx, tx, sender, activity, rawActivity, 1, shared); err != nil {
+	if err := q.Inbox.ProcessActivity(ctx, tx, sender, activity, rawActivity, 1, shared); err != nil {
 		slog.Warn("Failed to process activity", "activity", activity, "error", err)
 	} else if err := tx.Commit(); err != nil {
 		slog.Warn("Failed to commit changes", "activity", activity, "error", err)
