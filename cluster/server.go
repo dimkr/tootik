@@ -183,7 +183,6 @@ func NewServer(t *testing.T, domain string, client fed.Client) *Server {
 
 	backend, err := (&fed.Listener{
 		Domain:    domain,
-		Closed:    false,
 		Config:    &cfg,
 		DB:        db,
 		ActorKeys: nobodyKeys,
