@@ -36,7 +36,6 @@ import (
 
 type Listener struct {
 	Domain    string
-	Closed    bool
 	Config    *cfg.Config
 	DB        *sql.DB
 	Resolver  *Resolver
@@ -74,7 +73,7 @@ func (l *Listener) NewHandler() (http.Handler, error) {
 		w.WriteHeader(http.StatusNotFound)
 	})
 
-	if err := addNodeInfo(mux, l.Domain, l.Closed, l.Config, l.DB); err != nil {
+	if err := addNodeInfo(mux, l.Domain, l.Config, l.DB); err != nil {
 		return nil, err
 	}
 

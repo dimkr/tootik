@@ -49,7 +49,7 @@ type Listener struct {
 	KeyPath  string
 }
 
-func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn) (*ap.Actor, [2]httpsig.Key, error) {
+func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn, cfg *cfg.Config) (*ap.Actor, [2]httpsig.Key, error) {
 	state := tlsConn.ConnectionState()
 
 	if len(state.PeerCertificates) == 0 {
@@ -68,6 +68,15 @@ func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn) (*ap.Actor, 
 	var actor ap.Actor
 	var approved int
 	if err := gl.DB.QueryRowContext(ctx, `select json(persons.actor), persons.rsaprivkey, persons.ed25519privkey, certificates.approved from certificates join persons on persons.actor->>'$.preferredUsername' = certificates.user where persons.host = ? and certificates.hash = ? and certificates.expires > unixepoch()`, gl.Domain, certHash).Scan(&actor, &rsaPrivKeyPem, &ed25519PrivKeyMultibase, &approved); err != nil && errors.Is(err, sql.ErrNoRows) {
+		if cfg.RequireInvitation {
+			var accepted int
+			if err := gl.DB.QueryRowContext(ctx, `select exists (select 1 from invites where certhash = ?)`, certHash).Scan(&accepted); err != nil {
+				return nil, [2]httpsig.Key{}, err
+			} else if accepted == 0 {
+				return nil, [2]httpsig.Key{}, front.ErrNotInvited
+			}
+		}
+
 		return nil, [2]httpsig.Key{}, front.ErrNotRegistered
 	} else if err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to fetch user for %s: %w", certHash, err)
@@ -155,22 +164,26 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 	w := gmi.Wrap(conn)
 	defer w.Flush()
 
-	r.User, r.Keys, err = gl.getUser(ctx, tlsConn)
+	r.User, r.Keys, err = gl.getUser(ctx, tlsConn, gl.Config)
 	if err != nil && errors.Is(err, front.ErrNotRegistered) && r.URL.Path == "/users" {
 		slog.Info("Redirecting new user")
 		w.Redirect("/users/register")
 		return
+	} else if errors.Is(err, front.ErrNotInvited) && r.URL.Path != "/users/invitations/accept" {
+		slog.Info("Redirecting uninvited user")
+		w.Redirect("/users/invitations/accept")
+		return
 	} else if errors.Is(err, front.ErrNotApproved) {
 		w.Status(40, "Client certificate is awaiting approval")
 		return
-	} else if err != nil && !errors.Is(err, front.ErrNotRegistered) {
+	} else if err != nil && !errors.Is(err, front.ErrNotRegistered) && !errors.Is(err, front.ErrNotInvited) {
 		slog.Warn("Failed to get user", "error", err)
 		w.Error()
 		return
 	} else if err == nil && r.User == nil && r.URL.Path == "/users" {
 		w.Status(60, "Client certificate required")
 		return
-	} else if r.User == nil && gl.Config.RequireRegistration && r.URL.Path != "/" && r.URL.Path != "/help" && r.URL.Path != "/users/register" {
+	} else if r.User == nil && gl.Config.RequireRegistration && r.URL.Path != "/" && r.URL.Path != "/help" && r.URL.Path != "/users/register" && r.URL.Path != "/users/invitations/accept" {
 		w.Status(40, "Must register first")
 		return
 	}

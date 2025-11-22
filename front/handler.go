@@ -42,6 +42,7 @@ type Handler struct {
 
 var (
 	ErrNotRegistered = errors.New("user is not registered")
+	ErrNotInvited    = errors.New("user was not invited")
 	ErrNotApproved   = errors.New("client certificate is not approved")
 )
 
@@ -54,7 +55,7 @@ func serveStaticFile(lines []string, w text.Writer, _ *Request, _ ...string) {
 }
 
 // NewHandler returns a new [Handler].
-func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolver, db *sql.DB, inbox ap.Inbox) (Handler, error) {
+func NewHandler(domain string, cfg *cfg.Config, resolver ap.Resolver, db *sql.DB, inbox ap.Inbox) (Handler, error) {
 	h := Handler{
 		handlers: map[*regexp.Regexp]func(text.Writer, *Request, ...string){},
 		Domain:   domain,
@@ -68,14 +69,7 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 	h.handlers[regexp.MustCompile(`^/$`)] = withUserMenu(h.home)
 
 	h.handlers[regexp.MustCompile(`^/users$`)] = withUserMenu(h.users)
-	if closed {
-		h.handlers[regexp.MustCompile(`^/users/register$`)] = func(w text.Writer, r *Request, args ...string) {
-			w.Status(40, "Registration is closed")
-		}
-	} else {
-		h.handlers[regexp.MustCompile(`^/users/register$`)] = h.register
-	}
-
+	h.handlers[regexp.MustCompile(`^/users/register$`)] = h.register
 	h.handlers[regexp.MustCompile(`^/users/mentions$`)] = withUserMenu(h.mentions)
 
 	h.handlers[regexp.MustCompile(`^/local$`)] = withCache(withUserMenu(h.local), time.Minute*15, &cache)
@@ -106,6 +100,10 @@ func NewHandler(domain string, closed bool, cfg *cfg.Config, resolver ap.Resolve
 	h.handlers[regexp.MustCompile(`^/users/portability$`)] = withUserMenu(h.portability)
 	h.handlers[regexp.MustCompile(`^/users/gateway/add$`)] = h.gatewayAdd
 	h.handlers[regexp.MustCompile(`^/users/gateway/remove$`)] = h.gatewayRemove
+	h.handlers[regexp.MustCompile(`^/users/invitations$`)] = withUserMenu(h.invitations)
+	h.handlers[regexp.MustCompile(`^/users/invitations/generate$`)] = h.generateInvitation
+	h.handlers[regexp.MustCompile(`^/users/invitations/revoke$`)] = h.revokeInvitation
+	h.handlers[regexp.MustCompile(`^/users/invitations/accept$`)] = h.acceptInvitation
 
 	h.handlers[regexp.MustCompile(`^/view/(\S+)$`)] = withUserMenu(h.view)
 	h.handlers[regexp.MustCompile(`^/users/view/(\S+)$`)] = withUserMenu(h.view)

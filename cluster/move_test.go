@@ -103,7 +103,7 @@ func TestCluster_DeletedInstance(t *testing.T) {
 		Follow("📻 My feed").
 		Contains(Line{Type: Quote, Text: "hello"})
 
-	cluster["b.localdomain"] = NewServer(t.Context(), t, "b.localdomain", Client{})
+	cluster["b.localdomain"] = NewServer(t, "b.localdomain", Client{})
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").

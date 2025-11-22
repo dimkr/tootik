@@ -122,7 +122,7 @@ func insertActor(
 	}
 	defer tx.Rollback()
 
-	if _, err = tx.ExecContext(
+	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT OR IGNORE INTO persons (id, actor, rsaprivkey, ed25519privkey) VALUES (?, JSONB(?), ?, ?)`,
 		actor.ID,
@@ -133,12 +133,23 @@ func insertActor(
 		return err
 	}
 
-	if _, err = tx.ExecContext(
+	certHash := fmt.Sprintf("%X", sha256.Sum256(cert.Raw))
+
+	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT OR IGNORE INTO certificates (user, hash, approved, expires) VALUES($1, $2, (SELECT NOT EXISTS (SELECT 1 FROM certificates WHERE user = $1)), $3)`,
 		actor.PreferredUsername,
-		fmt.Sprintf("%X", sha256.Sum256(cert.Raw)),
+		certHash,
 		cert.NotAfter.Unix(),
+	); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`UPDATE invites SET invited = ? WHERE certhash = ? AND invited IS NULL`,
+		actor.ID,
+		certHash,
 	); err != nil {
 		return err
 	}
