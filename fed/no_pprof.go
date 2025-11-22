@@ -18,9 +18,7 @@ limitations under the License.
 
 package fed
 
-import (
-	"net/http"
-)
+import "net/http"
 
 func (l *Listener) withPprof(inner http.Handler) (http.Handler, error) {
 	return inner, nil
