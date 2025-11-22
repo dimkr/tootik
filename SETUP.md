@@ -118,7 +118,13 @@ If certificate validation fails for all outgoing requests, try to update CA cert
 
 13. Ask tootik to stop using CTRL+c and wait.
 
-14. Add a systemd unit for tootik, to make it run at startup, restart it if it crashes, and save its log on disk (with log rotation):
+14. Write tootik's defaults to a configuration file that can be edited later:
+
+```
+tootik -dumpcfg > /tootik-cfg/cfg.json
+```
+
+15. Add a systemd unit for tootik, to make it run at startup, restart it if it crashes, and save its log on disk (with log rotation):
 
 ```
 cat << EOF > /etc/systemd/system/tootik.service
@@ -127,7 +133,7 @@ Description=tootik
 After=network.target
 
 [Service]
-ExecStart=tootik -domain $domain -addr :443 -gemaddr :1965 -blocklist /tootik-cfg/gardenfence-mastodon.csv -cert /tootik-cfg/https-cert.pem -key /tootik-cfg/https-key.pem -gemcert /tootik-cfg/gemini-cert.pem -gemkey /tootik-cfg/gemini-key.pem -db /tootik-data/db.sqlite3
+ExecStart=tootik -domain $domain -addr :443 -gemaddr :1965 -blocklist /tootik-cfg/gardenfence-mastodon.csv -cert /tootik-cfg/https-cert.pem -key /tootik-cfg/https-key.pem -gemcert /tootik-cfg/gemini-cert.pem -gemkey /tootik-cfg/gemini-key.pem -db /tootik-data/db.sqlite3 -cfg /tootik-cfg/cfg.json
 User=tootik
 Group=tootik
 AmbientCapabilities=CAP_NET_BIND_SERVICE
@@ -190,17 +196,7 @@ systemctl daemon-reload
 systemctl restart tootik
 ```
 
-To view and change tootik configuration defaults:
-
-```
-tootik -dumpcfg > /tootik-cfg/cfg.json
-# edit /tootik-cfg/cfg.json
-sed -i 's~^ExecStart=.*~& -cfg /tootik-cfg/cfg.json~' /etc/systemd/system/tootik.service
-systemctl daemon-reload
-systemctl restart tootik
-```
-
-For example, to restrict access to registered users:
+To restrict access to registered users:
 
 ```
 jq '.RequireRegistration = true' /tootik-cfg/cfg.json > /tmp/cfg.json
