@@ -49,8 +49,7 @@ type Listener struct {
 
 const certReloadDelay = time.Second * 5
 
-// NewHandler returns a [http.Handler] that handles ActivityPub requests.
-func (l *Listener) NewHandler() (http.Handler, error) {
+func (l *Listener) newHandler() (*http.ServeMux, error) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /robots.txt", robots)
 	mux.HandleFunc("GET /.well-known/webfinger", l.handleWebFinger)
@@ -82,9 +81,18 @@ func (l *Listener) NewHandler() (http.Handler, error) {
 	return mux, nil
 }
 
+// NewHandler returns a [http.Handler] that handles ActivityPub requests.
+func (l *Listener) NewHandler() (http.Handler, error) {
+	if mux, err := l.newHandler(); err != nil {
+		return nil, err
+	} else {
+		return l.withPprof(http.TimeoutHandler(mux, time.Second*30, ""))
+	}
+}
+
 // ListenAndServe handles HTTP requests from other servers.
 func (l *Listener) ListenAndServe(ctx context.Context) error {
-	mux, err := l.NewHandler()
+	handler, err := l.NewHandler()
 	if err != nil {
 		return err
 	}
@@ -119,7 +127,7 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 
 		server := http.Server{
 			Addr:    l.Addr,
-			Handler: http.TimeoutHandler(mux, time.Second*30, ""),
+			Handler: handler,
 			BaseContext: func(net.Listener) context.Context {
 				return serverCtx
 			},
