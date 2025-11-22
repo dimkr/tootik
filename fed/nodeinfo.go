@@ -31,7 +31,7 @@ import (
 
 const nodeInfoUpdateInterval = time.Hour * 6
 
-func addNodeInfo20Stub(mux *http.ServeMux, closed bool) error {
+func addNodeInfo20Stub(mux *http.ServeMux, cfg *cfg.Config) error {
 	body, err := json.Marshal(map[string]any{
 		"version": "2.0",
 		"software": map[string]any{
@@ -53,7 +53,7 @@ func addNodeInfo20Stub(mux *http.ServeMux, closed bool) error {
 			},
 			"localPosts": 0,
 		},
-		"openRegistrations": !closed,
+		"openRegistrations": !cfg.RequireInvitation,
 		"metadata":          map[string]any{},
 	})
 	if err != nil {
@@ -68,7 +68,7 @@ func addNodeInfo20Stub(mux *http.ServeMux, closed bool) error {
 	return nil
 }
 
-func addNodeInfo(mux *http.ServeMux, domain string, closed bool, cfg *cfg.Config, db *sql.DB) error {
+func addNodeInfo(mux *http.ServeMux, domain string, cfg *cfg.Config, db *sql.DB) error {
 	if body, err := json.Marshal(map[string]any{
 		"links": []map[string]any{
 			{
@@ -90,7 +90,7 @@ func addNodeInfo(mux *http.ServeMux, domain string, closed bool, cfg *cfg.Config
 	}
 
 	if !cfg.FillNodeInfoUsage {
-		return addNodeInfo20Stub(mux, closed)
+		return addNodeInfo20Stub(mux, cfg)
 	}
 
 	l := lock.New()
@@ -161,7 +161,7 @@ func addNodeInfo(mux *http.ServeMux, domain string, closed bool, cfg *cfg.Config
 				},
 				"localPosts": localPosts,
 			},
-			"openRegistrations": !closed,
+			"openRegistrations": !cfg.RequireInvitation,
 			"metadata":          map[string]any{},
 		}); err != nil {
 			slog.Warn("Failed to build nodeinfo response", "error", err)

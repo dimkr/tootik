@@ -325,7 +325,6 @@ func main() {
 			"HTTPS",
 			&fed.Listener{
 				Domain:    *domain,
-				Closed:    *closed,
 				Config:    &cfg,
 				DB:        db,
 				ActorKeys: nobodyKeys,
