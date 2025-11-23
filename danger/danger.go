@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,24 +14,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package ap
-
-import (
-	"time"
-
-	"github.com/dimkr/tootik/danger"
-)
-
-// Time is a wrapper around [time.Time] with fallback if parsing of RFC3339 fails.
-type Time struct {
-	time.Time
-}
-
-func (t *Time) UnmarshalJSON(b []byte) error {
-	err := t.Time.UnmarshalJSON(b)
-	// ugly hack for Threads
-	if err != nil && len(b) > 2 && b[0] == '"' && b[len(b)-1] == '"' {
-		t.Time, err = time.Parse("2006-01-02T15:04:05-0700", danger.String(b[1:len(b)-1]))
-	}
-	return err
-}
+// Package danger provides memory unsafe utilities.
+package danger

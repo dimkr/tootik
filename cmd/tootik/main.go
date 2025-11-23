@@ -37,6 +37,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/buildinfo"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/front"
@@ -288,7 +289,7 @@ func main() {
 			ctx,
 			"insert into icons(name, buf) values($1, $2) on conflict(name) do update set buf = $2",
 			userName,
-			string(resized),
+			danger.String(resized),
 		); err != nil {
 			panic(err)
 		}

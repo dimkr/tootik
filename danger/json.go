@@ -14,14 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package inbox
+package danger
 
 import "encoding/json"
 
-func marshal(v any) (string, error) {
+// MarshalJSON encodes a value to a JSON string.
+//
+// It uses [String] to avoid memory allocation and copying.
+func MarshalJSON(v any) (string, error) {
 	if b, err := json.Marshal(v); err != nil {
 		return "", err
 	} else {
-		return string(b), nil
+		return String(b), nil
 	}
 }

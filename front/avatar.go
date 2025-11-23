@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/icon"
 )
@@ -116,7 +117,7 @@ func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
 		r.Context,
 		"insert into icons(name, buf) values($1, $2) on conflict(name) do update set buf = $2",
 		r.User.PreferredUsername,
-		string(resized),
+		danger.String(resized),
 	); err != nil {
 		r.Log.Error("Failed to set avatar", "error", err)
 		w.Error()

@@ -33,6 +33,7 @@ import (
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/front/text/gmi"
@@ -154,7 +155,7 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 	}
 
 	var err error
-	reqString := string(req[:total-2])
+	reqString := danger.String(req[:total-2])
 	r.URL, err = url.Parse(reqString)
 	if err != nil {
 		slog.Warn("Failed to parse request", "request", reqString, "error", err)

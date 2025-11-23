@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/proof"
 )
@@ -61,7 +62,7 @@ func (inbox *Inbox) announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, k
 		}
 	}
 
-	s, err := marshal(announce)
+	s, err := danger.MarshalJSON(announce)
 	if err != nil {
 		return err
 	}

@@ -25,6 +25,7 @@ import (
 	"text/template"
 
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/danger"
 )
 
 type data struct {
@@ -92,7 +93,7 @@ func readDirectory(dir string) {
 			path = fmt.Sprintf("/%s/%s", dir, base)
 		}
 
-		tmpl, err := template.New(path).Parse(string(content))
+		tmpl, err := template.New(path).Parse(danger.String(content))
 		if err != nil {
 			panic(err)
 		}

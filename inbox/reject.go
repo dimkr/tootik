@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/proof"
 )
@@ -59,7 +60,7 @@ func (inbox *Inbox) reject(ctx context.Context, followed *ap.Actor, key httpsig.
 		}
 	}
 
-	s, err := marshal(reject)
+	s, err := danger.MarshalJSON(reject)
 	if err != nil {
 		return err
 	}

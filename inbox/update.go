@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/proof"
 )
@@ -58,7 +59,7 @@ func (inbox *Inbox) updateNote(ctx context.Context, actor *ap.Actor, key httpsig
 		}
 	}
 
-	s, err := marshal(update)
+	s, err := danger.MarshalJSON(update)
 	if err != nil {
 		return err
 	}

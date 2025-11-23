@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/proof"
 )
@@ -50,7 +51,7 @@ func (inbox *Inbox) delete(ctx context.Context, actor *ap.Actor, key httpsig.Key
 		}
 	}
 
-	s, err := marshal(delete)
+	s, err := danger.MarshalJSON(delete)
 	if err != nil {
 		return err
 	}

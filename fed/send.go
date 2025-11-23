@@ -30,6 +30,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/buildinfo"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/httpsig"
 )
 
@@ -115,7 +116,7 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request, body []byte) (*htt
 			return resp, fmt.Errorf("failed to send request to %s: %d, %w", urlString, resp.StatusCode, err)
 		}
 
-		return resp, fmt.Errorf("failed to send request to %s: %d, %s", urlString, resp.StatusCode, string(body))
+		return resp, fmt.Errorf("failed to send request to %s: %d, %s", urlString, resp.StatusCode, danger.String(body))
 	}
 
 	// other servers may ignore the signature if the request includes a valid integrity proof

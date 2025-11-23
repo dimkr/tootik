@@ -33,6 +33,7 @@ import (
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/lock"
@@ -533,7 +534,7 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 	}
 	defer tx.Rollback()
 
-	bodyString := string(body)
+	bodyString := danger.String(body)
 
 	if _, err := tx.ExecContext(
 		ctx,

@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/data"
 	tokenizer "golang.org/x/net/html"
 )
@@ -90,7 +91,7 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 
 		case tokenizer.EndTagToken:
 			tagBytes, _ := tok.TagName()
-			tag := string(tagBytes)
+			tag := danger.String(tagBytes)
 
 			if len(openTags) > 0 && tag == openTags[len(openTags)-1] {
 				openTags = openTags[:len(openTags)-1]
@@ -142,7 +143,7 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 
 		case tokenizer.StartTagToken, tokenizer.SelfClosingTagToken:
 			tagBytes, hasAttrs := tok.TagName()
-			tag := string(tagBytes)
+			tag := danger.String(tagBytes)
 
 			if tag == "br" {
 				w.WriteByte('\n')
@@ -205,8 +206,8 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 				for {
 					attrBytes, value, more := tok.TagAttr()
 
-					attr := string(attrBytes)
-					valueString := string(value)
+					attr := danger.String(attrBytes)
+					valueString := danger.String(value)
 					if tt == tokenizer.StartTagToken && tag == "span" && attr == "class" {
 						if valueString == "invisible" {
 							invisibleDepth = len(openTags)

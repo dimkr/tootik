@@ -20,6 +20,8 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+
+	"github.com/dimkr/tootik/danger"
 )
 
 type AttachmentType string
@@ -50,6 +52,5 @@ func (a *Attachment) Scan(src any) error {
 }
 
 func (a *Attachment) Value() (driver.Value, error) {
-	buf, err := json.Marshal(a)
-	return string(buf), err
+	return danger.MarshalJSON(a)
 }

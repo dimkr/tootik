@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/proof"
 )
@@ -62,7 +63,7 @@ func (inbox *Inbox) unfollow(ctx context.Context, follower *ap.Actor, key httpsi
 		}
 	}
 
-	s, err := marshal(unfollow)
+	s, err := danger.MarshalJSON(unfollow)
 	if err != nil {
 		return err
 	}

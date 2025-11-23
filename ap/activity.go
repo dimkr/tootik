@@ -22,6 +22,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+
+	"github.com/dimkr/tootik/danger"
 )
 
 type ActivityType string
@@ -155,8 +157,7 @@ func (a *Activity) Scan(src any) error {
 }
 
 func (a *Activity) Value() (driver.Value, error) {
-	buf, err := json.Marshal(a)
-	return string(buf), err
+	return danger.MarshalJSON(a)
 }
 
 func (a *Activity) LogValue() slog.Value {

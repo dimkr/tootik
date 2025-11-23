@@ -29,6 +29,7 @@ import (
 	"strings"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/proof"
@@ -341,7 +342,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 
 	var activity ap.Activity
 	if err := json.Unmarshal(rawActivity, &activity); err != nil {
-		slog.Warn("Failed to unmarshal activity", "body", string(rawActivity), "error", err)
+		slog.Warn("Failed to unmarshal activity", "body", danger.String(rawActivity), "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -570,7 +571,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 		`INSERT OR IGNORE INTO inbox (sender, activity, raw) VALUES (?, JSONB(?), ?)`,
 		sender.ID,
 		queued,
-		string(rawActivity),
+		danger.String(rawActivity),
 	); err != nil {
 		slog.Error("Failed to insert activity", "sender", sender.ID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)

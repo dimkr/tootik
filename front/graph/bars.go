@@ -18,8 +18,8 @@ limitations under the License.
 package graph
 
 import (
-	"bytes"
 	"fmt"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -77,7 +77,7 @@ outer:
 
 	unit := float64(max) / 8
 
-	var w bytes.Buffer
+	var w strings.Builder
 
 	for i := range keys {
 		if keys[i] == "" {

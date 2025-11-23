@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/data"
 )
 
@@ -89,6 +90,5 @@ func (a *Audience) Scan(src any) error {
 }
 
 func (a *Audience) Value() (driver.Value, error) {
-	buf, err := json.Marshal(a)
-	return string(buf), err
+	return danger.MarshalJSON(a)
 }

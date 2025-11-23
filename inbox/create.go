@@ -23,6 +23,7 @@ import (
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/proof"
 )
@@ -70,7 +71,7 @@ func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, post *ap.Object
 		}
 	}
 
-	s, err := marshal(create)
+	s, err := danger.MarshalJSON(create)
 	if err != nil {
 		return err
 	}

@@ -21,6 +21,7 @@ import (
 	"net/url"
 	"strconv"
 
+	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/front/text"
 )
 
@@ -103,5 +104,5 @@ func (h *Handler) readBody(w text.Writer, r *Request, args []string) (string, bo
 		return "", false
 	}
 
-	return string(buf), true
+	return danger.String(buf), true
 }

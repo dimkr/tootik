@@ -20,6 +20,8 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+
+	"github.com/dimkr/tootik/danger"
 )
 
 type ObjectType string
@@ -85,6 +87,5 @@ func (o *Object) Scan(src any) error {
 }
 
 func (o *Object) Value() (driver.Value, error) {
-	buf, err := json.Marshal(o)
-	return string(buf), err
+	return danger.MarshalJSON(o)
 }

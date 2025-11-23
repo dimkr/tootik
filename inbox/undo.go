@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/proof"
 )
@@ -54,7 +55,7 @@ func (inbox *Inbox) undo(ctx context.Context, actor *ap.Actor, key httpsig.Key, 
 		}
 	}
 
-	s, err := marshal(undo)
+	s, err := danger.MarshalJSON(undo)
 	if err != nil {
 		return err
 	}
