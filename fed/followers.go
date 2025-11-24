@@ -174,7 +174,7 @@ func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 	slog.Info("Received followers request", "sender", sender.ID, "username", name, "host", u.Host, "count", len(items.OrderedMap))
 
 	w.Header().Set("Content-Type", `application/activity+json; charset=utf-8`)
-	w.Write([]byte(collection))
+	w.Write(collection)
 }
 
 func (l *Listener) saveFollowersDigest(ctx context.Context, sender *ap.Actor, header string) error {
