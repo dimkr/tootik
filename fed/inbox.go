@@ -500,7 +500,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 			}
 		} else if err == nil && exists && queued.Type == ap.Delete {
 			var parsed ap.Object
-			if err := json.Unmarshal([]byte(fetched), &parsed); err != nil {
+			if err := json.Unmarshal(fetched, &parsed); err != nil {
 				slog.Warn("Ignoring invalid forwarded Delete activity", "activity", &activity, "sender", sender.ID, "error", err)
 				w.WriteHeader(http.StatusBadRequest)
 				return
@@ -524,10 +524,10 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 			return
 		} else if queued.Type == ap.Update {
 			var parsed ap.Activity
-			if err := json.Unmarshal([]byte(fetched), &parsed); err != nil {
+			if err := json.Unmarshal(fetched, &parsed); err != nil {
 				// hack for Mastodon: we get the updated Note when we fetch an Update activity
 				var post ap.Object
-				if err := json.Unmarshal([]byte(fetched), &post); err != nil {
+				if err := json.Unmarshal(fetched, &post); err != nil {
 					slog.Warn("Ignoring invalid forwarded Update activity", "activity", &activity, "sender", sender.ID, "error", err)
 					w.WriteHeader(http.StatusBadRequest)
 					return
@@ -545,7 +545,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 			}
 		} else {
 			var parsed ap.Activity
-			if err := json.Unmarshal([]byte(fetched), &parsed); err != nil {
+			if err := json.Unmarshal(fetched, &parsed); err != nil {
 				slog.Warn("Ignoring invalid forwarded activity", "activity", &activity, "sender", sender.ID, "error", err)
 				w.WriteHeader(http.StatusBadRequest)
 				return
