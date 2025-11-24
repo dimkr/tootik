@@ -155,7 +155,14 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 					return "", nil, errors.New("too nested")
 				}
 
-				openTags = append(openTags, tag)
+				/*
+					[golang.org/x/net/html.Tokenizer.TagName] docs say:
+
+						The contents of the returned slice may change on the next call to Next.
+
+					therefore we must copy the string when appending to openTags
+				*/
+				openTags = append(openTags, string(tagBytes))
 			}
 
 			if tag == "ul" {
@@ -207,21 +214,21 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 					attrBytes, value, more := tok.TagAttr()
 
 					attr := danger.String(attrBytes)
-					valueString := danger.String(value)
 					if tt == tokenizer.StartTagToken && tag == "span" && attr == "class" {
+						valueString := danger.String(value)
 						if valueString == "invisible" {
 							invisibleDepth = len(openTags)
 						} else if valueString == "ellipsis" {
 							ellipsisDepth = len(openTags)
 						}
 					} else if tag == "a" && attr == "class" {
-						class = valueString
+						class = string(value)
 					} else if tag == "a" && attr == "href" {
-						href = valueString
+						href = string(value)
 					} else if tag == "img" && attr == "alt" {
-						alt = valueString
+						alt = string(value)
 					} else if tag == "img" && attr == "src" {
-						src = valueString
+						src = string(value)
 					}
 
 					if !more {
