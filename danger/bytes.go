@@ -18,7 +18,7 @@ package danger
 
 import "unsafe"
 
-// Byte casts a string to a byte slice without copying the underlying array.
+// Bytes casts a string to a byte slice without copying the underlying array.
 //
 // The caller must not modify s afterwards because this will change the returned slice.
 func Bytes(s string) []byte {
