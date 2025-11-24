@@ -23,11 +23,13 @@ import (
 	"image/color"
 	"image/draw"
 	"image/gif"
+
+	"github.com/dimkr/tootik/danger"
 )
 
 // Generate generates a tiny pseudo-random image by user name
 func Generate(s string) ([]byte, error) {
-	hash := sha256.Sum256([]byte(s))
+	hash := sha256.Sum256(danger.Bytes(s))
 
 	fg := color.RGBA{128 + (hash[0]^hash[29])%128, 128 + (hash[1]^hash[30])%128, 128 + (hash[2]^hash[31])%128, 255}
 	alt := []color.RGBA{

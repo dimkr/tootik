@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+
+	"github.com/dimkr/tootik/danger"
 )
 
 func (l *Listener) handlePost(w http.ResponseWriter, r *http.Request) {
@@ -48,5 +50,5 @@ func (l *Listener) handlePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/activity+json; charset=utf-8")
-	w.Write([]byte(note))
+	w.Write(danger.Bytes(note))
 }

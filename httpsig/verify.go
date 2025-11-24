@@ -29,6 +29,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/dimkr/tootik/danger"
 )
 
 type Signature struct {
@@ -248,7 +250,7 @@ func (s *Signature) Verify(key any) error {
 			return fmt.Errorf("invalid RSA signature size: %d", sigBits)
 		}
 
-		hash := sha256.Sum256([]byte(s.s))
+		hash := sha256.Sum256(danger.Bytes(s.s))
 		if err := rsa.VerifyPKCS1v15(v, crypto.SHA256, hash[:], s.signature); err != nil {
 			return fmt.Errorf("invalid RSA signature: %w", err)
 		}
@@ -262,7 +264,7 @@ func (s *Signature) Verify(key any) error {
 			return fmt.Errorf("invalid signature size: %d", len(s.signature))
 		}
 
-		if !ed25519.Verify(v, []byte(s.s), s.signature) {
+		if !ed25519.Verify(v, danger.Bytes(s.s), s.signature) {
 			return errors.New("invalid ed25519 signature")
 		}
 

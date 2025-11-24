@@ -25,11 +25,12 @@ import (
 	"fmt"
 
 	"github.com/btcsuite/btcutil/base58"
+	"github.com/dimkr/tootik/danger"
 )
 
 // ParseRSAPrivateKey parses RSA private keys.
 func ParseRSAPrivateKey(privateKeyPemString string) (any, error) {
-	privateKeyPem, _ := pem.Decode([]byte(privateKeyPemString))
+	privateKeyPem, _ := pem.Decode(danger.Bytes(privateKeyPemString))
 
 	privateKey, err := x509.ParsePKCS8PrivateKey(privateKeyPem.Bytes)
 	if err != nil {

@@ -32,6 +32,7 @@ import (
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 )
@@ -258,7 +259,7 @@ func (q *Queue) deliverWithTimeout(parent context.Context, task *deliveryTask) e
 
 	req := task.Request.WithContext(ctx)
 
-	resp, err := q.Resolver.send(task.Keys, req, []byte(task.Job.RawActivity))
+	resp, err := q.Resolver.send(task.Keys, req, danger.Bytes(task.Job.RawActivity))
 	if err == nil {
 		resp.Body.Close()
 	}
@@ -356,7 +357,7 @@ func (q *Queue) queueTask(
 	slog.Info("Queueing activity for delivery", "inbox", inbox, "activity", job.Activity.ID)
 
 	// assign a task to a random worker but use one worker per host, so activities are delivered once per host
-	tasks[crc32.ChecksumIEEE([]byte(req.URL.Host))%uint32(len(tasks))] <- &deliveryTask{
+	tasks[crc32.ChecksumIEEE(danger.Bytes(req.URL.Host))%uint32(len(tasks))] <- &deliveryTask{
 		Job:     job,
 		Keys:    keys,
 		Request: req,
