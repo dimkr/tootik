@@ -33,6 +33,7 @@ import (
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 )
@@ -90,7 +91,7 @@ func digestFollowers(ctx context.Context, db *sql.DB, followed, host string) (st
 		if err := rows.Scan(&follower); err != nil {
 			return "", err
 		}
-		hash := sha256.Sum256([]byte(follower))
+		hash := sha256.Sum256(danger.Bytes(follower))
 		for i := range sha256.Size {
 			digest[i] ^= hash[i]
 		}

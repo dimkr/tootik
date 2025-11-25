@@ -27,6 +27,7 @@ import (
 	"regexp"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 )
@@ -190,5 +191,5 @@ func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
-	w.Write([]byte(raw))
+	w.Write(danger.Bytes(raw))
 }

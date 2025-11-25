@@ -80,7 +80,7 @@ func (o *Object) Scan(src any) error {
 	case []byte:
 		return json.Unmarshal(v, o)
 	case string:
-		return json.Unmarshal([]byte(v), o)
+		return json.Unmarshal(danger.Bytes(v), o)
 	default:
 		return fmt.Errorf("unsupported conversion from %T to %T", src, o)
 	}

@@ -150,7 +150,7 @@ func (a *Activity) Scan(src any) error {
 	case []byte:
 		return json.Unmarshal(v, a)
 	case string:
-		return json.Unmarshal([]byte(v), a)
+		return json.Unmarshal(danger.Bytes(v), a)
 	default:
 		return fmt.Errorf("unsupported conversion from %T to %T", src, a)
 	}

@@ -216,7 +216,7 @@ func (r *Resolver) tryResolve(ctx context.Context, keys [2]httpsig.Key, host, na
 
 	var lockID uint32
 	if !isLocal && flags&ap.Offline == 0 {
-		lockID = crc32.ChecksumIEEE([]byte(host+name)) % uint32(len(r.locks))
+		lockID = crc32.ChecksumIEEE(danger.Bytes(host+name)) % uint32(len(r.locks))
 		lock := r.locks[lockID]
 		if err := lock.Lock(ctx); err != nil {
 			return nil, nil, err
@@ -264,7 +264,7 @@ func (r *Resolver) tryResolve(ctx context.Context, keys [2]httpsig.Key, host, na
 	}
 
 	if cachedActor != nil {
-		altLockID := crc32.ChecksumIEEE([]byte(cachedActor.ID)) % uint32(len(r.locks))
+		altLockID := crc32.ChecksumIEEE(danger.Bytes(cachedActor.ID)) % uint32(len(r.locks))
 		if altLockID != lockID {
 			lock := r.locks[altLockID]
 			if err := lock.Lock(ctx); err != nil {
@@ -350,7 +350,7 @@ func (r *Resolver) tryResolveID(ctx context.Context, keys [2]httpsig.Key, u *url
 
 	var lockID uint32
 	if !isLocal && flags&ap.Offline == 0 {
-		lockID = crc32.ChecksumIEEE([]byte(id)) % uint32(len(r.locks))
+		lockID = crc32.ChecksumIEEE(danger.Bytes(id)) % uint32(len(r.locks))
 		lock := r.locks[lockID]
 		if err := lock.Lock(ctx); err != nil {
 			return nil, nil, err
@@ -393,7 +393,7 @@ func (r *Resolver) tryResolveID(ctx context.Context, keys [2]httpsig.Key, u *url
 
 	if cachedActor != nil {
 		if cachedActor.ID != id {
-			altLockID := crc32.ChecksumIEEE([]byte(cachedActor.ID)) % uint32(len(r.locks))
+			altLockID := crc32.ChecksumIEEE(danger.Bytes(cachedActor.ID)) % uint32(len(r.locks))
 			if altLockID != lockID {
 				lock := r.locks[altLockID]
 				if err := lock.Lock(ctx); err != nil {

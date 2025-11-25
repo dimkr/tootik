@@ -25,6 +25,7 @@ import (
 	"net/http"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/danger"
 )
 
 func (l *Listener) handleActivity(w http.ResponseWriter, r *http.Request, prefix string) {
@@ -54,7 +55,7 @@ func (l *Listener) handleActivity(w http.ResponseWriter, r *http.Request, prefix
 	if activity.Type == ap.Update {
 		json.NewEncoder(w).Encode(activity.Object)
 	} else {
-		w.Write([]byte(raw))
+		w.Write(danger.Bytes(raw))
 	}
 }
 

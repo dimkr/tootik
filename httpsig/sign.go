@@ -26,6 +26,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/dimkr/tootik/danger"
 )
 
 var (
@@ -60,7 +62,7 @@ func Sign(r *http.Request, body []byte, key Key, now time.Time) error {
 		return errors.New("invalid private key")
 	}
 
-	hash := sha256.Sum256([]byte(s))
+	hash := sha256.Sum256(danger.Bytes(s))
 	sig, err := rsa.SignPKCS1v15(nil, rsaKey, crypto.SHA256, hash[:])
 	if err != nil {
 		return err

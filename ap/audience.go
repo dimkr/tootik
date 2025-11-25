@@ -86,7 +86,7 @@ func (a *Audience) Scan(src any) error {
 	if !ok {
 		return fmt.Errorf("unsupported conversion from %T to %T", src, a)
 	}
-	return json.Unmarshal([]byte(s), a)
+	return json.Unmarshal(danger.Bytes(s), a)
 }
 
 func (a *Audience) Value() (driver.Value, error) {

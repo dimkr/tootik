@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/proof"
@@ -95,7 +96,7 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 
 	var publicKey any
 	if actor.PublicKey.ID == sig.KeyID {
-		publicKeyPem, _ := pem.Decode([]byte(actor.PublicKey.PublicKeyPem))
+		publicKeyPem, _ := pem.Decode(danger.Bytes(actor.PublicKey.PublicKeyPem))
 
 		var err error
 		publicKey, err = x509.ParsePKIXPublicKey(publicKeyPem.Bytes)

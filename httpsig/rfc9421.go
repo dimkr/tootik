@@ -33,6 +33,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/data"
 )
 
@@ -193,11 +194,11 @@ func SignRFC9421(
 	var sig []byte
 	switch v := key.PrivateKey.(type) {
 	case *rsa.PrivateKey:
-		hash := sha256.Sum256([]byte(s))
+		hash := sha256.Sum256(danger.Bytes(s))
 		sig, err = rsa.SignPKCS1v15(nil, v, crypto.SHA256, hash[:])
 
 	case ed25519.PrivateKey:
-		sig = ed25519.Sign(v, []byte(s))
+		sig = ed25519.Sign(v, danger.Bytes(s))
 
 	default:
 		return errors.New("invalid private key")

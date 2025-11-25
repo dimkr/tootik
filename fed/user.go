@@ -23,6 +23,8 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+
+	"github.com/dimkr/tootik/danger"
 )
 
 func (l *Listener) doHandleUser(w http.ResponseWriter, r *http.Request, name string) {
@@ -48,7 +50,7 @@ func (l *Listener) doHandleUser(w http.ResponseWriter, r *http.Request, name str
 	}
 
 	w.Header().Set("Content-Type", `application/activity+json; charset=utf-8`)
-	w.Write([]byte(actorString))
+	w.Write(danger.Bytes(actorString))
 }
 
 func (l *Listener) handleUser(w http.ResponseWriter, r *http.Request) {
