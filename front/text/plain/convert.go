@@ -93,6 +93,11 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 			tagBytes, _ := tok.TagName()
 			tag := danger.String(tagBytes)
 
+			// </li> is optional
+			for len(openTags) > 0 && ((inUl && tag == "ul") || (inOl && tag == "ol")) && openTags[len(openTags)-1] == "li" {
+				openTags = openTags[:len(openTags)-1]
+			}
+
 			if len(openTags) > 0 && tag == openTags[len(openTags)-1] {
 				openTags = openTags[:len(openTags)-1]
 			} else {
