@@ -198,6 +198,11 @@ func TestResolve_FederatedInstanceActor(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -342,6 +347,11 @@ func TestResolve_FederatedActorFirstTime(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -500,6 +510,11 @@ func TestResolve_FederatedActorFirstTimeInvalidWebFingerLink(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -580,6 +595,11 @@ func TestResolve_FederatedActorFirstTimeActorIDMismatch(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -657,6 +677,11 @@ func TestResolve_FederatedActorCached(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -859,6 +884,11 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 					"followers": "https://tootik.0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://tootik.0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://tootik.0.0.0.0/user/dan#main-key",
+						"owner": "https://tootik.0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -922,6 +952,11 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 					"followers": "https://tootik.0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://tootik.0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://tootik.0.0.0.0/user/dan#main-key",
+						"owner": "https://tootik.0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -995,6 +1030,11 @@ func TestResolve_FederatedActorCachedActorHostSubdomainFetchedRecently(t *testin
 					"followers": "https://tootik.0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://tootik.0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://tootik.0.0.0.0/user/dan#main-key",
+						"owner": "https://tootik.0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -1084,6 +1124,11 @@ func TestResolve_FederatedActorCachedActorIDChanged(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -1200,6 +1245,11 @@ func TestResolve_FederatedActorCachedButBlocked(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -1293,6 +1343,11 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -1356,6 +1411,11 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -1435,6 +1495,11 @@ func TestResolve_FederatedActorOldCacheWasSuspended(t *testing.T) {
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
 					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
+					},
 					"published": "2018-08-18T00:00:00Z",
 					"suspended": true
 				}`,
@@ -1496,6 +1561,11 @@ func TestResolve_FederatedActorOldCacheWasSuspended(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					},
 					"published": "2018-08-18T00:00:00Z",
 					"suspended": false
@@ -1576,6 +1646,11 @@ func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -1636,6 +1711,11 @@ func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					},
 					"published": "2018-08-18T00:00:00Z"
 				}`,
@@ -1715,6 +1795,11 @@ func TestResolve_FederatedActorOldCacheUpdateFailed(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -1836,6 +1921,11 @@ func TestResolve_FederatedActorOldCacheStillNew(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -1896,6 +1986,11 @@ func TestResolve_FederatedActorOldCacheStillNew(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -1966,6 +2061,11 @@ func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
 					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
+					},
 					"published": "2018-08-18T00:00:00Z"
 				}`,
 			),
@@ -2029,6 +2129,11 @@ func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					},
 					"published": "2088-08-18T00:00:00Z"
 				}`,
@@ -2100,6 +2205,11 @@ func TestResolve_FederatedActorOldCacheWasNewNowUnknown(t *testing.T) {
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
 					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
+					},
 					"published": "2088-08-18T00:00:00Z"
 				}`,
 			),
@@ -2160,6 +2270,11 @@ func TestResolve_FederatedActorOldCacheWasNewNowUnknown(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -2230,6 +2345,11 @@ func TestResolve_FederatedActorOldCacheFetchedRecently(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -2319,6 +2439,11 @@ func TestResolve_FederatedActorOldCacheButOffline(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -2347,6 +2472,99 @@ func TestResolve_FederatedActorOldCacheButOffline(t *testing.T) {
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
+}
+
+func TestResolve_FederatedActorOldCacheExpiredDomain(t *testing.T) {
+	assert := assert.New(t)
+
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	assert.NoError(err)
+	f.Close()
+
+	path := f.Name()
+	defer os.Remove(path)
+
+	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	assert.NoError(err)
+
+	blockList := BlockList{}
+
+	var cfg cfg.Config
+	cfg.FillDefaults()
+	cfg.MinActorAge = 0
+
+	client := newTestClient(map[string]testResponse{
+		"https://invalid.invalid/.well-known/webfinger?resource=acct:dan@invalid.invalid": {
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"aliases": [
+						"https://invalid.invalid/user/dan"
+					],
+					"links": [
+						{
+							"href": "https://invalid.invalid/user/dan",
+							"rel": "self",
+							"type": "application/activity+json"
+						},
+						{
+							"href": "https://invalid.invalid/user/dan",
+							"rel": "self",
+							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+						}
+					],
+					"subject": "acct:dan@invalid.invalid"
+				}`,
+			),
+		},
+		"https://invalid.invalid/user/dan": {
+			Response: newTestResponse(
+				http.StatusOK,
+				`{
+					"@context": [
+						"https://www.w3.org/ns/activitystreams",
+						"https://w3id.org/security/v1"
+					],
+					"id": "https://invalid.invalid/user/dan",
+					"type": "Person",
+					"inbox": "https://invalid.invalid/inbox/dan",
+					"outbox": "https://invalid.invalid/outbox/dan",
+					"preferredUsername": "dan",
+					"followers": "https://invalid.invalid/followers/dan",
+					"endpoints": {
+						"sharedInbox": "https://invalid.invalid/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://invalid.invalid/user/dan#main-key",
+						"owner": "https://invalid.invalid/user/dan",
+						"publicKeyPem": "abcd"
+					}
+				}`,
+			),
+		},
+	})
+
+	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
+
+	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	assert.NoError(err)
+
+	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
+
+	actor, err := resolver.Resolve(context.Background(), key, "invalid.invalid", "dan", 0)
+	assert.NoError(err)
+	assert.Empty(client.Data)
+
+	assert.Equal("https://invalid.invalid/user/dan", actor.ID)
+	assert.Equal("https://invalid.invalid/inbox/dan", actor.Inbox)
+
+	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*60, fetched = unixepoch() - 60*60*60 where id = 'https://invalid.invalid/user/dan'`)
+	assert.NoError(err)
+
+	resolver.client = &http.Client{}
+
+	_, err = resolver.Resolve(context.Background(), key, "invalid.invalid", "dan", 0)
+	assert.Error(err)
 }
 
 func TestResolve_FederatedActorOldCacheInvalidID(t *testing.T) {
@@ -2465,6 +2683,11 @@ func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -2565,6 +2788,11 @@ func TestResolve_FederatedActorOldCacheBigWebFingerResponse(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -2683,6 +2911,11 @@ func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -2805,6 +3038,11 @@ func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -2868,6 +3106,11 @@ func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -3043,6 +3286,11 @@ func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -3165,6 +3413,11 @@ func TestResolve_FederatedActorOldCacheWebFingerError(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -3267,6 +3520,11 @@ func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -3392,6 +3650,11 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -3528,6 +3791,11 @@ func TestResolve_FederatedActorFirstTimeWrongID(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -3687,6 +3955,11 @@ func TestResolve_FederatedActorFirstTimeTooYoung(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -3763,6 +4036,11 @@ func TestResolve_FederatedActorFirstTimeSuspended(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					},
 					"published": "2018-08-18T00:00:00Z",
 					"suspended": true
@@ -3842,6 +4120,11 @@ func TestResolve_FederatedActorWrongIDCached(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -3928,6 +4211,11 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -3991,6 +4279,11 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -4064,6 +4357,11 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -4127,6 +4425,11 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
@@ -4189,6 +4492,11 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
+					},
+					"publicKey": {
+						"id": "https://0.0.0.0/user/dan#main-key",
+						"owner": "https://0.0.0.0/user/dan",
+						"publicKeyPem": "abcd"
 					}
 				}`,
 			),
