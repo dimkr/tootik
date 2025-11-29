@@ -2494,30 +2494,30 @@ func TestResolve_FederatedActorOldCacheExpiredDomain(t *testing.T) {
 	cfg.MinActorAge = 0
 
 	client := newTestClient(map[string]testResponse{
-		"https://nxdomain.invalid/.well-known/webfinger?resource=acct:dan@nxdomain.invalid": {
+		"https://invalid.invalid/.well-known/webfinger?resource=acct:dan@invalid.invalid": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
 					"aliases": [
-						"https://nxdomain.invalid/user/dan"
+						"https://invalid.invalid/user/dan"
 					],
 					"links": [
 						{
-							"href": "https://nxdomain.invalid/user/dan",
+							"href": "https://invalid.invalid/user/dan",
 							"rel": "self",
 							"type": "application/activity+json"
 						},
 						{
-							"href": "https://nxdomain.invalid/user/dan",
+							"href": "https://invalid.invalid/user/dan",
 							"rel": "self",
 							"type": "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
 						}
 					],
-					"subject": "acct:dan@nxdomain.invalid"
+					"subject": "acct:dan@invalid.invalid"
 				}`,
 			),
 		},
-		"https://nxdomain.invalid/user/dan": {
+		"https://invalid.invalid/user/dan": {
 			Response: newTestResponse(
 				http.StatusOK,
 				`{
@@ -2525,18 +2525,18 @@ func TestResolve_FederatedActorOldCacheExpiredDomain(t *testing.T) {
 						"https://www.w3.org/ns/activitystreams",
 						"https://w3id.org/security/v1"
 					],
-					"id": "https://nxdomain.invalid/user/dan",
+					"id": "https://invalid.invalid/user/dan",
 					"type": "Person",
-					"inbox": "https://nxdomain.invalid/inbox/dan",
-					"outbox": "https://nxdomain.invalid/outbox/dan",
+					"inbox": "https://invalid.invalid/inbox/dan",
+					"outbox": "https://invalid.invalid/outbox/dan",
 					"preferredUsername": "dan",
-					"followers": "https://nxdomain.invalid/followers/dan",
+					"followers": "https://invalid.invalid/followers/dan",
 					"endpoints": {
-						"sharedInbox": "https://nxdomain.invalid/inbox/nobody"
+						"sharedInbox": "https://invalid.invalid/inbox/nobody"
 					},
 					"publicKey": {
-						"id": "https://nxdomain.invalid/user/dan#main-key",
-						"owner": "https://nxdomain.invalid/user/dan",
+						"id": "https://invalid.invalid/user/dan#main-key",
+						"owner": "https://invalid.invalid/user/dan",
 						"publicKeyPem": "abcd"
 					}
 				}`,
@@ -2551,19 +2551,19 @@ func TestResolve_FederatedActorOldCacheExpiredDomain(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.Resolve(context.Background(), key, "nxdomain.invalid", "dan", 0)
+	actor, err := resolver.Resolve(context.Background(), key, "invalid.invalid", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
-	assert.Equal("https://nxdomain.invalid/user/dan", actor.ID)
-	assert.Equal("https://nxdomain.invalid/inbox/dan", actor.Inbox)
+	assert.Equal("https://invalid.invalid/user/dan", actor.ID)
+	assert.Equal("https://invalid.invalid/inbox/dan", actor.Inbox)
 
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*60, fetched = unixepoch() - 60*60*60 where id = 'https://nxdomain.invalid/user/dan'`)
+	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*60, fetched = unixepoch() - 60*60*60 where id = 'https://invalid.invalid/user/dan'`)
 	assert.NoError(err)
 
 	resolver.client = &http.Client{}
 
-	_, err = resolver.Resolve(context.Background(), key, "nxdomain.invalid", "dan", 0)
+	_, err = resolver.Resolve(context.Background(), key, "invalid.invalid", "dan", 0)
 	assert.Error(err)
 }
 
