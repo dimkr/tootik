@@ -300,8 +300,19 @@ func (r *Resolver) tryResolve(ctx context.Context, keys [2]httpsig.Key, host, na
 		return nil, cachedActor, fmt.Errorf("failed to decode %s response: response is too big", finger)
 	}
 
+	var body []byte
+	if resp.ContentLength >= 0 {
+		body = make([]byte, resp.ContentLength)
+		_, err = io.ReadFull(resp.Body, body)
+	} else {
+		body, err = io.ReadAll(io.LimitReader(resp.Body, r.Config.MaxResponseBodySize))
+	}
+	if err != nil {
+		return nil, cachedActor, fmt.Errorf("failed to read %s response: %w", finger, err)
+	}
+
 	var webFingerResponse webFingerResponse
-	if err := json.NewDecoder(io.LimitReader(resp.Body, r.Config.MaxResponseBodySize)).Decode(&webFingerResponse); err != nil {
+	if err := json.Unmarshal(body, &webFingerResponse); err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to decode %s response: %w", finger, err)
 	}
 
