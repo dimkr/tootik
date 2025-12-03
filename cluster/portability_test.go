@@ -17,10 +17,17 @@ limitations under the License.
 package cluster
 
 import (
+	"bytes"
 	"crypto/ed25519"
+	"encoding/json"
+	"net/http"
 	"testing"
+	"time"
 
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/proof"
 )
 
 func TestCluster_ReplyForwardingPortableActors(t *testing.T) {
@@ -220,5 +227,96 @@ func TestCluster_ForwardedLegacyReply(t *testing.T) {
 
 	carol.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
+		Contains(Line{Type: Quote, Text: "hi"})
+}
+
+func TestCluster_ClientSideSigning(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
+
+	cluster["a.localdomain"].Config.EnablePortableActorRegistration = true
+	cluster["c.localdomain"].Config.EnablePortableActorRegistration = true
+
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+	registerPortable := "/users/register?" + data.EncodeEd25519PrivateKey(priv)
+
+	did := "did:key:" + data.EncodeEd25519PublicKey(pub)
+
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["c.localdomain"].Handle(carolKeypair, registerPortable).OK()
+
+	alice.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "c.localdomain").
+		OK()
+
+	carol.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "a.localdomain").
+		OK()
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	cluster.Settle(t)
+
+	actorID := "https://a.localdomain/.well-known/apgateway/" + did + "/actor"
+
+	to := ap.Audience{}
+	to.Add(ap.Public)
+
+	create := &ap.Activity{
+		Type:      ap.Create,
+		ID:        actorID + "/create/1",
+		Actor:     actorID,
+		To:        to,
+		CC:        to,
+		Published: ap.Time{Time: time.Now()},
+		Object: &ap.Object{
+			Type:         ap.Note,
+			ID:           actorID + "/note/1",
+			Content:      "hi",
+			AttributedTo: actorID,
+			To:           to,
+			CC:           to,
+		},
+	}
+
+	create.Proof, err = proof.Create(httpsig.Key{ID: actorID + "#ed25519-key", PrivateKey: priv}, create)
+	if err != nil {
+		t.Fatalf("Failed to generate proof: %v", err)
+	}
+
+	j, err := json.Marshal(create)
+	if err != nil {
+		t.Fatalf("Failed to marshal activity: %v", err)
+	}
+
+	r, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://c.localdomain/inbox", bytes.NewReader(j))
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	var w responseWriter
+	cluster["c.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusAccepted {
+		t.Fatalf("Failed to process activity: %d", w.StatusCode)
+	}
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		NotContains(Line{Type: Quote, Text: "hi"})
+
+	cluster.Settle(t)
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
 		Contains(Line{Type: Quote, Text: "hi"})
 }
