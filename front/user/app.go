@@ -18,7 +18,6 @@ package user
 
 import (
 	"context"
-	"crypto/ed25519"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -43,23 +42,7 @@ func CreateApplicationActor(ctx context.Context, domain string, db *sql.DB, cfg 
 		&rsaPrivKeyPem,
 		&ed25519PrivKeyMultibase,
 	); errors.Is(err, sql.ErrNoRows) {
-		pub, priv, err := ed25519.GenerateKey(nil)
-		if err != nil {
-			return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate Ed25519 key for application actor: %w", err)
-		}
-
-		return CreatePortable(
-			ctx,
-			domain,
-			db,
-			cfg,
-			"actor",
-			ap.Application,
-			nil,
-			priv,
-			data.EncodeEd25519PrivateKey(priv),
-			pub,
-		)
+		return CreatePortable(ctx, domain, db, cfg, "actor", ap.Application, nil)
 	} else if err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to fetch application actor: %w", err)
 	}
