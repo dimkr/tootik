@@ -40,16 +40,16 @@ import (
 const domain = "localhost.localdomain:8443"
 
 type server struct {
-	cfg        *cfg.Config
-	db         *sql.DB
-	dbPath     string
-	handler    front.Handler
-	inbox      *inbox.Inbox
-	queue      *inbox.Queue
-	Alice      *ap.Actor
-	Bob        *ap.Actor
-	Carol      *ap.Actor
-	NobodyKeys [2]httpsig.Key
+	cfg          *cfg.Config
+	db           *sql.DB
+	dbPath       string
+	handler      front.Handler
+	inbox        *inbox.Inbox
+	queue        *inbox.Queue
+	Alice        *ap.Actor
+	Bob          *ap.Actor
+	Carol        *ap.Actor
+	AppActorKeys [2]httpsig.Key
 }
 
 func (s *server) Shutdown() {
@@ -94,7 +94,7 @@ func newTestServer() *server {
 		panic(err)
 	}
 
-	_, nobodyKeys, err := user.CreateNobody(context.Background(), domain, db, &cfg)
+	_, appActorKeys, err := user.CreateApplicationActor(context.Background(), domain, db, &cfg)
 	if err != nil {
 		panic(err)
 	}
@@ -112,7 +112,7 @@ func newTestServer() *server {
 		DB:       db,
 		Inbox:    localInbox,
 		Resolver: resolver,
-		Keys:     nobodyKeys,
+		Keys:     appActorKeys,
 	}
 
 	handler, err := front.NewHandler(domain, &cfg, resolver, db, localInbox)
@@ -121,16 +121,16 @@ func newTestServer() *server {
 	}
 
 	return &server{
-		cfg:        &cfg,
-		dbPath:     path,
-		db:         db,
-		handler:    handler,
-		inbox:      localInbox,
-		queue:      queue,
-		Alice:      alice,
-		Bob:        bob,
-		Carol:      carol,
-		NobodyKeys: nobodyKeys,
+		cfg:          &cfg,
+		dbPath:       path,
+		db:           db,
+		handler:      handler,
+		inbox:        localInbox,
+		queue:        queue,
+		Alice:        alice,
+		Bob:          bob,
+		Carol:        carol,
+		AppActorKeys: appActorKeys,
 	}
 }
 

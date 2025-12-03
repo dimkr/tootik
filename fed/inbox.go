@@ -282,7 +282,7 @@ func (l *Listener) fetchObject(ctx context.Context, id string, keys [2]httpsig.K
 }
 
 func (l *Listener) handleSharedInbox(w http.ResponseWriter, r *http.Request) {
-	l.doHandleInbox(w, r, l.ActorKeys)
+	l.doHandleInbox(w, r, l.AppActorKeys)
 }
 
 func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {

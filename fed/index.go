@@ -21,7 +21,7 @@ import "net/http"
 func (l *Listener) handleIndex(w http.ResponseWriter, r *http.Request) {
 	// this is how PieFed fetches the instance actor to detect its inbox and use it as a shared inbox for this instance
 	if accept := r.Header.Get("Accept"); accept == "application/activity+json" || accept == `application/ld+json; profile="https://www.w3.org/ns/activitystreams"` {
-		l.doHandleUser(w, r, "nobody")
+		l.doHandleUser(w, r, "actor")
 		return
 	}
 

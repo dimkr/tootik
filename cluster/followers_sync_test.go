@@ -68,7 +68,7 @@ func TestCluster_FollowersSyncMissingRemoteFollow(t *testing.T) {
 		Config:   cluster["a.localdomain"].Config,
 		DB:       cluster["a.localdomain"].DB,
 		Resolver: cluster["a.localdomain"].Resolver,
-		Keys:     cluster["a.localdomain"].NobodyKeys,
+		Keys:     cluster["a.localdomain"].AppActorKeys,
 		Inbox:    cluster["a.localdomain"].Inbox,
 	}
 	if _, err := syncer.ProcessBatch(t.Context()); err != nil {
@@ -128,7 +128,7 @@ func TestCluster_FollowersSyncMissingLocalFollow(t *testing.T) {
 		Config:   cluster["a.localdomain"].Config,
 		DB:       cluster["a.localdomain"].DB,
 		Resolver: cluster["a.localdomain"].Resolver,
-		Keys:     cluster["a.localdomain"].NobodyKeys,
+		Keys:     cluster["a.localdomain"].AppActorKeys,
 		Inbox:    cluster["a.localdomain"].Inbox,
 	}
 	if _, err := syncer.ProcessBatch(t.Context()); err != nil {
@@ -198,7 +198,7 @@ func TestCluster_FollowersSyncMissingRemoteFollowPortableActor(t *testing.T) {
 		Config:   cluster["a.localdomain"].Config,
 		DB:       cluster["a.localdomain"].DB,
 		Resolver: cluster["a.localdomain"].Resolver,
-		Keys:     cluster["a.localdomain"].NobodyKeys,
+		Keys:     cluster["a.localdomain"].AppActorKeys,
 		Inbox:    cluster["a.localdomain"].Inbox,
 	}
 	if _, err := syncer.ProcessBatch(t.Context()); err != nil {
@@ -268,7 +268,7 @@ func TestCluster_FollowersSyncMissingLocalFollowPortableActor(t *testing.T) {
 		Config:   cluster["a.localdomain"].Config,
 		DB:       cluster["a.localdomain"].DB,
 		Resolver: cluster["a.localdomain"].Resolver,
-		Keys:     cluster["a.localdomain"].NobodyKeys,
+		Keys:     cluster["a.localdomain"].AppActorKeys,
 		Inbox:    cluster["a.localdomain"].Inbox,
 	}
 	if _, err := syncer.ProcessBatch(t.Context()); err != nil {

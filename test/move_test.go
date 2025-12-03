@@ -67,7 +67,7 @@ func TestMove_FederatedToFederated(t *testing.T) {
 		Domain:   domain,
 		DB:       server.db,
 		Resolver: resolver,
-		Keys:     server.NobodyKeys,
+		Keys:     server.AppActorKeys,
 		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
@@ -115,7 +115,7 @@ func TestMove_FederatedToFederatedTwoAccounts(t *testing.T) {
 		Domain:   domain,
 		DB:       server.db,
 		Resolver: resolver,
-		Keys:     server.NobodyKeys,
+		Keys:     server.AppActorKeys,
 		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
@@ -163,7 +163,7 @@ func TestMove_FederatedToFederatedNotLinked(t *testing.T) {
 		Domain:   domain,
 		DB:       server.db,
 		Resolver: resolver,
-		Keys:     server.NobodyKeys,
+		Keys:     server.AppActorKeys,
 		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
@@ -204,7 +204,7 @@ func TestMove_FederatedToLocal(t *testing.T) {
 		Domain:   domain,
 		DB:       server.db,
 		Resolver: resolver,
-		Keys:     server.NobodyKeys,
+		Keys:     server.AppActorKeys,
 		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
@@ -248,7 +248,7 @@ func TestMove_FederatedToLocalLinked(t *testing.T) {
 		Domain:   domain,
 		DB:       server.db,
 		Resolver: resolver,
-		Keys:     server.NobodyKeys,
+		Keys:     server.AppActorKeys,
 		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
@@ -305,7 +305,7 @@ func TestMove_FollowingBoth(t *testing.T) {
 		Domain:   domain,
 		DB:       server.db,
 		Resolver: resolver,
-		Keys:     server.NobodyKeys,
+		Keys:     server.AppActorKeys,
 		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
@@ -359,7 +359,7 @@ func TestMove_LocalToLocal(t *testing.T) {
 		Domain:   domain,
 		DB:       server.db,
 		Resolver: resolver,
-		Keys:     server.NobodyKeys,
+		Keys:     server.AppActorKeys,
 		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
@@ -394,7 +394,7 @@ func TestMove_LocalToLocalNoFollowers(t *testing.T) {
 		Domain:   domain,
 		DB:       server.db,
 		Resolver: resolver,
-		Keys:     server.NobodyKeys,
+		Keys:     server.AppActorKeys,
 		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
@@ -442,7 +442,7 @@ func TestMove_LocalToFederated(t *testing.T) {
 		Domain:   domain,
 		DB:       server.db,
 		Resolver: resolver,
-		Keys:     server.NobodyKeys,
+		Keys:     server.AppActorKeys,
 		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
@@ -551,7 +551,7 @@ func TestMove_LocalToFederatedAlreadyMoved(t *testing.T) {
 		Domain:   domain,
 		DB:       server.db,
 		Resolver: resolver,
-		Keys:     server.NobodyKeys,
+		Keys:     server.AppActorKeys,
 		Inbox:    server.inbox,
 	}
 	assert.NoError(mover.Run(context.Background()))
