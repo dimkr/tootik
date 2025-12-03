@@ -59,7 +59,7 @@ func getKeyByID(actor *ap.Actor, keyID string) (ed25519.PublicKey, error) {
 	return nil, fmt.Errorf("key %s does not exist", keyID)
 }
 
-func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.ResolverFlag, keys [2]httpsig.Key) (*httpsig.Signature, *ap.Actor, error) {
+func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.ResolverFlag) (*httpsig.Signature, *ap.Actor, error) {
 	sig, err := httpsig.Extract(r, body, l.Domain, time.Now(), l.Config.MaxRequestAge)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to verify message: %w", err)
@@ -79,7 +79,7 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 					return nil, nil, fmt.Errorf("failed to verify message using %s: %w", sig.KeyID, err)
 				}
 
-				actor, err := l.Resolver.ResolveID(r.Context(), keys, sig.KeyID, flags)
+				actor, err := l.Resolver.ResolveID(r.Context(), l.ActorKeys, sig.KeyID, flags)
 				if err != nil {
 					return nil, nil, fmt.Errorf("failed to fetch %s: %w", sig.KeyID, err)
 				}
@@ -89,7 +89,7 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 		}
 	}
 
-	actor, err := l.Resolver.ResolveID(r.Context(), keys, sig.KeyID, flags)
+	actor, err := l.Resolver.ResolveID(r.Context(), l.ActorKeys, sig.KeyID, flags)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get key %s to verify message: %w", sig.KeyID, err)
 	}
@@ -124,7 +124,7 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 	return sig, actor, nil
 }
 
-func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Activity, raw []byte, flags ap.ResolverFlag, keys [2]httpsig.Key) (*ap.Actor, error) {
+func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Activity, raw []byte, flags ap.ResolverFlag) (*ap.Actor, error) {
 	if m := ap.KeyRegex.FindStringSubmatch(p.VerificationMethod); m != nil {
 		if m2 := ap.GatewayURLRegex.FindStringSubmatch(activity.Actor); m2 != nil {
 			if m2[1] != m[1] {
@@ -140,11 +140,11 @@ func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Act
 				return nil, fmt.Errorf("failed to verify proof using %s: %w", p.VerificationMethod, err)
 			}
 
-			return l.Resolver.ResolveID(ctx, keys, activity.Actor, flags)
+			return l.Resolver.ResolveID(ctx, l.ActorKeys, activity.Actor, flags)
 		}
 	}
 
-	actor, err := l.Resolver.ResolveID(ctx, keys, p.VerificationMethod, flags)
+	actor, err := l.Resolver.ResolveID(ctx, l.ActorKeys, p.VerificationMethod, flags)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
 	}
