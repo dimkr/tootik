@@ -19,7 +19,6 @@ package fed
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -219,8 +218,8 @@ func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth 
 	return nil
 }
 
-func (l *Listener) fetchObject(ctx context.Context, id string, keys [2]httpsig.Key) (bool, []byte, error) {
-	resp, err := l.Resolver.Get(ctx, keys, id)
+func (l *Listener) fetchObject(ctx context.Context, id string) (bool, []byte, error) {
+	resp, err := l.Resolver.Get(ctx, l.ActorKeys, id)
 	if err != nil {
 		if resp != nil && (resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone) {
 			return false, nil, err
@@ -282,15 +281,14 @@ func (l *Listener) fetchObject(ctx context.Context, id string, keys [2]httpsig.K
 }
 
 func (l *Listener) handleSharedInbox(w http.ResponseWriter, r *http.Request) {
-	l.doHandleInbox(w, r, l.ActorKeys)
+	l.doHandleInbox(w, r)
 }
 
 func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 	receiver := r.PathValue("username")
 
-	var actor ap.Actor
-	var rsaPrivKeyPem, ed25519PrivKeyMultibase string
-	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519privkey from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null`, receiver).Scan(&actor, &rsaPrivKeyPem, &ed25519PrivKeyMultibase); errors.Is(err, sql.ErrNoRows) {
+	var exists int
+	if err := l.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null)`, receiver).Scan(&exists); err == nil && exists == 0 {
 		slog.Debug("Receiving user does not exist", "receiver", receiver)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -300,27 +298,10 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rsaPrivKey, err := data.ParseRSAPrivateKey(rsaPrivKeyPem)
-	if err != nil {
-		slog.Warn("Failed to parse RSA private key", "receiver", receiver, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
-	if err != nil {
-		slog.Warn("Failed to decode Ed25519 private key", "receiver", receiver, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	l.doHandleInbox(w, r, [2]httpsig.Key{
-		{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
-		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey},
-	})
+	l.doHandleInbox(w, r)
 }
 
-func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2]httpsig.Key) {
+func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request) {
 	if r.ContentLength > l.Config.MaxRequestBodySize {
 		slog.Warn("Ignoring big request", "size", r.ContentLength)
 		w.WriteHeader(http.StatusRequestEntityTooLarge)
@@ -359,7 +340,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 	var sig *httpsig.Signature
 	if activity.Proof != (ap.Proof{}) {
 		// if activity has an integrity proof, pretend it was sent by its actor even if forwarded by another
-		sender, err = l.verifyProof(r.Context(), activity.Proof, &activity, rawActivity, flags, keys)
+		sender, err = l.verifyProof(r.Context(), activity.Proof, &activity, rawActivity, flags)
 		if err != nil {
 			slog.Warn("Failed to verify integrity proof", "activity", &activity, "proof", &activity.Proof, "error", err)
 			w.WriteHeader(http.StatusUnauthorized)
@@ -374,7 +355,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 		json.NewEncoder(w).Encode(map[string]any{"error": "integrity proof is required"})
 		return
 	} else {
-		sig, sender, err = l.verifyRequest(r, rawActivity, flags, keys)
+		sig, sender, err = l.verifyRequest(r, rawActivity, flags)
 		if err != nil {
 			if errors.Is(err, ErrActorGone) {
 				w.WriteHeader(http.StatusAccepted)
@@ -491,7 +472,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 
 		slog.Info("Fetching forwarded object", "activity", &activity, "id", id, "sender", sender.ID)
 
-		if exists, fetched, err := l.fetchObject(r.Context(), id, keys); !exists && queued.Type == ap.Delete {
+		if exists, fetched, err := l.fetchObject(r.Context(), id); !exists && queued.Type == ap.Delete {
 			queued = &ap.Activity{
 				ID:     queued.ID,
 				Type:   ap.Delete,

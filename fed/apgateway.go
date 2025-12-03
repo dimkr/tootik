@@ -28,8 +28,6 @@ import (
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/danger"
-	"github.com/dimkr/tootik/data"
-	"github.com/dimkr/tootik/httpsig"
 )
 
 var (
@@ -50,9 +48,8 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 
 	receiver := "ap://" + m[1]
 
-	var actor ap.Actor
-	var rsaPrivKeyPem, ed25519PrivKeyMultibase string
-	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519privkey from persons where cid = ? and ed25519privkey is not null`, receiver).Scan(&actor, &rsaPrivKeyPem, &ed25519PrivKeyMultibase); errors.Is(err, sql.ErrNoRows) {
+	var exists int
+	if err := l.DB.QueryRowContext(r.Context(), `select exists (select 1 from persons where cid = ? and ed25519privkey is not null)`, receiver).Scan(&exists); err == nil && exists == 0 {
 		slog.Debug("Receiving user does not exist", "receiver", receiver)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -62,28 +59,11 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rsaPrivKey, err := data.ParseRSAPrivateKey(rsaPrivKeyPem)
-	if err != nil {
-		slog.Warn("Failed to parse RSA private key", "receiver", receiver, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
-	if err != nil {
-		slog.Warn("Failed to decode Ed25519 private key", "receiver", receiver, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	l.doHandleInbox(w, r, [2]httpsig.Key{
-		{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
-		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey},
-	})
+	l.doHandleInbox(w, r)
 }
 
 func (l *Listener) handleApGatewayFollowers(w http.ResponseWriter, r *http.Request, did string) {
-	_, sender, err := l.verifyRequest(r, nil, ap.InstanceActor, l.ActorKeys)
+	_, sender, err := l.verifyRequest(r, nil, ap.InstanceActor)
 	if err != nil {
 		slog.Warn("Failed to verify followers request", "error", err)
 		w.WriteHeader(http.StatusUnauthorized)
