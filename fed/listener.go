@@ -26,6 +26,7 @@ import (
 	"net"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -61,7 +62,7 @@ func (l *Listener) newHandler() (*http.ServeMux, error) {
 	mux.HandleFunc("GET /actor", l.handleActor)
 	mux.HandleFunc("GET /icon/{username}", l.handleIcon)
 	mux.HandleFunc("POST /inbox/{username}", l.handleInbox)
-	mux.HandleFunc("POST /inbox/actor", l.handleSharedInbox)
+	mux.HandleFunc("POST "+strings.TrimPrefix(l.AppActor.Inbox, "https://"+l.Domain), l.handleSharedInbox)
 	mux.HandleFunc("POST /inbox", l.handleSharedInbox) // PieFed falls back https://$domain/inbox if it can't fetch instance actor
 	mux.HandleFunc("GET /outbox/{username}", l.handleOutbox)
 	mux.HandleFunc("GET /post/{hash}", l.handlePost)
