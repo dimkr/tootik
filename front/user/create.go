@@ -164,6 +164,36 @@ func CreatePortable(
 	db *sql.DB,
 	cfg *cfg.Config,
 	name string,
+	actorType ap.ActorType,
+	cert *x509.Certificate,
+) (*ap.Actor, [2]httpsig.Key, error) {
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate Ed25519 key for %s: %w", name, err)
+	}
+
+	return CreatePortableWithKey(
+		ctx,
+		domain,
+		db,
+		cfg,
+		name,
+		actorType,
+		cert,
+		priv,
+		data.EncodeEd25519PrivateKey(priv),
+		pub,
+	)
+}
+
+// CreatePortableWithKey creates a new portable user using a given key.
+func CreatePortableWithKey(
+	ctx context.Context,
+	domain string,
+	db *sql.DB,
+	cfg *cfg.Config,
+	name string,
+	actorType ap.ActorType,
 	cert *x509.Certificate,
 	ed25519Priv ed25519.PrivateKey,
 	ed25519PrivMultibase string,
@@ -184,7 +214,7 @@ func CreatePortable(
 			"https://w3id.org/security/v1",
 		},
 		ID:                id,
-		Type:              ap.Person,
+		Type:              actorType,
 		PreferredUsername: name,
 		Inbox:             id + "/inbox",
 		Outbox:            id + "/outbox",
@@ -248,9 +278,9 @@ func Create(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config, nam
 		},
 		Inbox:  fmt.Sprintf("https://%s/inbox/%s", domain, name),
 		Outbox: fmt.Sprintf("https://%s/outbox/%s", domain, name),
-		// use nobody's inbox as a shared inbox
+		// use application actor's inbox as a shared inbox
 		Endpoints: map[string]string{
-			"sharedInbox": fmt.Sprintf("https://%s/inbox/nobody", domain),
+			"sharedInbox": fmt.Sprintf("https://%s/inbox/actor", domain),
 		},
 		Followers: fmt.Sprintf("https://%s/followers/%s", domain, name),
 		PublicKey: ap.PublicKey{

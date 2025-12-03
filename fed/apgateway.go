@@ -83,7 +83,7 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (l *Listener) handleApGatewayFollowers(w http.ResponseWriter, r *http.Request, did string) {
-	_, sender, err := l.verifyRequest(r, nil, ap.InstanceActor, l.ActorKeys)
+	_, sender, err := l.verifyRequest(r, nil, ap.InstanceActor, l.AppActorKeys)
 	if err != nil {
 		slog.Warn("Failed to verify followers request", "error", err)
 		w.WriteHeader(http.StatusUnauthorized)

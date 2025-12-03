@@ -57,17 +57,17 @@ By default, tootik uses `draft-cavage-http-signatures` when it signs outgoing re
 
 ## Application Actor
 
-tootik creates a special user named `nobody`, which acts as an [Application Actor](https://codeberg.org/fediverse/fep/src/branch/main/fep/2677/fep-2677.md). Its key is used to sign outgoing requests not initiated by a particular user.
+tootik creates a special user named `actor`, which acts as an [Application Actor](https://codeberg.org/fediverse/fep/src/branch/main/fep/2677/fep-2677.md). Its key is used to sign outgoing requests not initiated by a particular user.
 
 There are multiple ways to "discover" this actor:
 
 1. Using [WebFinger](https://www.rfc-editor.org/rfc/rfc7033), just like any other user:
 
 ```sh
-curl https://example.org/.well-known/webfinger?resource=acct:nobody@example.org
+curl https://example.org/.well-known/webfinger?resource=acct:actor@example.org
 ```
 
-2. For compatibility with servers that allow discovery of the Application Actor, the domain is an alias of `nobody`:
+2. For compatibility with servers that allow discovery of the Application Actor, the domain is an alias of `actor`:
 
 ```sh
 curl https://example.org/.well-known/webfinger?resource=acct:example.org@example.org
@@ -85,15 +85,15 @@ curl -H "accept: application/activity+json" https://example.org
 curl https://example.org/actor
 ```
 
-5. The `links` array returned by `/.well-known/nodeinfo` links to `nobody`, as [FEP-2677](https://codeberg.org/fediverse/fep/src/branch/main/fep/2677/fep-2677.md) requires
+5. The `links` array returned by `/.well-known/nodeinfo` links to `actor`, as [FEP-2677](https://codeberg.org/fediverse/fep/src/branch/main/fep/2677/fep-2677.md) requires
 
 ```sh
 curl https://example.org/.well-known/nodeinfo
 ```
 
-The `sharedInbox` of non-portable actors points to `nobody`'s inbox, to reduce the number of requests from servers that deduplicate outgoing requests by `sharedInbox` during wide delivery of posts.
+The `sharedInbox` of non-portable actors points to `actor`'s inbox, to reduce the number of requests from servers that deduplicate outgoing requests by `sharedInbox` during wide delivery of posts.
 
-`nobody` advertises support for RFC9421 and Ed25519 using [FEP-844e](https://codeberg.org/fediverse/fep/src/branch/main/fep/844e/fep-844e.md), to encourage other servers to use these capabilities when talking to tootik.
+`actor` advertises support for RFC9421 and Ed25519 using [FEP-844e](https://codeberg.org/fediverse/fep/src/branch/main/fep/844e/fep-844e.md), to encourage other servers to use these capabilities when talking to tootik.
 
 ## Forwarding
 
