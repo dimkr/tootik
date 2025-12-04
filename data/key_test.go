@@ -34,6 +34,6 @@ func Test_FEP521b(t *testing.T) {
 	}
 
 	if !bytes.Equal(a, b) {
-		t.FailNow()
+		t.Fatal("Keys are different")
 	}
 }
