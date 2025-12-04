@@ -18,6 +18,7 @@ package fed
 
 import (
 	"context"
+	"crypto/ed25519"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -150,7 +151,8 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	count := 0
 	for rows.Next() {
 		var activity ap.Activity
-		var rawActivity, rsaPrivKeyPem, ed25519PrivKeyMultibase string
+		var rawActivity, rsaPrivKeyPem string
+		var ed25519PrivKey []byte
 		var actor ap.Actor
 		var deliveryAttempts int
 		if err := rows.Scan(
@@ -159,7 +161,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			&rawActivity,
 			&actor,
 			&rsaPrivKeyPem,
-			&ed25519PrivKeyMultibase,
+			&ed25519PrivKey,
 		); err != nil {
 			slog.Error("Failed to fetch post to deliver", "error", err)
 			continue
@@ -176,15 +178,9 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			continue
 		}
 
-		ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
-		if err != nil {
-			slog.Error("Failed to decode Ed25519 private key", "error", err)
-			continue
-		}
-
 		keys := [2]httpsig.Key{
 			{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
-			{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey},
+			{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)},
 		}
 
 		if _, err := q.DB.ExecContext(

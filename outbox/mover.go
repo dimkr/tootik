@@ -18,12 +18,12 @@ package outbox
 
 import (
 	"context"
+	"crypto/ed25519"
 	"database/sql"
 	"fmt"
 	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 )
 
@@ -103,30 +103,26 @@ func (m *Mover) Run(ctx context.Context) error {
 
 	for rows.Next() {
 		var actor ap.Actor
-		var ed25519PrivKeyMultibase string
+		var ed25519PrivKey []byte
 		var oldID, NewID, oldFollowID string
 		var onlyRemove bool
-		if err := rows.Scan(&actor, &ed25519PrivKeyMultibase, &oldID, &NewID, &oldFollowID, &onlyRemove); err != nil {
+		if err := rows.Scan(&actor, &ed25519PrivKey, &oldID, &NewID, &oldFollowID, &onlyRemove); err != nil {
 			slog.Error("Failed to scan follow to move", "error", err)
 			continue
 		}
 
-		ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
-		if err != nil {
-			slog.Error("Failed to decode Ed25519 private key", "error", err)
-			continue
-		}
+		key := httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)}
 
 		if onlyRemove {
 			slog.Info("Removing follow of moved actor", "follow", oldFollowID, "old", oldID, "new", NewID)
 		} else {
 			slog.Info("Moving follow", "follow", oldFollowID, "old", oldID, "new", NewID)
-			if err := m.Inbox.Follow(ctx, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}, NewID); err != nil {
+			if err := m.Inbox.Follow(ctx, &actor, key, NewID); err != nil {
 				slog.Warn("Failed to follow new actor", "follow", oldFollowID, "old", oldID, "new", NewID, "error", err)
 				continue
 			}
 		}
-		if err := m.Inbox.Unfollow(ctx, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}, oldID, oldFollowID); err != nil {
+		if err := m.Inbox.Unfollow(ctx, &actor, key, oldID, oldFollowID); err != nil {
 			slog.Warn("Failed to unfollow old actor", "follow", oldFollowID, "old", oldID, "new", NewID, "error", err)
 		}
 	}

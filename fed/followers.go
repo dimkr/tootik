@@ -18,6 +18,7 @@ package fed
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
@@ -34,7 +35,6 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/danger"
-	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 )
 
@@ -308,8 +308,8 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 		slog.Info("Found unknown remote follow", "followed", d.Followed, "follower", follower)
 
 		var actor ap.Actor
-		var ed25519PrivKeyMultibase string
-		if err := db.QueryRowContext(ctx, `SELECT JSON(persons.actor), persons.ed25519privkey FROM persons WHERE id = ? AND persons.ed25519privkey IS NOT NULL`, follower).Scan(&actor, &ed25519PrivKeyMultibase); errors.Is(err, sql.ErrNoRows) {
+		var ed25519PrivKey []byte
+		if err := db.QueryRowContext(ctx, `SELECT JSON(persons.actor), persons.ed25519privkey FROM persons WHERE id = ? AND persons.ed25519privkey IS NOT NULL`, follower).Scan(&actor, &ed25519PrivKey); errors.Is(err, sql.ErrNoRows) {
 			slog.Info("Follower does not exist", "followed", d.Followed, "follower", follower)
 			continue
 		} else if err != nil {
@@ -330,13 +330,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 			continue
 		}
 
-		ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
-		if err != nil {
-			slog.Error("Failed to decode Ed25519 private key", "followed", d.Followed, "follower", follower, "error", err)
-			continue
-		}
-
-		if err := d.Inbox.Unfollow(ctx, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}, d.Followed, followID); err != nil {
+		if err := d.Inbox.Unfollow(ctx, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)}, d.Followed, followID); err != nil {
 			slog.Warn("Failed to remove remote follow", "followed", d.Followed, "follower", follower, "error", err)
 		}
 	}

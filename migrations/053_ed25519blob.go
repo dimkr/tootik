@@ -8,7 +8,6 @@ import (
 	"fmt"
 
 	"github.com/btcsuite/btcutil/base58"
-	"github.com/dimkr/tootik/data"
 )
 
 func oldDecodeEd25519PrivateKey(key string) (ed25519.PrivateKey, error) {
@@ -33,7 +32,11 @@ func oldDecodeEd25519PrivateKey(key string) (ed25519.PrivateKey, error) {
 	return ed25519.NewKeyFromSeed(rawKey[2:]), nil
 }
 
-func base64(ctx context.Context, domain string, tx *sql.Tx) error {
+func ed25519blob(ctx context.Context, domain string, tx *sql.Tx) error {
+	if _, err := tx.ExecContext(ctx, `ALTER TABLE persons ADD COLUMN ed25519privkeyblob BLOB`); err != nil {
+		return err
+	}
+
 	if rows, err := tx.QueryContext(ctx, `SELECT id, ed25519privkey FROM persons WHERE ed25519privkey IS NOT NULL`); err != nil {
 		return err
 	} else {
@@ -50,7 +53,7 @@ func base64(ctx context.Context, domain string, tx *sql.Tx) error {
 				return err
 			}
 
-			if _, err := tx.ExecContext(ctx, `UPDATE persons SET ed25519privkey = ? WHERE id = ?`, data.EncodeEd25519PrivateKey(ed25519PrivKey), id); err != nil {
+			if _, err := tx.ExecContext(ctx, `UPDATE persons SET ed25519privkeyblob = ? WHERE id = ?`, ed25519PrivKey.Seed(), id); err != nil {
 				return err
 			}
 		}
@@ -58,6 +61,22 @@ func base64(ctx context.Context, domain string, tx *sql.Tx) error {
 		if err := rows.Err(); err != nil {
 			return err
 		}
+	}
+
+	if _, err := tx.ExecContext(ctx, `DROP INDEX personscidlocal`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `ALTER TABLE persons DROP COLUMN ed25519privkey`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `ALTER TABLE persons RENAME COLUMN ed25519privkeyblob TO ed25519privkey`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `CREATE UNIQUE INDEX personscidlocal ON persons(cid) WHERE ed25519privkey IS NOT NULL`); err != nil {
+		return err
 	}
 
 	return nil
