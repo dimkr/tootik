@@ -1,0 +1,39 @@
+/*
+Copyright 2025 Dima Krasner
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package data
+
+import (
+	"bytes"
+	"testing"
+)
+
+// https://codeberg.org/fediverse/fep/src/commit/480415584237eb19cb7373b6a25faa6fa6e3a200/fep/521b/fep-521b.md
+func Test_FEP521b(t *testing.T) {
+	a, err := DecodeEd25519PublicKey("u7QGwDY2Tjn93PVFWWq02piP1NE9_XRlg-c8-jhJiDqKBDw")
+	if err != nil {
+		t.Fatalf("Failed to decode base64-encoded key: %v", err)
+	}
+
+	b, err := DecodeEd25519PublicKey("z6MkrJVnaZkeFzdQyMZu1cgjg7k1pZZ6pvBQ7XJPt4swbTQ2")
+	if err != nil {
+		t.Fatalf("Failed to decode base58-encoded key: %v", err)
+	}
+
+	if !bytes.Equal(a, b) {
+		t.FailNow()
+	}
+}

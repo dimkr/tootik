@@ -23,8 +23,8 @@ import (
 )
 
 var (
-	// KeyRegex matches a base58-encoded Ed25519 public key.
-	KeyRegex = regexp.MustCompile(`\b(z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)\b`)
+	// KeyRegex matches a Multibase-encoded Ed25519 public key.
+	KeyRegex = regexp.MustCompile(`\b((?:(?:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)|(?:u7Q[A-Za-z0-9_-]+)))\b`)
 
 	// apURLRegex matches an ap:// URL.
 	apURLRegex = regexp.MustCompile(`^ap:\/\/did:key:(z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)((?:[\/#?].*){0,1})`)

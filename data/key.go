@@ -20,6 +20,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -46,7 +47,7 @@ func ParseRSAPrivateKey(privateKeyPemString string) (any, error) {
 
 // EncodeEd25519PrivateKey encodes an Ed25519 private key.
 func EncodeEd25519PrivateKey(key ed25519.PrivateKey) string {
-	return "z" + base58.Encode(append([]byte{0x80, 0x26}, key.Seed()...))
+	return "u" + base64.RawURLEncoding.EncodeToString(append([]byte{0x80, 0x26}, key.Seed()...))
 }
 
 // DecodeEd25519PrivateKey decodes an Ed25519 private key encoded by [EncodeEd25519PrivateKey].
@@ -55,11 +56,14 @@ func DecodeEd25519PrivateKey(key string) (ed25519.PrivateKey, error) {
 		return nil, errors.New("empty key")
 	}
 
-	if key[0] != 'z' {
+	if key[0] != 'u' {
 		return nil, fmt.Errorf("invalid key prefix: %c", key[0])
 	}
 
-	rawKey := base58.Decode(key[1:])
+	rawKey, err := base64.RawURLEncoding.DecodeString(key[1:])
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode key: %w", err)
+	}
 
 	if len(rawKey) != ed25519.SeedSize+2 {
 		return nil, fmt.Errorf("invalid key length: %c", len(rawKey))
@@ -83,11 +87,21 @@ func DecodeEd25519PublicKey(key string) (ed25519.PublicKey, error) {
 		return nil, errors.New("key is empty")
 	}
 
-	if key[0] != 'z' {
+	var rawKey []byte
+	switch key[0] {
+	case 'z':
+		rawKey = base58.Decode(key[1:])
+
+	case 'u':
+		var err error
+		rawKey, err = base64.RawURLEncoding.DecodeString(key[1:])
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode key: %w", err)
+		}
+
+	default:
 		return nil, fmt.Errorf("invalid prefix: %c", key[0])
 	}
-
-	rawKey := base58.Decode(key[1:])
 
 	if len(rawKey) != ed25519.PublicKeySize+2 {
 		return nil, fmt.Errorf("invalid key length: %d", len(rawKey))
