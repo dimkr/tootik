@@ -111,7 +111,7 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 
 	case "y":
 		if h.Config.EnablePortableActorRegistration {
-			w.Status(11, "base64-encoded Ed25519 private key or 'generate' to generate")
+			w.Status(11, "base64url-encoded Ed25519 private key or 'generate' to generate")
 		} else {
 			w.Status(40, "Registration of portable actors is disabled")
 		}
