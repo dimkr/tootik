@@ -24,13 +24,13 @@ import (
 
 var (
 	// KeyRegex matches a Multibase-encoded Ed25519 public key.
-	KeyRegex = regexp.MustCompile(`\b(z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+|u7Q[A-Za-z0-9_-]+)\b`)
+	KeyRegex = regexp.MustCompile(`\b(z6Mk[a-km-zA-HJ-NP-Z1-9]+|u7Q[A-Za-z0-9_-]+)\b`)
 
 	// apURLRegex matches an ap:// URL.
-	apURLRegex = regexp.MustCompile(`^ap:\/\/did:key:(z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)((?:[\/#?].*){0,1})`)
+	apURLRegex = regexp.MustCompile(`^ap:\/\/did:key:(z6Mk[a-km-zA-HJ-NP-Z1-9]+)((?:[\/#?].*){0,1})`)
 
 	// GatewayURLRegex matches an https:// gateway URL.
-	GatewayURLRegex = regexp.MustCompile(`^https:\/\/[a-z0-9-]+(?:\.[a-z0-9-]+)+\/\.well-known\/apgateway\/did:key:(z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)((?:[\/#?].*){0,1})`)
+	GatewayURLRegex = regexp.MustCompile(`^https:\/\/[a-z0-9-]+(?:\.[a-z0-9-]+)+\/\.well-known\/apgateway\/did:key:(z6Mk[a-km-zA-HJ-NP-Z1-9]+)((?:[\/#?].*){0,1})`)
 )
 
 // IsPortable determines whether or not an ActivityPub ID is portable.
