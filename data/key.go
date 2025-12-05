@@ -18,32 +18,12 @@ package data
 
 import (
 	"crypto/ed25519"
-	"crypto/rsa"
-	"crypto/x509"
 	"encoding/base64"
-	"encoding/pem"
 	"errors"
 	"fmt"
 
 	"github.com/btcsuite/btcutil/base58"
-	"github.com/dimkr/tootik/danger"
 )
-
-// ParseRSAPrivateKey parses RSA private keys.
-func ParseRSAPrivateKey(privateKeyPemString string) (any, error) {
-	privateKeyPem, _ := pem.Decode(danger.Bytes(privateKeyPemString))
-
-	privateKey, err := x509.ParsePKCS8PrivateKey(privateKeyPem.Bytes)
-	if err != nil {
-		return nil, err
-	}
-
-	if _, ok := privateKey.(*rsa.PrivateKey); !ok {
-		return nil, errors.New("not an RSA private key")
-	}
-
-	return privateKey, nil
-}
 
 // EncodeEd25519PrivateKey encodes an Ed25519 private key.
 func EncodeEd25519PrivateKey(key ed25519.PrivateKey) string {

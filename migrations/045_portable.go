@@ -3,7 +3,9 @@ package migrations
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/x509"
 	"database/sql"
+	"encoding/pem"
 
 	"github.com/dimkr/tootik/data"
 )
@@ -20,7 +22,9 @@ func portable(ctx context.Context, domain string, tx *sql.Tx) error {
 				return err
 			}
 
-			ed25519PrivKey, err := data.ParseRSAPrivateKey(ed25519PrivKeyPem)
+			privateKeyPem, _ := pem.Decode([]byte(ed25519PrivKeyPem))
+
+			ed25519PrivKey, err := x509.ParsePKCS8PrivateKey(privateKeyPem.Bytes)
 			if err != nil {
 				return err
 			}
