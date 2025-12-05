@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
@@ -224,24 +225,19 @@ func main() {
 		defer tx.Rollback()
 
 		var actor ap.Actor
-		var ed25519PrivKeyMultibase string
+		var ed25519PrivKey []byte
 		if err := tx.QueryRowContext(
 			ctx,
 			`select json(actor), ed25519privkey from persons where ed25519privkey is not null and actor->>'$.preferredUsername' = ?`,
 			flag.Arg(1),
-		).Scan(&actor, &ed25519PrivKeyMultibase); err != nil {
-			panic(err)
-		}
-
-		ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
-		if err != nil {
+		).Scan(&actor, &ed25519PrivKey); err != nil {
 			panic(err)
 		}
 
 		actor.Summary = tplain.ToHTML(string(summary), nil)
 		actor.Updated.Time = time.Now()
 
-		if err := localInbox.UpdateActorTx(ctx, tx, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}); err != nil {
+		if err := localInbox.UpdateActorTx(ctx, tx, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)}); err != nil {
 			panic(err)
 		}
 
@@ -271,17 +267,12 @@ func main() {
 		userName := flag.Arg(1)
 
 		var actor ap.Actor
-		var ed25519PrivKeyMultibase string
+		var ed25519PrivKey []byte
 		if err := tx.QueryRowContext(
 			ctx,
 			`select select json(actor), ed25519privkey from persons where ed25519privkey is not null and actor->>'$.preferredUsername' = ?`,
 			userName,
-		).Scan(&actor, &ed25519PrivKeyMultibase); err != nil {
-			panic(err)
-		}
-
-		ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
-		if err != nil {
+		).Scan(&actor, &ed25519PrivKey); err != nil {
 			panic(err)
 		}
 
@@ -300,7 +291,7 @@ func main() {
 		})
 		actor.Updated.Time = now
 
-		if err := localInbox.UpdateActorTx(ctx, tx, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}); err != nil {
+		if err := localInbox.UpdateActorTx(ctx, tx, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)}); err != nil {
 			panic(err)
 		}
 

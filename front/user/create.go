@@ -78,20 +78,11 @@ func generateRSAKey() (any, string, string, error) {
 	return priv, privPem.String(), pubPem.String(), nil
 }
 
-func generateEd25519Key() (ed25519.PrivateKey, string, ed25519.PublicKey, error) {
-	pub, priv, err := ed25519.GenerateKey(nil)
-	if err != nil {
-		return nil, "", nil, fmt.Errorf("failed to generate private key: %w", err)
-	}
-
-	return priv, data.EncodeEd25519PrivateKey(priv), pub, nil
-}
-
 func insertActor(
 	ctx context.Context,
 	actor *ap.Actor,
 	rsaPrivPem string,
-	ed25519PrivMultibase string,
+	ed25519Priv ed25519.PrivateKey,
 	keys [2]httpsig.Key,
 	cert *x509.Certificate,
 	db *sql.DB,
@@ -111,7 +102,7 @@ func insertActor(
 			actor.ID,
 			actor,
 			rsaPrivPem,
-			ed25519PrivMultibase,
+			ed25519Priv.Seed(),
 		)
 		return err
 	}
@@ -128,7 +119,7 @@ func insertActor(
 		actor.ID,
 		actor,
 		rsaPrivPem,
-		ed25519PrivMultibase,
+		ed25519Priv.Seed(),
 	); err != nil {
 		return err
 	}
@@ -166,7 +157,6 @@ func CreatePortable(
 	name string,
 	cert *x509.Certificate,
 	ed25519Priv ed25519.PrivateKey,
-	ed25519PrivMultibase string,
 	ed25519Pub ed25519.PublicKey,
 ) (*ap.Actor, [2]httpsig.Key, error) {
 	rsaPriv, rsaPrivPem, rsaPubPem, err := generateRSAKey()
@@ -210,7 +200,7 @@ func CreatePortable(
 		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519Priv},
 	}
 
-	if err := insertActor(ctx, &actor, rsaPrivPem, ed25519PrivMultibase, keys, cert, db, cfg); err != nil {
+	if err := insertActor(ctx, &actor, rsaPrivPem, ed25519Priv, keys, cert, db, cfg); err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 	}
 
@@ -224,7 +214,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config, nam
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate RSA key pair: %w", err)
 	}
 
-	ed25519Priv, ed25519PrivMultibase, ed25519Pub, err := generateEd25519Key()
+	ed25519Pub, ed25519Priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate Ed25519 key pair: %w", err)
 	}
@@ -289,7 +279,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config, nam
 		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519Priv},
 	}
 
-	if err := insertActor(ctx, &actor, rsaPrivPem, ed25519PrivMultibase, keys, cert, db, cfg); err != nil {
+	if err := insertActor(ctx, &actor, rsaPrivPem, ed25519Priv, keys, cert, db, cfg); err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 	}
 
