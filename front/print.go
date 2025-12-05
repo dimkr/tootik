@@ -37,17 +37,17 @@ import (
 var verifiedRegex = regexp.MustCompile(`(\s*:[a-zA-Z0-9_]+:\s*)+`)
 
 type metaBuilder struct {
-	io.Writer
+	w   io.Writer
 	sep bool
 }
 
 func (b *metaBuilder) Write(p []byte) (int, error) {
 	if !b.sep {
-		b.Writer.Write(danger.Bytes(" ┃"))
+		b.w.Write(danger.Bytes(" ┃"))
 		b.sep = true
 	}
 
-	return b.Writer.Write(p)
+	return b.w.Write(p)
 }
 
 func getTextAndLinks(s string, maxRunes, maxLines int) ([]string, data.OrderedMap[string, string]) {
@@ -279,7 +279,7 @@ func (h *Handler) printCompactNote(w text.Writer, r *Request, note *ap.Object, a
 		}
 	}
 
-	meta := metaBuilder{Writer: &title}
+	meta := metaBuilder{w: &title}
 
 	// show link # only if at least one link doesn't point to the post
 	if note.URL == "" && len(links) > 0 {
