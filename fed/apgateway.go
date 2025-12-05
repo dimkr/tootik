@@ -34,9 +34,9 @@ import (
 )
 
 var (
-	inboxRegex          = regexp.MustCompile(`^(did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/actor)\/inbox\?{0,1}.*`)
-	portableObjectRegex = regexp.MustCompile(`^did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/[^#?]+`)
-	followersRegex      = regexp.MustCompile(`^(did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)\/actor\/followers_synchronization`)
+	inboxRegex          = regexp.MustCompile(`^(did:key:z6Mk[a-km-zA-HJ-NP-Z1-9]+\/actor)\/inbox\?{0,1}.*`)
+	portableObjectRegex = regexp.MustCompile(`^did:key:z6Mk[a-km-zA-HJ-NP-Z1-9]+\/[^#?]+`)
+	followersRegex      = regexp.MustCompile(`^(did:key:z6Mk[a-km-zA-HJ-NP-Z1-9]+)\/actor\/followers_synchronization`)
 )
 
 func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
