@@ -20,6 +20,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -83,11 +84,21 @@ func DecodeEd25519PublicKey(key string) (ed25519.PublicKey, error) {
 		return nil, errors.New("key is empty")
 	}
 
-	if key[0] != 'z' {
+	var rawKey []byte
+	switch key[0] {
+	case 'z':
+		rawKey = base58.Decode(key[1:])
+
+	case 'u':
+		var err error
+		rawKey, err = base64.RawURLEncoding.DecodeString(key[1:])
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode key: %w", err)
+		}
+
+	default:
 		return nil, fmt.Errorf("invalid prefix: %c", key[0])
 	}
-
-	rawKey := base58.Decode(key[1:])
 
 	if len(rawKey) != ed25519.PublicKeySize+2 {
 		return nil, fmt.Errorf("invalid key length: %d", len(rawKey))
