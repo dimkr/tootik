@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/ed25519"
+	"crypto/x509"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -290,9 +291,8 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 	receiver := r.PathValue("username")
 
 	var actor ap.Actor
-	var rsaPrivKeyPem string
-	var ed25519PrivKey []byte
-	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519privkey from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null`, receiver).Scan(&actor, &rsaPrivKeyPem, &ed25519PrivKey); errors.Is(err, sql.ErrNoRows) {
+	var rsaPrivKeyDer, ed25519PrivKey []byte
+	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519privkey from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null`, receiver).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey); errors.Is(err, sql.ErrNoRows) {
 		slog.Debug("Receiving user does not exist", "receiver", receiver)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -302,7 +302,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rsaPrivKey, err := data.ParseRSAPrivateKey(rsaPrivKeyPem)
+	rsaPrivKey, err := x509.ParsePKCS1PrivateKey(rsaPrivKeyDer)
 	if err != nil {
 		slog.Warn("Failed to parse RSA private key", "receiver", receiver, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)

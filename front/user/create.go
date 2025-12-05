@@ -37,31 +37,15 @@ import (
 	"github.com/dimkr/tootik/proof"
 )
 
-func generateRSAKey() (any, string, string, error) {
+func generateRSAKey() (*rsa.PrivateKey, string, error) {
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		return nil, "", "", fmt.Errorf("failed to generate key: %w", err)
-	}
-
-	privDer, err := x509.MarshalPKCS8PrivateKey(priv)
-	if err != nil {
-		return nil, "", "", fmt.Errorf("failed to encode private key: %w", err)
-	}
-
-	var privPem bytes.Buffer
-	if err := pem.Encode(
-		&privPem,
-		&pem.Block{
-			Type:  "PRIVATE KEY",
-			Bytes: privDer,
-		},
-	); err != nil {
-		return nil, "", "", fmt.Errorf("failed to generate private key PEM: %w", err)
+		return nil, "", fmt.Errorf("failed to generate key: %w", err)
 	}
 
 	pubDer, err := x509.MarshalPKIXPublicKey(&priv.PublicKey)
 	if err != nil {
-		return nil, "", "", fmt.Errorf("failed to encode public key: %w", err)
+		return nil, "", fmt.Errorf("failed to encode public key: %w", err)
 	}
 
 	var pubPem bytes.Buffer
@@ -72,16 +56,16 @@ func generateRSAKey() (any, string, string, error) {
 			Bytes: pubDer,
 		},
 	); err != nil {
-		return nil, "", "", fmt.Errorf("failed to generate public key PEM: %w", err)
+		return nil, "", fmt.Errorf("failed to generate public key PEM: %w", err)
 	}
 
-	return priv, privPem.String(), pubPem.String(), nil
+	return priv, pubPem.String(), nil
 }
 
 func insertActor(
 	ctx context.Context,
 	actor *ap.Actor,
-	rsaPrivPem string,
+	rsaPriv *rsa.PrivateKey,
 	ed25519Priv ed25519.PrivateKey,
 	keys [2]httpsig.Key,
 	cert *x509.Certificate,
@@ -101,7 +85,7 @@ func insertActor(
 			`INSERT INTO persons (id,  actor, rsaprivkey, ed25519privkey) VALUES (?, JSONB(?), ?, ?)`,
 			actor.ID,
 			actor,
-			rsaPrivPem,
+			x509.MarshalPKCS1PrivateKey(rsaPriv),
 			ed25519Priv.Seed(),
 		)
 		return err
@@ -118,7 +102,7 @@ func insertActor(
 		`INSERT OR IGNORE INTO persons (id, actor, rsaprivkey, ed25519privkey) VALUES (?, JSONB(?), ?, ?)`,
 		actor.ID,
 		actor,
-		rsaPrivPem,
+		x509.MarshalPKCS1PrivateKey(rsaPriv),
 		ed25519Priv.Seed(),
 	); err != nil {
 		return err
@@ -159,7 +143,7 @@ func CreatePortable(
 	ed25519Priv ed25519.PrivateKey,
 	ed25519Pub ed25519.PublicKey,
 ) (*ap.Actor, [2]httpsig.Key, error) {
-	rsaPriv, rsaPrivPem, rsaPubPem, err := generateRSAKey()
+	rsaPriv, rsaPubPem, err := generateRSAKey()
 	if err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate RSA key pair: %w", err)
 	}
@@ -200,7 +184,7 @@ func CreatePortable(
 		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519Priv},
 	}
 
-	if err := insertActor(ctx, &actor, rsaPrivPem, ed25519Priv, keys, cert, db, cfg); err != nil {
+	if err := insertActor(ctx, &actor, rsaPriv, ed25519Priv, keys, cert, db, cfg); err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 	}
 
@@ -209,7 +193,7 @@ func CreatePortable(
 
 // Create creates a new user.
 func Create(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config, name string, actorType ap.ActorType, cert *x509.Certificate) (*ap.Actor, [2]httpsig.Key, error) {
-	rsaPriv, rsaPrivPem, rsaPubPem, err := generateRSAKey()
+	rsaPriv, rsaPubPem, err := generateRSAKey()
 	if err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate RSA key pair: %w", err)
 	}
@@ -279,7 +263,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config, nam
 		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519Priv},
 	}
 
-	if err := insertActor(ctx, &actor, rsaPrivPem, ed25519Priv, keys, cert, db, cfg); err != nil {
+	if err := insertActor(ctx, &actor, rsaPriv, ed25519Priv, keys, cert, db, cfg); err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 	}
 

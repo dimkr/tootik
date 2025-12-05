@@ -19,6 +19,7 @@ package fed
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/x509"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -34,7 +35,6 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/danger"
-	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 )
 
@@ -151,8 +151,8 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	count := 0
 	for rows.Next() {
 		var activity ap.Activity
-		var rawActivity, rsaPrivKeyPem string
-		var ed25519PrivKey []byte
+		var rawActivity string
+		var rsaPrivKeyDer, ed25519PrivKey []byte
 		var actor ap.Actor
 		var deliveryAttempts int
 		if err := rows.Scan(
@@ -160,7 +160,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			&activity,
 			&rawActivity,
 			&actor,
-			&rsaPrivKeyPem,
+			&rsaPrivKeyDer,
 			&ed25519PrivKey,
 		); err != nil {
 			slog.Error("Failed to fetch post to deliver", "error", err)
@@ -172,7 +172,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 		count++
 
-		rsaPrivKey, err := data.ParseRSAPrivateKey(rsaPrivKeyPem)
+		rsaPrivKey, err := x509.ParsePKCS1PrivateKey(rsaPrivKeyDer)
 		if err != nil {
 			slog.Error("Failed to parse RSA private key", "error", err)
 			continue

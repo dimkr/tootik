@@ -19,13 +19,13 @@ package user
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/x509"
 	"database/sql"
 	"errors"
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 )
 
@@ -33,12 +33,11 @@ import (
 // This user is used to sign outgoing requests not initiated by a particular user.
 func CreateNobody(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config) (*ap.Actor, [2]httpsig.Key, error) {
 	var actor ap.Actor
-	var rsaPrivKeyPem string
-	var ed25519PrivKey []byte
-	if err := db.QueryRowContext(ctx, `select json(actor), rsaprivkey, ed25519privkey from persons where actor->>'$.preferredUsername' = 'nobody' and host = ?`, domain).Scan(&actor, &rsaPrivKeyPem, &ed25519PrivKey); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	var rsaPrivKeyDer, ed25519PrivKey []byte
+	if err := db.QueryRowContext(ctx, `select json(actor), rsaprivkey, ed25519privkey from persons where actor->>'$.preferredUsername' = 'nobody' and host = ?`, domain).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to create nobody user: %w", err)
 	} else if err == nil {
-		rsaPrivKey, err := data.ParseRSAPrivateKey(rsaPrivKeyPem)
+		rsaPrivKey, err := x509.ParsePKCS1PrivateKey(rsaPrivKeyDer)
 		if err != nil {
 			return nil, [2]httpsig.Key{}, err
 		}

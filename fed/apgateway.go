@@ -18,6 +18,7 @@ package fed
 
 import (
 	"crypto/ed25519"
+	"crypto/x509"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -29,7 +30,6 @@ import (
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/danger"
-	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 )
 
@@ -52,9 +52,8 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 	receiver := "ap://" + m[1]
 
 	var actor ap.Actor
-	var rsaPrivKeyPem string
-	var ed25519PrivKey []byte
-	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519privkey from persons where cid = ? and ed25519privkey is not null`, receiver).Scan(&actor, &rsaPrivKeyPem, &ed25519PrivKey); errors.Is(err, sql.ErrNoRows) {
+	var rsaPrivKeyDer, ed25519PrivKey []byte
+	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519privkey from persons where cid = ? and ed25519privkey is not null`, receiver).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey); errors.Is(err, sql.ErrNoRows) {
 		slog.Debug("Receiving user does not exist", "receiver", receiver)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -64,7 +63,7 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rsaPrivKey, err := data.ParseRSAPrivateKey(rsaPrivKeyPem)
+	rsaPrivKey, err := x509.ParsePKCS1PrivateKey(rsaPrivKeyDer)
 	if err != nil {
 		slog.Warn("Failed to parse RSA private key", "receiver", receiver, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
