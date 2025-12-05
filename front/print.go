@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/url"
 	"regexp"
@@ -27,12 +28,27 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/text/plain"
 )
 
 var verifiedRegex = regexp.MustCompile(`(\s*:[a-zA-Z0-9_]+:\s*)+`)
+
+type metaBuilder struct {
+	io.Writer
+	sep bool
+}
+
+func (b *metaBuilder) Write(p []byte) (int, error) {
+	if !b.sep {
+		b.Writer.Write(danger.Bytes(" ┃"))
+		b.sep = true
+	}
+
+	return b.Writer.Write(p)
+}
 
 func getTextAndLinks(s string, maxRunes, maxLines int) ([]string, data.OrderedMap[string, string]) {
 	raw, links := plain.FromHTML(s)
@@ -243,15 +259,15 @@ func (h *Handler) printCompactNote(w text.Writer, r *Request, note *ap.Object, a
 
 	authorDisplayName := author.PreferredUsername
 
-	var title string
+	var title strings.Builder
 	if sharer != nil {
-		title = fmt.Sprintf("%s %s ┃ 🔄 %s", published.Format(time.DateOnly), authorDisplayName, sharer.PreferredUsername)
+		fmt.Fprintf(&title, "%s %s ┃ 🔄 %s", published.Format(time.DateOnly), authorDisplayName, sharer.PreferredUsername)
 	} else {
-		title = fmt.Sprintf("%s %s", published.Format(time.DateOnly), authorDisplayName)
+		fmt.Fprintf(&title, "%s %s", published.Format(time.DateOnly), authorDisplayName)
 	}
 
 	if note.Updated != (ap.Time{}) {
-		title += " ┃ edited"
+		title.WriteString(" ┃ edited")
 	}
 
 	var parentAuthor sql.Null[ap.Actor]
@@ -263,49 +279,45 @@ func (h *Handler) printCompactNote(w text.Writer, r *Request, note *ap.Object, a
 		}
 	}
 
-	meta := ""
+	meta := metaBuilder{Writer: &title}
 
 	// show link # only if at least one link doesn't point to the post
 	if note.URL == "" && len(links) > 0 {
-		meta += fmt.Sprintf(" %d🔗", len(links))
+		fmt.Fprintf(&meta, " %d🔗", len(links))
 	} else if note.URL != "" && len(links) > 1 {
-		meta += fmt.Sprintf(" %d🔗", len(links)-1)
+		fmt.Fprintf(&meta, " %d🔗", len(links)-1)
 	}
 
 	if len(hashtags) > 0 {
-		meta += fmt.Sprintf(" %d#️", len(hashtags))
+		fmt.Fprintf(&meta, " %d#️", len(hashtags))
 	}
 
 	if len(mentionedUsers.OrderedMap) == 1 && (!parentAuthor.Valid || !mentionedUsers.Contains(parentAuthor.V.ID)) {
-		meta += " 1👤"
+		meta.Write(danger.Bytes(" 1👤"))
 	} else if len(mentionedUsers.OrderedMap) > 1 && (!parentAuthor.Valid || !mentionedUsers.Contains(parentAuthor.V.ID)) {
-		meta += fmt.Sprintf(" %d👤", len(mentionedUsers.OrderedMap))
+		fmt.Fprintf(&meta, " %d👤", len(mentionedUsers.OrderedMap))
 	} else if len(mentionedUsers.OrderedMap) > 1 && parentAuthor.Valid && mentionedUsers.Contains(parentAuthor.V.ID) {
-		meta += fmt.Sprintf(" %d👤", len(mentionedUsers.OrderedMap)-1)
+		fmt.Fprintf(&meta, " %d👤", len(mentionedUsers.OrderedMap)-1)
 	}
 
 	if replies > 0 {
-		meta += fmt.Sprintf(" %d💬", replies)
+		fmt.Fprintf(&meta, " %d💬", replies)
 	}
 
 	if quotes > 0 {
-		meta += fmt.Sprintf(" %d♻️", quotes)
-	}
-
-	if meta != "" {
-		title += " ┃" + meta
+		fmt.Fprintf(&meta, " %d♻️", quotes)
 	}
 
 	if printParentAuthor && parentAuthor.Valid && parentAuthor.V.PreferredUsername != "" {
-		title += fmt.Sprintf(" ┃ RE: %s", parentAuthor.V.PreferredUsername)
+		fmt.Fprintf(&title, " ┃ RE: %s", parentAuthor.V.PreferredUsername)
 	} else if printParentAuthor && note.InReplyTo != "" && (!parentAuthor.Valid || parentAuthor.V.PreferredUsername == "") {
-		title += " ┃ RE: ?"
+		title.WriteString(" ┃ RE: ?")
 	}
 
 	if r.User == nil {
-		w.Link("/view/"+strings.TrimPrefix(note.ID, "https://"), title)
+		w.Link("/view/"+strings.TrimPrefix(note.ID, "https://"), title.String())
 	} else {
-		w.Link("/users/view/"+strings.TrimPrefix(note.ID, "https://"), title)
+		w.Link("/users/view/"+strings.TrimPrefix(note.ID, "https://"), title.String())
 	}
 
 	for _, line := range contentLines {
