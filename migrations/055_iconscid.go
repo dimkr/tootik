@@ -60,10 +60,6 @@ func iconscid(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `ALTER TABLE nicons RENAME TO icons`); err != nil {
-		return err
-	}
-
-	_, err := tx.ExecContext(ctx, `CREATE UNIQUE INDEX iconscid ON icons(cid)`)
+	_, err := tx.ExecContext(ctx, `ALTER TABLE nicons RENAME TO icons`)
 	return err
 }
