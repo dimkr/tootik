@@ -48,7 +48,7 @@ func iconscid(ctx context.Context, domain string, tx *sql.Tx) error {
 		}
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE TABLE nicons(cis TEXT NOT NULL PRIMARY KEY, buf BLOB NOT NULL)`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE TABLE nicons(cid TEXT NOT NULL PRIMARY KEY, buf BLOB NOT NULL)`); err != nil {
 		return err
 	}
 

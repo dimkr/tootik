@@ -145,7 +145,7 @@ func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if m := iconRegex.FindStringSubmatch(resource); m != nil {
-		l.doHandleIcon(w, r, "ap://"+m[1])
+		l.doHandleIcon(w, r, "ap://"+m[1]+"/actor")
 		return
 	}
 
