@@ -31,12 +31,14 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/icon"
 )
 
 var (
 	inboxRegex          = regexp.MustCompile(`^(did:key:z6Mk[a-km-zA-HJ-NP-Z1-9]+\/actor)\/inbox\?{0,1}.*`)
 	portableObjectRegex = regexp.MustCompile(`^did:key:z6Mk[a-km-zA-HJ-NP-Z1-9]+\/[^#?]+`)
 	followersRegex      = regexp.MustCompile(`^(did:key:z6Mk[a-km-zA-HJ-NP-Z1-9]+)\/actor\/followers_synchronization`)
+	iconRegex           = regexp.MustCompile(`^(did:key:z6Mk[a-km-zA-HJ-NP-Z1-9]+\/actor)\/icon\.` + icon.FileNameExtension[1:])
 )
 
 func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
@@ -139,6 +141,11 @@ func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
 
 	if m := followersRegex.FindStringSubmatch(resource); m != nil {
 		l.handleApGatewayFollowers(w, r, m[1])
+		return
+	}
+
+	if m := iconRegex.FindStringSubmatch(resource); m != nil {
+		l.doHandleIcon(w, r, "ap://"+m[1])
 		return
 	}
 

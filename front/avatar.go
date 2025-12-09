@@ -115,8 +115,8 @@ func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
 
 	if _, err := tx.ExecContext(
 		r.Context,
-		"insert into icons(name, buf) values($1, $2) on conflict(name) do update set buf = $2",
-		r.User.PreferredUsername,
+		"insert into icons(cid, buf) values($1, $2) on conflict(cid) do update set buf = $2",
+		ap.Canonical(r.User.ID),
 		danger.String(resized),
 	); err != nil {
 		r.Log.Error("Failed to set avatar", "error", err)
@@ -125,9 +125,23 @@ func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
 	}
 
 	// we add fragment because some servers cache the image until the URL changes
-	r.User.Icon = append(r.User.Icon, ap.Attachment{
-		URL: fmt.Sprintf("https://%s/icon/%s%s#%d", h.Domain, r.User.PreferredUsername, icon.FileNameExtension, now.UnixNano()),
-	})
+	if ap.IsPortable(r.User.ID) {
+		r.User.Icon = []ap.Attachment{
+			{
+				Type:      ap.Image,
+				MediaType: icon.MediaType,
+				URL:       fmt.Sprintf("%s/icon%s?%d", r.User.ID, icon.FileNameExtension, now.UnixNano()),
+			},
+		}
+	} else {
+		r.User.Icon = []ap.Attachment{
+			{
+				Type:      ap.Image,
+				MediaType: icon.MediaType,
+				URL:       fmt.Sprintf("https://%s/icon/%s%s?%d", h.Domain, r.User.PreferredUsername, icon.FileNameExtension, now.UnixNano()),
+			},
+		}
+	}
 	r.User.Updated.Time = now
 
 	if err := h.Inbox.UpdateActorTx(r.Context, tx, r.User, r.Keys[1]); err != nil {

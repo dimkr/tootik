@@ -160,10 +160,17 @@ func CreatePortable(
 		ID:                id,
 		Type:              ap.Person,
 		PreferredUsername: name,
-		Inbox:             id + "/inbox",
-		Outbox:            id + "/outbox",
-		Followers:         id + "/followers",
-		Gateways:          []string{"https://" + domain},
+		Icon: []ap.Attachment{
+			{
+				Type:      ap.Image,
+				MediaType: icon.MediaType,
+				URL:       fmt.Sprintf("%s/icon%s", id, icon.FileNameExtension),
+			},
+		},
+		Inbox:     id + "/inbox",
+		Outbox:    id + "/outbox",
+		Followers: id + "/followers",
+		Gateways:  []string{"https://" + domain},
 		PublicKey: ap.PublicKey{
 			ID:           id + "#main-key",
 			Owner:        id,
