@@ -18,19 +18,19 @@ package inbox
 
 import (
 	"context"
+	"crypto/ed25519"
 	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 )
 
 func (inbox *Inbox) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity, firstPostID string) (bool, error) {
 	var group ap.Actor
-	var ed25519PrivKeyMultibase string
+	var ed25519PrivKey []byte
 	if err := tx.QueryRowContext(
 		ctx,
 		`
@@ -73,7 +73,7 @@ func (inbox *Inbox) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Obj
 		`,
 		firstPostID,
 		inbox.Domain,
-	).Scan(&group, &ed25519PrivKeyMultibase); err != nil && errors.Is(err, sql.ErrNoRows) {
+	).Scan(&group, &ed25519PrivKey); err != nil && errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	} else if err != nil {
 		return false, err
@@ -103,13 +103,8 @@ func (inbox *Inbox) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Obj
 		return true, nil
 	}
 
-	ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
-	if err != nil {
-		return true, err
-	}
-
 	// if this is a new post and we're passing the Create activity to followers, also share the post
-	if err := inbox.Announce(ctx, tx, &group, httpsig.Key{ID: group.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}, note); err != nil {
+	if err := inbox.Announce(ctx, tx, &group, httpsig.Key{ID: group.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)}, note); err != nil {
 		return true, err
 	}
 

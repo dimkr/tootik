@@ -37,31 +37,15 @@ import (
 	"github.com/dimkr/tootik/proof"
 )
 
-func generateRSAKey() (any, string, string, error) {
+func generateRSAKey() (*rsa.PrivateKey, string, error) {
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		return nil, "", "", fmt.Errorf("failed to generate key: %w", err)
-	}
-
-	privDer, err := x509.MarshalPKCS8PrivateKey(priv)
-	if err != nil {
-		return nil, "", "", fmt.Errorf("failed to encode private key: %w", err)
-	}
-
-	var privPem bytes.Buffer
-	if err := pem.Encode(
-		&privPem,
-		&pem.Block{
-			Type:  "PRIVATE KEY",
-			Bytes: privDer,
-		},
-	); err != nil {
-		return nil, "", "", fmt.Errorf("failed to generate private key PEM: %w", err)
+		return nil, "", fmt.Errorf("failed to generate key: %w", err)
 	}
 
 	pubDer, err := x509.MarshalPKIXPublicKey(&priv.PublicKey)
 	if err != nil {
-		return nil, "", "", fmt.Errorf("failed to encode public key: %w", err)
+		return nil, "", fmt.Errorf("failed to encode public key: %w", err)
 	}
 
 	var pubPem bytes.Buffer
@@ -72,26 +56,17 @@ func generateRSAKey() (any, string, string, error) {
 			Bytes: pubDer,
 		},
 	); err != nil {
-		return nil, "", "", fmt.Errorf("failed to generate public key PEM: %w", err)
+		return nil, "", fmt.Errorf("failed to generate public key PEM: %w", err)
 	}
 
-	return priv, privPem.String(), pubPem.String(), nil
-}
-
-func generateEd25519Key() (ed25519.PrivateKey, string, ed25519.PublicKey, error) {
-	pub, priv, err := ed25519.GenerateKey(nil)
-	if err != nil {
-		return nil, "", nil, fmt.Errorf("failed to generate private key: %w", err)
-	}
-
-	return priv, data.EncodeEd25519PrivateKey(priv), pub, nil
+	return priv, pubPem.String(), nil
 }
 
 func insertActor(
 	ctx context.Context,
 	actor *ap.Actor,
-	rsaPrivPem string,
-	ed25519PrivMultibase string,
+	rsaPriv *rsa.PrivateKey,
+	ed25519Priv ed25519.PrivateKey,
 	keys [2]httpsig.Key,
 	cert *x509.Certificate,
 	db *sql.DB,
@@ -110,8 +85,8 @@ func insertActor(
 			`INSERT INTO persons (id,  actor, rsaprivkey, ed25519privkey) VALUES (?, JSONB(?), ?, ?)`,
 			actor.ID,
 			actor,
-			rsaPrivPem,
-			ed25519PrivMultibase,
+			x509.MarshalPKCS1PrivateKey(rsaPriv),
+			ed25519Priv.Seed(),
 		)
 		return err
 	}
@@ -127,8 +102,8 @@ func insertActor(
 		`INSERT OR IGNORE INTO persons (id, actor, rsaprivkey, ed25519privkey) VALUES (?, JSONB(?), ?, ?)`,
 		actor.ID,
 		actor,
-		rsaPrivPem,
-		ed25519PrivMultibase,
+		x509.MarshalPKCS1PrivateKey(rsaPriv),
+		ed25519Priv.Seed(),
 	); err != nil {
 		return err
 	}
@@ -196,10 +171,9 @@ func CreatePortableWithKey(
 	actorType ap.ActorType,
 	cert *x509.Certificate,
 	ed25519Priv ed25519.PrivateKey,
-	ed25519PrivMultibase string,
 	ed25519Pub ed25519.PublicKey,
 ) (*ap.Actor, [2]httpsig.Key, error) {
-	rsaPriv, rsaPrivPem, rsaPubPem, err := generateRSAKey()
+	rsaPriv, rsaPubPem, err := generateRSAKey()
 	if err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate RSA key pair: %w", err)
 	}
@@ -216,10 +190,17 @@ func CreatePortableWithKey(
 		ID:                id,
 		Type:              actorType,
 		PreferredUsername: name,
-		Inbox:             id + "/inbox",
-		Outbox:            id + "/outbox",
-		Followers:         id + "/followers",
-		Gateways:          []string{"https://" + domain},
+		Icon: []ap.Attachment{
+			{
+				Type:      ap.Image,
+				MediaType: icon.MediaType,
+				URL:       fmt.Sprintf("%s/icon%s", id, icon.FileNameExtension),
+			},
+		},
+		Inbox:     id + "/inbox",
+		Outbox:    id + "/outbox",
+		Followers: id + "/followers",
+		Gateways:  []string{"https://" + domain},
 		PublicKey: ap.PublicKey{
 			ID:           id + "#main-key",
 			Owner:        id,
@@ -240,7 +221,7 @@ func CreatePortableWithKey(
 		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519Priv},
 	}
 
-	if err := insertActor(ctx, &actor, rsaPrivPem, ed25519PrivMultibase, keys, cert, db, cfg); err != nil {
+	if err := insertActor(ctx, &actor, rsaPriv, ed25519Priv, keys, cert, db, cfg); err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 	}
 
@@ -249,12 +230,12 @@ func CreatePortableWithKey(
 
 // Create creates a new user.
 func Create(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config, name string, actorType ap.ActorType, cert *x509.Certificate) (*ap.Actor, [2]httpsig.Key, error) {
-	rsaPriv, rsaPrivPem, rsaPubPem, err := generateRSAKey()
+	rsaPriv, rsaPubPem, err := generateRSAKey()
 	if err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate RSA key pair: %w", err)
 	}
 
-	ed25519Priv, ed25519PrivMultibase, ed25519Pub, err := generateEd25519Key()
+	ed25519Pub, ed25519Priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate Ed25519 key pair: %w", err)
 	}
@@ -319,7 +300,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config, nam
 		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519Priv},
 	}
 
-	if err := insertActor(ctx, &actor, rsaPrivPem, ed25519PrivMultibase, keys, cert, db, cfg); err != nil {
+	if err := insertActor(ctx, &actor, rsaPriv, ed25519Priv, keys, cert, db, cfg); err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 	}
 

@@ -18,11 +18,11 @@ package outbox
 
 import (
 	"context"
+	"crypto/ed25519"
 	"database/sql"
 	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 )
 
@@ -57,18 +57,13 @@ func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 	count := 0
 	for rows.Next() {
 		var sharer ap.Actor
-		var ed25519PrivKeyMultibase string
+		var ed25519PrivKey []byte
 		var share ap.Activity
-		if err := rows.Scan(&sharer, &ed25519PrivKeyMultibase, &share); err != nil {
+		if err := rows.Scan(&sharer, &ed25519PrivKey, &share); err != nil {
 			return false, err
 		}
 
-		ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
-		if err != nil {
-			return false, err
-		}
-
-		if err := d.Inbox.Undo(ctx, &sharer, httpsig.Key{ID: sharer.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}, &share); err != nil {
+		if err := d.Inbox.Undo(ctx, &sharer, httpsig.Key{ID: sharer.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)}, &share); err != nil {
 			return false, err
 		}
 
@@ -106,18 +101,13 @@ func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 	count := 0
 	for rows.Next() {
 		var author ap.Actor
-		var ed25519PrivKeyMultibase string
+		var ed25519PrivKey []byte
 		var note ap.Object
-		if err := rows.Scan(&author, &ed25519PrivKeyMultibase, &note); err != nil {
+		if err := rows.Scan(&author, &ed25519PrivKey, &note); err != nil {
 			return false, err
 		}
 
-		ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
-		if err != nil {
-			return false, err
-		}
-
-		if err := d.Inbox.Delete(ctx, &author, httpsig.Key{ID: author.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey}, &note); err != nil {
+		if err := d.Inbox.Delete(ctx, &author, httpsig.Key{ID: author.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)}, &note); err != nil {
 			return false, err
 		}
 

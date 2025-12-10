@@ -142,7 +142,7 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 			return
 		}
 
-		if _, _, err := user.CreatePortableWithKey(r.Context, h.Domain, h.DB, h.Config, userName, ap.Person, clientCert, key, r.URL.RawQuery, key.Public().(ed25519.PublicKey)); err != nil {
+		if _, _, err := user.CreatePortableWithKey(r.Context, h.Domain, h.DB, h.Config, userName, ap.Person, clientCert, key, key.Public().(ed25519.PublicKey)); err != nil {
 			r.Log.Warn("Failed to create new portable user", "name", userName, "error", err)
 			w.Status(40, "Failed to create new user")
 			return

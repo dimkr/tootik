@@ -18,13 +18,14 @@ package user
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/x509"
 	"database/sql"
 	"errors"
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 )
 
@@ -32,33 +33,28 @@ import (
 // This user is used to sign outgoing requests not initiated by a particular user.
 func CreateApplicationActor(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config) (*ap.Actor, [2]httpsig.Key, error) {
 	var actor ap.Actor
-	var rsaPrivKeyPem, ed25519PrivKeyMultibase string
+	var rsaPrivKeyDer, ed25519PrivKey []byte
 	if err := db.QueryRowContext(
 		ctx,
 		`select json(actor), rsaprivkey, ed25519privkey from persons where actor->>'$.preferredUsername' = 'actor' and host = ?`,
 		domain,
 	).Scan(
 		&actor,
-		&rsaPrivKeyPem,
-		&ed25519PrivKeyMultibase,
+		&rsaPrivKeyDer,
+		&ed25519PrivKey,
 	); errors.Is(err, sql.ErrNoRows) {
 		return CreatePortable(ctx, domain, db, cfg, "actor", ap.Application, nil)
 	} else if err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to fetch application actor: %w", err)
 	}
 
-	rsaPrivKey, err := data.ParseRSAPrivateKey(rsaPrivKeyPem)
-	if err != nil {
-		return nil, [2]httpsig.Key{}, err
-	}
-
-	ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
+	rsaPrivKey, err := x509.ParsePKCS1PrivateKey(rsaPrivKeyDer)
 	if err != nil {
 		return nil, [2]httpsig.Key{}, err
 	}
 
 	return &actor, [2]httpsig.Key{
 		{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
-		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey},
+		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)},
 	}, err
 }

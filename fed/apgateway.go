@@ -17,6 +17,8 @@ limitations under the License.
 package fed
 
 import (
+	"crypto/ed25519"
+	"crypto/x509"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -28,14 +30,15 @@ import (
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/danger"
-	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/icon"
 )
 
 var (
-	inboxRegex          = regexp.MustCompile(`^(did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/actor)\/inbox\?{0,1}.*`)
-	portableObjectRegex = regexp.MustCompile(`^did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+\/[^#?]+`)
-	followersRegex      = regexp.MustCompile(`^(did:key:z6Mk[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)\/actor\/followers_synchronization`)
+	inboxRegex          = regexp.MustCompile(`^(did:key:z6Mk[a-km-zA-HJ-NP-Z1-9]+\/actor)\/inbox\?{0,1}.*`)
+	portableObjectRegex = regexp.MustCompile(`^did:key:z6Mk[a-km-zA-HJ-NP-Z1-9]+\/[^#?]+`)
+	followersRegex      = regexp.MustCompile(`^(did:key:z6Mk[a-km-zA-HJ-NP-Z1-9]+)\/actor\/followers_synchronization`)
+	iconRegex           = regexp.MustCompile(`^(did:key:z6Mk[a-km-zA-HJ-NP-Z1-9]+\/actor)\/icon\.` + icon.FileNameExtension[1:])
 )
 
 func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
@@ -51,8 +54,8 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 	receiver := "ap://" + m[1]
 
 	var actor ap.Actor
-	var rsaPrivKeyPem, ed25519PrivKeyMultibase string
-	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519privkey from persons where cid = ? and ed25519privkey is not null`, receiver).Scan(&actor, &rsaPrivKeyPem, &ed25519PrivKeyMultibase); errors.Is(err, sql.ErrNoRows) {
+	var rsaPrivKeyDer, ed25519PrivKey []byte
+	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519privkey from persons where cid = ? and ed25519privkey is not null`, receiver).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey); errors.Is(err, sql.ErrNoRows) {
 		slog.Debug("Receiving user does not exist", "receiver", receiver)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -62,23 +65,16 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rsaPrivKey, err := data.ParseRSAPrivateKey(rsaPrivKeyPem)
+	rsaPrivKey, err := x509.ParsePKCS1PrivateKey(rsaPrivKeyDer)
 	if err != nil {
 		slog.Warn("Failed to parse RSA private key", "receiver", receiver, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
-	if err != nil {
-		slog.Warn("Failed to decode Ed25519 private key", "receiver", receiver, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
 	l.doHandleInbox(w, r, [2]httpsig.Key{
 		{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
-		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519PrivKey},
+		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)},
 	})
 }
 
@@ -145,6 +141,11 @@ func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
 
 	if m := followersRegex.FindStringSubmatch(resource); m != nil {
 		l.handleApGatewayFollowers(w, r, m[1])
+		return
+	}
+
+	if m := iconRegex.FindStringSubmatch(resource); m != nil {
+		l.doHandleIcon(w, r, "ap://"+m[1])
 		return
 	}
 
