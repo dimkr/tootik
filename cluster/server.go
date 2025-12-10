@@ -150,6 +150,7 @@ func NewServer(t *testing.T, domain string, client fed.Client) *Server {
 	cfg.FollowersSyncInterval = 0
 	cfg.Ed25519Threshold = 0.25
 	cfg.RFC9421Threshold = 0.5
+	cfg.EnableNonPortableActorRegistration = true
 
 	dbPath := filepath.Join(t.TempDir(), domain+".sqlite3")
 
@@ -332,5 +333,9 @@ func (s *Server) Handle(cert tls.Certificate, path string) Page {
 }
 
 func (s *Server) Register(cert tls.Certificate) Page {
+	return s.HandleInput(cert, "/users/register", "n").OK()
+}
+
+func (s *Server) RegisterPortable(cert tls.Certificate) Page {
 	return s.HandleInput(cert, "/users/register", "generate").OK()
 }

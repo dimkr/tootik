@@ -22,6 +22,7 @@ import (
 	"database/sql"
 	"time"
 
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/user"
@@ -94,6 +95,18 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 	case "":
 		w.Status(11, "base58-encoded Ed25519 private key or 'generate' to generate")
 		return
+
+	case "n":
+		if !h.Config.EnableNonPortableActorRegistration {
+			w.Status(40, "Registration of non-portable actors is disabled")
+			return
+		}
+
+		if _, _, err := user.Create(r.Context, h.Domain, h.DB, h.Config, userName, ap.Person, clientCert); err != nil {
+			r.Log.Warn("Failed to create new user", "name", userName, "error", err)
+			w.Status(40, "Failed to create new user")
+			return
+		}
 
 	case "generate":
 		pub, priv, err := ed25519.GenerateKey(nil)

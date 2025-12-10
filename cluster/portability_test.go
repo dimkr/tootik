@@ -34,9 +34,9 @@ func TestCluster_ReplyForwardingPortableActors(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
 	defer cluster.Stop()
 
-	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
-	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
-	carol := cluster["c.localdomain"].Register(carolKeypair).OK()
+	alice := cluster["a.localdomain"].RegisterPortable(aliceKeypair).OK()
+	bob := cluster["b.localdomain"].RegisterPortable(bobKeypair).OK()
+	carol := cluster["c.localdomain"].RegisterPortable(carolKeypair).OK()
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
@@ -103,13 +103,13 @@ func TestCluster_Gateways(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to generate key: %v", err)
 	}
-	Register := "/users/register?" + data.EncodeEd25519PrivateKey(priv)
+	registerPortable := "/users/register?" + data.EncodeEd25519PrivateKey(priv)
 
 	did := "did:key:" + data.EncodeEd25519PublicKey(pub)
 
-	alice := cluster["a.localdomain"].Handle(aliceKeypair, Register).OK()
-	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
-	carol := cluster["c.localdomain"].Handle(carolKeypair, Register).OK()
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
+	bob := cluster["b.localdomain"].RegisterPortable(bobKeypair).OK()
+	carol := cluster["c.localdomain"].Handle(carolKeypair, registerPortable).OK()
 
 	alice.
 		Follow("⚙️ Settings").
@@ -183,6 +183,43 @@ func TestCluster_Gateways(t *testing.T) {
 		NotContains(Line{Type: Quote, Text: "yo"})
 }
 
+func TestCluster_ForwardedLegacyReply(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
+
+	cluster["b.localdomain"].Config.RFC9421Threshold = 1
+	cluster["b.localdomain"].Config.Ed25519Threshold = 1
+	cluster["b.localdomain"].Config.DisableIntegrityProofs = true
+
+	alice := cluster["a.localdomain"].RegisterPortable(aliceKeypair).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["c.localdomain"].RegisterPortable(carolKeypair).OK()
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	carol.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	cluster.Settle(t)
+
+	post := alice.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "hello").
+		OK()
+	cluster.Settle(t)
+
+	bob.GotoInput(post.Links["💬 Reply"], "hi").
+		Contains(Line{Type: Quote, Text: "hi"})
+	cluster.Settle(t)
+
+	carol.
+		FollowInput("🔭 View profile", "bob@b.localdomain").
+		Contains(Line{Type: Quote, Text: "hi"})
+}
+
 func TestCluster_ClientSideSigning(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
 	defer cluster.Stop()
@@ -191,13 +228,13 @@ func TestCluster_ClientSideSigning(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to generate key: %v", err)
 	}
-	Register := "/users/register?" + data.EncodeEd25519PrivateKey(priv)
+	registerPortable := "/users/register?" + data.EncodeEd25519PrivateKey(priv)
 
 	did := "did:key:" + data.EncodeEd25519PublicKey(pub)
 
-	alice := cluster["a.localdomain"].Handle(aliceKeypair, Register).OK()
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
-	carol := cluster["c.localdomain"].Handle(carolKeypair, Register).OK()
+	carol := cluster["c.localdomain"].Handle(carolKeypair, registerPortable).OK()
 
 	alice.
 		Follow("⚙️ Settings").
