@@ -17,6 +17,7 @@ limitations under the License.
 package cluster
 
 import (
+	"crypto/ed25519"
 	"testing"
 
 	"github.com/dimkr/tootik/data"
@@ -87,8 +88,8 @@ func TestCluster_FollowersSyncMissingLocalFollow(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
 	defer cluster.Stop()
 
-	alice := cluster["a.localdomain"].Handle(aliceKeypair, "/users/register?"+data.EncodeEd25519PrivateKey(aliceEd25519Priv)).OK()
-	bob := cluster["b.localdomain"].Handle(bobKeypair, "/users/register?"+data.EncodeEd25519PrivateKey(bobEd25519Priv)).OK()
+	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
 	carol := cluster["a.localdomain"].Register(carolKeypair).OK()
 
 	alice.
@@ -103,7 +104,7 @@ func TestCluster_FollowersSyncMissingLocalFollow(t *testing.T) {
 	cluster.Settle(t)
 
 	// delete one Follow in a.localdomain
-	if _, err := cluster["a.localdomain"].DB.Exec(`delete from follows where follower = 'https://a.localdomain/.well-known/apgateway/did:key:' || ? || '/actor'`, data.EncodeEd25519PublicKey(aliceEd25519Pub)); err != nil {
+	if _, err := cluster["a.localdomain"].DB.Exec(`delete from follows where follower = 'https://a.localdomain/user/alice'`); err != nil {
 		t.Fatalf("Failed to delete follow: %v", err)
 	}
 
@@ -115,7 +116,7 @@ func TestCluster_FollowersSyncMissingLocalFollow(t *testing.T) {
 	cluster.Settle(t)
 
 	var exists int
-	if err := cluster["b.localdomain"].DB.QueryRow(`select exists (select 1 from follows where follower = 'https://a.localdomain/.well-known/apgateway/did:key:' || ? || '/actor' and followed = 'https://b.localdomain/.well-known/apgateway/did:key:' || ? || '/actor' and accepted = 1)`, data.EncodeEd25519PublicKey(aliceEd25519Pub), data.EncodeEd25519PublicKey(bobEd25519Pub)).Scan(&exists); err != nil {
+	if err := cluster["b.localdomain"].DB.QueryRow(`select exists (select 1 from follows where follower = 'https://a.localdomain/user/alice' and followed = 'https://b.localdomain/user/bob' and accepted = 1)`).Scan(&exists); err != nil {
 		t.Fatalf("Failed to check if follow exists: %v", err)
 	}
 	if exists == 0 {
@@ -135,7 +136,7 @@ func TestCluster_FollowersSyncMissingLocalFollow(t *testing.T) {
 	}
 	cluster.Settle(t)
 
-	if err := cluster["b.localdomain"].DB.QueryRow(`select exists (select 1 from follows where follower = 'https://a.localdomain/.well-known/apgateway/did:key:' || ? || '/actor' and followed = 'https://b.localdomain/.well-known/apgateway/did:key:' || ? || '/actor' and accepted = 1)`, data.EncodeEd25519PublicKey(aliceEd25519Pub), data.EncodeEd25519PublicKey(bobEd25519Pub)).Scan(&exists); err != nil {
+	if err := cluster["b.localdomain"].DB.QueryRow(`select exists (select 1 from follows where follower = 'https://a.localdomain/user/alice' and followed = 'https://b.localdomain/user/bob' and accepted = 1)`).Scan(&exists); err != nil {
 		t.Fatalf("Failed to check if follow was removed: %v", err)
 	}
 	if exists == 1 {
@@ -147,9 +148,13 @@ func TestCluster_FollowersSyncMissingRemoteFollowPortableActor(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
 	defer cluster.Stop()
 
-	registerBob := "/users/register?" + data.EncodeEd25519PrivateKey(bobEd25519Priv)
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+	registerBob := "/users/register?" + data.EncodeEd25519PrivateKey(priv)
 
-	bobDID := "did:key:" + data.EncodeEd25519PublicKey(bobEd25519Pub)
+	bobDID := "did:key:" + data.EncodeEd25519PublicKey(pub)
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Handle(bobKeypair, registerBob).OK()
@@ -211,13 +216,15 @@ func TestCluster_FollowersSyncMissingLocalFollowPortableActor(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
 	defer cluster.Stop()
 
-	registerAlice := "/users/register?" + data.EncodeEd25519PrivateKey(aliceEd25519Priv)
-	registerBob := "/users/register?" + data.EncodeEd25519PrivateKey(bobEd25519Priv)
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+	registerBob := "/users/register?" + data.EncodeEd25519PrivateKey(priv)
 
-	aliceDID := "did:key:" + data.EncodeEd25519PublicKey(aliceEd25519Pub)
-	bobDID := "did:key:" + data.EncodeEd25519PublicKey(bobEd25519Pub)
+	bobDID := "did:key:" + data.EncodeEd25519PublicKey(pub)
 
-	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerAlice).OK()
+	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Handle(bobKeypair, registerBob).OK()
 	carol := cluster["a.localdomain"].Register(carolKeypair).OK()
 
@@ -233,7 +240,7 @@ func TestCluster_FollowersSyncMissingLocalFollowPortableActor(t *testing.T) {
 	cluster.Settle(t)
 
 	// delete one Follow in a.localdomain
-	if _, err := cluster["a.localdomain"].DB.Exec(`delete from follows where follower = 'https://a.localdomain/.well-known/apgateway/' || ? || '/actor'`, aliceDID); err != nil {
+	if _, err := cluster["a.localdomain"].DB.Exec(`delete from follows where follower = 'https://a.localdomain/user/alice'`); err != nil {
 		t.Fatalf("Failed to delete follow: %v", err)
 	}
 
@@ -245,7 +252,7 @@ func TestCluster_FollowersSyncMissingLocalFollowPortableActor(t *testing.T) {
 	cluster.Settle(t)
 
 	var exists int
-	if err := cluster["b.localdomain"].DB.QueryRow(`select exists (select 1 from follows where follower = 'https://a.localdomain/.well-known/apgateway/' || ? || '/actor' and followed = 'https://b.localdomain/.well-known/apgateway/' || ? || '/actor' and accepted = 1)`, aliceDID, bobDID).Scan(&exists); err != nil {
+	if err := cluster["b.localdomain"].DB.QueryRow(`select exists (select 1 from follows where follower = 'https://a.localdomain/user/alice' and followed = 'https://b.localdomain/.well-known/apgateway/' || ? || '/actor' and accepted = 1)`, bobDID).Scan(&exists); err != nil {
 		t.Fatalf("Failed to check if follow exists: %v", err)
 	}
 	if exists == 0 {
@@ -265,7 +272,7 @@ func TestCluster_FollowersSyncMissingLocalFollowPortableActor(t *testing.T) {
 	}
 	cluster.Settle(t)
 
-	if err := cluster["b.localdomain"].DB.QueryRow(`select exists (select 1 from follows where follower = 'https://a.localdomain/.well-known/apgateway/' || ? || '/actor' and followed = 'https://b.localdomain/.well-known/apgateway/' || ? || '/actor' and accepted = 1)`, aliceDID, bobDID).Scan(&exists); err != nil {
+	if err := cluster["b.localdomain"].DB.QueryRow(`select exists (select 1 from follows where follower = 'https://a.localdomain/user/alice' and followed = 'https://b.localdomain/.well-known/apgateway/' || ? || '/actor' and accepted = 1)`, bobDID).Scan(&exists); err != nil {
 		t.Fatalf("Failed to check if follow was removed: %v", err)
 	}
 	if exists == 1 {

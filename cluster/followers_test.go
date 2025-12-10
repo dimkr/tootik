@@ -16,11 +16,7 @@ limitations under the License.
 
 package cluster
 
-import (
-	"testing"
-
-	"github.com/dimkr/tootik/data"
-)
+import "testing"
 
 func TestCluster_PostToFollowers_Approved(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
@@ -239,9 +235,9 @@ func TestCluster_PostToFollowers_ApprovedLocally(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain")
 	defer cluster.Stop()
 
-	alice := cluster["a.localdomain"].Handle(aliceKeypair, "/users/register?"+data.EncodeEd25519PrivateKey(aliceEd25519Priv)).OK()
-	bob := cluster["a.localdomain"].Handle(bobKeypair, "/users/register?"+data.EncodeEd25519PrivateKey(bobEd25519Priv)).OK()
-	carol := cluster["a.localdomain"].Handle(carolKeypair, "/users/register?"+data.EncodeEd25519PrivateKey(carolEd25519Priv)).OK()
+	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	bob := cluster["a.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["a.localdomain"].Register(carolKeypair).OK()
 
 	bob.
 		Follow("🐕 Followers").
@@ -254,7 +250,7 @@ func TestCluster_PostToFollowers_ApprovedLocally(t *testing.T) {
 		Follow("⚡ Follow bob (requires approval)").
 		OK().
 		Follow("⚡️ Follows").
-		Contains(Line{Type: Link, Text: "🚴 bob (bob@a.localdomain) - pending approval", URL: "/users/outbox/a.localdomain/.well-known/apgateway/did:key:" + data.EncodeEd25519PublicKey(bobEd25519Pub) + "/actor"})
+		Contains(Line{Type: Link, Text: "😈 bob (bob@a.localdomain) - pending approval", URL: "/users/outbox/a.localdomain/user/bob"})
 
 	bob.
 		Follow("📣 New post").
@@ -268,8 +264,8 @@ func TestCluster_PostToFollowers_ApprovedLocally(t *testing.T) {
 	bob.
 		Follow("🐕 Followers").
 		Follow("🟢 Accept").
-		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/.well-known/apgateway/did:key:" + data.EncodeEd25519PublicKey(aliceEd25519Pub) + "/actor"}).
-		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/.well-known/apgateway/did:key:" + data.EncodeEd25519PublicKey(aliceEd25519Pub) + "/actor"})
+		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
+		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"})
 
 	cluster.Settle(t)
 
@@ -284,10 +280,10 @@ func TestCluster_PostToFollowers_ApprovedLocally(t *testing.T) {
 	bob.
 		Follow("🐕 Followers").
 		Follow("🔓 Approve new follow requests automatically").
-		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/.well-known/apgateway/did:key:" + data.EncodeEd25519PublicKey(aliceEd25519Pub) + "/actor"}).
-		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/.well-known/apgateway/did:key:" + data.EncodeEd25519PublicKey(aliceEd25519Pub) + "/actor"}).
-		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/.well-known/apgateway/did:key:" + data.EncodeEd25519PublicKey(carolEd25519Pub) + "/actor"}).
-		NotContains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/.well-known/apgateway/did:key:" + data.EncodeEd25519PublicKey(carolEd25519Pub) + "/actor"}).
+		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
+		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"}).
+		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/carol"}).
+		NotContains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/carol"}).
 		Contains(Line{Type: Link, Text: "🔒 Approve new follow requests manually", URL: "/users/followers?lock"})
 
 	carol.

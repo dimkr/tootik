@@ -16,10 +16,7 @@ limitations under the License.
 
 package cluster
 
-import (
-	"crypto/ed25519"
-	"crypto/tls"
-)
+import "crypto/tls"
 
 const (
 	/*
@@ -87,8 +84,6 @@ fQrvoiJJO5IM6yK73Wu9mlPh9YShRANCAARy/uvjGyBG+C3LhUmBoYB9QaCNLQ35
 )
 
 var aliceKeypair, bobKeypair, carolKeypair tls.Certificate
-var aliceEd25519Priv, bobEd25519Priv, carolEd25519Priv ed25519.PrivateKey
-var aliceEd25519Pub, bobEd25519Pub, carolEd25519Pub ed25519.PublicKey
 
 func init() {
 	var err error
@@ -103,21 +98,6 @@ func init() {
 	}
 
 	carolKeypair, err = tls.X509KeyPair([]byte(carolCert), []byte(carolKey))
-	if err != nil {
-		panic(err)
-	}
-
-	aliceEd25519Pub, aliceEd25519Priv, err = ed25519.GenerateKey(nil)
-	if err != nil {
-		panic(err)
-	}
-
-	bobEd25519Pub, bobEd25519Priv, err = ed25519.GenerateKey(nil)
-	if err != nil {
-		panic(err)
-	}
-
-	carolEd25519Pub, carolEd25519Priv, err = ed25519.GenerateKey(nil)
 	if err != nil {
 		panic(err)
 	}

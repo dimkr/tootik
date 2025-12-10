@@ -20,8 +20,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/dimkr/tootik/data"
 )
 
 func TestServer_InvitationHappyFlow(t *testing.T) {
@@ -40,20 +38,16 @@ func TestServer_InvitationHappyFlow(t *testing.T) {
 		FollowInput("➕ Generate", bobCode).
 		Contains(Line{Type: Text, Text: "Code: " + bobCode})
 
-	accept := s.HandleInput(bobKeypair, "/users/invitations/accept", bobCode)
-	accept.Error("11 base58-encoded Ed25519 private key or 'generate' to generate")
-	s.HandleInput(bobKeypair, accept.Path, data.EncodeEd25519PrivateKey(bobEd25519Priv)).Follow("😈 My profile").OK()
+	s.HandleInput(bobKeypair, "/users/invitations/accept", bobCode).Follow("😈 My profile").OK()
 
 	alice.
 		Follow("⚙️ Settings").
 		Follow("🎟️ Invitations").
-		Contains(Line{Type: Link, Text: "Used by: bob", URL: "/users/outbox/a.localdomain/.well-known/apgateway/did:key:" + data.EncodeEd25519PublicKey(bobEd25519Pub) + "/actor"}).
+		Contains(Line{Type: Link, Text: "Used by: bob", URL: "/users/outbox/a.localdomain/user/bob"}).
 		FollowInput("➕ Generate", carolCode).
 		Contains(Line{Type: Text, Text: "Code: " + carolCode})
 
-	accept = s.HandleInput(carolKeypair, "/users/invitations/accept", carolCode)
-	accept.Error("11 base58-encoded Ed25519 private key or 'generate' to generate")
-	s.HandleInput(carolKeypair, accept.Path, "generate").Follow("😈 My profile").OK()
+	s.HandleInput(carolKeypair, "/users/invitations/accept", carolCode).Follow("😈 My profile").OK()
 }
 
 func TestServer_WrongCode(t *testing.T) {
