@@ -156,7 +156,6 @@ func CreatePortable(
 		actorType,
 		cert,
 		priv,
-		data.EncodeEd25519PrivateKey(priv),
 		pub,
 	)
 }
