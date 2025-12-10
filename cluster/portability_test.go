@@ -18,7 +18,6 @@ package cluster
 
 import (
 	"bytes"
-	"crypto/ed25519"
 	"encoding/json"
 	"net/http"
 	"testing"
@@ -99,17 +98,12 @@ func TestCluster_Gateways(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
 	defer cluster.Stop()
 
-	pub, priv, err := ed25519.GenerateKey(nil)
-	if err != nil {
-		t.Fatalf("Failed to generate key: %v", err)
-	}
-	Register := "/users/register?" + data.EncodeEd25519PrivateKey(priv)
+	register := "/users/register?" + data.EncodeEd25519PrivateKey(aliceEd25519Priv)
+	did := "did:key:" + data.EncodeEd25519PublicKey(aliceEd25519Pub)
 
-	did := "did:key:" + data.EncodeEd25519PublicKey(pub)
-
-	alice := cluster["a.localdomain"].Handle(aliceKeypair, Register).OK()
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, register).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
-	carol := cluster["c.localdomain"].Handle(carolKeypair, Register).OK()
+	carol := cluster["c.localdomain"].Handle(carolKeypair, register).OK()
 
 	alice.
 		Follow("⚙️ Settings").
@@ -187,17 +181,12 @@ func TestCluster_ClientSideSigning(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
 	defer cluster.Stop()
 
-	pub, priv, err := ed25519.GenerateKey(nil)
-	if err != nil {
-		t.Fatalf("Failed to generate key: %v", err)
-	}
-	Register := "/users/register?" + data.EncodeEd25519PrivateKey(priv)
+	register := "/users/register?" + data.EncodeEd25519PrivateKey(aliceEd25519Priv)
+	did := "did:key:" + data.EncodeEd25519PublicKey(aliceEd25519Pub)
 
-	did := "did:key:" + data.EncodeEd25519PublicKey(pub)
-
-	alice := cluster["a.localdomain"].Handle(aliceKeypair, Register).OK()
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, register).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
-	carol := cluster["c.localdomain"].Handle(carolKeypair, Register).OK()
+	carol := cluster["c.localdomain"].Handle(carolKeypair, register).OK()
 
 	alice.
 		Follow("⚙️ Settings").
@@ -239,7 +228,8 @@ func TestCluster_ClientSideSigning(t *testing.T) {
 		},
 	}
 
-	create.Proof, err = proof.Create(httpsig.Key{ID: actorID + "#ed25519-key", PrivateKey: priv}, create)
+	var err error
+	create.Proof, err = proof.Create(httpsig.Key{ID: actorID + "#ed25519-key", PrivateKey: aliceEd25519Priv}, create)
 	if err != nil {
 		t.Fatalf("Failed to generate proof: %v", err)
 	}
