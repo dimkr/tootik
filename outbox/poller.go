@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 )
 
@@ -69,15 +68,9 @@ func (p *Poller) Run(ctx context.Context) error {
 
 		var obj ap.Object
 		var author ap.Actor
-		var ed25519PrivKeyMultibase string
-		if err := p.DB.QueryRowContext(ctx, "select json(notes.object), json(persons.actor), persons.ed25519privkey from notes join persons on persons.id = notes.author where notes.id = ?", pollID).Scan(&obj, &author, &ed25519PrivKeyMultibase); err != nil {
+		var ed25519PrivKey []byte
+		if err := p.DB.QueryRowContext(ctx, "select json(notes.object), json(persons.actor), persons.ed25519privkey from notes join persons on persons.id = notes.author where notes.id = ?", pollID).Scan(&obj, &author, &ed25519PrivKey); err != nil {
 			slog.Warn("Failed to fetch poll", "poll", pollID, "error", err)
-			continue
-		}
-
-		ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
-		if err != nil {
-			slog.Error("Failed to decode Ed25519 private key", "poll", pollID, "author", author.ID, "error", err)
 			continue
 		}
 
@@ -87,7 +80,7 @@ func (p *Poller) Run(ctx context.Context) error {
 		}
 
 		authors[pollID] = &author
-		keys[pollID] = ed25519PrivKey
+		keys[pollID] = ed25519.NewKeyFromSeed(ed25519PrivKey)
 	}
 	rows.Close()
 

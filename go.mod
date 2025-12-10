@@ -1,6 +1,6 @@
 module github.com/dimkr/tootik
 
-go 1.25.4
+go 1.25.5
 
 require (
 	github.com/btcsuite/btcutil v1.0.2
@@ -9,13 +9,13 @@ require (
 	github.com/gowebpki/jcs v1.0.1
 	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/image v0.33.0
-	golang.org/x/net v0.47.0
+	golang.org/x/image v0.34.0
+	golang.org/x/net v0.48.0
 )
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/sys v0.39.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
