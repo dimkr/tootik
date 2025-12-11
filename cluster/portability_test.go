@@ -34,10 +34,6 @@ func TestCluster_ReplyForwardingPortableActors(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
 	defer cluster.Stop()
 
-	cluster["a.localdomain"].Config.EnablePortableActorRegistration = true
-	cluster["b.localdomain"].Config.EnablePortableActorRegistration = true
-	cluster["c.localdomain"].Config.EnablePortableActorRegistration = true
-
 	alice := cluster["a.localdomain"].RegisterPortable(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].RegisterPortable(bobKeypair).OK()
 	carol := cluster["c.localdomain"].RegisterPortable(carolKeypair).OK()
@@ -102,10 +98,6 @@ func TestCluster_ReplyForwardingPortableActors(t *testing.T) {
 func TestCluster_Gateways(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
 	defer cluster.Stop()
-
-	cluster["a.localdomain"].Config.EnablePortableActorRegistration = true
-	cluster["b.localdomain"].Config.EnablePortableActorRegistration = true
-	cluster["c.localdomain"].Config.EnablePortableActorRegistration = true
 
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
@@ -195,11 +187,9 @@ func TestCluster_ForwardedLegacyReply(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
 	defer cluster.Stop()
 
-	cluster["a.localdomain"].Config.EnablePortableActorRegistration = true
 	cluster["b.localdomain"].Config.RFC9421Threshold = 1
 	cluster["b.localdomain"].Config.Ed25519Threshold = 1
 	cluster["b.localdomain"].Config.DisableIntegrityProofs = true
-	cluster["c.localdomain"].Config.EnablePortableActorRegistration = true
 
 	alice := cluster["a.localdomain"].RegisterPortable(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -233,9 +223,6 @@ func TestCluster_ForwardedLegacyReply(t *testing.T) {
 func TestCluster_ClientSideSigning(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
 	defer cluster.Stop()
-
-	cluster["a.localdomain"].Config.EnablePortableActorRegistration = true
-	cluster["c.localdomain"].Config.EnablePortableActorRegistration = true
 
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
