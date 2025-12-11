@@ -28,6 +28,7 @@ func TestServer_InvitationHappyFlow(t *testing.T) {
 	alice := s.Register(aliceKeypair).OK()
 
 	s.Config.RequireInvitation = true
+	s.Config.EnableNonPortableActorRegistration = true
 
 	bobCode := "70bc9fdf-74a4-41e5-973d-08ba3fd23d74"
 	carolCode := "ded3626c-ea4b-44cc-adf3-18510e7634e1"
@@ -38,7 +39,9 @@ func TestServer_InvitationHappyFlow(t *testing.T) {
 		FollowInput("➕ Generate", bobCode).
 		Contains(Line{Type: Text, Text: "Code: " + bobCode})
 
-	s.HandleInput(bobKeypair, "/users/invitations/accept", bobCode).Follow("😈 My profile").OK()
+	accept := s.HandleInput(bobKeypair, "/users/invitations/accept", bobCode)
+	accept.Error("11 base58-encoded Ed25519 private key or 'generate' to generate")
+	s.HandleInput(bobKeypair, accept.Path, "n").Follow("😈 My profile").OK()
 
 	alice.
 		Follow("⚙️ Settings").
@@ -47,7 +50,9 @@ func TestServer_InvitationHappyFlow(t *testing.T) {
 		FollowInput("➕ Generate", carolCode).
 		Contains(Line{Type: Text, Text: "Code: " + carolCode})
 
-	s.HandleInput(carolKeypair, "/users/invitations/accept", carolCode).Follow("😈 My profile").OK()
+	accept = s.HandleInput(carolKeypair, "/users/invitations/accept", carolCode)
+	accept.Error("11 base58-encoded Ed25519 private key or 'generate' to generate")
+	s.HandleInput(carolKeypair, accept.Path, "generate").Follow("😈 My profile").OK()
 }
 
 func TestServer_WrongCode(t *testing.T) {
@@ -56,6 +61,7 @@ func TestServer_WrongCode(t *testing.T) {
 	alice := s.Register(aliceKeypair).OK()
 
 	s.Config.RequireInvitation = true
+	s.Config.EnableNonPortableActorRegistration = true
 
 	bobCode := "70bc9fdf-74a4-41e5-973d-08ba3fd23d74"
 	carolCode := "ded3626c-ea4b-44cc-adf3-18510e7634e1"
@@ -68,7 +74,9 @@ func TestServer_WrongCode(t *testing.T) {
 
 	s.HandleInput(bobKeypair, "/users/invitations/accept", carolCode).Error("40 Invalid invitation code")
 
-	s.HandleInput(bobKeypair, "/users/invitations/accept", bobCode).Follow("😈 My profile").OK()
+	accept := s.HandleInput(bobKeypair, "/users/invitations/accept", bobCode)
+	accept.Error("11 base58-encoded Ed25519 private key or 'generate' to generate")
+	s.HandleInput(bobKeypair, accept.Path, "generate").Follow("😈 My profile").OK()
 }
 
 func TestServer_ExpiredCode(t *testing.T) {
@@ -92,7 +100,10 @@ func TestServer_ExpiredCode(t *testing.T) {
 		s.HandleInput(bobKeypair, "/users/invitations/accept", bobCode).Error("40 Invalid invitation code")
 
 		s.Config.InvitationTimeout = time.Hour
-		s.HandleInput(bobKeypair, "/users/invitations/accept", bobCode).Follow("😈 My profile").OK()
+
+		accept := s.HandleInput(bobKeypair, "/users/invitations/accept", bobCode)
+		accept.Error("11 base58-encoded Ed25519 private key or 'generate' to generate")
+		s.HandleInput(bobKeypair, accept.Path, "generate").Follow("😈 My profile").OK()
 
 	case <-t.Context().Done():
 		t.Fail()
@@ -114,7 +125,9 @@ func TestServer_CodeReuse(t *testing.T) {
 		FollowInput("➕ Generate", bobCode).
 		Contains(Line{Type: Text, Text: "Code: " + bobCode})
 
-	s.HandleInput(bobKeypair, "/users/invitations/accept", bobCode).Follow("😈 My profile").OK()
+	accept := s.HandleInput(bobKeypair, "/users/invitations/accept", bobCode)
+	accept.Error("11 base58-encoded Ed25519 private key or 'generate' to generate")
+	s.HandleInput(bobKeypair, accept.Path, "generate").Follow("😈 My profile").OK()
 
 	s.HandleInput(bobKeypair, "/users/invitations/accept", bobCode).Error("40 Invalid invitation code")
 	s.HandleInput(carolKeypair, "/users/invitations/accept", bobCode).Error("40 Invalid invitation code")
@@ -128,6 +141,7 @@ func TestServer_InvitationLimit(t *testing.T) {
 	s.Config.RequireInvitation = true
 	limit := 1
 	s.Config.MaxInvitationsPerUser = &limit
+	s.Config.EnableNonPortableActorRegistration = true
 
 	bobCode := "70bc9fdf-74a4-41e5-973d-08ba3fd23d74"
 	carolCode := "ded3626c-ea4b-44cc-adf3-18510e7634e1"
@@ -145,7 +159,9 @@ func TestServer_InvitationLimit(t *testing.T) {
 	alice.Goto("/users/invitations/generate").
 		Error("40 Reached the maximum number of invitations")
 
-	s.HandleInput(bobKeypair, "/users/invitations/accept", bobCode).Follow("😈 My profile").OK()
+	accept := s.HandleInput(bobKeypair, "/users/invitations/accept", bobCode)
+	accept.Error("11 base58-encoded Ed25519 private key or 'generate' to generate")
+	s.HandleInput(bobKeypair, accept.Path, "n").Follow("😈 My profile").OK()
 
 	alice.
 		Follow("⚙️ Settings").
@@ -156,7 +172,9 @@ func TestServer_InvitationLimit(t *testing.T) {
 		NotContains(Line{Type: Link, Text: "➕ Generate", URL: "/users/invitations/generate"}).
 		Contains(Line{Type: Text, Text: "Reached the maximum number of invitations."})
 
-	s.HandleInput(carolKeypair, "/users/invitations/accept", carolCode).Follow("😈 My profile").OK()
+	accept = s.HandleInput(carolKeypair, "/users/invitations/accept", carolCode)
+	accept.Error("11 base58-encoded Ed25519 private key or 'generate' to generate")
+	s.HandleInput(carolKeypair, accept.Path, "generate").Follow("😈 My profile").OK()
 
 	limit = 3
 	alice.
@@ -251,9 +269,9 @@ func TestServer_InvitationCreateAcceptDelete(t *testing.T) {
 		t.Fatalf("Not found")
 	}
 
-	s.
-		HandleInput(bobKeypair, "/users/invitations/accept", code).
-		OK()
+	accept := s.HandleInput(bobKeypair, "/users/invitations/accept", code)
+	accept.Error("11 base58-encoded Ed25519 private key or 'generate' to generate")
+	s.HandleInput(bobKeypair, accept.Path, "generate").OK()
 
 	page.
 		Follow("➖ Revoke").

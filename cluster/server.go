@@ -150,6 +150,7 @@ func NewServer(t *testing.T, domain string, client fed.Client) *Server {
 	cfg.FollowersSyncInterval = 0
 	cfg.Ed25519Threshold = 0.25
 	cfg.RFC9421Threshold = 0.5
+	cfg.EnableNonPortableActorRegistration = true
 
 	dbPath := filepath.Join(t.TempDir(), domain+".sqlite3")
 

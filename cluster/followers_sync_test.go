@@ -148,8 +148,6 @@ func TestCluster_FollowersSyncMissingRemoteFollowPortableActor(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
 	defer cluster.Stop()
 
-	cluster["b.localdomain"].Config.EnablePortableActorRegistration = true
-
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		t.Fatalf("Failed to generate key: %v", err)
@@ -217,8 +215,6 @@ func TestCluster_FollowersSyncMissingRemoteFollowPortableActor(t *testing.T) {
 func TestCluster_FollowersSyncMissingLocalFollowPortableActor(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
 	defer cluster.Stop()
-
-	cluster["b.localdomain"].Config.EnablePortableActorRegistration = true
 
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {

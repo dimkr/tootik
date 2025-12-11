@@ -199,6 +199,10 @@ func CreatePortable(
 }
 
 // Create creates a new user.
+//
+// Before v0.21.0, tootik offered users choice between 'traditional' and 'portable' accounts, and this function exists
+// only because it's used by tests, to test backward compatibility with older tootik versions and interoperability with
+// ActivityPub servers that don't support https://codeberg.org/fediverse/fep/src/branch/main/fep/ef61/fep-ef61.md.
 func Create(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config, name string, actorType ap.ActorType, cert *x509.Certificate) (*ap.Actor, [2]httpsig.Key, error) {
 	rsaPriv, rsaPubPem, err := generateRSAKey()
 	if err != nil {
