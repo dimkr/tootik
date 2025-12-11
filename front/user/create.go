@@ -258,9 +258,8 @@ func Create(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config, nam
 		},
 		Inbox:  fmt.Sprintf("https://%s/inbox/%s", domain, name),
 		Outbox: fmt.Sprintf("https://%s/outbox/%s", domain, name),
-		// use application actor's inbox as a shared inbox
 		Endpoints: map[string]string{
-			"sharedInbox": fmt.Sprintf("https://%s/inbox/actor", domain),
+			"sharedInbox": fmt.Sprintf("https://%s/inbox", domain),
 		},
 		Followers: fmt.Sprintf("https://%s/followers/%s", domain, name),
 		PublicKey: ap.PublicKey{
