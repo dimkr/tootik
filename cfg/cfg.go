@@ -165,7 +165,7 @@ func (c *Config) FillDefaults() {
 	c.CompiledUserNameRegex = regexp.MustCompile(c.UserNameRegex)
 
 	if c.ForbiddenUserNameRegex == "" {
-		c.ForbiddenUserNameRegex = `^(root|localhost|ip6-.*|.*(admin|tootik).*)$`
+		c.ForbiddenUserNameRegex = `^(actor|nobody|root|localhost|ip6-.*|.*(admin|tootik).*)$`
 	}
 
 	c.CompiledForbiddenUserNameRegex = regexp.MustCompile(c.ForbiddenUserNameRegex)

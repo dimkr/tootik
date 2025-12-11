@@ -17,7 +17,6 @@ limitations under the License.
 package fed
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -25,13 +24,12 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/buildinfo"
-	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/lock"
 )
 
 const nodeInfoUpdateInterval = time.Hour * 6
 
-func addNodeInfo20Stub(mux *http.ServeMux, cfg *cfg.Config) error {
+func (l *Listener) addNodeInfo20Stub(mux *http.ServeMux) error {
 	body, err := json.Marshal(map[string]any{
 		"version": "2.0",
 		"software": map[string]any{
@@ -53,7 +51,7 @@ func addNodeInfo20Stub(mux *http.ServeMux, cfg *cfg.Config) error {
 			},
 			"localPosts": 0,
 		},
-		"openRegistrations": !cfg.RequireInvitation,
+		"openRegistrations": !l.Config.RequireInvitation,
 		"metadata":          map[string]any{},
 	})
 	if err != nil {
@@ -68,16 +66,16 @@ func addNodeInfo20Stub(mux *http.ServeMux, cfg *cfg.Config) error {
 	return nil
 }
 
-func addNodeInfo(mux *http.ServeMux, domain string, cfg *cfg.Config, db *sql.DB) error {
+func (l *Listener) addNodeInfo(mux *http.ServeMux) error {
 	if body, err := json.Marshal(map[string]any{
 		"links": []map[string]any{
 			{
 				"rel":  "http://nodeinfo.diaspora.software/ns/schema/2.0",
-				"href": fmt.Sprintf("https://%s/nodeinfo/2.0", domain),
+				"href": fmt.Sprintf("https://%s/nodeinfo/2.0", l.Domain),
 			},
 			{
 				"rel":  "https://www.w3.org/ns/activitystreams#Application",
-				"href": fmt.Sprintf("https://%s/user/nobody", domain),
+				"href": l.AppActor.ID,
 			},
 		},
 	}); err != nil {
@@ -89,25 +87,25 @@ func addNodeInfo(mux *http.ServeMux, domain string, cfg *cfg.Config, db *sql.DB)
 		})
 	}
 
-	if !cfg.FillNodeInfoUsage {
-		return addNodeInfo20Stub(mux, cfg)
+	if !l.Config.FillNodeInfoUsage {
+		return l.addNodeInfo20Stub(mux)
 	}
 
-	l := lock.New()
+	cacheLock := lock.New()
 	var total, activeHalfYear, activeMonth, localPosts int64
 	var last time.Time
 
 	mux.HandleFunc("GET /nodeinfo/2.0", func(w http.ResponseWriter, r *http.Request) {
-		if err := l.Lock(r.Context()); err != nil {
+		if err := cacheLock.Lock(r.Context()); err != nil {
 			slog.Warn("Failed to build nodeinfo response", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		defer l.Unlock()
+		defer cacheLock.Unlock()
 
 		now := time.Now()
 		if now.Sub(last) >= nodeInfoUpdateInterval {
-			if err := db.QueryRowContext(
+			if err := l.DB.QueryRowContext(
 				r.Context(),
 				`
 				select
@@ -130,7 +128,7 @@ func addNodeInfo(mux *http.ServeMux, domain string, cfg *cfg.Config, db *sql.DB)
 					),
 					(select count(*) from notes where host = $1)
 				`,
-				domain,
+				l.Domain,
 			).Scan(&total, &activeHalfYear, &activeMonth, &localPosts); err != nil {
 				slog.Warn("Failed to build nodeinfo response", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
@@ -161,7 +159,7 @@ func addNodeInfo(mux *http.ServeMux, domain string, cfg *cfg.Config, db *sql.DB)
 				},
 				"localPosts": localPosts,
 			},
-			"openRegistrations": !cfg.RequireInvitation,
+			"openRegistrations": !l.Config.RequireInvitation,
 			"metadata":          map[string]any{},
 		}); err != nil {
 			slog.Warn("Failed to build nodeinfo response", "error", err)

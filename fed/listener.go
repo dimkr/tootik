@@ -29,22 +29,24 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/fsnotify/fsnotify"
 )
 
 type Listener struct {
-	Domain    string
-	Config    *cfg.Config
-	DB        *sql.DB
-	Resolver  *Resolver
-	ActorKeys [2]httpsig.Key
-	Addr      string
-	Cert      string
-	Key       string
-	Plain     bool
-	BlockList *BlockList
+	Domain       string
+	Config       *cfg.Config
+	DB           *sql.DB
+	Resolver     *Resolver
+	AppActor     *ap.Actor
+	AppActorKeys [2]httpsig.Key
+	Addr         string
+	Cert         string
+	Key          string
+	Plain        bool
+	BlockList    *BlockList
 }
 
 const certReloadDelay = time.Second * 5
@@ -59,8 +61,8 @@ func (l *Listener) newHandler() (*http.ServeMux, error) {
 	mux.HandleFunc("GET /actor", l.handleActor)
 	mux.HandleFunc("GET /icon/{username}", l.handleIcon)
 	mux.HandleFunc("POST /inbox/{username}", l.handleInbox) // for compatibility with actors created by tootik<0.21.0
-	mux.HandleFunc("POST /inbox/nobody", l.handleSharedInbox)
-	mux.HandleFunc("POST /inbox", l.handleSharedInbox) // PieFed falls back https://$domain/inbox if it can't fetch instance actor
+	mux.HandleFunc("POST /inbox/actor", l.handleSharedInbox)
+	mux.HandleFunc("POST /inbox", l.handleSharedInbox)
 	mux.HandleFunc("GET /outbox/{username}", l.handleOutbox)
 	mux.HandleFunc("GET /post/{hash}", l.handlePost)
 	mux.HandleFunc("GET /create/{hash}", l.handleCreate)
@@ -73,7 +75,7 @@ func (l *Listener) newHandler() (*http.ServeMux, error) {
 		w.WriteHeader(http.StatusNotFound)
 	})
 
-	if err := addNodeInfo(mux, l.Domain, l.Config, l.DB); err != nil {
+	if err := l.addNodeInfo(mux); err != nil {
 		return nil, err
 	}
 
