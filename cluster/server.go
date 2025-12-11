@@ -44,17 +44,17 @@ import (
 )
 
 type Server struct {
-	Test       *testing.T
-	Domain     string
-	Config     *cfg.Config
-	DB         *sql.DB
-	Resolver   *fed.Resolver
-	NobodyKeys [2]httpsig.Key
-	Frontend   gemini.Listener
-	Backend    http.Handler
-	Inbox      *inbox.Inbox
-	Incoming   *inbox.Queue
-	Outgoing   *fed.Queue
+	Test         *testing.T
+	Domain       string
+	Config       *cfg.Config
+	DB           *sql.DB
+	Resolver     *fed.Resolver
+	AppActorKeys [2]httpsig.Key
+	Frontend     gemini.Listener
+	Backend      http.Handler
+	Inbox        *inbox.Inbox
+	Incoming     *inbox.Queue
+	Outgoing     *fed.Queue
 
 	listener, tlsListener net.Listener
 	socketPath            string
@@ -160,9 +160,9 @@ func NewServer(t *testing.T, domain string, client fed.Client) *Server {
 
 	resolver := fed.NewResolver(nil, domain, &cfg, client, db)
 
-	_, nobodyKeys, err := user.CreateNobody(t.Context(), domain, db, &cfg)
+	appActor, appActorKeys, err := user.CreateApplicationActor(t.Context(), domain, db, &cfg)
 	if err != nil {
-		t.Fatalf("Failed to run create the nobody user: %v", err)
+		t.Fatalf("Failed to create the application actor: %v", err)
 	}
 
 	localInbox := &inbox.Inbox{
@@ -182,11 +182,12 @@ func NewServer(t *testing.T, domain string, client fed.Client) *Server {
 	}
 
 	backend, err := (&fed.Listener{
-		Domain:    domain,
-		Config:    &cfg,
-		DB:        db,
-		ActorKeys: nobodyKeys,
-		Resolver:  resolver,
+		Domain:       domain,
+		Config:       &cfg,
+		DB:           db,
+		AppActor:     appActor,
+		AppActorKeys: appActorKeys,
+		Resolver:     resolver,
 	}).NewHandler()
 	if err != nil {
 		t.Fatalf("Failed to run create the federation handler: %v", err)
@@ -208,12 +209,12 @@ func NewServer(t *testing.T, domain string, client fed.Client) *Server {
 	tlsListener := tls.NewListener(listener, &serverCfg)
 
 	return &Server{
-		Test:       t,
-		Domain:     domain,
-		Config:     &cfg,
-		DB:         db,
-		Resolver:   resolver,
-		NobodyKeys: nobodyKeys,
+		Test:         t,
+		Domain:       domain,
+		Config:       &cfg,
+		DB:           db,
+		Resolver:     resolver,
+		AppActorKeys: appActorKeys,
 		Frontend: gemini.Listener{
 			Domain:  domain,
 			Config:  &cfg,
@@ -227,7 +228,7 @@ func NewServer(t *testing.T, domain string, client fed.Client) *Server {
 			DB:       db,
 			Inbox:    localInbox,
 			Resolver: resolver,
-			Keys:     nobodyKeys,
+			Keys:     appActorKeys,
 		},
 		Outgoing: &fed.Queue{
 			Domain:   domain,
