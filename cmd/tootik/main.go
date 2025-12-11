@@ -206,7 +206,7 @@ func main() {
 
 	switch cmd {
 	case "add-community":
-		_, _, err := user.Create(ctx, *domain, db, &cfg, flag.Arg(1), ap.Group, nil)
+		_, _, err := user.CreatePortable(ctx, *domain, db, &cfg, flag.Arg(1), ap.Group, nil)
 		if err != nil {
 			panic(err)
 		}
