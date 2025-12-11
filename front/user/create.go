@@ -215,6 +215,20 @@ func CreatePortableWithKey(
 		},
 	}
 
+	if actorType == ap.Application {
+		actor.Generator.Type = ap.Application
+		actor.Generator.Implements = []ap.Implement{
+			{
+				Name: "RFC-9421: HTTP Message Signatures",
+				Href: "https://datatracker.ietf.org/doc/html/rfc9421",
+			},
+			{
+				Name: "RFC-9421 signatures using the Ed25519 algorithm",
+				Href: "https://datatracker.ietf.org/doc/html/rfc9421#name-eddsa-using-curve-edwards25",
+			},
+		}
+	}
+
 	keys := [2]httpsig.Key{
 		{ID: actor.PublicKey.ID, PrivateKey: rsaPriv},
 		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519Priv},
@@ -258,9 +272,8 @@ func Create(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config, nam
 		},
 		Inbox:  fmt.Sprintf("https://%s/inbox/%s", domain, name),
 		Outbox: fmt.Sprintf("https://%s/outbox/%s", domain, name),
-		// use application actor's inbox as a shared inbox
 		Endpoints: map[string]string{
-			"sharedInbox": fmt.Sprintf("https://%s/inbox/actor", domain),
+			"sharedInbox": fmt.Sprintf("https://%s/inbox", domain),
 		},
 		Followers: fmt.Sprintf("https://%s/followers/%s", domain, name),
 		PublicKey: ap.PublicKey{
