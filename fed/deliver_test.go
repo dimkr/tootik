@@ -25,7 +25,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front/user"
 	"github.com/dimkr/tootik/migrations"
@@ -62,10 +61,10 @@ func TestDeliver_TwoUsersTwoPosts(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", nil)
 	assert.NoError(err)
 
-	bob, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "bob", ap.Person, nil)
+	bob, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "bob", nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -166,10 +165,10 @@ func TestDeliver_ForwardedPost(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", nil)
 	assert.NoError(err)
 
-	bob, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "bob", ap.Person, nil)
+	bob, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "bob", nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -265,10 +264,10 @@ func TestDeliver_OneFailed(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", nil)
 	assert.NoError(err)
 
-	bob, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "bob", ap.Person, nil)
+	bob, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "bob", nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -378,7 +377,7 @@ func TestDeliver_OneFailedRetry(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -471,7 +470,7 @@ func TestDeliver_OneInvalidURLRetry(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -564,7 +563,7 @@ func TestDeliver_MaxAttempts(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -658,7 +657,7 @@ func TestDeliver_SharedInbox(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -744,7 +743,7 @@ func TestDeliver_SharedInboxRetry(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -853,7 +852,7 @@ func TestDeliver_SharedInboxUnknownActor(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -941,7 +940,7 @@ func TestDeliver_SharedInboxSingleWorker(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -1027,7 +1026,7 @@ func TestDeliver_SameInbox(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -1113,10 +1112,10 @@ func TestDeliver_ToAndCCDuplicates(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", nil)
 	assert.NoError(err)
 
-	bob, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "bob", ap.Person, nil)
+	bob, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "bob", nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -1217,10 +1216,10 @@ func TestDeliver_PublicInTo(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", nil)
 	assert.NoError(err)
 
-	bob, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "bob", ap.Person, nil)
+	bob, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "bob", nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
@@ -1321,10 +1320,10 @@ func TestDeliver_AuthorInTo(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", ap.Person, nil)
+	alice, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "alice", nil)
 	assert.NoError(err)
 
-	bob, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "bob", ap.Person, nil)
+	bob, _, err := user.Create(context.Background(), "localhost.localdomain", db, &cfg, "bob", nil)
 	assert.NoError(err)
 
 	_, err = db.Exec(
