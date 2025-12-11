@@ -91,9 +91,9 @@ curl https://example.org/actor
 curl https://example.org/.well-known/nodeinfo
 ```
 
-The `sharedInbox` of non-portable actors points to `actor`'s inbox, to reduce the number of requests from servers that deduplicate outgoing requests by `sharedInbox` during wide delivery of posts.
-
 `actor` advertises support for RFC9421 and Ed25519 using [FEP-844e](https://codeberg.org/fediverse/fep/src/branch/main/fep/844e/fep-844e.md), to encourage other servers to use these capabilities when talking to tootik.
+
+Before v0.21.0, tootik used to call this actor `nobody` and set the `sharedInbox` of non-portable actors to `nobody`'s inbox, to reduce the number of requests from servers that deduplicate outgoing requests by `sharedInbox` during wide delivery of posts.
 
 ## Forwarding
 
