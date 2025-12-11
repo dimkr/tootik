@@ -94,17 +94,17 @@ func TestResolve_LocalActor(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	nobody, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	app, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, nobody.ID, 0)
+	actor, err := resolver.ResolveID(context.Background(), key, app.ID, 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
-	assert.Equal(nobody.ID, actor.ID)
-	assert.Equal(nobody.Inbox, actor.Inbox)
+	assert.Equal(app.ID, actor.ID)
+	assert.Equal(app.Inbox, actor.Inbox)
 }
 
 func TestResolve_LocalActorDoesNotExist(t *testing.T) {
@@ -130,7 +130,7 @@ func TestResolve_LocalActorDoesNotExist(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -211,7 +211,7 @@ func TestResolve_FederatedInstanceActor(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -247,7 +247,7 @@ func TestResolve_FederatedActorInvalidURL(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -279,7 +279,7 @@ func TestResolve_FederatedActorInvalidScheme(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -360,7 +360,7 @@ func TestResolve_FederatedActorFirstTime(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -396,7 +396,7 @@ func TestResolve_FederatedActorFirstTimeOffline(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -429,7 +429,7 @@ func TestResolve_FederatedActorFirstTimeCancelled(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -523,7 +523,7 @@ func TestResolve_FederatedActorFirstTimeInvalidWebFingerLink(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -608,7 +608,7 @@ func TestResolve_FederatedActorFirstTimeActorIDMismatch(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -690,7 +690,7 @@ func TestResolve_FederatedActorCached(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -756,7 +756,7 @@ func TestResolve_FederatedActorCachedInvalidActorHost(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -897,7 +897,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -1043,7 +1043,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomainFetchedRecently(t *testin
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -1137,7 +1137,7 @@ func TestResolve_FederatedActorCachedActorIDChanged(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -1258,7 +1258,7 @@ func TestResolve_FederatedActorCachedButBlocked(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -1356,7 +1356,7 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -1509,7 +1509,7 @@ func TestResolve_FederatedActorOldCacheWasSuspended(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -1659,7 +1659,7 @@ func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -1808,7 +1808,7 @@ func TestResolve_FederatedActorOldCacheUpdateFailed(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -1934,7 +1934,7 @@ func TestResolve_FederatedActorOldCacheStillNew(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -2074,7 +2074,7 @@ func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -2218,7 +2218,7 @@ func TestResolve_FederatedActorOldCacheWasNewNowUnknown(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -2358,7 +2358,7 @@ func TestResolve_FederatedActorOldCacheFetchedRecently(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -2452,7 +2452,7 @@ func TestResolve_FederatedActorOldCacheButOffline(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -2546,7 +2546,7 @@ func TestResolve_FederatedActorOldCacheExpiredDomain(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -2614,7 +2614,7 @@ func TestResolve_FederatedActorOldCacheInvalidID(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -2696,7 +2696,7 @@ func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -2801,7 +2801,7 @@ func TestResolve_FederatedActorOldCacheBigWebFingerResponse(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -2924,7 +2924,7 @@ func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -3051,7 +3051,7 @@ func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -3170,7 +3170,7 @@ func TestResolve_FederatedActorFirstTimeThroughKey(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -3299,7 +3299,7 @@ func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -3426,7 +3426,7 @@ func TestResolve_FederatedActorOldCacheWebFingerError(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -3533,7 +3533,7 @@ func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -3663,7 +3663,7 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	tx, err := db.BeginTx(context.Background(), nil)
@@ -3804,7 +3804,7 @@ func TestResolve_FederatedActorFirstTimeWrongID(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -3864,7 +3864,7 @@ func TestResolve_FederatedActorFirstTimeDeleted(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	tx, err := db.BeginTx(context.Background(), nil)
@@ -3968,7 +3968,7 @@ func TestResolve_FederatedActorFirstTimeTooYoung(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -4051,7 +4051,7 @@ func TestResolve_FederatedActorFirstTimeSuspended(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -4133,7 +4133,7 @@ func TestResolve_FederatedActorWrongIDCached(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -4224,7 +4224,7 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
@@ -4370,7 +4370,7 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 
 	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)

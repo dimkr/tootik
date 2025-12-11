@@ -58,5 +58,5 @@ func (l *Listener) handleUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (l *Listener) handleActor(w http.ResponseWriter, r *http.Request) {
-	l.doHandleUser(w, r, "nobody")
+	l.doHandleUser(w, r, "actor")
 }

@@ -87,9 +87,9 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 		username = fields[0]
 	}
 
-	// nobody is our equivalent of the Mastodon "instance actor"
+	// actor is our equivalent of the Mastodon "instance actor"
 	if username == l.Domain {
-		username = "nobody"
+		username = "actor"
 	}
 
 	slog.Info("Looking up resource", "resource", resource, "user", username)

@@ -193,7 +193,7 @@ func main() {
 		panic(err)
 	}
 
-	_, nobodyKeys, err := user.CreateNobody(ctx, *domain, db, &cfg)
+	appActor, appActorKeys, err := user.CreateApplicationActor(ctx, *domain, db, &cfg)
 	if err != nil {
 		panic(err)
 	}
@@ -206,7 +206,7 @@ func main() {
 
 	switch cmd {
 	case "add-community":
-		_, _, err := user.Create(ctx, *domain, db, &cfg, flag.Arg(1), ap.Group, nil)
+		_, _, err := user.CreatePortable(ctx, *domain, db, &cfg, flag.Arg(1), ap.Group, nil)
 		if err != nil {
 			panic(err)
 		}
@@ -316,16 +316,17 @@ func main() {
 		{
 			"HTTPS",
 			&fed.Listener{
-				Domain:    *domain,
-				Config:    &cfg,
-				DB:        db,
-				ActorKeys: nobodyKeys,
-				Resolver:  resolver,
-				Addr:      *addr,
-				Cert:      *cert,
-				Key:       *key,
-				Plain:     *plain,
-				BlockList: blockList,
+				Domain:       *domain,
+				Config:       &cfg,
+				DB:           db,
+				AppActor:     appActor,
+				AppActorKeys: appActorKeys,
+				Resolver:     resolver,
+				Addr:         *addr,
+				Cert:         *cert,
+				Key:          *key,
+				Plain:        *plain,
+				BlockList:    blockList,
 			},
 		},
 		{
@@ -362,7 +363,7 @@ func main() {
 				DB:       db,
 				Inbox:    localInbox,
 				Resolver: resolver,
-				Keys:     nobodyKeys,
+				Keys:     appActorKeys,
 			},
 		},
 		{
@@ -416,7 +417,7 @@ func main() {
 				DB:       db,
 				Inbox:    localInbox,
 				Resolver: resolver,
-				Keys:     nobodyKeys,
+				Keys:     appActorKeys,
 			},
 		},
 		{
@@ -427,7 +428,7 @@ func main() {
 				Config:   &cfg,
 				DB:       db,
 				Resolver: resolver,
-				Keys:     nobodyKeys,
+				Keys:     appActorKeys,
 				Inbox:    localInbox,
 			},
 		},
