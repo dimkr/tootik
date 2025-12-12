@@ -96,14 +96,14 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 		if h.Config.EnablePortableActorRegistration {
 			w.Status(10, "Create portable user? (y/n)")
 			return
-		} else if _, _, err := user.Create(r.Context, h.Domain, h.DB, h.Config, userName, ap.Person, clientCert); err != nil {
+		} else if _, _, err := user.Create(r.Context, h.Domain, h.DB, h.Config, userName, clientCert); err != nil {
 			r.Log.Warn("Failed to create new user", "name", userName, "error", err)
 			w.Status(40, "Failed to create new user")
 			return
 		}
 
 	case "n":
-		if _, _, err := user.Create(r.Context, h.Domain, h.DB, h.Config, userName, ap.Person, clientCert); err != nil {
+		if _, _, err := user.Create(r.Context, h.Domain, h.DB, h.Config, userName, clientCert); err != nil {
 			r.Log.Warn("Failed to create new user", "name", userName, "error", err)
 			w.Status(40, "Failed to create new user")
 			return
