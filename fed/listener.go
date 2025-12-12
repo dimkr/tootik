@@ -60,7 +60,7 @@ func (l *Listener) newHandler() (*http.ServeMux, error) {
 	mux.HandleFunc("GET /user/{username}", l.handleUser)
 	mux.HandleFunc("GET /actor", l.handleActor)
 	mux.HandleFunc("GET /icon/{username}", l.handleIcon)
-	mux.HandleFunc("POST /inbox/{username}", l.handleInbox)
+	mux.HandleFunc("POST /inbox/{username}", l.handleInbox) // for compatibility with actors created by tootik<0.21.0
 	mux.HandleFunc("POST /inbox/actor", l.handleSharedInbox)
 	mux.HandleFunc("POST /inbox", l.handleSharedInbox)
 	mux.HandleFunc("GET /outbox/{username}", l.handleOutbox)
