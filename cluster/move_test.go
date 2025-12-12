@@ -57,7 +57,7 @@ func TestCluster_MovedAccount(t *testing.T) {
 		Domain:   "b.localdomain",
 		DB:       cluster["b.localdomain"].DB,
 		Resolver: cluster["b.localdomain"].Resolver,
-		Keys:     cluster["b.localdomain"].NobodyKeys,
+		Keys:     cluster["b.localdomain"].AppActorKeys,
 		Inbox:    cluster["b.localdomain"].Inbox,
 	}
 	if err := mover.Run(t.Context()); err != nil {
