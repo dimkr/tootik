@@ -56,7 +56,7 @@ type followersDigest struct {
 	Inbox    ap.Inbox
 }
 
-var followersSyncRegex = regexp.MustCompile(`\b([^"=]+)="([^"]+)"`)
+var collectionSynchronizationHeaderRegex = regexp.MustCompile(`\b([^"=]+)="([^"]+)"`)
 
 func fetchFollowers(ctx context.Context, db *sql.DB, followed, host string) (ap.Audience, error) {
 	var followers ap.Audience
@@ -180,7 +180,7 @@ func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 
 func (l *Listener) saveFollowersDigest(ctx context.Context, sender *ap.Actor, header string) error {
 	var collection, digest, partial string
-	for _, m := range followersSyncRegex.FindAllStringSubmatch(header, 3) {
+	for _, m := range collectionSynchronizationHeaderRegex.FindAllStringSubmatch(header, 3) {
 		switch m[1] {
 		case "collectionId":
 			collection = m[2]
