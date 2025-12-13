@@ -434,8 +434,8 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 		return nil, cachedActor, fmt.Errorf("failed to send request to %s: %w", profile, err)
 	}
 
-	if req.URL.Host != host && !strings.HasSuffix(req.URL.Host, "."+host) {
-		return nil, cachedActor, fmt.Errorf("actor link host is %s: %w", req.URL.Host, ErrInvalidHost)
+	if req.Host != host && !strings.HasSuffix(req.Host, "."+host) {
+		return nil, cachedActor, fmt.Errorf("actor link host is %s: %w", req.Host, ErrInvalidHost)
 	}
 
 	if !data.IsIDValid(req.URL) {
@@ -487,15 +487,15 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 
 	if u, err := url.Parse(actor.Inbox); err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to parse inbox %s: %w", actor.Inbox, err)
-	} else if u.Host != req.URL.Host {
-		return nil, cachedActor, fmt.Errorf("inbox %s origin is not %s", actor.Inbox, req.URL.Host)
+	} else if u.Host != req.Host {
+		return nil, cachedActor, fmt.Errorf("inbox %s origin is not %s", actor.Inbox, req.Host)
 	}
 
 	if sharedInbox, ok := actor.Endpoints["sharedInbox"]; ok {
 		if u, err := url.Parse(sharedInbox); err != nil {
 			return nil, cachedActor, fmt.Errorf("failed to parse shared inbox %s: %w", sharedInbox, err)
-		} else if u.Host != req.URL.Host {
-			return nil, cachedActor, fmt.Errorf("shared inbox %s origin is not %s", sharedInbox, req.URL.Host)
+		} else if u.Host != req.Host {
+			return nil, cachedActor, fmt.Errorf("shared inbox %s origin is not %s", sharedInbox, req.Host)
 		}
 	}
 
