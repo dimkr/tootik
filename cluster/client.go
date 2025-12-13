@@ -54,10 +54,15 @@ func (f Client) Do(r *http.Request) (*http.Response, error) {
 		return nil, fmt.Errorf("unknown server: %s", r.URL.Host)
 	}
 
+	// empty fields that are normally empty in server side
+	clone := *r
+	clone.URL.Host = ""
+	clone.URL.Scheme = ""
+
 	w := responseWriter{
 		Headers: http.Header{},
 	}
-	dst.Backend.ServeHTTP(&w, r)
+	dst.Backend.ServeHTTP(&w, &clone)
 
 	return &http.Response{
 		StatusCode:    w.StatusCode,

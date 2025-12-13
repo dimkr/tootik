@@ -60,8 +60,19 @@ func buildSignatureBase(r *http.Request, params string, components []string) (st
 			b.WriteString(r.Method)
 
 		case "@target-uri":
+			clone := *r.URL
+
+			// in incoming requests, Host and Scheme are empty; see [http.Request] documentation
+			if clone.Host == "" {
+				clone.Host = r.Host
+			}
+
+			if clone.Scheme == "" {
+				clone.Scheme = "https"
+			}
+
 			b.WriteString(`"@target-uri": `)
-			b.WriteString(r.URL.String())
+			b.WriteString(clone.String())
 
 		case "@request-target":
 			b.WriteString(`"@request-target": `)
@@ -223,8 +234,8 @@ func rfc9421Extract(
 	maxAge time.Duration,
 	requiredComponents []string,
 ) (*Signature, error) {
-	if r.URL.Host != domain {
-		return nil, errors.New("wrong host: " + r.URL.Host)
+	if r.Host != domain {
+		return nil, errors.New("wrong host: " + r.Host)
 	}
 
 	inputMatch := signatureInputRegex.FindStringSubmatchIndex(input)
