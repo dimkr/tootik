@@ -95,7 +95,11 @@ func (l *Listener) handleApGatewayGetInbox(w http.ResponseWriter, r *http.Reques
 	}
 
 	var actor ap.Actor
-	if err := l.DB.QueryRowContext(r.Context(), `select json(actor) from persons where cid = ? and ed25519privkey is not null`, actorCID).Scan(&actor); errors.Is(err, sql.ErrNoRows) {
+	if err := l.DB.QueryRowContext(
+		r.Context(),
+		`select json(actor) from persons where cid = ? and ed25519privkey is not null`,
+		actorCID,
+	).Scan(&actor); errors.Is(err, sql.ErrNoRows) {
 		slog.Warn("Failed to fetch actor", "cid", actorCID, "error", err)
 		w.WriteHeader(http.StatusNotFound)
 		return
