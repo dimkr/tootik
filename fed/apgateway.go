@@ -27,6 +27,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/danger"
@@ -35,7 +36,7 @@ import (
 )
 
 var (
-	inboxRegex          = regexp.MustCompile(`^(did:key:z6Mk[a-km-zA-HJ-NP-Z1-9]+\/actor)\/inbox\?{0,1}.*`)
+	inboxRegex          = regexp.MustCompile(`^(did:key:z6Mk[a-km-zA-HJ-NP-Z1-9]+\/actor)\/inbox$`)
 	portableObjectRegex = regexp.MustCompile(`^did:key:z6Mk[a-km-zA-HJ-NP-Z1-9]+\/[^#?]+`)
 	followersRegex      = regexp.MustCompile(`^(did:key:z6Mk[a-km-zA-HJ-NP-Z1-9]+)\/actor\/followers$`)
 	followersSyncRegex  = regexp.MustCompile(`^(did:key:z6Mk[a-km-zA-HJ-NP-Z1-9]+)\/actor\/followers_synchronization$`)
@@ -77,6 +78,164 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 		{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
 		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)},
 	})
+}
+
+func (l *Listener) handleApGatewayGetInbox(w http.ResponseWriter, r *http.Request, actorCID string) {
+	_, sender, err := l.verifyRequest(r, nil, 0, l.AppActorKeys)
+	if err != nil {
+		slog.Warn("Failed to verify inbox request", "cid", actorCID, "error", err)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	if ap.Canonical(sender.ID) != actorCID {
+		slog.Warn("Denying inbox request", "cid", actorCID, "sender", sender.ID)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	var actor ap.Actor
+	if err := l.DB.QueryRowContext(r.Context(), `select json(actor) from persons where cid = ? and ed25519privkey is not null`, actorCID).Scan(&actor); errors.Is(err, sql.ErrNoRows) {
+		slog.Warn("Failed to fetch actor", "cid", actorCID, "error", err)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	} else if err != nil {
+		slog.Warn("Failed to fetch actor", "cid", actorCID, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if r.URL.RawQuery != "" {
+		until, err := strconv.ParseInt(r.URL.RawQuery, 10, 64)
+		if err != nil {
+			slog.Warn("Received an invalid timestamp", "actor", actor.ID, "until", r.URL.RawQuery)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		items := make([]json.RawMessage, l.Config.InboxPageSize)
+
+		rows, err := l.DB.QueryContext(
+			r.Context(),
+			`
+			select json(activity), inserted from history
+			where (public = 1 or path = substr($1, 8 + instr(substr($1, 9), '/'))) and inserted <= $2
+			order by inserted desc
+			limit $3
+			`,
+			actor.Inbox,
+			until,
+			l.Config.InboxPageSize,
+		)
+		if err != nil {
+			slog.Warn("Failed to fetch activities", "actor", actor.ID, "until", until, "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
+		count := 0
+		var earliest int64
+		for rows.Next() {
+			var inserted int64
+			if err := rows.Scan((*[]byte)(&items[count]), &inserted); err != nil {
+				slog.Warn("Failed to scan activity", "cid", actorCID, "until", until, "error", err)
+				continue
+			}
+
+			count++
+			earliest = inserted
+		}
+
+		if err := rows.Err(); err != nil {
+			slog.Warn("Failed to scan all activities", "actor", actor.ID, "until", until, "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if count == 0 {
+			slog.Warn("Fetched an empty page", "actor", actor.ID, "until", until)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		page := &ap.CollectionPage{
+			Context:      "https://www.w3.org/ns/activitystreams",
+			ID:           fmt.Sprintf("%s?%d", actor.Inbox, until),
+			Type:         ap.OrderedCollectionPage,
+			PartOf:       actor.Inbox,
+			OrderedItems: items[:count],
+		}
+
+		var next sql.NullInt64
+		if err := l.DB.QueryRowContext(
+			r.Context(),
+			`
+			select max(inserted) from history
+			where (public = 1 or path = substr($1, 8 + instr(substr($1, 9), '/'))) and inserted < $2
+			`,
+			actor.Inbox,
+			earliest,
+		).Scan(&next); err != nil {
+			slog.Warn("Failed to fetch next timestamp", "actor", actor.ID, "until", until, "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		} else if next.Valid {
+			page.Next = fmt.Sprintf("%s?%d", actor.Inbox, next.Int64)
+		}
+
+		j, err := json.Marshal(page)
+		if err != nil {
+			slog.Warn("Failed to marshal inbox collection page", "actor", actor.ID, "until", until, "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		slog.Info("Returning inbox collection page", "actor", actor.ID, "until", until)
+
+		w.Header().Set("Content-Type", `application/activity+json; charset=utf-8`)
+		w.Write(j)
+
+		return
+	}
+
+	var latest sql.NullInt64
+	var count int64
+	if err := l.DB.QueryRowContext(
+		r.Context(),
+		`
+		select max(inserted), count(*) from history
+		where public = 1 or path = substr($1, 8 + instr(substr($1, 9), '/'))
+		`,
+		actor.Inbox,
+	).Scan(&latest, &count); err != nil {
+		slog.Warn("Failed to count items", "actor", actor.ID, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	collection := &ap.Collection{
+		Context:    "https://www.w3.org/ns/activitystreams",
+		ID:         actor.Inbox,
+		Type:       ap.OrderedCollection,
+		TotalItems: &count,
+	}
+
+	if latest.Valid {
+		collection.First = fmt.Sprintf("%s?%d", actor.Inbox, latest.Int64)
+	}
+
+	j, err := json.Marshal(collection)
+	if err != nil {
+		slog.Warn("Failed to marshal inbox collection", "actor", actor.ID, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	slog.Info("Returning inbox collection", "actor", actor.ID)
+
+	w.Header().Set("Content-Type", `application/activity+json; charset=utf-8`)
+	w.Write(j)
 }
 
 func (l *Listener) fetchFollowersByHost(
@@ -162,7 +321,7 @@ func (l *Listener) handleApGatewayFollowers(
 		return
 	}
 
-	var items ap.Audience
+	items := ap.Audience{}
 
 	for rows.Next() {
 		var follower string
@@ -181,11 +340,11 @@ func (l *Listener) handleApGatewayFollowers(
 		return
 	}
 
-	collection, err := json.Marshal(map[string]any{
-		"@context":     "https://www.w3.org/ns/activitystreams",
-		"id":           collectionID,
-		"type":         "OrderedCollection",
-		"orderedItems": items,
+	collection, err := json.Marshal(&ap.Collection{
+		Context:      "https://www.w3.org/ns/activitystreams",
+		ID:           collectionID,
+		Type:         ap.OrderedCollection,
+		OrderedItems: items,
 	})
 	if err != nil {
 		slog.Warn("Failed to fetch followers", "did", did, "sender", sender.ID, "error", err)
@@ -209,6 +368,11 @@ func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
 
 	if m := followersRegex.FindStringSubmatch(resource); m != nil {
 		l.handleApGatewayFollowers(w, r, m[1], l.fetchSenderFollowers)
+		return
+	}
+
+	if m := inboxRegex.FindStringSubmatch(resource); m != nil {
+		l.handleApGatewayGetInbox(w, r, "ap://"+m[1])
 		return
 	}
 

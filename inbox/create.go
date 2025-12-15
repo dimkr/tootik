@@ -18,6 +18,7 @@ package inbox
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 
@@ -86,7 +87,16 @@ func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, post *ap.Object
 		return err
 	}
 
-	if err := inbox.ProcessActivity(ctx, tx, author, create, s, 1, false); err != nil {
+	if err := inbox.ProcessActivity(
+		ctx,
+		tx,
+		sql.NullString{},
+		author,
+		create,
+		s,
+		1,
+		false,
+	); err != nil {
 		return err
 	}
 

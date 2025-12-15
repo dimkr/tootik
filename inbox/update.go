@@ -93,7 +93,16 @@ func (inbox *Inbox) updateNote(ctx context.Context, actor *ap.Actor, key httpsig
 		}
 	}
 
-	if err := inbox.ProcessActivity(ctx, tx, actor, update, s, 1, false); err != nil {
+	if err := inbox.ProcessActivity(
+		ctx,
+		tx,
+		sql.NullString{},
+		actor,
+		update,
+		s,
+		1,
+		false,
+	); err != nil {
 		return err
 	}
 

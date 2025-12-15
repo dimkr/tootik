@@ -79,6 +79,10 @@ func (gc *GarbageCollector) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to trim feed: %w", err)
 	}
 
+	if _, err := gc.DB.ExecContext(ctx, `delete from history where inserted < ?`, now.Add(-gc.Config.HistoryTTL).UnixNano()); err != nil {
+		return fmt.Errorf("failed to trim history: %w", err)
+	}
+
 	if _, err := gc.DB.ExecContext(ctx, `delete from bookmarks where by not in (select id from persons)`); err != nil {
 		return fmt.Errorf("failed to remove bookmarks by deleted users: %w", err)
 	}

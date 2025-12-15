@@ -74,7 +74,16 @@ func (inbox *Inbox) accept(ctx context.Context, followed *ap.Actor, key httpsig.
 		return err
 	}
 
-	return inbox.ProcessActivity(ctx, tx, followed, accept, s, 1, false)
+	return inbox.ProcessActivity(
+		ctx,
+		tx,
+		sql.NullString{},
+		followed,
+		accept,
+		s,
+		1,
+		false,
+	)
 }
 
 // Accept queues an Accept activity for delivery.

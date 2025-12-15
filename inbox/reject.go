@@ -74,7 +74,16 @@ func (inbox *Inbox) reject(ctx context.Context, followed *ap.Actor, key httpsig.
 		return err
 	}
 
-	return inbox.ProcessActivity(ctx, tx, followed, reject, s, 1, false)
+	return inbox.ProcessActivity(
+		ctx,
+		tx,
+		sql.NullString{},
+		followed,
+		reject,
+		s,
+		1,
+		false,
+	)
 }
 
 // Reject queues a Reject activity for delivery.

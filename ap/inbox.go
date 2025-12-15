@@ -39,5 +39,5 @@ type Inbox interface {
 	UpdateActor(ctx context.Context, actor *Actor, key httpsig.Key) error
 	UpdateNote(ctx context.Context, actor *Actor, key httpsig.Key, note *Object) error
 	Unfollow(ctx context.Context, follower *Actor, key httpsig.Key, followed, followID string) error
-	ProcessActivity(ctx context.Context, tx *sql.Tx, sender *Actor, activity *Activity, rawActivity string, depth int, shared bool) error
+	ProcessActivity(ctx context.Context, tx *sql.Tx, path sql.NullString, sender *Actor, activity *Activity, rawActivity string, depth int, shared bool) error
 }

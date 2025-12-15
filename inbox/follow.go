@@ -18,6 +18,7 @@ package inbox
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"github.com/dimkr/tootik/ap"
@@ -78,7 +79,16 @@ func (inbox *Inbox) follow(ctx context.Context, follower *ap.Actor, key httpsig.
 		return err
 	}
 
-	if err := inbox.ProcessActivity(ctx, tx, follower, follow, s, 1, false); err != nil {
+	if err := inbox.ProcessActivity(
+		ctx,
+		tx,
+		sql.NullString{},
+		follower,
+		follow,
+		s,
+		1,
+		false,
+	); err != nil {
 		return err
 	}
 
