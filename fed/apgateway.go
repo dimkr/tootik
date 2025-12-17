@@ -35,41 +35,24 @@ import (
 	"github.com/dimkr/tootik/icon"
 )
 
-var (
-	inboxRegex          = regexp.MustCompile(`^(did:key:z6Mk[a-km-zA-HJ-NP-Z1-9]+\/actor)\/inbox$`)
-	portableObjectRegex = regexp.MustCompile(`^did:key:z6Mk[a-km-zA-HJ-NP-Z1-9]+\/[^#?]+`)
-	followersRegex      = regexp.MustCompile(`^(did:key:z6Mk[a-km-zA-HJ-NP-Z1-9]+)\/actor\/followers$`)
-	followersSyncRegex  = regexp.MustCompile(`^(did:key:z6Mk[a-km-zA-HJ-NP-Z1-9]+)\/actor\/followers_synchronization$`)
-	iconRegex           = regexp.MustCompile(`^(did:key:z6Mk[a-km-zA-HJ-NP-Z1-9]+\/actor)\/icon\.` + icon.FileNameExtension[1:])
-)
+var apGatewayPathRegex = regexp.MustCompile(`\/.well-known\/apgateway\/(did:key:z6Mk[a-km-zA-HJ-NP-Z1-9]+)(\/.+)`)
 
-func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
-	resource := r.PathValue("resource")
-
-	m := inboxRegex.FindStringSubmatch(resource)
-	if m == nil {
-		slog.Info("Invalid resource", "resource", resource)
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	receiver := "ap://" + m[1]
-
+func (l *Listener) handleApGatewayInboxPost(w http.ResponseWriter, r *http.Request, actorCID string) {
 	var actor ap.Actor
 	var rsaPrivKeyDer, ed25519PrivKey []byte
-	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519privkey from persons where cid = ? and ed25519privkey is not null`, receiver).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey); errors.Is(err, sql.ErrNoRows) {
-		slog.Debug("Receiving user does not exist", "receiver", receiver)
+	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519privkey from persons where cid = ? and ed25519privkey is not null`, actorCID).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey); errors.Is(err, sql.ErrNoRows) {
+		slog.Debug("Receiving user does not exist", "cid", actorCID)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
-		slog.Warn("Failed to check if receiving user exists", "receiver", receiver, "error", err)
+		slog.Warn("Failed to check if receiving user exists", "cid", actorCID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	rsaPrivKey, err := x509.ParsePKCS1PrivateKey(rsaPrivKeyDer)
 	if err != nil {
-		slog.Warn("Failed to parse RSA private key", "receiver", receiver, "error", err)
+		slog.Warn("Failed to parse RSA private key", "cid", actorCID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -80,7 +63,7 @@ func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (l *Listener) handleApGatewayGetInbox(w http.ResponseWriter, r *http.Request, actorCID string) {
+func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Request, actorCID string) {
 	_, sender, err := l.verifyRequest(r, nil, 0, l.AppActorKeys)
 	if err != nil {
 		slog.Warn("Failed to verify inbox request", "cid", actorCID, "error", err)
@@ -314,7 +297,7 @@ func (l *Listener) fetchSenderFollowers(
 	return true, sender, fmt.Sprintf("https://%s/.well-known/apgateway/%s/actor/followers", l.Domain, did), rows
 }
 
-func (l *Listener) handleApGatewayFollowers(
+func (l *Listener) doHandleApGatewayFollowers(
 	w http.ResponseWriter,
 	r *http.Request,
 	did string,
@@ -362,39 +345,16 @@ func (l *Listener) handleApGatewayFollowers(
 	w.Write(collection)
 }
 
-func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
-	resource := r.PathValue("resource")
+func (l *Listener) handleAPGatewayFollowersSync(w http.ResponseWriter, r *http.Request, did string) {
+	l.doHandleApGatewayFollowers(w, r, did, l.fetchFollowersByHost)
+}
 
-	if m := followersSyncRegex.FindStringSubmatch(resource); m != nil {
-		l.handleApGatewayFollowers(w, r, m[1], l.fetchFollowersByHost)
-		return
-	}
+func (l *Listener) handleAPGatewayFollowers(w http.ResponseWriter, r *http.Request, did string) {
+	l.doHandleApGatewayFollowers(w, r, did, l.fetchSenderFollowers)
+}
 
-	if m := followersRegex.FindStringSubmatch(resource); m != nil {
-		l.handleApGatewayFollowers(w, r, m[1], l.fetchSenderFollowers)
-		return
-	}
-
-	if m := inboxRegex.FindStringSubmatch(resource); m != nil {
-		l.handleApGatewayGetInbox(w, r, "ap://"+m[1])
-		return
-	}
-
-	if m := iconRegex.FindStringSubmatch(resource); m != nil {
-		l.doHandleIcon(w, r, "ap://"+m[1])
-		return
-	}
-
-	id := portableObjectRegex.FindString(resource)
-	if id == "" {
-		slog.Info("Invalid resource", "resource", resource)
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	id = "ap://" + id
-
-	slog.Info("Fetching object", "id", id)
+func (l *Listener) handleAPGatewayGetObject(w http.ResponseWriter, r *http.Request, cid string) {
+	slog.Info("Fetching object", "cid", cid)
 
 	var raw string
 	if err := l.DB.QueryRowContext(
@@ -415,18 +375,51 @@ func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
 		)
 		limit 1
 		`,
-		id,
+		cid,
 		ap.Public,
 	).Scan(&raw); errors.Is(err, sql.ErrNoRows) {
-		slog.Info("Notifying about missing object", "id", id)
+		slog.Info("Notifying about missing object", "cid", cid)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
-		slog.Warn("Failed to fetch object", "id", id, "error", err)
+		slog.Warn("Failed to fetch object", "cid", cid, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 	w.Write(danger.Bytes(raw))
+}
+
+func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
+	if m := apGatewayPathRegex.FindStringSubmatch(r.URL.Path); m != nil && m[2] == "/actor/inbox" {
+		l.handleApGatewayInboxPost(w, r, "ap://"+m[1]+"/actor")
+	} else {
+		w.WriteHeader(http.StatusNotFound)
+	}
+}
+
+func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
+	m := apGatewayPathRegex.FindStringSubmatch(r.URL.Path)
+	if m == nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	switch m[2] {
+	case "/actor/followers_synchronization":
+		l.handleAPGatewayFollowersSync(w, r, m[1])
+
+	case "/actor/followers":
+		l.handleAPGatewayFollowers(w, r, m[1])
+
+	case "/actor/icon" + icon.FileNameExtension:
+		l.doHandleIcon(w, r, "ap://"+m[1]+"/actor")
+
+	case "/actor/inbox":
+		l.handleApGatewayInboxGet(w, r, "ap://"+m[1]+"/actor")
+
+	default:
+		l.handleAPGatewayGetObject(w, r, "ap://"+m[1]+m[2])
+	}
 }
