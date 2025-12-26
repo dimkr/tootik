@@ -1002,9 +1002,11 @@ func TestCluster_InboxFetch(t *testing.T) {
 		FollowInput("📣 Anyone", "hello").
 		OK()
 
-	alice.
-		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(Line{Type: Quote, Text: "hi"})
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	cluster.Settle(t)
 
 	r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://a.localdomain/.well-known/apgateway/"+did+"/actor/inbox", nil)
 	if err != nil {
@@ -1027,7 +1029,9 @@ func TestCluster_InboxFetch(t *testing.T) {
 		t.Fatalf("Failed to sign HTTP request: %v", err)
 	}
 
-	var w responseWriter
+	w := responseWriter{
+		Headers: http.Header{},
+	}
 	cluster["a.localdomain"].Backend.ServeHTTP(&w, r)
 	if w.StatusCode != http.StatusOK {
 		t.Fatalf("Failed to fetch inbox: %d", w.StatusCode)
@@ -1036,5 +1040,41 @@ func TestCluster_InboxFetch(t *testing.T) {
 	var inbox ap.Collection
 	if err := json.NewDecoder(&w.Body).Decode(&inbox); err != nil {
 		t.Fatalf("Failed to decode inbox: %v", err)
+	}
+
+	r, err = http.NewRequestWithContext(t.Context(), http.MethodGet, inbox.First, nil)
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	if err := httpsig.SignRFC9421(
+		r,
+		nil,
+		httpsig.Key{
+			ID:         "https://a.localdomain/.well-known/apgateway/" + did + "/actor#ed25519-key",
+			PrivateKey: priv,
+		},
+		time.Now(),
+		time.Now().Add(time.Minute*5),
+		httpsig.RFC9421DigestSHA256,
+		"ed25519",
+		nil,
+	); err != nil {
+		t.Fatalf("Failed to sign HTTP request: %v", err)
+	}
+
+	w = responseWriter{
+		Headers: http.Header{},
+	}
+	cluster["a.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to fetch inbox page: %d", w.StatusCode)
+	}
+
+	var page struct {
+		OrderedItems []ap.Activity `json:"orderedItems"`
+	}
+	if err := json.NewDecoder(&w.Body).Decode(&page); err != nil {
+		t.Fatalf("Failed to decode inbox page: %v", err)
 	}
 }
