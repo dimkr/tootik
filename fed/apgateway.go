@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -31,28 +32,30 @@ import (
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/danger"
+	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/icon"
+	"github.com/dimkr/tootik/proof"
 )
 
 var apGatewayPathRegex = regexp.MustCompile(`\/.well-known\/apgateway\/(did:key:z6Mk[a-km-zA-HJ-NP-Z1-9]+)(\/.+)`)
 
-func (l *Listener) handleApGatewayInboxPost(w http.ResponseWriter, r *http.Request, actorCID string) {
+func (l *Listener) handleApGatewayInboxPost(w http.ResponseWriter, r *http.Request, did string) {
 	var actor ap.Actor
 	var rsaPrivKeyDer, ed25519PrivKey []byte
-	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519privkey from persons where cid = ? and ed25519privkey is not null`, actorCID).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey); errors.Is(err, sql.ErrNoRows) {
-		slog.Debug("Receiving user does not exist", "cid", actorCID)
+	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519privkey from persons where cid = 'ap://' || ? || '/actor' and ed25519privkey is not null`, did).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey); errors.Is(err, sql.ErrNoRows) {
+		slog.Debug("Receiving user does not exist", "did", did)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
-		slog.Warn("Failed to check if receiving user exists", "cid", actorCID, "error", err)
+		slog.Warn("Failed to check if receiving user exists", "did", did, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	rsaPrivKey, err := x509.ParsePKCS1PrivateKey(rsaPrivKeyDer)
 	if err != nil {
-		slog.Warn("Failed to parse RSA private key", "cid", actorCID, "error", err)
+		slog.Warn("Failed to parse RSA private key", "actor", actor.ID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -61,6 +64,85 @@ func (l *Listener) handleApGatewayInboxPost(w http.ResponseWriter, r *http.Reque
 		{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
 		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)},
 	})
+}
+
+func (l *Listener) handleApGatewayOutboxPost(w http.ResponseWriter, r *http.Request, did string) {
+	var rawActivity []byte
+	var err error
+	if r.ContentLength >= 0 {
+		rawActivity = make([]byte, r.ContentLength)
+		_, err = io.ReadFull(r.Body, rawActivity)
+	} else {
+		rawActivity, err = io.ReadAll(io.LimitReader(r.Body, l.Config.MaxRequestBodySize))
+	}
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	var activity ap.Activity
+	if err := json.Unmarshal(rawActivity, &activity); errors.Is(err, ap.ErrInvalidActivity) || errors.Is(err, ap.ErrUnsupportedActivity) {
+		slog.Warn("Failed to unmarshal activity", "body", danger.String(rawActivity), "error", err)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+		return
+	} else if err != nil {
+		slog.Warn("Failed to unmarshal activity", "body", danger.String(rawActivity), "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if err := l.validateActivity(&activity, did, 0); err != nil {
+		slog.Warn("Activity is invalid", "activity", activity.ID, "error", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if activity.Proof == (ap.Proof{}) {
+		slog.Warn("Activity has no proof", "activity", activity.ID)
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]any{"error": "proof is required"})
+		return
+	}
+
+	expectedPublicKey := did[len("did:key:"):]
+
+	if m := ap.KeyRegex.FindStringSubmatch(activity.Proof.VerificationMethod); m == nil || m[1] != expectedPublicKey {
+		slog.Warn("Could not find expected key in verification method", "activity", activity.ID, "method", activity.Proof.VerificationMethod)
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]any{"error": "invalid verificationMethod"})
+		return
+	}
+
+	publicKey, err := data.DecodeEd25519PublicKey(expectedPublicKey)
+	if err != nil {
+		slog.Warn("Failed to decode key to verify proof", "activity", activity.ID, "error", err)
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+		return
+	}
+
+	if err := proof.Verify(publicKey, activity.Proof, rawActivity); err != nil {
+		slog.Warn("Failed to verify proof", "activity", activity.ID, "error", err)
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+		return
+	}
+
+	if _, err = l.DB.ExecContext(
+		r.Context(),
+		`INSERT OR IGNORE INTO inbox (path, sender, activity, raw) VALUES (?, ?, JSONB(?), ?)`,
+		r.URL.Path,
+		activity.Actor,
+		rawActivity,
+		danger.String(rawActivity),
+	); err != nil {
+		slog.Error("Failed to insert activity", "activity", activity.ID, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusAccepted)
 }
 
 func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Request, actorCID string) {
@@ -392,11 +474,19 @@ func (l *Listener) handleAPGatewayGetObject(w http.ResponseWriter, r *http.Reque
 }
 
 func (l *Listener) handleAPGatewayPost(w http.ResponseWriter, r *http.Request) {
-	if m := apGatewayPathRegex.FindStringSubmatch(r.URL.Path); m != nil && m[2] == "/actor/inbox" {
-		l.handleApGatewayInboxPost(w, r, "ap://"+m[1]+"/actor")
-	} else {
-		w.WriteHeader(http.StatusNotFound)
+	if m := apGatewayPathRegex.FindStringSubmatch(r.URL.Path); m != nil {
+		switch m[2] {
+		case "/actor/inbox":
+			l.handleApGatewayInboxPost(w, r, m[1])
+			return
+
+		case "/actor/outbox":
+			l.handleApGatewayOutboxPost(w, r, m[1])
+			return
+		}
 	}
+
+	w.WriteHeader(http.StatusNotFound)
 }
 
 func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {

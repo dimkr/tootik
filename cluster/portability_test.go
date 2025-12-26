@@ -21,6 +21,7 @@ import (
 	"crypto/ed25519"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -220,7 +221,7 @@ func TestCluster_ForwardedLegacyReply(t *testing.T) {
 		Contains(Line{Type: Quote, Text: "hi"})
 }
 
-func TestCluster_ClientSideSigning(t *testing.T) {
+func TestCluster_ClientSideSigningInboxHappyFlow(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
 	defer cluster.Stop()
 
@@ -306,4 +307,734 @@ func TestCluster_ClientSideSigning(t *testing.T) {
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
 		Contains(Line{Type: Quote, Text: "hi"})
+}
+
+func TestCluster_ClientSideSigningOutboxHappyFlow(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
+
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+	registerPortable := "/users/register?" + data.EncodeEd25519PrivateKey(priv)
+
+	did := "did:key:" + data.EncodeEd25519PublicKey(pub)
+
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["c.localdomain"].Handle(carolKeypair, registerPortable).OK()
+
+	alice.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "c.localdomain").
+		OK()
+
+	carol.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "a.localdomain").
+		OK()
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	cluster.Settle(t)
+
+	actorID := "https://a.localdomain/.well-known/apgateway/" + did + "/actor"
+
+	to := ap.Audience{}
+	to.Add(ap.Public)
+
+	create := &ap.Activity{
+		Type:      ap.Create,
+		ID:        actorID + "/create/1",
+		Actor:     actorID,
+		To:        to,
+		CC:        to,
+		Published: ap.Time{Time: time.Now()},
+		Object: &ap.Object{
+			Type:         ap.Note,
+			ID:           actorID + "/note/1",
+			Content:      "hi",
+			AttributedTo: actorID,
+			To:           to,
+			CC:           to,
+		},
+	}
+
+	create.Proof, err = proof.Create(httpsig.Key{ID: actorID + "#ed25519-key", PrivateKey: priv}, create)
+	if err != nil {
+		t.Fatalf("Failed to generate proof: %v", err)
+	}
+
+	j, err := json.Marshal(create)
+	if err != nil {
+		t.Fatalf("Failed to marshal activity: %v", err)
+	}
+
+	r, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://c.localdomain/.well-known/apgateway/"+did+"/actor/outbox", bytes.NewReader(j))
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	var w responseWriter
+	cluster["c.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusAccepted {
+		t.Fatalf("Failed to process activity: %d", w.StatusCode)
+	}
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		NotContains(Line{Type: Quote, Text: "hi"})
+
+	cluster.Settle(t)
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Contains(Line{Type: Quote, Text: "hi"})
+}
+
+func TestCluster_ClientSideSigningOutboxWrongOutbox(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
+
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+	registerPortable := "/users/register?" + data.EncodeEd25519PrivateKey(priv)
+
+	did := "did:key:" + data.EncodeEd25519PublicKey(pub)
+
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["c.localdomain"].Handle(carolKeypair, registerPortable).OK()
+
+	alice.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "c.localdomain").
+		OK()
+
+	carol.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "a.localdomain").
+		OK()
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	cluster.Settle(t)
+
+	actorID := "https://a.localdomain/.well-known/apgateway/" + did + "/actor"
+
+	to := ap.Audience{}
+	to.Add(ap.Public)
+
+	create := &ap.Activity{
+		Type:      ap.Create,
+		ID:        actorID + "/create/1",
+		Actor:     actorID,
+		To:        to,
+		CC:        to,
+		Published: ap.Time{Time: time.Now()},
+		Object: &ap.Object{
+			Type:         ap.Note,
+			ID:           actorID + "/note/1",
+			Content:      "hi",
+			AttributedTo: actorID,
+			To:           to,
+			CC:           to,
+		},
+	}
+
+	create.Proof, err = proof.Create(httpsig.Key{ID: actorID + "#ed25519-key", PrivateKey: priv}, create)
+	if err != nil {
+		t.Fatalf("Failed to generate proof: %v", err)
+	}
+
+	j, err := json.Marshal(create)
+	if err != nil {
+		t.Fatalf("Failed to marshal activity: %v", err)
+	}
+
+	r, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://c.localdomain/.well-known/apgateway/did:key:z6MktUDwghnPi5JDt1j274ukswcfD9oeJmmCAhcyDgsEy79y/actor/outbox", bytes.NewReader(j))
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	var w responseWriter
+	cluster["c.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Failed to process activity: %d", w.StatusCode)
+	}
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		NotContains(Line{Type: Quote, Text: "hi"})
+
+	cluster.Settle(t)
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		NotContains(Line{Type: Quote, Text: "hi"})
+}
+
+func TestCluster_ClientSideSigningOutboxUnsupportedActivity(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
+
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+	registerPortable := "/users/register?" + data.EncodeEd25519PrivateKey(priv)
+
+	did := "did:key:" + data.EncodeEd25519PublicKey(pub)
+
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["c.localdomain"].Handle(carolKeypair, registerPortable).OK()
+
+	alice.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "c.localdomain").
+		OK()
+
+	carol.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "a.localdomain").
+		OK()
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	cluster.Settle(t)
+
+	actorID := "https://a.localdomain/.well-known/apgateway/" + did + "/actor"
+
+	to := ap.Audience{}
+	to.Add(ap.Public)
+
+	create := &ap.Activity{
+		Type:      ap.Add,
+		ID:        actorID + "/add/1",
+		Actor:     actorID,
+		To:        to,
+		CC:        to,
+		Published: ap.Time{Time: time.Now()},
+		Object:    1234,
+	}
+
+	create.Proof, err = proof.Create(httpsig.Key{ID: actorID + "#ed25519-key", PrivateKey: priv}, create)
+	if err != nil {
+		t.Fatalf("Failed to generate proof: %v", err)
+	}
+
+	j, err := json.Marshal(create)
+	if err != nil {
+		t.Fatalf("Failed to marshal activity: %v", err)
+	}
+
+	r, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://c.localdomain/.well-known/apgateway/"+did+"/actor/outbox", bytes.NewReader(j))
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	var w responseWriter
+	cluster["c.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Failed to process activity: %d", w.StatusCode)
+	}
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		NotContains(Line{Type: Quote, Text: "hi"})
+
+	cluster.Settle(t)
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		NotContains(Line{Type: Quote, Text: "hi"})
+}
+
+func TestCluster_ClientSideSigningOutboxNotActivity(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
+
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+	registerPortable := "/users/register?" + data.EncodeEd25519PrivateKey(priv)
+
+	did := "did:key:" + data.EncodeEd25519PublicKey(pub)
+
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["c.localdomain"].Handle(carolKeypair, registerPortable).OK()
+
+	alice.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "c.localdomain").
+		OK()
+
+	carol.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "a.localdomain").
+		OK()
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	cluster.Settle(t)
+
+	to := ap.Audience{}
+	to.Add(ap.Public)
+
+	r, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://c.localdomain/.well-known/apgateway/"+did+"/actor/outbox", strings.NewReader("123"))
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	var w responseWriter
+	cluster["c.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("Failed to process activity: %d", w.StatusCode)
+	}
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		NotContains(Line{Type: Quote, Text: "hi"})
+
+	cluster.Settle(t)
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		NotContains(Line{Type: Quote, Text: "hi"})
+}
+
+func TestCluster_ClientSideSigningOutboxInvalidActivity(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
+
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+	registerPortable := "/users/register?" + data.EncodeEd25519PrivateKey(priv)
+
+	did := "did:key:" + data.EncodeEd25519PublicKey(pub)
+
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["c.localdomain"].Handle(carolKeypair, registerPortable).OK()
+
+	alice.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "c.localdomain").
+		OK()
+
+	carol.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "a.localdomain").
+		OK()
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	cluster.Settle(t)
+
+	actorID := "https://a.localdomain/.well-known/apgateway/" + did + "/actor"
+
+	to := ap.Audience{}
+	to.Add(ap.Public)
+
+	create := &ap.Activity{
+		Type:      ap.Reject,
+		ID:        actorID + "/create/1",
+		Actor:     actorID,
+		To:        to,
+		CC:        to,
+		Published: ap.Time{Time: time.Now()},
+		Object: &ap.Object{
+			Type:         ap.Note,
+			ID:           actorID + "/note/1",
+			Content:      "hi",
+			AttributedTo: actorID,
+			To:           to,
+			CC:           to,
+		},
+	}
+
+	create.Proof, err = proof.Create(httpsig.Key{ID: actorID + "#ed25519-key", PrivateKey: priv}, create)
+	if err != nil {
+		t.Fatalf("Failed to generate proof: %v", err)
+	}
+
+	j, err := json.Marshal(create)
+	if err != nil {
+		t.Fatalf("Failed to marshal activity: %v", err)
+	}
+
+	r, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://c.localdomain/.well-known/apgateway/"+did+"/actor/outbox", bytes.NewReader(j))
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	var w responseWriter
+	cluster["c.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Failed to process activity: %d", w.StatusCode)
+	}
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		NotContains(Line{Type: Quote, Text: "hi"})
+
+	cluster.Settle(t)
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		NotContains(Line{Type: Quote, Text: "hi"})
+}
+
+func TestCluster_ClientSideSigningOutboxNoProof(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
+
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+	registerPortable := "/users/register?" + data.EncodeEd25519PrivateKey(priv)
+
+	did := "did:key:" + data.EncodeEd25519PublicKey(pub)
+
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["c.localdomain"].Handle(carolKeypair, registerPortable).OK()
+
+	alice.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "c.localdomain").
+		OK()
+
+	carol.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "a.localdomain").
+		OK()
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	cluster.Settle(t)
+
+	actorID := "https://a.localdomain/.well-known/apgateway/" + did + "/actor"
+
+	to := ap.Audience{}
+	to.Add(ap.Public)
+
+	create := &ap.Activity{
+		Type:      ap.Create,
+		ID:        actorID + "/create/1",
+		Actor:     actorID,
+		To:        to,
+		CC:        to,
+		Published: ap.Time{Time: time.Now()},
+		Object: &ap.Object{
+			Type:         ap.Note,
+			ID:           actorID + "/note/1",
+			Content:      "hi",
+			AttributedTo: actorID,
+			To:           to,
+			CC:           to,
+		},
+	}
+
+	j, err := json.Marshal(create)
+	if err != nil {
+		t.Fatalf("Failed to marshal activity: %v", err)
+	}
+
+	r, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://c.localdomain/.well-known/apgateway/"+did+"/actor/outbox", bytes.NewReader(j))
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	var w responseWriter
+	cluster["c.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusForbidden {
+		t.Fatalf("Failed to process activity: %d", w.StatusCode)
+	}
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		NotContains(Line{Type: Quote, Text: "hi"})
+
+	cluster.Settle(t)
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		NotContains(Line{Type: Quote, Text: "hi"})
+}
+
+func TestCluster_ClientSideSigningOutboxInvalidVerificationMethod(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
+
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+	registerPortable := "/users/register?" + data.EncodeEd25519PrivateKey(priv)
+
+	did := "did:key:" + data.EncodeEd25519PublicKey(pub)
+
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["c.localdomain"].Handle(carolKeypair, registerPortable).OK()
+
+	alice.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "c.localdomain").
+		OK()
+
+	carol.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "a.localdomain").
+		OK()
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	cluster.Settle(t)
+
+	actorID := "https://a.localdomain/.well-known/apgateway/" + did + "/actor"
+
+	to := ap.Audience{}
+	to.Add(ap.Public)
+
+	create := &ap.Activity{
+		Type:      ap.Create,
+		ID:        actorID + "/create/1",
+		Actor:     actorID,
+		To:        to,
+		CC:        to,
+		Published: ap.Time{Time: time.Now()},
+		Object: &ap.Object{
+			Type:         ap.Note,
+			ID:           actorID + "/note/1",
+			Content:      "hi",
+			AttributedTo: actorID,
+			To:           to,
+			CC:           to,
+		},
+	}
+
+	create.Proof, err = proof.Create(httpsig.Key{ID: actorID + "#ed25519-key", PrivateKey: priv}, create)
+	if err != nil {
+		t.Fatalf("Failed to generate proof: %v", err)
+	}
+
+	create.Proof.VerificationMethod = "abcd"
+
+	j, err := json.Marshal(create)
+	if err != nil {
+		t.Fatalf("Failed to marshal activity: %v", err)
+	}
+
+	r, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://c.localdomain/.well-known/apgateway/"+did+"/actor/outbox", bytes.NewReader(j))
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	var w responseWriter
+	cluster["c.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusForbidden {
+		t.Fatalf("Failed to process activity: %d", w.StatusCode)
+	}
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		NotContains(Line{Type: Quote, Text: "hi"})
+
+	cluster.Settle(t)
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		NotContains(Line{Type: Quote, Text: "hi"})
+}
+
+func TestCluster_ClientSideSigningOutboxInvalidProof(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
+
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+	registerPortable := "/users/register?" + data.EncodeEd25519PrivateKey(priv)
+
+	did := "did:key:" + data.EncodeEd25519PublicKey(pub)
+
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["c.localdomain"].Handle(carolKeypair, registerPortable).OK()
+
+	alice.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "c.localdomain").
+		OK()
+
+	carol.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "a.localdomain").
+		OK()
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	cluster.Settle(t)
+
+	actorID := "https://a.localdomain/.well-known/apgateway/" + did + "/actor"
+
+	to := ap.Audience{}
+	to.Add(ap.Public)
+
+	create := &ap.Activity{
+		Type:      ap.Create,
+		ID:        actorID + "/create/1",
+		Actor:     actorID,
+		To:        to,
+		CC:        to,
+		Published: ap.Time{Time: time.Now()},
+		Object: &ap.Object{
+			Type:         ap.Note,
+			ID:           actorID + "/note/1",
+			Content:      "hi",
+			AttributedTo: actorID,
+			To:           to,
+			CC:           to,
+		},
+	}
+
+	create.Proof, err = proof.Create(httpsig.Key{ID: actorID + "#ed25519-key", PrivateKey: priv}, create)
+	if err != nil {
+		t.Fatalf("Failed to generate proof: %v", err)
+	}
+
+	create.Proof.Created = time.Now().Add(time.Hour).UTC().Format(time.RFC3339)
+
+	j, err := json.Marshal(create)
+	if err != nil {
+		t.Fatalf("Failed to marshal activity: %v", err)
+	}
+
+	r, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://c.localdomain/.well-known/apgateway/"+did+"/actor/outbox", bytes.NewReader(j))
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	var w responseWriter
+	cluster["c.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusForbidden {
+		t.Fatalf("Failed to process activity: %d", w.StatusCode)
+	}
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		NotContains(Line{Type: Quote, Text: "hi"})
+
+	cluster.Settle(t)
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		NotContains(Line{Type: Quote, Text: "hi"})
+}
+
+func TestCluster_InboxFetch(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
+	defer cluster.Stop()
+
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+	registerPortable := "/users/register?" + data.EncodeEd25519PrivateKey(priv)
+
+	did := "did:key:" + data.EncodeEd25519PublicKey(pub)
+
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+
+	alice.
+		FollowInput("🔭 View profile", "bob@b.localdomain").
+		Follow("⚡ Follow bob").
+		OK()
+	cluster.Settle(t)
+
+	bob.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "hello").
+		OK()
+
+	alice.
+		FollowInput("🔭 View profile", "bob@b.localdomain").
+		Contains(Line{Type: Quote, Text: "hi"})
+
+	r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://a.localdomain/.well-known/apgateway/"+did+"/actor/inbox", nil)
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	if err := httpsig.SignRFC9421(
+		r,
+		nil,
+		httpsig.Key{
+			ID:         "https://a.localdomain/.well-known/apgateway/" + did + "/actor#ed25519-key",
+			PrivateKey: priv,
+		},
+		time.Now(),
+		time.Now().Add(time.Minute*5),
+		httpsig.RFC9421DigestSHA256,
+		"ed25519",
+		nil,
+	); err != nil {
+		t.Fatalf("Failed to sign HTTP request: %v", err)
+	}
+
+	var w responseWriter
+	cluster["a.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to fetch inbox: %d", w.StatusCode)
+	}
+
+	var inbox ap.Collection
+	if err := json.NewDecoder(&w.Body).Decode(&inbox); err != nil {
+		t.Fatalf("Failed to decode inbox: %v", err)
+	}
 }
