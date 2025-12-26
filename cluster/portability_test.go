@@ -976,7 +976,7 @@ func TestCluster_ClientSideSigningOutboxInvalidProof(t *testing.T) {
 		NotContains(Line{Type: Quote, Text: "hi"})
 }
 
-func TestCluster_InboxFetch(t *testing.T) {
+func TestCluster_InboxFetchHappyFlow(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
 	defer cluster.Stop()
 
@@ -1076,5 +1076,206 @@ func TestCluster_InboxFetch(t *testing.T) {
 	}
 	if err := json.NewDecoder(&w.Body).Decode(&page); err != nil {
 		t.Fatalf("Failed to decode inbox page: %v", err)
+	}
+}
+
+func TestCluster_InboxFetchInvalidSignature(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
+	defer cluster.Stop()
+
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+	registerPortable := "/users/register?" + data.EncodeEd25519PrivateKey(priv)
+
+	did := "did:key:" + data.EncodeEd25519PublicKey(pub)
+
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+
+	alice.
+		FollowInput("🔭 View profile", "bob@b.localdomain").
+		Follow("⚡ Follow bob").
+		OK()
+	cluster.Settle(t)
+
+	bob.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "hello").
+		OK()
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	cluster.Settle(t)
+
+	r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://a.localdomain/.well-known/apgateway/"+did+"/actor/inbox", nil)
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	var wrongPriv ed25519.PrivateKey
+	_, wrongPriv, err = ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+
+	if err := httpsig.SignRFC9421(
+		r,
+		nil,
+		httpsig.Key{
+			ID:         "https://a.localdomain/.well-known/apgateway/" + did + "/actor#ed25519-key",
+			PrivateKey: wrongPriv,
+		},
+		time.Now(),
+		time.Now().Add(time.Minute*5),
+		httpsig.RFC9421DigestSHA256,
+		"ed25519",
+		nil,
+	); err != nil {
+		t.Fatalf("Failed to sign HTTP request: %v", err)
+	}
+
+	w := responseWriter{
+		Headers: http.Header{},
+	}
+	cluster["a.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusNotFound {
+		t.Fatalf("Failed to fetch inbox: %d", w.StatusCode)
+	}
+}
+
+func TestCluster_InboxFetchNotOwner(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain")
+	defer cluster.Stop()
+
+	alicePub, alicePriv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+
+	aliceDID := "did:key:" + data.EncodeEd25519PublicKey(alicePub)
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, "/users/register?"+data.EncodeEd25519PrivateKey(alicePriv)).OK()
+
+	bobPub, bobPriv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+
+	bobDID := "did:key:" + data.EncodeEd25519PublicKey(bobPub)
+	bob := cluster["a.localdomain"].Handle(bobKeypair, "/users/register?"+data.EncodeEd25519PrivateKey(bobPriv)).OK()
+
+	alice.
+		FollowInput("🔭 View profile", "bob@a.localdomain").
+		Follow("⚡ Follow bob").
+		OK()
+	cluster.Settle(t)
+
+	bob.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "hello").
+		OK()
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	cluster.Settle(t)
+
+	r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://a.localdomain/.well-known/apgateway/"+aliceDID+"/actor/inbox", nil)
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	if err := httpsig.SignRFC9421(
+		r,
+		nil,
+		httpsig.Key{
+			ID:         "https://a.localdomain/.well-known/apgateway/" + bobDID + "/actor#ed25519-key",
+			PrivateKey: bobPriv,
+		},
+		time.Now(),
+		time.Now().Add(time.Minute*5),
+		httpsig.RFC9421DigestSHA256,
+		"ed25519",
+		nil,
+	); err != nil {
+		t.Fatalf("Failed to sign HTTP request: %v", err)
+	}
+
+	w := responseWriter{
+		Headers: http.Header{},
+	}
+	cluster["a.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusNotFound {
+		t.Fatalf("Failed to fetch inbox: %d", w.StatusCode)
+	}
+}
+
+func TestCluster_InboxFetchNotRegistered(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
+	defer cluster.Stop()
+
+	_, alicePriv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, "/users/register?"+data.EncodeEd25519PrivateKey(alicePriv)).OK()
+
+	bobPub, bobPriv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+
+	bobDID := "did:key:" + data.EncodeEd25519PublicKey(bobPub)
+	bob := cluster["b.localdomain"].Handle(bobKeypair, "/users/register?"+data.EncodeEd25519PrivateKey(bobPriv)).OK()
+
+	alice.
+		FollowInput("🔭 View profile", "bob@b.localdomain").
+		Follow("⚡ Follow bob").
+		OK()
+	cluster.Settle(t)
+
+	bob.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "hello").
+		OK()
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	cluster.Settle(t)
+
+	r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://a.localdomain/.well-known/apgateway/"+bobDID+"/actor/inbox", nil)
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	if err := httpsig.SignRFC9421(
+		r,
+		nil,
+		httpsig.Key{
+			ID:         "https://a.localdomain/.well-known/apgateway/" + bobDID + "/actor#ed25519-key",
+			PrivateKey: bobPriv,
+		},
+		time.Now(),
+		time.Now().Add(time.Minute*5),
+		httpsig.RFC9421DigestSHA256,
+		"ed25519",
+		nil,
+	); err != nil {
+		t.Fatalf("Failed to sign HTTP request: %v", err)
+	}
+
+	w := responseWriter{
+		Headers: http.Header{},
+	}
+	cluster["a.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusNotFound {
+		t.Fatalf("Failed to fetch inbox: %d", w.StatusCode)
 	}
 }

@@ -146,14 +146,11 @@ func (l *Listener) handleApGatewayOutboxPost(w http.ResponseWriter, r *http.Requ
 }
 
 func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Request, actorCID string) {
-	_, sender, err := l.verifyRequest(r, nil, 0, l.AppActorKeys)
-	if err != nil {
+	if _, sender, err := l.verifyRequest(r, nil, 0, l.AppActorKeys); err != nil {
 		slog.Warn("Failed to verify inbox request", "cid", actorCID, "error", err)
 		w.WriteHeader(http.StatusNotFound)
 		return
-	}
-
-	if ap.Canonical(sender.ID) != actorCID {
+	} else if ap.Canonical(sender.ID) != actorCID {
 		slog.Warn("Denying inbox request", "cid", actorCID, "sender", sender.ID)
 		w.WriteHeader(http.StatusNotFound)
 		return
