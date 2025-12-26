@@ -78,7 +78,6 @@ This page allows you to:
 * Manage client certificates associated with your account
 * Create up to {{.Config.MaxInvitationsPerUser}} invitations for new users
 * Enable automatic deletion of old posts; bookmarked posts are not deleted
-* Export your 200 most recent activities to a CSV file containing raw ActivityPub data
 
 > 📊 Status
 

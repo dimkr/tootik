@@ -304,6 +304,165 @@ func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Reques
 	w.Write(j)
 }
 
+func (l *Listener) handleApGatewayOutboxGet(w http.ResponseWriter, r *http.Request, actorCID string) {
+	if _, sender, err := l.verifyRequest(r, nil, 0, l.AppActorKeys); err != nil {
+		slog.Warn("Failed to verify outbox request", "cid", actorCID, "error", err)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	} else if ap.Canonical(sender.ID) != actorCID {
+		slog.Warn("Denying outbox request", "cid", actorCID, "sender", sender.ID)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	var actor ap.Actor
+	if err := l.DB.QueryRowContext(
+		r.Context(),
+		`select json(actor) from persons where cid = ? and ed25519privkey is not null`,
+		actorCID,
+	).Scan(&actor); errors.Is(err, sql.ErrNoRows) {
+		slog.Warn("Failed to fetch actor", "cid", actorCID, "error", err)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	} else if err != nil {
+		slog.Warn("Failed to fetch actor", "cid", actorCID, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if r.URL.RawQuery != "" {
+		until, err := strconv.ParseInt(r.URL.RawQuery, 10, 64)
+		if err != nil {
+			slog.Warn("Received an invalid timestamp", "actor", actor.ID, "until", r.URL.RawQuery)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		items := make([]json.RawMessage, l.Config.OutboxPageSize)
+
+		rows, err := l.DB.QueryContext(
+			r.Context(),
+			`
+			select json(activity), inserted from outbox
+			where activity->>'$.actor' in (select id from persons where cid = ?) and inserted <= $2
+			order by inserted desc
+			limit $3
+			`,
+			actorCID,
+			until,
+			l.Config.OutboxPageSize,
+		)
+		if err != nil {
+			slog.Warn("Failed to fetch activities", "actor", actor.ID, "until", until, "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
+		count := 0
+		var earliest int64
+		for rows.Next() {
+			var inserted int64
+			if err := rows.Scan((*[]byte)(&items[count]), &inserted); err != nil {
+				slog.Warn("Failed to scan activity", "cid", actorCID, "until", until, "error", err)
+				continue
+			}
+
+			count++
+			earliest = inserted
+		}
+
+		if err := rows.Err(); err != nil {
+			slog.Warn("Failed to scan all activities", "actor", actor.ID, "until", until, "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if count == 0 {
+			slog.Warn("Fetched an empty page", "actor", actor.ID, "until", until)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		page := &ap.CollectionPage{
+			Context:      "https://www.w3.org/ns/activitystreams",
+			ID:           fmt.Sprintf("%s?%d", actor.Outbox, until),
+			Type:         ap.OrderedCollectionPage,
+			PartOf:       actor.Outbox,
+			OrderedItems: items[:count],
+		}
+
+		var next sql.NullInt64
+		if err := l.DB.QueryRowContext(
+			r.Context(),
+			`
+			select max(inserted) from outbox
+			where activity->>'$.actor' in (select id from persons where cid = ?) and inserted < $2
+			`,
+			actorCID,
+			earliest,
+		).Scan(&next); err != nil {
+			slog.Warn("Failed to fetch next timestamp", "actor", actor.ID, "until", until, "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		} else if next.Valid {
+			page.Next = fmt.Sprintf("%s?%d", actor.Outbox, next.Int64)
+		}
+
+		j, err := json.Marshal(page)
+		if err != nil {
+			slog.Warn("Failed to marshal outbox collection page", "actor", actor.ID, "until", until, "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		slog.Info("Returning outbox collection page", "actor", actor.ID, "until", until)
+
+		w.Header().Set("Content-Type", `application/activity+json; charset=utf-8`)
+		w.Write(j)
+
+		return
+	}
+
+	var latest sql.NullInt64
+	var count int64
+	if err := l.DB.QueryRowContext(
+		r.Context(),
+		`
+		select max(inserted), count(*) from outbox
+		where activity->>'$.actor' in (select id from persons where cid = ?)
+		`,
+		actorCID,
+	).Scan(&latest, &count); err != nil {
+		slog.Warn("Failed to count items", "actor", actor.ID, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	collection := &ap.Collection{
+		Context:    "https://www.w3.org/ns/activitystreams",
+		ID:         actor.Outbox,
+		Type:       ap.OrderedCollection,
+		TotalItems: &count,
+	}
+
+	if latest.Valid {
+		collection.First = fmt.Sprintf("%s?%d", actor.Outbox, latest.Int64)
+	}
+
+	j, err := json.Marshal(collection)
+	if err != nil {
+		slog.Warn("Failed to marshal outbox collection", "actor", actor.ID, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	slog.Info("Returning outbox collection", "actor", actor.ID)
+
+	w.Header().Set("Content-Type", `application/activity+json; charset=utf-8`)
+	w.Write(j)
+}
+
 func (l *Listener) fetchFollowersByHost(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -505,6 +664,9 @@ func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
 
 	case "/actor/inbox":
 		l.handleApGatewayInboxGet(w, r, "ap://"+m[1]+"/actor")
+
+	case "/actor/outbox":
+		l.handleApGatewayOutboxGet(w, r, "ap://"+m[1]+"/actor")
 
 	default:
 		l.handleAPGatewayGetObject(w, r, "ap://"+m[1]+m[2])

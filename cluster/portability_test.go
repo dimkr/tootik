@@ -1279,3 +1279,133 @@ func TestCluster_InboxFetchNotRegistered(t *testing.T) {
 		t.Fatalf("Failed to fetch inbox: %d", w.StatusCode)
 	}
 }
+
+func TestCluster_OutboxImport(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
+	defer cluster.Stop()
+
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+	registerPortable := "/users/register?" + data.EncodeEd25519PrivateKey(priv)
+
+	did := "did:key:" + data.EncodeEd25519PublicKey(pub)
+
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
+	bob := cluster["b.localdomain"].Handle(bobKeypair, registerPortable).OK()
+	carol := cluster["a.localdomain"].Register(carolKeypair).OK()
+
+	alice.
+		FollowInput("🔭 View profile", "carol@a.localdomain").
+		Follow("⚡ Follow carol").
+		OK()
+	cluster.Settle(t)
+
+	alice.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "hello").
+		OK()
+	carol.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "hi").
+		OK()
+	cluster.Settle(t)
+
+	alice.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Contains(Line{Type: Quote, Text: "hello"})
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		NotContains(Line{Type: Quote, Text: "hello"})
+
+	r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://a.localdomain/.well-known/apgateway/"+did+"/actor/outbox", nil)
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	if err := httpsig.SignRFC9421(
+		r,
+		nil,
+		httpsig.Key{
+			ID:         "https://a.localdomain/.well-known/apgateway/" + did + "/actor#ed25519-key",
+			PrivateKey: priv,
+		},
+		time.Now(),
+		time.Now().Add(time.Minute*5),
+		httpsig.RFC9421DigestSHA256,
+		"ed25519",
+		nil,
+	); err != nil {
+		t.Fatalf("Failed to sign HTTP request: %v", err)
+	}
+
+	w := responseWriter{
+		Headers: http.Header{},
+	}
+	cluster["a.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to fetch inbox: %d", w.StatusCode)
+	}
+
+	var inbox ap.Collection
+	if err := json.NewDecoder(&w.Body).Decode(&inbox); err != nil {
+		t.Fatalf("Failed to decode inbox: %v", err)
+	}
+
+	r, err = http.NewRequestWithContext(t.Context(), http.MethodGet, inbox.First, nil)
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	if err := httpsig.SignRFC9421(
+		r,
+		nil,
+		httpsig.Key{
+			ID:         "https://a.localdomain/.well-known/apgateway/" + did + "/actor#ed25519-key",
+			PrivateKey: priv,
+		},
+		time.Now(),
+		time.Now().Add(time.Minute*5),
+		httpsig.RFC9421DigestSHA256,
+		"ed25519",
+		nil,
+	); err != nil {
+		t.Fatalf("Failed to sign HTTP request: %v", err)
+	}
+
+	w = responseWriter{
+		Headers: http.Header{},
+	}
+	cluster["a.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to fetch inbox page: %d", w.StatusCode)
+	}
+
+	var page struct {
+		OrderedItems []json.RawMessage `json:"orderedItems"`
+	}
+	if err := json.NewDecoder(&w.Body).Decode(&page); err != nil {
+		t.Fatalf("Failed to decode inbox page: %v", err)
+	}
+
+	for _, item := range page.OrderedItems {
+		r, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://b.localdomain/.well-known/apgateway/"+did+"/actor/outbox", bytes.NewReader([]byte(item)))
+		if err != nil {
+			t.Fatalf("Failed to create HTTP request: %v", err)
+		}
+
+		var w responseWriter
+		cluster["b.localdomain"].Backend.ServeHTTP(&w, r)
+		if w.StatusCode != http.StatusAccepted {
+			t.Fatalf("Failed to import activity: %d", w.StatusCode)
+		}
+	}
+
+	cluster.Settle(t)
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Contains(Line{Type: Quote, Text: "hello"})
+}

@@ -251,17 +251,6 @@ tootik forwards activites by a portable actor to all actors that share the same 
 
 When tootik forwards activities, it assumes that other servers use the same URL format: for example, if the `inbox` property of `alice@a.localdomain` is `https://a.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor/inbox` and it forwards an activity to `bob@b.localdomain`, it sends a `POST` request to `https://b.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor/inbox`.
 
-tootik's activities export feature exports activities by all actors that share the same canonical ID as the user. The exported activities carry integrity proofs and tootik doesn't require a valid HTTP signature, therefore they can be "imported" into a tootik server by sending them to `inbox`:
-
-```python
-import csv
-import requests
-
-with open('export.csv') as f:
-    for r in csv.DictReader(f):
-        requests.post("https://b.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor/inbox", data=r["Activity"].encode('utf-8'))
-```
-
 ## Limitations
 
 * tootik does not support `ap://` identifiers, location hints and delivery to `outbox`.

@@ -134,7 +134,8 @@ type Config struct {
 	DisableIntegrityProofs bool
 	MaxGateways            int
 
-	InboxPageSize int
+	InboxPageSize  int
+	OutboxPageSize int
 }
 
 var defaultMaxInvitationsPerUser = 5
@@ -446,5 +447,9 @@ func (c *Config) FillDefaults() {
 
 	if c.InboxPageSize <= 0 {
 		c.InboxPageSize = 100
+	}
+
+	if c.OutboxPageSize <= 0 {
+		c.OutboxPageSize = 100
 	}
 }
