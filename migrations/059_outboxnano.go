@@ -10,7 +10,7 @@ func outboxnano(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `INSERT INTO noutbox(activity, inserted, attempts, last, sender) SELECT activity, inserted*1000000000, attempts, last, sent, sender FROM outbox`); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO noutbox(activity, inserted, attempts, last, sent, sender) SELECT activity, inserted*1000000000, attempts, last, sent, sender FROM outbox`); err != nil {
 		return err
 	}
 
