@@ -139,7 +139,7 @@ Received `Collection-Synchronization` headers are saved in the tootik database a
 
 tootik exposes instance metadata like its version number, through NodeInfo 2.0. This metadata is collected by fediverse statistics sites like [FediDB](https://fedidb.org/).
 
-By default, tootik returns 0 in user and post counters unless `FillNodeInfoUsage` is changed to `true`.
+By default, tootik omits user and post counters unless `FillNodeInfoUsage` is changed to `true`.
 
 # Data Portability
 
