@@ -44,8 +44,7 @@ func (l *Listener) addNodeInfo20Stub(mux *http.ServeMux) error {
 			"inbound":  []any{},
 		},
 		"usage": map[string]any{
-			"users":      map[string]any{},
-			"localPosts": 0,
+			"users": map[string]any{},
 		},
 		"openRegistrations": !l.Config.RequireInvitation,
 		"metadata":          map[string]any{},
