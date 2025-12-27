@@ -64,7 +64,7 @@ func (h *Handler) getWeeklyFailedDeliveriesGraph(r *Request) string {
 	keys := make([]string, 7)
 	values := make([]int64, 7)
 	now := time.Now()
-	return h.getGraph(r, keys, values, `select strftime('%Y-%m-%d %H:%M', datetime(day*$1, 'unixepoch')), count(*) from (select inserted/$1 as day from outbox where sent = 0 and inserted>$2 and inserted<$3) group by day order by day`, day, now.Add(-day).UnixNano(), now.Truncate(time.Hour*24))
+	return h.getGraph(r, keys, values, `select strftime('%Y-%m-%d %H:%M', datetime(day*$1, 'unixepoch')), count(*) from (select inserted/$1 as day from outbox where sent = 0 and inserted>$2 and inserted<$3) group by day order by day`, day, now.Add(-day).UnixNano(), now.Truncate(time.Hour*24).UnixNano())
 }
 
 func (h *Handler) getUsersGraph(r *Request) string {
