@@ -21,6 +21,7 @@ import (
 	"crypto/ed25519"
 	"encoding/json"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -1408,4 +1409,252 @@ func TestCluster_OutboxImport(t *testing.T) {
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
 		Contains(Line{Type: Quote, Text: "hello"})
+}
+
+func TestCluster_ClientSideSigningFollowersHappyFlow(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
+
+	alicePub, alicePriv, err := ed25519.GenerateKey(nil)
+	aliceDID := "did:key:" + data.EncodeEd25519PublicKey(alicePub)
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, "/users/register?"+data.EncodeEd25519PrivateKey(alicePriv)).OK()
+
+	bobPub, bobPriv, err := ed25519.GenerateKey(nil)
+	bobDID := "did:key:" + data.EncodeEd25519PublicKey(bobPub)
+	bob := cluster["b.localdomain"].Handle(bobKeypair, "/users/register?"+data.EncodeEd25519PrivateKey(bobPriv)).OK()
+
+	carolPub, carolPriv, err := ed25519.GenerateKey(nil)
+	carolDID := "did:key:" + data.EncodeEd25519PublicKey(carolPub)
+	carol := cluster["c.localdomain"].Handle(carolKeypair, "/users/register?"+data.EncodeEd25519PrivateKey(carolPriv)).OK()
+
+	r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://a.localdomain/.well-known/apgateway/"+aliceDID+"/actor/followers", nil)
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	if err := httpsig.SignRFC9421(
+		r,
+		nil,
+		httpsig.Key{
+			ID:         "https://a.localdomain/.well-known/apgateway/" + aliceDID + "/actor#ed25519-key",
+			PrivateKey: alicePriv,
+		},
+		time.Now(),
+		time.Now().Add(time.Minute*5),
+		httpsig.RFC9421DigestSHA256,
+		"ed25519",
+		nil,
+	); err != nil {
+		t.Fatalf("Failed to sign HTTP request: %v", err)
+	}
+
+	w := responseWriter{
+		Headers: http.Header{},
+	}
+	cluster["a.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to process activity: %d", w.StatusCode)
+	}
+
+	var followers struct {
+		OrderedItems []string `json:"orderedItems"`
+	}
+	if err := json.NewDecoder(&w.Body).Decode(&followers); err != nil {
+		t.Fatalf("Failed to decode followers: %v", err)
+	}
+
+	if followers.OrderedItems == nil || len(followers.OrderedItems) > 0 {
+		t.Fatalf("Unexpected list of followers: %v", followers.OrderedItems)
+	}
+
+	alice.
+		Follow("🐕 Followers").
+		Follow("🔒 Approve new follow requests manually").
+		OK()
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice (requires approval)").
+		OK()
+	cluster.Settle(t)
+
+	alice.
+		Follow("🐕 Followers").
+		Follow("🟢 Accept")
+	cluster.Settle(t)
+
+	carol.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice (requires approval)").
+		OK()
+	cluster.Settle(t)
+
+	w = responseWriter{
+		Headers: http.Header{},
+	}
+	cluster["a.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to process activity: %d", w.StatusCode)
+	}
+
+	if err := json.NewDecoder(&w.Body).Decode(&followers); err != nil {
+		t.Fatalf("Failed to decode followers: %v", err)
+	}
+
+	if !slices.Equal(
+		followers.OrderedItems,
+		[]string{
+			"https://b.localdomain/.well-known/apgateway/" + bobDID + "/actor",
+		},
+	) {
+		t.Fatalf("Unexpected list of followers: %v", followers.OrderedItems)
+	}
+
+	alice.
+		Follow("🐕 Followers").
+		Follow("🟢 Accept")
+	cluster.Settle(t)
+
+	w = responseWriter{
+		Headers: http.Header{},
+	}
+	cluster["a.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to process activity: %d", w.StatusCode)
+	}
+
+	if err := json.NewDecoder(&w.Body).Decode(&followers); err != nil {
+		t.Fatalf("Failed to decode followers: %v", err)
+	}
+
+	if !slices.Equal(
+		followers.OrderedItems,
+		[]string{
+			"https://b.localdomain/.well-known/apgateway/" + bobDID + "/actor",
+			"https://c.localdomain/.well-known/apgateway/" + carolDID + "/actor",
+		},
+	) {
+		t.Fatalf("Unexpected list of followers: %v", followers.OrderedItems)
+	}
+
+	carol.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("🔌 Unfollow alice").
+		OK()
+	cluster.Settle(t)
+
+	w = responseWriter{
+		Headers: http.Header{},
+	}
+	cluster["a.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to process activity: %d", w.StatusCode)
+	}
+
+	if err := json.NewDecoder(&w.Body).Decode(&followers); err != nil {
+		t.Fatalf("Failed to decode followers: %v", err)
+	}
+
+	if !slices.Equal(
+		followers.OrderedItems,
+		[]string{
+			"https://b.localdomain/.well-known/apgateway/" + bobDID + "/actor",
+		},
+	) {
+		t.Fatalf("Unexpected list of followers: %v", followers.OrderedItems)
+	}
+}
+
+func TestCluster_ClientSideSigningFollowersMissingCollection(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
+	defer cluster.Stop()
+
+	_, alicePriv, err := ed25519.GenerateKey(nil)
+	cluster["a.localdomain"].Handle(aliceKeypair, "/users/register?"+data.EncodeEd25519PrivateKey(alicePriv)).OK()
+
+	bobPub, bobPriv, err := ed25519.GenerateKey(nil)
+	bobDID := "did:key:" + data.EncodeEd25519PublicKey(bobPub)
+	cluster["b.localdomain"].Handle(bobKeypair, "/users/register?"+data.EncodeEd25519PrivateKey(bobPriv)).OK()
+
+	r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://a.localdomain/.well-known/apgateway/"+bobDID+"/actor/followers", nil)
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	if err := httpsig.SignRFC9421(
+		r,
+		nil,
+		httpsig.Key{
+			ID:         "https://b.localdomain/.well-known/apgateway/" + bobDID + "/actor#ed25519-key",
+			PrivateKey: bobPriv,
+		},
+		time.Now(),
+		time.Now().Add(time.Minute*5),
+		httpsig.RFC9421DigestSHA256,
+		"ed25519",
+		nil,
+	); err != nil {
+		t.Fatalf("Failed to sign HTTP request: %v", err)
+	}
+
+	w := responseWriter{
+		Headers: http.Header{},
+	}
+	cluster["a.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to process activity: %d", w.StatusCode)
+	}
+
+	var followers struct {
+		OrderedItems []string `json:"orderedItems"`
+	}
+	if err := json.NewDecoder(&w.Body).Decode(&followers); err != nil {
+		t.Fatalf("Failed to decode followers: %v", err)
+	}
+
+	if followers.OrderedItems == nil || len(followers.OrderedItems) > 0 {
+		t.Fatalf("Unexpected list of followers: %v", followers.OrderedItems)
+	}
+}
+
+func TestCluster_ClientSideSigningFollowersWrongCollection(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
+	defer cluster.Stop()
+
+	alicePub, alicePriv, err := ed25519.GenerateKey(nil)
+	aliceDID := "did:key:" + data.EncodeEd25519PublicKey(alicePub)
+	cluster["a.localdomain"].Handle(aliceKeypair, "/users/register?"+data.EncodeEd25519PrivateKey(alicePriv)).OK()
+
+	bobPub, bobPriv, err := ed25519.GenerateKey(nil)
+	bobDID := "did:key:" + data.EncodeEd25519PublicKey(bobPub)
+	cluster["b.localdomain"].Handle(bobKeypair, "/users/register?"+data.EncodeEd25519PrivateKey(bobPriv)).OK()
+
+	r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://a.localdomain/.well-known/apgateway/"+aliceDID+"/actor/followers", nil)
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	if err := httpsig.SignRFC9421(
+		r,
+		nil,
+		httpsig.Key{
+			ID:         "https://b.localdomain/.well-known/apgateway/" + bobDID + "/actor#ed25519-key",
+			PrivateKey: bobPriv,
+		},
+		time.Now(),
+		time.Now().Add(time.Minute*5),
+		httpsig.RFC9421DigestSHA256,
+		"ed25519",
+		nil,
+	); err != nil {
+		t.Fatalf("Failed to sign HTTP request: %v", err)
+	}
+
+	w := responseWriter{
+		Headers: http.Header{},
+	}
+	cluster["a.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusNotFound {
+		t.Fatalf("Failed to process activity: %d", w.StatusCode)
+	}
 }
