@@ -67,7 +67,7 @@ tootik sets the `inbox`, `outbox` and `followers` attributes on users.
 
 `inbox` returns activities delivered to the user's `inbox` and public activities delivered to any other `inbox`.
 
-`outbox` returns activities by all actors that share the same DID as the user.
+`outbox` returns activities by the user and other actors that share the same DID (see [Data Portability](#data-portability)).
 
 `followers` returns the user's list of followers.
 
