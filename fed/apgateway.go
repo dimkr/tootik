@@ -145,13 +145,13 @@ func (l *Listener) handleApGatewayOutboxPost(w http.ResponseWriter, r *http.Requ
 	w.WriteHeader(http.StatusAccepted)
 }
 
-func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Request, actorCID string) {
-	if _, sender, err := l.verifyRequest(r, nil, 0, l.AppActorKeys); err != nil {
-		slog.Warn("Failed to verify inbox request", "cid", actorCID, "error", err)
+func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Request, did string) {
+	if _, key, err := l.verifyRequestUsingKeyID(r, nil); err != nil {
+		slog.Warn("Failed to verify inbox request", "did", did, "error", err)
 		w.WriteHeader(http.StatusNotFound)
 		return
-	} else if ap.Canonical(sender.ID) != actorCID {
-		slog.Warn("Denying inbox request", "cid", actorCID, "sender", sender.ID)
+	} else if key != did[len("did:key:"):] {
+		slog.Warn("Denying inbox request", "did", did, "key", key)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -159,14 +159,14 @@ func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Reques
 	var inbox string
 	if err := l.DB.QueryRowContext(
 		r.Context(),
-		`select actor->>'$.inbox' from persons where cid = ? and ed25519privkey is not null`,
-		actorCID,
+		`select actor->>'$.inbox' from persons where cid = 'ap://' || ? || '/actor' and ed25519privkey is not null`,
+		did,
 	).Scan(&inbox); errors.Is(err, sql.ErrNoRows) {
-		slog.Warn("Inbox does not exist", "cid", actorCID)
+		slog.Warn("Inbox does not exist", "did", did)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
-		slog.Warn("Failed to fetch inbox", "cid", actorCID, "error", err)
+		slog.Warn("Failed to fetch inbox", "did", did, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -174,7 +174,7 @@ func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Reques
 	if r.URL.RawQuery != "" {
 		until, err := strconv.ParseInt(r.URL.RawQuery, 10, 64)
 		if err != nil {
-			slog.Warn("Received an invalid timestamp", "cid", actorCID, "until", r.URL.RawQuery)
+			slog.Warn("Received an invalid timestamp", "did", did, "until", r.URL.RawQuery)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -194,7 +194,7 @@ func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Reques
 			l.Config.InboxPageSize,
 		)
 		if err != nil {
-			slog.Warn("Failed to fetch activities", "cid", actorCID, "until", until, "error", err)
+			slog.Warn("Failed to fetch activities", "did", did, "until", until, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -205,7 +205,7 @@ func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Reques
 		for rows.Next() {
 			var inserted int64
 			if err := rows.Scan((*[]byte)(&items[count]), &inserted); err != nil {
-				slog.Warn("Failed to scan activity", "cid", actorCID, "until", until, "error", err)
+				slog.Warn("Failed to scan activity", "did", did, "until", until, "error", err)
 				continue
 			}
 
@@ -214,13 +214,13 @@ func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Reques
 		}
 
 		if err := rows.Err(); err != nil {
-			slog.Warn("Failed to scan all activities", "cid", actorCID, "until", until, "error", err)
+			slog.Warn("Failed to scan all activities", "did", did, "until", until, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		if count == 0 {
-			slog.Warn("Fetched an empty page", "cid", actorCID, "until", until)
+			slog.Warn("Fetched an empty page", "did", did, "until", until)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -243,7 +243,7 @@ func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Reques
 			inbox,
 			earliest,
 		).Scan(&next); err != nil {
-			slog.Warn("Failed to fetch next timestamp", "cid", actorCID, "until", until, "error", err)
+			slog.Warn("Failed to fetch next timestamp", "did", did, "until", until, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		} else if next.Valid {
@@ -252,12 +252,12 @@ func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Reques
 
 		j, err := json.Marshal(page)
 		if err != nil {
-			slog.Warn("Failed to marshal inbox collection page", "cid", actorCID, "until", until, "error", err)
+			slog.Warn("Failed to marshal inbox collection page", "did", did, "until", until, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		slog.Info("Returning inbox collection page", "cid", actorCID, "until", until)
+		slog.Info("Returning inbox collection page", "did", did, "until", until)
 
 		w.Header().Set("Content-Type", `application/activity+json; charset=utf-8`)
 		w.Write(j)
@@ -275,7 +275,7 @@ func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Reques
 		`,
 		inbox,
 	).Scan(&latest, &count); err != nil {
-		slog.Warn("Failed to count items", "cid", actorCID, "error", err)
+		slog.Warn("Failed to count items", "did", did, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -293,27 +293,29 @@ func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Reques
 
 	j, err := json.Marshal(collection)
 	if err != nil {
-		slog.Warn("Failed to marshal inbox collection", "cid", actorCID, "error", err)
+		slog.Warn("Failed to marshal inbox collection", "did", did, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	slog.Info("Returning inbox collection", "cid", actorCID)
+	slog.Info("Returning inbox collection", "did", did)
 
 	w.Header().Set("Content-Type", `application/activity+json; charset=utf-8`)
 	w.Write(j)
 }
 
-func (l *Listener) handleApGatewayOutboxGet(w http.ResponseWriter, r *http.Request, actorCID string) {
-	if _, sender, err := l.verifyRequest(r, nil, 0, l.AppActorKeys); err != nil {
-		slog.Warn("Failed to verify outbox request", "cid", actorCID, "error", err)
+func (l *Listener) handleApGatewayOutboxGet(w http.ResponseWriter, r *http.Request, did string) {
+	if _, key, err := l.verifyRequestUsingKeyID(r, nil); err != nil {
+		slog.Warn("Failed to verify outbox request", "did", did, "error", err)
 		w.WriteHeader(http.StatusNotFound)
 		return
-	} else if ap.Canonical(sender.ID) != actorCID {
-		slog.Warn("Denying outbox request", "cid", actorCID, "sender", sender.ID)
+	} else if key != did[len("did:key:"):] {
+		slog.Warn("Denying outbox request", "did", did, "key", key)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
+
+	actorCID := "ap://" + did + "/actor"
 
 	var outbox string
 	if err := l.DB.QueryRowContext(
@@ -321,11 +323,11 @@ func (l *Listener) handleApGatewayOutboxGet(w http.ResponseWriter, r *http.Reque
 		`select actor->>'$.outbox' from persons where cid = ? and ed25519privkey is not null`,
 		actorCID,
 	).Scan(&outbox); errors.Is(err, sql.ErrNoRows) {
-		slog.Warn("Outbox does not exist", "cid", actorCID)
+		slog.Warn("Outbox does not exist", "did", did)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
-		slog.Warn("Failed to fetch outbox", "cid", actorCID, "error", err)
+		slog.Warn("Failed to fetch outbox", "did", did, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -333,7 +335,7 @@ func (l *Listener) handleApGatewayOutboxGet(w http.ResponseWriter, r *http.Reque
 	if r.URL.RawQuery != "" {
 		until, err := strconv.ParseInt(r.URL.RawQuery, 10, 64)
 		if err != nil {
-			slog.Warn("Received an invalid timestamp", "cid", actorCID, "until", r.URL.RawQuery)
+			slog.Warn("Received an invalid timestamp", "did", did, "until", r.URL.RawQuery)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -353,7 +355,7 @@ func (l *Listener) handleApGatewayOutboxGet(w http.ResponseWriter, r *http.Reque
 			l.Config.OutboxPageSize,
 		)
 		if err != nil {
-			slog.Warn("Failed to fetch activities", "cid", actorCID, "until", until, "error", err)
+			slog.Warn("Failed to fetch activities", "did", did, "until", until, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -364,7 +366,7 @@ func (l *Listener) handleApGatewayOutboxGet(w http.ResponseWriter, r *http.Reque
 		for rows.Next() {
 			var inserted int64
 			if err := rows.Scan((*[]byte)(&items[count]), &inserted); err != nil {
-				slog.Warn("Failed to scan activity", "cid", actorCID, "until", until, "error", err)
+				slog.Warn("Failed to scan activity", "did", did, "until", until, "error", err)
 				continue
 			}
 
@@ -373,13 +375,13 @@ func (l *Listener) handleApGatewayOutboxGet(w http.ResponseWriter, r *http.Reque
 		}
 
 		if err := rows.Err(); err != nil {
-			slog.Warn("Failed to scan all activities", "cid", actorCID, "until", until, "error", err)
+			slog.Warn("Failed to scan all activities", "did", did, "until", until, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		if count == 0 {
-			slog.Warn("Fetched an empty page", "cid", actorCID, "until", until)
+			slog.Warn("Fetched an empty page", "did", did, "until", until)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -402,7 +404,7 @@ func (l *Listener) handleApGatewayOutboxGet(w http.ResponseWriter, r *http.Reque
 			actorCID,
 			earliest,
 		).Scan(&next); err != nil {
-			slog.Warn("Failed to fetch next timestamp", "cid", actorCID, "until", until, "error", err)
+			slog.Warn("Failed to fetch next timestamp", "did", did, "until", until, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		} else if next.Valid {
@@ -411,12 +413,12 @@ func (l *Listener) handleApGatewayOutboxGet(w http.ResponseWriter, r *http.Reque
 
 		j, err := json.Marshal(page)
 		if err != nil {
-			slog.Warn("Failed to marshal outbox collection page", "cid", actorCID, "until", until, "error", err)
+			slog.Warn("Failed to marshal outbox collection page", "did", did, "until", until, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		slog.Info("Returning outbox collection page", "cid", actorCID, "until", until)
+		slog.Info("Returning outbox collection page", "did", did, "until", until)
 
 		w.Header().Set("Content-Type", `application/activity+json; charset=utf-8`)
 		w.Write(j)
@@ -434,7 +436,7 @@ func (l *Listener) handleApGatewayOutboxGet(w http.ResponseWriter, r *http.Reque
 		`,
 		actorCID,
 	).Scan(&latest, &count); err != nil {
-		slog.Warn("Failed to count items", "cid", actorCID, "error", err)
+		slog.Warn("Failed to count items", "did", did, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -452,12 +454,12 @@ func (l *Listener) handleApGatewayOutboxGet(w http.ResponseWriter, r *http.Reque
 
 	j, err := json.Marshal(collection)
 	if err != nil {
-		slog.Warn("Failed to marshal outbox collection", "cid", actorCID, "error", err)
+		slog.Warn("Failed to marshal outbox collection", "did", did, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	slog.Info("Returning outbox collection", "cid", actorCID)
+	slog.Info("Returning outbox collection", "did", did)
 
 	w.Header().Set("Content-Type", `application/activity+json; charset=utf-8`)
 	w.Write(j)
@@ -503,34 +505,30 @@ func (l *Listener) fetchSenderFollowers(
 	r *http.Request,
 	did string,
 ) (bool, *ap.Actor, string, *sql.Rows) {
-	_, sender, err := l.verifyRequest(r, nil, 0, l.AppActorKeys)
+	_, key, err := l.verifyRequestUsingKeyID(r, nil)
 	if err != nil {
 		slog.Warn("Failed to verify followers request", "did", did, "error", err)
 		w.WriteHeader(http.StatusNotFound)
 		return false, nil, "", nil
 	}
 
-	if origin, err := ap.Origin(sender.ID); err != nil {
-		slog.Warn("Failed to extract sender origin", "did", did, "sender", sender.ID, "error", err)
-		w.WriteHeader(http.StatusNotFound)
-		return false, nil, "", nil
-	} else if origin != did {
-		slog.Warn("Denying followers request", "did", did, "sender", sender.ID)
+	if key != did[len("did:key:"):] {
+		slog.Warn("Denying followers request", "did", did, "key", key)
 		w.WriteHeader(http.StatusNotFound)
 		return false, nil, "", nil
 	}
 
-	var exists int
+	var actor ap.Actor
 	if err := l.DB.QueryRowContext(
 		r.Context(),
-		`select exists (select 1 from persons where cid = 'ap://' || ? || '/actor' and ed25519privkey is not null)`,
+		`select json(actor) from persons where cid = 'ap://' || ? || '/actor' and ed25519privkey is not null`,
 		did,
-	).Scan(&exists); err != nil {
-		slog.Warn("Failed to check if user exists", "did", did, "sender", sender.ID, "error", err)
+	).Scan(&actor); errors.Is(err, sql.ErrNoRows) {
+		slog.Warn("Denying followers request for non-existing user", "did", did)
 		w.WriteHeader(http.StatusNotFound)
 		return false, nil, "", nil
-	} else if exists == 0 {
-		slog.Warn("Denying followers request for non-existing user", "did", did, "sender", sender.ID)
+	} else if err != nil {
+		slog.Warn("Failed to check if user exists", "did", did, "error", err)
 		w.WriteHeader(http.StatusNotFound)
 		return false, nil, "", nil
 	}
@@ -542,12 +540,12 @@ func (l *Listener) fetchSenderFollowers(
 		did,
 	)
 	if err != nil {
-		slog.Warn("Failed to fetch followers", "did", did, "sender", sender.ID, "error", err)
+		slog.Warn("Failed to fetch followers", "did", did, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return false, nil, "", nil
 	}
 
-	return true, sender, fmt.Sprintf("https://%s/.well-known/apgateway/%s/actor/followers", l.Domain, did), rows
+	return true, &actor, fmt.Sprintf("https://%s/.well-known/apgateway/%s/actor/followers", l.Domain, did), rows
 }
 
 func (l *Listener) doHandleApGatewayFollowers(
@@ -678,10 +676,10 @@ func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
 		l.doHandleIcon(w, r, "ap://"+m[1]+"/actor")
 
 	case "/actor/inbox":
-		l.handleApGatewayInboxGet(w, r, "ap://"+m[1]+"/actor")
+		l.handleApGatewayInboxGet(w, r, m[1])
 
 	case "/actor/outbox":
-		l.handleApGatewayOutboxGet(w, r, "ap://"+m[1]+"/actor")
+		l.handleApGatewayOutboxGet(w, r, m[1])
 
 	default:
 		l.handleAPGatewayGetObject(w, r, "ap://"+m[1]+m[2])
