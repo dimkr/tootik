@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/danger"
@@ -72,9 +73,10 @@ func (inbox *Inbox) follow(ctx context.Context, follower *ap.Actor, key httpsig.
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
+		`INSERT INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
 		s,
 		follower.ID,
+		time.Now().UnixNano(),
 	); err != nil {
 		return err
 	}

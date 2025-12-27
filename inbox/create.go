@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
@@ -83,7 +84,13 @@ func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, post *ap.Object
 	}
 	defer tx.Rollback()
 
-	if _, err = tx.ExecContext(ctx, `insert into outbox (activity, sender) values (jsonb(?),?)`, s, author.ID); err != nil {
+	if _, err = tx.ExecContext(
+		ctx,
+		`insert into outbox (activity, sender, inserted) values (jsonb(?),?,?)`,
+		s,
+		author.ID,
+		time.Now().UnixNano(),
+	); err != nil {
 		return err
 	}
 

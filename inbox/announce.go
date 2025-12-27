@@ -69,9 +69,10 @@ func (inbox *Inbox) announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, k
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
+		`INSERT INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
 		s,
 		actor.ID,
+		time.Now().UnixNano(),
 	); err != nil {
 		return err
 	}

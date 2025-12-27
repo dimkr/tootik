@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/danger"
@@ -74,9 +75,10 @@ func (inbox *Inbox) delete(ctx context.Context, actor *ap.Actor, key httpsig.Key
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
+		`INSERT INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
 		s,
 		note.AttributedTo,
+		time.Now().UnixNano(),
 	); err != nil {
 		return err
 	}

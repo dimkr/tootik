@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/httpsig"
@@ -92,9 +93,10 @@ func (inbox *Inbox) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Obj
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`insert into outbox(activity, sender) values(jsonb(?), ?)`,
+		`insert into outbox(activity, sender, inserted) values(jsonb(?), ?, ?)`,
 		rawActivity,
 		group.ID,
+		time.Now().UnixNano(),
 	); err != nil {
 		return true, err
 	}
@@ -175,9 +177,10 @@ func (inbox *Inbox) forwardActivity(ctx context.Context, tx *sql.Tx, note *ap.Ob
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT OR IGNORE INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
+		`INSERT OR IGNORE INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
 		rawActivity,
 		threadStarterID,
+		time.Now().UnixNano(),
 	); err != nil {
 		return err
 	}
