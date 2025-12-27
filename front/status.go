@@ -25,8 +25,6 @@ import (
 	"github.com/dimkr/tootik/front/text"
 )
 
-const day = time.Hour * 24 * 7
-
 func (h *Handler) getGraph(r *Request, keys []string, values []int64, query string, args ...any) string {
 	rows, err := h.DB.QueryContext(r.Context, query, args...)
 	if err != nil {
@@ -63,8 +61,7 @@ func (h *Handler) getWeeklyPostsGraph(r *Request) string {
 func (h *Handler) getWeeklyFailedDeliveriesGraph(r *Request) string {
 	keys := make([]string, 7)
 	values := make([]int64, 7)
-	now := time.Now()
-	return h.getGraph(r, keys, values, `select strftime('%Y-%m-%d %H:%M', datetime(day*$1, 'unixepoch')), count(*) from (select inserted/$1 as day from outbox where sent = 0 and inserted>$2 and inserted<$3) group by day order by day`, day, now.Add(-day).UnixNano(), now.Truncate(time.Hour*24).UnixNano())
+	return h.getGraph(r, keys, values, `select strftime('%Y-%m-%d %H:%M', datetime(day*60*60*24, 'unixepoch')), count(*) from (select inserted/(60*60*24*1000000000) as day from outbox where sent = 0 and inserted>(unixepoch()-60*60*24*7)*1000000000 and inserted<unixepoch()/(60*60*24)*60*60*24*1000000000) group by day order by day`)
 }
 
 func (h *Handler) getUsersGraph(r *Request) string {
