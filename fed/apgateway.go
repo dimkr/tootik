@@ -484,7 +484,7 @@ func (l *Listener) fetchFollowersByHost(
 
 	rows, err := l.DB.QueryContext(
 		r.Context(),
-		`SELECT follower FROM follows WHERE followed = 'https://' || ? || '/.well-known/apgateway/' || ? || '/actor' AND follower LIKE 'https://' || ? || '/%' AND accepted = 1`,
+		`SELECT follower FROM follows WHERE followed = 'https://' || ? || '/.well-known/apgateway/' || ? || '/actor' AND follower LIKE 'https://' || ? || '/%' AND accepted = 1 ORDER BY inserted DESC, follower`,
 		l.Domain,
 		did,
 		u.Host,
@@ -522,7 +522,7 @@ func (l *Listener) fetchSenderFollowers(
 
 	rows, err := l.DB.QueryContext(
 		r.Context(),
-		`SELECT follower FROM follows WHERE followed = 'https://' || ? || '/.well-known/apgateway/' || ? || '/actor' AND accepted = 1`,
+		`SELECT follower FROM follows WHERE followed = 'https://' || ? || '/.well-known/apgateway/' || ? || '/actor' AND accepted = 1 ORDER BY inserted DESC, follower`,
 		l.Domain,
 		did,
 	)
