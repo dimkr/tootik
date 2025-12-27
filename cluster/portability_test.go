@@ -1601,19 +1601,8 @@ func TestCluster_ClientSideSigningFollowersMissingCollection(t *testing.T) {
 		Headers: http.Header{},
 	}
 	cluster["a.localdomain"].Backend.ServeHTTP(&w, r)
-	if w.StatusCode != http.StatusOK {
+	if w.StatusCode != http.StatusNotFound {
 		t.Fatalf("Failed to process activity: %d", w.StatusCode)
-	}
-
-	var followers struct {
-		OrderedItems []string `json:"orderedItems"`
-	}
-	if err := json.NewDecoder(&w.Body).Decode(&followers); err != nil {
-		t.Fatalf("Failed to decode followers: %v", err)
-	}
-
-	if followers.OrderedItems == nil || len(followers.OrderedItems) > 0 {
-		t.Fatalf("Unexpected list of followers: %v", followers.OrderedItems)
 	}
 }
 
