@@ -18,7 +18,7 @@ func outboxnano(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `RENAME TABLE noutbox TO outbox`); err != nil {
+	if _, err := tx.ExecContext(ctx, `ALTER TABLE noutbox RENAME TO outbox`); err != nil {
 		return err
 	}
 
