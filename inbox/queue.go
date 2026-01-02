@@ -39,29 +39,30 @@ type Queue struct {
 type batchItem struct {
 	Activity    *ap.Activity
 	RawActivity string
+	Path        sql.NullString
 	Sender      *ap.Actor
 	Shared      bool
 }
 
-func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Actor, activity *ap.Activity, rawActivity string, shared bool) {
+func (q *Queue) processActivityWithTimeout(parent context.Context, item batchItem) {
 	ctx, cancel := context.WithTimeout(parent, q.Config.ActivityProcessingTimeout)
 	defer cancel()
 
-	if _, err := q.Resolver.ResolveID(ctx, q.Keys, activity.Actor, 0); err != nil {
-		slog.Warn("Failed to resolve actor", "activity", activity, "error", err)
+	if _, err := q.Resolver.ResolveID(ctx, q.Keys, item.Activity.Actor, 0); err != nil {
+		slog.Warn("Failed to resolve actor", "activity", item.Activity, "error", err)
 	}
 
 	tx, err := q.DB.BeginTx(ctx, nil)
 	if err != nil {
-		slog.Warn("Failed to start transaction", "activity", activity, "error", err)
+		slog.Warn("Failed to start transaction", "activity", item.Activity, "error", err)
 		return
 	}
 	defer tx.Rollback()
 
-	if err := q.Inbox.ProcessActivity(ctx, tx, sender, activity, rawActivity, 1, shared); err != nil {
-		slog.Warn("Failed to process activity", "activity", activity, "error", err)
+	if err := q.Inbox.ProcessActivity(ctx, tx, item.Path, item.Sender, item.Activity, item.RawActivity, 1, item.Shared); err != nil {
+		slog.Warn("Failed to process activity", "activity", item.Activity, "error", err)
 	} else if err := tx.Commit(); err != nil {
-		slog.Warn("Failed to commit changes", "activity", activity, "error", err)
+		slog.Warn("Failed to commit changes", "activity", item.Activity, "error", err)
 	}
 }
 
@@ -69,7 +70,7 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, sender *ap.Ac
 func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	slog.Debug("Polling activities queue")
 
-	rows, err := q.DB.QueryContext(ctx, `select inbox.id, json(persons.actor), json(inbox.activity), inbox.raw, inbox.raw->>'$.type' = 'Announce' as shared from (select * from inbox limit -1 offset case when (select count(*) from inbox) >= $1 then $1/10 else 0 end) inbox left join persons on persons.id = inbox.sender order by inbox.id limit $2`, q.Config.MaxActivitiesQueueSize, q.Config.ActivitiesBatchSize)
+	rows, err := q.DB.QueryContext(ctx, `select inbox.id, inbox.path, json(persons.actor), json(inbox.activity), inbox.raw, inbox.raw->>'$.type' = 'Announce' as shared from (select * from inbox limit -1 offset case when (select count(*) from inbox) >= $1 then $1/10 else 0 end) inbox left join persons on persons.id = inbox.sender order by inbox.id limit $2`, q.Config.MaxActivitiesQueueSize, q.Config.ActivitiesBatchSize)
 	if err != nil {
 		return 0, fmt.Errorf("failed to fetch activities to process: %w", err)
 	}
@@ -83,11 +84,12 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		rowsCount += 1
 
 		var id int64
+		var path sql.NullString
 		var activityString string
 		var activity ap.Activity
 		var sender sql.Null[ap.Actor]
 		var shared bool
-		if err := rows.Scan(&id, &sender, &activity, &activityString, &shared); err != nil {
+		if err := rows.Scan(&id, &path, &sender, &activity, &activityString, &shared); err != nil {
 			slog.Error("Failed to scan activity", "error", err)
 			continue
 		}
@@ -102,6 +104,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		batch = append(batch, batchItem{
 			Activity:    &activity,
 			RawActivity: activityString,
+			Path:        path,
 			Sender:      &sender.V,
 			Shared:      shared,
 		})
@@ -113,7 +116,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	}
 
 	for _, item := range batch {
-		q.processActivityWithTimeout(ctx, item.Sender, item.Activity, item.RawActivity, item.Shared)
+		q.processActivityWithTimeout(ctx, item)
 	}
 
 	if _, err := q.DB.ExecContext(ctx, `delete from inbox where id <= ?`, maxID); err != nil {

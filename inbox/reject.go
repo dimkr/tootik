@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/danger"
@@ -67,14 +68,24 @@ func (inbox *Inbox) reject(ctx context.Context, followed *ap.Actor, key httpsig.
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
+		`INSERT INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
 		s,
 		followed.ID,
+		time.Now().UnixNano(),
 	); err != nil {
 		return err
 	}
 
-	return inbox.ProcessActivity(ctx, tx, followed, reject, s, 1, false)
+	return inbox.ProcessActivity(
+		ctx,
+		tx,
+		sql.NullString{},
+		followed,
+		reject,
+		s,
+		1,
+		false,
+	)
 }
 
 // Reject queues a Reject activity for delivery.

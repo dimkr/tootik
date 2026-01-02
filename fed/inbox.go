@@ -563,7 +563,8 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 
 	if _, err = l.DB.ExecContext(
 		r.Context(),
-		`INSERT OR IGNORE INTO inbox (sender, activity, raw) VALUES (?, JSONB(?), ?)`,
+		`INSERT OR IGNORE INTO inbox (path, sender, activity, raw) VALUES (?, ?, JSONB(?), ?)`,
+		r.URL.Path,
 		sender.ID,
 		queued,
 		danger.String(rawActivity),

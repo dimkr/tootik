@@ -18,7 +18,9 @@ package inbox
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/danger"
@@ -68,14 +70,24 @@ func (inbox *Inbox) undo(ctx context.Context, actor *ap.Actor, key httpsig.Key, 
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
+		`INSERT INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
 		s,
 		activity.Actor,
+		time.Now().UnixNano(),
 	); err != nil {
 		return err
 	}
 
-	if err := inbox.ProcessActivity(ctx, tx, actor, undo, s, 1, false); err != nil {
+	if err := inbox.ProcessActivity(
+		ctx,
+		tx,
+		sql.NullString{},
+		actor,
+		undo,
+		s,
+		1,
+		false,
+	); err != nil {
 		return err
 	}
 

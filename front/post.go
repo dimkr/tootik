@@ -47,7 +47,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 
 	if oldNote == nil {
 		var today, last sql.NullInt64
-		if err := h.DB.QueryRowContext(r.Context, `select count(*), max(inserted) from outbox where activity->>'$.actor' = $1 and sender = $1 and activity->>'$.type' = 'Create' and inserted > $2`, r.User.ID, now.Add(-24*time.Hour).Unix()).Scan(&today, &last); err != nil {
+		if err := h.DB.QueryRowContext(r.Context, `select count(*), max(inserted) from outbox where activity->>'$.actor' = $1 and sender = $1 and activity->>'$.type' = 'Create' and inserted > $2`, r.User.ID, now.Add(-24*time.Hour).UnixNano()).Scan(&today, &last); err != nil {
 			r.Log.Warn("Failed to check if new post needs to be throttled", "error", err)
 			w.Error()
 			return
@@ -60,7 +60,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 		}
 
 		if today.Valid && last.Valid {
-			t := time.Unix(last.Int64, 0)
+			t := time.Unix(0, last.Int64)
 			can := t.Add(max(1, time.Duration(today.Int64/h.Config.PostThrottleFactor)) * h.Config.PostThrottleUnit)
 			until := time.Until(can)
 			if until > 0 {

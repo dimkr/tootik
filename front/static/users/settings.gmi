@@ -12,7 +12,6 @@
 => /users/certificates 🎓 Certificates
 => /users/invitations 🎟️ Invitations
 => /users/ttl ⏳ Post deletion policy
-=> /users/export 🥡 Export recent activities
 
 ## Migration
 

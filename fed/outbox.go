@@ -31,18 +31,16 @@ import (
 func (l *Listener) getCollection(w http.ResponseWriter, username string) {
 	first := fmt.Sprintf("https://%s/outbox/%s?0", l.Domain, username)
 
-	collection := map[string]any{
-		"@context":   "https://www.w3.org/ns/activitystreams",
-		"id":         fmt.Sprintf("https://%s/outbox/%s", l.Domain, username),
-		"type":       "OrderedCollection",
-		"first":      first,
-		"last":       first,
-		"totalItems": 0,
-	}
-
 	slog.Info("Listing activities by user", "username", username)
 
-	j, err := json.Marshal(collection)
+	j, err := json.Marshal(ap.Collection{
+		Context:    "https://www.w3.org/ns/activitystreams",
+		ID:         fmt.Sprintf("https://%s/outbox/%s", l.Domain, username),
+		Type:       ap.OrderedCollection,
+		First:      first,
+		Last:       first,
+		TotalItems: new(int64),
+	})
 	if err != nil {
 		slog.Warn("Failed to marshal collection", "username", username, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -96,14 +94,14 @@ func (l *Listener) handleOutbox(w http.ResponseWriter, r *http.Request) {
 
 	first := fmt.Sprintf("https://%s/outbox/%s?0", l.Domain, username)
 
-	page := map[string]any{
-		"@context":     []string{"https://www.w3.org/ns/activitystreams"},
-		"id":           fmt.Sprintf("https://%s/outbox/%s?%d", l.Domain, username, since),
-		"type":         "OrderedCollectionPage",
-		"partOf":       fmt.Sprintf("https://%s/outbox/%s", l.Domain, username),
-		"orderedItems": []ap.Activity{},
-		"next":         first,
-		"prev":         first,
+	page := ap.CollectionPage{
+		Context:      []string{"https://www.w3.org/ns/activitystreams"},
+		ID:           fmt.Sprintf("https://%s/outbox/%s?%d", l.Domain, username, since),
+		Type:         ap.OrderedCollectionPage,
+		PartOf:       fmt.Sprintf("https://%s/outbox/%s", l.Domain, username),
+		OrderedItems: []ap.Activity{},
+		Next:         first,
+		Prev:         first,
 	}
 
 	j, err := json.Marshal(page)
