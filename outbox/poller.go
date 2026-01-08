@@ -39,7 +39,7 @@ type pollResult struct {
 }
 
 func (p *Poller) Run(ctx context.Context) error {
-	rows, err := p.DB.QueryContext(ctx, `select poll, option, count(*) from (select polls.id as poll, votes.object->>'$.name' as option, votes.author as voter from notes polls left join notes votes on votes.object->>'$.inReplyTo' = polls.id where polls.object->>'$.type' = 'Question' and polls.id like $1 and polls.deleted = 0 and polls.object->>'$.closed' is null and votes.deleted = 0 and (votes.object->>'$.name' is not null or votes.id is null) group by poll, option, voter) group by poll, option`, fmt.Sprintf("https://%s/%%", p.Domain))
+	rows, err := p.DB.QueryContext(ctx, `select poll, option, count(*) filter (where deleted = 0) from (select polls.id as poll, votes.object->>'$.name' as option, votes.author as voter, votes.deleted from notes polls left join notes votes on votes.object->>'$.inReplyTo' = polls.id where polls.object->>'$.type' = 'Question' and polls.id like $1 and polls.deleted = 0 and polls.object->>'$.closed' is null and (votes.object->>'$.name' is not null or votes.id is null) group by poll, option, voter) group by poll, option`, fmt.Sprintf("https://%s/%%", p.Domain))
 	if err != nil {
 		return err
 	}

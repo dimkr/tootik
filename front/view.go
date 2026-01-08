@@ -187,15 +187,19 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						w.Empty()
 					}
 
-					if r.User == nil {
-						w.Linkf("/view/"+strings.TrimPrefix(parent.ID, "https://"), "%s %s", parent.Published.Time.Format(time.DateOnly), parentAuthor.PreferredUsername)
-					} else {
-						w.Linkf("/users/view/"+strings.TrimPrefix(parent.ID, "https://"), "%s %s", parent.Published.Time.Format(time.DateOnly), parentAuthor.PreferredUsername)
-					}
-
 					if deleted == 1 {
-						w.Text("[deleted]")
+						if r.User == nil {
+							w.Link("/view/"+strings.TrimPrefix(parent.ID, "https://"), "[deleted reply]")
+						} else {
+							w.Link("/users/view/"+strings.TrimPrefix(parent.ID, "https://"), "[deleted reply]")
+						}
 					} else {
+						if r.User == nil {
+							w.Linkf("/view/"+strings.TrimPrefix(parent.ID, "https://"), "%s %s", parent.Published.Time.Format(time.DateOnly), parentAuthor.PreferredUsername)
+						} else {
+							w.Linkf("/users/view/"+strings.TrimPrefix(parent.ID, "https://"), "%s %s", parent.Published.Time.Format(time.DateOnly), parentAuthor.PreferredUsername)
+						}
+
 						contentLines, _ := h.getCompactNoteContent(&parent)
 						for _, line := range contentLines {
 							w.Quote(line)
@@ -545,7 +549,8 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			left join persons on persons.id = replies.author
 			where
 				notes.id = $1 and
-				replies.public = 1
+				replies.public = 1 and
+				replies.deleted = 0
 			order by replies.inserted desc limit $2 offset $3
 			`,
 			postID,
@@ -561,6 +566,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			left join persons on persons.id = replies.author
 			where
 				notes.id = $1 and
+				replies.deleted = 0 and
 				(
 					replies.public = 1 or
 					replies.author = $2 or
