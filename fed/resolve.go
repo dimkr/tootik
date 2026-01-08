@@ -158,7 +158,7 @@ func deleteActor(ctx context.Context, db *sql.DB, id string) {
 		slog.Warn("Failed to delete shares by actor", "id", id, "error", err)
 	}
 
-	if _, err := db.ExecContext(ctx, `updates notes set deleted = 1 where author = ?`, id); err != nil {
+	if _, err := db.ExecContext(ctx, `update notes set deleted = 1 where author = ?`, id); err != nil {
 		slog.Warn("Failed to delete notes by actor", "id", id, "error", err)
 	}
 
