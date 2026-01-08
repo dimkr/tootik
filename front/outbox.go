@@ -55,7 +55,8 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 	actorID := "https://" + args[1]
 
 	var actor ap.Actor
-	if err := h.DB.QueryRowContext(r.Context, `select json(actor) from persons where id = ?`, actorID).Scan(&actor); err != nil && errors.Is(err, sql.ErrNoRows) {
+	var deleted int
+	if err := h.DB.QueryRowContext(r.Context, `select json(actor), deleted from persons where id = ?`, actorID).Scan(&actor, &deleted); errors.Is(err, sql.ErrNoRows) {
 		r.Log.Info("Person was not found", "actor", actorID)
 		w.Status(40, "User not found")
 		return
@@ -244,6 +245,11 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		w.Titlef("%s (%d-%d)", displayName, offset, offset+h.Config.PostsPerPage)
 	} else {
 		w.Title(displayName)
+	}
+
+	if deleted == 1 {
+		w.Text("[Deleted]")
+		w.Empty()
 	}
 
 	if offset == 0 && len(actor.Icon) > 0 && actor.Icon[0].URL != "" {
