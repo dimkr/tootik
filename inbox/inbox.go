@@ -169,7 +169,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 			if _, err := tx.ExecContext(ctx, `delete from notesfts where id = ?`, deleted); err != nil {
 				return fmt.Errorf("cannot delete %s: %w", deleted, err)
 			}
-			if _, err := tx.ExecContext(ctx, `updates notes set deleted = 1 where id = ?`, deleted); err != nil {
+			if _, err := tx.ExecContext(ctx, `update notes set deleted = 1 where id = ?`, deleted); err != nil {
 				return fmt.Errorf("cannot delete %s: %w", deleted, err)
 			}
 			if _, err := tx.ExecContext(ctx, `delete from feed where note->>'$.id' = ?`, deleted); err != nil {
