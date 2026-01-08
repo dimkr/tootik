@@ -189,9 +189,9 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 
 					if deleted == 1 {
 						if r.User == nil {
-							w.Link("/view/"+strings.TrimPrefix(parent.ID, "https://"), "[deleted reply]")
+							w.Link("/view/"+strings.TrimPrefix(parent.ID, "https://"), "[deleted]")
 						} else {
-							w.Link("/users/view/"+strings.TrimPrefix(parent.ID, "https://"), "[deleted reply]")
+							w.Link("/users/view/"+strings.TrimPrefix(parent.ID, "https://"), "[deleted]")
 						}
 					} else {
 						if r.User == nil {
