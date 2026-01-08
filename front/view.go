@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,9 +25,12 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/graph"
 	"github.com/dimkr/tootik/front/text"
 )
+
+var deletedPostPlaceholder = []string{"[deleted]"}
 
 func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 	postID := "https://" + args[1]
@@ -44,29 +47,32 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 	var note ap.Object
 	var author ap.Actor
 	var group sql.Null[ap.Actor]
+	var deleted int
 
 	if r.User == nil {
 		err = h.DB.QueryRowContext(
 			r.Context,
 			`
-			select json(notes.object), json(persons.actor), json(groups.actor) from notes
+			select json(notes.object), json(persons.actor), case when notes.deleted = 0 then null else json(groups.actor) end, notes.deleted from notes
 			join persons on persons.id = notes.author
 			left join (select id, actor from persons where actor->>'$.type' = 'Group') groups on exists (select 1 from shares where shares.by = groups.id and shares.note = $1)
 			where
 				notes.id = $1 and
-				notes.public = 1
+				notes.public = 1 and
+				notes.deleted = 0
 			`,
 			postID,
-		).Scan(&note, &author, &group)
+		).Scan(&note, &author, &group, &deleted)
 	} else {
 		err = h.DB.QueryRowContext(
 			r.Context,
 			`
-			select json(notes.object), json(persons.actor), json(groups.actor) from notes
+			select json(notes.object), json(persons.actor), case when notes.deleted = 0 then null else json(groups.actor) end, notes.deleted from notes
 			join persons on persons.id = notes.author
 			left join (select id, actor from persons where actor->>'$.type' = 'Group') groups on exists (select 1 from shares where shares.by = groups.id and shares.note = $1)
 			where
 				notes.id = $1 and
+				notes.deleted = 0 and
 				(
 					notes.public = 1 or
 					notes.author = $2 or
@@ -91,7 +97,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			`,
 			postID,
 			r.User.ID,
-		).Scan(&note, &author, &group)
+		).Scan(&note, &author, &group, &deleted)
 	}
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Info("Post was not found", "post", postID)
@@ -117,15 +123,15 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			if parents, err := h.DB.QueryContext(
 				r.Context,
 				`
-				select json(note), json(author), depth from
+				select json(note), json(author), deleted, depth from
 				(
-					with recursive thread(note, author, depth) as (
-						select notes.object as note, persons.actor as author, 1 as depth
+					with recursive thread(note, author, deleted, depth) as (
+						select notes.object as note, persons.actor as author, notes.deleted, 1 as depth
 						from notes
 						join persons on persons.id = notes.author
 						where notes.id = ?
 						union all
-						select notes.object as note, persons.actor as author, t.depth + 1
+						select notes.object as note, persons.actor as author, notes.deleted, t.depth + 1
 						from thread t
 						join notes on notes.id = t.note->>'$.inReplyTo'
 						join persons on persons.id = notes.author
@@ -145,8 +151,8 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				for parents.Next() {
 					var parent ap.Object
 					var parentAuthor ap.Actor
-					var currentDepth int
-					if err := parents.Scan(&parent, &parentAuthor, &currentDepth); err != nil {
+					var deleted, currentDepth int
+					if err := parents.Scan(&parent, &parentAuthor, &deleted, &currentDepth); err != nil {
 						r.Log.Info("Failed to fetch context", "error", err)
 						break
 					}
@@ -187,9 +193,13 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						w.Linkf("/users/view/"+strings.TrimPrefix(parent.ID, "https://"), "%s %s", parent.Published.Time.Format(time.DateOnly), parentAuthor.PreferredUsername)
 					}
 
-					contentLines, _ := h.getCompactNoteContent(&parent)
-					for _, line := range contentLines {
-						w.Quote(line)
+					if deleted == 1 {
+						w.Text("[deleted]")
+					} else {
+						contentLines, _ := h.getCompactNoteContent(&parent)
+						for _, line := range contentLines {
+							w.Quote(line)
+						}
 					}
 
 					contextPosts++
@@ -216,7 +226,15 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			w.Titlef("🔔 Post by %s", author.PreferredUsername)
 		}
 
-		contentLines, links, hashtags, mentionedUsers := h.getNoteContent(&note, false)
+		var contentLines []string
+		var links, hashtags data.OrderedMap[string, string]
+		var mentionedUsers ap.Audience
+
+		if deleted == 1 {
+			contentLines = deletedPostPlaceholder
+		} else {
+			contentLines, links, hashtags, mentionedUsers = h.getNoteContent(&note, false)
+		}
 
 		for mentionID := range mentionedUsers.Keys() {
 			var mentionUserName string
@@ -399,14 +417,14 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			}
 		}
 
-		if r.User != nil && ap.Canonical(note.AttributedTo) == ap.Canonical(r.User.ID) && note.Type != ap.Question && note.Name == "" { // polls and votes cannot be edited
+		if r.User != nil && ap.Canonical(note.AttributedTo) == ap.Canonical(r.User.ID) && note.Type != ap.Question && note.Name == "" && deleted == 0 { // polls and votes cannot be edited
 			w.Link("/users/edit/"+strings.TrimPrefix(note.ID, "https://"), "🩹 Edit")
 			w.Link(fmt.Sprintf("titan://%s/users/upload/edit/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload edited post")
 		}
-		if r.User != nil && ap.Canonical(note.AttributedTo) == ap.Canonical(r.User.ID) {
+		if r.User != nil && ap.Canonical(note.AttributedTo) == ap.Canonical(r.User.ID) && deleted == 0 {
 			w.Link("/users/delete/"+strings.TrimPrefix(note.ID, "https://"), "💣 Delete")
 		}
-		if r.User != nil && note.Type == ap.Question && note.Closed == (ap.Time{}) && (note.EndTime == (ap.Time{}) || time.Now().Before(note.EndTime.Time)) {
+		if r.User != nil && note.Type == ap.Question && note.Closed == (ap.Time{}) && (note.EndTime == (ap.Time{}) || time.Now().Before(note.EndTime.Time)) && deleted == 0 {
 			options := note.OneOf
 			if len(options) == 0 {
 				options = note.AnyOf
@@ -420,7 +438,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			var shared int
 			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from shares where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&shared); err != nil {
 				r.Log.Warn("Failed to check if post is shared", "id", note.ID, "error", err)
-			} else if shared == 0 {
+			} else if shared == 0 && deleted == 0 {
 				w.Link("/users/share/"+strings.TrimPrefix(note.ID, "https://"), "🔁 Share")
 			} else {
 				w.Link("/users/unshare/"+strings.TrimPrefix(note.ID, "https://"), "🔄️ Unshare")
@@ -431,14 +449,14 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			var bookmarked int
 			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from bookmarks where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&bookmarked); err != nil {
 				r.Log.Warn("Failed to check if post is bookmarked", "id", note.ID, "error", err)
-			} else if bookmarked == 0 {
+			} else if bookmarked == 0 && deleted == 0 {
 				w.Link("/users/bookmark/"+strings.TrimPrefix(note.ID, "https://"), "🔖 Bookmark")
 			} else {
 				w.Link("/users/unbookmark/"+strings.TrimPrefix(note.ID, "https://"), "🔖 Unbookmark")
 			}
 		}
 
-		if r.User != nil {
+		if r.User != nil && deleted == 0 {
 			if note.CanQuote() {
 				w.Link("/users/quote/"+strings.TrimPrefix(note.ID, "https://"), "♻️ Quote")
 				w.Link(fmt.Sprintf("titan://%s/users/upload/quote/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload quote")

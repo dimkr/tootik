@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -70,7 +70,8 @@ func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
 					where
 						follows.accepted = 1 and
 						follows.follower like ? and
-						notes.inserted > unixepoch()-60*60*24*7
+						notes.inserted > unixepoch()-60*60*24*7 and
+						notes.deleted = 0
 				)
 				group by
 					hashtag

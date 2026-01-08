@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -64,6 +64,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 				follows.follower like $1 and
 				follows.accepted = 1 and
 				notes.inserted >= $2 and
+				notes.deleted = 0 and
 				not exists (select 1 from feed where feed.follower = follows.follower and feed.note->>'$.id' = notes.id and feed.sharer is null)
 			union
 			select myposts.author as follower, notes.object as note, authors.actor as author, null as sharer, notes.inserted from
@@ -79,6 +80,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 			where
 				notes.author != myposts.author and
 				notes.inserted >= $2 and
+				notes.deleted = 0 and
 				myposts.author like $1 and
 				not exists (select 1 from feed where feed.follower = myposts.author and feed.note->>'$.id' = notes.id and feed.sharer is null)
 			union all
@@ -102,6 +104,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 				sharers.id = follows.followed
 			where
 				notes.public = 1 and
+				notes.deleted = 0 and
 				shares.inserted >= $2 and
 				follows.follower like $1 and
 				follows.accepted = 1 and

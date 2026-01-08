@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -51,7 +51,7 @@ func (h *Handler) share(w text.Writer, r *Request, args ...string) {
 	postID := "https://" + args[1]
 
 	var note ap.Object
-	if err := h.DB.QueryRowContext(r.Context, `select json(object) from notes where id = $1 and public = 1 and author != $2 and not exists (select 1 from shares where note = notes.id and by = $2)`, postID, r.User.ID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := h.DB.QueryRowContext(r.Context, `select json(object) from notes where id = $1 and deleted = 0 and public = 1 and author != $2 and not exists (select 1 from shares where note = notes.id and by = $2)`, postID, r.User.ID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Attempted to share non-existing post", "post", postID, "error", err)
 		w.Error()
 		return

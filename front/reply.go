@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -40,6 +40,7 @@ func (h *Handler) replyOrQuote(w text.Writer, r *Request, args []string, quote b
 		join persons on persons.id = notes.author
 		where
 			notes.id = $1 and
+			notes.deleted = 0 and
 			(
 				notes.public = 1 or
 				notes.author = $2 or

@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -250,12 +250,12 @@ func (h *Handler) printCompactNote(w text.Writer, r *Request, note *ap.Object, a
 	contentLines, links, hashtags, mentionedUsers := h.getNoteContent(note, true)
 
 	var replies int
-	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where object->>'$.inReplyTo' = ?`, note.ID).Scan(&replies); err != nil {
+	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where object->>'$.inReplyTo' = ? and deleted = 0`, note.ID).Scan(&replies); err != nil {
 		r.Log.Warn("Failed to count replies", "id", note.ID, "error", err)
 	}
 
 	var quotes int
-	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where object->>'$.quote' = ?`, note.ID).Scan(&quotes); err != nil {
+	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where object->>'$.quote' = ? and deleted = 0`, note.ID).Scan(&quotes); err != nil {
 		r.Log.Warn("Failed to count quotes", "id", note.ID, "error", err)
 	}
 

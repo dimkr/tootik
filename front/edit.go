@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ func (h *Handler) doEdit(w text.Writer, r *Request, args []string, readInput inp
 	postID := "https://" + args[1]
 
 	var note ap.Object
-	if err := h.DB.QueryRowContext(r.Context, `select json(object) from notes where id = ? and author in (select id from persons where cid = ?)`, postID, ap.Canonical(r.User.ID)).Scan(&note); errors.Is(err, sql.ErrNoRows) {
+	if err := h.DB.QueryRowContext(r.Context, `select json(object) from notes where id = ? and deleted = 0 and author in (select id from persons where cid = ?)`, postID, ap.Canonical(r.User.ID)).Scan(&note); errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Attempted to edit non-existing post", "post", postID, "error", err)
 		w.Error()
 		return
@@ -77,7 +77,7 @@ func (h *Handler) doEdit(w text.Writer, r *Request, args []string, readInput inp
 	}
 
 	var parent ap.Object
-	if err := h.DB.QueryRowContext(r.Context, `select json(object) from notes where cid = ?`, ap.Canonical(note.InReplyTo)).Scan(&parent); errors.Is(err, sql.ErrNoRows) {
+	if err := h.DB.QueryRowContext(r.Context, `select json(object) from notes where cid = ? and deleted = 0`, ap.Canonical(note.InReplyTo)).Scan(&parent); errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Parent post does not exist", "parent", note.InReplyTo)
 	} else if err != nil {
 		r.Log.Warn("Failed to fetch parent post", "parent", note.InReplyTo, "error", err)

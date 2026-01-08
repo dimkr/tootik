@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -239,7 +239,7 @@ func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
 			union all
 			select json(notes.object) as raw from notes
 			join persons on notes.author = persons.id
-			where notes.cid = $1 and notes.public = 1 and persons.ed25519privkey is not null
+			where notes.cid = $1 and notes.deleted = 0 and notes.public = 1 and persons.ed25519privkey is not null
 			union all
 			select json(outbox.activity) as raw from outbox
 			join persons on outbox.activity->>'$.actor' = persons.id

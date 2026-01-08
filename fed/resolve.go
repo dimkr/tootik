@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -158,7 +158,7 @@ func deleteActor(ctx context.Context, db *sql.DB, id string) {
 		slog.Warn("Failed to delete shares by actor", "id", id, "error", err)
 	}
 
-	if _, err := db.ExecContext(ctx, `delete from notes where author = ?`, id); err != nil {
+	if _, err := db.ExecContext(ctx, `updates notes set deleted = 1 where author = ?`, id); err != nil {
 		slog.Warn("Failed to delete notes by actor", "id", id, "error", err)
 	}
 
@@ -170,7 +170,7 @@ func deleteActor(ctx context.Context, db *sql.DB, id string) {
 		slog.Warn("Failed to delete keys for actor", "id", id, "error", err)
 	}
 
-	if _, err := db.ExecContext(ctx, `delete from persons where id = ?`, id); err != nil {
+	if _, err := db.ExecContext(ctx, `update persons set deleted = 1 where id = ?`, id); err != nil {
 		slog.Warn("Failed to delete actor", "id", id, "error", err)
 	}
 }

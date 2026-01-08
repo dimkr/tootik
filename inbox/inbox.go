@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -59,15 +59,15 @@ func (inbox *Inbox) processCreateActivity(ctx context.Context, tx *sql.Tx, sende
 	}
 
 	var audience sql.NullString
-	if err := tx.QueryRowContext(ctx, `select object->>'$.audience' from notes where id = ?`, post.ID).Scan(&audience); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := tx.QueryRowContext(ctx, `select object->>'$.audience' from notes where id = ? and deleted = 0`, post.ID).Scan(&audience); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("failed to check if %s is a duplicate: %w", post.ID, err)
 	} else if err == nil {
 		if sender.ID == post.Audience && !audience.Valid {
-			if _, err := tx.ExecContext(ctx, `update notes set object = jsonb_set(jsonb_remove(object, '$.proof', '$.signature'), '$.audience', ?) where id = ? and object->>'$.audience' is null`, post.Audience, post.ID); err != nil {
+			if _, err := tx.ExecContext(ctx, `update notes set object = jsonb_set(jsonb_remove(object, '$.proof', '$.signature'), '$.audience', ?) where id = ? and deleted = 0 and object->>'$.audience' is null`, post.Audience, post.ID); err != nil {
 				return fmt.Errorf("failed to set %s audience to %s: %w", post.ID, audience.String, err)
 			}
 
-			if _, err := tx.ExecContext(ctx, `update feed set note = jsonb_set(note, '$.audience', ?) where note->>'$.id' = ? and note->>'$.audience' is null`, post.Audience, post.ID); err != nil {
+			if _, err := tx.ExecContext(ctx, `update feed set note = jsonb_set(note, '$.audience', ?) where note->>'$.id' = ? and deleted = 0 and note->>'$.audience' is null`, post.Audience, post.ID); err != nil {
 				return fmt.Errorf("failed to set %s audience to %s: %w", post.ID, audience.String, err)
 			}
 
@@ -150,12 +150,12 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 		slog.Info("Received delete request", "activity", activity, "deleted", deleted)
 
 		if deleted == activity.Actor {
-			if _, err := tx.ExecContext(ctx, `delete from persons where id = ?`, deleted); err != nil {
+			if _, err := tx.ExecContext(ctx, `update persons set deleted = 1 where id = ?`, deleted); err != nil {
 				return fmt.Errorf("failed to delete person %s: %w", deleted, err)
 			}
 		} else {
 			var note ap.Object
-			if err := tx.QueryRowContext(ctx, `select json(object) from notes where id = ?`, deleted).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
+			if err := tx.QueryRowContext(ctx, `select json(object) from notes where id = ? and deleted = 0`, deleted).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
 				slog.Debug("Received delete request for non-existing post", "activity", activity, "deleted", deleted)
 				return nil
 			} else if err != nil {
@@ -169,10 +169,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 			if _, err := tx.ExecContext(ctx, `delete from notesfts where id = ?`, deleted); err != nil {
 				return fmt.Errorf("cannot delete %s: %w", deleted, err)
 			}
-			if _, err := tx.ExecContext(ctx, `delete from notes where id = ?`, deleted); err != nil {
-				return fmt.Errorf("cannot delete %s: %w", deleted, err)
-			}
-			if _, err := tx.ExecContext(ctx, `delete from shares where note = ?`, deleted); err != nil {
+			if _, err := tx.ExecContext(ctx, `updates notes set deleted = 1 where id = ?`, deleted); err != nil {
 				return fmt.Errorf("cannot delete %s: %w", deleted, err)
 			}
 			if _, err := tx.ExecContext(ctx, `delete from feed where note->>'$.id' = ?`, deleted); err != nil {
@@ -390,7 +387,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 
 		var oldPost ap.Object
 		var lastChange int64
-		if err := tx.QueryRowContext(ctx, `select max(inserted, updated), json(object) from notes where id = ? and author in (select id from persons where cid = ?)`, post.ID, ap.Canonical(post.AttributedTo)).Scan(&lastChange, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
+		if err := tx.QueryRowContext(ctx, `select max(inserted, updated), json(object) from notes where id = ? and deleted = 0 and author in (select id from persons where cid = ?)`, post.ID, ap.Canonical(post.AttributedTo)).Scan(&lastChange, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
 			slog.Debug("Received Update for non-existing post", "activity", activity)
 			return inbox.processCreateActivity(ctx, tx, sender, activity, rawActivity, post, shared)
 		} else if err != nil {
@@ -418,7 +415,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 
 		if _, err := tx.ExecContext(
 			ctx,
-			`update notes set object = jsonb(?), updated = unixepoch() where id = ?`,
+			`update notes set object = jsonb(?), updated = unixepoch() where id = ? and deleted = 0`,
 			post,
 			post.ID,
 		); err != nil {

@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -69,6 +69,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 					groups.actor->>'$.type' = 'Group' and exists (select 1 from shares where shares.by = groups.id and shares.note = notes.id)
 				where
 					notes.public = 1 and
+					notes.deleted = 0 and
 					notesfts.content match $1
 				order by rank desc
 				limit $2
@@ -90,6 +91,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 						notes.id = notesfts.id
 					where
 						notes.public = 1 and
+						notes.deleted = 0 and
 						notesfts.content match $1
 					union all
 					select notes.id, notes.object, notes.author, notes.inserted, rank, 1 as aud from
@@ -112,7 +114,8 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 					where
 						follows.follower = $2 and
 						follows.accepted = 1 and
-						notesfts.content match $1
+						notesfts.content match $1 and
+						notes.deleted = 0
 					union all
 					select notes.id, notes.object, notes.author, notes.inserted, rank, 0 as aud from
 					notesfts
@@ -124,7 +127,8 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 							$2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
 							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $2)) or
 							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $2))
-						)
+						) and
+						notes.deleted = 0
 				) u
 				join persons authors on
 					authors.id = u.author and coalesce(authors.actor->>'$.discoverable', 1)
