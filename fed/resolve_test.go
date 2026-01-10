@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -3728,7 +3728,7 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 	assert.Empty(client.Data)
 
 	var ok int
-	assert.NoError(db.QueryRow(`select not exists (select 1 from notes where author = 'https://0.0.0.0/user/dan') and not exists (select 1 from persons where id = 'https://0.0.0.0/user/dan')`).Scan(&ok))
+	assert.NoError(db.QueryRow(`select not exists (select 1 from notes where author = 'https://0.0.0.0/user/dan' and deleted = 0) and not exists (select 1 from persons where id = 'https://0.0.0.0/user/dan')`).Scan(&ok))
 	assert.Equal(1, ok)
 }
 
@@ -3893,7 +3893,7 @@ func TestResolve_FederatedActorFirstTimeDeleted(t *testing.T) {
 	assert.Empty(client.Data)
 
 	var ok int
-	assert.NoError(db.QueryRow(`select exists (select 1 from notes where author = 'https://0.0.0.0/user/dan') and not exists (select 1 from persons where id = 'https://0.0.0.0/user/dan')`).Scan(&ok))
+	assert.NoError(db.QueryRow(`select exists (select 1 from notes where author = 'https://0.0.0.0/user/dan' and deleted = 0) and not exists (select 1 from persons where id = 'https://0.0.0.0/user/dan')`).Scan(&ok))
 	assert.Equal(1, ok)
 }
 

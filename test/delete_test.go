@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ func TestDelete_HappyFlow(t *testing.T) {
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), delete)
 
 	view = server.Handle("/users/view/"+id, server.Alice)
-	assert.Equal(view, "40 Post not found\r\n")
+	assert.NotContains(view, "Hello world")
 }
 
 func TestDelete_NotAuthor(t *testing.T) {
@@ -113,17 +113,23 @@ func TestDelete_WithReply(t *testing.T) {
 
 	replyID := reply[15 : len(reply)-2]
 
+	view := server.Handle("/users/view/"+replyID, server.Alice)
+	assert.Contains(view, "Hello world")
+	assert.Contains(view, "Welcome Alice")
+
 	delete := server.Handle("/users/delete/"+replyID, server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), delete)
 
-	view := server.Handle("/users/view/"+replyID, server.Alice)
-	assert.Equal(view, "40 Post not found\r\n")
+	view = server.Handle("/users/view/"+replyID, server.Alice)
+	assert.Contains(view, "Hello world")
+	assert.NotContains(view, "Welcome Alice")
 
 	delete = server.Handle("/users/delete/"+postID, server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), delete)
 
 	view = server.Handle("/users/view/"+postID, server.Alice)
-	assert.Equal(view, "40 Post not found\r\n")
+	assert.NotContains(view, "Hello world")
+	assert.NotContains(view, "Welcome Alice")
 }
 
 func TestDelete_WithReplyPostDeletedFirst(t *testing.T) {
@@ -142,15 +148,21 @@ func TestDelete_WithReplyPostDeletedFirst(t *testing.T) {
 
 	replyID := reply[15 : len(reply)-2]
 
+	view := server.Handle("/users/view/"+postID, server.Alice)
+	assert.Contains(view, "Hello world")
+	assert.Contains(view, "Welcome Alice")
+
 	delete := server.Handle("/users/delete/"+postID, server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), delete)
 
-	view := server.Handle("/users/view/"+postID, server.Alice)
-	assert.Equal(view, "40 Post not found\r\n")
+	view = server.Handle("/users/view/"+postID, server.Alice)
+	assert.NotContains(view, "Hello world")
+	assert.Contains(view, "Welcome Alice")
 
 	delete = server.Handle("/users/delete/"+replyID, server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), delete)
 
 	view = server.Handle("/users/view/"+replyID, server.Alice)
-	assert.Equal(view, "40 Post not found\r\n")
+	assert.NotContains(view, "Hello world")
+	assert.NotContains(view, "Welcome Alice")
 }

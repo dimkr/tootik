@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -46,6 +46,7 @@ func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
 			select 1 from notes
 			where
 				notes.id = $1 and
+				notes.deleted = 0 and
 				(
 					notes.author = $2 or
 					notes.public = 1 or

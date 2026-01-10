@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -158,8 +158,12 @@ func deleteActor(ctx context.Context, db *sql.DB, id string) {
 		slog.Warn("Failed to delete shares by actor", "id", id, "error", err)
 	}
 
-	if _, err := db.ExecContext(ctx, `delete from notes where author = ?`, id); err != nil {
+	if _, err := db.ExecContext(ctx, `update notes set object = jsonb_set(jsonb_remove(object, '$.name', '$.summary', '$.tag', '$.attachment', '$.votersCount', '$.oneOf', '$.anyOf'), '$.content', '[deleted]'), deleted = 1 where author = ?`, id); err != nil {
 		slog.Warn("Failed to delete notes by actor", "id", id, "error", err)
+	}
+
+	if _, err := db.ExecContext(ctx, `delete from hashtags where note in (select id from notes where author = ?)`, id); err != nil {
+		slog.Warn("Failed to delete hashtags by actor", "id", id, "error", err)
 	}
 
 	if _, err := db.ExecContext(ctx, `delete from follows where follower = $1 or followed = $1`, id); err != nil {

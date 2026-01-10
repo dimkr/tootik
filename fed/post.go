@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ func (l *Listener) handlePost(w http.ResponseWriter, r *http.Request) {
 	slog.Info("Fetching post", "post", postID)
 
 	var note string
-	if err := l.DB.QueryRowContext(r.Context(), `select json(object) from notes where id = ? and public = 1`, postID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := l.DB.QueryRowContext(r.Context(), `select json(object) from notes where id = ? and public = 1 and deleted = 0`, postID).Scan(&note); errors.Is(err, sql.ErrNoRows) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {

@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -79,7 +79,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// unauthenticated users can only see public posts in a group
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select json(u.object), json(authors.actor), null, max(u.inserted, coalesce(max(replies.inserted), 0)) from (
+			`select json(u.object), json(authors.actor), null, max(u.inserted, coalesce(max(case when replies.deleted = 0 then replies.inserted end), 0)) from (
 				select notes.id, notes.object, notes.author, shares.inserted from shares
 				join notes on notes.id = shares.note
 				where shares.by = $1 and notes.public = 1 and notes.object->>'$.inReplyTo' is null
@@ -90,7 +90,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 			join persons authors on authors.id = u.author
 			left join notes replies on replies.object->>'$.inReplyTo' = u.id
 			group by u.id
-			order by max(u.inserted, coalesce(max(replies.inserted), 0)) / 86400 desc, count(replies.id) desc, u.inserted desc limit $2 offset $3`,
+			order by max(u.inserted, coalesce(max(case when replies.deleted = 0 then replies.inserted end), 0)) / 86400 desc, count(replies.id) filter (where replies.deleted = 0) desc, u.inserted desc limit $2 offset $3`,
 			actorID,
 			h.Config.PostsPerPage,
 			offset,
@@ -99,7 +99,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// users can see public posts in a group and non-public posts if they follow the group
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select json(u.object), json(authors.actor), null, max(u.inserted, coalesce(max(replies.inserted), 0)) from (
+			`select json(u.object), json(authors.actor), null, max(u.inserted, coalesce(max(case when replies.deleted = 0 then replies.inserted end), 0)) from (
 				select notes.id, notes.object, notes.author, shares.inserted from shares
 				join notes on notes.id = shares.note
 				where
@@ -122,7 +122,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 			join persons authors on authors.id = u.author
 			left join notes replies on replies.object->>'$.inReplyTo' = u.id
 			group by u.id
-			order by max(u.inserted, coalesce(max(replies.inserted), 0)) / 86400 desc, count(replies.id) desc, u.inserted desc limit $3 offset $4`,
+			order by max(u.inserted, coalesce(max(case when replies.deleted = 0 then replies.inserted end), 0)) / 86400 desc, count(replies.id) filter (where replies.deleted = 0) desc, u.inserted desc limit $3 offset $4`,
 			actorID,
 			r.User.ID,
 			h.Config.PostsPerPage,
