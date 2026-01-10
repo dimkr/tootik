@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -87,6 +87,7 @@ func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 		where
 			persons.ttl is not null and
 			notes.inserted <= unixepoch() - (persons.ttl * 24 * 60 * 60) and
+			notes.deleted = 0 and
 			not exists (select 1 from bookmarks where bookmarks.by = persons.id and bookmarks.note = notes.id)
 		order by notes.inserted
 		limit ?

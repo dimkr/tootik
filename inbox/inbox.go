@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -155,7 +155,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 			}
 		} else {
 			var note ap.Object
-			if err := tx.QueryRowContext(ctx, `select json(object) from notes where id = ?`, deleted).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
+			if err := tx.QueryRowContext(ctx, `select json(object) from notes where id = ? and deleted = 0`, deleted).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
 				slog.Debug("Received delete request for non-existing post", "activity", activity, "deleted", deleted)
 				return nil
 			} else if err != nil {
@@ -169,7 +169,10 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 			if _, err := tx.ExecContext(ctx, `delete from notesfts where id = ?`, deleted); err != nil {
 				return fmt.Errorf("cannot delete %s: %w", deleted, err)
 			}
-			if _, err := tx.ExecContext(ctx, `delete from notes where id = ?`, deleted); err != nil {
+			if _, err := tx.ExecContext(ctx, `update notes set object = jsonb_set(jsonb_remove(object, '$.name', '$.summary', '$.tag', '$.attachment', '$.votersCount', '$.oneOf', '$.anyOf'), '$.content', '[deleted]'), deleted = 1 where id = ?`, deleted); err != nil {
+				return fmt.Errorf("cannot delete %s: %w", deleted, err)
+			}
+			if _, err := tx.ExecContext(ctx, `delete from hashtags where note = ?`, deleted); err != nil {
 				return fmt.Errorf("cannot delete %s: %w", deleted, err)
 			}
 			if _, err := tx.ExecContext(ctx, `delete from shares where note = ?`, deleted); err != nil {
