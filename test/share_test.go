@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -145,7 +145,7 @@ func TestShare_Unshare(t *testing.T) {
 	outbox = strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
 	assert.Contains(outbox, "> Hello world")
 
-	_, err := server.db.Exec(`update outbox set inserted = inserted = 3600 where activity->>'$.type' = 'Announce'`)
+	_, err := server.db.Exec(`update outbox set inserted = inserted - (3600 * 1000000000) where activity->>'$.type' = 'Announce'`)
 	assert.NoError(err)
 
 	unshare := server.Handle("/users/unshare/"+id, server.Bob)
@@ -175,7 +175,7 @@ func TestShare_ShareAfterUnshare(t *testing.T) {
 	outbox = strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
 	assert.Contains(outbox, "> Hello world")
 
-	_, err := server.db.Exec(`update outbox set inserted = inserted = 3600 where activity->>'$.type' = 'Announce'`)
+	_, err := server.db.Exec(`update outbox set inserted = inserted - (3600 * 1000000000) where activity->>'$.type' = 'Announce'`)
 	assert.NoError(err)
 
 	unshare := server.Handle("/users/unshare/"+id, server.Bob)
@@ -184,7 +184,7 @@ func TestShare_ShareAfterUnshare(t *testing.T) {
 	outbox = strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
 	assert.NotContains(outbox, "> Hello world")
 
-	_, err = server.db.Exec(`update outbox set inserted = inserted = 3600 where activity->>'$.type' = 'Undo'`)
+	_, err = server.db.Exec(`update outbox set inserted = inserted - (3600 * 1000000000) where activity->>'$.type' = 'Undo'`)
 	assert.NoError(err)
 
 	share = server.Handle("/users/share/"+id, server.Bob)
