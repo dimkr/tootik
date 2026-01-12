@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -39,5 +39,5 @@ type Inbox interface {
 	UpdateActor(ctx context.Context, actor *Actor, key httpsig.Key) error
 	UpdateNote(ctx context.Context, actor *Actor, key httpsig.Key, note *Object) error
 	Unfollow(ctx context.Context, follower *Actor, key httpsig.Key, followed, followID string) error
-	ProcessActivity(ctx context.Context, tx *sql.Tx, sender *Actor, activity *Activity, rawActivity string, depth int, shared bool) error
+	ProcessActivity(ctx context.Context, tx *sql.Tx, path sql.NullString, sender *Actor, activity *Activity, rawActivity string, depth int, shared bool) error
 }

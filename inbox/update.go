@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/danger"
@@ -72,9 +73,10 @@ func (inbox *Inbox) updateNote(ctx context.Context, actor *ap.Actor, key httpsig
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
+		`INSERT INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
 		s,
 		note.AttributedTo,
+		time.Now().UnixNano(),
 	); err != nil {
 		return err
 	}
@@ -93,7 +95,16 @@ func (inbox *Inbox) updateNote(ctx context.Context, actor *ap.Actor, key httpsig
 		}
 	}
 
-	if err := inbox.ProcessActivity(ctx, tx, actor, update, s, 1, false); err != nil {
+	if err := inbox.ProcessActivity(
+		ctx,
+		tx,
+		sql.NullString{},
+		actor,
+		update,
+		s,
+		1,
+		false,
+	); err != nil {
 		return err
 	}
 
@@ -154,9 +165,10 @@ func (inbox *Inbox) updateActor(ctx context.Context, tx *sql.Tx, actor *ap.Actor
 
 	_, err = tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
+		`INSERT INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
 		update,
 		actor.ID,
+		time.Now().UnixNano(),
 	)
 	return err
 }

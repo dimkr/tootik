@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -61,17 +61,20 @@ func (inbox *Inbox) move(ctx context.Context, from *ap.Actor, key httpsig.Key, t
 	}
 	defer tx.Rollback()
 
+	now := time.Now()
+
 	from.MovedTo = to
-	from.Updated.Time = time.Now()
+	from.Updated.Time = now
 	if err := inbox.UpdateActorTx(ctx, tx, from, key); err != nil {
 		return err
 	}
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`insert into outbox (activity, sender) values (jsonb(?), ?)`,
+		`insert into outbox (activity, sender, inserted) values (jsonb(?), ?, ?)`,
 		move,
 		from.ID,
+		now.UnixNano(),
 	); err != nil {
 		return err
 	}

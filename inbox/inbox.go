@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"time"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
@@ -128,7 +129,7 @@ func (inbox *Inbox) processCreateActivity(ctx context.Context, tx *sql.Tx, sende
 	return nil
 }
 
-func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.Actor, activity *ap.Activity, rawActivity string, depth int, shared bool) error {
+func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.NullString, sender *ap.Actor, activity *ap.Activity, rawActivity string, depth int, shared bool) error {
 	if depth == ap.MaxActivityDepth {
 		return ErrActivityTooNested
 	}
@@ -378,7 +379,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 		}
 
 		depth++
-		return inbox.ProcessActivity(ctx, tx, sender, inner, rawActivity, depth, true)
+		return inbox.ProcessActivity(ctx, tx, path, sender, inner, rawActivity, depth, true)
 
 	case ap.Update:
 		post, ok := activity.Object.(*ap.Object)
@@ -466,6 +467,18 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, sender *ap.
 		} else {
 			slog.Warn("Received unknown, unauthorized request", "activity", activity)
 		}
+	}
+
+	return nil
+}
+
+func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, path sql.NullString, sender *ap.Actor, activity *ap.Activity, rawActivity string, depth int, shared bool) error {
+	if err := inbox.processActivity(ctx, tx, path, sender, activity, rawActivity, depth, shared); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `insert or ignore into history (path, public, activity, inserted) values (?, ?, jsonb($3), ?)`, path, activity.IsPublic(), rawActivity, time.Now().UnixNano()); err != nil {
+		return err
 	}
 
 	return nil

@@ -1,5 +1,5 @@
 /*
-Copyright 2024 - 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -161,11 +161,11 @@ func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 	}
 	rows.Close()
 
-	collection, err := json.Marshal(map[string]any{
-		"@context":     "https://www.w3.org/ns/activitystreams",
-		"id":           fmt.Sprintf("https://%s/followers/%s?domain=%s", l.Domain, name, u.Host),
-		"type":         "OrderedCollection",
-		"orderedItems": items,
+	collection, err := json.Marshal(ap.Collection{
+		Context:      "https://www.w3.org/ns/activitystreams",
+		ID:           fmt.Sprintf("https://%s/followers/%s?domain=%s", l.Domain, name, u.Host),
+		Type:         ap.OrderedCollection,
+		OrderedItems: items,
 	})
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -196,7 +196,7 @@ func (l *Listener) saveFollowersDigest(ctx context.Context, sender *ap.Actor, he
 	}
 
 	if collection != sender.Followers {
-		return errors.New("collection is not sender's followers")
+		return fmt.Errorf("collection is not sender's followers: %s != %s", collection, sender.Followers)
 	}
 
 	if !strings.HasPrefix(sender.Followers, "https://") {

@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -563,7 +563,8 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 
 	if _, err = l.DB.ExecContext(
 		r.Context(),
-		`INSERT OR IGNORE INTO inbox (sender, activity, raw) VALUES (?, JSONB(?), ?)`,
+		`INSERT OR IGNORE INTO inbox (path, sender, activity, raw) VALUES (?, ?, JSONB(?), ?)`,
+		r.URL.Path,
 		sender.ID,
 		queued,
 		danger.String(rawActivity),

@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -67,7 +67,7 @@ func (gc *GarbageCollector) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to remove old shares: %w", err)
 	}
 
-	if _, err := gc.DB.ExecContext(ctx, `delete from outbox where inserted < ? and host != ?`, now.Add(-gc.Config.DeliveryTTL).Unix(), gc.Domain); err != nil {
+	if _, err := gc.DB.ExecContext(ctx, `delete from outbox where inserted < ? and host != ?`, now.Add(-gc.Config.DeliveryTTL).UnixNano(), gc.Domain); err != nil {
 		return fmt.Errorf("failed to remove old posts: %w", err)
 	}
 
@@ -77,6 +77,10 @@ func (gc *GarbageCollector) Run(ctx context.Context) error {
 
 	if _, err := gc.DB.ExecContext(ctx, `delete from feed where inserted < ?`, now.Add(-gc.Config.FeedTTL).Unix()); err != nil {
 		return fmt.Errorf("failed to trim feed: %w", err)
+	}
+
+	if _, err := gc.DB.ExecContext(ctx, `delete from history where inserted < ?`, now.Add(-gc.Config.HistoryTTL).UnixNano()); err != nil {
+		return fmt.Errorf("failed to trim history: %w", err)
 	}
 
 	if _, err := gc.DB.ExecContext(ctx, `delete from bookmarks where by not in (select id from persons)`); err != nil {

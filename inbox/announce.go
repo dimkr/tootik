@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -69,14 +69,24 @@ func (inbox *Inbox) announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, k
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender) VALUES (JSONB(?), ?)`,
+		`INSERT INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
 		s,
 		actor.ID,
+		time.Now().UnixNano(),
 	); err != nil {
 		return err
 	}
 
-	return inbox.ProcessActivity(ctx, tx, actor, announce, s, 1, false)
+	return inbox.ProcessActivity(
+		ctx,
+		tx,
+		sql.NullString{},
+		actor,
+		announce,
+		s,
+		1,
+		false,
+	)
 }
 
 // Announce queues an Announce activity for delivery.

@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,8 +18,10 @@ package inbox
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
@@ -82,11 +84,26 @@ func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, post *ap.Object
 	}
 	defer tx.Rollback()
 
-	if _, err = tx.ExecContext(ctx, `insert into outbox (activity, sender) values (jsonb(?),?)`, s, author.ID); err != nil {
+	if _, err = tx.ExecContext(
+		ctx,
+		`insert into outbox (activity, sender, inserted) values (jsonb(?),?,?)`,
+		s,
+		author.ID,
+		time.Now().UnixNano(),
+	); err != nil {
 		return err
 	}
 
-	if err := inbox.ProcessActivity(ctx, tx, author, create, s, 1, false); err != nil {
+	if err := inbox.ProcessActivity(
+		ctx,
+		tx,
+		sql.NullString{},
+		author,
+		create,
+		s,
+		1,
+		false,
+	); err != nil {
 		return err
 	}
 

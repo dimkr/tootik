@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -55,8 +55,8 @@ func (l *Listener) newHandler() (*http.ServeMux, error) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /robots.txt", robots)
 	mux.HandleFunc("GET /.well-known/webfinger", l.handleWebFinger)
-	mux.HandleFunc("GET /.well-known/apgateway/{resource...}", l.handleAPGatewayGet)
-	mux.HandleFunc("POST /.well-known/apgateway/{resource...}", l.handleAPGatewayPost)
+	mux.HandleFunc("GET /.well-known/apgateway/", l.handleAPGatewayGet)
+	mux.HandleFunc("POST /.well-known/apgateway/", l.handleAPGatewayPost)
 	mux.HandleFunc("GET /user/{username}", l.handleUser)
 	mux.HandleFunc("GET /actor", l.handleActor)
 	mux.HandleFunc("GET /icon/{username}", l.handleIcon)

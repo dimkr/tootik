@@ -29,7 +29,7 @@ func (h *Handler) shouldThrottleShare(r *Request) (bool, error) {
 	now := time.Now()
 
 	var today, last sql.NullInt64
-	if err := h.DB.QueryRowContext(r.Context, `select count(*), max(inserted) from outbox where activity->>'$.actor' = $1 and sender = $1 and (activity->>'$.type' = 'Announce' or activity->>'$.type' = 'Undo') and inserted > $2`, r.User.ID, now.Add(-24*time.Hour).Unix()).Scan(&today, &last); err != nil {
+	if err := h.DB.QueryRowContext(r.Context, `select count(*), max(inserted) from outbox where activity->>'$.actor' = $1 and sender = $1 and (activity->>'$.type' = 'Announce' or activity->>'$.type' = 'Undo') and inserted > $2`, r.User.ID, now.Add(-24*time.Hour).UnixNano()).Scan(&today, &last); err != nil {
 		return false, err
 	}
 
@@ -37,7 +37,7 @@ func (h *Handler) shouldThrottleShare(r *Request) (bool, error) {
 		return false, nil
 	}
 
-	t := time.Unix(last.Int64, 0)
+	t := time.Unix(0, last.Int64)
 	interval := max(1, time.Duration(today.Int64/h.Config.ShareThrottleFactor)) * h.Config.ShareThrottleUnit
 	return now.Sub(t) < interval, nil
 }

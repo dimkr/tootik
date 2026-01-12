@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -124,6 +124,7 @@ type Config struct {
 	DeliveryTTL       time.Duration
 	ActorTTL          time.Duration
 	FeedTTL           time.Duration
+	HistoryTTL        time.Duration
 
 	FillNodeInfoUsage bool
 
@@ -132,6 +133,9 @@ type Config struct {
 
 	DisableIntegrityProofs bool
 	MaxGateways            int
+
+	InboxPageSize  int
+	OutboxPageSize int
 }
 
 var defaultMaxInvitationsPerUser = 5
@@ -425,6 +429,10 @@ func (c *Config) FillDefaults() {
 		c.FeedTTL = time.Hour * 24 * 7
 	}
 
+	if c.HistoryTTL <= 0 {
+		c.HistoryTTL = time.Hour * 24 * 30
+	}
+
 	if c.RFC9421Threshold <= 0 || c.RFC9421Threshold > 1 {
 		c.RFC9421Threshold = 0.95
 	}
@@ -435,5 +443,13 @@ func (c *Config) FillDefaults() {
 
 	if c.MaxGateways <= 0 {
 		c.MaxGateways = 10
+	}
+
+	if c.InboxPageSize <= 0 {
+		c.InboxPageSize = 100
+	}
+
+	if c.OutboxPageSize <= 0 {
+		c.OutboxPageSize = 100
 	}
 }

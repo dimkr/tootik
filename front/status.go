@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -61,7 +61,7 @@ func (h *Handler) getWeeklyPostsGraph(r *Request) string {
 func (h *Handler) getWeeklyFailedDeliveriesGraph(r *Request) string {
 	keys := make([]string, 7)
 	values := make([]int64, 7)
-	return h.getGraph(r, keys, values, `select strftime('%Y-%m-%d %H:%M', datetime(day*60*60*24, 'unixepoch')), count(*) from (select inserted/(60*60*24) as day from outbox where sent = 0 and inserted>unixepoch()-60*60*24*7 and inserted<unixepoch()/(60*60*24)*60*60*24) group by day order by day`)
+	return h.getGraph(r, keys, values, `select strftime('%Y-%m-%d %H:%M', datetime(day*60*60*24, 'unixepoch')), count(*) from (select inserted/(60*60*24*1000000000) as day from outbox where sent = 0 and inserted>(unixepoch()-60*60*24*7)*1000000000 and inserted<unixepoch()/(60*60*24)*60*60*24*1000000000) group by day order by day`)
 }
 
 func (h *Handler) getUsersGraph(r *Request) string {
