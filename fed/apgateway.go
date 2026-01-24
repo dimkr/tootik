@@ -92,7 +92,7 @@ func (l *Listener) handleApGatewayOutboxPost(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if err := l.validateActivity(&activity, did, 0); err != nil {
+	if err := ap.ValidateOrigin(l.Domain, &activity, did); err != nil {
 		slog.Warn("Activity is invalid", "activity", activity.ID, "error", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
