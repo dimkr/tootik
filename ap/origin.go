@@ -24,8 +24,9 @@ import (
 
 // ValidateOrigin validates the origin of an [Activity].
 //
-// In other words, it enforces [FEP-fe34](https://codeberg.org/fediverse/fep/src/branch/main/fep/fe34/fep-fe34.md)
-// ownership of [Activity.Actor] over entities affected by the [Activity].
+// In other words, it can be used to enforce a same-owner policy and prevent actors from creating, editing or deleting
+// entities owned by other actors.
+// See https://fediverse.codeberg.page/fep/fep/fe34/ for more details.
 func ValidateOrigin(domain string, activity *Activity, origin string) error {
 	return validateOrigin(domain, activity, origin, 0)
 }
