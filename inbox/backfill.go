@@ -69,6 +69,12 @@ func (q *Queue) fetchParent(ctx context.Context, post *ap.Object, depth int) err
 	var parent ap.Object
 	if err := q.DB.QueryRowContext(
 		ctx,
+		/*
+			we want to use the post we have and avoid fetching if
+			1. it was deleted, or
+			2. it's a post by a local user, or
+			3. it's *not* a post by a local user but it was updated recently
+		*/
 		`
 		select json(object) from notes
 		where
@@ -90,6 +96,7 @@ func (q *Queue) fetchParent(ctx context.Context, post *ap.Object, depth int) err
 						or exists (
 							select 1 from history where
 								(activity->>'$.type' = 'Create' or activity->>'$.type' = 'Update')
+								and coalesce(activity->>'$.actor.id', activity->>'$.actor') = notes.author
 								and activity->>'$.object.id' = $1
 								and inserted > $3
 						)
