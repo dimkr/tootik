@@ -64,8 +64,6 @@ func (q *Queue) fetchParent(ctx context.Context, post *ap.Object, depth int) err
 		return err
 	}
 
-	since := time.Now().Add(-q.Config.BackfillInterval)
-
 	var parent ap.Object
 	if err := q.DB.QueryRowContext(
 		ctx,
@@ -73,7 +71,8 @@ func (q *Queue) fetchParent(ctx context.Context, post *ap.Object, depth int) err
 			we want to use the post we have and avoid fetching if
 			1. it was deleted, or
 			2. it's a post by a local user, or
-			3. it's *not* a post by a local user but it was updated recently
+			3. it's *not* a post by a local user, but it was updated recently or it's likely that edits and deletion
+			   will be federated to us because we've received at least one activity
 		*/
 		`
 		select json(object) from notes
@@ -98,15 +97,13 @@ func (q *Queue) fetchParent(ctx context.Context, post *ap.Object, depth int) err
 								(activity->>'$.type' = 'Create' or activity->>'$.type' = 'Update')
 								and coalesce(activity->>'$.actor.id', activity->>'$.actor') = notes.author
 								and activity->>'$.object.id' = $1
-								and inserted > $3
 						)
 					)
 				)
 			)
 		`,
 		post.InReplyTo,
-		since.Unix(),
-		since.UnixNano(),
+		time.Now().Add(-q.Config.BackfillInterval).Unix(),
 	).Scan(&parent); err == nil {
 		slog.Debug("Skipping fetching of parent post", "parent", post.InReplyTo, "depth", depth)
 		return q.fetchParent(ctx, &parent, depth+1)
