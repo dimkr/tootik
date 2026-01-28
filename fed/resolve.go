@@ -543,6 +543,8 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 		}
 	}
 
+	cap := actor.Capabilities()
+
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
@@ -587,6 +589,17 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 		actor.ID,
 	); err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
+	}
+
+	if cap > 0 {
+		if _, err = tx.ExecContext(
+			ctx,
+			`INSERT INTO servers (host, capabilities) VALUES ($1, $2) ON CONFLICT(host) DO UPDATE SET capabilities = capabilities | $2, updated = UNIXEPOCH()`,
+			req.Host,
+			cap,
+		); err != nil {
+			return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
