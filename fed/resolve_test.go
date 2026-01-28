@@ -74,7 +74,7 @@ func (c *testClient) Do(r *http.Request) (*http.Response, error) {
 func TestResolve_LocalActor(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -110,7 +110,7 @@ func TestResolve_LocalActor(t *testing.T) {
 func TestResolve_LocalActorDoesNotExist(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -142,7 +142,7 @@ func TestResolve_LocalActorDoesNotExist(t *testing.T) {
 func TestResolve_FederatedInstanceActor(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -227,7 +227,7 @@ func TestResolve_FederatedInstanceActor(t *testing.T) {
 func TestResolve_FederatedActorInvalidURL(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -259,7 +259,7 @@ func TestResolve_FederatedActorInvalidURL(t *testing.T) {
 func TestResolve_FederatedActorInvalidScheme(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -291,7 +291,7 @@ func TestResolve_FederatedActorInvalidScheme(t *testing.T) {
 func TestResolve_FederatedActorFirstTime(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -376,7 +376,7 @@ func TestResolve_FederatedActorFirstTime(t *testing.T) {
 func TestResolve_FederatedActorFirstTimeOffline(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -409,7 +409,7 @@ func TestResolve_FederatedActorFirstTimeOffline(t *testing.T) {
 func TestResolve_FederatedActorFirstTimeCancelled(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -449,7 +449,7 @@ func TestResolve_FederatedActorFirstTimeCancelled(t *testing.T) {
 func TestResolve_FederatedActorFirstTimeInvalidWebFingerLink(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -539,7 +539,7 @@ func TestResolve_FederatedActorFirstTimeInvalidWebFingerLink(t *testing.T) {
 func TestResolve_FederatedActorFirstTimeActorIDMismatch(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -621,7 +621,7 @@ func TestResolve_FederatedActorFirstTimeActorIDMismatch(t *testing.T) {
 func TestResolve_FederatedActorCached(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -712,7 +712,7 @@ func TestResolve_FederatedActorCached(t *testing.T) {
 func TestResolve_FederatedActorCachedInvalidActorHost(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -770,7 +770,7 @@ func TestResolve_FederatedActorCachedInvalidActorHost(t *testing.T) {
 func TestResolve_FederatedActorCachedActorHostWithPort(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -828,7 +828,7 @@ func TestResolve_FederatedActorCachedActorHostWithPort(t *testing.T) {
 func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -974,7 +974,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 func TestResolve_FederatedActorCachedActorHostSubdomainFetchedRecently(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -1068,7 +1068,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomainFetchedRecently(t *testin
 func TestResolve_FederatedActorCachedActorIDChanged(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -1189,7 +1189,7 @@ func TestResolve_FederatedActorCachedActorIDChanged(t *testing.T) {
 func TestResolve_FederatedActorCachedButBlocked(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -1287,7 +1287,7 @@ func TestResolve_FederatedActorCachedButBlocked(t *testing.T) {
 func TestResolve_FederatedActorOldCache(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -1439,7 +1439,7 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 func TestResolve_FederatedActorOldCacheWasSuspended(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -1591,7 +1591,7 @@ func TestResolve_FederatedActorOldCacheWasSuspended(t *testing.T) {
 func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -1740,7 +1740,7 @@ func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 func TestResolve_FederatedActorOldCacheUpdateFailed(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -1866,7 +1866,7 @@ func TestResolve_FederatedActorOldCacheUpdateFailed(t *testing.T) {
 func TestResolve_FederatedActorOldCacheStillNew(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -2005,7 +2005,7 @@ func TestResolve_FederatedActorOldCacheStillNew(t *testing.T) {
 func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -2149,7 +2149,7 @@ func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
 func TestResolve_FederatedActorOldCacheWasNewNowUnknown(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -2289,7 +2289,7 @@ func TestResolve_FederatedActorOldCacheWasNewNowUnknown(t *testing.T) {
 func TestResolve_FederatedActorOldCacheFetchedRecently(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -2383,7 +2383,7 @@ func TestResolve_FederatedActorOldCacheFetchedRecently(t *testing.T) {
 func TestResolve_FederatedActorOldCacheButOffline(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -2477,7 +2477,7 @@ func TestResolve_FederatedActorOldCacheButOffline(t *testing.T) {
 func TestResolve_FederatedActorOldCacheExpiredDomain(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -2570,7 +2570,7 @@ func TestResolve_FederatedActorOldCacheExpiredDomain(t *testing.T) {
 func TestResolve_FederatedActorOldCacheInvalidID(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -2627,7 +2627,7 @@ func TestResolve_FederatedActorOldCacheInvalidID(t *testing.T) {
 func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -2732,7 +2732,7 @@ func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
 func TestResolve_FederatedActorOldCacheBigWebFingerResponse(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -2855,7 +2855,7 @@ func TestResolve_FederatedActorOldCacheBigWebFingerResponse(t *testing.T) {
 func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -2982,7 +2982,7 @@ func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -3130,7 +3130,7 @@ func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 func TestResolve_FederatedActorFirstTimeThroughKey(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -3230,7 +3230,7 @@ func TestResolve_FederatedActorFirstTimeThroughKey(t *testing.T) {
 func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -3357,7 +3357,7 @@ func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 func TestResolve_FederatedActorOldCacheWebFingerError(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -3464,7 +3464,7 @@ func TestResolve_FederatedActorOldCacheWebFingerError(t *testing.T) {
 func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -3594,7 +3594,7 @@ func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -3735,7 +3735,7 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 func TestResolve_FederatedActorFirstTimeWrongID(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -3820,7 +3820,7 @@ func TestResolve_FederatedActorFirstTimeWrongID(t *testing.T) {
 func TestResolve_FederatedActorFirstTimeDeleted(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -3900,7 +3900,7 @@ func TestResolve_FederatedActorFirstTimeDeleted(t *testing.T) {
 func TestResolve_FederatedActorFirstTimeTooYoung(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -3981,7 +3981,7 @@ func TestResolve_FederatedActorFirstTimeTooYoung(t *testing.T) {
 func TestResolve_FederatedActorFirstTimeSuspended(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -4064,7 +4064,7 @@ func TestResolve_FederatedActorFirstTimeSuspended(t *testing.T) {
 func TestResolve_FederatedActorWrongIDCached(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -4155,7 +4155,7 @@ func TestResolve_FederatedActorWrongIDCached(t *testing.T) {
 func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
@@ -4301,7 +4301,7 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite")
+	f, err := os.CreateTemp("", "tootik-*.sqlite3")
 	assert.NoError(err)
 	f.Close()
 
