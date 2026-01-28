@@ -129,16 +129,16 @@ You can join an [existing instance](gemini://hd.206267.xyz) or [set up your own]
 ## Building
 
 	go generate ./migrations
-	go build ./cmd/tootik -tags fts5
+	go build ./cmd/tootik
 
 To build a static executable:
 
 	go generate ./migrations
-	go build -tags netgo,sqlite_omit_load_extension,fts5 -ldflags "-linkmode external -extldflags -static" ./cmd/tootik
+	CGO_ENABLED=0 go build ./cmd/tootik
 
 To build a smaller executable without support for profiling, add the `no_pprof` build tag:
 
-	go build -tags netgo,sqlite_omit_load_extension,fts5,no_pprof -ldflags "-linkmode external -extldflags -static" ./cmd/tootik
+	go build -tags no_pprof ./cmd/tootik
 
 ## Architecture
 

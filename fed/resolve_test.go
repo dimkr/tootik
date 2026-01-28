@@ -32,8 +32,8 @@ import (
 	"github.com/dimkr/tootik/front/user"
 	"github.com/dimkr/tootik/inbox/note"
 	"github.com/dimkr/tootik/migrations"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
+	_ "modernc.org/sqlite"
 )
 
 type testResponse struct {
@@ -74,14 +74,14 @@ func (c *testClient) Do(r *http.Request) (*http.Response, error) {
 func TestResolve_LocalActor(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -110,14 +110,14 @@ func TestResolve_LocalActor(t *testing.T) {
 func TestResolve_LocalActorDoesNotExist(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -142,14 +142,14 @@ func TestResolve_LocalActorDoesNotExist(t *testing.T) {
 func TestResolve_FederatedInstanceActor(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -227,14 +227,14 @@ func TestResolve_FederatedInstanceActor(t *testing.T) {
 func TestResolve_FederatedActorInvalidURL(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -259,14 +259,14 @@ func TestResolve_FederatedActorInvalidURL(t *testing.T) {
 func TestResolve_FederatedActorInvalidScheme(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -291,14 +291,14 @@ func TestResolve_FederatedActorInvalidScheme(t *testing.T) {
 func TestResolve_FederatedActorFirstTime(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -376,14 +376,14 @@ func TestResolve_FederatedActorFirstTime(t *testing.T) {
 func TestResolve_FederatedActorFirstTimeOffline(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -409,14 +409,14 @@ func TestResolve_FederatedActorFirstTimeOffline(t *testing.T) {
 func TestResolve_FederatedActorFirstTimeCancelled(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -449,14 +449,14 @@ func TestResolve_FederatedActorFirstTimeCancelled(t *testing.T) {
 func TestResolve_FederatedActorFirstTimeInvalidWebFingerLink(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -539,14 +539,14 @@ func TestResolve_FederatedActorFirstTimeInvalidWebFingerLink(t *testing.T) {
 func TestResolve_FederatedActorFirstTimeActorIDMismatch(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -621,14 +621,14 @@ func TestResolve_FederatedActorFirstTimeActorIDMismatch(t *testing.T) {
 func TestResolve_FederatedActorCached(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -712,14 +712,14 @@ func TestResolve_FederatedActorCached(t *testing.T) {
 func TestResolve_FederatedActorCachedInvalidActorHost(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -770,14 +770,14 @@ func TestResolve_FederatedActorCachedInvalidActorHost(t *testing.T) {
 func TestResolve_FederatedActorCachedActorHostWithPort(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -828,14 +828,14 @@ func TestResolve_FederatedActorCachedActorHostWithPort(t *testing.T) {
 func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -974,14 +974,14 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 func TestResolve_FederatedActorCachedActorHostSubdomainFetchedRecently(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -1068,14 +1068,14 @@ func TestResolve_FederatedActorCachedActorHostSubdomainFetchedRecently(t *testin
 func TestResolve_FederatedActorCachedActorIDChanged(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -1189,14 +1189,14 @@ func TestResolve_FederatedActorCachedActorIDChanged(t *testing.T) {
 func TestResolve_FederatedActorCachedButBlocked(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -1287,14 +1287,14 @@ func TestResolve_FederatedActorCachedButBlocked(t *testing.T) {
 func TestResolve_FederatedActorOldCache(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -1439,14 +1439,14 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 func TestResolve_FederatedActorOldCacheWasSuspended(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -1591,14 +1591,14 @@ func TestResolve_FederatedActorOldCacheWasSuspended(t *testing.T) {
 func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -1740,14 +1740,14 @@ func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 func TestResolve_FederatedActorOldCacheUpdateFailed(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -1866,14 +1866,14 @@ func TestResolve_FederatedActorOldCacheUpdateFailed(t *testing.T) {
 func TestResolve_FederatedActorOldCacheStillNew(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -2005,14 +2005,14 @@ func TestResolve_FederatedActorOldCacheStillNew(t *testing.T) {
 func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -2149,14 +2149,14 @@ func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
 func TestResolve_FederatedActorOldCacheWasNewNowUnknown(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -2289,14 +2289,14 @@ func TestResolve_FederatedActorOldCacheWasNewNowUnknown(t *testing.T) {
 func TestResolve_FederatedActorOldCacheFetchedRecently(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -2383,14 +2383,14 @@ func TestResolve_FederatedActorOldCacheFetchedRecently(t *testing.T) {
 func TestResolve_FederatedActorOldCacheButOffline(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -2477,14 +2477,14 @@ func TestResolve_FederatedActorOldCacheButOffline(t *testing.T) {
 func TestResolve_FederatedActorOldCacheExpiredDomain(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -2570,14 +2570,14 @@ func TestResolve_FederatedActorOldCacheExpiredDomain(t *testing.T) {
 func TestResolve_FederatedActorOldCacheInvalidID(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -2627,14 +2627,14 @@ func TestResolve_FederatedActorOldCacheInvalidID(t *testing.T) {
 func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -2732,14 +2732,14 @@ func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
 func TestResolve_FederatedActorOldCacheBigWebFingerResponse(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -2855,14 +2855,14 @@ func TestResolve_FederatedActorOldCacheBigWebFingerResponse(t *testing.T) {
 func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -2982,14 +2982,14 @@ func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -3130,14 +3130,14 @@ func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 func TestResolve_FederatedActorFirstTimeThroughKey(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -3230,14 +3230,14 @@ func TestResolve_FederatedActorFirstTimeThroughKey(t *testing.T) {
 func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -3357,14 +3357,14 @@ func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 func TestResolve_FederatedActorOldCacheWebFingerError(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -3464,14 +3464,14 @@ func TestResolve_FederatedActorOldCacheWebFingerError(t *testing.T) {
 func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -3594,14 +3594,14 @@ func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -3735,14 +3735,14 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 func TestResolve_FederatedActorFirstTimeWrongID(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -3820,14 +3820,14 @@ func TestResolve_FederatedActorFirstTimeWrongID(t *testing.T) {
 func TestResolve_FederatedActorFirstTimeDeleted(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -3900,14 +3900,14 @@ func TestResolve_FederatedActorFirstTimeDeleted(t *testing.T) {
 func TestResolve_FederatedActorFirstTimeTooYoung(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -3981,14 +3981,14 @@ func TestResolve_FederatedActorFirstTimeTooYoung(t *testing.T) {
 func TestResolve_FederatedActorFirstTimeSuspended(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -4064,14 +4064,14 @@ func TestResolve_FederatedActorFirstTimeSuspended(t *testing.T) {
 func TestResolve_FederatedActorWrongIDCached(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -4155,14 +4155,14 @@ func TestResolve_FederatedActorWrongIDCached(t *testing.T) {
 func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -4301,14 +4301,14 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
+	f, err := os.CreateTemp("", "tootik-*.sqlite")
 	assert.NoError(err)
 	f.Close()
 
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
