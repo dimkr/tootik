@@ -543,7 +543,16 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 		}
 	}
 
-	cap := actor.Capabilities()
+	var capabilities ap.Capability
+
+	for _, imp := range actor.Generator.Implements {
+		switch imp.Href {
+		case "https://datatracker.ietf.org/doc/html/rfc9421":
+			capabilities |= ap.RFC9421RSASignatures
+		case "https://datatracker.ietf.org/doc/html/rfc9421#name-eddsa-using-curve-edwards25":
+			capabilities |= ap.RFC9421Ed25519Signatures
+		}
+	}
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -591,12 +600,12 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
 	}
 
-	if cap > 0 {
+	if capabilities > 0 {
 		if _, err = tx.ExecContext(
 			ctx,
 			`INSERT INTO servers (host, capabilities) VALUES ($1, $2) ON CONFLICT(host) DO UPDATE SET capabilities = capabilities | $2, updated = UNIXEPOCH()`,
 			req.Host,
-			cap,
+			capabilities,
 		); err != nil {
 			return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
 		}

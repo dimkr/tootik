@@ -593,8 +593,6 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 		}
 	}
 
-	capabilities |= sender.Capabilities()
-
 	if capabilities > 0 {
 		if _, err = l.DB.ExecContext(
 			r.Context(),
