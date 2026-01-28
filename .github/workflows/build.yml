@@ -14,6 +14,9 @@ jobs:
       image: debian:trixie-slim
     steps:
       - uses: actions/checkout@v4
+      - run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends ca-certificates
       - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
