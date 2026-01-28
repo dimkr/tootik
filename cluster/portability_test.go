@@ -1472,7 +1472,7 @@ func TestCluster_ClientSideSigningFollowersHappyFlow(t *testing.T) {
 		Follow("🔒 Approve new follow requests manually").
 		OK()
 
-	bob.
+	carol.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
 		Follow("⚡ Follow alice (requires approval)").
 		OK()
@@ -1483,7 +1483,7 @@ func TestCluster_ClientSideSigningFollowersHappyFlow(t *testing.T) {
 		Follow("🟢 Accept")
 	cluster.Settle(t)
 
-	carol.
+	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
 		Follow("⚡ Follow alice (requires approval)").
 		OK()
@@ -1504,7 +1504,7 @@ func TestCluster_ClientSideSigningFollowersHappyFlow(t *testing.T) {
 	if !slices.Equal(
 		followers.OrderedItems,
 		[]string{
-			"https://b.localdomain/.well-known/apgateway/" + bobDID + "/actor",
+			"https://c.localdomain/.well-known/apgateway/" + carolDID + "/actor",
 		},
 	) {
 		t.Fatalf("Unexpected list of followers: %v", followers.OrderedItems)
