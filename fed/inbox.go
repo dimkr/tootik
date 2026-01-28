@@ -68,159 +68,6 @@ func (l *Listener) getActivityOrigin(activity *ap.Activity, sender *ap.Actor) (s
 	return activityOrigin, senderOrigin, senderHost, nil
 }
 
-func (l *Listener) validateActivity(activity *ap.Activity, origin string, depth uint) error {
-	if depth == ap.MaxActivityDepth {
-		return errors.New("activity is too nested")
-	}
-
-	if origin == l.Domain {
-		return errors.New("invalid origin")
-	}
-
-	slog.Debug("Validating activity origin", "activity", activity, "origin", origin, "depth", depth)
-
-	if activity.ID == "" {
-		return errors.New("unspecified activity ID")
-	}
-
-	activityOrigin, err := ap.Origin(activity.ID)
-	if err != nil {
-		return err
-	}
-
-	if activityOrigin != origin {
-		return fmt.Errorf("invalid activity host: %s", activityOrigin)
-	}
-
-	if activity.Actor == "" {
-		return errors.New("unspecified actor")
-	}
-
-	actorOrigin, err := ap.Origin(activity.Actor)
-	if err != nil {
-		return err
-	}
-
-	if actorOrigin != origin {
-		return fmt.Errorf("invalid actor host: %s", actorOrigin)
-	}
-
-	switch activity.Type {
-	case ap.Delete:
-		// $origin can only delete objects that belong to $origin
-		switch v := activity.Object.(type) {
-		case *ap.Object:
-			if objectOrigin, err := ap.Origin(v.ID); err != nil {
-				return err
-			} else if objectOrigin != origin {
-				return fmt.Errorf("invalid object host: %s", objectOrigin)
-			}
-
-		case string:
-			if stringOrigin, err := ap.Origin(v); err != nil {
-				return err
-			} else if stringOrigin != origin {
-				return fmt.Errorf("invalid object host: %s", stringOrigin)
-			}
-
-		default:
-			return fmt.Errorf("invalid object: %T", v)
-		}
-
-	case ap.Follow:
-		if inner, ok := activity.Object.(string); ok {
-			if _, err := ap.Origin(inner); err != nil {
-				return err
-			}
-		} else {
-			return fmt.Errorf("invalid object: %T", activity.Object)
-		}
-
-	case ap.Accept, ap.Reject:
-		// $origin can only accept or reject Follow activities that belong to us
-		switch v := activity.Object.(type) {
-		case *ap.Activity:
-			if v.Type != ap.Follow {
-				return fmt.Errorf("invalid object type: %s", v.Type)
-			}
-
-			if innerOrigin, err := ap.Origin(v.ID); err != nil {
-				return err
-			} else if innerOrigin != l.Domain && !strings.HasPrefix(innerOrigin, "did:") {
-				return fmt.Errorf("invalid object host: %s", innerOrigin)
-			}
-
-		case string:
-			if innerOrigin, err := ap.Origin(v); err != nil {
-				return err
-			} else if innerOrigin != l.Domain && !strings.HasPrefix(innerOrigin, "did:") {
-				return fmt.Errorf("invalid object host: %s", innerOrigin)
-			}
-
-		default:
-			return fmt.Errorf("invalid object: %T", v)
-		}
-
-	case ap.Undo:
-		if inner, ok := activity.Object.(*ap.Activity); ok {
-			if inner.Type != ap.Announce && inner.Type != ap.Follow {
-				return fmt.Errorf("invalid inner activity: %w: %s", ap.ErrUnsupportedActivity, inner.Type)
-			}
-
-			// $origin can only undo actions performed by actors from $origin
-			if err := l.validateActivity(inner, origin, depth+1); err != nil {
-				return err
-			}
-		} else {
-			return fmt.Errorf("invalid object: %T", activity.Object)
-		}
-
-	case ap.Create, ap.Update:
-		// $origin can only create objects that belong to $origin
-		if obj, ok := activity.Object.(*ap.Object); ok {
-			if objectOrigin, err := ap.Origin(obj.ID); err != nil {
-				return err
-			} else if objectOrigin != origin {
-				return fmt.Errorf("invalid object host: %s", objectOrigin)
-			} else if obj.AttributedTo != "" && obj.AttributedTo != activity.Actor {
-				authorOrigin, err := ap.Origin(obj.AttributedTo)
-				if err != nil {
-					return err
-				}
-
-				if authorOrigin != origin {
-					return fmt.Errorf("invalid author host: %s", authorOrigin)
-				}
-			}
-		} else if s, ok := activity.Object.(string); ok {
-			if stringOrigin, err := ap.Origin(s); err != nil {
-				return err
-			} else if stringOrigin != origin {
-				return fmt.Errorf("invalid object host: %s", stringOrigin)
-			}
-		} else {
-			return fmt.Errorf("invalid object: %T", obj)
-		}
-
-	case ap.Announce:
-		// we always unwrap nested Announce, validate the inner activity and don't allow nesting
-		if _, ok := activity.Object.(*ap.Activity); ok {
-			return errors.New("announce must not be nested")
-		} else if s, ok := activity.Object.(string); !ok {
-			return fmt.Errorf("invalid object: %T", activity.Object)
-		} else if s == "" {
-			return errors.New("empty ID")
-		} else if _, err := ap.Origin(s); err != nil {
-			return err
-		}
-
-	default:
-		return fmt.Errorf("%w: %s", ap.ErrUnsupportedActivity, activity.Type)
-	}
-
-	return nil
-}
-
 func (l *Listener) fetchObject(ctx context.Context, id string, keys [2]httpsig.Key) (bool, []byte, error) {
 	resp, err := l.Resolver.Get(ctx, keys, id)
 	if err != nil {
@@ -460,7 +307,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 	forwarded := origin != senderOrigin
 
 	/* if we don't support this activity or it's invalid, we don't want to fetch it (we validate again later) */
-	if err := l.validateActivity(queued, origin, 0); errors.Is(err, ap.ErrUnsupportedActivity) {
+	if err := ap.ValidateOrigin(l.Domain, queued, origin); errors.Is(err, ap.ErrUnsupportedActivity) {
 		slog.Debug("Activity is unsupported", "activity", &activity, "sender", sender.ID, "error", err)
 		w.WriteHeader(http.StatusAccepted)
 		return
@@ -550,7 +397,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 		}
 
 		// we must validate the original activity because the forwarded one can be valid while the original isn't
-		if err := l.validateActivity(queued, origin, 0); errors.Is(err, ap.ErrUnsupportedActivity) {
+		if err := ap.ValidateOrigin(l.Domain, queued, origin); errors.Is(err, ap.ErrUnsupportedActivity) {
 			slog.Debug("Activity is unsupported", "activity", &activity, "sender", sender.ID, "error", err)
 			w.WriteHeader(http.StatusAccepted)
 			return

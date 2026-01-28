@@ -136,6 +136,9 @@ type Config struct {
 
 	InboxPageSize  int
 	OutboxPageSize int
+
+	BackfillDepth    int
+	BackfillInterval time.Duration
 }
 
 var defaultMaxInvitationsPerUser = 5
@@ -451,5 +454,13 @@ func (c *Config) FillDefaults() {
 
 	if c.OutboxPageSize <= 0 {
 		c.OutboxPageSize = 100
+	}
+
+	if c.BackfillDepth == 0 {
+		c.BackfillDepth = c.PostContextDepth * 2
+	}
+
+	if c.BackfillInterval == 0 {
+		c.BackfillInterval = time.Hour * 12
 	}
 }
