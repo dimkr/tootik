@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2026 Dima Krasner
+Copyright 2023 - 2025 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -74,20 +74,4 @@ func (a *Actor) Scan(src any) error {
 
 func (a *Actor) Value() (driver.Value, error) {
 	return danger.MarshalJSON(a)
-}
-
-// Capabilities returns capabilities the actor advertises support for.
-func (a *Actor) Capabilities() Capability {
-	cap := Capability(0)
-
-	for _, imp := range a.Generator.Implements {
-		switch imp.Href {
-		case "https://datatracker.ietf.org/doc/html/rfc9421":
-			cap |= RFC9421RSASignatures
-		case "https://datatracker.ietf.org/doc/html/rfc9421#name-eddsa-using-curve-edwards25":
-			cap |= RFC9421Ed25519Signatures
-		}
-	}
-
-	return cap
 }
