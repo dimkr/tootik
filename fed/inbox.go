@@ -593,15 +593,6 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 		}
 	}
 
-	for _, imp := range sender.Generator.Implements {
-		switch imp.Href {
-		case "https://datatracker.ietf.org/doc/html/rfc9421":
-			capabilities |= ap.RFC9421RSASignatures
-		case "https://datatracker.ietf.org/doc/html/rfc9421#name-eddsa-using-curve-edwards25":
-			capabilities |= ap.RFC9421Ed25519Signatures
-		}
-	}
-
 	if capabilities > 0 {
 		if _, err = l.DB.ExecContext(
 			r.Context(),
