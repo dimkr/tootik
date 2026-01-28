@@ -123,9 +123,9 @@ To reduce the number of outgoing requests, tootik doesn't fetch a forwarded acti
 
 The problem of "ghost replies" happens when tootik receives a reply for a missing post. For example, this can happen if `alice@a.localdomain` follows `bob@b.localdomain`, `bob@b.localdomain` replies to a post by `carol@c.localdomain`, but nobody on `a.localdomain` follows `carol@c.localdomain`. In this case, `b.localdomain` sends the reply to `a.localdomain` but doesn't forward its parent as well.
 
-tootik tries to fetch "ghost replies" until the thread depth reaches `PostContextDepth`.
+Every time tootik receives a reply, it tries to fetch parent posts until the thread depth reaches `PostContextDepth`.
 
-Then, if a previously fetched post wasn't updated for `BackfillInterval`, tootik tries to re-fetch it to compensate for `Update` and `Delete` activities that don't get federated.
+If the origin of a previously fetched post doesn't send `Update` or `Delete` activities, tootik detects edits or deletion by re-fetching that post. This re-fetch is triggered exclusively when processing a `Create` or `Update` activity for a reply (or a nested reply, up to `PostContextDepth` depth) to that post, provided it hasn't been updated within the `BackfillInterval` and no `Update` activity for it exists in the `history` table.
 
 ## Account Migration
 
