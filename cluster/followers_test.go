@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -96,7 +96,7 @@ func TestCluster_PostToFollowers_Rejected(t *testing.T) {
 	bob := cluster["a.localdomain"].Register(bobKeypair).OK()
 	carol := cluster["b.localdomain"].Register(carolKeypair).OK()
 
-	alice.
+	bob.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
 		Follow("⚡ Follow carol").
 		OK().
@@ -104,7 +104,7 @@ func TestCluster_PostToFollowers_Rejected(t *testing.T) {
 		Contains(Line{Type: Link, Text: "👽 carol (carol@b.localdomain) - pending approval", URL: "/users/outbox/b.localdomain/user/carol"})
 	cluster.Settle(t)
 
-	alice.
+	bob.
 		Follow("⚡️ Follows").
 		Contains(Line{Type: Link, Text: "👽 carol (carol@b.localdomain)", URL: "/users/outbox/b.localdomain/user/carol"})
 
@@ -118,14 +118,14 @@ func TestCluster_PostToFollowers_Rejected(t *testing.T) {
 		Follow("🐕 Followers").
 		Follow("🔒 Approve new follow requests manually").
 		Contains(Line{Type: Link, Text: "🔓 Approve new follow requests automatically", URL: "/users/followers?unlock"}).
-		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
-		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"})
+		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/bob"}).
+		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/bob"})
 
 	carol.
 		Follow("📻 My feed").
 		Contains(Line{Type: Quote, Text: "hello"})
 
-	bob.
+	alice.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
 		NotContains(Line{Type: Quote, Text: "hello"}).
 		Follow("⚡ Follow carol (requires approval)").
@@ -135,7 +135,7 @@ func TestCluster_PostToFollowers_Rejected(t *testing.T) {
 		Contains(Line{Type: Link, Text: "👽 carol (carol@b.localdomain) - pending approval", URL: "/users/outbox/b.localdomain/user/carol"})
 	cluster.Settle(t)
 
-	bob.
+	alice.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
 		NotContains(Line{Type: Quote, Text: "hello"}).
 		Follow("📻 My feed").
@@ -144,13 +144,13 @@ func TestCluster_PostToFollowers_Rejected(t *testing.T) {
 	carol.
 		Follow("🐕 Followers").
 		Follow("🔴 Reject").
-		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
-		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"}).
 		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/bob"}).
-		NotContains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/bob"})
+		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/bob"}).
+		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
+		NotContains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"})
 	cluster.Settle(t)
 
-	bob.
+	alice.
 		Follow("⚡️ Follows").
 		Contains(Line{Type: Link, Text: "👽 carol (carol@b.localdomain) - rejected", URL: "/users/outbox/b.localdomain/user/carol"}).
 		FollowInput("🔭 View profile", "carol@b.localdomain").

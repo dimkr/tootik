@@ -42,7 +42,7 @@ func TestDeliver_TwoUsersTwoPosts(t *testing.T) {
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -148,7 +148,7 @@ func TestDeliver_ForwardedPost(t *testing.T) {
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -243,7 +243,7 @@ func TestDeliver_OneFailed(t *testing.T) {
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -364,7 +364,7 @@ func TestDeliver_OneFailedRetry(t *testing.T) {
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -458,7 +458,7 @@ func TestDeliver_OneInvalidURLRetry(t *testing.T) {
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -546,7 +546,7 @@ func TestDeliver_MaxAttempts(t *testing.T) {
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -647,7 +647,7 @@ func TestDeliver_SharedInbox(t *testing.T) {
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -734,7 +734,7 @@ func TestDeliver_SharedInboxRetry(t *testing.T) {
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -844,7 +844,7 @@ func TestDeliver_SharedInboxUnknownActor(t *testing.T) {
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -932,7 +932,7 @@ func TestDeliver_SharedInboxSingleWorker(t *testing.T) {
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -1020,7 +1020,7 @@ func TestDeliver_SameInbox(t *testing.T) {
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -1107,7 +1107,7 @@ func TestDeliver_ToAndCCDuplicates(t *testing.T) {
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -1213,7 +1213,7 @@ func TestDeliver_PublicInTo(t *testing.T) {
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
@@ -1319,7 +1319,7 @@ func TestDeliver_AuthorInTo(t *testing.T) {
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)")
 	assert.NoError(err)
 
 	blockList := BlockList{}
