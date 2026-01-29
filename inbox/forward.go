@@ -89,7 +89,7 @@ func (inbox *Inbox) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Obj
 		return true, nil
 	}
 
-	slog.Info("Forwarding post to group followers", "activity", activity.ID, "raw", string(rawActivity), "note", note.ID, "group", group.ID)
+	slog.Info("Forwarding post to group followers", "activity", activity.ID, "note", note.ID, "group", group.ID)
 
 	if _, err := tx.ExecContext(
 		ctx,
