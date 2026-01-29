@@ -221,6 +221,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		w.Error()
 		return
 	}
+	defer rows.Close()
 
 	w.OK()
 
@@ -297,7 +298,6 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 	w.Subtitle("Posts")
 
 	count := h.PrintNotes(w, r, rows, true, actor.Type != ap.Group, "No posts.")
-	rows.Close()
 
 	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
 		w.Empty()

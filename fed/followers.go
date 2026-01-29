@@ -147,19 +147,18 @@ func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	defer rows.Close()
 
 	var items ap.Audience
 
 	for rows.Next() {
 		var follower string
 		if err := rows.Scan(&follower); err != nil {
-			rows.Close()
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		items.Add(follower)
 	}
-	rows.Close()
 
 	collection, err := json.Marshal(ap.Collection{
 		Context:      "https://www.w3.org/ns/activitystreams",
