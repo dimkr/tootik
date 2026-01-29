@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -139,7 +139,7 @@ func (h *Handler) generateInvitation(w text.Writer, r *Request, args ...string) 
 	defer tx.Rollback()
 
 	var count int
-	if err := h.DB.QueryRowContext(
+	if err := tx.QueryRowContext(
 		r.Context,
 		`
 		SELECT COUNT(*)
