@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/graph"
 	"github.com/dimkr/tootik/front/text"
 )
@@ -54,8 +55,14 @@ func printHashtags(w text.Writer, r *Request, title string, tags []string) {
 }
 
 func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
-	rows, err := h.DB.QueryContext(
+	followed, err := data.QueryRowsCountIgnore[string](
 		r.Context,
+		h.DB,
+		30,
+		func(err error) bool {
+			r.Log.Warn("Failed to scan hashtag", "error", err)
+			return true
+		},
 		`
 			select hashtag from (
 				select hashtag, max(inserted)/86400 as last, count(distinct author) as authors, count(distinct follower) as followers, count(distinct id) as posts from (
@@ -93,11 +100,14 @@ func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	followed := scanHashtags(r, rows)
-	rows.Close()
-
-	rows, err = h.DB.QueryContext(
+	all, err := data.QueryRowsCountIgnore[string](
 		r.Context,
+		h.DB,
+		30,
+		func(err error) bool {
+			r.Log.Warn("Failed to scan hashtag", "error", err)
+			return true
+		},
 		`
 			select hashtag from (
 				select hashtag, max(inserted)/86400 as last, count(distinct author) as authors, count(*) as posts from (
@@ -125,10 +135,7 @@ func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	all := scanHashtags(r, rows)
-	rows.Close()
-
-	rows, err = h.DB.QueryContext(
+	rows, err := h.DB.QueryContext(
 		r.Context,
 		`
 			select strftime('%Y-%m-%d', datetime(day*86400, 'unixepoch')) || ' #' || hashtag, authors from (

@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -73,7 +73,6 @@ func (h *Handler) showFeedPage(w text.Writer, r *Request, title string, query fu
 	}
 
 	count := h.PrintNotes(w, r, rows, true, printDaySeparators, "No posts.")
-	rows.Close()
 
 	if offset >= h.Config.PostsPerPage || count == h.Config.PostsPerPage {
 		w.Empty()

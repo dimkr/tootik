@@ -558,6 +558,7 @@ func (l *Listener) doHandleApGatewayFollowers(
 	if !ok {
 		return
 	}
+	defer rows.Close()
 
 	items := ap.Audience{}
 
@@ -570,7 +571,6 @@ func (l *Listener) doHandleApGatewayFollowers(
 		}
 		items.Add(follower)
 	}
-	defer rows.Close()
 
 	if err := rows.Err(); err != nil {
 		slog.Warn("Failed to fetch followers", "did", did, "sender", sender.ID, "error", err)

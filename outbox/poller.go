@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 )
 
@@ -39,29 +40,33 @@ type pollResult struct {
 }
 
 func (p *Poller) Run(ctx context.Context) error {
-	rows, err := p.DB.QueryContext(ctx, `select poll, option, count(case when voter is not null then 1 end) from (select polls.id as poll, votes.object->>'$.name' as option, votes.author as voter from notes polls left join notes votes on votes.object->>'$.inReplyTo' = polls.id and votes.deleted = 0 where polls.object->>'$.type' = 'Question' and polls.id like $1 and polls.deleted = 0 and polls.object->>'$.closed' is null and (votes.object->>'$.name' is not null or votes.id is null) group by poll, option, voter) group by poll, option`, fmt.Sprintf("https://%s/%%", p.Domain))
+	rows, err := data.QueryRowsIgnore[struct {
+		PollID string
+		Option sql.NullString
+		Count  int64
+	}](
+		ctx,
+		p.DB,
+		func(err error) bool {
+			slog.Warn("Failed to scan poll result", "error", err)
+			return true
+		},
+		`select poll, option, count(case when voter is not null then 1 end) from (select polls.id as poll, votes.object->>'$.name' as option, votes.author as voter from notes polls left join notes votes on votes.object->>'$.inReplyTo' = polls.id and votes.deleted = 0 where polls.object->>'$.type' = 'Question' and polls.id like $1 and polls.deleted = 0 and polls.object->>'$.closed' is null and (votes.object->>'$.name' is not null or votes.id is null) group by poll, option, voter) group by poll, option`,
+		fmt.Sprintf("https://%s/%%", p.Domain),
+	)
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
 
 	votes := map[pollResult]int64{}
 	polls := map[string]*ap.Object{}
 	authors := map[string]*ap.Actor{}
 	keys := map[string]ed25519.PrivateKey{}
 
-	for rows.Next() {
-		var pollID string
-		var option sql.NullString
-		var count int64
-		if err := rows.Scan(&pollID, &option, &count); err != nil {
-			slog.Warn("Failed to scan poll result", "error", err)
-			continue
-		}
-
-		if _, ok := polls[pollID]; ok {
-			if option.Valid {
-				votes[pollResult{PollID: pollID, Option: option.String}] = count
+	for _, row := range rows {
+		if _, ok := polls[row.PollID]; ok {
+			if row.Option.Valid {
+				votes[pollResult{PollID: row.PollID, Option: row.Option.String}] = row.Count
 			}
 			continue
 		}
@@ -69,20 +74,23 @@ func (p *Poller) Run(ctx context.Context) error {
 		var obj ap.Object
 		var author ap.Actor
 		var ed25519PrivKey []byte
-		if err := p.DB.QueryRowContext(ctx, "select json(notes.object), json(persons.actor), persons.ed25519privkey from notes join persons on persons.id = notes.author where notes.id = ? and notes.deleted = 0", pollID).Scan(&obj, &author, &ed25519PrivKey); err != nil {
-			slog.Warn("Failed to fetch poll", "poll", pollID, "error", err)
+		if err := p.DB.QueryRowContext(
+			ctx,
+			"select json(notes.object), json(persons.actor), persons.ed25519privkey from notes join persons on persons.id = notes.author where notes.id = ? and notes.deleted = 0",
+			row.PollID,
+		).Scan(&obj, &author, &ed25519PrivKey); err != nil {
+			slog.Warn("Failed to fetch poll", "poll", row.PollID, "error", err)
 			continue
 		}
 
-		polls[pollID] = &obj
-		if option.Valid {
-			votes[pollResult{PollID: pollID, Option: option.String}] = count
+		polls[row.PollID] = &obj
+		if row.Option.Valid {
+			votes[pollResult{PollID: row.PollID, Option: row.Option.String}] = row.Count
 		}
 
-		authors[pollID] = &author
-		keys[pollID] = ed25519.NewKeyFromSeed(ed25519PrivKey)
+		authors[row.PollID] = &author
+		keys[row.PollID] = ed25519.NewKeyFromSeed(ed25519PrivKey)
 	}
-	rows.Close()
 
 	now := ap.Time{Time: time.Now()}
 

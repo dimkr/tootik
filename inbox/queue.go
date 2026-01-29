@@ -25,6 +25,7 @@ import (
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 )
 
@@ -37,14 +38,20 @@ type Queue struct {
 }
 
 type batchItem struct {
-	Activity    *ap.Activity
-	RawActivity string
-	Path        sql.NullString
-	Sender      *ap.Actor
-	Shared      bool
+	ID             int64
+	Path           sql.NullString
+	Sender         sql.Null[ap.Actor]
+	Activity       ap.Activity
+	ActivityString string
+	Shared         bool
 }
 
 func (q *Queue) processActivityWithTimeout(parent context.Context, item batchItem) {
+	if !item.Sender.Valid {
+		slog.Warn("Sender is unknown", "id", item.ID)
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(parent, q.Config.ActivityProcessingTimeout)
 	defer cancel()
 
@@ -59,7 +66,7 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, item batchIte
 	}
 	defer tx.Rollback()
 
-	if err := q.Inbox.ProcessActivity(ctx, tx, item.Path, item.Sender, item.Activity, item.RawActivity, 1, item.Shared); err != nil {
+	if err := q.Inbox.ProcessActivity(ctx, tx, item.Path, &item.Sender.V, &item.Activity, item.ActivityString, 1, item.Shared); err != nil {
 		slog.Warn("Failed to process activity", "activity", item.Activity, "error", err)
 	} else if err := tx.Commit(); err != nil {
 		slog.Warn("Failed to commit changes", "activity", item.Activity, "error", err)
@@ -70,52 +77,29 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, item batchIte
 func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	slog.Debug("Polling activities queue")
 
-	rows, err := q.DB.QueryContext(ctx, `select inbox.id, inbox.path, json(persons.actor), json(inbox.activity), inbox.raw, inbox.raw->>'$.type' = 'Announce' as shared from (select * from inbox limit -1 offset case when (select count(*) from inbox) >= $1 then $1/10 else 0 end) inbox left join persons on persons.id = inbox.sender order by inbox.id limit $2`, q.Config.MaxActivitiesQueueSize, q.Config.ActivitiesBatchSize)
+	batch, err := data.QueryRowsCountIgnore[batchItem](
+		ctx,
+		q.DB,
+		q.Config.ActivitiesBatchSize,
+		func(err error) bool {
+			slog.Error("Failed to scan activity", "error", err)
+			return true
+		},
+		`select inbox.id, inbox.path, json(persons.actor), json(inbox.activity), inbox.raw, inbox.raw->>'$.type' = 'Announce' as shared from (select * from inbox limit -1 offset case when (select count(*) from inbox) >= $1 then $1/10 else 0 end) inbox left join persons on persons.id = inbox.sender order by inbox.id limit $2`,
+		q.Config.MaxActivitiesQueueSize,
+		q.Config.ActivitiesBatchSize,
+	)
 	if err != nil {
 		return 0, fmt.Errorf("failed to fetch activities to process: %w", err)
 	}
-	defer rows.Close()
-
-	batch := make([]batchItem, 0, q.Config.ActivitiesBatchSize)
-	var maxID int64
-	var rowsCount int
-
-	for rows.Next() {
-		rowsCount += 1
-
-		var id int64
-		var path sql.NullString
-		var activityString string
-		var activity ap.Activity
-		var sender sql.Null[ap.Actor]
-		var shared bool
-		if err := rows.Scan(&id, &path, &sender, &activity, &activityString, &shared); err != nil {
-			slog.Error("Failed to scan activity", "error", err)
-			continue
-		}
-
-		maxID = id
-
-		if !sender.Valid {
-			slog.Warn("Sender is unknown", "id", id)
-			continue
-		}
-
-		batch = append(batch, batchItem{
-			Activity:    &activity,
-			RawActivity: activityString,
-			Path:        path,
-			Sender:      &sender.V,
-			Shared:      shared,
-		})
-	}
-	rows.Close()
 
 	if len(batch) == 0 {
 		return 0, nil
 	}
 
+	var maxID int64
 	for _, item := range batch {
+		maxID = item.ID
 		q.processActivityWithTimeout(ctx, item)
 	}
 
@@ -123,7 +107,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("failed to delete processed activities: %w", err)
 	}
 
-	return rowsCount, nil
+	return len(batch), nil
 }
 
 func (q *Queue) process(ctx context.Context) error {

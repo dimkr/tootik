@@ -114,6 +114,8 @@ func createDB(ctx context.Context, domain, path string, cfg *cfg.Config) (*sql.D
 		return nil, err
 	}
 
+	db.SetMaxOpenConns(1)
+
 	if err := migrations.Run(ctx, domain, db); err != nil {
 		db.Close()
 		return nil, err
