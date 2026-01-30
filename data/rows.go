@@ -78,23 +78,19 @@ func QueryRows[T any](
 //
 // The columns of each row are assigned to visible fields of T.
 func ReadRows[T any](rows *sql.Rows, expected int, ignore func(error) bool) ([]T, error) {
-	dest := make([]T, expected)
-	count := 0
+	var zero, row T
+	scanned := make([]T, 0, expected)
 
 	if t := reflect.TypeFor[T](); t.Kind() == reflect.Struct {
 		fields := reflect.VisibleFields(t)
-
 		ptrs := make([]any, len(fields))
+		base := unsafe.Pointer(&row)
+		for i, field := range fields {
+			ptrs[i] = reflect.NewAt(field.Type, unsafe.Add(base, field.Offset)).Interface()
+		}
 
 		for rows.Next() {
-			if count == cap(dest) {
-				dest = append(dest, dest[0])[:count]
-			}
-
-			base := unsafe.Pointer(&dest[count])
-			for i, field := range fields {
-				ptrs[i] = reflect.NewAt(field.Type, unsafe.Add(base, field.Offset)).Interface()
-			}
+			row = zero
 
 			if err := rows.Scan(ptrs...); err != nil {
 				if !ignore(err) {
@@ -104,15 +100,15 @@ func ReadRows[T any](rows *sql.Rows, expected int, ignore func(error) bool) ([]T
 				continue
 			}
 
-			count++
+			scanned = append(scanned, row)
 		}
 	} else {
-		for rows.Next() {
-			if count == cap(dest) {
-				dest = append(dest, dest[0])[:count]
-			}
+		var rowp any = &row
 
-			if err := rows.Scan(&dest[count]); err != nil {
+		for rows.Next() {
+			row = zero
+
+			if err := rows.Scan(rowp); err != nil {
 				if !ignore(err) {
 					return nil, err
 				}
@@ -120,7 +116,7 @@ func ReadRows[T any](rows *sql.Rows, expected int, ignore func(error) bool) ([]T
 				continue
 			}
 
-			count++
+			scanned = append(scanned, row)
 		}
 	}
 
@@ -128,5 +124,5 @@ func ReadRows[T any](rows *sql.Rows, expected int, ignore func(error) bool) ([]T
 		return nil, err
 	}
 
-	return dest[:count], nil
+	return scanned, nil
 }
