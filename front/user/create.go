@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -224,8 +224,7 @@ func CreatePortableWithKey(
 	}
 
 	if actorType == ap.Application {
-		actor.Generator.Type = ap.Application
-		actor.Generator.Implements = []ap.Implement{
+		actor.Implements = []ap.Implement{
 			{
 				Name: "RFC-9421: HTTP Message Signatures",
 				Href: "https://datatracker.ietf.org/doc/html/rfc9421",

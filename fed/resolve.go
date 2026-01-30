@@ -432,6 +432,21 @@ func (r *Resolver) tryResolveID(ctx context.Context, keys [2]httpsig.Key, u *url
 	return r.fetchActor(ctx, keys, u.Host, id, nil, sinceLastUpdate)
 }
 
+func discoverCapabilities(implements []ap.Implement) ap.Capability {
+	var capabilities ap.Capability
+
+	for _, imp := range implements {
+		switch imp.Href {
+		case "https://datatracker.ietf.org/doc/html/rfc9421":
+			capabilities |= ap.RFC9421RSASignatures
+		case "https://datatracker.ietf.org/doc/html/rfc9421#name-eddsa-using-curve-edwards25":
+			capabilities |= ap.RFC9421Ed25519Signatures
+		}
+	}
+
+	return capabilities
+}
+
 func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, profile string, cachedActor *ap.Actor, sinceLastUpdate time.Duration) (*ap.Actor, *ap.Actor, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, profile, nil)
 	if err != nil {
@@ -543,16 +558,7 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 		}
 	}
 
-	var capabilities ap.Capability
-
-	for _, imp := range actor.Generator.Implements {
-		switch imp.Href {
-		case "https://datatracker.ietf.org/doc/html/rfc9421":
-			capabilities |= ap.RFC9421RSASignatures
-		case "https://datatracker.ietf.org/doc/html/rfc9421#name-eddsa-using-curve-edwards25":
-			capabilities |= ap.RFC9421Ed25519Signatures
-		}
-	}
+	capabilities := discoverCapabilities(actor.Implements) | discoverCapabilities(actor.Generator.Implements)
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
