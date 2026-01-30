@@ -71,15 +71,18 @@ func QueryRows[T any](
 	)
 }
 
-// ReadRows reads the results of a SQL query.
+// ScanRows calls a function for every result of a SQL query.
 //
-// expected is the expected number of rows.
+// collect is called for each row.
 // ignore determines which [sql.Rows.Scan] errors should be ignored.
 //
-// The columns of each row are assigned to visible fields of T.
-func ReadRows[T any](rows *sql.Rows, expected int, ignore func(error) bool) ([]T, error) {
+// If T is a struct, the columns of each row are assigned to visible fields of T.
+func ScanRows[T any](
+	rows *sql.Rows,
+	collect func(T) bool,
+	ignore func(error) bool,
+) error {
 	var zero, row T
-	scanned := make([]T, 0, expected)
 
 	if t := reflect.TypeFor[T](); t.Kind() == reflect.Struct {
 		fields := reflect.VisibleFields(t)
@@ -94,13 +97,15 @@ func ReadRows[T any](rows *sql.Rows, expected int, ignore func(error) bool) ([]T
 
 			if err := rows.Scan(ptrs...); err != nil {
 				if !ignore(err) {
-					return nil, err
+					return err
 				}
 
 				continue
 			}
 
-			scanned = append(scanned, row)
+			if !collect(row) {
+				break
+			}
 		}
 	} else {
 		var rowp any = &row
@@ -110,17 +115,38 @@ func ReadRows[T any](rows *sql.Rows, expected int, ignore func(error) bool) ([]T
 
 			if err := rows.Scan(rowp); err != nil {
 				if !ignore(err) {
-					return nil, err
+					return err
 				}
 
 				continue
 			}
 
-			scanned = append(scanned, row)
+			if !collect(row) {
+				break
+			}
 		}
 	}
 
-	if err := rows.Err(); err != nil {
+	return rows.Err()
+}
+
+// ReadRows reads the results of a SQL query.
+//
+// expected is the expected number of rows.
+// ignore determines which [sql.Rows.Scan] errors should be ignored.
+//
+// If T is a struct, the columns of each row are assigned to visible fields of T.
+func ReadRows[T any](rows *sql.Rows, expected int, ignore func(error) bool) ([]T, error) {
+	scanned := make([]T, 0, expected)
+
+	if err := ScanRows(
+		rows,
+		func(row T) bool {
+			scanned = append(scanned, row)
+			return true
+		},
+		ignore,
+	); err != nil {
 		return nil, err
 	}
 

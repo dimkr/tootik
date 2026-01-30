@@ -562,17 +562,16 @@ func (l *Listener) doHandleApGatewayFollowers(
 
 	items := ap.Audience{}
 
-	for rows.Next() {
-		var follower string
-		if err := rows.Scan(&follower); err != nil {
-			slog.Warn("Failed to fetch followers", "did", did, "sender", sender.ID, "error", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		items.Add(follower)
-	}
-
-	if err := rows.Err(); err != nil {
+	if err := data.ScanRows(
+		rows,
+		func(follower string) bool {
+			items.Add(follower)
+			return true
+		},
+		func(err error) bool {
+			return false
+		},
+	); err != nil {
 		slog.Warn("Failed to fetch followers", "did", did, "sender", sender.ID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return

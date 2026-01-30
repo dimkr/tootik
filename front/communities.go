@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
 )
 
@@ -56,6 +57,7 @@ func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
 		w.Error()
 		return
 	}
+	defer rows.Close()
 
 	w.OK()
 
@@ -63,24 +65,29 @@ func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
 
 	empty := true
 
-	for rows.Next() {
-		var id, username string
-		var last int64
-		if err := rows.Scan(&id, &username, &last); err != nil {
+	if err := data.ScanRows(
+		rows,
+		func(row struct {
+			ID, Username string
+			Last         int64
+		}) bool {
+			if r.User == nil {
+				w.Linkf("/outbox/"+strings.TrimPrefix(row.ID, "https://"), "%s %s", time.Unix(row.Last, 0).Format(time.DateOnly), row.Username)
+			} else {
+				w.Linkf("/users/outbox/"+strings.TrimPrefix(row.ID, "https://"), "%s %s", time.Unix(row.Last, 0).Format(time.DateOnly), row.Username)
+			}
+
+			empty = false
+			return true
+		},
+		func(err error) bool {
 			r.Log.Warn("Failed to scan community", "error", err)
-			continue
-		}
-
-		if r.User == nil {
-			w.Linkf("/outbox/"+strings.TrimPrefix(id, "https://"), "%s %s", time.Unix(last, 0).Format(time.DateOnly), username)
-		} else {
-			w.Linkf("/users/outbox/"+strings.TrimPrefix(id, "https://"), "%s %s", time.Unix(last, 0).Format(time.DateOnly), username)
-		}
-
-		empty = false
+			return true
+		},
+	); err != nil {
+		r.Log.Error("Failed to list communities", "error", err)
+		return
 	}
-
-	rows.Close()
 
 	if empty {
 		w.Text("No communities.")

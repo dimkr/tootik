@@ -35,6 +35,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/danger"
+	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 )
 
@@ -67,12 +68,17 @@ func fetchFollowers(ctx context.Context, db *sql.DB, followed, host string) (ap.
 	}
 	defer rows.Close()
 
-	for rows.Next() {
-		var follower string
-		if err := rows.Scan(&follower); err != nil {
-			return followers, err
-		}
-		followers.Add(follower)
+	if err := data.ScanRows(
+		rows,
+		func(follower string) bool {
+			followers.Add(follower)
+			return true
+		},
+		func(err error) bool {
+			return false
+		},
+	); err != nil {
+		return followers, err
 	}
 
 	return followers, nil
@@ -86,15 +92,21 @@ func digestFollowers(ctx context.Context, db *sql.DB, followed, host string) (st
 	defer rows.Close()
 
 	var digest [sha256.Size]byte
-	for rows.Next() {
-		var follower string
-		if err := rows.Scan(&follower); err != nil {
-			return "", err
-		}
-		hash := sha256.Sum256(danger.Bytes(follower))
-		for i := range sha256.Size {
-			digest[i] ^= hash[i]
-		}
+
+	if err := data.ScanRows(
+		rows,
+		func(follower string) bool {
+			hash := sha256.Sum256(danger.Bytes(follower))
+			for i := range sha256.Size {
+				digest[i] ^= hash[i]
+			}
+			return true
+		},
+		func(err error) bool {
+			return false
+		},
+	); err != nil {
+		return "", err
 	}
 
 	return fmt.Sprintf("%x", digest), nil
@@ -151,13 +163,18 @@ func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 
 	var items ap.Audience
 
-	for rows.Next() {
-		var follower string
-		if err := rows.Scan(&follower); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		items.Add(follower)
+	if err := data.ScanRows(
+		rows,
+		func(follower string) bool {
+			items.Add(follower)
+			return true
+		},
+		func(err error) bool {
+			return false
+		},
+	); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	collection, err := json.Marshal(ap.Collection{

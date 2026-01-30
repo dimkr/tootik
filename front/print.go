@@ -334,7 +334,7 @@ func (h *Handler) PrintNotes(w text.Writer, r *Request, rows *sql.Rows, printPar
 		Published      int64
 	}](
 		rows,
-		10,
+		h.Config.PostsPerPage,
 		func(err error) bool {
 			r.Log.Warn("Failed to scan post", "error", err)
 			return true

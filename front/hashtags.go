@@ -163,21 +163,30 @@ func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
 		w.Error()
 		return
 	}
+	defer rows.Close()
 
 	labels := make([]string, 0, 7)
 	values := make([]int64, 0, 7)
-	for rows.Next() {
-		var label string
-		var value int64
-		if err := rows.Scan(&label, &value); err != nil {
-			r.Log.Warn("Failed to scan hashtag", "error", err)
-			continue
-		}
 
-		labels = append(labels, label)
-		values = append(values, value)
+	if err := data.ScanRows(
+		rows,
+		func(row struct {
+			Label string
+			Value int64
+		}) bool {
+			labels = append(labels, row.Label)
+			values = append(values, row.Value)
+			return true
+		},
+		func(err error) bool {
+			r.Log.Warn("Failed to scan hashtag", "error", err)
+			return true
+		},
+	); err != nil {
+		r.Log.Warn("Failed to list hashtags", "error", err)
+		w.Error()
+		return
 	}
-	rows.Close()
 
 	w.OK()
 	w.Title("🔥 Hashtags")

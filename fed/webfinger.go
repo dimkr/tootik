@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/data"
 )
 
 type webFingerProperties struct {
@@ -106,23 +107,30 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 		Subject: fmt.Sprintf("acct:%s@%s", username, l.Domain),
 	}
 
-	for rows.Next() {
-		var actorID sql.NullString
-		var actorType string
-		if err := rows.Scan(&actorID, &actorType); err != nil {
-			slog.Warn("Failed to scan user", "user", username, "error", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
+	if err := data.ScanRows(
+		rows,
+		func(row struct {
+			ActorID   sql.NullString
+			ActorType string
+		}) bool {
+			resp.Links = append(resp.Links, webFingerLink{
+				Rel:  "self",
+				Type: `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`,
+				Href: row.ActorID.String,
+				Properties: webFingerProperties{
+					Type: ap.ActorType(row.ActorType),
+				},
+			})
 
-		resp.Links = append(resp.Links, webFingerLink{
-			Rel:  "self",
-			Type: `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`,
-			Href: actorID.String,
-			Properties: webFingerProperties{
-				Type: ap.ActorType(actorType),
-			},
-		})
+			return true
+		},
+		func(err error) bool {
+			return false
+		},
+	); err != nil {
+		slog.Warn("Failed to fetch user", "user", username, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	if len(resp.Links) == 0 {

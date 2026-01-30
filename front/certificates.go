@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package front
 import (
 	"time"
 
+	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
 )
 
@@ -42,37 +43,43 @@ func (h *Handler) certificates(w text.Writer, r *Request, args ...string) {
 		w.Error()
 		return
 	}
-
 	defer rows.Close()
 
 	w.OK()
 	w.Title("🎓 Certificates")
 
 	first := true
-	for rows.Next() {
-		var inserted, expires int64
-		var hash string
-		var approved int
-		if err := rows.Scan(&inserted, &hash, &approved, &expires); err != nil {
+	if err := data.ScanRows(
+		rows,
+		func(row struct {
+			Inserted, Expires int64
+			Hash              string
+			Approved          int
+		}) bool {
+			if !first {
+				w.Empty()
+			}
+
+			w.Item("SHA-256: " + row.Hash)
+			w.Item("Added: " + time.Unix(row.Inserted, 0).Format(time.DateOnly))
+			w.Item("Expires: " + time.Unix(row.Expires, 0).Format(time.DateOnly))
+
+			if row.Approved == 0 {
+				w.Link("/users/certificates/approve/"+row.Hash, "🟢 Approve")
+				w.Link("/users/certificates/revoke/"+row.Hash, "🔴 Deny")
+			} else {
+				w.Link("/users/certificates/revoke/"+row.Hash, "🔴 Revoke")
+			}
+
+			first = false
+			return true
+		},
+		func(err error) bool {
 			r.Log.Warn("Failed to fetch certificate", "user", r.User.PreferredUsername, "error", err)
-			continue
-		}
-
-		if !first {
-			w.Empty()
-		}
-
-		w.Item("SHA-256: " + hash)
-		w.Item("Added: " + time.Unix(inserted, 0).Format(time.DateOnly))
-		w.Item("Expires: " + time.Unix(expires, 0).Format(time.DateOnly))
-
-		if approved == 0 {
-			w.Link("/users/certificates/approve/"+hash, "🟢 Approve")
-			w.Link("/users/certificates/revoke/"+hash, "🔴 Deny")
-		} else {
-			w.Link("/users/certificates/revoke/"+hash, "🔴 Revoke")
-		}
-
-		first = false
+			return true
+		},
+	); err != nil {
+		r.Log.Warn("Failed to fetch certificates", "user", r.User.PreferredUsername, "error", err)
+		return
 	}
 }
