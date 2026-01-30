@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/graph"
 	"github.com/dimkr/tootik/front/text"
 )
@@ -142,64 +143,67 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				defer parents.Close()
 
 				headDepth := 0
-				for parents.Next() {
-					var parent ap.Object
-					var parentAuthor ap.Actor
-					var currentDepth int
-					if err := parents.Scan(&parent, &parentAuthor, &currentDepth); err != nil {
-						r.Log.Info("Failed to fetch context", "error", err)
-						break
-					}
 
-					if contextPosts == 0 && parent.InReplyTo != "" {
-						// show a marker if the thread head is a reply (i.e. we don't have the actual head)
-						w.Text("[…]")
-						w.Empty()
-					} else if contextPosts == 1 && headDepth-currentDepth == 2 {
-						// show the number of hidden replies if we only display the head and the bottom replies
-						w.Empty()
+				if err := data.ScanRows(
+					parents,
+					func(row struct {
+						Parent       ap.Object
+						ParentAuthor ap.Actor
+						CurrentDepth int
+					}) bool {
+						if contextPosts == 0 && row.Parent.InReplyTo != "" {
+							// show a marker if the thread head is a reply (i.e. we don't have the actual head)
+							w.Text("[…]")
+							w.Empty()
+						} else if contextPosts == 1 && headDepth-row.CurrentDepth == 2 {
+							// show the number of hidden replies if we only display the head and the bottom replies
+							w.Empty()
 
-						if r.User == nil {
-							w.Link("/view/"+strings.TrimPrefix(parent.InReplyTo, "https://"), "[1 reply]")
-						} else {
-							w.Link("/users/view/"+strings.TrimPrefix(parent.InReplyTo, "https://"), "[1 reply]")
+							if r.User == nil {
+								w.Link("/view/"+strings.TrimPrefix(row.Parent.InReplyTo, "https://"), "[1 reply]")
+							} else {
+								w.Link("/users/view/"+strings.TrimPrefix(row.Parent.InReplyTo, "https://"), "[1 reply]")
+							}
+
+							w.Empty()
+						} else if contextPosts == 1 && row.CurrentDepth < headDepth-1 {
+							w.Empty()
+
+							if r.User == nil {
+								w.Linkf("/view/"+strings.TrimPrefix(row.Parent.InReplyTo, "https://"), "[%d replies]", headDepth-row.CurrentDepth-1)
+							} else {
+								w.Linkf("/users/view/"+strings.TrimPrefix(row.Parent.InReplyTo, "https://"), "[%d replies]", headDepth-row.CurrentDepth-1)
+							}
+
+							w.Empty()
+						} else if contextPosts > 0 {
+							// put an empty line between replies
+							w.Empty()
 						}
 
-						w.Empty()
-					} else if contextPosts == 1 && currentDepth < headDepth-1 {
-						w.Empty()
-
 						if r.User == nil {
-							w.Linkf("/view/"+strings.TrimPrefix(parent.InReplyTo, "https://"), "[%d replies]", headDepth-currentDepth-1)
+							w.Linkf("/view/"+strings.TrimPrefix(row.Parent.ID, "https://"), "%s %s", row.Parent.Published.Time.Format(time.DateOnly), row.ParentAuthor.PreferredUsername)
 						} else {
-							w.Linkf("/users/view/"+strings.TrimPrefix(parent.InReplyTo, "https://"), "[%d replies]", headDepth-currentDepth-1)
+							w.Linkf("/users/view/"+strings.TrimPrefix(row.Parent.ID, "https://"), "%s %s", row.Parent.Published.Time.Format(time.DateOnly), row.ParentAuthor.PreferredUsername)
 						}
 
-						w.Empty()
-					} else if contextPosts > 0 {
-						// put an empty line between replies
-						w.Empty()
-					}
+						contentLines, _ := h.getCompactNoteContent(&row.Parent)
+						for _, line := range contentLines {
+							w.Quote(line)
+						}
 
-					if r.User == nil {
-						w.Linkf("/view/"+strings.TrimPrefix(parent.ID, "https://"), "%s %s", parent.Published.Time.Format(time.DateOnly), parentAuthor.PreferredUsername)
-					} else {
-						w.Linkf("/users/view/"+strings.TrimPrefix(parent.ID, "https://"), "%s %s", parent.Published.Time.Format(time.DateOnly), parentAuthor.PreferredUsername)
-					}
+						contextPosts++
 
-					contentLines, _ := h.getCompactNoteContent(&parent)
-					for _, line := range contentLines {
-						w.Quote(line)
-					}
+						if row.Parent.InReplyTo == "" {
+							headDepth = row.CurrentDepth
+						}
 
-					contextPosts++
-
-					if parent.InReplyTo == "" {
-						headDepth = currentDepth
-					}
-				}
-
-				if err := parents.Err(); err != nil {
+						return true
+					},
+					func(err error) bool {
+						return false
+					},
+				); err != nil {
 					r.Log.Info("Failed to fetch context", "error", err)
 				}
 			}
@@ -336,18 +340,28 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		); err != nil {
 			r.Log.Warn("Failed to query quotes", "error", err)
 		} else {
-			for quotes.Next() {
-				var quoteID, quoter string
-				if err := quotes.Scan(&quoteID, &quoter); err != nil {
-					r.Log.Warn("Failed to scan quoter", "error", err)
-				} else if r.User == nil {
-					links.Store("/view/"+strings.TrimPrefix(quoteID, "https://"), "♻️ "+quoter)
-				} else {
-					links.Store("/users/view/"+strings.TrimPrefix(quoteID, "https://"), "♻️ "+quoter)
-				}
-			}
+			defer quotes.Close()
 
-			quotes.Close()
+			if err := data.ScanRows(
+				quotes,
+				func(row struct {
+					QuoteID, Quoter string
+				}) bool {
+					if r.User == nil {
+						links.Store("/view/"+strings.TrimPrefix(row.QuoteID, "https://"), "♻️ "+row.Quoter)
+					} else {
+						links.Store("/users/view/"+strings.TrimPrefix(row.QuoteID, "https://"), "♻️ "+row.Quoter)
+					}
+
+					return true
+				},
+				func(err error) bool {
+					r.Log.Warn("Failed to scan quoter", "error", err)
+					return true
+				},
+			); err != nil {
+				r.Log.Warn("Failed to scan quotes", "error", err)
+			}
 		}
 
 		title := note.Published.Format(time.DateOnly)

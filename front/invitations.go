@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/google/uuid"
 )
@@ -34,9 +35,6 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 		w.Redirect("/users")
 		return
 	}
-
-	w.OK()
-	w.Title("🎟️ Invitations")
 
 	rows, err := h.DB.QueryContext(
 		r.Context,
@@ -56,44 +54,54 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 	}
 	defer rows.Close()
 
+	w.OK()
+	w.Title("🎟️ Invitations")
+
 	now := time.Now()
 
 	count := 0
 	unused := 0
-	for rows.Next() {
-		var code string
-		var inviteInsertedSec int64
-		var actor sql.Null[ap.Actor]
-		var actorInserted sql.NullInt64
-		if err := rows.Scan(&code, &inviteInsertedSec, &actor, &actorInserted); err != nil {
-			r.Log.Warn("Failed to scan invitation", "error", err)
-			continue
-		}
+	if err := data.ScanRows(
+		rows,
+		func(row struct {
+			Code              string
+			InviteInsertedSec int64
+			Actor             sql.Null[ap.Actor]
+			ActorInserted     sql.NullInt64
+		}) bool {
+			inserted := time.Unix(row.InviteInsertedSec, 0)
 
-		inserted := time.Unix(inviteInsertedSec, 0)
-
-		if count > 0 {
-			w.Empty()
-		}
-
-		w.Text("Code: " + code)
-		w.Text("Generated: " + inserted.Format(time.DateOnly))
-
-		if actor.Valid {
-			w.Text("Used: " + time.Unix(actorInserted.Int64, 0).Format(time.DateOnly))
-			w.Link("/users/outbox/"+strings.TrimPrefix(actor.V.ID, "https://"), "Used by: "+actor.V.PreferredUsername)
-		} else {
-			if expires := inserted.Add(h.Config.InvitationTimeout); now.After(expires) {
-				w.Text("Expired: " + expires.Format(time.DateOnly))
-			} else {
-				w.Text("Expires: " + expires.Format(time.DateOnly))
+			if count > 0 {
+				w.Empty()
 			}
 
-			w.Link("/users/invitations/revoke?"+code, "➖ Revoke")
-			unused++
-		}
+			w.Text("Code: " + row.Code)
+			w.Text("Generated: " + inserted.Format(time.DateOnly))
 
-		count++
+			if row.Actor.Valid {
+				w.Text("Used: " + time.Unix(row.ActorInserted.Int64, 0).Format(time.DateOnly))
+				w.Link("/users/outbox/"+strings.TrimPrefix(row.Actor.V.ID, "https://"), "Used by: "+row.Actor.V.PreferredUsername)
+			} else {
+				if expires := inserted.Add(h.Config.InvitationTimeout); now.After(expires) {
+					w.Text("Expired: " + expires.Format(time.DateOnly))
+				} else {
+					w.Text("Expires: " + expires.Format(time.DateOnly))
+				}
+
+				w.Link("/users/invitations/revoke?"+row.Code, "➖ Revoke")
+				unused++
+			}
+
+			count++
+			return true
+		},
+		func(err error) bool {
+			r.Log.Warn("Failed to scan invitation", "error", err)
+			return true
+		},
+	); err != nil {
+		r.Log.Warn("Failed to fetch invites", "error", err)
+		return
 	}
 
 	if count > 0 {
