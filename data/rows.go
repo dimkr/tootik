@@ -144,7 +144,6 @@ func scanStructPointerRows[T any](
 }
 
 func scanScalarRows[T any](
-	t reflect.Type,
 	rows *sql.Rows,
 	collect func(T) bool,
 	ignore func(error) bool,
@@ -205,7 +204,7 @@ func ScanRows[T any](
 		reflect.Complex64,
 		reflect.Complex128,
 		reflect.String:
-		return scanScalarRows(t, rows, collect, ignore)
+		return scanScalarRows(rows, collect, ignore)
 
 	case reflect.Pointer:
 		et := t.Elem()
