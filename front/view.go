@@ -146,7 +146,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 
 				if err := data.ScanRows(
 					parents,
-					func(row struct {
+					func(row *struct {
 						Parent       ap.Object
 						ParentAuthor ap.Actor
 						CurrentDepth int

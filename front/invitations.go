@@ -63,7 +63,7 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 	unused := 0
 	if err := data.ScanRows(
 		rows,
-		func(row struct {
+		func(row *struct {
 			Code              string
 			InviteInsertedSec int64
 			Actor             sql.Null[ap.Actor]

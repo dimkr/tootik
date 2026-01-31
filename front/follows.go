@@ -78,7 +78,7 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 	var lastDay sql.NullInt64
 	if err := data.ScanRows(
 		rows,
-		func(row struct {
+		func(row *struct {
 			Actor    ap.Actor
 			Last     sql.NullInt64
 			Accepted sql.NullInt32

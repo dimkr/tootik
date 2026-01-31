@@ -86,7 +86,7 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 
 	if err := data.ScanRows(
 		rows,
-		func(row struct {
+		func(row *struct {
 			Inserted int64
 			Follower ap.Actor
 			Accepted sql.NullInt32

@@ -71,6 +71,106 @@ func CollectRows[T any](
 	)
 }
 
+func scanStructRows[T any](
+	t reflect.Type,
+	rows *sql.Rows,
+	collect func(T) bool,
+	ignore func(error) bool,
+) error {
+	var zero, row T
+
+	fields := reflect.VisibleFields(t)
+	ptrs := make([]any, len(fields))
+	base := unsafe.Pointer(&row)
+	for i, field := range fields {
+		ptrs[i] = reflect.NewAt(field.Type, unsafe.Add(base, field.Offset)).Interface()
+	}
+
+	for rows.Next() {
+		row = zero
+
+		if err := rows.Scan(ptrs...); err != nil {
+			if !ignore(err) {
+				return err
+			}
+
+			continue
+		}
+
+		if !collect(row) {
+			break
+		}
+	}
+
+	return rows.Err()
+}
+
+func scanStructPointerRows[T any](
+	et reflect.Type,
+	rows *sql.Rows,
+	collect func(T) bool,
+	ignore func(error) bool,
+) error {
+	var zero = reflect.Zero(et)
+	var row = reflect.New(et)
+
+	fields := reflect.VisibleFields(et)
+	ptrs := make([]any, len(fields))
+	base := row.UnsafePointer()
+	for i, field := range fields {
+		ptrs[i] = reflect.NewAt(field.Type, unsafe.Add(base, field.Offset)).Interface()
+	}
+
+	rowe := row.Elem()
+	rowp := *(*T)(unsafe.Pointer(&base))
+
+	for rows.Next() {
+		rowe.Set(zero)
+
+		if err := rows.Scan(ptrs...); err != nil {
+			if !ignore(err) {
+				return err
+			}
+
+			continue
+		}
+
+		if !collect(rowp) {
+			break
+		}
+	}
+
+	return rows.Err()
+}
+
+func scanScalarRows[T any](
+	t reflect.Type,
+	rows *sql.Rows,
+	collect func(T) bool,
+	ignore func(error) bool,
+) error {
+	var zero, row T
+	var rowp any = &row
+
+	for rows.Next() {
+		row = zero
+
+		if err := rows.Scan(rowp); err != nil {
+			if !ignore(err) {
+				return err
+			}
+
+			continue
+		}
+
+		if !collect(row) {
+			break
+		}
+	}
+
+	return rows.Err()
+}
+
 // ScanRows calls a function for every result of a SQL query.
 //
 // collect is called for each row.
@@ -82,52 +182,42 @@ func ScanRows[T any](
 	collect func(T) bool,
 	ignore func(error) bool,
 ) error {
-	var zero, row T
+	t := reflect.TypeFor[T]()
 
-	if t := reflect.TypeFor[T](); t.Kind() == reflect.Struct {
-		fields := reflect.VisibleFields(t)
-		ptrs := make([]any, len(fields))
-		base := unsafe.Pointer(&row)
-		for i, field := range fields {
-			ptrs[i] = reflect.NewAt(field.Type, unsafe.Add(base, field.Offset)).Interface()
+	switch t.Kind() {
+	case reflect.Struct:
+		return scanStructRows(t, rows, collect, ignore)
+
+	case reflect.Bool,
+		reflect.Int,
+		reflect.Int8,
+		reflect.Int16,
+		reflect.Int32,
+		reflect.Int64,
+		reflect.Uint,
+		reflect.Uint8,
+		reflect.Uint16,
+		reflect.Uint32,
+		reflect.Uint64,
+		reflect.Uintptr,
+		reflect.Float32,
+		reflect.Float64,
+		reflect.Complex64,
+		reflect.Complex128,
+		reflect.String:
+		return scanScalarRows(t, rows, collect, ignore)
+
+	case reflect.Pointer:
+		et := t.Elem()
+		if et.Kind() != reflect.Struct {
+			panic("T must point to a struct")
 		}
 
-		for rows.Next() {
-			row = zero
+		return scanStructPointerRows(et, rows, collect, ignore)
 
-			if err := rows.Scan(ptrs...); err != nil {
-				if !ignore(err) {
-					return err
-				}
-
-				continue
-			}
-
-			if !collect(row) {
-				break
-			}
-		}
-	} else {
-		var rowp any = &row
-
-		for rows.Next() {
-			row = zero
-
-			if err := rows.Scan(rowp); err != nil {
-				if !ignore(err) {
-					return err
-				}
-
-				continue
-			}
-
-			if !collect(row) {
-				break
-			}
-		}
+	default:
+		panic("T must be a struct, struct pointer or scalar")
 	}
-
-	return rows.Err()
 }
 
 // ReadRows reads the results of a SQL query.
