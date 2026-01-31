@@ -17,29 +17,12 @@ limitations under the License.
 package front
 
 import (
-	"database/sql"
 	"fmt"
 
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/graph"
 	"github.com/dimkr/tootik/front/text"
 )
-
-func scanHashtags(r *Request, rows *sql.Rows) []string {
-	tags := make([]string, 0, 30)
-
-	for rows.Next() {
-		var tag string
-		if err := rows.Scan(&tag); err != nil {
-			r.Log.Warn("Failed to scan hashtag", "error", err)
-			continue
-		}
-
-		tags = append(tags, tag)
-	}
-
-	return tags
-}
 
 func printHashtags(w text.Writer, r *Request, title string, tags []string) {
 	w.Text(title)
@@ -55,7 +38,7 @@ func printHashtags(w text.Writer, r *Request, title string, tags []string) {
 }
 
 func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
-	followed, err := data.QueryRowsCountIgnore[string](
+	followed, err := data.CollectRowsCountIgnore[string](
 		r.Context,
 		h.DB,
 		30,
@@ -100,7 +83,7 @@ func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	all, err := data.QueryRowsCountIgnore[string](
+	all, err := data.CollectRowsCountIgnore[string](
 		r.Context,
 		h.DB,
 		30,

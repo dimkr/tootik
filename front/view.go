@@ -314,13 +314,20 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			if err != nil && !errors.Is(err, sql.ErrNoRows) {
 				r.Log.Warn("Failed to query sharers", "error", err)
 			} else if err == nil {
-				for rows.Next() {
-					var sharerID, sharerName string
-					if err := rows.Scan(&sharerID, &sharerName); err != nil {
+				if err := data.ScanRows(
+					rows,
+					func(row struct {
+						SharerID, SharerName string
+					}) bool {
+						links.Store("/users/outbox/"+strings.TrimPrefix(row.SharerID, "https://"), "🔄 "+row.SharerName)
+						return true
+					},
+					func(err error) bool {
 						r.Log.Warn("Failed to scan sharer", "error", err)
-						continue
-					}
-					links.Store("/users/outbox/"+strings.TrimPrefix(sharerID, "https://"), "🔄 "+sharerName)
+						return true
+					},
+				); err != nil {
+					r.Log.Warn("Failed to query sharers", "error", err)
 				}
 				rows.Close()
 			}

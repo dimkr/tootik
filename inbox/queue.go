@@ -77,7 +77,7 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, item batchIte
 func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	slog.Debug("Polling activities queue")
 
-	batch, err := data.QueryRowsCountIgnore[batchItem](
+	batch, err := data.CollectRowsCountIgnore[batchItem](
 		ctx,
 		q.DB,
 		q.Config.ActivitiesBatchSize,

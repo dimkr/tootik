@@ -40,7 +40,7 @@ type pollResult struct {
 }
 
 func (p *Poller) Run(ctx context.Context) error {
-	rows, err := data.QueryRowsIgnore[struct {
+	rows, err := data.CollectRowsIgnore[struct {
 		PollID string
 		Option sql.NullString
 		Count  int64

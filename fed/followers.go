@@ -368,20 +368,30 @@ func (s *Syncer) ProcessBatch(ctx context.Context) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("failed to fetch followers to sync: %w", err)
 	}
+	defer rows.Close()
 
 	jobs := make([]followersDigest, 0, s.Config.FollowersSyncBatchSize)
 
-	for rows.Next() {
-		job := followersDigest{
-			Inbox: s.Inbox,
-		}
-		if err := rows.Scan(&job.Followed, &job.URL, &job.Digest); err != nil {
+	if err := data.ScanRows(
+		rows,
+		func(row struct {
+			Followed, URL, Digest string
+		}) bool {
+			jobs = append(jobs, followersDigest{
+				Followed: row.Followed,
+				URL:      row.URL,
+				Digest:   row.Digest,
+				Inbox:    s.Inbox,
+			})
+			return true
+		},
+		func(err error) bool {
 			slog.Error("Failed to scan digest", "error", err)
-			continue
-		}
-		jobs = append(jobs, job)
+			return true
+		},
+	); err != nil {
+		return 0, fmt.Errorf("failed to fetch followers to sync: %w", err)
 	}
-	rows.Close()
 
 	for _, job := range jobs {
 		if err := job.Sync(ctx, s.Domain, s.Config, s.DB, s.Resolver, s.Keys); err != nil {
