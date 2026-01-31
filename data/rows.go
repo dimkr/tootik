@@ -45,7 +45,7 @@ func CollectRowsIgnore[T any](
 	return CollectRowsCountIgnore[T](
 		ctx,
 		db,
-		10,
+		1,
 		ignore,
 		query,
 		args...,
