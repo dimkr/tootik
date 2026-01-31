@@ -95,20 +95,12 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("Looking up resource", "resource", resource, "user", username)
 
-	rows, err := l.DB.QueryContext(r.Context(), `select id, actor->>'$.type' from persons where actor->>'$.preferredUsername' = ? and host = ?`, username, l.Domain)
-	if err != nil {
-		slog.Warn("Failed to fetch user", "user", username, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
 	resp := webFingerResponse{
 		Subject: fmt.Sprintf("acct:%s@%s", username, l.Domain),
 	}
 
-	if err := data.ScanRows(
-		rows,
+	if err := data.QueryScanRows(
+		r.Context(),
 		func(row struct {
 			ActorID   sql.NullString
 			ActorType string
@@ -127,6 +119,10 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 		func(err error) bool {
 			return false
 		},
+		l.DB,
+		`select id, actor->>'$.type' from persons where actor->>'$.preferredUsername' = ? and host = ?`,
+		username,
+		l.Domain,
 	); err != nil {
 		slog.Warn("Failed to fetch user", "user", username, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)

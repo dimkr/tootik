@@ -114,9 +114,68 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 
 			w.Subtitle("Context")
 
+			headDepth := 0
 			contextPosts := 0
-			if parents, err := h.DB.QueryContext(
+			if err := data.QueryScanRows(
 				r.Context,
+				func(row *struct {
+					Parent       ap.Object
+					ParentAuthor ap.Actor
+					CurrentDepth int
+				}) bool {
+					if contextPosts == 0 && row.Parent.InReplyTo != "" {
+						// show a marker if the thread head is a reply (i.e. we don't have the actual head)
+						w.Text("[…]")
+						w.Empty()
+					} else if contextPosts == 1 && headDepth-row.CurrentDepth == 2 {
+						// show the number of hidden replies if we only display the head and the bottom replies
+						w.Empty()
+
+						if r.User == nil {
+							w.Link("/view/"+strings.TrimPrefix(row.Parent.InReplyTo, "https://"), "[1 reply]")
+						} else {
+							w.Link("/users/view/"+strings.TrimPrefix(row.Parent.InReplyTo, "https://"), "[1 reply]")
+						}
+
+						w.Empty()
+					} else if contextPosts == 1 && row.CurrentDepth < headDepth-1 {
+						w.Empty()
+
+						if r.User == nil {
+							w.Linkf("/view/"+strings.TrimPrefix(row.Parent.InReplyTo, "https://"), "[%d replies]", headDepth-row.CurrentDepth-1)
+						} else {
+							w.Linkf("/users/view/"+strings.TrimPrefix(row.Parent.InReplyTo, "https://"), "[%d replies]", headDepth-row.CurrentDepth-1)
+						}
+
+						w.Empty()
+					} else if contextPosts > 0 {
+						// put an empty line between replies
+						w.Empty()
+					}
+
+					if r.User == nil {
+						w.Linkf("/view/"+strings.TrimPrefix(row.Parent.ID, "https://"), "%s %s", row.Parent.Published.Time.Format(time.DateOnly), row.ParentAuthor.PreferredUsername)
+					} else {
+						w.Linkf("/users/view/"+strings.TrimPrefix(row.Parent.ID, "https://"), "%s %s", row.Parent.Published.Time.Format(time.DateOnly), row.ParentAuthor.PreferredUsername)
+					}
+
+					contentLines, _ := h.getCompactNoteContent(&row.Parent)
+					for _, line := range contentLines {
+						w.Quote(line)
+					}
+
+					contextPosts++
+
+					if row.Parent.InReplyTo == "" {
+						headDepth = row.CurrentDepth
+					}
+
+					return true
+				},
+				func(err error) bool {
+					return false
+				},
+				h.DB,
 				`
 				select json(note), json(author), depth from
 				(
@@ -138,74 +197,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				note.InReplyTo,
 				h.Config.PostContextDepth,
 			); err != nil {
-				r.Log.Warn("Failed to fetch context", "error", err)
-			} else {
-				defer parents.Close()
-
-				headDepth := 0
-
-				if err := data.ScanRows(
-					parents,
-					func(row *struct {
-						Parent       ap.Object
-						ParentAuthor ap.Actor
-						CurrentDepth int
-					}) bool {
-						if contextPosts == 0 && row.Parent.InReplyTo != "" {
-							// show a marker if the thread head is a reply (i.e. we don't have the actual head)
-							w.Text("[…]")
-							w.Empty()
-						} else if contextPosts == 1 && headDepth-row.CurrentDepth == 2 {
-							// show the number of hidden replies if we only display the head and the bottom replies
-							w.Empty()
-
-							if r.User == nil {
-								w.Link("/view/"+strings.TrimPrefix(row.Parent.InReplyTo, "https://"), "[1 reply]")
-							} else {
-								w.Link("/users/view/"+strings.TrimPrefix(row.Parent.InReplyTo, "https://"), "[1 reply]")
-							}
-
-							w.Empty()
-						} else if contextPosts == 1 && row.CurrentDepth < headDepth-1 {
-							w.Empty()
-
-							if r.User == nil {
-								w.Linkf("/view/"+strings.TrimPrefix(row.Parent.InReplyTo, "https://"), "[%d replies]", headDepth-row.CurrentDepth-1)
-							} else {
-								w.Linkf("/users/view/"+strings.TrimPrefix(row.Parent.InReplyTo, "https://"), "[%d replies]", headDepth-row.CurrentDepth-1)
-							}
-
-							w.Empty()
-						} else if contextPosts > 0 {
-							// put an empty line between replies
-							w.Empty()
-						}
-
-						if r.User == nil {
-							w.Linkf("/view/"+strings.TrimPrefix(row.Parent.ID, "https://"), "%s %s", row.Parent.Published.Time.Format(time.DateOnly), row.ParentAuthor.PreferredUsername)
-						} else {
-							w.Linkf("/users/view/"+strings.TrimPrefix(row.Parent.ID, "https://"), "%s %s", row.Parent.Published.Time.Format(time.DateOnly), row.ParentAuthor.PreferredUsername)
-						}
-
-						contentLines, _ := h.getCompactNoteContent(&row.Parent)
-						for _, line := range contentLines {
-							w.Quote(line)
-						}
-
-						contextPosts++
-
-						if row.Parent.InReplyTo == "" {
-							headDepth = row.CurrentDepth
-						}
-
-						return true
-					},
-					func(err error) bool {
-						return false
-					},
-				); err != nil {
-					r.Log.Info("Failed to fetch context", "error", err)
-				}
+				r.Log.Info("Failed to fetch context", "error", err)
 			}
 
 			if contextPosts == 0 {
@@ -333,8 +325,24 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			}
 		}
 
-		if quotes, err := h.DB.QueryContext(
+		if err := data.QueryScanRows(
 			r.Context,
+			func(row struct {
+				QuoteID, Quoter string
+			}) bool {
+				if r.User == nil {
+					links.Store("/view/"+strings.TrimPrefix(row.QuoteID, "https://"), "♻️ "+row.Quoter)
+				} else {
+					links.Store("/users/view/"+strings.TrimPrefix(row.QuoteID, "https://"), "♻️ "+row.Quoter)
+				}
+
+				return true
+			},
+			func(err error) bool {
+				r.Log.Warn("Failed to scan quoter", "error", err)
+				return true
+			},
+			h.DB,
 			`
 			select notes.id, persons.actor->>'$.preferredUsername' from
 			notes join persons on persons.id = notes.author
@@ -346,29 +354,6 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			h.Config.QuotesPerPost,
 		); err != nil {
 			r.Log.Warn("Failed to query quotes", "error", err)
-		} else {
-			defer quotes.Close()
-
-			if err := data.ScanRows(
-				quotes,
-				func(row struct {
-					QuoteID, Quoter string
-				}) bool {
-					if r.User == nil {
-						links.Store("/view/"+strings.TrimPrefix(row.QuoteID, "https://"), "♻️ "+row.Quoter)
-					} else {
-						links.Store("/users/view/"+strings.TrimPrefix(row.QuoteID, "https://"), "♻️ "+row.Quoter)
-					}
-
-					return true
-				},
-				func(err error) bool {
-					r.Log.Warn("Failed to scan quoter", "error", err)
-					return true
-				},
-			); err != nil {
-				r.Log.Warn("Failed to scan quotes", "error", err)
-			}
 		}
 
 		title := note.Published.Format(time.DateOnly)

@@ -36,24 +36,6 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	rows, err := h.DB.QueryContext(
-		r.Context,
-		`
-		SELECT invites.code, invites.inserted, JSON(persons.actor), persons.inserted
-		FROM invites
-		LEFT JOIN persons ON persons.id = invites.invited
-		WHERE invites.inviter = $1
-		ORDER BY invites.inserted DESC, persons.actor->>'$.id' DESC
-		`,
-		r.User.ID,
-	)
-	if err != nil {
-		r.Log.Warn("Failed to fetch invites", "error", err)
-		w.Error()
-		return
-	}
-	defer rows.Close()
-
 	w.OK()
 	w.Title("🎟️ Invitations")
 
@@ -61,8 +43,8 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 
 	count := 0
 	unused := 0
-	if err := data.ScanRows(
-		rows,
+	if err := data.QueryScanRows(
+		r.Context,
 		func(row *struct {
 			Code              string
 			InviteInsertedSec int64
@@ -99,6 +81,15 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 			r.Log.Warn("Failed to scan invitation", "error", err)
 			return true
 		},
+		h.DB,
+		`
+		SELECT invites.code, invites.inserted, JSON(persons.actor), persons.inserted
+		FROM invites
+		LEFT JOIN persons ON persons.id = invites.invited
+		WHERE invites.inviter = $1
+		ORDER BY invites.inserted DESC, persons.actor->>'$.id' DESC
+		`,
+		r.User.ID,
 	); err != nil {
 		r.Log.Warn("Failed to fetch invites", "error", err)
 		return

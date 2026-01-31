@@ -62,14 +62,8 @@ var collectionSynchronizationHeaderRegex = regexp.MustCompile(`\b([^"=]+)="([^"]
 func fetchFollowers(ctx context.Context, db *sql.DB, followed, host string) (ap.Audience, error) {
 	var followers ap.Audience
 
-	rows, err := db.QueryContext(ctx, `SELECT follower FROM follows WHERE followed = ? AND follower LIKE 'https://' || ? || '/%' AND accepted = 1`, followed, host)
-	if err != nil {
-		return followers, err
-	}
-	defer rows.Close()
-
-	if err := data.ScanRows(
-		rows,
+	if err := data.QueryScanRows(
+		ctx,
 		func(follower string) bool {
 			followers.Add(follower)
 			return true
@@ -77,6 +71,10 @@ func fetchFollowers(ctx context.Context, db *sql.DB, followed, host string) (ap.
 		func(err error) bool {
 			return false
 		},
+		db,
+		`SELECT follower FROM follows WHERE followed = ? AND follower LIKE 'https://' || ? || '/%' AND accepted = 1`,
+		followed,
+		host,
 	); err != nil {
 		return followers, err
 	}
@@ -85,16 +83,10 @@ func fetchFollowers(ctx context.Context, db *sql.DB, followed, host string) (ap.
 }
 
 func digestFollowers(ctx context.Context, db *sql.DB, followed, host string) (string, error) {
-	rows, err := db.QueryContext(ctx, `SELECT follower FROM follows WHERE followed = ? AND follower LIKE 'https://' || ? || '/%' AND accepted = 1`, followed, host)
-	if err != nil {
-		return "", err
-	}
-	defer rows.Close()
-
 	var digest [sha256.Size]byte
 
-	if err := data.ScanRows(
-		rows,
+	if err := data.QueryScanRows(
+		ctx,
 		func(follower string) bool {
 			hash := sha256.Sum256(danger.Bytes(follower))
 			for i := range sha256.Size {
@@ -105,6 +97,10 @@ func digestFollowers(ctx context.Context, db *sql.DB, followed, host string) (st
 		func(err error) bool {
 			return false
 		},
+		db,
+		`SELECT follower FROM follows WHERE followed = ? AND follower LIKE 'https://' || ? || '/%' AND accepted = 1`,
+		followed,
+		host,
 	); err != nil {
 		return "", err
 	}
@@ -154,17 +150,10 @@ func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := l.DB.QueryContext(r.Context(), `SELECT follower FROM follows WHERE followed = 'https://' || ? || '/user/' || ? AND follower LIKE 'https://' || ? || '/%' AND accepted = 1`, l.Domain, name, u.Host)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
 	var items ap.Audience
 
-	if err := data.ScanRows(
-		rows,
+	if err := data.QueryScanRows(
+		r.Context(),
 		func(follower string) bool {
 			items.Add(follower)
 			return true
@@ -172,6 +161,11 @@ func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 		func(err error) bool {
 			return false
 		},
+		l.DB,
+		`SELECT follower FROM follows WHERE followed = 'https://' || ? || '/user/' || ? AND follower LIKE 'https://' || ? || '/%' AND accepted = 1`,
+		l.Domain,
+		name,
+		u.Host,
 	); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -359,21 +353,10 @@ func (s *Syncer) ProcessBatch(ctx context.Context) (int, error) {
 		return 0, err
 	}
 
-	rows, err := s.DB.QueryContext(
-		ctx,
-		`SELECT actor, url, digest FROM follows_sync WHERE changed <= $1 ORDER BY changed LIMIT $2`,
-		time.Now().Add(-s.Config.FollowersSyncInterval).Unix(),
-		s.Config.FollowersSyncBatchSize,
-	)
-	if err != nil {
-		return 0, fmt.Errorf("failed to fetch followers to sync: %w", err)
-	}
-	defer rows.Close()
-
 	jobs := make([]followersDigest, 0, s.Config.FollowersSyncBatchSize)
 
-	if err := data.ScanRows(
-		rows,
+	if err := data.QueryScanRows(
+		ctx,
 		func(row struct {
 			Followed, URL, Digest string
 		}) bool {
@@ -389,6 +372,10 @@ func (s *Syncer) ProcessBatch(ctx context.Context) (int, error) {
 			slog.Error("Failed to scan digest", "error", err)
 			return true
 		},
+		s.DB,
+		`SELECT actor, url, digest FROM follows_sync WHERE changed <= $1 ORDER BY changed LIMIT $2`,
+		time.Now().Add(-s.Config.FollowersSyncInterval).Unix(),
+		s.Config.FollowersSyncBatchSize,
 	); err != nil {
 		return 0, fmt.Errorf("failed to fetch followers to sync: %w", err)
 	}

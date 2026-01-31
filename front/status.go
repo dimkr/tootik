@@ -27,16 +27,9 @@ import (
 )
 
 func (h *Handler) getGraph(r *Request, keys []string, values []int64, query string, args ...any) string {
-	rows, err := h.DB.QueryContext(r.Context, query, args...)
-	if err != nil {
-		r.Log.Warn("Failed to query data points", "query", query, "error", err)
-		return ""
-	}
-	defer rows.Close()
-
 	i := 0
-	if err := data.ScanRows(
-		rows,
+	if err := data.QueryScanRows(
+		r.Context,
 		func(row struct {
 			Key   string
 			Value int64
@@ -49,8 +42,11 @@ func (h *Handler) getGraph(r *Request, keys []string, values []int64, query stri
 		func(err error) bool {
 			return false
 		},
+		h.DB,
+		query,
+		args...,
 	); err != nil {
-		r.Log.Warn("Failed to scan data point", "error", err)
+		r.Log.Warn("Failed to query data points", "error", err)
 		return ""
 	}
 

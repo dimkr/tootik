@@ -118,41 +118,11 @@ func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	rows, err := h.DB.QueryContext(
-		r.Context,
-		`
-			select strftime('%Y-%m-%d', datetime(day*86400, 'unixepoch')) || ' #' || hashtag, authors from (
-				select notes.inserted/86400 as day, hashtags.hashtag, count(distinct notes.author) authors from
-				hashtags
-				join notes
-				on
-					notes.id = hashtags.note
-				where
-					inserted > (unixepoch()/86400-6)*86400
-				group by
-					day,
-					hashtag
-				order by
-					day,
-					authors desc
-			)
-			group by
-				day
-			order by
-				day desc
-		`)
-	if err != nil {
-		r.Log.Warn("Failed to list hashtags", "error", err)
-		w.Error()
-		return
-	}
-	defer rows.Close()
-
 	labels := make([]string, 0, 7)
 	values := make([]int64, 0, 7)
 
-	if err := data.ScanRows(
-		rows,
+	if err := data.QueryScanRows(
+		r.Context,
 		func(row struct {
 			Label string
 			Value int64
@@ -165,6 +135,28 @@ func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
 			r.Log.Warn("Failed to scan hashtag", "error", err)
 			return true
 		},
+		h.DB,
+		`
+		select strftime('%Y-%m-%d', datetime(day*86400, 'unixepoch')) || ' #' || hashtag, authors from (
+			select notes.inserted/86400 as day, hashtags.hashtag, count(distinct notes.author) authors from
+			hashtags
+			join notes
+			on
+				notes.id = hashtags.note
+			where
+				inserted > (unixepoch()/86400-6)*86400
+			group by
+				day,
+				hashtag
+			order by
+				day,
+				authors desc
+		)
+		group by
+			day
+		order by
+			day desc
+		`,
 	); err != nil {
 		r.Log.Warn("Failed to list hashtags", "error", err)
 		w.Error()

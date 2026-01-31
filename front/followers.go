@@ -62,30 +62,13 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	rows, err := h.DB.QueryContext(
-		r.Context,
-		`
-		select follows.inserted, json(persons.actor), follows.accepted from follows
-		join persons on persons.id = follows.follower
-		where follows.followed = $1 and (accepted is null or accepted = 1)
-		order by follows.inserted desc
-		`,
-		r.User.ID,
-	)
-	if err != nil {
-		r.Log.Warn("Failed to list followers", "error", err)
-		w.Error()
-		return
-	}
-	defer rows.Close()
-
 	w.OK()
 	w.Title("🐕 Followers")
 
 	empty := true
 
-	if err := data.ScanRows(
-		rows,
+	if err := data.QueryScanRows(
+		r.Context,
 		func(row *struct {
 			Inserted int64
 			Follower ap.Actor
@@ -119,6 +102,14 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 			r.Log.Warn("Failed to list a follow request", "error", err)
 			return true
 		},
+		h.DB,
+		`
+		select follows.inserted, json(persons.actor), follows.accepted from follows
+		join persons on persons.id = follows.follower
+		where follows.followed = $1 and (accepted is null or accepted = 1)
+		order by follows.inserted desc
+		`,
+		r.User.ID,
 	); err != nil {
 		r.Log.Warn("Failed to list followers", "error", err)
 		return

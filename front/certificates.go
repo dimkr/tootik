@@ -29,28 +29,12 @@ func (h *Handler) certificates(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	rows, err := h.DB.QueryContext(
-		r.Context,
-		`
-		select inserted, hash, approved, expires from certificates
-		where user = ?
-		order by inserted
-		`,
-		r.User.PreferredUsername,
-	)
-	if err != nil {
-		r.Log.Warn("Failed to fetch certificates", "user", r.User.PreferredUsername, "error", err)
-		w.Error()
-		return
-	}
-	defer rows.Close()
-
 	w.OK()
 	w.Title("🎓 Certificates")
 
 	first := true
-	if err := data.ScanRows(
-		rows,
+	if err := data.QueryScanRows(
+		r.Context,
 		func(row struct {
 			Inserted, Expires int64
 			Hash              string
@@ -78,6 +62,13 @@ func (h *Handler) certificates(w text.Writer, r *Request, args ...string) {
 			r.Log.Warn("Failed to fetch certificate", "user", r.User.PreferredUsername, "error", err)
 			return true
 		},
+		h.DB,
+		`
+		select inserted, hash, approved, expires from certificates
+		where user = ?
+		order by inserted
+		`,
+		r.User.PreferredUsername,
 	); err != nil {
 		r.Log.Warn("Failed to fetch certificates", "user", r.User.PreferredUsername, "error", err)
 		return

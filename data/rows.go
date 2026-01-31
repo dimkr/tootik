@@ -249,6 +249,7 @@ func ReadRows[T any](rows *sql.Rows, expected int, ignore func(error) bool) ([]T
 	return scanned, nil
 }
 
+// QueryScanRows is like [ScanRows] but also runs the query.
 func QueryScanRows[T any](
 	ctx context.Context,
 	collect func(T) bool,

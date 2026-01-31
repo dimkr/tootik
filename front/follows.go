@@ -32,52 +32,13 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	rows, err := h.DB.QueryContext(
-		r.Context,
-		`
-		select json(persons.actor), g.inserted/(24*60*60), follows.accepted from
-		follows
-		left join
-		(
-			select followed, max(inserted) as inserted from
-			(
-				select coalesce(sharer->>'$.id', author->>'$.id') as followed, inserted
-				from feed
-				where
-					follower = $1 and
-					inserted >= unixepoch() - 7*24*60*60
-			)
-			group by followed
-		) g
-		on
-			g.followed = follows.followed
-		join persons
-		on
-			persons.id = follows.followed
-		where
-			follows.follower = $1
-		order by
-			g.inserted/(24*60*60) desc,
-			g.inserted desc,
-			follows.inserted desc,
-			follows.followed
-		`,
-		r.User.ID,
-	)
-	if err != nil {
-		r.Log.Warn("Failed to list followed users", "error", err)
-		w.Error()
-		return
-	}
-	defer rows.Close()
-
 	w.OK()
 	w.Title("⚡ Follows")
 
 	i := 0
 	var lastDay sql.NullInt64
-	if err := data.ScanRows(
-		rows,
+	if err := data.QueryScanRows(
+		r.Context,
 		func(row *struct {
 			Actor    ap.Actor
 			Last     sql.NullInt64
@@ -111,6 +72,36 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 			r.Log.Warn("Failed to list a followed user", "error", err)
 			return true
 		},
+		h.DB,
+		`
+		select json(persons.actor), g.inserted/(24*60*60), follows.accepted from
+		follows
+		left join
+		(
+			select followed, max(inserted) as inserted from
+			(
+				select coalesce(sharer->>'$.id', author->>'$.id') as followed, inserted
+				from feed
+				where
+					follower = $1 and
+					inserted >= unixepoch() - 7*24*60*60
+			)
+			group by followed
+		) g
+		on
+			g.followed = follows.followed
+		join persons
+		on
+			persons.id = follows.followed
+		where
+			follows.follower = $1
+		order by
+			g.inserted/(24*60*60) desc,
+			g.inserted desc,
+			follows.inserted desc,
+			follows.followed
+		`,
+		r.User.ID,
 	); err != nil {
 		r.Log.Warn("Failed to list followed users", "error", err)
 		return
