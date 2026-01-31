@@ -176,7 +176,10 @@ func scanScalarRows[T any](
 // collect is called for each row.
 // ignore determines which [sql.Rows.Scan] errors should be ignored.
 //
-// If T is a struct, the columns of each row are assigned to visible fields of T.
+// If T is a struct or a struct pointer, the columns of each row are assigned to visible fields of T.
+//
+// If T is a struct pointer, collect receives the same pointer every time it's called.
+// It must not store the pointer to the struct or its fields.
 func ScanRows[T any](
 	rows *sql.Rows,
 	collect func(T) bool,
@@ -226,6 +229,8 @@ func ScanRows[T any](
 // ignore determines which [sql.Rows.Scan] errors should be ignored.
 //
 // If T is a struct, the columns of each row are assigned to visible fields of T.
+//
+// T must not be a pointer.
 func ReadRows[T any](rows *sql.Rows, expected int, ignore func(error) bool) ([]T, error) {
 	scanned := make([]T, 0, expected)
 
