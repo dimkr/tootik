@@ -71,6 +71,16 @@ func CollectRows[T any](
 	)
 }
 
+func structFieldPtrs(t reflect.Type, base unsafe.Pointer) []any {
+	fields := reflect.VisibleFields(t)
+	ptrs := make([]any, len(fields))
+	for i, field := range fields {
+		ptrs[i] = reflect.NewAt(field.Type, unsafe.Add(base, field.Offset)).Interface()
+	}
+
+	return ptrs
+}
+
 func scanStructRows[T any](
 	t reflect.Type,
 	rows *sql.Rows,
@@ -79,12 +89,7 @@ func scanStructRows[T any](
 ) error {
 	var zero, row T
 
-	fields := reflect.VisibleFields(t)
-	ptrs := make([]any, len(fields))
-	base := unsafe.Pointer(&row)
-	for i, field := range fields {
-		ptrs[i] = reflect.NewAt(field.Type, unsafe.Add(base, field.Offset)).Interface()
-	}
+	ptrs := structFieldPtrs(t, unsafe.Pointer(&row))
 
 	for rows.Next() {
 		row = zero
@@ -114,12 +119,8 @@ func scanStructPointerRows[T any](
 	var zero = reflect.Zero(et)
 	var row = reflect.New(et)
 
-	fields := reflect.VisibleFields(et)
-	ptrs := make([]any, len(fields))
 	base := row.UnsafePointer()
-	for i, field := range fields {
-		ptrs[i] = reflect.NewAt(field.Type, unsafe.Add(base, field.Offset)).Interface()
-	}
+	ptrs := structFieldPtrs(et, base)
 
 	rowe := row.Elem()
 	rowp := *(*T)(unsafe.Pointer(&base))
