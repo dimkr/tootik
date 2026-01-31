@@ -116,17 +116,18 @@ func scanStructPointerRows[T any](
 	collect func(T) bool,
 	ignore func(error) bool,
 ) error {
-	var zero = reflect.Zero(et)
+	size := et.Size()
+	zero := make([]byte, size)
 	var row = reflect.New(et)
 
 	base := row.UnsafePointer()
 	ptrs := structFieldPtrs(et, base)
 
-	rowe := row.Elem()
+	rowb := unsafe.Slice((*byte)(base), size)
 	rowp := *(*T)(unsafe.Pointer(&base))
 
 	for rows.Next() {
-		rowe.Set(zero)
+		copy(rowb, zero)
 
 		if err := rows.Scan(ptrs...); err != nil {
 			if !ignore(err) {
