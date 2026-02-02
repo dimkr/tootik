@@ -25,32 +25,16 @@ import (
 )
 
 func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
-	w.OK()
-
-	w.Title("🏕️ Communities")
-
-	empty := true
-
-	if err := data.QueryScanRows(
+	rows, err := data.QueryCollectRowsIgnore[struct {
+		ID, Username string
+		Last         int64
+	}](
 		r.Context,
-		func(row struct {
-			ID, Username string
-			Last         int64
-		}) bool {
-			if r.User == nil {
-				w.Linkf("/outbox/"+strings.TrimPrefix(row.ID, "https://"), "%s %s", time.Unix(row.Last, 0).Format(time.DateOnly), row.Username)
-			} else {
-				w.Linkf("/users/outbox/"+strings.TrimPrefix(row.ID, "https://"), "%s %s", time.Unix(row.Last, 0).Format(time.DateOnly), row.Username)
-			}
-
-			empty = false
-			return true
-		},
+		h.DB,
 		func(err error) bool {
 			r.Log.Warn("Failed to scan community", "error", err)
 			return true
 		},
-		h.DB,
 		`
 		select u.id, u.username, max(u.inserted) from (
 			select persons.id, persons.actor->>'preferredUsername' as username, shares.inserted from shares
@@ -75,12 +59,26 @@ func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
 			max(u.inserted) desc
 		`,
 		h.Domain,
-	); err != nil {
+	)
+	if err != nil {
 		r.Log.Error("Failed to list communities", "error", err)
+		w.Error()
 		return
 	}
 
-	if empty {
+	w.OK()
+	w.Title("🏕️ Communities")
+
+	if len(rows) == 0 {
 		w.Text("No communities.")
+		return
+	}
+
+	for _, row := range rows {
+		if r.User == nil {
+			w.Linkf("/outbox/"+strings.TrimPrefix(row.ID, "https://"), "%s %s", time.Unix(row.Last, 0).Format(time.DateOnly), row.Username)
+		} else {
+			w.Linkf("/users/outbox/"+strings.TrimPrefix(row.ID, "https://"), "%s %s", time.Unix(row.Last, 0).Format(time.DateOnly), row.Username)
+		}
 	}
 }

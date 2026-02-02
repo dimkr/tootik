@@ -116,13 +116,39 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 
 			headDepth := 0
 			contextPosts := 0
-			if err := data.QueryScanRows(
+			if rows, err := data.QueryCollectRows[struct {
+				Parent       ap.Object
+				ParentAuthor ap.Actor
+				CurrentDepth int
+			}](
 				r.Context,
-				func(row *struct {
-					Parent       ap.Object
-					ParentAuthor ap.Actor
-					CurrentDepth int
-				}) bool {
+				h.DB,
+				`
+				select json(note), json(author), depth from
+				(
+					with recursive thread(note, author, depth) as (
+						select notes.object as note, persons.actor as author, 1 as depth
+						from notes
+						join persons on persons.id = notes.author
+						where notes.id = ?
+						union all
+						select notes.object as note, persons.actor as author, t.depth + 1
+						from thread t
+						join notes on notes.id = t.note->>'$.inReplyTo'
+						join persons on persons.id = notes.author
+					)
+					select * from thread order by note->'$.inReplyTo' is null desc, depth limit ?
+				)
+				order by depth desc
+				`,
+				note.InReplyTo,
+				h.Config.PostContextDepth,
+			); err != nil {
+				r.Log.Info("Failed to fetch context", "error", err)
+			} else if len(rows) == 0 {
+				w.Text("No context.")
+			} else {
+				for _, row := range rows {
 					if contextPosts == 0 && row.Parent.InReplyTo != "" {
 						// show a marker if the thread head is a reply (i.e. we don't have the actual head)
 						w.Text("[…]")
@@ -169,39 +195,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 					if row.Parent.InReplyTo == "" {
 						headDepth = row.CurrentDepth
 					}
-
-					return true
-				},
-				func(err error) bool {
-					return false
-				},
-				h.DB,
-				`
-				select json(note), json(author), depth from
-				(
-					with recursive thread(note, author, depth) as (
-						select notes.object as note, persons.actor as author, 1 as depth
-						from notes
-						join persons on persons.id = notes.author
-						where notes.id = ?
-						union all
-						select notes.object as note, persons.actor as author, t.depth + 1
-						from thread t
-						join notes on notes.id = t.note->>'$.inReplyTo'
-						join persons on persons.id = notes.author
-					)
-					select * from thread order by note->'$.inReplyTo' is null desc, depth limit ?
-				)
-				order by depth desc
-				`,
-				note.InReplyTo,
-				h.Config.PostContextDepth,
-			); err != nil {
-				r.Log.Info("Failed to fetch context", "error", err)
-			}
-
-			if contextPosts == 0 {
-				w.Text("No context.")
+				}
 			}
 
 			w.Empty()
@@ -306,43 +300,35 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			if err != nil && !errors.Is(err, sql.ErrNoRows) {
 				r.Log.Warn("Failed to query sharers", "error", err)
 			} else if err == nil {
-				if err := data.ScanRows(
+				if rows, err := data.ReadRows[struct {
+					SharerID, SharerName string
+				}](
 					rows,
-					func(row struct {
-						SharerID, SharerName string
-					}) bool {
-						links.Store("/users/outbox/"+strings.TrimPrefix(row.SharerID, "https://"), "🔄 "+row.SharerName)
-						return true
-					},
+					1,
 					func(err error) bool {
 						r.Log.Warn("Failed to scan sharer", "error", err)
 						return true
 					},
 				); err != nil {
 					r.Log.Warn("Failed to query sharers", "error", err)
+				} else {
+					for _, row := range rows {
+						links.Store("/users/outbox/"+strings.TrimPrefix(row.SharerID, "https://"), "🔄 "+row.SharerName)
+					}
 				}
 				rows.Close()
 			}
 		}
 
-		if err := data.QueryScanRows(
+		if quotes, err := data.QueryCollectRowsIgnore[struct {
+			QuoteID, Quoter string
+		}](
 			r.Context,
-			func(row struct {
-				QuoteID, Quoter string
-			}) bool {
-				if r.User == nil {
-					links.Store("/view/"+strings.TrimPrefix(row.QuoteID, "https://"), "♻️ "+row.Quoter)
-				} else {
-					links.Store("/users/view/"+strings.TrimPrefix(row.QuoteID, "https://"), "♻️ "+row.Quoter)
-				}
-
-				return true
-			},
+			h.DB,
 			func(err error) bool {
 				r.Log.Warn("Failed to scan quoter", "error", err)
 				return true
 			},
-			h.DB,
 			`
 			select notes.id, persons.actor->>'$.preferredUsername' from
 			notes join persons on persons.id = notes.author
@@ -354,6 +340,14 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			h.Config.QuotesPerPost,
 		); err != nil {
 			r.Log.Warn("Failed to query quotes", "error", err)
+		} else {
+			for _, row := range quotes {
+				if r.User == nil {
+					links.Store("/view/"+strings.TrimPrefix(row.QuoteID, "https://"), "♻️ "+row.Quoter)
+				} else {
+					links.Store("/users/view/"+strings.TrimPrefix(row.QuoteID, "https://"), "♻️ "+row.Quoter)
+				}
+			}
 		}
 
 		title := note.Published.Format(time.DateOnly)

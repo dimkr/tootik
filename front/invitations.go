@@ -36,24 +36,47 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
+	rows, err := data.QueryCollectRowsIgnore[struct {
+		Code              string
+		InviteInsertedSec int64
+		Actor             sql.Null[ap.Actor]
+		ActorInserted     sql.NullInt64
+	}](
+		r.Context,
+		h.DB,
+		func(err error) bool {
+			r.Log.Warn("Failed to scan invitation", "error", err)
+			return true
+		},
+		`
+		SELECT invites.code, invites.inserted, JSON(persons.actor), persons.inserted
+		FROM invites
+		LEFT JOIN persons ON persons.id = invites.invited
+		WHERE invites.inviter = $1
+		ORDER BY invites.inserted DESC, persons.actor->>'$.id' DESC
+		`,
+		r.User.ID,
+	)
+	if err != nil {
+		r.Log.Warn("Failed to fetch invites", "error", err)
+		w.Error()
+		return
+	}
+
 	w.OK()
 	w.Title("🎟️ Invitations")
 
-	now := time.Now()
-
-	count := 0
 	unused := 0
-	if err := data.QueryScanRows(
-		r.Context,
-		func(row *struct {
-			Code              string
-			InviteInsertedSec int64
-			Actor             sql.Null[ap.Actor]
-			ActorInserted     sql.NullInt64
-		}) bool {
+
+	if len(rows) == 0 {
+		w.Empty()
+	} else {
+		now := time.Now()
+
+		for i, row := range rows {
 			inserted := time.Unix(row.InviteInsertedSec, 0)
 
-			if count > 0 {
+			if i > 0 {
 				w.Empty()
 			}
 
@@ -73,30 +96,7 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 				w.Link("/users/invitations/revoke?"+row.Code, "➖ Revoke")
 				unused++
 			}
-
-			count++
-			return true
-		},
-		func(err error) bool {
-			r.Log.Warn("Failed to scan invitation", "error", err)
-			return true
-		},
-		h.DB,
-		`
-		SELECT invites.code, invites.inserted, JSON(persons.actor), persons.inserted
-		FROM invites
-		LEFT JOIN persons ON persons.id = invites.invited
-		WHERE invites.inviter = $1
-		ORDER BY invites.inserted DESC, persons.actor->>'$.id' DESC
-		`,
-		r.User.ID,
-	); err != nil {
-		r.Log.Warn("Failed to fetch invites", "error", err)
-		return
-	}
-
-	if count > 0 {
-		w.Empty()
+		}
 	}
 
 	if !h.Config.RequireInvitation {

@@ -32,47 +32,17 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.OK()
-	w.Title("⚡ Follows")
-
-	i := 0
-	var lastDay sql.NullInt64
-	if err := data.QueryScanRows(
+	rows, err := data.QueryCollectRowsIgnore[struct {
+		Actor    ap.Actor
+		Last     sql.NullInt64
+		Accepted sql.NullInt32
+	}](
 		r.Context,
-		func(row *struct {
-			Actor    ap.Actor
-			Last     sql.NullInt64
-			Accepted sql.NullInt32
-		}) bool {
-			if i > 0 && row.Last != lastDay {
-				w.Separator()
-			}
-			lastDay = row.Last
-
-			displayName := h.getActorDisplayName(&row.Actor)
-
-			if !row.Accepted.Valid && row.Last.Valid {
-				w.Linkf("/users/outbox/"+strings.TrimPrefix(row.Actor.ID, "https://"), "%s %s - pending approval", time.Unix(row.Last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
-			} else if !row.Accepted.Valid {
-				w.Linkf("/users/outbox/"+strings.TrimPrefix(row.Actor.ID, "https://"), "%s - pending approval", displayName)
-			} else if row.Last.Valid && row.Accepted.Int32 == 1 {
-				w.Linkf("/users/outbox/"+strings.TrimPrefix(row.Actor.ID, "https://"), "%s %s", time.Unix(row.Last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
-			} else if row.Accepted.Int32 == 1 {
-				w.Link("/users/outbox/"+strings.TrimPrefix(row.Actor.ID, "https://"), displayName)
-			} else if row.Last.Valid {
-				w.Linkf("/users/outbox/"+strings.TrimPrefix(row.Actor.ID, "https://"), "%s %s - rejected", time.Unix(row.Last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
-			} else {
-				w.Linkf("/users/outbox/"+strings.TrimPrefix(row.Actor.ID, "https://"), "%s - rejected", displayName)
-			}
-			i++
-
-			return true
-		},
+		h.DB,
 		func(err error) bool {
 			r.Log.Warn("Failed to list a followed user", "error", err)
 			return true
 		},
-		h.DB,
 		`
 		select json(persons.actor), g.inserted/(24*60*60), follows.accepted from
 		follows
@@ -102,13 +72,43 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 			follows.followed
 		`,
 		r.User.ID,
-	); err != nil {
+	)
+	if err != nil {
 		r.Log.Warn("Failed to list followed users", "error", err)
+		w.Error()
 		return
 	}
 
-	if i == 0 {
+	w.OK()
+	w.Title("⚡ Follows")
+
+	if len(rows) == 0 {
 		w.Text("No followed users.")
-		return
+	} else {
+		var lastDay sql.NullInt64
+
+		for i, row := range rows {
+			if i > 0 && row.Last != lastDay {
+				w.Separator()
+			}
+			lastDay = row.Last
+
+			displayName := h.getActorDisplayName(&row.Actor)
+
+			if !row.Accepted.Valid && row.Last.Valid {
+				w.Linkf("/users/outbox/"+strings.TrimPrefix(row.Actor.ID, "https://"), "%s %s - pending approval", time.Unix(row.Last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
+			} else if !row.Accepted.Valid {
+				w.Linkf("/users/outbox/"+strings.TrimPrefix(row.Actor.ID, "https://"), "%s - pending approval", displayName)
+			} else if row.Last.Valid && row.Accepted.Int32 == 1 {
+				w.Linkf("/users/outbox/"+strings.TrimPrefix(row.Actor.ID, "https://"), "%s %s", time.Unix(row.Last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
+			} else if row.Accepted.Int32 == 1 {
+				w.Link("/users/outbox/"+strings.TrimPrefix(row.Actor.ID, "https://"), displayName)
+			} else if row.Last.Valid {
+				w.Linkf("/users/outbox/"+strings.TrimPrefix(row.Actor.ID, "https://"), "%s %s - rejected", time.Unix(row.Last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
+			} else {
+				w.Linkf("/users/outbox/"+strings.TrimPrefix(row.Actor.ID, "https://"), "%s - rejected", displayName)
+			}
+
+		}
 	}
 }

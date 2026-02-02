@@ -62,19 +62,39 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
+	rows, err := data.QueryCollectRowsIgnore[struct {
+		Inserted int64
+		Follower ap.Actor
+		Accepted sql.NullInt32
+	}](
+		r.Context,
+		h.DB,
+		func(err error) bool {
+			r.Log.Warn("Failed to list a follow request", "error", err)
+			return true
+		},
+		`
+		select follows.inserted, json(persons.actor), follows.accepted from follows
+		join persons on persons.id = follows.follower
+		where follows.followed = $1 and (accepted is null or accepted = 1)
+		order by follows.inserted desc
+		`,
+		r.User.ID,
+	)
+	if err != nil {
+		r.Log.Warn("Failed to list followers", "error", err)
+		w.Error()
+		return
+	}
+
 	w.OK()
 	w.Title("🐕 Followers")
 
-	empty := true
-
-	if err := data.QueryScanRows(
-		r.Context,
-		func(row *struct {
-			Inserted int64
-			Follower ap.Actor
-			Accepted sql.NullInt32
-		}) bool {
-			if !empty {
+	if len(rows) == 0 {
+		w.Text("No follow requests.")
+	} else {
+		for i, row := range rows {
+			if i > 0 {
 				w.Empty()
 			}
 
@@ -93,30 +113,7 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 			if !row.Accepted.Valid || row.Accepted.Int32 == 1 {
 				w.Link("/users/followers/reject/"+param, "🔴 Reject")
 			}
-
-			empty = false
-
-			return true
-		},
-		func(err error) bool {
-			r.Log.Warn("Failed to list a follow request", "error", err)
-			return true
-		},
-		h.DB,
-		`
-		select follows.inserted, json(persons.actor), follows.accepted from follows
-		join persons on persons.id = follows.follower
-		where follows.followed = $1 and (accepted is null or accepted = 1)
-		order by follows.inserted desc
-		`,
-		r.User.ID,
-	); err != nil {
-		r.Log.Warn("Failed to list followers", "error", err)
-		return
-	}
-
-	if empty {
-		w.Text("No follow requests.")
+		}
 	}
 
 	w.Empty()

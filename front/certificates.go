@@ -29,48 +29,48 @@ func (h *Handler) certificates(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.OK()
-	w.Title("🎓 Certificates")
-
-	first := true
-	if err := data.QueryScanRows(
+	rows, err := data.QueryCollectRowsIgnore[struct {
+		Inserted, Expires int64
+		Hash              string
+		Approved          int
+	}](
 		r.Context,
-		func(row struct {
-			Inserted, Expires int64
-			Hash              string
-			Approved          int
-		}) bool {
-			if !first {
-				w.Empty()
-			}
-
-			w.Item("SHA-256: " + row.Hash)
-			w.Item("Added: " + time.Unix(row.Inserted, 0).Format(time.DateOnly))
-			w.Item("Expires: " + time.Unix(row.Expires, 0).Format(time.DateOnly))
-
-			if row.Approved == 0 {
-				w.Link("/users/certificates/approve/"+row.Hash, "🟢 Approve")
-				w.Link("/users/certificates/revoke/"+row.Hash, "🔴 Deny")
-			} else {
-				w.Link("/users/certificates/revoke/"+row.Hash, "🔴 Revoke")
-			}
-
-			first = false
-			return true
-		},
+		h.DB,
 		func(err error) bool {
 			r.Log.Warn("Failed to fetch certificate", "user", r.User.PreferredUsername, "error", err)
 			return true
 		},
-		h.DB,
 		`
 		select inserted, hash, approved, expires from certificates
 		where user = ?
 		order by inserted
 		`,
 		r.User.PreferredUsername,
-	); err != nil {
+	)
+
+	if err != nil {
 		r.Log.Warn("Failed to fetch certificates", "user", r.User.PreferredUsername, "error", err)
+		w.Error()
 		return
+	}
+
+	w.OK()
+	w.Title("🎓 Certificates")
+
+	for i, row := range rows {
+		if i > 0 {
+			w.Empty()
+		}
+
+		w.Item("SHA-256: " + row.Hash)
+		w.Item("Added: " + time.Unix(row.Inserted, 0).Format(time.DateOnly))
+		w.Item("Expires: " + time.Unix(row.Expires, 0).Format(time.DateOnly))
+
+		if row.Approved == 0 {
+			w.Link("/users/certificates/approve/"+row.Hash, "🟢 Approve")
+			w.Link("/users/certificates/revoke/"+row.Hash, "🔴 Deny")
+		} else {
+			w.Link("/users/certificates/revoke/"+row.Hash, "🔴 Revoke")
+		}
 	}
 }

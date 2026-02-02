@@ -7,13 +7,13 @@ import (
 	"unsafe"
 )
 
-// CollectRowsCountIgnore runs a SQL query.
+// QueryCollectRowsCountIgnore runs a SQL query.
 //
 // count is the expected number of rows.
 // ignore determines which [sql.Rows.Scan] errors should be ignored.
 //
 // The columns of each row are assigned to visible fields of T.
-func CollectRowsCountIgnore[T any](
+func QueryCollectRowsCountIgnore[T any](
 	ctx context.Context,
 	db *sql.DB,
 	count int,
@@ -30,19 +30,19 @@ func CollectRowsCountIgnore[T any](
 	return ReadRows[T](rows, count, ignore)
 }
 
-// CollectRowsIgnore runs a SQL query.
+// QueryCollectRowsIgnore runs a SQL query.
 //
 // ignore determines which [sql.Rows.Scan] errors should be ignored.
 //
 // The columns of each row are assigned to visible fields of T.
-func CollectRowsIgnore[T any](
+func QueryCollectRowsIgnore[T any](
 	ctx context.Context,
 	db *sql.DB,
 	ignore func(error) bool,
 	query string,
 	args ...any,
 ) ([]T, error) {
-	return CollectRowsCountIgnore[T](
+	return QueryCollectRowsCountIgnore[T](
 		ctx,
 		db,
 		1,
@@ -52,19 +52,19 @@ func CollectRowsIgnore[T any](
 	)
 }
 
-// CollectRows runs a SQL query.
+// QueryCollectRows runs a SQL query.
 //
 // The columns of each row are assigned to visible fields of T.
-func CollectRows[T any](
+func QueryCollectRows[T any](
 	ctx context.Context,
 	db *sql.DB,
 	query string,
 	args ...any,
 ) ([]T, error) {
-	return CollectRowsCountIgnore[T](
+	return QueryCollectRowsCountIgnore[T](
 		ctx,
 		db,
-		10,
+		1,
 		func(error) bool { return false },
 		query,
 		args...,

@@ -38,7 +38,7 @@ func printHashtags(w text.Writer, r *Request, title string, tags []string) {
 }
 
 func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
-	followed, err := data.CollectRowsCountIgnore[string](
+	followed, err := data.QueryCollectRowsCountIgnore[string](
 		r.Context,
 		h.DB,
 		30,
@@ -83,7 +83,7 @@ func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	all, err := data.CollectRowsCountIgnore[string](
+	all, err := data.QueryCollectRowsCountIgnore[string](
 		r.Context,
 		h.DB,
 		30,

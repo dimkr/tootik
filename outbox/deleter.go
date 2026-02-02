@@ -35,7 +35,7 @@ type Deleter struct {
 }
 
 func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
-	rows, err := data.CollectRows[struct {
+	rows, err := data.QueryCollectRows[struct {
 		Sharer         ap.Actor
 		Ed25519PrivKey []byte
 		Share          ap.Activity
@@ -85,7 +85,7 @@ func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 }
 
 func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
-	rows, err := data.CollectRows[struct {
+	rows, err := data.QueryCollectRows[struct {
 		Author         ap.Actor
 		Ed25519PrivKey []byte
 		Note           ap.Object
