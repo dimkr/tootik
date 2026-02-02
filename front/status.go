@@ -33,11 +33,10 @@ func (h *Handler) getGraph(r *Request, keys []string, values []int64, query stri
 		func(row struct {
 			Key   string
 			Value int64
-		}) bool {
+		}) {
 			keys[i] = row.Key
 			values[i] = row.Value
 			i++
-			return true
 		},
 		func(err error) bool {
 			return false

@@ -126,10 +126,9 @@ func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
 		func(row struct {
 			Label string
 			Value int64
-		}) bool {
+		}) {
 			labels = append(labels, row.Label)
 			values = append(values, row.Value)
-			return true
 		},
 		func(err error) bool {
 			r.Log.Warn("Failed to scan hashtag", "error", err)

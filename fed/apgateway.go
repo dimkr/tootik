@@ -564,9 +564,8 @@ func (l *Listener) doHandleApGatewayFollowers(
 
 	if err := data.ScanRows(
 		rows,
-		func(follower string) bool {
+		func(follower string) {
 			items.Add(follower)
-			return true
 		},
 		func(err error) bool {
 			return false

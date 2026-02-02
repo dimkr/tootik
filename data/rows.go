@@ -84,7 +84,7 @@ func structFieldPtrs(t reflect.Type, base unsafe.Pointer) []any {
 func scanStructRows[T any](
 	t reflect.Type,
 	rows *sql.Rows,
-	collect func(T) bool,
+	collect func(T),
 	ignore func(error) bool,
 ) error {
 	var zero, row T
@@ -102,9 +102,7 @@ func scanStructRows[T any](
 			continue
 		}
 
-		if !collect(row) {
-			break
-		}
+		collect(row)
 	}
 
 	return rows.Err()
@@ -113,7 +111,7 @@ func scanStructRows[T any](
 func scanStructPointerRows[T any](
 	et reflect.Type,
 	rows *sql.Rows,
-	collect func(T) bool,
+	collect func(T),
 	ignore func(error) bool,
 ) error {
 	size := et.Size()
@@ -137,9 +135,7 @@ func scanStructPointerRows[T any](
 			continue
 		}
 
-		if !collect(rowp) {
-			break
-		}
+		collect(rowp)
 	}
 
 	return rows.Err()
@@ -147,7 +143,7 @@ func scanStructPointerRows[T any](
 
 func scanScalarRows[T any](
 	rows *sql.Rows,
-	collect func(T) bool,
+	collect func(T),
 	ignore func(error) bool,
 ) error {
 	var zero, row T
@@ -164,9 +160,7 @@ func scanScalarRows[T any](
 			continue
 		}
 
-		if !collect(row) {
-			break
-		}
+		collect(row)
 	}
 
 	return rows.Err()
@@ -183,7 +177,7 @@ func scanScalarRows[T any](
 // It must not store the pointer to the struct or its fields.
 func ScanRows[T any](
 	rows *sql.Rows,
-	collect func(T) bool,
+	collect func(T),
 	ignore func(error) bool,
 ) error {
 	t := reflect.TypeFor[T]()
@@ -237,9 +231,8 @@ func ReadRows[T any](rows *sql.Rows, expected int, ignore func(error) bool) ([]T
 
 	if err := ScanRows(
 		rows,
-		func(row T) bool {
+		func(row T) {
 			scanned = append(scanned, row)
-			return true
 		},
 		ignore,
 	); err != nil {
@@ -252,7 +245,7 @@ func ReadRows[T any](rows *sql.Rows, expected int, ignore func(error) bool) ([]T
 // QueryScanRows is like [ScanRows] but also runs the query.
 func QueryScanRows[T any](
 	ctx context.Context,
-	collect func(T) bool,
+	collect func(T),
 	ignore func(error) bool,
 	db *sql.DB,
 	query string,

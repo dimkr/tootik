@@ -64,9 +64,8 @@ func fetchFollowers(ctx context.Context, db *sql.DB, followed, host string) (ap.
 
 	if err := data.QueryScanRows(
 		ctx,
-		func(follower string) bool {
+		func(follower string) {
 			followers.Add(follower)
-			return true
 		},
 		func(err error) bool {
 			return false
@@ -87,12 +86,11 @@ func digestFollowers(ctx context.Context, db *sql.DB, followed, host string) (st
 
 	if err := data.QueryScanRows(
 		ctx,
-		func(follower string) bool {
+		func(follower string) {
 			hash := sha256.Sum256(danger.Bytes(follower))
 			for i := range sha256.Size {
 				digest[i] ^= hash[i]
 			}
-			return true
 		},
 		func(err error) bool {
 			return false
@@ -154,9 +152,8 @@ func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 
 	if err := data.QueryScanRows(
 		r.Context(),
-		func(follower string) bool {
+		func(follower string) {
 			items.Add(follower)
-			return true
 		},
 		func(err error) bool {
 			return false
@@ -359,14 +356,13 @@ func (s *Syncer) ProcessBatch(ctx context.Context) (int, error) {
 		ctx,
 		func(row struct {
 			Followed, URL, Digest string
-		}) bool {
+		}) {
 			jobs = append(jobs, followersDigest{
 				Followed: row.Followed,
 				URL:      row.URL,
 				Digest:   row.Digest,
 				Inbox:    s.Inbox,
 			})
-			return true
 		},
 		func(err error) bool {
 			slog.Error("Failed to scan digest", "error", err)

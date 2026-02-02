@@ -104,7 +104,7 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 		func(row struct {
 			ActorID   sql.NullString
 			ActorType string
-		}) bool {
+		}) {
 			resp.Links = append(resp.Links, webFingerLink{
 				Rel:  "self",
 				Type: `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`,
@@ -113,8 +113,6 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 					Type: ap.ActorType(row.ActorType),
 				},
 			})
-
-			return true
 		},
 		func(err error) bool {
 			return false
