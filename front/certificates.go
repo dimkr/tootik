@@ -19,7 +19,7 @@ package front
 import (
 	"time"
 
-	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/front/text"
 )
 
@@ -29,7 +29,7 @@ func (h *Handler) certificates(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	rows, err := data.QueryCollectRowsIgnore[struct {
+	rows, err := dbx.QueryCollectRowsIgnore[struct {
 		Inserted, Expires int64
 		Hash              string
 		Approved          int

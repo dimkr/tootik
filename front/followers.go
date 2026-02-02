@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/front/text"
 )
 
@@ -62,7 +62,7 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	rows, err := data.QueryCollectRowsIgnore[struct {
+	rows, err := dbx.QueryCollectRowsIgnore[struct {
 		Inserted int64
 		Follower ap.Actor
 		Accepted sql.NullInt32

@@ -30,6 +30,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/text/plain"
 )
@@ -94,7 +95,7 @@ func getTextAndLinks(s string, maxRunes, maxLines int) ([]string, data.OrderedMa
 		}
 
 		// replace multiple empty lines with one […] line
-		if len(summary) > 0 && (len(summary) > 0 && summary[len(summary)-1] == "") {
+		if len(summary) > 0 && summary[len(summary)-1] == "" {
 			summary[len(summary)-1] = "[…]"
 		} else if len(summary) == maxLines-1 && summary[len(summary)-1] != "[…]" {
 			summary = append(summary, "[…]")
@@ -328,7 +329,7 @@ func (h *Handler) printCompactNote(w text.Writer, r *Request, note *ap.Object, a
 }
 
 func (h *Handler) PrintNotes(w text.Writer, r *Request, rows *sql.Rows, printParentAuthor, printDaySeparators bool, fallback string) int {
-	scanned, err := data.ReadRows[struct {
+	scanned, err := dbx.ReadRows[struct {
 		Note           ap.Object
 		Author, Sharer sql.Null[ap.Actor]
 		Published      int64

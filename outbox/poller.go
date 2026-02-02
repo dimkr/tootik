@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/httpsig"
 )
 
@@ -40,7 +40,7 @@ type pollResult struct {
 }
 
 func (p *Poller) Run(ctx context.Context) error {
-	rows, err := data.QueryCollectRowsIgnore[struct {
+	rows, err := dbx.QueryCollectRowsIgnore[struct {
 		PollID string
 		Option sql.NullString
 		Count  int64

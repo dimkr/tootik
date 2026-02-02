@@ -35,7 +35,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/danger"
-	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/httpsig"
 )
 
@@ -90,7 +90,7 @@ func (q *Queue) Process(ctx context.Context) error {
 func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	slog.Debug("Polling delivery queue")
 
-	rows, err := data.QueryCollectRowsCountIgnore[struct {
+	rows, err := dbx.QueryCollectRowsCountIgnore[struct {
 		DeliveryAttempts              int
 		Activity                      ap.Activity
 		RawActivity                   string
@@ -397,7 +397,7 @@ func (q *Queue) queueTasks(
 
 	// list the actor's federated followers if we're forwarding an activity by another actor, or if addressed by actor
 	if wideDelivery {
-		inboxes, err := data.QueryCollectRowsIgnore[string](
+		inboxes, err := dbx.QueryCollectRowsIgnore[string](
 			ctx,
 			q.DB,
 			func(err error) bool {

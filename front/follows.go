@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/front/text"
 )
 
@@ -32,7 +32,7 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	rows, err := data.QueryCollectRowsIgnore[struct {
+	rows, err := dbx.QueryCollectRowsIgnore[struct {
 		Actor    ap.Actor
 		Last     sql.NullInt64
 		Accepted sql.NullInt32

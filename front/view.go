@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/front/graph"
 	"github.com/dimkr/tootik/front/text"
 )
@@ -116,7 +116,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 
 			headDepth := 0
 			contextPosts := 0
-			if rows, err := data.QueryCollectRows[struct {
+			if rows, err := dbx.QueryCollectRows[struct {
 				Parent       ap.Object
 				ParentAuthor ap.Actor
 				CurrentDepth int
@@ -300,7 +300,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			if err != nil && !errors.Is(err, sql.ErrNoRows) {
 				r.Log.Warn("Failed to query sharers", "error", err)
 			} else if err == nil {
-				if rows, err := data.ReadRows[struct {
+				if rows, err := dbx.ReadRows[struct {
 					SharerID, SharerName string
 				}](
 					rows,
@@ -320,7 +320,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			}
 		}
 
-		if quotes, err := data.QueryCollectRowsIgnore[struct {
+		if quotes, err := dbx.QueryCollectRowsIgnore[struct {
 			QuoteID, Quoter string
 		}](
 			r.Context,

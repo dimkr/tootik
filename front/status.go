@@ -21,14 +21,14 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/front/graph"
 	"github.com/dimkr/tootik/front/text"
 )
 
 func (h *Handler) getGraph(r *Request, keys []string, values []int64, query string, args ...any) string {
 	i := 0
-	if err := data.QueryScanRows(
+	if err := dbx.QueryScanRows(
 		r.Context,
 		func(row struct {
 			Key   string

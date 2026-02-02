@@ -27,7 +27,7 @@ import (
 	"strings"
 
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/dbx"
 )
 
 type webFingerProperties struct {
@@ -99,7 +99,7 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 		Subject: fmt.Sprintf("acct:%s@%s", username, l.Domain),
 	}
 
-	if err := data.QueryScanRows(
+	if err := dbx.QueryScanRows(
 		r.Context(),
 		func(row struct {
 			ActorID   sql.NullString

@@ -25,7 +25,7 @@ import (
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/httpsig"
 )
 
@@ -77,7 +77,7 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, item batchIte
 func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	slog.Debug("Polling activities queue")
 
-	batch, err := data.QueryCollectRowsCountIgnore[batchItem](
+	batch, err := dbx.QueryCollectRowsCountIgnore[batchItem](
 		ctx,
 		q.DB,
 		q.Config.ActivitiesBatchSize,

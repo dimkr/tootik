@@ -33,6 +33,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/icon"
 	"github.com/dimkr/tootik/proof"
@@ -562,7 +563,7 @@ func (l *Listener) doHandleApGatewayFollowers(
 
 	items := ap.Audience{}
 
-	if err := data.ScanRows(
+	if err := dbx.ScanRows(
 		rows,
 		func(follower string) {
 			items.Add(follower)

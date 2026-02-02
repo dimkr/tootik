@@ -19,7 +19,7 @@ package front
 import (
 	"fmt"
 
-	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/front/graph"
 	"github.com/dimkr/tootik/front/text"
 )
@@ -38,7 +38,7 @@ func printHashtags(w text.Writer, r *Request, title string, tags []string) {
 }
 
 func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
-	followed, err := data.QueryCollectRowsCountIgnore[string](
+	followed, err := dbx.QueryCollectRowsCountIgnore[string](
 		r.Context,
 		h.DB,
 		30,
@@ -83,7 +83,7 @@ func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	all, err := data.QueryCollectRowsCountIgnore[string](
+	all, err := dbx.QueryCollectRowsCountIgnore[string](
 		r.Context,
 		h.DB,
 		30,
@@ -121,7 +121,7 @@ func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
 	labels := make([]string, 0, 7)
 	values := make([]int64, 0, 7)
 
-	if err := data.QueryScanRows(
+	if err := dbx.QueryScanRows(
 		r.Context,
 		func(row struct {
 			Label string

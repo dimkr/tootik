@@ -20,12 +20,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/front/text"
 )
 
 func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
-	rows, err := data.QueryCollectRowsIgnore[struct {
+	rows, err := dbx.QueryCollectRowsIgnore[struct {
 		ID, Username string
 		Last         int64
 	}](
