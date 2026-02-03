@@ -329,7 +329,7 @@ func (h *Handler) printCompactNote(w text.Writer, r *Request, note *ap.Object, a
 }
 
 func (h *Handler) PrintNotes(w text.Writer, r *Request, rows *sql.Rows, printParentAuthor, printDaySeparators bool, fallback string) int {
-	scanned, err := dbx.ReadRows[struct {
+	scanned, err := dbx.CollectRows[struct {
 		Note           ap.Object
 		Author, Sharer sql.Null[ap.Actor]
 		Published      int64

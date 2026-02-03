@@ -41,7 +41,7 @@ func QueryCollectCountIgnore[T any](
 	}
 
 	defer rows.Close()
-	return ReadRows[T](rows, count, ignore)
+	return CollectRows[T](rows, count, ignore)
 }
 
 // QueryCollectIgnore runs a SQL query.

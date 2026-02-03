@@ -300,7 +300,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			if err != nil && !errors.Is(err, sql.ErrNoRows) {
 				r.Log.Warn("Failed to query sharers", "error", err)
 			} else if err == nil {
-				if rows, err := dbx.ReadRows[struct {
+				if rows, err := dbx.CollectRows[struct {
 					SharerID, SharerName string
 				}](
 					rows,
