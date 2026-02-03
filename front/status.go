@@ -21,26 +21,32 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/front/graph"
 	"github.com/dimkr/tootik/front/text"
 )
 
 func (h *Handler) getGraph(r *Request, keys []string, values []int64, query string, args ...any) string {
-	rows, err := h.DB.QueryContext(r.Context, query, args...)
-	if err != nil {
-		r.Log.Warn("Failed to data points", "query", query, "error", err)
-		return ""
-	}
-	defer rows.Close()
-
 	i := 0
-	for rows.Next() {
-		if err := rows.Scan(&keys[i], &values[i]); err != nil {
-			r.Log.Warn("Failed to data point", "error", err)
+	if err := dbx.QueryScan(
+		r.Context,
+		func(row struct {
+			Key   string
+			Value int64
+		}) {
+			keys[i] = row.Key
+			values[i] = row.Value
 			i++
-			continue
-		}
-		i++
+		},
+		func(err error) bool {
+			return false
+		},
+		h.DB,
+		query,
+		args...,
+	); err != nil {
+		r.Log.Warn("Failed to query data points", "error", err)
+		return ""
 	}
 
 	return graph.Bars(keys, values)

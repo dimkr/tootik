@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/front/text"
 )
 
@@ -61,11 +62,17 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.OK()
-	w.Title("🐕 Followers")
-
-	rows, err := h.DB.QueryContext(
+	rows, err := dbx.QueryCollectIgnore[struct {
+		Inserted int64
+		Follower ap.Actor
+		Accepted sql.NullInt32
+	}](
 		r.Context,
+		h.DB,
+		func(err error) bool {
+			r.Log.Warn("Failed to list a follow request", "error", err)
+			return true
+		},
 		`
 		select follows.inserted, json(persons.actor), follows.accepted from follows
 		join persons on persons.id = follows.follower
@@ -79,44 +86,34 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 		w.Error()
 		return
 	}
-	defer rows.Close()
 
-	empty := true
+	w.OK()
+	w.Title("🐕 Followers")
 
-	for rows.Next() {
-		var inserted int64
-		var follower ap.Actor
-		var accepted sql.NullInt32
-		if err := rows.Scan(&inserted, &follower, &accepted); err != nil {
-			r.Log.Warn("Failed to list a follow request", "error", err)
-			continue
-		}
-
-		if !empty {
-			w.Empty()
-		}
-
-		param := strings.TrimPrefix(follower.ID, "https://")
-
-		w.Linkf(
-			"/users/outbox/"+param,
-			"%s %s",
-			time.Unix(inserted, 0).Format(time.DateOnly),
-			h.getActorDisplayName(&follower),
-		)
-
-		if !accepted.Valid || accepted.Int32 == 0 {
-			w.Link("/users/followers/accept/"+param, "🟢 Accept")
-		}
-		if !accepted.Valid || accepted.Int32 == 1 {
-			w.Link("/users/followers/reject/"+param, "🔴 Reject")
-		}
-
-		empty = false
-	}
-
-	if empty {
+	if len(rows) == 0 {
 		w.Text("No follow requests.")
+	} else {
+		for i, row := range rows {
+			if i > 0 {
+				w.Empty()
+			}
+
+			param := strings.TrimPrefix(row.Follower.ID, "https://")
+
+			w.Linkf(
+				"/users/outbox/"+param,
+				"%s %s",
+				time.Unix(row.Inserted, 0).Format(time.DateOnly),
+				h.getActorDisplayName(&row.Follower),
+			)
+
+			if !row.Accepted.Valid || row.Accepted.Int32 == 0 {
+				w.Link("/users/followers/accept/"+param, "🟢 Accept")
+			}
+			if !row.Accepted.Valid || row.Accepted.Int32 == 1 {
+				w.Link("/users/followers/reject/"+param, "🔴 Reject")
+			}
+		}
 	}
 
 	w.Empty()

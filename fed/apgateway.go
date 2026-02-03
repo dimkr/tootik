@@ -33,6 +33,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/icon"
 	"github.com/dimkr/tootik/proof"
@@ -558,21 +559,19 @@ func (l *Listener) doHandleApGatewayFollowers(
 	if !ok {
 		return
 	}
+	defer rows.Close()
 
 	items := ap.Audience{}
 
-	for rows.Next() {
-		var follower string
-		if err := rows.Scan(&follower); err != nil {
-			slog.Warn("Failed to fetch followers", "did", did, "sender", sender.ID, "error", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		items.Add(follower)
-	}
-	defer rows.Close()
-
-	if err := rows.Err(); err != nil {
+	if err := dbx.ScanRows(
+		rows,
+		func(follower string) {
+			items.Add(follower)
+		},
+		func(err error) bool {
+			return false
+		},
+	); err != nil {
 		slog.Warn("Failed to fetch followers", "did", did, "sender", sender.ID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return

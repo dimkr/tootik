@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,28 +17,12 @@ limitations under the License.
 package front
 
 import (
-	"database/sql"
 	"fmt"
 
+	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/front/graph"
 	"github.com/dimkr/tootik/front/text"
 )
-
-func scanHashtags(r *Request, rows *sql.Rows) []string {
-	tags := make([]string, 0, 30)
-
-	for rows.Next() {
-		var tag string
-		if err := rows.Scan(&tag); err != nil {
-			r.Log.Warn("Failed to scan hashtag", "error", err)
-			continue
-		}
-
-		tags = append(tags, tag)
-	}
-
-	return tags
-}
 
 func printHashtags(w text.Writer, r *Request, title string, tags []string) {
 	w.Text(title)
@@ -54,8 +38,14 @@ func printHashtags(w text.Writer, r *Request, title string, tags []string) {
 }
 
 func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
-	rows, err := h.DB.QueryContext(
+	followed, err := dbx.QueryCollectCountIgnore[string](
 		r.Context,
+		h.DB,
+		30,
+		func(err error) bool {
+			r.Log.Warn("Failed to scan hashtag", "error", err)
+			return true
+		},
 		`
 			select hashtag from (
 				select hashtag, max(inserted)/86400 as last, count(distinct author) as authors, count(distinct follower) as followers, count(distinct id) as posts from (
@@ -93,11 +83,14 @@ func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	followed := scanHashtags(r, rows)
-	rows.Close()
-
-	rows, err = h.DB.QueryContext(
+	all, err := dbx.QueryCollectCountIgnore[string](
 		r.Context,
+		h.DB,
+		30,
+		func(err error) bool {
+			r.Log.Warn("Failed to scan hashtag", "error", err)
+			return true
+		},
 		`
 			select hashtag from (
 				select hashtag, max(inserted)/86400 as last, count(distinct author) as authors, count(*) as posts from (
@@ -125,52 +118,49 @@ func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	all := scanHashtags(r, rows)
-	rows.Close()
+	labels := make([]string, 0, 7)
+	values := make([]int64, 0, 7)
 
-	rows, err = h.DB.QueryContext(
+	if err := dbx.QueryScan(
 		r.Context,
+		func(row struct {
+			Label string
+			Value int64
+		}) {
+			labels = append(labels, row.Label)
+			values = append(values, row.Value)
+		},
+		func(err error) bool {
+			r.Log.Warn("Failed to scan hashtag", "error", err)
+			return true
+		},
+		h.DB,
 		`
-			select strftime('%Y-%m-%d', datetime(day*86400, 'unixepoch')) || ' #' || hashtag, authors from (
-				select notes.inserted/86400 as day, hashtags.hashtag, count(distinct notes.author) authors from
-				hashtags
-				join notes
-				on
-					notes.id = hashtags.note
-				where
-					inserted > (unixepoch()/86400-6)*86400
-				group by
-					day,
-					hashtag
-				order by
-					day,
-					authors desc
-			)
+		select strftime('%Y-%m-%d', datetime(day*86400, 'unixepoch')) || ' #' || hashtag, authors from (
+			select notes.inserted/86400 as day, hashtags.hashtag, count(distinct notes.author) authors from
+			hashtags
+			join notes
+			on
+				notes.id = hashtags.note
+			where
+				inserted > (unixepoch()/86400-6)*86400
 			group by
-				day
+				day,
+				hashtag
 			order by
-				day desc
-		`)
-	if err != nil {
+				day,
+				authors desc
+		)
+		group by
+			day
+		order by
+			day desc
+		`,
+	); err != nil {
 		r.Log.Warn("Failed to list hashtags", "error", err)
 		w.Error()
 		return
 	}
-
-	labels := make([]string, 0, 7)
-	values := make([]int64, 0, 7)
-	for rows.Next() {
-		var label string
-		var value int64
-		if err := rows.Scan(&label, &value); err != nil {
-			r.Log.Warn("Failed to scan hashtag", "error", err)
-			continue
-		}
-
-		labels = append(labels, label)
-		values = append(values, value)
-	}
-	rows.Close()
 
 	w.OK()
 	w.Title("🔥 Hashtags")

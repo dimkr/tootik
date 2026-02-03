@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/text/plain"
 )
@@ -94,7 +95,7 @@ func getTextAndLinks(s string, maxRunes, maxLines int) ([]string, data.OrderedMa
 		}
 
 		// replace multiple empty lines with one […] line
-		if len(summary) > 0 && (len(summary) > 0 && summary[len(summary)-1] == "") {
+		if len(summary) > 0 && summary[len(summary)-1] == "" {
 			summary[len(summary)-1] = "[…]"
 		} else if len(summary) == maxLines-1 && summary[len(summary)-1] != "[…]" {
 			summary = append(summary, "[…]")
@@ -328,29 +329,37 @@ func (h *Handler) printCompactNote(w text.Writer, r *Request, note *ap.Object, a
 }
 
 func (h *Handler) PrintNotes(w text.Writer, r *Request, rows *sql.Rows, printParentAuthor, printDaySeparators bool, fallback string) int {
+	scanned, err := dbx.CollectRows[struct {
+		Note           ap.Object
+		Author, Sharer sql.Null[ap.Actor]
+		Published      int64
+	}](
+		rows,
+		h.Config.PostsPerPage,
+		func(err error) bool {
+			r.Log.Warn("Failed to scan post", "error", err)
+			return true
+		},
+	)
+	if err != nil {
+		r.Log.Warn("Failed to scan posts", "error", err)
+		return 0
+	}
+
 	var lastDay int64
 	count := 0
-	for rows.Next() {
-		var note ap.Object
-		var author sql.Null[ap.Actor]
-		var sharer sql.Null[ap.Actor]
-		var published int64
-		if err := rows.Scan(&note, &author, &sharer, &published); err != nil {
-			r.Log.Warn("Failed to scan post", "error", err)
+	for _, row := range scanned {
+		if row.Note.Type != ap.Note && row.Note.Type != ap.Page && row.Note.Type != ap.Article && row.Note.Type != ap.Question {
+			r.Log.Warn("Post type is unsupported", "type", row.Note.Type)
 			continue
 		}
 
-		if note.Type != ap.Note && note.Type != ap.Page && note.Type != ap.Article && note.Type != ap.Question {
-			r.Log.Warn("Post type is unsupported", "type", note.Type)
+		if !row.Author.Valid {
+			r.Log.Warn("Post author is unknown", "note", row.Note.ID, "author", row.Note.AttributedTo)
 			continue
 		}
 
-		if !author.Valid {
-			r.Log.Warn("Post author is unknown", "note", note.ID, "author", note.AttributedTo)
-			continue
-		}
-
-		currentDay := published / (60 * 60 * 24)
+		currentDay := row.Published / (60 * 60 * 24)
 
 		if count > 0 && printDaySeparators && currentDay != lastDay {
 			w.Separator()
@@ -358,10 +367,10 @@ func (h *Handler) PrintNotes(w text.Writer, r *Request, rows *sql.Rows, printPar
 			w.Empty()
 		}
 
-		if sharer.Valid {
-			h.printCompactNote(w, r, &note, &author.V, &sharer.V, time.Unix(published, 0), printParentAuthor)
+		if row.Sharer.Valid {
+			h.printCompactNote(w, r, &row.Note, &row.Author.V, &row.Sharer.V, time.Unix(row.Published, 0), printParentAuthor)
 		} else {
-			h.printCompactNote(w, r, &note, &author.V, nil, time.Unix(published, 0), printParentAuthor)
+			h.printCompactNote(w, r, &row.Note, &row.Author.V, nil, time.Unix(row.Published, 0), printParentAuthor)
 		}
 
 		lastDay = currentDay

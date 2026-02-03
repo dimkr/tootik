@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -150,6 +150,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 		w.Error()
 		return
 	}
+	defer rows.Close()
 
 	w.OK()
 
@@ -160,7 +161,6 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 	}
 
 	count := h.PrintNotes(w, r, rows, true, false, "No results.")
-	rows.Close()
 
 	if offset > 0 || count == h.Config.PostsPerPage {
 		w.Empty()
