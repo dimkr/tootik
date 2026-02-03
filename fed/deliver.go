@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/danger"
+	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/httpsig"
 )
 
@@ -89,9 +90,21 @@ func (q *Queue) Process(ctx context.Context) error {
 func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	slog.Debug("Polling delivery queue")
 
-	rows, err := q.DB.QueryContext(
+	rows, err := dbx.QueryCollectCountIgnore[struct {
+		DeliveryAttempts              int
+		Activity                      ap.Activity
+		RawActivity                   string
+		Actor                         ap.Actor
+		RsaPrivKeyDer, Ed25519PrivKey []byte
+	}](
 		ctx,
-		`select outbox.attempts, json(outbox.activity), json(outbox.activity), json(persons.actor), persons.rsaprivkey, persons.ed25519privkey from
+		q.DB,
+		q.Config.DeliveryBatchSize,
+		func(err error) bool {
+			slog.Error("Failed to fetch post to deliver", "error", err)
+			return true
+		},
+		`select outbox.attempts, json(outbox.activity) as x, json(outbox.activity) as y, json(persons.actor), persons.rsaprivkey, persons.ed25519privkey from
 		outbox
 		join persons
 		on
@@ -116,7 +129,6 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("failed to fetch posts to deliver: %w", err)
 	}
-	defer rows.Close()
 
 	events := make(chan deliveryEvent)
 	tasks := make([]chan *deliveryTask, 0, q.Config.DeliveryWorkers)
@@ -149,55 +161,40 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	followers := partialFollowers{}
 
 	count := 0
-	for rows.Next() {
-		var activity ap.Activity
-		var rawActivity string
-		var rsaPrivKeyDer, ed25519PrivKey []byte
-		var actor ap.Actor
-		var deliveryAttempts int
-		if err := rows.Scan(
-			&deliveryAttempts,
-			&activity,
-			&rawActivity,
-			&actor,
-			&rsaPrivKeyDer,
-			&ed25519PrivKey,
-		); err != nil {
-			slog.Error("Failed to fetch post to deliver", "error", err)
-			continue
-		} else if len(actor.AssertionMethod) == 0 {
-			slog.Error("Actor has no Ed25519 key", "error", err)
+	for _, row := range rows {
+		if len(row.Actor.AssertionMethod) == 0 {
+			slog.Error("Actor has no Ed25519 key")
 			continue
 		}
 
 		count++
 
-		rsaPrivKey, err := x509.ParsePKCS1PrivateKey(rsaPrivKeyDer)
+		rsaPrivKey, err := x509.ParsePKCS1PrivateKey(row.RsaPrivKeyDer)
 		if err != nil {
 			slog.Error("Failed to parse RSA private key", "error", err)
 			continue
 		}
 
 		keys := [2]httpsig.Key{
-			{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
-			{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)},
+			{ID: row.Actor.PublicKey.ID, PrivateKey: rsaPrivKey},
+			{ID: row.Actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(row.Ed25519PrivKey)},
 		}
 
 		if _, err := q.DB.ExecContext(
 			ctx,
 			`update outbox set last = unixepoch(), attempts = ? where cid = ? and sender = ?`,
-			deliveryAttempts+1,
-			ap.Canonical(activity.ID),
-			actor.ID,
+			row.DeliveryAttempts+1,
+			ap.Canonical(row.Activity.ID),
+			row.Actor.ID,
 		); err != nil {
-			slog.Error("Failed to save last delivery attempt time", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
+			slog.Error("Failed to save last delivery attempt time", "id", row.Activity.ID, "attempts", row.DeliveryAttempts, "error", err)
 			continue
 		}
 
 		job := deliveryJob{
-			Activity:    &activity,
-			RawActivity: rawActivity,
-			Sender:      &actor,
+			Activity:    &row.Activity,
+			RawActivity: row.RawActivity,
+			Sender:      &row.Actor,
 		}
 
 		// notify about the new job and mark it as successful until a worker notifies otherwise
@@ -212,7 +209,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			tasks,
 			events,
 		); err != nil {
-			slog.Warn("Failed to queue activity for delivery", "id", activity.ID, "attempts", deliveryAttempts, "error", err)
+			slog.Warn("Failed to queue activity for delivery", "id", row.Activity.ID, "attempts", row.DeliveryAttempts, "error", err)
 		}
 	}
 
@@ -400,8 +397,13 @@ func (q *Queue) queueTasks(
 
 	// list the actor's federated followers if we're forwarding an activity by another actor, or if addressed by actor
 	if wideDelivery {
-		inboxes, err := q.DB.QueryContext(
+		inboxes, err := dbx.QueryCollectIgnore[string](
 			ctx,
+			q.DB,
+			func(err error) bool {
+				slog.Warn("Skipped an inbox", "activity", job.Activity.ID, "error", err)
+				return true
+			},
 			`select distinct coalesce(persons.actor->>'$.endpoints.sharedInbox', persons.actor->>'$.inbox') as inbox from persons join follows on follows.follower = persons.id where follows.followed = ? and follows.accepted = 1 and follows.follower not like ? and persons.ed25519privkey is null order by persons.actor->>'$.endpoints.sharedInbox' is not null desc, inbox`,
 			job.Sender.ID,
 			fmt.Sprintf("https://%s/%%", activityID.Host),
@@ -409,13 +411,7 @@ func (q *Queue) queueTasks(
 		if err != nil {
 			slog.Warn("Failed to list followers", "activity", job.Activity.ID, "error", err)
 		} else {
-			for inboxes.Next() {
-				var inbox string
-				if err := inboxes.Scan(&inbox); err != nil {
-					slog.Warn("Skipped an inbox", "activity", job.Activity.ID, "error", err)
-					continue
-				}
-
+			for _, inbox := range inboxes {
 				q.queueTask(
 					ctx,
 					job,
@@ -427,8 +423,6 @@ func (q *Queue) queueTasks(
 					events,
 				)
 			}
-
-			inboxes.Close()
 		}
 	}
 

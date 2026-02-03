@@ -23,6 +23,7 @@ import (
 	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/httpsig"
 )
 
@@ -34,8 +35,13 @@ type Deleter struct {
 }
 
 func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
-	rows, err := d.DB.QueryContext(
+	rows, err := dbx.QueryCollect[struct {
+		Sharer         ap.Actor
+		Ed25519PrivKey []byte
+		Share          ap.Activity
+	}](
 		ctx,
+		d.DB,
 		`
 		select json(persons.actor), persons.ed25519privkey, json(outbox.activity) from persons
 		join shares on shares.by = persons.id
@@ -52,18 +58,18 @@ func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	defer rows.Close()
 
 	count := 0
-	for rows.Next() {
-		var sharer ap.Actor
-		var ed25519PrivKey []byte
-		var share ap.Activity
-		if err := rows.Scan(&sharer, &ed25519PrivKey, &share); err != nil {
-			return false, err
-		}
-
-		if err := d.Inbox.Undo(ctx, &sharer, httpsig.Key{ID: sharer.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)}, &share); err != nil {
+	for _, row := range rows {
+		if err := d.Inbox.Undo(
+			ctx,
+			&row.Sharer,
+			httpsig.Key{
+				ID:         row.Sharer.AssertionMethod[0].ID,
+				PrivateKey: ed25519.NewKeyFromSeed(row.Ed25519PrivKey),
+			},
+			&row.Share,
+		); err != nil {
 			return false, err
 		}
 
@@ -79,8 +85,13 @@ func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 }
 
 func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
-	rows, err := d.DB.QueryContext(
+	rows, err := dbx.QueryCollect[struct {
+		Author         ap.Actor
+		Ed25519PrivKey []byte
+		Note           ap.Object
+	}](
 		ctx,
+		d.DB,
 		`
 		select json(persons.actor), persons.ed25519privkey, json(notes.object) from persons
 		join notes on notes.author = persons.id
@@ -97,18 +108,18 @@ func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	defer rows.Close()
 
 	count := 0
-	for rows.Next() {
-		var author ap.Actor
-		var ed25519PrivKey []byte
-		var note ap.Object
-		if err := rows.Scan(&author, &ed25519PrivKey, &note); err != nil {
-			return false, err
-		}
-
-		if err := d.Inbox.Delete(ctx, &author, httpsig.Key{ID: author.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)}, &note); err != nil {
+	for _, row := range rows {
+		if err := d.Inbox.Delete(
+			ctx,
+			&row.Author,
+			httpsig.Key{
+				ID:         row.Author.AssertionMethod[0].ID,
+				PrivateKey: ed25519.NewKeyFromSeed(row.Ed25519PrivKey),
+			},
+			&row.Note,
+		); err != nil {
 			return false, err
 		}
 

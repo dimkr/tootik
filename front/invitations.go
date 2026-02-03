@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/google/uuid"
 )
@@ -35,11 +36,18 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.OK()
-	w.Title("🎟️ Invitations")
-
-	rows, err := h.DB.QueryContext(
+	rows, err := dbx.QueryCollectIgnore[struct {
+		Code              string
+		InviteInsertedSec int64
+		Actor             sql.Null[ap.Actor]
+		ActorInserted     sql.NullInt64
+	}](
 		r.Context,
+		h.DB,
+		func(err error) bool {
+			r.Log.Warn("Failed to scan invitation", "error", err)
+			return true
+		},
 		`
 		SELECT invites.code, invites.inserted, JSON(persons.actor), persons.inserted
 		FROM invites
@@ -54,50 +62,41 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 		w.Error()
 		return
 	}
-	defer rows.Close()
 
-	now := time.Now()
+	w.OK()
+	w.Title("🎟️ Invitations")
 
-	count := 0
 	unused := 0
-	for rows.Next() {
-		var code string
-		var inviteInsertedSec int64
-		var actor sql.Null[ap.Actor]
-		var actorInserted sql.NullInt64
-		if err := rows.Scan(&code, &inviteInsertedSec, &actor, &actorInserted); err != nil {
-			r.Log.Warn("Failed to scan invitation", "error", err)
-			continue
-		}
 
-		inserted := time.Unix(inviteInsertedSec, 0)
+	if len(rows) == 0 {
+		w.Empty()
+	} else {
+		now := time.Now()
 
-		if count > 0 {
-			w.Empty()
-		}
+		for i, row := range rows {
+			inserted := time.Unix(row.InviteInsertedSec, 0)
 
-		w.Text("Code: " + code)
-		w.Text("Generated: " + inserted.Format(time.DateOnly))
-
-		if actor.Valid {
-			w.Text("Used: " + time.Unix(actorInserted.Int64, 0).Format(time.DateOnly))
-			w.Link("/users/outbox/"+strings.TrimPrefix(actor.V.ID, "https://"), "Used by: "+actor.V.PreferredUsername)
-		} else {
-			if expires := inserted.Add(h.Config.InvitationTimeout); now.After(expires) {
-				w.Text("Expired: " + expires.Format(time.DateOnly))
-			} else {
-				w.Text("Expires: " + expires.Format(time.DateOnly))
+			if i > 0 {
+				w.Empty()
 			}
 
-			w.Link("/users/invitations/revoke?"+code, "➖ Revoke")
-			unused++
+			w.Text("Code: " + row.Code)
+			w.Text("Generated: " + inserted.Format(time.DateOnly))
+
+			if row.Actor.Valid {
+				w.Text("Used: " + time.Unix(row.ActorInserted.Int64, 0).Format(time.DateOnly))
+				w.Link("/users/outbox/"+strings.TrimPrefix(row.Actor.V.ID, "https://"), "Used by: "+row.Actor.V.PreferredUsername)
+			} else {
+				if expires := inserted.Add(h.Config.InvitationTimeout); now.After(expires) {
+					w.Text("Expired: " + expires.Format(time.DateOnly))
+				} else {
+					w.Text("Expires: " + expires.Format(time.DateOnly))
+				}
+
+				w.Link("/users/invitations/revoke?"+row.Code, "➖ Revoke")
+				unused++
+			}
 		}
-
-		count++
-	}
-
-	if count > 0 {
-		w.Empty()
 	}
 
 	if !h.Config.RequireInvitation {
@@ -139,7 +138,7 @@ func (h *Handler) generateInvitation(w text.Writer, r *Request, args ...string) 
 	defer tx.Rollback()
 
 	var count int
-	if err := h.DB.QueryRowContext(
+	if err := tx.QueryRowContext(
 		r.Context,
 		`
 		SELECT COUNT(*)

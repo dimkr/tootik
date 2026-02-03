@@ -35,6 +35,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/danger"
+	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/httpsig"
 )
 
@@ -61,40 +62,45 @@ var collectionSynchronizationHeaderRegex = regexp.MustCompile(`\b([^"=]+)="([^"]
 func fetchFollowers(ctx context.Context, db *sql.DB, followed, host string) (ap.Audience, error) {
 	var followers ap.Audience
 
-	rows, err := db.QueryContext(ctx, `SELECT follower FROM follows WHERE followed = ? AND follower LIKE 'https://' || ? || '/%' AND accepted = 1`, followed, host)
-	if err != nil {
+	if err := dbx.QueryScan(
+		ctx,
+		func(follower string) {
+			followers.Add(follower)
+		},
+		func(err error) bool {
+			return false
+		},
+		db,
+		`SELECT follower FROM follows WHERE followed = ? AND follower LIKE 'https://' || ? || '/%' AND accepted = 1`,
+		followed,
+		host,
+	); err != nil {
 		return followers, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var follower string
-		if err := rows.Scan(&follower); err != nil {
-			return followers, err
-		}
-		followers.Add(follower)
 	}
 
 	return followers, nil
 }
 
 func digestFollowers(ctx context.Context, db *sql.DB, followed, host string) (string, error) {
-	rows, err := db.QueryContext(ctx, `SELECT follower FROM follows WHERE followed = ? AND follower LIKE 'https://' || ? || '/%' AND accepted = 1`, followed, host)
-	if err != nil {
-		return "", err
-	}
-	defer rows.Close()
-
 	var digest [sha256.Size]byte
-	for rows.Next() {
-		var follower string
-		if err := rows.Scan(&follower); err != nil {
-			return "", err
-		}
-		hash := sha256.Sum256(danger.Bytes(follower))
-		for i := range sha256.Size {
-			digest[i] ^= hash[i]
-		}
+
+	if err := dbx.QueryScan(
+		ctx,
+		func(follower string) {
+			hash := sha256.Sum256(danger.Bytes(follower))
+			for i := range sha256.Size {
+				digest[i] ^= hash[i]
+			}
+		},
+		func(err error) bool {
+			return false
+		},
+		db,
+		`SELECT follower FROM follows WHERE followed = ? AND follower LIKE 'https://' || ? || '/%' AND accepted = 1`,
+		followed,
+		host,
+	); err != nil {
+		return "", err
 	}
 
 	return fmt.Sprintf("%x", digest), nil
@@ -142,24 +148,25 @@ func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := l.DB.QueryContext(r.Context(), `SELECT follower FROM follows WHERE followed = 'https://' || ? || '/user/' || ? AND follower LIKE 'https://' || ? || '/%' AND accepted = 1`, l.Domain, name, u.Host)
-	if err != nil {
+	var items ap.Audience
+
+	if err := dbx.QueryScan(
+		r.Context(),
+		func(follower string) {
+			items.Add(follower)
+		},
+		func(err error) bool {
+			return false
+		},
+		l.DB,
+		`SELECT follower FROM follows WHERE followed = 'https://' || ? || '/user/' || ? AND follower LIKE 'https://' || ? || '/%' AND accepted = 1`,
+		l.Domain,
+		name,
+		u.Host,
+	); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
-	var items ap.Audience
-
-	for rows.Next() {
-		var follower string
-		if err := rows.Scan(&follower); err != nil {
-			rows.Close()
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		items.Add(follower)
-	}
-	rows.Close()
 
 	collection, err := json.Marshal(ap.Collection{
 		Context:      "https://www.w3.org/ns/activitystreams",
@@ -343,29 +350,31 @@ func (s *Syncer) ProcessBatch(ctx context.Context) (int, error) {
 		return 0, err
 	}
 
-	rows, err := s.DB.QueryContext(
+	jobs := make([]followersDigest, 0, s.Config.FollowersSyncBatchSize)
+
+	if err := dbx.QueryScan(
 		ctx,
+		func(row struct {
+			Followed, URL, Digest string
+		}) {
+			jobs = append(jobs, followersDigest{
+				Followed: row.Followed,
+				URL:      row.URL,
+				Digest:   row.Digest,
+				Inbox:    s.Inbox,
+			})
+		},
+		func(err error) bool {
+			slog.Error("Failed to scan digest", "error", err)
+			return true
+		},
+		s.DB,
 		`SELECT actor, url, digest FROM follows_sync WHERE changed <= $1 ORDER BY changed LIMIT $2`,
 		time.Now().Add(-s.Config.FollowersSyncInterval).Unix(),
 		s.Config.FollowersSyncBatchSize,
-	)
-	if err != nil {
+	); err != nil {
 		return 0, fmt.Errorf("failed to fetch followers to sync: %w", err)
 	}
-
-	jobs := make([]followersDigest, 0, s.Config.FollowersSyncBatchSize)
-
-	for rows.Next() {
-		job := followersDigest{
-			Inbox: s.Inbox,
-		}
-		if err := rows.Scan(&job.Followed, &job.URL, &job.Digest); err != nil {
-			slog.Error("Failed to scan digest", "error", err)
-			continue
-		}
-		jobs = append(jobs, job)
-	}
-	rows.Close()
 
 	for _, job := range jobs {
 		if err := job.Sync(ctx, s.Domain, s.Config, s.DB, s.Resolver, s.Keys); err != nil {
