@@ -1,0 +1,170 @@
+/*
+Copyright 2026 Dima Krasner
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package dbx
+
+import (
+	"database/sql"
+	"reflect"
+	"unsafe"
+)
+
+func structFieldPtrs(t reflect.Type, base unsafe.Pointer) []any {
+	fields := reflect.VisibleFields(t)
+	ptrs := make([]any, len(fields))
+	for i, field := range fields {
+		ptrs[i] = reflect.NewAt(field.Type, unsafe.Add(base, field.Offset)).Interface()
+	}
+
+	return ptrs
+}
+
+func scanStructRows[T any](
+	t reflect.Type,
+	rows *sql.Rows,
+	collect func(T),
+	ignore func(error) bool,
+) error {
+	var zero, row T
+
+	ptrs := structFieldPtrs(t, unsafe.Pointer(&row))
+
+	for rows.Next() {
+		row = zero
+
+		if err := rows.Scan(ptrs...); err != nil {
+			if !ignore(err) {
+				return err
+			}
+
+			continue
+		}
+
+		collect(row)
+	}
+
+	return rows.Err()
+}
+
+func scanStructPointerRows[T any](
+	et reflect.Type,
+	rows *sql.Rows,
+	collect func(T),
+	ignore func(error) bool,
+) error {
+	size := et.Size()
+	zero := make([]byte, size)
+	var row = reflect.New(et)
+
+	base := row.UnsafePointer()
+	ptrs := structFieldPtrs(et, base)
+
+	rowb := unsafe.Slice((*byte)(base), size)
+	rowp := *(*T)(unsafe.Pointer(&base))
+
+	for rows.Next() {
+		copy(rowb, zero)
+
+		if err := rows.Scan(ptrs...); err != nil {
+			if !ignore(err) {
+				return err
+			}
+
+			continue
+		}
+
+		collect(rowp)
+	}
+
+	return rows.Err()
+}
+
+func scanScalarRows[T any](
+	rows *sql.Rows,
+	collect func(T),
+	ignore func(error) bool,
+) error {
+	var zero, row T
+	var rowp any = &row
+
+	for rows.Next() {
+		row = zero
+
+		if err := rows.Scan(rowp); err != nil {
+			if !ignore(err) {
+				return err
+			}
+
+			continue
+		}
+
+		collect(row)
+	}
+
+	return rows.Err()
+}
+
+// ScanRows calls a function for every result of a SQL query.
+//
+// collect is called for each row.
+// ignore determines which [sql.Rows.Scan] errors should be ignored.
+//
+// If T is a struct or a struct pointer, the columns of each row are assigned to visible fields of T.
+//
+// If T is a struct pointer, collect receives the same pointer every time it's called.
+// It must not store the pointer to the struct or its fields.
+func ScanRows[T any](
+	rows *sql.Rows,
+	collect func(T),
+	ignore func(error) bool,
+) error {
+	t := reflect.TypeFor[T]()
+
+	switch t.Kind() {
+	case reflect.Struct:
+		return scanStructRows(t, rows, collect, ignore)
+
+	case reflect.Bool,
+		reflect.Int,
+		reflect.Int8,
+		reflect.Int16,
+		reflect.Int32,
+		reflect.Int64,
+		reflect.Uint,
+		reflect.Uint8,
+		reflect.Uint16,
+		reflect.Uint32,
+		reflect.Uint64,
+		reflect.Uintptr,
+		reflect.Float32,
+		reflect.Float64,
+		reflect.Complex64,
+		reflect.Complex128,
+		reflect.String:
+		return scanScalarRows(rows, collect, ignore)
+
+	case reflect.Pointer:
+		et := t.Elem()
+		if et.Kind() != reflect.Struct {
+			panic("T must point to a struct")
+		}
+
+		return scanStructPointerRows(et, rows, collect, ignore)
+
+	default:
+		panic("T must be a struct, struct pointer or scalar")
+	}
+}

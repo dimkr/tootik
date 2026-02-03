@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -56,6 +56,7 @@ type Actor struct {
 	Suspended                 bool              `json:"suspended,omitempty"`
 	Attachment                []Attachment      `json:"attachment,omitempty"`
 	AssertionMethod           []AssertionMethod `json:"assertionMethod,omitempty"`
+	Implements                Array[Implement]  `json:"implements,omitzero"`
 	Generator                 Generator         `json:"generator,omitzero"`
 	Gateways                  []string          `json:"gateways,omitempty"`
 	Proof                     Proof             `json:"proof,omitzero"`

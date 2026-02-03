@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/dbx"
 )
 
 type webFingerProperties struct {
@@ -94,35 +95,36 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("Looking up resource", "resource", resource, "user", username)
 
-	rows, err := l.DB.QueryContext(r.Context(), `select id, actor->>'$.type' from persons where actor->>'$.preferredUsername' = ? and host = ?`, username, l.Domain)
-	if err != nil {
-		slog.Warn("Failed to fetch user", "user", username, "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
 	resp := webFingerResponse{
 		Subject: fmt.Sprintf("acct:%s@%s", username, l.Domain),
 	}
 
-	for rows.Next() {
-		var actorID sql.NullString
-		var actorType string
-		if err := rows.Scan(&actorID, &actorType); err != nil {
-			slog.Warn("Failed to scan user", "user", username, "error", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		resp.Links = append(resp.Links, webFingerLink{
-			Rel:  "self",
-			Type: `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`,
-			Href: actorID.String,
-			Properties: webFingerProperties{
-				Type: ap.ActorType(actorType),
-			},
-		})
+	if err := dbx.QueryScan(
+		r.Context(),
+		func(row struct {
+			ActorID   sql.NullString
+			ActorType string
+		}) {
+			resp.Links = append(resp.Links, webFingerLink{
+				Rel:  "self",
+				Type: `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`,
+				Href: row.ActorID.String,
+				Properties: webFingerProperties{
+					Type: ap.ActorType(row.ActorType),
+				},
+			})
+		},
+		func(err error) bool {
+			return false
+		},
+		l.DB,
+		`select id, actor->>'$.type' from persons where actor->>'$.preferredUsername' = ? and host = ?`,
+		username,
+		l.Domain,
+	); err != nil {
+		slog.Warn("Failed to fetch user", "user", username, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	if len(resp.Links) == 0 {

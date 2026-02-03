@@ -37,7 +37,7 @@ const (
 )
 
 var (
-	mentionRegex = regexp.MustCompile(`\B@(\w+)(?:@((?:\w+\.)+\w+(?::\d{1,5}){0,1})){0,1}\b`)
+	mentionRegex = regexp.MustCompile(`\B@([a-zA-Z0-9_-]+)(?:@((?:\w+\.)+\w+(?::\d{1,5}){0,1})){0,1}\b`)
 	hashtagRegex = regexp.MustCompile(`\B#\w{1,32}\b`)
 	pollRegex    = regexp.MustCompile(`^\[(?:(?i)POLL)\s+(.+)\s*\]\s*(.+)`)
 )
@@ -107,7 +107,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 		var actorID string
 		var err error
 		if mention[2] == "" && inReplyTo != nil {
-			err = h.DB.QueryRowContext(r.Context, `select id from (select id, case when id = $1 then 3 when id in (select followed from follows where follower = $2 and accepted = 1) then 2 when ed25519privkey is not null then 1 else 0 end as score from persons where actor->>'$.preferredUsername' = $3) where score > 0 order by score desc limit 1`, inReplyTo.AttributedTo, r.User.ID, mention[1]).Scan(&actorID)
+			err = h.DB.QueryRowContext(r.Context, `select id from (select id, case when id = $1 then 5 when exists (select 1 from notes where notes.id = $2 and exists (select 1 from json_each(notes.object->'$.to') where value = persons.id)) then 4 when exists (select 1 from notes where notes.id = $2 and exists (select 1 from json_each(notes.object->'$.cc') where value = persons.id)) then 3 when id in (select followed from follows where follower = $3 and accepted = 1) then 2 when ed25519privkey is not null then 1 else 0 end as score from persons where actor->>'$.preferredUsername' = $4) where score > 0 order by score desc limit 1`, inReplyTo.AttributedTo, inReplyTo.ID, r.User.ID, mention[1]).Scan(&actorID)
 		} else if mention[2] == "" && inReplyTo == nil {
 			err = h.DB.QueryRowContext(r.Context, `select id from (select id, case when ed25519privkey is not null then 2 when id in (select followed from follows where follower = $1 and accepted = 1) then 1 else 0 end as score from persons where actor->>'$.preferredUsername' = $2) where score > 0 order by score desc limit 1`, r.User.ID, mention[1]).Scan(&actorID)
 		} else {
