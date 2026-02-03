@@ -74,7 +74,7 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, item batchIte
 		return
 	}
 
-	if err := q.backfill(ctx, item.Activity); err != nil {
+	if err := q.backfill(ctx, &item.Activity); err != nil {
 		slog.Warn("Failed to backfill thread", "activity", item.Activity, "error", err)
 	}
 }
