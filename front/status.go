@@ -28,7 +28,7 @@ import (
 
 func (h *Handler) getGraph(r *Request, keys []string, values []int64, query string, args ...any) string {
 	i := 0
-	if err := dbx.QueryScanRows(
+	if err := dbx.QueryScan(
 		r.Context,
 		func(row struct {
 			Key   string

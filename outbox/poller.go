@@ -40,7 +40,7 @@ type pollResult struct {
 }
 
 func (p *Poller) Run(ctx context.Context) error {
-	rows, err := dbx.QueryCollectRowsIgnore[struct {
+	rows, err := dbx.QueryCollectIgnore[struct {
 		PollID string
 		Option sql.NullString
 		Count  int64

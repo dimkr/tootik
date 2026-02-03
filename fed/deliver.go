@@ -90,7 +90,7 @@ func (q *Queue) Process(ctx context.Context) error {
 func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	slog.Debug("Polling delivery queue")
 
-	rows, err := dbx.QueryCollectRowsCountIgnore[struct {
+	rows, err := dbx.QueryCollectCountIgnore[struct {
 		DeliveryAttempts              int
 		Activity                      ap.Activity
 		RawActivity                   string
@@ -397,7 +397,7 @@ func (q *Queue) queueTasks(
 
 	// list the actor's federated followers if we're forwarding an activity by another actor, or if addressed by actor
 	if wideDelivery {
-		inboxes, err := dbx.QueryCollectRowsIgnore[string](
+		inboxes, err := dbx.QueryCollectIgnore[string](
 			ctx,
 			q.DB,
 			func(err error) bool {

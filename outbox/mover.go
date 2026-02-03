@@ -37,7 +37,7 @@ type Mover struct {
 }
 
 func (m *Mover) updatedMoveTargets(ctx context.Context, prefix string) error {
-	rows, err := dbx.QueryCollectRowsIgnore[struct {
+	rows, err := dbx.QueryCollectIgnore[struct {
 		OldID, NewID string
 	}](
 		ctx,
@@ -78,7 +78,7 @@ func (m *Mover) Run(ctx context.Context) error {
 		return err
 	}
 
-	rows, err := dbx.QueryCollectRowsIgnore[struct {
+	rows, err := dbx.QueryCollectIgnore[struct {
 		Actor                     ap.Actor
 		Ed25519PrivKey            []byte
 		OldID, NewID, OldFollowID string

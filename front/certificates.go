@@ -29,7 +29,7 @@ func (h *Handler) certificates(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	rows, err := dbx.QueryCollectRowsIgnore[struct {
+	rows, err := dbx.QueryCollectIgnore[struct {
 		Inserted, Expires int64
 		Hash              string
 		Approved          int

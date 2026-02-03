@@ -99,7 +99,7 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 		Subject: fmt.Sprintf("acct:%s@%s", username, l.Domain),
 	}
 
-	if err := dbx.QueryScanRows(
+	if err := dbx.QueryScan(
 		r.Context(),
 		func(row struct {
 			ActorID   sql.NullString

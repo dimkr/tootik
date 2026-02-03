@@ -32,7 +32,7 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	rows, err := dbx.QueryCollectRowsIgnore[struct {
+	rows, err := dbx.QueryCollectIgnore[struct {
 		Actor    ap.Actor
 		Last     sql.NullInt64
 		Accepted sql.NullInt32

@@ -38,7 +38,7 @@ func printHashtags(w text.Writer, r *Request, title string, tags []string) {
 }
 
 func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
-	followed, err := dbx.QueryCollectRowsCountIgnore[string](
+	followed, err := dbx.QueryCollectCountIgnore[string](
 		r.Context,
 		h.DB,
 		30,
@@ -83,7 +83,7 @@ func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	all, err := dbx.QueryCollectRowsCountIgnore[string](
+	all, err := dbx.QueryCollectCountIgnore[string](
 		r.Context,
 		h.DB,
 		30,
@@ -121,7 +121,7 @@ func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
 	labels := make([]string, 0, 7)
 	values := make([]int64, 0, 7)
 
-	if err := dbx.QueryScanRows(
+	if err := dbx.QueryScan(
 		r.Context,
 		func(row struct {
 			Label string

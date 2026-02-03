@@ -116,7 +116,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 
 			headDepth := 0
 			contextPosts := 0
-			if rows, err := dbx.QueryCollectRows[struct {
+			if rows, err := dbx.QueryCollect[struct {
 				Parent       ap.Object
 				ParentAuthor ap.Actor
 				CurrentDepth int
@@ -320,7 +320,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			}
 		}
 
-		if quotes, err := dbx.QueryCollectRowsIgnore[struct {
+		if quotes, err := dbx.QueryCollectIgnore[struct {
 			QuoteID, Quoter string
 		}](
 			r.Context,

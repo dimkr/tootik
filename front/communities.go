@@ -25,7 +25,7 @@ import (
 )
 
 func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
-	rows, err := dbx.QueryCollectRowsIgnore[struct {
+	rows, err := dbx.QueryCollectIgnore[struct {
 		ID, Username string
 		Last         int64
 	}](

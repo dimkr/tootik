@@ -36,7 +36,7 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	rows, err := dbx.QueryCollectRowsIgnore[struct {
+	rows, err := dbx.QueryCollectIgnore[struct {
 		Code              string
 		InviteInsertedSec int64
 		Actor             sql.Null[ap.Actor]

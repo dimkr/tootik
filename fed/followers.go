@@ -62,7 +62,7 @@ var collectionSynchronizationHeaderRegex = regexp.MustCompile(`\b([^"=]+)="([^"]
 func fetchFollowers(ctx context.Context, db *sql.DB, followed, host string) (ap.Audience, error) {
 	var followers ap.Audience
 
-	if err := dbx.QueryScanRows(
+	if err := dbx.QueryScan(
 		ctx,
 		func(follower string) {
 			followers.Add(follower)
@@ -84,7 +84,7 @@ func fetchFollowers(ctx context.Context, db *sql.DB, followed, host string) (ap.
 func digestFollowers(ctx context.Context, db *sql.DB, followed, host string) (string, error) {
 	var digest [sha256.Size]byte
 
-	if err := dbx.QueryScanRows(
+	if err := dbx.QueryScan(
 		ctx,
 		func(follower string) {
 			hash := sha256.Sum256(danger.Bytes(follower))
@@ -150,7 +150,7 @@ func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 
 	var items ap.Audience
 
-	if err := dbx.QueryScanRows(
+	if err := dbx.QueryScan(
 		r.Context(),
 		func(follower string) {
 			items.Add(follower)
@@ -352,7 +352,7 @@ func (s *Syncer) ProcessBatch(ctx context.Context) (int, error) {
 
 	jobs := make([]followersDigest, 0, s.Config.FollowersSyncBatchSize)
 
-	if err := dbx.QueryScanRows(
+	if err := dbx.QueryScan(
 		ctx,
 		func(row struct {
 			Followed, URL, Digest string

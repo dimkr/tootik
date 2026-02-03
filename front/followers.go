@@ -62,7 +62,7 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	rows, err := dbx.QueryCollectRowsIgnore[struct {
+	rows, err := dbx.QueryCollectIgnore[struct {
 		Inserted int64
 		Follower ap.Actor
 		Accepted sql.NullInt32
