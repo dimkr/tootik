@@ -156,6 +156,8 @@ func main() {
 	}
 	defer db.Close()
 
+	db.SetMaxOpenConns(cfg.MaxDatabaseConnections)
+
 	slog.Debug("Starting", "version", buildinfo.Version, "cfg", &cfg)
 
 	transport := http.Transport{
