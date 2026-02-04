@@ -25,7 +25,8 @@ import (
 
 // Config represents a tootik configuration file.
 type Config struct {
-	DatabaseOptions string
+	DatabaseOptions        string
+	MaxDatabaseConnections int
 
 	RequireRegistration                bool
 	RequireInvitation                  bool
@@ -147,6 +148,10 @@ var defaultMaxInvitationsPerUser = 5
 func (c *Config) FillDefaults() {
 	if c.DatabaseOptions == "" {
 		c.DatabaseOptions = "_journal_mode=WAL&_synchronous=1&_busy_timeout=5000&_txlock=immediate"
+	}
+
+	if c.MaxDatabaseConnections == 0 {
+		c.MaxDatabaseConnections = 32
 	}
 
 	if c.MaxInvitationsPerUser == nil {
