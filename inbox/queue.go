@@ -30,6 +30,7 @@ import (
 )
 
 type Queue struct {
+	Domain   string
 	Config   *cfg.Config
 	DB       *sql.DB
 	Inbox    ap.Inbox
@@ -70,6 +71,11 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, item batchIte
 		slog.Warn("Failed to process activity", "activity", item.Activity, "error", err)
 	} else if err := tx.Commit(); err != nil {
 		slog.Warn("Failed to commit changes", "activity", item.Activity, "error", err)
+		return
+	}
+
+	if err := q.backfill(ctx, &item.Activity); err != nil {
+		slog.Warn("Failed to backfill thread", "activity", item.Activity, "error", err)
 	}
 }
 

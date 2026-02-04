@@ -227,6 +227,7 @@ func NewServer(t *testing.T, domain string, client fed.Client) *Server {
 		Backend: backend,
 		Inbox:   localInbox,
 		Incoming: &inbox.Queue{
+			Domain:   domain,
 			Config:   &cfg,
 			DB:       db,
 			Inbox:    localInbox,

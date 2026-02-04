@@ -25,7 +25,8 @@ import (
 
 // Config represents a tootik configuration file.
 type Config struct {
-	DatabaseOptions string
+	DatabaseOptions        string
+	MaxDatabaseConnections int
 
 	RequireRegistration                bool
 	RequireInvitation                  bool
@@ -136,6 +137,9 @@ type Config struct {
 
 	InboxPageSize  int
 	OutboxPageSize int
+
+	BackfillDepth    int
+	BackfillInterval time.Duration
 }
 
 var defaultMaxInvitationsPerUser = 5
@@ -144,6 +148,10 @@ var defaultMaxInvitationsPerUser = 5
 func (c *Config) FillDefaults() {
 	if c.DatabaseOptions == "" {
 		c.DatabaseOptions = "_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(5000)&_txlock=immediate"
+	}
+
+	if c.MaxDatabaseConnections == 0 {
+		c.MaxDatabaseConnections = 32
 	}
 
 	if c.MaxInvitationsPerUser == nil {
@@ -451,5 +459,13 @@ func (c *Config) FillDefaults() {
 
 	if c.OutboxPageSize <= 0 {
 		c.OutboxPageSize = 100
+	}
+
+	if c.BackfillDepth == 0 {
+		c.BackfillDepth = c.PostContextDepth * 2
+	}
+
+	if c.BackfillInterval == 0 {
+		c.BackfillInterval = time.Hour * 12
 	}
 }

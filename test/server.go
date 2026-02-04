@@ -108,6 +108,7 @@ func newTestServer() *server {
 	resolver := fed.NewResolver(nil, domain, &cfg, &http.Client{}, db)
 
 	queue := &inbox.Queue{
+		Domain:   domain,
 		Config:   &cfg,
 		DB:       db,
 		Inbox:    localInbox,

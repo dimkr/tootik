@@ -477,8 +477,10 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `insert or ignore into history (path, public, activity, inserted) values (?, ?, jsonb($3), ?)`, path, activity.IsPublic(), rawActivity, time.Now().UnixNano()); err != nil {
-		return err
+	if rawActivity != "" {
+		if _, err := tx.ExecContext(ctx, `insert or ignore into history (path, public, activity, inserted) values (?, ?, jsonb($3), ?)`, path, activity.IsPublic(), rawActivity, time.Now().UnixNano()); err != nil {
+			return err
+		}
 	}
 
 	return nil
