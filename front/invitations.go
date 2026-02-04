@@ -68,35 +68,35 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 
 	unused := 0
 
-	if len(rows) == 0 {
-		w.Empty()
-	} else {
-		now := time.Now()
+	now := time.Now()
 
-		for i, row := range rows {
-			inserted := time.Unix(row.InviteInsertedSec, 0)
+	for i, row := range rows {
+		inserted := time.Unix(row.InviteInsertedSec, 0)
 
-			if i > 0 {
-				w.Empty()
-			}
-
-			w.Text("Code: " + row.Code)
-			w.Text("Generated: " + inserted.Format(time.DateOnly))
-
-			if row.Actor.Valid {
-				w.Text("Used: " + time.Unix(row.ActorInserted.Int64, 0).Format(time.DateOnly))
-				w.Link("/users/outbox/"+strings.TrimPrefix(row.Actor.V.ID, "https://"), "Used by: "+row.Actor.V.PreferredUsername)
-			} else {
-				if expires := inserted.Add(h.Config.InvitationTimeout); now.After(expires) {
-					w.Text("Expired: " + expires.Format(time.DateOnly))
-				} else {
-					w.Text("Expires: " + expires.Format(time.DateOnly))
-				}
-
-				w.Link("/users/invitations/revoke?"+row.Code, "➖ Revoke")
-				unused++
-			}
+		if i > 0 {
+			w.Empty()
 		}
+
+		w.Text("Code: " + row.Code)
+		w.Text("Generated: " + inserted.Format(time.DateOnly))
+
+		if row.Actor.Valid {
+			w.Text("Used: " + time.Unix(row.ActorInserted.Int64, 0).Format(time.DateOnly))
+			w.Link("/users/outbox/"+strings.TrimPrefix(row.Actor.V.ID, "https://"), "Used by: "+row.Actor.V.PreferredUsername)
+		} else {
+			if expires := inserted.Add(h.Config.InvitationTimeout); now.After(expires) {
+				w.Text("Expired: " + expires.Format(time.DateOnly))
+			} else {
+				w.Text("Expires: " + expires.Format(time.DateOnly))
+			}
+
+			w.Link("/users/invitations/revoke?"+row.Code, "➖ Revoke")
+			unused++
+		}
+	}
+
+	if len(rows) > 0 {
+		w.Empty()
 	}
 
 	if !h.Config.RequireInvitation {
