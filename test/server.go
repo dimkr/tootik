@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -108,6 +108,7 @@ func newTestServer() *server {
 	resolver := fed.NewResolver(nil, domain, &cfg, &http.Client{}, db)
 
 	queue := &inbox.Queue{
+		Domain:   domain,
 		Config:   &cfg,
 		DB:       db,
 		Inbox:    localInbox,

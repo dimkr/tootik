@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -227,6 +227,7 @@ func NewServer(t *testing.T, domain string, client fed.Client) *Server {
 		Backend: backend,
 		Inbox:   localInbox,
 		Incoming: &inbox.Queue{
+			Domain:   domain,
 			Config:   &cfg,
 			DB:       db,
 			Inbox:    localInbox,
