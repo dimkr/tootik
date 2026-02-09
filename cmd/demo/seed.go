@@ -130,7 +130,6 @@ func seed(t cluster.T, keyPairs map[string]tls.Certificate) cluster.Cluster {
 	judy.FollowInput("🔭 View profile", "carol@sushi.example").Follow("⚡ Follow carol").OK()
 	cl.Settle(t)
 
-	// Thread 1: Carol's pizza post
 	carolInitialPost := carol.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "Finally tried that new pizza place everyone's been talking about. Honestly? Overrated.").
@@ -167,9 +166,7 @@ func seed(t cluster.T, keyPairs map[string]tls.Certificate) cluster.Cluster {
 	ivan.
 		GotoInput(aliceReplyToCarol2.Links["💬 Reply"], "@alice I've got a sensor that measures the exact volatile organic compounds in truffle oil. Want to borrow it?").
 		OK()
-	cl.Settle(t)
 
-	// Thread 2: Frank's white sauce debate
 	frankPost := frank.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "Unpopular opinion: Tomato sauce is just filler. White sauce is where the real flavor is! 🥛🍕").
@@ -179,10 +176,10 @@ func seed(t cluster.T, keyPairs map[string]tls.Certificate) cluster.Cluster {
 	bobReplyToFrank := bob.
 		GotoInput(frankPost.Links["💬 Reply"], "@frank White sauce? That's not pizza, that's just soggy bread with alfredo. 0/10.").
 		OK()
+	cl.Settle(t)
 	grace.
 		GotoInput(frankPost.Links["💬 Reply"], "@frank It's all about the balance, Frank. A garlic-infused white base can actually highlight the toppings better.").
 		OK()
-	cl.Settle(t)
 
 	ivan.
 		GotoInput(frankPost.Links["💬 Reply"], "@frank White sauce is old news. Have you tried the charcoal-infused sourdough base?").
@@ -198,9 +195,7 @@ func seed(t cluster.T, keyPairs map[string]tls.Certificate) cluster.Cluster {
 	grace.
 		GotoInput(bobReplyToFrank.Links["💬 Reply"], "@bob Bob, you should really try the white base with caramelized onions. It might change your mind.").
 		OK()
-	cl.Settle(t)
 
-	// Thread 3: Judy's bowling & sushi adventure
 	judyPost := judy.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "Big bowling tournament this Friday! 🎳 Who's in? We're going for sushi after!").
@@ -210,18 +205,18 @@ func seed(t cluster.T, keyPairs map[string]tls.Certificate) cluster.Cluster {
 	carolReplyToJudy := carol.
 		GotoInput(judyPost.Links["💬 Reply"], "@judy I'll join for bowling, but sushi after physical activity? I don't know...").
 		OK()
+	cl.Settle(t)
 	grace.
 		GotoInput(judyPost.Links["💬 Reply"], "@judy I'm in! I know a place near the lanes that has the freshest yellowtail.").
 		OK()
-	cl.Settle(t)
 
 	judyReplyToCarol := judy.
 		GotoInput(carolReplyToJudy.Links["💬 Reply"], "@carol Oh come on Carol, it's just raw fish! What's the worst that could happen? 😉").
 		OK()
+	cl.Settle(t)
 	heidi.
 		GotoInput(judyPost.Links["💬 Reply"], "@judy Can I come if I just eat the edamame? 😅").
 		OK()
-	cl.Settle(t)
 
 	dave.
 		GotoInput(judyReplyToCarol.Links["💬 Reply"], "@judy @carol I'm with Carol. Last time I had sushi after bowling, I couldn't hit a single pin the next day. Coincidence? I think not.").
@@ -229,9 +224,7 @@ func seed(t cluster.T, keyPairs map[string]tls.Certificate) cluster.Cluster {
 	judy.
 		GotoInput(judyReplyToCarol.Links["💬 Reply"], "@dave Dave, that's just because you're bad at bowling! 😂 Challenge accepted! I'll see you at the lanes.").
 		OK()
-	cl.Settle(t)
 
-	// Thread 4: Eve's pasta night
 	evePost := eve.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "Making homemade fettuccine tonight! 🍝 There's nothing like fresh pasta. Who wants to join?").
@@ -249,10 +242,11 @@ func seed(t cluster.T, keyPairs map[string]tls.Certificate) cluster.Cluster {
 	eveReplyToAlice := eve.
 		GotoInput(aliceReplyToEve.Links["💬 Reply"], "@alice Alice, only if it doesn't leave plastic bits in my sauce! 👩‍🍳").
 		OK()
+	cl.Settle(t)
+
 	ivan.
 		GotoInput(evePost.Links["💬 Reply"], "@eve Is it gluten-free? I'm trying this new ancient grain from Mars.").
 		OK()
-	cl.Settle(t)
 
 	frank.
 		GotoInput(eveReplyToAlice.Links["💬 Reply"], "@eve What's the sauce situation? Please tell me you're not doing a plain tomato margherita.").
@@ -260,9 +254,7 @@ func seed(t cluster.T, keyPairs map[string]tls.Certificate) cluster.Cluster {
 	eve.
 		GotoInput(heidiReplyToEve.Links["💬 Reply"], "@heidi Cannolis sound perfect! The sauce is my secret family recipe, Frank. It has a little bit of everything!").
 		OK()
-	cl.Settle(t)
 
-	// Post Sharing
 	heidi.
 		Goto(evePost.Path).
 		Follow("🔁 Share").
@@ -271,9 +263,7 @@ func seed(t cluster.T, keyPairs map[string]tls.Certificate) cluster.Cluster {
 		Goto(carolInitialPost.Path).
 		Follow("🔁 Share").
 		OK()
-	cl.Settle(t)
 
-	// Poll
 	ivanPoll := ivan.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "[POLL Pineapple on pizza?] Yes, it's chemistry! | No, it's a crime!").
