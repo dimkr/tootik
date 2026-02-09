@@ -1,49 +1,8 @@
-```
-          ..    .        ..                                        ..
- ...            .       ....                     ...
- ...   .     .   .   .   ... ..      .  .     .  . ...                 ...
- ..    .  .    ..   .         .    .. .       .. ..     .                   .
- .,     .               . . . ..             .  ..                  .        .
- .                .     . .. .. .... .       .  .  .               ..  ..
-            .              ..   ...  .       .    .   .   .        ..  .   .
- .   .        .   ..        .    ..             ...' .. .          .   .    . .
- . .              . .    .  __     .     .__  _ __ ,; .'. .  .     ....
-    . .          .         / /____  ___  /./_(_) /__  .'  ..         . .  . .
-  ..      ... .    .  .   /.__/ _ \/ _ \/ __/./  '_/.   .       .. .   .    .
-  .'   ...  .             \__/\___/\___/\__/_/_/\_\              .  .  . .
-      .         .    .    . .    .    ...     ... .           .      ..
- ..  .. .   . .... ..  .  .         ..   .  .     .          .  .  ... ....' .
-   ...  .      .   .  .. .  ... ...      . ..   ..         .,..    .....
- .   ..   ......             . .''.  .  ..          .         . .  ...
- ' .      .. ..  ..     . . ... ......::.   ..       .,.       .  .. ....    ..
- . ....  . .....     .  .. .  . ... . .,'.   .        ..          ,..  ..
- . .    .  .  . ..   .  .   .. .  .     ..     ..  .  . .       . . .        .'
-   .  ....   '...                ...    . .  ..  .     ...     . '.   '     ...
-
-# localhost.localdomain:8443
-
-Welcome, fedinaut! localhost.localdomain:8443 is a text-based social network.
-
-────
-
-📻 My feed
-📞 Mentions
-⚡️ Follows
-🐕 Followers
-😈 My profile
-📡 Local feed
-🏕️ Communities
-🔥 Hashtags
-🔭 View profile
-🔖 Bookmarks
-🔎 Search posts
-📣 New post
-⚙️ Settings
-📊 Status
-🛟 Help
-```
+# tootik
 
 [![Latest release](https://img.shields.io/github/v/release/dimkr/tootik)](https://github.com/dimkr/tootik/releases) [![Build status](https://github.com/dimkr/tootik/actions/workflows/ci.yml/badge.svg)](https://github.com/dimkr/tootik/actions) [![Go Reference](https://pkg.go.dev/badge/github.com/dimkr/tootik.svg)](https://pkg.go.dev/github.com/dimkr/tootik)
+
+![Demo of tootik with gplaces](https://github.com/dimkr/tootik/releases/latest/download/demo.gif)
 
 ## Overview
 

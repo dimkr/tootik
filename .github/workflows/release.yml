@@ -11,17 +11,39 @@ jobs:
     uses: ./.github/workflows/build.yml
     with:
       version: ${{ github.ref_name }}
+
+  demo:
+    permissions: {}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: curl -Lo agg https://github.com/asciinema/agg/releases/download/v1.7.0/agg-x86_64-unknown-linux-gnu
+      - run: echo "b72c773c22ef73149540f5728b37290dffe88418f0a16ceab29bc8e43699abf7 agg" | sha256sum -c
+      - run: chmod +x agg
+      - run: ./agg --idle-time-limit 1.5 --theme asciinema demo.asciinema demo.gif
+      - uses: actions/upload-artifact@v4
+        with:
+          name: demo-gif
+          path: demo.gif
+          retention-days: 1
+
   upload:
     permissions:
       contents: write
-    needs: build
+    needs: [build, demo]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
           name: tootik-${{ github.ref_name }}
           path: artifacts
+      - uses: actions/download-artifact@v4
+        with:
+          name: demo-gif
+          path: artifacts
       - uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/tootik-*
+          files: |
+            artifacts/tootik-*
+            artifacts/demo.gif
           fail_on_unmatched_files: true

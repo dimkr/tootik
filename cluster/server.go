@@ -30,7 +30,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"testing"
 
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/fed"
@@ -44,7 +43,7 @@ import (
 )
 
 type Server struct {
-	Test         *testing.T
+	Test         T
 	Domain       string
 	Config       *cfg.Config
 	DB           *sql.DB
@@ -136,7 +135,7 @@ func createDB(ctx context.Context, domain, path string, cfg *cfg.Config) (*sql.D
 	return db, err
 }
 
-func NewServer(t *testing.T, domain string, client fed.Client) *Server {
+func NewServer(t T, domain string, client fed.Client) *Server {
 	var cfg cfg.Config
 
 	cfg.FillDefaults()
