@@ -13,19 +13,21 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/progress"
-	"github.com/charmbracelet/bubbles/textarea"
+	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dimkr/tootik/cluster"
 )
 
 type demoModel struct {
+	cluster      cluster.Cluster
 	ctx          context.Context
 	page         cluster.Page
 	cursor       int
 	url          string
-	cert         tls.Certificate
-	input        textarea.Model
+	input        textinput.Model
+	resized      bool
 	viewport     viewport.Model
 	loading      bool
 	progress     progress.Model
@@ -33,6 +35,15 @@ type demoModel struct {
 	loadDuration time.Duration
 	loadStart    time.Time
 	targetPage   cluster.Page
+	seeding      bool
+	spinner      spinner.Model
+}
+
+type seedMsg struct {
+	cluster cluster.Cluster
+	page    cluster.Page
+	url     string
+	cert    tls.Certificate
 }
 
 type tickMsg time.Time
@@ -52,12 +63,47 @@ func findFirstLink(page cluster.Page) int {
 	return -1
 }
 
-func (m demoModel) Init() tea.Cmd {
-	return nil
+func (m *demoModel) Init() tea.Cmd {
+	return m.spinner.Tick
 }
 
-func (m demoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *demoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
+
+	if msg, ok := msg.(tea.WindowSizeMsg); ok {
+		if !m.resized {
+			m.viewport = viewport.New(msg.Width, msg.Height-2)
+			m.resized = true
+		} else {
+			m.viewport.Width = msg.Width
+			m.viewport.Height = msg.Height - 2
+		}
+		m.viewport.SetContent(m.render())
+	}
+
+	if m.seeding {
+		switch msg := msg.(type) {
+		case seedMsg:
+			m.seeding = false
+			m.cluster = msg.cluster
+			m.loading = true
+			m.targetPage = msg.page
+			m.url = msg.url
+			m.progressVal = 0
+			m.loadStart = time.Now()
+			m.loadDuration = time.Millisecond * time.Duration(100+mrand.IntN(400))
+			return m, tick()
+		case spinner.TickMsg:
+			var cmd tea.Cmd
+			m.spinner, cmd = m.spinner.Update(msg)
+			return m, cmd
+		case tea.KeyMsg:
+			if msg.String() == "ctrl+c" {
+				return m, tea.Quit
+			}
+		}
+		return m, nil
+	}
 
 	if m.loading {
 		var cmd tea.Cmd
@@ -75,10 +121,10 @@ func (m demoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.page = m.targetPage
 				if strings.HasPrefix(m.page.Status, "10 ") {
 					m.input.Placeholder = m.page.Status[3:]
-					m.input.SetValue("")
 				} else {
 					m.input.Placeholder = ""
 				}
+				m.input.SetValue("")
 				m.cursor = findFirstLink(m.page)
 				m.viewport.SetContent(m.render())
 				m.viewport.SetYOffset(0)
@@ -106,11 +152,6 @@ func (m demoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
-	case tea.WindowSizeMsg:
-		m.viewport.Width = msg.Width
-		m.viewport.Height = msg.Height - 2
-		m.viewport.SetContent(m.render())
-
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c":
@@ -119,12 +160,6 @@ func (m demoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "up":
 			if m.loading {
 				return m, tea.Batch(cmds...)
-			}
-
-			if m.input.Placeholder != "" {
-				var cmd tea.Cmd
-				m.input, cmd = m.input.Update(msg)
-				return m, tea.Batch(append(cmds, cmd)...)
 			}
 
 			oldCursor := m.cursor
@@ -148,12 +183,6 @@ func (m demoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Batch(cmds...)
 			}
 
-			if m.input.Placeholder != "" {
-				var cmd tea.Cmd
-				m.input, cmd = m.input.Update(msg)
-				return m, tea.Batch(append(cmds, cmd)...)
-			}
-
 			oldCursor := m.cursor
 			for i := m.cursor + 1; i < len(m.page.Lines); i++ {
 				if m.page.Lines[i].Type == cluster.Link {
@@ -170,18 +199,8 @@ func (m demoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.viewport.SetContent(m.render())
 
-		case "enter", "ctrl+d":
+		case "enter":
 			if m.loading {
-				return m, tea.Batch(cmds...)
-			}
-
-			if msg.String() == "enter" && m.input.Placeholder != "" {
-				var cmd tea.Cmd
-				m.input, cmd = m.input.Update(msg)
-				return m, tea.Batch(append(cmds, cmd)...)
-			}
-
-			if msg.String() == "ctrl+d" && m.input.Placeholder == "" {
 				return m, tea.Batch(cmds...)
 			}
 
@@ -232,18 +251,19 @@ func (m demoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m demoModel) render() string {
+func (m *demoModel) render() string {
 	var s strings.Builder
 	for i, l := range m.page.Lines {
-		if m.cursor == i {
-			s.WriteString("\033[1;4m")
-			s.WriteString(l.Text)
-			s.WriteString("\033[0m\n")
-		} else if l.Type == cluster.Heading || l.Type == cluster.SubHeading || l.Type == cluster.Link {
-			s.WriteString("\033[4m")
+		if l.Type == cluster.Heading || l.Type == cluster.SubHeading || l.Type == cluster.Link {
+			if m.cursor == i {
+				s.WriteString("> \033[4m")
+			} else {
+				s.WriteString("  \033[4m")
+			}
 			s.WriteString(l.Text)
 			s.WriteString("\033[0m\n")
 		} else {
+			s.WriteString("  ")
 			s.WriteString(l.Text)
 			s.WriteByte('\n')
 		}
@@ -251,10 +271,16 @@ func (m demoModel) render() string {
 	return s.String()
 }
 
-func (m demoModel) View() string {
+func (m *demoModel) View() string {
+	if m.seeding {
+		return m.spinner.View() + " Seeding..."
+	}
+
 	var s strings.Builder
-	if v := m.viewport.View(); v != "" {
-		s.WriteString(v + "\n")
+	if m.resized {
+		if v := m.viewport.View(); v != "" {
+			s.WriteString(v + "\n")
+		}
 	}
 
 	if m.input.Placeholder != "" {
@@ -290,29 +316,40 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	cluster := seed(t{tempDir: tempDir, ctx: ctx}, keyPairs)
-	defer cluster.Stop()
-
-	aliceKeyPair := keyPairs["alice"]
-	page := cluster["pizza.example"].Handle(aliceKeyPair, "/")
-	ti := textarea.New()
-	ti.SetWidth(80)
-	ti.SetHeight(3)
+	ti := textinput.New()
 	ti.Focus()
-	vp := viewport.New(80, 20)
-	m := demoModel{
+	m := &demoModel{
 		ctx:      ctx,
-		page:     page,
-		url:      "gemini://pizza.example/",
-		cursor:   findFirstLink(page),
-		cert:     aliceKeyPair,
 		input:    ti,
-		viewport: vp,
 		progress: progress.New(progress.WithDefaultGradient()),
+		seeding:  true,
+		spinner:  spinner.New(spinner.WithSpinner(spinner.Dot)),
 	}
-	m.viewport.SetContent(m.render())
+
 	p := tea.NewProgram(m)
+
+	done := make(chan struct{})
+	go func() {
+		defer func() {
+			done <- struct{}{}
+		}()
+
+		cl := seed(t{tempDir: tempDir, ctx: ctx}, keyPairs)
+
+		p.Send(seedMsg{
+			cluster: cl,
+			page:    cl["pizza.example"].Handle(keyPairs["alice"], "/"),
+			url:     "gemini://pizza.example/",
+		})
+	}()
+
 	if _, err := p.Run(); err != nil {
 		panic(err)
+	}
+
+	<-done
+
+	if m.cluster != nil {
+		m.cluster.Stop()
 	}
 }

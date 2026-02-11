@@ -108,6 +108,7 @@ func seed(t cluster.T, keyPairs map[string]tls.Certificate) cluster.Cluster {
 	heidi.Follow("⚙️ Settings").Follow("📜 Bio").FollowInput("Set", "Hi everyone! I'm Heidi. I live for pasta and love sharing my favorite food finds. Can't wait to see what you're all eating!").OK()
 	ivan.Follow("⚙️ Settings").Follow("📜 Bio").FollowInput("Set", "Always trying to stay ahead of the pizza curve. If there's a new trend or a weird topping, I'm probably trying it right now!").OK()
 	judy.Follow("⚙️ Settings").Follow("📜 Bio").FollowInput("Set", "Sushi fan and bowling enthusiast. 🍣🎳 Whether it's a new roll or a night at the lanes, I'm always up for an adventure!").OK()
+	cl.Settle(t)
 
 	alice.FollowInput("🔭 View profile", "carol@sushi.example").Follow("⚡ Follow carol").OK()
 	alice.FollowInput("🔭 View profile", "dave@sushi.example").Follow("⚡ Follow dave").OK()
