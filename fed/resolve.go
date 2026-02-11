@@ -188,18 +188,19 @@ func (r *Resolver) handleFetchFailure(ctx context.Context, fetched string, cache
 		return nil, nil, fmt.Errorf("failed to fetch %s: %w", fetched, ErrActorGone)
 	}
 
-	var (
-		urlError *url.Error
-		opError  *net.OpError
-		dnsError *net.DNSError
-	)
 	// if it's been a while since the last update and the server's domain is expired (NXDOMAIN), actor is gone
-	if sinceLastUpdate > r.Config.MaxInstanceRecoveryTime && errors.As(err, &urlError) && errors.As(urlError.Err, &opError) && errors.As(opError.Err, &dnsError) && dnsError.IsNotFound {
-		if cachedActor != nil {
-			slog.Warn("Server is probably gone, deleting associated objects", "id", cachedActor.ID)
-			deleteActor(ctx, r.db, cachedActor.ID)
+	if sinceLastUpdate > r.Config.MaxInstanceRecoveryTime {
+		if urlError, ok := errors.AsType[*url.Error](err); ok {
+			if opError, ok := errors.AsType[*net.OpError](urlError); ok {
+				if dnsError, ok := errors.AsType[*net.DNSError](opError.Err); ok && dnsError.IsNotFound {
+					if cachedActor != nil {
+						slog.Warn("Server is probably gone, deleting associated objects", "id", cachedActor.ID)
+						deleteActor(ctx, r.db, cachedActor.ID)
+					}
+					return nil, nil, fmt.Errorf("failed to fetch %s: %w", fetched, err)
+				}
+			}
 		}
-		return nil, nil, fmt.Errorf("failed to fetch %s: %w", fetched, err)
 	}
 
 	return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", fetched, err)

@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -221,9 +221,10 @@ func fromHTML(text string) (string, data.OrderedMap[string, string], error) {
 					attr := danger.String(attrBytes)
 					if tt == tokenizer.StartTagToken && tag == "span" && attr == "class" {
 						valueString := danger.String(value)
-						if valueString == "invisible" {
+						switch valueString {
+						case "invisible":
 							invisibleDepth = len(openTags)
-						} else if valueString == "ellipsis" {
+						case "ellipsis":
 							ellipsisDepth = len(openTags)
 						}
 					} else if tag == "a" && attr == "class" {

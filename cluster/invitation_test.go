@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -139,8 +139,7 @@ func TestServer_InvitationLimit(t *testing.T) {
 	alice := s.Register(aliceKeypair).OK()
 
 	s.Config.RequireInvitation = true
-	limit := 1
-	s.Config.MaxInvitationsPerUser = &limit
+	s.Config.MaxInvitationsPerUser = new(1)
 	s.Config.EnableNonPortableActorRegistration = true
 
 	bobCode := "70bc9fdf-74a4-41e5-973d-08ba3fd23d74"
@@ -176,7 +175,7 @@ func TestServer_InvitationLimit(t *testing.T) {
 	accept.Error("11 base58-encoded Ed25519 private key or 'generate' to generate")
 	s.HandleInput(carolKeypair, accept.Path, "generate").Follow("😈 My profile").OK()
 
-	limit = 3
+	s.Config.MaxInvitationsPerUser = new(3)
 	alice.
 		Follow("⚙️ Settings").
 		Follow("🎟️ Invitations").
