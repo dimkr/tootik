@@ -25,7 +25,7 @@ import (
 
 var docStyle = lipgloss.NewStyle().
 	Border(lipgloss.RoundedBorder()).
-	BorderForeground(lipgloss.Color("63"))
+	BorderForeground(lipgloss.Color("5"))
 
 var loadingStyle = lipgloss.NewStyle().
 	Border(lipgloss.RoundedBorder()).
