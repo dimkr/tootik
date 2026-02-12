@@ -24,11 +24,11 @@ import (
 )
 
 var docStyle = lipgloss.NewStyle().
-	Border(lipgloss.RoundedBorder()).
+	Border(lipgloss.NormalBorder()).
 	BorderForeground(lipgloss.Color("5"))
 
 var loadingStyle = lipgloss.NewStyle().
-	Border(lipgloss.RoundedBorder()).
+	Border(lipgloss.NormalBorder()).
 	BorderForeground(lipgloss.Color("241"))
 
 type keyMap struct {
