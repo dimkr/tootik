@@ -19,8 +19,17 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/dimkr/tootik/cluster"
 )
+
+var docStyle = lipgloss.NewStyle().
+	Border(lipgloss.RoundedBorder()).
+	BorderForeground(lipgloss.Color("63"))
+
+var loadingStyle = lipgloss.NewStyle().
+	Border(lipgloss.RoundedBorder()).
+	BorderForeground(lipgloss.Color("241"))
 
 type keyMap struct {
 	Up       key.Binding
@@ -128,12 +137,13 @@ func (m *demoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	if msg, ok := msg.(tea.WindowSizeMsg); ok {
+		h, w := docStyle.GetFrameSize()
 		if !m.resized {
-			m.viewport = viewport.New(msg.Width, msg.Height-3)
+			m.viewport = viewport.New(msg.Width-w, msg.Height-h-3)
 			m.resized = true
 		} else {
-			m.viewport.Width = msg.Width
-			m.viewport.Height = msg.Height - 3
+			m.viewport.Width = msg.Width - w
+			m.viewport.Height = msg.Height - h - 3
 		}
 		m.viewport.SetContent(m.render())
 	}
@@ -329,6 +339,12 @@ func (m *demoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Batch(cmds...)
 			}
 
+			if m.input.Placeholder != "" {
+				var cmd tea.Cmd
+				m.input, cmd = m.input.Update(msg)
+				return m, tea.Batch(append(cmds, cmd)...)
+			}
+
 			m.url = m.history[len(m.history)-1]
 			m.history = m.history[:len(m.history)-1]
 
@@ -381,15 +397,16 @@ func (m *demoModel) View() string {
 	var s strings.Builder
 	if m.resized {
 		if v := m.viewport.View(); v != "" {
-			s.WriteString(v + "\n")
+			style := docStyle
+			if m.loading || m.input.Placeholder != "" {
+				style = loadingStyle
+			}
+			s.WriteString(style.Render(v) + "\n")
 		}
 	}
 
 	if m.input.Placeholder != "" {
 		if v := m.input.View(); v != "" {
-			if s.Len() > 0 {
-				s.WriteByte('\n')
-			}
 			s.WriteString(v + "\n")
 		}
 	}
