@@ -12,6 +12,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -19,6 +21,58 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dimkr/tootik/cluster"
 )
+
+type keyMap struct {
+	Up       key.Binding
+	Down     key.Binding
+	PageUp   key.Binding
+	PageDown key.Binding
+	Enter    key.Binding
+	Back     key.Binding
+	Quit     key.Binding
+}
+
+func (k keyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Up, k.Down, k.Enter, k.Back, k.PageUp, k.PageDown, k.Quit}
+}
+
+func (k keyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Up, k.Down, k.Enter, k.Back},
+		{k.PageUp, k.PageDown, k.Quit},
+	}
+}
+
+var keys = keyMap{
+	Up: key.NewBinding(
+		key.WithKeys("up"),
+		key.WithHelp("↑", "up"),
+	),
+	Down: key.NewBinding(
+		key.WithKeys("down"),
+		key.WithHelp("↓", "down"),
+	),
+	PageUp: key.NewBinding(
+		key.WithKeys("pgup"),
+		key.WithHelp("pgup", "page up"),
+	),
+	PageDown: key.NewBinding(
+		key.WithKeys("pgdown"),
+		key.WithHelp("pgdown", "page down"),
+	),
+	Enter: key.NewBinding(
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "open"),
+	),
+	Back: key.NewBinding(
+		key.WithKeys("backspace"),
+		key.WithHelp("backspace", "back"),
+	),
+	Quit: key.NewBinding(
+		key.WithKeys("ctrl+c"),
+		key.WithHelp("ctrl+c", "quit"),
+	),
+}
 
 type demoModel struct {
 	cluster      cluster.Cluster
@@ -37,6 +91,9 @@ type demoModel struct {
 	targetPage   cluster.Page
 	seeding      bool
 	spinner      spinner.Model
+	history      []string
+	help         help.Model
+	keys         keyMap
 }
 
 type seedMsg struct {
@@ -72,11 +129,11 @@ func (m *demoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if msg, ok := msg.(tea.WindowSizeMsg); ok {
 		if !m.resized {
-			m.viewport = viewport.New(msg.Width, msg.Height-2)
+			m.viewport = viewport.New(msg.Width, msg.Height-3)
 			m.resized = true
 		} else {
 			m.viewport.Width = msg.Width
-			m.viewport.Height = msg.Height - 2
+			m.viewport.Height = msg.Height - 3
 		}
 		m.viewport.SetContent(m.render())
 	}
@@ -98,7 +155,7 @@ func (m *demoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.spinner, cmd = m.spinner.Update(msg)
 			return m, cmd
 		case tea.KeyMsg:
-			if msg.String() == "ctrl+c" {
+			if key.Matches(msg, m.keys.Quit) {
 				return m, tea.Quit
 			}
 		}
@@ -153,11 +210,11 @@ func (m *demoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c":
+		switch {
+		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
 
-		case "up":
+		case key.Matches(msg, m.keys.Up):
 			if m.loading {
 				return m, tea.Batch(cmds...)
 			}
@@ -178,7 +235,7 @@ func (m *demoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.viewport.SetContent(m.render())
 
-		case "down":
+		case key.Matches(msg, m.keys.Down):
 			if m.loading {
 				return m, tea.Batch(cmds...)
 			}
@@ -199,7 +256,35 @@ func (m *demoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.viewport.SetContent(m.render())
 
-		case "enter":
+		case key.Matches(msg, m.keys.PageDown):
+			if m.loading {
+				return m, tea.Batch(cmds...)
+			}
+
+			m.viewport.PageDown()
+			for i := m.viewport.YOffset; i < len(m.page.Lines) && i < m.viewport.YOffset+m.viewport.Height; i++ {
+				if m.page.Lines[i].Type == cluster.Link {
+					m.cursor = i
+					break
+				}
+			}
+			m.viewport.SetContent(m.render())
+
+		case key.Matches(msg, m.keys.PageUp):
+			if m.loading {
+				return m, tea.Batch(cmds...)
+			}
+
+			m.viewport.PageUp()
+			for i := m.viewport.YOffset; i < len(m.page.Lines) && i < m.viewport.YOffset+m.viewport.Height; i++ {
+				if m.page.Lines[i].Type == cluster.Link {
+					m.cursor = i
+					break
+				}
+			}
+			m.viewport.SetContent(m.render())
+
+		case key.Matches(msg, m.keys.Enter):
 			if m.loading {
 				return m, tea.Batch(cmds...)
 			}
@@ -216,18 +301,36 @@ func (m *demoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 
+			nextURL := m.url
 			if targetCursor >= 0 && targetCursor < len(m.page.Lines) && m.page.Lines[targetCursor].Type == cluster.Link {
-				m.url = m.page.Lines[targetCursor].URL
+				nextURL = m.page.Lines[targetCursor].URL
 			}
 
-			u, err := url.Parse(m.url)
+			u, err := url.Parse(nextURL)
 			if err != nil {
 				panic(err)
 			}
 			if m.input.Value() != "" {
 				u.RawQuery = url.QueryEscape(m.input.Value())
 			}
+
+			m.history = append(m.history, m.url)
 			m.url = u.String()
+
+			m.targetPage = m.page.Goto(m.url)
+			m.loading = true
+			m.progressVal = 0
+			m.loadStart = time.Now()
+			m.loadDuration = time.Millisecond * time.Duration(100+mrand.IntN(400))
+			return m, tea.Batch(append(cmds, tick())...)
+
+		case key.Matches(msg, m.keys.Back):
+			if m.loading || len(m.history) == 0 {
+				return m, tea.Batch(cmds...)
+			}
+
+			m.url = m.history[len(m.history)-1]
+			m.history = m.history[:len(m.history)-1]
 
 			m.targetPage = m.page.Goto(m.url)
 			m.loading = true
@@ -255,25 +358,24 @@ func (m *demoModel) render() string {
 	var s strings.Builder
 	for i, l := range m.page.Lines {
 		if l.Type == cluster.Heading || l.Type == cluster.SubHeading || l.Type == cluster.Link {
+			s.WriteString("\033[4m")
+			s.WriteString(l.Text)
+			s.WriteString("\033[0m")
 			if m.cursor == i {
-				s.WriteString("> \033[4m")
-			} else {
-				s.WriteString("  \033[4m")
+				s.WriteString(" 👈")
 			}
-			s.WriteString(l.Text)
-			s.WriteString("\033[0m\n")
 		} else {
-			s.WriteString("  ")
 			s.WriteString(l.Text)
-			s.WriteByte('\n')
 		}
+
+		s.WriteByte('\n')
 	}
 	return s.String()
 }
 
 func (m *demoModel) View() string {
 	if m.seeding {
-		return m.spinner.View() + " Seeding..."
+		return m.spinner.View() + "Simulating the fediverse"
 	}
 
 	var s strings.Builder
@@ -297,7 +399,16 @@ func (m *demoModel) View() string {
 			s.WriteByte('\n')
 		}
 		s.WriteString(m.progress.ViewAs(m.progressVal))
+		s.WriteByte(' ')
+		s.WriteString(m.url)
+	} else {
+		s.WriteString("\n\n")
 	}
+
+	if s.Len() > 0 && s.String()[s.Len()-1] != '\n' {
+		s.WriteByte('\n')
+	}
+	s.WriteString(m.help.View(m.keys))
 
 	return s.String()
 }
@@ -324,6 +435,8 @@ func main() {
 		progress: progress.New(progress.WithDefaultGradient()),
 		seeding:  true,
 		spinner:  spinner.New(spinner.WithSpinner(spinner.Dot)),
+		help:     help.New(),
+		keys:     keys,
 	}
 
 	p := tea.NewProgram(m)
@@ -338,8 +451,8 @@ func main() {
 
 		p.Send(seedMsg{
 			cluster: cl,
-			page:    cl["pizza.example"].Handle(keyPairs["alice"], "/"),
-			url:     "gemini://pizza.example/",
+			page:    cl["pizza.example"].Handle(keyPairs["alice"], "/users"),
+			url:     "/users",
 		})
 	}()
 
