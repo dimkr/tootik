@@ -376,11 +376,10 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			if alt == "" {
 				w.Link(link, link)
 			} else {
-				lineBreak := strings.IndexByte(alt, '\n')
-				if lineBreak == -1 {
-					w.Link(link, alt)
+				if first, _, ok := strings.Cut(alt, "\n"); ok {
+					w.Link(link, first+"[…]")
 				} else {
-					w.Link(link, alt[:lineBreak]+"[…]")
+					w.Link(link, alt)
 				}
 			}
 		}
