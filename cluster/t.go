@@ -18,6 +18,7 @@ package cluster
 
 import "context"
 
+// T is the subset of [testing.T] that's actually used by this package.
 type T interface {
 	Parallel()
 	Name() string
