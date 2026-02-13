@@ -44,3 +44,23 @@ jobs:
           name: tootik-${{ inputs.version }}
           path: tootik-*
           retention-days: 1
+
+  demo:
+    permissions: {}
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends fonts-noto-mono
+      - run: curl -Lo agg https://github.com/asciinema/agg/releases/download/v1.7.0/agg-x86_64-unknown-linux-gnu
+      - run: echo "b72c773c22ef73149540f5728b37290dffe88418f0a16ceab29bc8e43699abf7 agg" | sha256sum -c
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+      - run: go run -tags fts5 ./cmd/demo -auto
+      - run: chmod +x agg && ./agg --theme asciinema --font-family "Noto Sans Mono" demo.cast demo.gif
+      - uses: actions/upload-artifact@v4
+        with:
+          name: demo-gif
+          path: demo.gif
+          retention-days: 1
