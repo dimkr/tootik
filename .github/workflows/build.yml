@@ -57,7 +57,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
-      - run: go generate ./... && go run -tags fts5 ./cmd/demo -auto
+      - run: go generate ./... && TERM=xterm-256color go run -tags fts5 ./cmd/demo -auto
       - run: chmod +x /tmp/agg && /tmp/agg --theme asciinema --font-family "Noto Sans Mono" demo.cast demo.gif
       - uses: actions/upload-artifact@v4
         with:
