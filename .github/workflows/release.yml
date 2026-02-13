@@ -15,7 +15,7 @@ jobs:
   upload:
     permissions:
       contents: write
-    needs: [build, demo]
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
