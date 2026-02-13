@@ -37,6 +37,7 @@ var docStyle = lipgloss.NewStyle().
 	BorderForeground(lipgloss.Color("5"))
 
 var loadingStyle = lipgloss.NewStyle().
+	Faint(true).
 	Border(lipgloss.NormalBorder()).
 	BorderForeground(lipgloss.Color("241"))
 
