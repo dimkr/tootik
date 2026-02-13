@@ -13,7 +13,7 @@ type t struct {
 func (t) Parallel() {}
 
 func (t) Name() string {
-	return ""
+	return "demo"
 }
 
 func (t t) Context() context.Context {
