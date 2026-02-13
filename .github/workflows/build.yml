@@ -28,6 +28,7 @@ jobs:
           version="${{ inputs.version }}"
           echo "TOOTIK_VERSION=${version#v}" >> "$GITHUB_ENV"
       - run: |
+          CGO_CFLAGS="-O2 -fomit-frame-pointer -ffunction-sections -fdata-sections -fmerge-all-constants" go build -tags netgo,sqlite_omit_load_extension,fts5,no_pprof -ldflags "-w -s -linkmode external -extldflags '-static -Wl,--gc-sections'" -trimpath -o demo ./cmd/demo
           CGO_CFLAGS="-O2 -fomit-frame-pointer -ffunction-sections -fdata-sections -fmerge-all-constants" go build -tags netgo,sqlite_omit_load_extension,fts5,no_pprof -ldflags "-w -s -linkmode external -extldflags '-static -Wl,--gc-sections' -X github.com/dimkr/tootik/buildinfo.Version=${TOOTIK_VERSION}" -trimpath -o tootik-amd64 ./cmd/tootik
       - run: |
           apt-get install -y gcc-aarch64-linux-gnu

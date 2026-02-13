@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"flag"
 	"log/slog"
 	mrand "math/rand/v2"
 	"net/url"
 	"os"
+	"os/exec"
 	"os/signal"
 	"strings"
 	"syscall"
@@ -20,7 +22,14 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/term"
+	"github.com/creack/pty"
 	"github.com/dimkr/tootik/cluster"
+)
+
+const (
+	cols = 120
+	rows = 30
 )
 
 var docStyle = lipgloss.NewStyle().
@@ -78,8 +87,8 @@ var keys = keyMap{
 		key.WithHelp("backspace", "back"),
 	),
 	Quit: key.NewBinding(
-		key.WithKeys("ctrl+c"),
-		key.WithHelp("ctrl+c", "quit"),
+		key.WithKeys("ctrl+c", "ctrl+q"),
+		key.WithHelp("ctrl+q", "quit"),
 	),
 }
 
@@ -430,7 +439,89 @@ func (m *demoModel) View() string {
 	return s.String()
 }
 
+var auto = flag.Bool("auto", false, "")
+
 func main() {
+	flag.Parse()
+
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	if *auto {
+		exe, err := os.Executable()
+		if err != nil {
+			panic(err)
+		}
+
+		f, _ := os.Create("demo.cast")
+		defer f.Close()
+
+		//c := exec.CommandContext(ctx, "asciinema", "rec", "--overwrite", "-c", exe, "demo.cast")
+		c := exec.CommandContext(ctx, exe)
+		c.Stderr = os.Stderr
+
+		rawPty, err := pty.StartWithSize(c, &pty.Winsize{Rows: rows, Cols: cols})
+		if err != nil {
+			panic(err)
+		}
+		defer rawPty.Close()
+
+		if _, err := term.MakeRaw(rawPty.Fd()); err != nil {
+			panic(err)
+		}
+
+		cast, err := startCast(rawPty, f, cols, rows)
+		if err != nil {
+			panic(err)
+		}
+
+		time.Sleep(time.Second * 10)
+
+		cast.Down(ctx, 2)
+		time.Sleep(time.Millisecond * 200)
+		cast.Enter()
+
+		time.Sleep(time.Millisecond * 500)
+		cast.Down(ctx, 8)
+		time.Sleep(time.Second * 1)
+		cast.PageDown()
+		time.Sleep(time.Second * 1)
+
+		cast.Enter()
+		time.Sleep(time.Second * 1)
+
+		cast.Down(ctx, 5)
+		cast.Enter()
+		time.Sleep(time.Second * 1)
+
+		cast.Down(ctx, 8)
+
+		time.Sleep(time.Second * 1)
+		cast.Enter()
+		time.Sleep(time.Millisecond * 500)
+		cast.Type(ctx, "@eve @frank Or pesto again! 🙄🙄\r")
+		time.Sleep(time.Second * 2)
+
+		cast.Down(ctx, 7)
+
+		time.Sleep(time.Second * 1)
+		cast.Enter()
+		time.Sleep(time.Millisecond * 500)
+		cast.Type(ctx, "@eve @frank Or pesto again!!! 🙄🙄🙄🙄🙄\r")
+		cast.Down(ctx, 8)
+
+		time.Sleep(time.Second * 5)
+
+		rawPty.Write([]byte{17})
+		time.Sleep(time.Second * 2)
+
+		if err := cast.Wait(); err != nil {
+			panic(err)
+		}
+
+		return
+	}
+
 	slog.SetDefault(slog.New(slog.DiscardHandler))
 
 	keyPairs := generateKeypairs()
@@ -440,9 +531,6 @@ func main() {
 		panic(err)
 	}
 	defer os.RemoveAll(tempDir)
-
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer cancel()
 
 	ti := textinput.New()
 	ti.Focus()

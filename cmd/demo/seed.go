@@ -158,11 +158,11 @@ func seed(t cluster.T, keyPairs map[string]tls.Certificate) cluster.Cluster {
 		OK()
 	cl.Settle(t)
 
-	bob.
+	bobReplyToAlice := bob.
 		GotoInput(aliceReplyToCarol2.Links["💬 Reply"], "@alice Truffle oil is just fake flavoring, Alice. Get real! It's all about the quality of the dough.").
 		OK()
 	alice.
-		GotoInput(aliceReplyToCarol2.Links["💬 Reply"], "@bob It's about the molecular gastronomy, Bob! The way the volatiles interact with the cheese is fascinating. 🤓").
+		GotoInput(bobReplyToAlice.Links["💬 Reply"], "@bob It's about the molecular gastronomy, Bob! The way the volatiles interact with the cheese is fascinating. 🤓").
 		OK()
 	ivan.
 		GotoInput(aliceReplyToCarol2.Links["💬 Reply"], "@alice I've got a sensor that measures the exact volatile organic compounds in truffle oil. Want to borrow it?").
@@ -211,7 +211,7 @@ func seed(t cluster.T, keyPairs map[string]tls.Certificate) cluster.Cluster {
 		GotoInput(judyPost.Links["💬 Reply"], "@judy I'm in! I know a place near the lanes that has the freshest yellowtail.").
 		OK()
 
-	judyReplyToCarol := judy.
+	graceReplyToCarol := grace.
 		GotoInput(carolReplyToJudy.Links["💬 Reply"], "@carol Oh come on Carol, it's just raw fish! What's the worst that could happen? 😉").
 		OK()
 	cl.Settle(t)
@@ -220,10 +220,10 @@ func seed(t cluster.T, keyPairs map[string]tls.Certificate) cluster.Cluster {
 		OK()
 
 	dave.
-		GotoInput(judyReplyToCarol.Links["💬 Reply"], "@judy @carol I'm with Carol. Last time I had sushi after bowling, I couldn't hit a single pin the next day. Coincidence? I think not.").
+		GotoInput(graceReplyToCarol.Links["💬 Reply"], "@grace @carol I'm with Carol. Last time I had sushi after bowling, I couldn't hit a single pin the next day. Coincidence? I think not.").
 		OK()
 	judy.
-		GotoInput(judyReplyToCarol.Links["💬 Reply"], "@dave Dave, that's just because you're bad at bowling! 😂 Challenge accepted! I'll see you at the lanes.").
+		GotoInput(graceReplyToCarol.Links["💬 Reply"], "@dave Dave, that's just because you're bad at bowling! 😂 Challenge accepted! I'll see you at the lanes.").
 		OK()
 
 	evePost := eve.
