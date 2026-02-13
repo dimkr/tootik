@@ -456,7 +456,6 @@ func main() {
 		f, _ := os.Create("demo.cast")
 		defer f.Close()
 
-		//c := exec.CommandContext(ctx, "asciinema", "rec", "--overwrite", "-c", exe, "demo.cast")
 		c := exec.CommandContext(ctx, exe)
 		c.Stderr = os.Stderr
 
@@ -522,7 +521,7 @@ func main() {
 		return
 	}
 
-	slog.SetDefault(slog.New(slog.DiscardHandler))
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, nil)))
 
 	keyPairs := generateKeypairs()
 
