@@ -122,12 +122,12 @@ func main() {
 		time.Sleep(time.Second * 2)
 		cast.Type(ctx, "q")
 
-		cast.Type(ctx, "3")
+		cast.Type(ctx, "5")
 		time.Sleep(time.Second)
 		cast.Type(ctx, "\r")
 		cast.Down(ctx, 3)
 		time.Sleep(time.Second * 2)
-		cast.Down(ctx, 2)
+		cast.Down(ctx, 5)
 		cast.Type(ctx, "q")
 
 		cast.Type(ctx, "10")
@@ -162,9 +162,9 @@ func main() {
 		time.Sleep(time.Second * 1)
 		cast.Input("@eve @frank Or pesto again! 🙄🙄")
 		cast.Type(ctx, "\x08\x08\x08!! 🙄🙄🙄🙄🙄\r")
-		time.Sleep(time.Second * 5)
+		time.Sleep(time.Second * 3)
 		cast.PageDown()
-		time.Sleep(time.Second * 5)
+		time.Sleep(time.Second * 3)
 		cast.Type(ctx, "q")
 
 		cast.Type(ctx, "17")
@@ -178,7 +178,7 @@ func main() {
 		cast.Type(ctx, "\r")
 		time.Sleep(time.Second * 3)
 		cast.Type(ctx, "q")
-		cast.Type(ctx, "4")
+		cast.Type(ctx, "2")
 		time.Sleep(time.Second)
 		cast.Type(ctx, "\r")
 		time.Sleep(time.Second * 3)
@@ -198,7 +198,7 @@ func main() {
 		time.Sleep(time.Second * 5)
 		cast.Type(ctx, "q")
 
-		cast.Type(ctx, "6")
+		cast.Type(ctx, "7")
 		time.Sleep(time.Second)
 		cast.Type(ctx, "\r")
 		time.Sleep(time.Second)
@@ -213,13 +213,13 @@ func main() {
 		cast.Type(ctx, "6")
 		time.Sleep(time.Second)
 		cast.Type(ctx, "\r")
-		cast.Type(ctx, "Super important question\r")
-		time.Sleep(time.Second * 3)
-		cast.PageDown()
+		cast.Type(ctx, "@noodles Super important question\r")
+		time.Sleep(time.Second)
+		cast.Down(ctx, 3)
 		time.Sleep(time.Second * 2)
 		cast.Type(ctx, "q")
 
-		cast.Type(ctx, "12")
+		cast.Type(ctx, "2")
 		time.Sleep(time.Second)
 		cast.Type(ctx, "\r")
 		time.Sleep(time.Second * 3)
@@ -227,7 +227,7 @@ func main() {
 		time.Sleep(time.Second * 2)
 		cast.Type(ctx, "q")
 
-		cast.Type(ctx, "3")
+		cast.Type(ctx, "4")
 		time.Sleep(time.Second)
 		cast.Type(ctx, "\r")
 		time.Sleep(time.Second * 2)
@@ -235,6 +235,7 @@ func main() {
 		time.Sleep(time.Second * 2)
 		cast.Type(ctx, "q")
 
+		time.Sleep(time.Second * 2)
 		rawPty.Write([]byte{4})
 
 		if err := c.Wait(); err != nil {

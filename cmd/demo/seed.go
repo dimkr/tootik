@@ -11,7 +11,9 @@ import (
 	"encoding/pem"
 	"time"
 
+	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cluster"
+	"github.com/dimkr/tootik/front/user"
 	"github.com/dimkr/tootik/outbox"
 )
 
@@ -85,7 +87,7 @@ func generateKeypairs() map[string]tls.Certificate {
 }
 
 func seed(t cluster.T, keyPairs map[string]tls.Certificate) cluster.Cluster {
-	cl := cluster.NewCluster(t, "pizza.example", "sushi.example", "pasta.example")
+	cl := cluster.NewCluster(t, "pizza.example", "sushi.example", "pasta.example", "forum.example")
 
 	alice := cl["pizza.example"].Register(keyPairs["alice"]).OK()
 	bob := cl["pizza.example"].Register(keyPairs["bob"]).OK()
@@ -97,6 +99,10 @@ func seed(t cluster.T, keyPairs map[string]tls.Certificate) cluster.Cluster {
 	heidi := cl["pasta.example"].Register(keyPairs["heidi"]).OK()
 	ivan := cl["pizza.example"].Register(keyPairs["ivan"]).OK()
 	judy := cl["sushi.example"].Register(keyPairs["judy"]).OK()
+
+	if _, _, err := user.CreatePortable(t.Context(), "forum.example", cl["forum.example"].DB, cl["forum.example"].Config, "noodles", ap.Group, nil); err != nil {
+		t.Fatalf("Failed to create noodles group: %v", err)
+	}
 
 	alice.Follow("⚙️ Settings").Follow("📜 Bio").FollowInput("Set", "Hey there! I'm Alice. I'm a total tech geek and I'm always on the hunt for the perfect pizza slice. Let's talk tech and toppings!").OK()
 	bob.Follow("⚙️ Settings").Follow("📜 Bio").FollowInput("Set", "I've been called a tough critic, but I just know what I like. Looking for the best pizza in town – any recommendations?").OK()
@@ -129,6 +135,10 @@ func seed(t cluster.T, keyPairs map[string]tls.Certificate) cluster.Cluster {
 	heidi.FollowInput("🔭 View profile", "judy@sushi.example").Follow("⚡ Follow judy").OK()
 	ivan.FollowInput("🔭 View profile", "bob@pizza.example").Follow("⚡ Follow bob").OK()
 	judy.FollowInput("🔭 View profile", "carol@sushi.example").Follow("⚡ Follow carol").OK()
+
+	for _, u := range []cluster.Page{alice, bob, carol, grace, eve} {
+		u.FollowInput("🔭 View profile", "noodles@forum.example").Follow("⚡ Follow noodles").OK()
+	}
 	cl.Settle(t)
 
 	carolInitialPost := carol.
@@ -167,6 +177,14 @@ func seed(t cluster.T, keyPairs map[string]tls.Certificate) cluster.Cluster {
 	ivan.
 		GotoInput(aliceReplyToCarol2.Links["💬 Reply"], "@alice I've got a sensor that measures the exact volatile organic compounds in truffle oil. Want to borrow it?").
 		OK()
+
+	noodlesPost1 := carol.Follow("📣 New post").FollowInput("📣 Anyone", "@noodles I just had some amazing ramen!").OK()
+	cl.Settle(t)
+
+	grace.GotoInput(noodlesPost1.Links["💬 Reply"], "@carol Ramen is life!").OK()
+	bob.GotoInput(noodlesPost1.Links["💬 Reply"], "@carol I prefer pho myself.").OK()
+	frank.GotoInput(noodlesPost1.Links["💬 Reply"], "@carol Ramen is too salty for me.").OK()
+	cl.Settle(t)
 
 	frankPost := frank.
 		Follow("📣 New post").
@@ -226,6 +244,14 @@ func seed(t cluster.T, keyPairs map[string]tls.Certificate) cluster.Cluster {
 		GotoInput(graceReplyToCarol.Links["💬 Reply"], "@dave Dave, that's just because you're bad at bowling! 😂 Challenge accepted! I'll see you at the lanes.").
 		OK()
 
+	noodlesPost2 := eve.Follow("📣 New post").FollowInput("📣 Anyone", "@noodles Fresh udon is the best thing ever.").OK()
+	cl.Settle(t)
+
+	judy.GotoInput(noodlesPost2.Links["💬 Reply"], "@eve Udon is so comforting.").OK()
+	ivan.GotoInput(noodlesPost2.Links["💬 Reply"], "@eve Udon is great, but have you tried soba?").OK()
+	grace.GotoInput(noodlesPost2.Links["💬 Reply"], "@eve I love the texture of fresh udon!").OK()
+	cl.Settle(t)
+
 	evePost := eve.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "Making homemade fettuccine tonight! 🍝 There's nothing like fresh pasta. Who wants to join?").
@@ -283,6 +309,13 @@ func seed(t cluster.T, keyPairs map[string]tls.Certificate) cluster.Cluster {
 		Goto(ivanPoll.Path).
 		Follow("📮 Vote No, it's a crime!").
 		OK()
+	cl.Settle(t)
+
+	noodlesPost3 := grace.Follow("📣 New post").FollowInput("📣 Anyone", "@noodles Anyone has a good recipe for pad thai?").OK()
+	cl.Settle(t)
+
+	dave.GotoInput(noodlesPost3.Links["💬 Reply"], "@grace I have a great one, I'll send it to you!").OK()
+	eve.GotoInput(noodlesPost3.Links["💬 Reply"], "@grace I have a secret ingredient for pad thai!").OK()
 	cl.Settle(t)
 
 	for d, server := range cl {
