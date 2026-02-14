@@ -2,442 +2,45 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"flag"
+	"fmt"
 	"log/slog"
-	mrand "math/rand/v2"
 	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/progress"
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/term"
 	"github.com/creack/pty"
+	"github.com/dimkr/tootik/bestline"
 	"github.com/dimkr/tootik/cluster"
 )
 
 const (
-	cols = 120
-	rows = 30
+	cols = 80
+	rows = 24
 )
 
-var docStyle = lipgloss.NewStyle().
-	Border(lipgloss.NormalBorder()).
-	BorderForeground(lipgloss.Color("5"))
-
-var loadingStyle = lipgloss.NewStyle().
-	Faint(true).
-	Border(lipgloss.NormalBorder()).
-	BorderForeground(lipgloss.Color("241"))
-
-type keyMap struct {
-	Up       key.Binding
-	Down     key.Binding
-	PageUp   key.Binding
-	PageDown key.Binding
-	Enter    key.Binding
-	Back     key.Binding
-	Quit     key.Binding
-}
-
-func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.Enter, k.Back, k.PageUp, k.PageDown, k.Quit}
-}
-
-func (k keyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{k.Up, k.Down, k.Enter, k.Back},
-		{k.PageUp, k.PageDown, k.Quit},
-	}
-}
-
-var keys = keyMap{
-	Up: key.NewBinding(
-		key.WithKeys("up"),
-		key.WithHelp("↑", "up"),
-	),
-	Down: key.NewBinding(
-		key.WithKeys("down"),
-		key.WithHelp("↓", "down"),
-	),
-	PageUp: key.NewBinding(
-		key.WithKeys("pgup"),
-		key.WithHelp("pgup", "page up"),
-	),
-	PageDown: key.NewBinding(
-		key.WithKeys("pgdown"),
-		key.WithHelp("pgdown", "page down"),
-	),
-	Enter: key.NewBinding(
-		key.WithKeys("enter"),
-		key.WithHelp("enter", "open"),
-	),
-	Back: key.NewBinding(
-		key.WithKeys("backspace"),
-		key.WithHelp("backspace", "back"),
-	),
-	Quit: key.NewBinding(
-		key.WithKeys("ctrl+c", "ctrl+q"),
-		key.WithHelp("ctrl+q", "quit"),
-	),
-}
-
-type demoModel struct {
-	cluster      cluster.Cluster
-	ctx          context.Context
-	page         cluster.Page
-	cursor       int
-	url          string
-	input        textinput.Model
-	resized      bool
-	viewport     viewport.Model
-	loading      bool
-	progress     progress.Model
-	progressVal  float64
-	loadDuration time.Duration
-	loadStart    time.Time
-	targetPage   cluster.Page
-	seeding      bool
-	spinner      spinner.Model
-	history      []string
-	help         help.Model
-	keys         keyMap
-}
-
-type seedMsg struct {
-	cluster cluster.Cluster
-	page    cluster.Page
-	url     string
-	cert    tls.Certificate
-}
-
-type tickMsg time.Time
-
-func tick() tea.Cmd {
-	return tea.Tick(time.Millisecond*10, func(t time.Time) tea.Msg {
-		return tickMsg(t)
-	})
-}
-
-func findFirstLink(page cluster.Page) int {
-	for i, l := range page.Lines {
-		if l.Type == cluster.Link {
-			return i
-		}
-	}
-	return -1
-}
-
-func (m *demoModel) Init() tea.Cmd {
-	return m.spinner.Tick
-}
-
-func (m *demoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmds []tea.Cmd
-
-	if msg, ok := msg.(tea.WindowSizeMsg); ok {
-		h, w := docStyle.GetFrameSize()
-		if !m.resized {
-			m.viewport = viewport.New(msg.Width-w, msg.Height-h-3)
-			m.resized = true
-		} else {
-			m.viewport.Width = msg.Width - w
-			m.viewport.Height = msg.Height - h - 3
-		}
-		m.viewport.SetContent(m.render())
-	}
-
-	if m.seeding {
-		switch msg := msg.(type) {
-		case seedMsg:
-			m.seeding = false
-			m.cluster = msg.cluster
-			m.loading = true
-			m.targetPage = msg.page
-			m.url = msg.url
-			m.progressVal = 0
-			m.loadStart = time.Now()
-			m.loadDuration = time.Millisecond * time.Duration(100+mrand.IntN(400))
-			return m, tick()
-		case spinner.TickMsg:
-			var cmd tea.Cmd
-			m.spinner, cmd = m.spinner.Update(msg)
-			return m, cmd
-		case tea.KeyMsg:
-			if key.Matches(msg, m.keys.Quit) {
-				return m, tea.Quit
-			}
-		}
-		return m, nil
-	}
-
-	if m.loading {
-		var cmd tea.Cmd
-		newModel, cmd := m.progress.Update(msg)
-		m.progress = newModel.(progress.Model)
-		cmds = append(cmds, cmd)
-	}
-
-	switch msg := msg.(type) {
-	case tickMsg:
-		if m.loading {
-			elapsed := time.Since(m.loadStart)
-			if elapsed >= m.loadDuration {
-				m.loading = false
-				m.page = m.targetPage
-				if strings.HasPrefix(m.page.Status, "10 ") {
-					m.input.Placeholder = m.page.Status[3:]
-				} else {
-					m.input.Placeholder = ""
-				}
-				m.input.SetValue("")
-				m.cursor = findFirstLink(m.page)
-				m.viewport.SetContent(m.render())
-				m.viewport.SetYOffset(0)
-			} else {
-				totalLen := 0
-				for _, l := range m.targetPage.Lines {
-					totalLen += len(l.Text) + 1
-				}
-
-				if totalLen == 0 {
-					m.progressVal = float64(elapsed) / float64(m.loadDuration)
-				} else {
-					targetLen := int(float64(totalLen) * float64(elapsed) / float64(m.loadDuration))
-					currentLen := 0
-					for _, l := range m.targetPage.Lines {
-						lineLen := len(l.Text) + 1
-						if currentLen+lineLen > targetLen {
-							break
-						}
-						currentLen += lineLen
-					}
-					m.progressVal = float64(currentLen) / float64(totalLen)
-				}
-				return m, tea.Batch(append(cmds, tick())...)
-			}
-		}
-
-	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, m.keys.Quit):
-			return m, tea.Quit
-
-		case key.Matches(msg, m.keys.Up):
-			if m.loading {
-				return m, tea.Batch(cmds...)
-			}
-
-			oldCursor := m.cursor
-			for i := m.cursor - 1; i >= 0; i-- {
-				if m.page.Lines[i].Type == cluster.Link {
-					m.cursor = i
-					break
-				}
-			}
-			if m.cursor == oldCursor {
-				var cmd tea.Cmd
-				m.viewport, cmd = m.viewport.Update(msg)
-				cmds = append(cmds, cmd)
-			} else if m.cursor < m.viewport.YOffset {
-				m.viewport.SetYOffset(m.cursor)
-			}
-			m.viewport.SetContent(m.render())
-
-		case key.Matches(msg, m.keys.Down):
-			if m.loading {
-				return m, tea.Batch(cmds...)
-			}
-
-			oldCursor := m.cursor
-			for i := m.cursor + 1; i < len(m.page.Lines); i++ {
-				if m.page.Lines[i].Type == cluster.Link {
-					m.cursor = i
-					break
-				}
-			}
-			if m.cursor == oldCursor {
-				var cmd tea.Cmd
-				m.viewport, cmd = m.viewport.Update(msg)
-				cmds = append(cmds, cmd)
-			} else if m.cursor >= m.viewport.YOffset+m.viewport.Height {
-				m.viewport.SetYOffset(m.cursor - m.viewport.Height + 1)
-			}
-			m.viewport.SetContent(m.render())
-
-		case key.Matches(msg, m.keys.PageDown):
-			if m.loading {
-				return m, tea.Batch(cmds...)
-			}
-
-			m.viewport.PageDown()
-			for i := m.viewport.YOffset; i < len(m.page.Lines) && i < m.viewport.YOffset+m.viewport.Height; i++ {
-				if m.page.Lines[i].Type == cluster.Link {
-					m.cursor = i
-					break
-				}
-			}
-			m.viewport.SetContent(m.render())
-
-		case key.Matches(msg, m.keys.PageUp):
-			if m.loading {
-				return m, tea.Batch(cmds...)
-			}
-
-			m.viewport.PageUp()
-			for i := m.viewport.YOffset; i < len(m.page.Lines) && i < m.viewport.YOffset+m.viewport.Height; i++ {
-				if m.page.Lines[i].Type == cluster.Link {
-					m.cursor = i
-					break
-				}
-			}
-			m.viewport.SetContent(m.render())
-
-		case key.Matches(msg, m.keys.Enter):
-			if m.loading {
-				return m, tea.Batch(cmds...)
-			}
-
-			// If cursor is set and visible, use it. Otherwise, find the first link from the top of the viewport.
-			targetCursor := m.cursor
-			if targetCursor < m.viewport.YOffset || targetCursor >= m.viewport.YOffset+m.viewport.Height {
-				targetCursor = -1
-				for i := m.viewport.YOffset; i < len(m.page.Lines) && i < m.viewport.YOffset+m.viewport.Height; i++ {
-					if m.page.Lines[i].Type == cluster.Link {
-						targetCursor = i
-						break
-					}
-				}
-			}
-
-			nextURL := m.url
-			if targetCursor >= 0 && targetCursor < len(m.page.Lines) && m.page.Lines[targetCursor].Type == cluster.Link {
-				nextURL = m.page.Lines[targetCursor].URL
-			}
-
-			u, err := url.Parse(nextURL)
-			if err != nil {
-				panic(err)
-			}
-			if m.input.Value() != "" {
-				u.RawQuery = url.QueryEscape(m.input.Value())
-			}
-
-			m.history = append(m.history, m.url)
-			m.url = u.String()
-
-			m.targetPage = m.page.Goto(m.url)
-			m.loading = true
-			m.progressVal = 0
-			m.loadStart = time.Now()
-			m.loadDuration = time.Millisecond * time.Duration(100+mrand.IntN(400))
-			return m, tea.Batch(append(cmds, tick())...)
-
-		case key.Matches(msg, m.keys.Back):
-			if m.loading || len(m.history) == 0 {
-				return m, tea.Batch(cmds...)
-			}
-
-			if m.input.Placeholder != "" {
-				var cmd tea.Cmd
-				m.input, cmd = m.input.Update(msg)
-				return m, tea.Batch(append(cmds, cmd)...)
-			}
-
-			m.url = m.history[len(m.history)-1]
-			m.history = m.history[:len(m.history)-1]
-
-			m.targetPage = m.page.Goto(m.url)
-			m.loading = true
-			m.progressVal = 0
-			m.loadStart = time.Now()
-			m.loadDuration = time.Millisecond * time.Duration(100+mrand.IntN(400))
-			return m, tea.Batch(append(cmds, tick())...)
-
+func render(p cluster.Page) ([]string, []string) {
+	var lines, links []string
+	linkID := 1
+	for _, l := range p.Lines {
+		switch l.Type {
+		case cluster.Heading, cluster.SubHeading:
+			lines = append(lines, "\033[4m"+l.Text+"\033[0m")
+		case cluster.Link:
+			lines = append(lines, fmt.Sprintf("\033[4;36m[%d]\033[0;39m %s", linkID, l.Text))
+			links = append(links, l.URL)
+			linkID++
 		default:
-			if m.loading {
-				return m, tea.Batch(cmds...)
-			}
-
-			if m.input.Placeholder != "" {
-				var cmd tea.Cmd
-				m.input, cmd = m.input.Update(msg)
-				cmds = append(cmds, cmd)
-			}
+			lines = append(lines, l.Text)
 		}
 	}
-	return m, tea.Batch(cmds...)
-}
-
-func (m *demoModel) render() string {
-	var s strings.Builder
-	for i, l := range m.page.Lines {
-		if l.Type == cluster.Heading || l.Type == cluster.SubHeading || l.Type == cluster.Link {
-			s.WriteString("\033[4m")
-			s.WriteString(l.Text)
-			s.WriteString("\033[0m")
-			if m.cursor == i {
-				s.WriteString(" 👈")
-			}
-		} else {
-			s.WriteString(l.Text)
-		}
-
-		s.WriteByte('\n')
-	}
-	return s.String()
-}
-
-func (m *demoModel) View() string {
-	if m.seeding {
-		return m.spinner.View() + "Simulating the fediverse"
-	}
-
-	var s strings.Builder
-	if m.resized {
-		if v := m.viewport.View(); v != "" {
-			style := docStyle
-			if m.loading || m.input.Placeholder != "" {
-				style = loadingStyle
-			}
-			s.WriteString(style.Render(v) + "\n")
-		}
-	}
-
-	if m.input.Placeholder != "" {
-		if v := m.input.View(); v != "" {
-			s.WriteString(v + "\n")
-		}
-	}
-
-	if m.loading {
-		if s.Len() > 0 {
-			s.WriteByte('\n')
-		}
-		s.WriteString(m.progress.ViewAs(m.progressVal))
-		s.WriteByte(' ')
-		s.WriteString(m.url)
-	} else {
-		s.WriteString("\n\n")
-	}
-
-	if s.Len() > 0 && s.String()[s.Len()-1] != '\n' {
-		s.WriteByte('\n')
-	}
-	s.WriteString(m.help.View(m.keys))
-
-	return s.String()
+	return lines, links
 }
 
 var auto = flag.Bool("auto", false, "")
@@ -458,7 +61,7 @@ func main() {
 		defer f.Close()
 
 		c := exec.CommandContext(ctx, exe)
-		c.Stderr = os.Stderr
+		//c.Stderr = os.Stderr
 
 		rawPty, err := pty.StartWithSize(c, &pty.Winsize{Rows: rows, Cols: cols})
 		if err != nil {
@@ -476,44 +79,102 @@ func main() {
 		}
 
 		time.Sleep(time.Second * 10)
-
-		cast.Down(ctx, 2)
-		time.Sleep(time.Millisecond * 200)
-		cast.Enter()
-
-		time.Sleep(time.Millisecond * 500)
-		cast.Down(ctx, 8)
-		time.Sleep(time.Second * 1)
+		cast.Down(ctx, 10)
+		time.Sleep(time.Second)
 		cast.PageDown()
-		time.Sleep(time.Second * 1)
+		time.Sleep(time.Second * 3)
+		cast.PageDown()
+		time.Sleep(time.Second * 2)
+		cast.Type(ctx, "q")
 
-		cast.Enter()
-		time.Sleep(time.Second * 1)
+		cast.Type(ctx, "3")
+		time.Sleep(time.Second)
+		cast.Type(ctx, "\r")
+		cast.Down(ctx, 3)
+		time.Sleep(time.Second * 2)
+		cast.Down(ctx, 2)
+		cast.Type(ctx, "q")
 
+		cast.Type(ctx, "10")
+		time.Sleep(time.Second)
+		cast.Type(ctx, "\r")
+		time.Sleep(time.Second * 2)
+		cast.Down(ctx, 3)
+		time.Sleep(time.Second * 3)
+		cast.Type(ctx, "q")
+
+		cast.Type(ctx, "6")
+		time.Sleep(time.Second)
+		cast.Type(ctx, "\r")
+		time.Sleep(time.Second * 3)
 		cast.Down(ctx, 5)
-		cast.Enter()
-		time.Sleep(time.Second * 1)
+		time.Sleep(time.Second * 4)
+		cast.Type(ctx, "q")
 
-		cast.Down(ctx, 8)
-
+		cast.Type(ctx, "9")
+		time.Sleep(time.Second)
+		cast.Type(ctx, "\r")
 		time.Sleep(time.Second * 1)
-		cast.Enter()
-		time.Sleep(time.Millisecond * 500)
 		cast.Type(ctx, "@eve @frank Or pesto again! 🙄🙄\r")
 		time.Sleep(time.Second * 2)
+		cast.Down(ctx, 10)
+		time.Sleep(time.Second * 3)
+		cast.Type(ctx, "q")
 
-		cast.Down(ctx, 7)
-
+		cast.Type(ctx, "8")
+		time.Sleep(time.Second)
+		cast.Type(ctx, "\r")
 		time.Sleep(time.Second * 1)
-		cast.Enter()
-		time.Sleep(time.Millisecond * 500)
-		cast.Type(ctx, "@eve @frank Or pesto again!!! 🙄🙄🙄🙄🙄\r")
-		cast.Down(ctx, 8)
-
+		cast.Input("@eve @frank Or pesto again! 🙄🙄")
+		cast.Type(ctx, "\x08\x08\x08!! 🙄🙄🙄🙄🙄\r")
 		time.Sleep(time.Second * 5)
+		cast.PageDown()
+		time.Sleep(time.Second * 5)
+		cast.Type(ctx, "q")
 
-		rawPty.Write([]byte{17})
+		cast.Type(ctx, "17")
+		time.Sleep(time.Second)
+		cast.Type(ctx, "\r")
+		time.Sleep(time.Second * 5)
+		cast.Type(ctx, "q")
+
+		cast.Type(ctx, "7")
+		time.Sleep(time.Second)
+		cast.Type(ctx, "\r")
+		time.Sleep(time.Second * 3)
+		cast.PageDown()
 		time.Sleep(time.Second * 2)
+		cast.Type(ctx, "q")
+
+		cast.Type(ctx, "16")
+		time.Sleep(time.Second)
+		cast.Type(ctx, "\r")
+		time.Sleep(time.Second)
+		cast.Type(ctx, "ivan@pizza.example")
+		time.Sleep(time.Second)
+		cast.Type(ctx, "\r")
+		time.Sleep(time.Second * 5)
+		cast.PageDown()
+		time.Sleep(time.Second * 5)
+		cast.Type(ctx, "q")
+
+		cast.Type(ctx, "6")
+		time.Sleep(time.Second)
+		cast.Type(ctx, "\r")
+		time.Sleep(time.Second)
+		cast.Type(ctx, "q")
+
+		cast.Type(ctx, "2")
+		time.Sleep(time.Second)
+		cast.Type(ctx, "\r")
+		time.Sleep(time.Second * 5)
+		cast.Type(ctx, "q")
+
+		rawPty.Write([]byte{4})
+
+		if err := c.Wait(); err != nil {
+			panic(err)
+		}
 
 		if err := cast.Wait(); err != nil {
 			panic(err)
@@ -522,7 +183,8 @@ func main() {
 		return
 	}
 
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, nil)))
+	//slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, nil)))
+	slog.SetDefault(slog.New(slog.DiscardHandler))
 
 	keyPairs := generateKeypairs()
 
@@ -532,42 +194,105 @@ func main() {
 	}
 	defer os.RemoveAll(tempDir)
 
-	ti := textinput.New()
-	ti.Focus()
-	m := &demoModel{
-		ctx:      ctx,
-		input:    ti,
-		progress: progress.New(progress.WithDefaultGradient()),
-		seeding:  true,
-		spinner:  spinner.New(spinner.WithSpinner(spinner.Dot)),
-		help:     help.New(),
-		keys:     keys,
-	}
+	cl := seed(t{tempDir: tempDir, ctx: ctx}, keyPairs)
+	defer cl.Stop()
 
-	p := tea.NewProgram(m)
+	p := cl["pizza.example"].Handle(keyPairs["alice"], "/users")
+	var history []string
+	var links []string
 
-	done := make(chan struct{})
-	go func() {
-		defer func() {
-			done <- struct{}{}
-		}()
+	bestline.SetHintsCallback(func(text string, ansi1, ansi2 *string) string {
+		if text == "" && len(links) > 0 {
+			*ansi1 = "\033[90m"
+			*ansi2 = "\033[0m"
+			return fmt.Sprintf(" 1-%d", len(links))
+		} else if len(links) == 0 {
+			return ""
+		}
 
-		cl := seed(t{tempDir: tempDir, ctx: ctx}, keyPairs)
+		if n, err := strconv.Atoi(text); err == nil && n > 0 {
+			i := 0
+			for _, line := range p.Lines {
+				if line.Type != cluster.Link {
+					continue
+				}
 
-		p.Send(seedMsg{
-			cluster: cl,
-			page:    cl["pizza.example"].Handle(keyPairs["alice"], "/users"),
-			url:     "/users",
-		})
-	}()
+				i++
+				if i == n {
+					*ansi1 = "\033[90m"
+					*ansi2 = "\033[0m"
+					return " " + line.Text
+				}
+			}
+		}
 
-	if _, err := p.Run(); err != nil {
-		panic(err)
-	}
+		return ""
+	})
 
-	<-done
+	for {
+		if err := ctx.Err(); err != nil {
+			break
+		}
 
-	if m.cluster != nil {
-		m.cluster.Stop()
+		var lines []string
+		lines, links = render(p)
+
+		if len(lines) > 0 {
+			c := exec.CommandContext(ctx, "less", "-r")
+			c.Stdin = strings.NewReader(strings.Join(lines, "\n"))
+			c.Stdout = os.Stdout
+			c.Stderr = os.Stderr
+			if err := c.Run(); err != nil {
+				panic(err)
+			}
+		}
+
+		/*
+			for _, line := range lines {
+				os.Stdout.WriteString(line)
+				os.Stdout.Write([]byte{'\n'})
+			}
+		*/
+
+		prompt := "pizza.example"
+		if strings.HasPrefix(p.Status, "10 ") {
+			prompt = p.Status[3:]
+		}
+
+		line, err := bestline.Bestlinef("\033[35m%s>\033[0m ", prompt)
+		if err != nil {
+			break
+		}
+
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		if n, err := strconv.Atoi(line); err == nil && n > 0 && n <= len(links) {
+			nextURL := links[n-1]
+			u, err := url.Parse(nextURL)
+			if err != nil {
+				panic(err)
+			}
+			history = append(history, p.Path)
+			p = p.Goto(u.String())
+		} else if strings.HasPrefix(p.Status, "10 ") {
+			u, err := url.Parse(p.Path)
+			if err != nil {
+				panic(err)
+			}
+			u.RawQuery = url.QueryEscape(line)
+			history = append(history, p.Path)
+			p = p.Goto(u.String())
+		} else {
+			u, err := url.Parse(line)
+			if err != nil {
+				fmt.Printf("Invalid URL or command: %s\n", line)
+				continue
+			}
+			history = append(history, p.Path)
+			p = p.Goto(u.String())
+		}
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand/v2"
+	"os"
 	"sync"
 	"time"
 )
@@ -19,7 +20,12 @@ type cast struct {
 }
 
 func startCast(rawPty io.ReadWriter, w io.Writer, cols, rows int) (*cast, error) {
-	if _, err := fmt.Fprintf(w, "{\"version\": 2, \"width\": %d, \"height\": %d, \"env\": {\"SHELL\": \"/bin/bash\", \"TERM\": \"xterm-256color\"}}\n", cols, rows); err != nil {
+	term := os.Getenv("TERM")
+	if term == "" {
+		term = "xterm-256color"
+	}
+
+	if _, err := fmt.Fprintf(w, "{\"version\": 2, \"width\": %d, \"height\": %d, \"env\": {\"SHELL\": \"/bin/bash\", \"TERM\": \"%s\"}}\n", cols, rows, term); err != nil {
 		return nil, err
 	}
 
@@ -40,12 +46,6 @@ func (c *cast) record(code byte, buf []byte) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	if code == 'i' {
-		if _, err := c.rawPty.Write(buf); err != nil {
-			return err
-		}
-	}
-
 	var delta time.Duration
 	if c.start.IsZero() {
 		c.start = time.Now()
@@ -65,6 +65,15 @@ func (c *cast) record(code byte, buf []byte) error {
 	return nil
 }
 
+func (c *cast) Input(s string) error {
+	_, err := c.rawPty.Write([]byte(s))
+	return err
+}
+
+func (c *cast) output(b []byte) error {
+	return c.record('o', b)
+}
+
 func (c *cast) watch() error {
 	buf := make([]byte, 1024*1024)
 
@@ -75,7 +84,7 @@ func (c *cast) watch() error {
 			return nil
 		}
 
-		if err := c.record('o', buf[:n]); err != nil {
+		if err := c.output(buf[:n]); err != nil {
 			return err
 		}
 	}
@@ -83,7 +92,7 @@ func (c *cast) watch() error {
 
 func (c *cast) Down(ctx context.Context, times int) error {
 	for range times {
-		if err := c.record('i', []byte("\x1b[B")); err != nil {
+		if err := c.Input("\x1bOB"); err != nil {
 			return err
 		}
 
@@ -98,11 +107,11 @@ func (c *cast) Down(ctx context.Context, times int) error {
 }
 
 func (c *cast) PageDown() error {
-	return c.record('i', []byte("\x1b[6~"))
+	return c.Input("\x1b[6~")
 }
 
 func (c *cast) Enter() error {
-	return c.record('i', []byte("\r"))
+	return c.Input("\r")
 }
 
 func (c *cast) Type(ctx context.Context, s string) error {
@@ -111,11 +120,11 @@ func (c *cast) Type(ctx context.Context, s string) error {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-			case <-time.After(time.Millisecond * time.Duration(100+rand.UintN(200))):
+			case <-time.After(time.Millisecond * time.Duration(25+rand.UintN(200))):
 			}
 		}
 
-		if err := c.record('i', []byte(string([]rune{r}))); err != nil {
+		if err := c.Input(string([]rune{r})); err != nil {
 			return err
 		}
 	}

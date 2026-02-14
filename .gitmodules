@@ -1,0 +1,3 @@
+[submodule "bestline/cbestline"]
+	path = bestline/cbestline
+	url = https://github.com/jart/bestline

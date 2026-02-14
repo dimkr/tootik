@@ -54,6 +54,8 @@ jobs:
       - run: curl -Lo /tmp/agg https://github.com/asciinema/agg/releases/download/v1.7.0/agg-x86_64-unknown-linux-gnu
       - run: echo "b72c773c22ef73149540f5728b37290dffe88418f0a16ceab29bc8e43699abf7 /tmp/agg" | sha256sum -c
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
