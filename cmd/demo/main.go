@@ -14,10 +14,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/charmbracelet/x/term"
 	"github.com/creack/pty"
 	"github.com/dimkr/tootik/bestline"
 	"github.com/dimkr/tootik/cluster"
+	"golang.org/x/term"
 )
 
 const (

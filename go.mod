@@ -4,7 +4,6 @@ go 1.26.0
 
 require (
 	github.com/btcsuite/btcutil v1.0.2
-	github.com/charmbracelet/x/term v0.2.2
 	github.com/creack/pty v1.1.24
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/google/uuid v1.6.0
@@ -13,6 +12,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/image v0.36.0
 	golang.org/x/net v0.50.0
+	golang.org/x/term v0.40.0
 )
 
 require (
