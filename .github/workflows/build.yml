@@ -14,6 +14,8 @@ jobs:
       image: debian:trixie-slim
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - run: |
           apt-get update -qq
           apt-get install -y --no-install-recommends ca-certificates gcc libc6-dev

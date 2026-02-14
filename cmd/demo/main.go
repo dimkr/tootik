@@ -17,6 +17,7 @@ import (
 	"github.com/creack/pty"
 	"github.com/dimkr/tootik/bestline"
 	"github.com/dimkr/tootik/cluster"
+	"github.com/dimkr/tootik/front/text"
 	"golang.org/x/term"
 )
 
@@ -30,16 +31,50 @@ func render(p cluster.Page) ([]string, []string) {
 	linkID := 1
 	for _, l := range p.Lines {
 		switch l.Type {
-		case cluster.Heading, cluster.SubHeading:
-			lines = append(lines, "\033[4m"+l.Text+"\033[0m")
+		case cluster.Heading:
+			for _, line := range text.WordWrap(l.Text, cols-2, -1) {
+				lines = append(lines, "\033[4m# "+line+"\033[0m")
+			}
+
+		case cluster.SubHeading:
+			for _, line := range text.WordWrap(l.Text, cols-3, -1) {
+				lines = append(lines, "\033[4m## "+line+"\033[0m")
+			}
+
+		case cluster.Quote:
+			for _, line := range text.WordWrap(l.Text, cols-2, -1) {
+				lines = append(lines, "> "+line)
+			}
+
+		case cluster.Item:
+			for i, line := range text.WordWrap(l.Text, cols-2, -1) {
+				if i == 0 {
+					lines = append(lines, "* "+line)
+				} else {
+					lines = append(lines, " "+line)
+				}
+			}
+
 		case cluster.Link:
-			lines = append(lines, fmt.Sprintf("\033[4;36m[%d]\033[0;39m %s", linkID, l.Text))
+			prefix := fmt.Sprintf("[%d] ", linkID)
+			for i, line := range text.WordWrap(l.Text, cols-len(prefix), -1) {
+				if i == 0 {
+					lines = append(lines, fmt.Sprintf("\033[4;36m[%d]\033[0;39m %s", linkID, line))
+				} else {
+					lines = append(lines, strings.Repeat(" ", len(prefix))+line)
+				}
+			}
 			links = append(links, l.URL)
 			linkID++
+
+		case cluster.Preformatted:
+			lines = append(lines, text.WordWrap(l.Text, cols, -1)[0])
+
 		default:
-			lines = append(lines, l.Text)
+			lines = append(lines, text.WordWrap(l.Text, cols, -1)...)
 		}
 	}
+
 	return lines, links
 }
 
@@ -69,7 +104,7 @@ func main() {
 		}
 		defer rawPty.Close()
 
-		if _, err := term.MakeRaw(rawPty.Fd()); err != nil {
+		if _, err := term.MakeRaw(int(rawPty.Fd())); err != nil {
 			panic(err)
 		}
 
@@ -142,11 +177,16 @@ func main() {
 		time.Sleep(time.Second)
 		cast.Type(ctx, "\r")
 		time.Sleep(time.Second * 3)
+		cast.Type(ctx, "q")
+		cast.Type(ctx, "4")
+		time.Sleep(time.Second)
+		cast.Type(ctx, "\r")
+		time.Sleep(time.Second * 3)
 		cast.PageDown()
 		time.Sleep(time.Second * 2)
 		cast.Type(ctx, "q")
 
-		cast.Type(ctx, "16")
+		cast.Type(ctx, "14")
 		time.Sleep(time.Second)
 		cast.Type(ctx, "\r")
 		time.Sleep(time.Second)
@@ -168,6 +208,31 @@ func main() {
 		time.Sleep(time.Second)
 		cast.Type(ctx, "\r")
 		time.Sleep(time.Second * 5)
+		cast.Type(ctx, "q")
+
+		cast.Type(ctx, "6")
+		time.Sleep(time.Second)
+		cast.Type(ctx, "\r")
+		cast.Type(ctx, "Super important question\r")
+		time.Sleep(time.Second * 3)
+		cast.PageDown()
+		time.Sleep(time.Second * 2)
+		cast.Type(ctx, "q")
+
+		cast.Type(ctx, "12")
+		time.Sleep(time.Second)
+		cast.Type(ctx, "\r")
+		time.Sleep(time.Second * 3)
+		cast.PageDown()
+		time.Sleep(time.Second * 2)
+		cast.Type(ctx, "q")
+
+		cast.Type(ctx, "3")
+		time.Sleep(time.Second)
+		cast.Type(ctx, "\r")
+		time.Sleep(time.Second * 2)
+		cast.Down(ctx, 10)
+		time.Sleep(time.Second * 2)
 		cast.Type(ctx, "q")
 
 		rawPty.Write([]byte{4})
@@ -257,6 +322,13 @@ func main() {
 		prompt := "pizza.example"
 		if strings.HasPrefix(p.Status, "10 ") {
 			prompt = p.Status[3:]
+		} else {
+			for _, line := range p.Lines {
+				if line.Type == cluster.Heading {
+					prompt = line.Text
+					break
+				}
+			}
 		}
 
 		line, err := bestline.Bestlinef("\033[35m%s>\033[0m ", prompt)
