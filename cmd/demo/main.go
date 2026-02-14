@@ -134,7 +134,7 @@ func main() {
 		time.Sleep(time.Second)
 		cast.Type(ctx, "\r")
 		time.Sleep(time.Second * 2)
-		cast.Down(ctx, 3)
+		cast.Down(ctx, 6)
 		time.Sleep(time.Second * 3)
 		cast.Type(ctx, "q")
 
@@ -182,7 +182,7 @@ func main() {
 		time.Sleep(time.Second)
 		cast.Type(ctx, "\r")
 		time.Sleep(time.Second * 3)
-		cast.PageDown()
+		cast.Down(ctx, 7)
 		time.Sleep(time.Second * 2)
 		cast.Type(ctx, "q")
 
@@ -195,7 +195,7 @@ func main() {
 		cast.Type(ctx, "\r")
 		time.Sleep(time.Second * 5)
 		cast.PageDown()
-		time.Sleep(time.Second * 5)
+		time.Sleep(time.Second * 2)
 		cast.Type(ctx, "q")
 
 		cast.Type(ctx, "7")
@@ -223,7 +223,7 @@ func main() {
 		time.Sleep(time.Second)
 		cast.Type(ctx, "\r")
 		time.Sleep(time.Second * 3)
-		cast.PageDown()
+		cast.Down(ctx, 5)
 		time.Sleep(time.Second * 2)
 		cast.Type(ctx, "q")
 
