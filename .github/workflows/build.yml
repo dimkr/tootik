@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: debian:trixie-slim
+    timeout-minutes: 20
     steps:
       - run: |
           apt-get update -qq
@@ -51,6 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: debian:trixie-slim
+    timeout-minutes: 10
     steps:
       - run: |
           apt-get update -qq
