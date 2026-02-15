@@ -35,8 +35,9 @@ jobs:
       - run: |
           git config user.name alice
           git config user.email alice@pizza.example
-          git checkout -b demos
+          git branch -D pizza.example || :
+          git checkout -b pizza.example
           mv -f demo/demo.svg .
           git add -f demo.svg
           git commit -m "demo.svg for ${{ github.ref_name }}"
-          git push -f origin demos
+          git push -f origin pizza.example
