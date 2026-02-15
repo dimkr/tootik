@@ -31,3 +31,13 @@ jobs:
             artifacts/tootik-*
             demo/demo.svg
           fail_on_unmatched_files: true
+      - uses: actions/checkout@v4
+      - run: |
+          git config user.name alice
+          git config user.email alice@pizza.example
+          git checkout --orphan demos
+          git rm -rf .
+          cp demo/demo.svg demo.svg
+          git add demo.svg
+          git commit -m "demo.svg for ${{ github.ref_name }}"
+          git push -f origin demos
