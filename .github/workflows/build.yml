@@ -27,7 +27,7 @@ jobs:
           ls -la
           id
           env
-          git config --global --add safe.directory `pwd`
+          git config --add safe.directory `pwd`
           go build -tags fts5 ./cmd/tootik
           go vet ./...
           go test ./... -failfast -vet off -tags netgo,sqlite_omit_load_extension,fts5 -race
