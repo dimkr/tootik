@@ -24,6 +24,7 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - run: |
+          go generate ./migrations
           go vet ./...
           go test ./... -failfast -vet off -tags netgo,sqlite_omit_load_extension,fts5 -race
       - run: |
