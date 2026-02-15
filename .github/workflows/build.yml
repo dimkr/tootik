@@ -15,13 +15,16 @@ jobs:
     steps:
       - run: |
           apt-get update -qq
-          apt-get install -y --no-install-recommends ca-certificates gcc libc6-dev
+          apt-get install -y --no-install-recommends git ca-certificates gcc libc6-dev
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
+          recursive: true
       - run: |
           go generate ./migrations
+          ls -la
+          id
           go build -tags fts5 ./cmd/tootik
           go vet ./...
           go test ./... -failfast -vet off -tags netgo,sqlite_omit_load_extension,fts5 -race
@@ -52,7 +55,7 @@ jobs:
     steps:
       - run: |
           apt-get update -qq
-          apt-get install -y --no-install-recommends ca-certificates gcc libc6-dev git less
+          apt-get install -y --no-install-recommends git ca-certificates gcc libc6-dev less
       - uses: actions/checkout@v4
         with:
           submodules: recursive
