@@ -21,8 +21,8 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - run: |
-          go build -tags fts5 ./cmd/tootik
           go generate ./migrations
+          go build -tags fts5 ./cmd/tootik
           go vet ./...
           go test ./... -failfast -vet off -tags netgo,sqlite_omit_load_extension,fts5 -race
       - run: |
@@ -52,7 +52,7 @@ jobs:
     steps:
       - run: |
           apt-get update -qq
-          apt-get install -y --no-install-recommends git ca-certificates gcc libc6-dev less
+          apt-get install -y --no-install-recommends ca-certificates gcc libc6-dev git less
       - uses: actions/checkout@v4
         with:
           submodules: recursive
