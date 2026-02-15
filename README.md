@@ -83,7 +83,12 @@ This makes tootik lightweight, private and accessible:
 
 ## Using tootik
 
-You can join an [existing instance](gemini://hd.206267.xyz) or [set up your own](SETUP.md).
+You can join an [existing instance](gemini://didkey.000090000.xyz) or [set up your own](SETUP.md).
+
+## Interactive Demo
+
+	go generate ./migrations
+	go run -tags fts5 ./cmd/demo
 
 ## Building
 
