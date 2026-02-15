@@ -62,12 +62,9 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - run: go generate ./... && TERM=xterm-256color go run -tags fts5 ./cmd/demo -auto
-      - run: go tool termsvg export demo.cast -o demo.svg -f svg -m
       - run: go tool termsvg export demo.cast -o demo.gif -f gif
       - uses: actions/upload-artifact@v4
         with:
           name: demo-${{ inputs.version }}
-          path: |
-            demo.svg
-            demo.gif
+          path: ./demo.gif
           retention-days: 1
