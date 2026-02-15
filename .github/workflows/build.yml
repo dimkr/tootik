@@ -49,10 +49,12 @@ jobs:
   demo:
     permissions: {}
     runs-on: ubuntu-latest
+    container:
+      image: debian:trixie-slim
     steps:
       - run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends git fonts-noto-mono fonts-noto-color-emoji
+          sudo apt-get install -y --no-install-recommends git
       - uses: actions/checkout@v4
         with:
           submodules: recursive
