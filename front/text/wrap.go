@@ -34,11 +34,12 @@ func WordWrap(text string, width, maxLines int) []string {
 		lineRunes := 0
 
 		for i := start; i < len(runes); i++ {
-			rw := runewidth.RuneWidth(runes[i])
-			if lineWidth+rw > width {
+			if rw := runewidth.RuneWidth(runes[i]); lineWidth+rw > width {
 				break
+			} else {
+				lineWidth += rw
 			}
-			lineWidth += rw
+
 			lineRunes++
 			if runes[i] == ' ' || runes[i] == '\t' {
 				lastSpace = i

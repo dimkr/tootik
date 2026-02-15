@@ -80,7 +80,6 @@ func (c *cast) watch() error {
 	for {
 		n, err := c.rawPty.Read(buf)
 		if err != nil {
-			//return err
 			return nil
 		}
 
@@ -112,6 +111,14 @@ func (c *cast) PageDown() error {
 
 func (c *cast) Enter() error {
 	return c.Input("\r")
+}
+
+func (c *cast) Backspace() error {
+	return c.Input("\x08")
+}
+
+func (c *cast) CtrlD() error {
+	return c.Input("\x04")
 }
 
 func (c *cast) Type(ctx context.Context, s string) error {

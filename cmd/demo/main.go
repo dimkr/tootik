@@ -25,6 +25,8 @@ const (
 	rows = 24
 )
 
+var record = flag.String("record", "", "record to a file")
+
 func render(p cluster.Page) ([]string, []string) {
 	var lines, links []string
 	linkID := 1
@@ -77,7 +79,19 @@ func render(p cluster.Page) ([]string, []string) {
 	return lines, links
 }
 
-var auto = flag.Bool("auto", false, "")
+func delay(ctx context.Context, d time.Duration) {
+	select {
+	case <-ctx.Done():
+		panic(ctx.Err())
+	case <-time.After(d):
+	}
+}
+
+func must(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
 
 func main() {
 	flag.Parse()
@@ -85,17 +99,24 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	if *auto {
+	if *record != "" {
 		exe, err := os.Executable()
 		if err != nil {
 			panic(err)
 		}
 
-		f, _ := os.Create("demo.cast")
+		filename := *record
+		if filename == "" {
+			filename = "demo.cast"
+		}
+
+		f, err := os.Create(filename)
+		if err != nil {
+			panic(err)
+		}
 		defer f.Close()
 
 		c := exec.CommandContext(ctx, exe)
-		//c.Stderr = os.Stderr
 
 		rawPty, err := pty.StartWithSize(c, &pty.Winsize{Rows: rows, Cols: cols})
 		if err != nil {
@@ -112,134 +133,136 @@ func main() {
 			panic(err)
 		}
 
-		time.Sleep(time.Second * 10)
-		cast.Down(ctx, 10)
-		time.Sleep(time.Second)
-		cast.PageDown()
-		time.Sleep(time.Second * 3)
-		cast.PageDown()
-		time.Sleep(time.Second * 2)
-		cast.Type(ctx, "q")
+		delay(ctx, time.Second*10)
+		must(cast.Down(ctx, 10))
+		delay(ctx, time.Second)
+		must(cast.PageDown())
+		delay(ctx, time.Second*3)
+		must(cast.PageDown())
+		delay(ctx, time.Second*2)
+		must(cast.Input("q"))
 
-		cast.Type(ctx, "5")
-		time.Sleep(time.Second)
-		cast.Type(ctx, "\r")
-		cast.Down(ctx, 3)
-		time.Sleep(time.Second * 2)
-		cast.Down(ctx, 5)
-		cast.Type(ctx, "q")
+		must(cast.Input("5"))
+		delay(ctx, time.Second)
+		must(cast.Input("\r"))
+		must(cast.Down(ctx, 3))
+		delay(ctx, time.Second*2)
+		must(cast.Down(ctx, 5))
+		must(cast.Input("q"))
 
-		cast.Type(ctx, "10")
-		time.Sleep(time.Second)
-		cast.Type(ctx, "\r")
-		time.Sleep(time.Second * 2)
-		cast.Down(ctx, 6)
-		time.Sleep(time.Second * 3)
-		cast.Type(ctx, "q")
+		must(cast.Type(ctx, "10"))
+		delay(ctx, time.Second)
+		must(cast.Input("\r"))
+		delay(ctx, time.Second*2)
+		must(cast.Down(ctx, 6))
+		delay(ctx, time.Second*3)
+		must(cast.Input("q"))
 
-		cast.Type(ctx, "6")
-		time.Sleep(time.Second)
-		cast.Type(ctx, "\r")
-		time.Sleep(time.Second * 3)
-		cast.Down(ctx, 5)
-		time.Sleep(time.Second * 1)
-		cast.Type(ctx, "q")
+		must(cast.Input("6"))
+		delay(ctx, time.Second)
+		must(cast.Input("\r"))
+		delay(ctx, time.Second*3)
+		must(cast.Down(ctx, 5))
+		delay(ctx, time.Second*1)
+		must(cast.Input("q"))
 
-		cast.Type(ctx, "9")
-		time.Sleep(time.Second)
-		cast.Type(ctx, "\r")
-		time.Sleep(time.Second * 1)
-		cast.Type(ctx, "@eve @frank Or pesto again! 🙄🙄\r")
-		time.Sleep(time.Second * 2)
-		cast.Down(ctx, 10)
-		time.Sleep(time.Second * 3)
-		cast.Type(ctx, "q")
+		must(cast.Input("9"))
+		delay(ctx, time.Second)
+		must(cast.Input("\r"))
+		delay(ctx, time.Second*1)
+		must(cast.Type(ctx, "@eve @frank Or pesto again! 🙄🙄\r"))
+		delay(ctx, time.Second*2)
+		must(cast.Down(ctx, 10))
+		delay(ctx, time.Second*3)
+		must(cast.Input("q"))
 
-		cast.Type(ctx, "8")
-		time.Sleep(time.Second)
-		cast.Type(ctx, "\r")
-		time.Sleep(time.Second * 1)
-		cast.Input("@eve @frank Or pesto again! 🙄🙄")
-		cast.Type(ctx, "\x08\x08\x08!! 🙄🙄🙄🙄🙄\r")
-		time.Sleep(time.Second * 3)
-		cast.PageDown()
-		time.Sleep(time.Second * 3)
-		cast.Type(ctx, "q")
+		must(cast.Input("8"))
+		delay(ctx, time.Second)
+		must(cast.Input("\r"))
+		delay(ctx, time.Second*1)
+		must(cast.Input("@eve @frank Or pesto again! 🙄🙄"))
+		must(cast.Type(ctx, "\x08\x08\x08!! 🙄🙄🙄🙄🙄\r"))
+		delay(ctx, time.Second*3)
+		must(cast.PageDown())
+		delay(ctx, time.Second*3)
+		must(cast.Input("q"))
 
-		cast.Type(ctx, "17")
-		time.Sleep(time.Second)
-		cast.Type(ctx, "\r")
-		time.Sleep(time.Second * 5)
-		cast.Type(ctx, "q")
+		must(cast.Type(ctx, "17"))
+		delay(ctx, time.Second)
+		must(cast.Input("\r"))
+		delay(ctx, time.Second*5)
+		must(cast.Input("q"))
 
-		cast.Type(ctx, "7")
-		time.Sleep(time.Second)
-		cast.Type(ctx, "\r")
-		time.Sleep(time.Second * 3)
-		cast.Type(ctx, "q")
-		cast.Type(ctx, "2")
-		time.Sleep(time.Second)
-		cast.Type(ctx, "\r")
-		time.Sleep(time.Second * 3)
-		cast.Down(ctx, 5)
-		time.Sleep(time.Second * 2)
-		cast.Type(ctx, "q")
+		must(cast.Input("7"))
+		delay(ctx, time.Second)
+		must(cast.Input("\r"))
+		delay(ctx, time.Second*3)
+		must(cast.Input("q"))
+		must(cast.Input("2"))
+		delay(ctx, time.Second)
+		must(cast.Input("\r"))
+		delay(ctx, time.Second*3)
+		must(cast.Down(ctx, 5))
+		delay(ctx, time.Second*2)
+		must(cast.Input("q"))
 
-		cast.Type(ctx, "14")
-		time.Sleep(time.Second)
-		cast.Type(ctx, "\r")
-		time.Sleep(time.Second)
-		cast.Type(ctx, "ivan@pizza.example")
-		time.Sleep(time.Second)
-		cast.Type(ctx, "\r")
-		time.Sleep(time.Second * 5)
-		cast.PageDown()
-		time.Sleep(time.Second * 2)
-		cast.Type(ctx, "q")
+		must(cast.Type(ctx, "14"))
+		delay(ctx, time.Second)
+		must(cast.Input("\r"))
+		delay(ctx, time.Second)
+		must(cast.Type(ctx, "ivan@pizza.example"))
+		delay(ctx, time.Second)
+		must(cast.Input("\r"))
+		delay(ctx, time.Second*5)
+		must(cast.PageDown())
+		delay(ctx, time.Second*2)
+		must(cast.Input("q"))
 
-		cast.Type(ctx, "7")
-		time.Sleep(time.Second)
-		cast.Type(ctx, "\r")
-		time.Sleep(time.Second)
-		cast.Type(ctx, "q")
+		must(cast.Input("7"))
+		delay(ctx, time.Second)
+		must(cast.Input("\r"))
+		delay(ctx, time.Second)
+		must(cast.Input("q"))
 
-		cast.Type(ctx, "2")
-		time.Sleep(time.Second)
-		cast.Type(ctx, "\r")
-		time.Sleep(time.Second * 5)
-		cast.Type(ctx, "q")
+		must(cast.Input("2"))
+		delay(ctx, time.Second)
+		must(cast.Input("\r"))
+		delay(ctx, time.Second*5)
+		must(cast.Input("q"))
 
-		cast.Type(ctx, "6")
-		time.Sleep(time.Second)
-		cast.Type(ctx, "\r")
-		cast.Type(ctx, "@noodles Super important question\r")
-		time.Sleep(time.Second)
-		cast.Down(ctx, 3)
-		time.Sleep(time.Second * 2)
-		cast.Type(ctx, "q")
+		must(cast.Input("6"))
+		delay(ctx, time.Second)
+		must(cast.Input("\r"))
+		must(cast.Type(ctx, "@noodles Super important question\r"))
+		delay(ctx, time.Second)
+		must(cast.Down(ctx, 3))
+		delay(ctx, time.Second*2)
+		must(cast.Input("q"))
 
-		cast.Type(ctx, "2")
-		time.Sleep(time.Second)
-		cast.Type(ctx, "\r")
-		time.Sleep(time.Second * 3)
-		cast.Down(ctx, 5)
-		time.Sleep(time.Second * 2)
-		cast.Type(ctx, "q")
+		must(cast.Input("2"))
+		delay(ctx, time.Second)
+		must(cast.Input("\r"))
+		delay(ctx, time.Second*3)
+		must(cast.Down(ctx, 5))
+		delay(ctx, time.Second*2)
+		must(cast.Input("q"))
 
-		cast.Type(ctx, "4")
-		time.Sleep(time.Second)
-		cast.Type(ctx, "\r")
-		time.Sleep(time.Second * 2)
-		cast.Down(ctx, 10)
-		time.Sleep(time.Second * 2)
-		cast.Type(ctx, "q")
+		must(cast.Input("4"))
+		delay(ctx, time.Second)
+		must(cast.Input("\r"))
+		delay(ctx, time.Second*2)
+		must(cast.Down(ctx, 10))
+		delay(ctx, time.Second*2)
+		must(cast.Input("q"))
 
-		cast.Type(ctx, "12")
-		time.Sleep(time.Second)
-		cast.Input("\x08\x08\x04")
+		must(cast.Type(ctx, "12"))
+		delay(ctx, time.Second)
+		must(cast.Backspace())
+		must(cast.Backspace())
+		must(cast.CtrlD())
 
 		if err := c.Wait(); err != nil {
-			//panic(err)
+			panic(err)
 		}
 
 		if err := cast.Wait(); err != nil {
@@ -249,16 +272,15 @@ func main() {
 		return
 	}
 
-	//slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, nil)))
 	slog.SetDefault(slog.New(slog.DiscardHandler))
-
-	keyPairs := generateKeypairs()
 
 	tempDir, err := os.MkdirTemp("", "tootik-demo-*")
 	if err != nil {
 		panic(err)
 	}
 	defer os.RemoveAll(tempDir)
+
+	keyPairs := generateKeypairs()
 
 	cl := seed(t{tempDir: tempDir, ctx: ctx}, keyPairs)
 	defer cl.Stop()
