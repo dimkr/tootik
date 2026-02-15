@@ -29,5 +29,5 @@ jobs:
         with:
           files: |
             artifacts/tootik-*
-            demo/demo.svg
+            demo/demo.gif
           fail_on_unmatched_files: true
