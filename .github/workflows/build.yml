@@ -15,15 +15,12 @@ jobs:
     steps:
       - run: |
           apt-get update -qq
-          apt-get install -y --no-install-recommends git ca-certificates gcc libc6-dev
+          apt-get install -y --no-install-recommends ca-certificates gcc libc6-dev
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
       - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
       - run: |
-          go build -tags fts5 ./cmd/demo
           go build -tags fts5 ./cmd/tootik
           go generate ./migrations
           go vet ./...
