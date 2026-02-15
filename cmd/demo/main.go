@@ -142,7 +142,7 @@ func main() {
 		cast.Type(ctx, "\r")
 		time.Sleep(time.Second * 3)
 		cast.Down(ctx, 5)
-		time.Sleep(time.Second * 4)
+		time.Sleep(time.Second * 1)
 		cast.Type(ctx, "q")
 
 		cast.Type(ctx, "9")
@@ -181,7 +181,7 @@ func main() {
 		time.Sleep(time.Second)
 		cast.Type(ctx, "\r")
 		time.Sleep(time.Second * 3)
-		cast.Down(ctx, 7)
+		cast.Down(ctx, 5)
 		time.Sleep(time.Second * 2)
 		cast.Type(ctx, "q")
 
@@ -234,8 +234,9 @@ func main() {
 		time.Sleep(time.Second * 2)
 		cast.Type(ctx, "q")
 
-		time.Sleep(time.Second * 2)
-		rawPty.Write([]byte{4})
+		cast.Type(ctx, "12")
+		time.Sleep(time.Second)
+		cast.Input("\x08\x08\x04")
 
 		if err := c.Wait(); err != nil {
 			//panic(err)
@@ -311,13 +312,6 @@ func main() {
 				panic(err)
 			}
 		}
-
-		/*
-			for _, line := range lines {
-				os.Stdout.WriteString(line)
-				os.Stdout.Write([]byte{'\n'})
-			}
-		*/
 
 		prompt := "pizza.example"
 		if strings.HasPrefix(p.Status, "10 ") {

@@ -120,7 +120,7 @@ func (c *cast) Type(ctx context.Context, s string) error {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-			case <-time.After(time.Millisecond * time.Duration(25+rand.UintN(200))):
+			case <-time.After(time.Millisecond * time.Duration(30+rand.N(max(200-(60*(i/4)), 30)))):
 			}
 		}
 
