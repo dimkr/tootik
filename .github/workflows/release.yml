@@ -17,11 +17,27 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: tootik-${{ github.ref_name }}
           path: artifacts
+      - uses: actions/download-artifact@v4
+        with:
+          name: demo-${{ github.ref_name }}
+          path: demo
       - uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/tootik-*
+          files: |
+            artifacts/tootik-*
+            demo/demo.svg
           fail_on_unmatched_files: true
+      - run: |
+          git config user.name alice
+          git config user.email alice@pizza.example
+          git branch -D pizza.example || :
+          git checkout -b pizza.example
+          mv -f demo/demo.svg .
+          git add -f demo.svg
+          git commit -m "demo.svg for ${{ github.ref_name }}"
+          git push -f origin pizza.example

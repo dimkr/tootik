@@ -12,11 +12,15 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: debian:trixie-slim
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
       - run: |
           apt-get update -qq
-          apt-get install -y --no-install-recommends ca-certificates gcc libc6-dev
+          apt-get install -y --no-install-recommends git ca-certificates gcc libc6-dev
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - run: git config --global --add safe.directory `pwd`
       - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
@@ -42,4 +46,27 @@ jobs:
         with:
           name: tootik-${{ inputs.version }}
           path: tootik-*
+          retention-days: 1
+  demo:
+    permissions: {}
+    runs-on: ubuntu-latest
+    container:
+      image: debian:trixie-slim
+    timeout-minutes: 10
+    steps:
+      - run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends git ca-certificates gcc libc6-dev less
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+      - run: go generate ./... && TERM=xterm-256color go run -tags fts5 ./cmd/demo -record demo.cast
+      - run: go tool termsvg export demo.cast -o demo.svg -m
+      - uses: actions/upload-artifact@v4
+        with:
+          name: demo-${{ inputs.version }}
+          path: ./demo.svg
           retention-days: 1
