@@ -2,7 +2,7 @@
 
 [![Latest release](https://img.shields.io/github/v/release/dimkr/tootik)](https://github.com/dimkr/tootik/releases) [![Build status](https://github.com/dimkr/tootik/actions/workflows/ci.yml/badge.svg)](https://github.com/dimkr/tootik/actions) [![Go Reference](https://pkg.go.dev/badge/github.com/dimkr/tootik.svg)](https://pkg.go.dev/github.com/dimkr/tootik)
 
-![cmd/demo](https://github.com/dimkr/tootik/releases/latest/download/demo.svg)
+![cmd/demo](https://github.com/dimkr/tootik/raw/refs/heads/demo/demo.svg)
 
 ## Overview
 
