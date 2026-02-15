@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,17 +17,13 @@ limitations under the License.
 // Package cluster contains complex tests that involve multiple servers.
 package cluster
 
-import (
-	"testing"
-
-	"github.com/dimkr/tootik/inbox"
-)
+import "github.com/dimkr/tootik/inbox"
 
 // Cluster represents a collection of servers that talk to each other.
 type Cluster Client
 
 // NewCluster creates a collection of servers that talk to each other.
-func NewCluster(t *testing.T, domain ...string) Cluster {
+func NewCluster(t T, domain ...string) Cluster {
 	t.Parallel()
 
 	c := Client{}
@@ -40,7 +36,7 @@ func NewCluster(t *testing.T, domain ...string) Cluster {
 }
 
 // Settle waits until all servers are done processing queued activities, both incoming and outgoing.
-func (c Cluster) Settle(t *testing.T) {
+func (c Cluster) Settle(t T) {
 	for {
 		again := false
 
