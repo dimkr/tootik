@@ -19,16 +19,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+      - run: git config --global --add safe.directory `pwd`
       - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
       - run: |
-          go generate ./migrations
-          ls -la
-          id
-          env
-          git config --global --add safe.directory `pwd`
-          go build -tags fts5 ./cmd/tootik
           go vet ./...
           go test ./... -failfast -vet off -tags netgo,sqlite_omit_load_extension,fts5 -race
       - run: |
