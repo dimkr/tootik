@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
-          recursive: true
+          submodules: recursive
       - run: |
           go generate ./migrations
           ls -la
