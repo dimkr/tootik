@@ -17,6 +17,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: tootik-${{ github.ref_name }}
@@ -31,7 +32,6 @@ jobs:
             artifacts/tootik-*
             demo/demo.svg
           fail_on_unmatched_files: true
-      - uses: actions/checkout@v4
       - run: |
           git config user.name alice
           git config user.email alice@pizza.example
