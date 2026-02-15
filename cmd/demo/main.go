@@ -239,7 +239,7 @@ func main() {
 		rawPty.Write([]byte{4})
 
 		if err := c.Wait(); err != nil {
-			panic(err)
+			//panic(err)
 		}
 
 		if err := cast.Wait(); err != nil {
