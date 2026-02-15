@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/creack/pty"
-	"github.com/dimkr/tootik/bestline"
 	"github.com/dimkr/tootik/cluster"
 	"github.com/dimkr/tootik/front/text"
 	"golang.org/x/term"
@@ -267,7 +266,7 @@ func main() {
 	var history []string
 	var links []string
 
-	bestline.SetHintsCallback(func(text string, ansi1, ansi2 *string) string {
+	bestlineSetHintsCallback(func(text string, ansi1, ansi2 *string) string {
 		if text == "" && len(links) > 0 {
 			*ansi1 = "\033[90m"
 			*ansi2 = "\033[0m"
@@ -332,7 +331,7 @@ func main() {
 			}
 		}
 
-		line, err := bestline.Bestlinef("\033[35m%s>\033[0m ", prompt)
+		line, err := bestline("\033[35m%s>\033[0m ", prompt)
 		if err != nil {
 			break
 		}

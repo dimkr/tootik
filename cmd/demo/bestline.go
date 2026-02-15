@@ -1,4 +1,4 @@
-package bestline
+package main
 
 /*
 #include <stdlib.h>
@@ -8,24 +8,37 @@ char *goHintsCallback(char *, char **, char **);
 
 static inline char *cHintsCallback(const char *buf, const char **ansi1, const char **ansi2)
 {
-	return goHintsCallback((char *)buf, (char **)ansi1, (char **)ansi2);
+        return goHintsCallback((char *)buf, (char **)ansi1, (char **)ansi2);
 }
 
 static inline void useGoHintsCallback(void)
 {
-	bestlineSetHintsCallback(cHintsCallback);
-	bestlineSetFreeHintsCallback(free);
+        bestlineSetHintsCallback(cHintsCallback);
+        bestlineSetFreeHintsCallback(free);
 }
 */
 import "C"
 
 import (
+	"fmt"
+	"io"
 	"sync/atomic"
+	"unsafe"
 )
 
-type HintsCallback func(text string, ansi1, ansi2 *string) string
+func bestline(format string, a ...any) (string, error) {
+	cprompt := C.CString(fmt.Sprintf(format, a...))
+	s := C.bestline(cprompt)
+	if s == nil {
+		return "", io.EOF
+	}
+	C.free(unsafe.Pointer(cprompt))
+	return C.GoString(s), nil
+}
 
-var currentHintsCallback atomic.Pointer[HintsCallback]
+type bestlineHintsCallback func(text string, ansi1, ansi2 *string) string
+
+var currentHintsCallback atomic.Pointer[bestlineHintsCallback]
 
 //export goHintsCallback
 func goHintsCallback(buf *C.char, ansi1, ansi2 **C.char) *C.char {
@@ -41,7 +54,7 @@ func goHintsCallback(buf *C.char, ansi1, ansi2 **C.char) *C.char {
 	return nil
 }
 
-func SetHintsCallback(cb HintsCallback) {
+func bestlineSetHintsCallback(cb bestlineHintsCallback) {
 	if cb == nil {
 		C.bestlineSetHintsCallback(nil)
 	} else {
