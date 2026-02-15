@@ -24,10 +24,10 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: demo-${{ github.ref_name }}
-          path: demo.svg
+          path: demo
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             artifacts/tootik-*
-            demo.svg
+            demo/demo.svg
           fail_on_unmatched_files: true
