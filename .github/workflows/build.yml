@@ -53,8 +53,6 @@ jobs:
       - run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends git fonts-noto-mono fonts-noto-color-emoji
-      - run: curl -Lo /tmp/agg https://github.com/asciinema/agg/releases/download/v1.7.0/agg-x86_64-unknown-linux-gnu
-      - run: echo "b72c773c22ef73149540f5728b37290dffe88418f0a16ceab29bc8e43699abf7 /tmp/agg" | sha256sum -c
       - uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -62,9 +60,9 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - run: go generate ./... && TERM=xterm-256color go run -tags fts5 ./cmd/demo -auto
-      - run: chmod +x /tmp/agg && /tmp/agg --theme asciinema --font-family "Noto Sans Mono" demo.cast demo.gif
+      - run: go tool termsvg export demo.cast -o demo.svg -m
       - uses: actions/upload-artifact@v4
         with:
           name: demo-${{ inputs.version }}
-          path: ./demo.gif
+          path: ./demo.svg
           retention-days: 1
