@@ -57,6 +57,7 @@ type Object struct {
 	Quote             string            `json:"quote,omitempty"`
 	InteractionPolicy InteractionPolicy `json:"interactionPolicy,omitzero"`
 	Proof             Proof             `json:"proof,omitzero"`
+	BackfillContext   string            `json:"context,omitempty"`
 
 	// polls
 	VotersCount int64        `json:"votersCount,omitempty"`

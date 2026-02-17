@@ -46,6 +46,91 @@ func (q *Queue) backfill(ctx context.Context, activity *ap.Activity) error {
 	return q.fetchParent(ctx, post, 0)
 }
 
+func (q *Queue) fetchContext(ctx context.Context, post *ap.Object) error {
+	if post.BackfillContext == "" {
+		return nil
+	}
+
+	postOrigin, err := ap.Origin(post.ID)
+	if err != nil {
+		return fmt.Errorf("failed to determine origin of %s: %w", post.ID)
+	}
+
+	contextOrigin, err := ap.Origin(post.BackfillContext)
+	if err != nil {
+		return fmt.Errorf("failed to determine origin of %s: %w", post.BackfillContext, err)
+	}
+
+	if contextOrigin != postOrigin {
+		return fmt.Errorf("%s does not belong to %s", postOrigin, contextOrigin)
+	}
+
+	resp, err := q.Resolver.Get(ctx, q.Keys, post.BackfillContext)
+	if err != nil {
+		return fmt.Errorf("failed to fetch %s: %w", post.BackfillContext, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.ContentLength > q.Config.MaxResponseBodySize {
+		return errors.New(post.BackfillContext + " is too big")
+	}
+
+	var body []byte
+	if resp.ContentLength >= 0 {
+		body = make([]byte, resp.ContentLength)
+		_, err = io.ReadFull(resp.Body, body)
+	} else {
+		body, err = io.ReadAll(io.LimitReader(resp.Body, q.Config.MaxResponseBodySize))
+	}
+	if err != nil {
+		return err
+	}
+
+	var collection ap.Collection
+	if err := json.Unmarshal(body, &collection); err != nil {
+		return err
+	}
+
+	if collection.ID != post.BackfillContext {
+		return fmt.Errorf("%s is not %s", collection.ID, post.BackfillContext)
+	}
+
+	if collection.AttributedTo != post.AttributedTo {
+		return fmt.Errorf("%s is not owned by %s", collection.AttributedTo, post.AttributedTo)
+	}
+
+	first := collection.First
+	if first == nil {
+		return errors.New("no first page in " + post.BackfillContext)
+	}
+
+	m, ok := first.(map[string]any)
+	if !ok {
+		return errors.New("invalid first page in " + post.BackfillContext)
+	}
+
+	items := m["items"]
+	if items == nil {
+		return errors.New("no items in " + post.BackfillContext)
+	}
+
+	l, ok := items.([]any)
+	if !ok {
+		return errors.New("invalid items in " + post.BackfillContext)
+	}
+
+	for _, item := range l {
+		s, ok := item.(string)
+		if !ok {
+			return errors.New("non-string in " + post.BackfillContext)
+		}
+
+		panic(s)
+	}
+
+	return nil
+}
+
 func (q *Queue) fetchParent(ctx context.Context, post *ap.Object, depth int) error {
 	if depth == q.Config.BackfillDepth {
 		return errors.New("reached backfill depth")
@@ -113,6 +198,11 @@ func (q *Queue) fetchParent(ctx context.Context, post *ap.Object, depth int) err
 
 	if post.InReplyTo == "" {
 		slog.Debug("Reached end of thread", "post", post.ID, "depth", depth)
+
+		if err := q.fetchContext(ctx, post); err != nil {
+			panic(err)
+		}
+
 		return nil
 	}
 

@@ -22,9 +22,9 @@ func TestCluster_BackfillMissingParent(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
 	defer cluster.Stop()
 
-	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
-	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
-	carol := cluster["c.localdomain"].Register(carolKeypair).OK()
+	alice := cluster["a.localdomain"].RegisterPortable(aliceKeypair).OK()
+	bob := cluster["b.localdomain"].RegisterPortable(bobKeypair).OK()
+	carol := cluster["c.localdomain"].RegisterPortable(carolKeypair).OK()
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
