@@ -22,9 +22,9 @@ func TestCluster_BackfillMissingParent(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
 	defer cluster.Stop()
 
-	alice := cluster["a.localdomain"].RegisterPortable(aliceKeypair).OK()
-	bob := cluster["b.localdomain"].RegisterPortable(bobKeypair).OK()
-	carol := cluster["c.localdomain"].RegisterPortable(carolKeypair).OK()
+	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["c.localdomain"].Register(carolKeypair).OK()
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
@@ -81,4 +81,45 @@ func TestCluster_BackfillMissingParent(t *testing.T) {
 	carol.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
 		NotContains(Line{Type: Quote, Text: "hello"})
+}
+
+func TestCluster_BackfillMissingReply(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain", "d.localdomain")
+	defer cluster.Stop()
+
+	alice := cluster["a.localdomain"].RegisterPortable(aliceKeypair).OK()
+	bob := cluster["b.localdomain"].RegisterPortable(bobKeypair).OK()
+	carol := cluster["c.localdomain"].RegisterPortable(carolKeypair).OK()
+	dave := cluster["d.localdomain"].RegisterPortable(daveKeypair).OK()
+
+	alice.
+		FollowInput("🔭 View profile", "carol@c.localdomain").
+		Follow("⚡ Follow carol").
+		OK()
+	bob.
+		FollowInput("🔭 View profile", "carol@c.localdomain").
+		Follow("⚡ Follow carol").
+		OK()
+	dave.
+		FollowInput("🔭 View profile", "bob@b.localdomain").
+		Follow("⚡ Follow bob").
+		OK()
+	cluster.Settle(t)
+
+	post := carol.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "a").
+		OK()
+	cluster.Settle(t)
+
+	alice.GotoInput(post.Links["💬 Reply"], "b").
+		Contains(Line{Type: Quote, Text: "b"})
+
+	bob.GotoInput(post.Links["💬 Reply"], "c").
+		Contains(Line{Type: Quote, Text: "c"})
+	cluster.Settle(t)
+
+	dave.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Contains(Line{Type: Quote, Text: "b"})
 }

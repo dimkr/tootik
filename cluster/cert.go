@@ -81,9 +81,30 @@ MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgdMw3ufTLDC79nyOQ
 fQrvoiJJO5IM6yK73Wu9mlPh9YShRANCAARy/uvjGyBG+C3LhUmBoYB9QaCNLQ35
 10o7hHfRRzibH2Rz5KYWuO6ILYe8HmxnETRfN1kY8fXT/FBKLMa9HG6S
 -----END PRIVATE KEY-----`
+
+	/*
+	   openssl ecparam -name prime256v1 -genkey -out /tmp/ec.pem
+	   openssl req -new -x509 -key /tmp/ec.pem -sha256 -nodes -subj "/CN=dave" -out cert.pem -keyout key.pem -days 3650
+	*/
+	daveCert = `-----BEGIN CERTIFICATE-----
+MIIBczCCARmgAwIBAgIUVyeE7+4UEFWn0QWRdMnu4wPsshQwCgYIKoZIzj0EAwIw
+DzENMAsGA1UEAwwEZGF2ZTAeFw0yNjAyMTgxOTI5MThaFw0zNjAyMTYxOTI5MTha
+MA8xDTALBgNVBAMMBGRhdmUwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATvD3BA
+jILwBoa7FFuPPuR73bFHPY+6Fq+/Pg7MtmrNo5b7rnpqmPGvA6wTwWFYULRYt+v+
+nQZzAfKAEpSWGvOGo1MwUTAdBgNVHQ4EFgQU+9aBjSL9X5I/G5FX8+7UdyLeaCAw
+HwYDVR0jBBgwFoAU+9aBjSL9X5I/G5FX8+7UdyLeaCAwDwYDVR0TAQH/BAUwAwEB
+/zAKBggqhkjOPQQDAgNIADBFAiAeA8ujvl0llQZDu7ZDWDQb+Mufi5qG7bCCKfsI
+PhcuvAIhANSwASOh8TfjBQHjZGWL2fbiRyJ1XENF3/ue9e2rltau
+-----END CERTIFICATE-----`
+
+	daveKey = `-----BEGIN PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgHaHQSZiK+NDCiI/7
+r0QX1AP8sHa8RZu+hQcw42x1BUOhRANCAATvD3BAjILwBoa7FFuPPuR73bFHPY+6
+Fq+/Pg7MtmrNo5b7rnpqmPGvA6wTwWFYULRYt+v+nQZzAfKAEpSWGvOG
+-----END PRIVATE KEY-----`
 )
 
-var aliceKeypair, bobKeypair, carolKeypair tls.Certificate
+var aliceKeypair, bobKeypair, carolKeypair, daveKeypair tls.Certificate
 
 func init() {
 	var err error
@@ -98,6 +119,11 @@ func init() {
 	}
 
 	carolKeypair, err = tls.X509KeyPair([]byte(carolCert), []byte(carolKey))
+	if err != nil {
+		panic(err)
+	}
+
+	daveKeypair, err = tls.X509KeyPair([]byte(daveCert), []byte(daveKey))
 	if err != nil {
 		panic(err)
 	}

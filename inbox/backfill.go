@@ -46,14 +46,227 @@ func (q *Queue) backfill(ctx context.Context, activity *ap.Activity) error {
 	return q.fetchParent(ctx, post, 0)
 }
 
+func (q *Queue) fetchPost(ctx context.Context, id string) (*ap.Object, error) {
+	postOrigin, err := ap.Origin(id)
+	if err != nil {
+		return nil, err
+	}
+
+	var post ap.Object
+	if err := q.DB.QueryRowContext(
+		ctx,
+		/*
+			we want to use the post we have and avoid fetching if
+			1. it was deleted, or
+			2. it's a post by a local user, or
+			3. it's *not* a post by a local user, but it was updated recently or it's likely that edits and deletion
+			   will be federated to us because we've received at least one activity
+		*/
+		`
+		select json(object) from notes
+		where
+			id = $1
+			and (
+				deleted = 1
+				or exists (
+					select 1 from persons where
+						persons.id = notes.author
+						and persons.ed25519privkey is not null
+				)
+				or (
+					not exists (
+						select 1 from persons where
+							persons.id = notes.author
+							and persons.ed25519privkey is not null
+					) and (
+						max(inserted, updated) > $2
+						or exists (
+							select 1 from history where
+								(activity->>'$.type' = 'Create' or activity->>'$.type' = 'Update')
+								and coalesce(activity->>'$.actor.id', activity->>'$.actor') = notes.author
+								and activity->>'$.object.id' = $1
+						)
+					)
+				)
+			)
+		`,
+		id,
+		time.Now().Add(-q.Config.BackfillInterval).Unix(),
+	).Scan(&post); err == nil {
+		slog.Debug("Skipping fetching of post", "id", id)
+		return &post, nil
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
+	}
+
+	slog.Info("Fetching post", "post", id)
+
+	resp, err := q.Resolver.Get(ctx, q.Keys, id)
+	if err != nil && resp != nil && (resp.StatusCode == http.StatusGone || resp.StatusCode == http.StatusNotFound) {
+		slog.Info("Deleting backfilled parent post", "post", id)
+
+		tx, err := q.DB.BeginTx(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+		defer tx.Rollback()
+
+		if err := q.Inbox.ProcessActivity(
+			ctx,
+			tx,
+			sql.NullString{},
+			&ap.Actor{},
+			&ap.Activity{
+				ID:   id,
+				Type: ap.Delete,
+				Object: &ap.Object{
+					ID: id,
+				},
+			},
+			"",
+			0,
+			false,
+		); err != nil {
+			return nil, err
+		}
+
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
+
+		slog.Info("Deleted backfilled post", "id", id)
+		return &post, nil
+	} else if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.ContentLength > q.Config.MaxResponseBodySize {
+		return nil, errors.New("response is too big")
+	}
+
+	var body []byte
+	if resp.ContentLength >= 0 {
+		body = make([]byte, resp.ContentLength)
+		_, err = io.ReadFull(resp.Body, body)
+	} else {
+		body, err = io.ReadAll(io.LimitReader(resp.Body, q.Config.MaxResponseBodySize))
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if err := json.Unmarshal(body, &post); err != nil {
+		return nil, err
+	}
+
+	if post.ID != id {
+		return nil, fmt.Errorf("%s is not %s", post.ID, id)
+	}
+
+	if !(post.Type == ap.Note || post.Type == ap.Page || post.Type == ap.Article || post.Type == ap.Question) {
+		return &post, nil
+	}
+
+	update := &ap.Activity{
+		ID:     post.ID,
+		Type:   ap.Update,
+		Actor:  post.AttributedTo,
+		Object: &post,
+	}
+
+	if err := ap.ValidateOrigin(q.Domain, update, postOrigin); err != nil {
+		return nil, err
+	}
+
+	if ap.IsPortable(post.ID) {
+		m := ap.KeyRegex.FindStringSubmatch(post.Proof.VerificationMethod)
+		if m == nil {
+			return nil, fmt.Errorf("%s does not contain a public key", post.Proof.VerificationMethod)
+		}
+
+		if suffix, ok := strings.CutPrefix(postOrigin, "did:key:"); !ok || suffix != m[1] {
+			return nil, fmt.Errorf("key %s does not belong to %s", m[1], postOrigin)
+		}
+
+		publicKey, err := data.DecodeEd25519PublicKey(m[1])
+		if err != nil {
+			return nil, fmt.Errorf("failed to verify proof using %s: %w", post.Proof.VerificationMethod, err)
+		}
+
+		if err := proof.Verify(publicKey, post.Proof, body); err != nil {
+			return nil, err
+		}
+	}
+
+	parentAuthor, err := q.Resolver.ResolveID(ctx, q.Keys, post.AttributedTo, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := q.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	if err := q.Inbox.ProcessActivity(
+		ctx,
+		tx,
+		sql.NullString{},
+		parentAuthor,
+		update,
+		"",
+		0,
+		false,
+	); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	slog.Info("Backfilled post", "post", id)
+	return &post, nil
+}
+
+func (q *Queue) fetchParent(ctx context.Context, post *ap.Object, depth int) error {
+	if depth == q.Config.BackfillDepth {
+		return errors.New("reached backfill depth")
+	}
+
+	if !(post.Type == ap.Note || post.Type == ap.Page || post.Type == ap.Article || post.Type == ap.Question) {
+		return nil
+	}
+
+	if !post.IsPublic() {
+		return nil
+	}
+
+	if post.InReplyTo == "" {
+		slog.Debug("Reached end of thread", "post", post.ID, "depth", depth)
+		return q.fetchContext(ctx, post)
+	}
+
+	parent, err := q.fetchPost(ctx, post.InReplyTo)
+	if err != nil {
+		return err
+	}
+
+	return q.fetchParent(ctx, parent, depth+1)
+}
+
 func (q *Queue) fetchContext(ctx context.Context, post *ap.Object) error {
 	if post.BackfillContext == "" {
 		return nil
 	}
 
+	slog.Info("Fetching context", "server", q.Domain, "context", post.BackfillContext)
+
 	postOrigin, err := ap.Origin(post.ID)
 	if err != nil {
-		return fmt.Errorf("failed to determine origin of %s: %w", post.ID)
+		return fmt.Errorf("failed to determine origin of %s: %w", post.ID, err)
 	}
 
 	contextOrigin, err := ap.Origin(post.BackfillContext)
@@ -99,12 +312,11 @@ func (q *Queue) fetchContext(ctx context.Context, post *ap.Object) error {
 		return fmt.Errorf("%s is not owned by %s", collection.AttributedTo, post.AttributedTo)
 	}
 
-	first := collection.First
-	if first == nil {
+	if collection.First == nil {
 		return errors.New("no first page in " + post.BackfillContext)
 	}
 
-	m, ok := first.(map[string]any)
+	m, ok := collection.First.(map[string]any)
 	if !ok {
 		return errors.New("invalid first page in " + post.BackfillContext)
 	}
@@ -125,216 +337,40 @@ func (q *Queue) fetchContext(ctx context.Context, post *ap.Object) error {
 			return errors.New("non-string in " + post.BackfillContext)
 		}
 
-		panic(s)
+		if s == post.ID {
+			continue
+		}
+
+		if _, err := q.fetchPost(ctx, s); err != nil {
+			slog.Warn("Failed to fetch post", "id", s)
+			continue
+		}
+
+		var exists int
+		if err := q.DB.QueryRowContext(
+			ctx,
+			`
+			select exists (
+				with recursive thread(id, depth) as (
+					select notes.id, 1 as depth from notes
+					where notes.id = $1
+					union all
+					select notes.id, t.depth + 1 from thread t
+					join notes on notes.object->>'$.inReplyTo' = t.id
+					where notes.public = 1
+				)
+				select depth from thread
+			)
+			where depth >= $2
+			`,
+			s,
+			q.Config.BackfillDepth,
+		).Scan(&exists); err != nil {
+			return fmt.Errorf("failed to check depth of %s: %w", s, err)
+		} else if exists == 1 {
+			continue
+		}
 	}
 
 	return nil
-}
-
-func (q *Queue) fetchParent(ctx context.Context, post *ap.Object, depth int) error {
-	if depth == q.Config.BackfillDepth {
-		return errors.New("reached backfill depth")
-	}
-
-	if !(post.Type == ap.Note || post.Type == ap.Page || post.Type == ap.Article || post.Type == ap.Question) {
-		return nil
-	}
-
-	if !post.IsPublic() {
-		return nil
-	}
-
-	parentOrigin, err := ap.Origin(post.InReplyTo)
-	if err != nil {
-		return err
-	}
-
-	var parent ap.Object
-	if err := q.DB.QueryRowContext(
-		ctx,
-		/*
-			we want to use the post we have and avoid fetching if
-			1. it was deleted, or
-			2. it's a post by a local user, or
-			3. it's *not* a post by a local user, but it was updated recently or it's likely that edits and deletion
-			   will be federated to us because we've received at least one activity
-		*/
-		`
-		select json(object) from notes
-		where
-			id = $1
-			and (
-				deleted = 1
-				or exists (
-					select 1 from persons where
-						persons.id = notes.author
-						and persons.ed25519privkey is not null
-				)
-				or (
-					not exists (
-						select 1 from persons where
-							persons.id = notes.author
-							and persons.ed25519privkey is not null
-					) and (
-						max(inserted, updated) > $2
-						or exists (
-							select 1 from history where
-								(activity->>'$.type' = 'Create' or activity->>'$.type' = 'Update')
-								and coalesce(activity->>'$.actor.id', activity->>'$.actor') = notes.author
-								and activity->>'$.object.id' = $1
-						)
-					)
-				)
-			)
-		`,
-		post.InReplyTo,
-		time.Now().Add(-q.Config.BackfillInterval).Unix(),
-	).Scan(&parent); err == nil {
-		slog.Debug("Skipping fetching of parent post", "parent", post.InReplyTo, "depth", depth)
-		return q.fetchParent(ctx, &parent, depth+1)
-	} else if !errors.Is(err, sql.ErrNoRows) {
-		return err
-	}
-
-	if post.InReplyTo == "" {
-		slog.Debug("Reached end of thread", "post", post.ID, "depth", depth)
-
-		if err := q.fetchContext(ctx, post); err != nil {
-			panic(err)
-		}
-
-		return nil
-	}
-
-	slog.Info("Backfilling thread", "post", post.ID, "parent", post.InReplyTo, "depth", depth)
-
-	resp, err := q.Resolver.Get(ctx, q.Keys, post.InReplyTo)
-	if err != nil && resp != nil && (resp.StatusCode == http.StatusGone || resp.StatusCode == http.StatusNotFound) {
-		slog.Info("Deleting backfilled parent post", "parent", post.InReplyTo)
-
-		tx, err := q.DB.BeginTx(ctx, nil)
-		if err != nil {
-			return err
-		}
-		defer tx.Rollback()
-
-		if err := q.Inbox.ProcessActivity(
-			ctx,
-			tx,
-			sql.NullString{},
-			&ap.Actor{},
-			&ap.Activity{
-				ID:   post.InReplyTo,
-				Type: ap.Delete,
-				Object: &ap.Object{
-					ID: post.InReplyTo,
-				},
-			},
-			"",
-			0,
-			false,
-		); err != nil {
-			return err
-		}
-
-		if err := tx.Commit(); err != nil {
-			return err
-		}
-
-		slog.Info("Deleted backfilled parent post", "parent", post.InReplyTo)
-		return nil
-	} else if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.ContentLength > q.Config.MaxResponseBodySize {
-		return errors.New("response is too big")
-	}
-
-	var body []byte
-	if resp.ContentLength >= 0 {
-		body = make([]byte, resp.ContentLength)
-		_, err = io.ReadFull(resp.Body, body)
-	} else {
-		body, err = io.ReadAll(io.LimitReader(resp.Body, q.Config.MaxResponseBodySize))
-	}
-	if err != nil {
-		return err
-	}
-
-	if err := json.Unmarshal(body, &parent); err != nil {
-		return err
-	}
-
-	if parent.ID != post.InReplyTo {
-		return fmt.Errorf("%s is not %s", parent.ID, post.InReplyTo)
-	}
-
-	if !(parent.Type == ap.Note || parent.Type == ap.Page || parent.Type == ap.Article || parent.Type == ap.Question) {
-		return nil
-	}
-
-	update := &ap.Activity{
-		ID:     parent.ID,
-		Type:   ap.Update,
-		Actor:  parent.AttributedTo,
-		Object: &parent,
-	}
-
-	if err := ap.ValidateOrigin(q.Domain, update, parentOrigin); err != nil {
-		return err
-	}
-
-	if ap.IsPortable(parent.ID) {
-		m := ap.KeyRegex.FindStringSubmatch(parent.Proof.VerificationMethod)
-		if m == nil {
-			return fmt.Errorf("%s does not contain a public key", parent.Proof.VerificationMethod)
-		}
-
-		if suffix, ok := strings.CutPrefix(parentOrigin, "did:key:"); !ok || suffix != m[1] {
-			return fmt.Errorf("key %s does not belong to %s", m[1], parentOrigin)
-		}
-
-		publicKey, err := data.DecodeEd25519PublicKey(m[1])
-		if err != nil {
-			return fmt.Errorf("failed to verify proof using %s: %w", parent.Proof.VerificationMethod, err)
-		}
-
-		if err := proof.Verify(publicKey, parent.Proof, body); err != nil {
-			return err
-		}
-	}
-
-	parentAuthor, err := q.Resolver.ResolveID(ctx, q.Keys, parent.AttributedTo, 0)
-	if err != nil {
-		return err
-	}
-
-	tx, err := q.DB.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	if err := q.Inbox.ProcessActivity(
-		ctx,
-		tx,
-		sql.NullString{},
-		parentAuthor,
-		update,
-		"",
-		0,
-		false,
-	); err != nil {
-		return err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-
-	slog.Info("Backfilled thread", "post", post.ID, "parent", parent.ID, "depth", depth)
-
-	return q.fetchParent(ctx, &parent, depth+1)
 }

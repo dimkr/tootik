@@ -42,8 +42,8 @@ type Collection struct {
 
 // CollectionPage represents a [Collection] page.
 type CollectionPage struct {
-	Context      any                `json:"@context"`
-	ID           string             `json:"id"`
+	Context      any                `json:"@context,omitempty"`
+	ID           string             `json:"id,omitempty"`
 	Type         CollectionPageType `json:"type"`
 	Next         string             `json:"next,omitempty"`
 	Prev         string             `json:"prev,omitempty"`

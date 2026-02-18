@@ -305,29 +305,30 @@ func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Reques
 	w.Write(j)
 }
 
-func (l *Listener) handleApGatewayContext(w http.ResponseWriter, r *http.Request, id string) {
+func (l *Listener) handleApGatewayContext(w http.ResponseWriter, r *http.Request, contextID string) {
 	collection := &ap.Collection{
 		Context: "https://www.w3.org/ns/activitystreams",
-		ID:      id,
+		ID:      contextID,
 		Type:    ap.UnorderedCollection,
 	}
 
+	var postID string
 	if err := l.DB.QueryRowContext(
 		r.Context(),
-		`select notes.author from notes where notes.object->>'$.context' = ? and notes.object->>'$.inReplyTo' is null and host = ?`,
-		id,
+		`select id, author from notes where object->>'$.context' = ? and object->>'$.inReplyTo' is null and host = ?`,
+		contextID,
 		l.Domain,
-	).Scan(&collection.AttributedTo); errors.Is(err, sql.ErrNoRows) {
-		slog.Warn("Context does not exist", "id", id)
+	).Scan(&postID, &collection.AttributedTo); errors.Is(err, sql.ErrNoRows) {
+		slog.Warn("Context does not exist", "id", contextID)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
-		slog.Warn("Failed to fetch context owner", "id", id, "error", err)
+		slog.Warn("Failed to fetch context owner", "id", contextID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	items := []string{id}
+	items := []string{postID}
 
 	if err := dbx.QueryScan(
 		r.Context(),
@@ -341,41 +342,40 @@ func (l *Listener) handleApGatewayContext(w http.ResponseWriter, r *http.Request
 		`
 		select id from
 		(
-			with recursive thread(id, depth) as (
+			with recursive thread(id, inserted, depth) as (
 				select notes.id, notes.inserted, 1 as depth from notes
 				where notes.object->>'$.inReplyTo' = ?
 				union all
 				select notes.id, notes.inserted, t.depth + 1 from thread t
-				join notes on notes.note->>'$.inReplyTo' = t.id
+				join notes on notes.object->>'$.inReplyTo' = t.id
 				where notes.public = 1
 			)
 			select * from thread order by inserted, depth
 		)
 		`,
-		id,
+		postID,
 	); err != nil {
-		slog.Warn("Failed to fetch context", "id", id, "error", err)
+		slog.Warn("Failed to fetch context", "id", contextID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	collection.First = &ap.CollectionPage{
 		Type:   ap.UnorderedCollectionPage,
-		PartOf: id,
+		PartOf: contextID,
 		Items:  items,
 	}
 
 	j, err := json.Marshal(collection)
 	if err != nil {
-		slog.Warn("Failed to marshal context", "id", id, "error", err)
+		slog.Warn("Failed to marshal context", "id", contextID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	slog.Info("Returning context collection", "id", id)
+	slog.Info("Returning context collection", "id", contextID)
 
 	println(string(j))
-	panic(nil)
 
 	w.Header().Set("Content-Type", `application/activity+json; charset=utf-8`)
 	w.Write(j)
@@ -757,7 +757,7 @@ func (l *Listener) handleAPGatewayGet(w http.ResponseWriter, r *http.Request) {
 		l.handleApGatewayOutboxGet(w, r, m[1])
 
 	case "/actor/context":
-		l.handleApGatewayContext(w, r, "https://"+l.Domain+"/.well-known/apgateway"+m[1]+m[2]+m[3])
+		l.handleApGatewayContext(w, r, "https://"+l.Domain+"/.well-known/apgateway/"+m[1]+m[2]+m[3])
 
 	default:
 		l.handleAPGatewayGetObject(w, r, "ap://"+m[1]+m[2]+m[3])
