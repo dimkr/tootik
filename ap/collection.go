@@ -22,8 +22,10 @@ type (
 )
 
 const (
-	OrderedCollection     CollectionType     = "OrderedCollection"
-	OrderedCollectionPage CollectionPageType = "OrderedCollectionPage"
+	UnorderedCollection     CollectionType     = "Collection"
+	OrderedCollection       CollectionType     = "OrderedCollection"
+	OrderedCollectionPage   CollectionPageType = "OrderedCollectionPage"
+	UnorderedCollectionPage CollectionPageType = "CollectionPage"
 )
 
 // Collection represents an ActivityPub collection.
@@ -31,19 +33,21 @@ type Collection struct {
 	Context      any            `json:"@context"`
 	ID           string         `json:"id"`
 	Type         CollectionType `json:"type"`
-	First        string         `json:"first,omitempty"`
+	First        any            `json:"first,omitempty"`
 	Last         string         `json:"last,omitempty"`
 	TotalItems   *int64         `json:"totalItems,omitempty"`
 	OrderedItems any            `json:"orderedItems,omitzero"`
+	AttributedTo string         `json:"attributedTo,omitempty"`
 }
 
 // CollectionPage represents a [Collection] page.
 type CollectionPage struct {
-	Context      any                `json:"@context"`
-	ID           string             `json:"id"`
+	Context      any                `json:"@context,omitempty"`
+	ID           string             `json:"id,omitempty"`
 	Type         CollectionPageType `json:"type"`
 	Next         string             `json:"next,omitempty"`
 	Prev         string             `json:"prev,omitempty"`
 	PartOf       string             `json:"partOf,omitempty"`
+	Items        any                `json:"items,omitzero"`
 	OrderedItems any                `json:"orderedItems,omitzero"`
 }
