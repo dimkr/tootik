@@ -135,7 +135,7 @@ func (q *Queue) fetchPost(ctx context.Context, id string) (*ap.Object, error) {
 		}
 
 		slog.Info("Deleted backfilled post", "id", id)
-		return &post, nil
+		return nil, nil
 	} else if err != nil {
 		return nil, err
 	}
@@ -331,8 +331,8 @@ func (q *Queue) fetchContext(ctx context.Context, post *ap.Object) error {
 		return errors.New("invalid items in " + post.BackfillContext)
 	}
 
-	for _, item := range l {
-		s, ok := item.(string)
+	for i := len(l) - 1; i > 0; i-- {
+		s, ok := l[i].(string)
 		if !ok {
 			return errors.New("non-string in " + post.BackfillContext)
 		}
@@ -341,33 +341,36 @@ func (q *Queue) fetchContext(ctx context.Context, post *ap.Object) error {
 			continue
 		}
 
-		if _, err := q.fetchPost(ctx, s); err != nil {
-			slog.Warn("Failed to fetch post", "id", s)
-			continue
-		}
-
-		var exists int
+		var depth sql.NullInt64
 		if err := q.DB.QueryRowContext(
 			ctx,
 			`
-			select exists (
-				with recursive thread(id, depth) as (
-					select notes.id, 1 as depth from notes
+			select max(depth) from (
+				with recursive thread(id, depth, parent) as (
+					select notes.id, 1 as depth, notes.object->>'$.inReplyTo' as parent from notes
 					where notes.id = $1
 					union all
-					select notes.id, t.depth + 1 from thread t
-					join notes on notes.object->>'$.inReplyTo' = t.id
+					select notes.id, t.depth + 1, notes.object->>'$.inReplyTo' as parent from thread t
+					join notes on notes.id = t.parent
 					where notes.public = 1
 				)
 				select depth from thread
 			)
-			where depth >= $2
 			`,
 			s,
-			q.Config.BackfillDepth,
-		).Scan(&exists); err != nil {
+		).Scan(&depth); err != nil {
 			return fmt.Errorf("failed to check depth of %s: %w", s, err)
-		} else if exists == 1 {
+		}
+
+		if depth.Valid && depth.Int64 > int64(q.Config.BackfillDepth) {
+			slog.Info("Skipping on depth", "s", s, "depth", depth)
+			continue
+		}
+
+		slog.Info("Fetching on depth", "s", s, "depth", depth, "to", q.Domain, "max", q.Config.BackfillDepth)
+
+		if _, err := q.fetchPost(ctx, s); err != nil {
+			slog.Warn("Failed to fetch post", "id", s)
 			continue
 		}
 	}

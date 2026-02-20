@@ -87,6 +87,8 @@ func TestCluster_BackfillMissingReply(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain", "d.localdomain")
 	defer cluster.Stop()
 
+	cluster["d.localdomain"].Config.BackfillDepth = 2
+
 	alice := cluster["a.localdomain"].RegisterPortable(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].RegisterPortable(bobKeypair).OK()
 	carol := cluster["c.localdomain"].RegisterPortable(carolKeypair).OK()
@@ -101,8 +103,8 @@ func TestCluster_BackfillMissingReply(t *testing.T) {
 		Follow("⚡ Follow carol").
 		OK()
 	dave.
-		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Follow("⚡ Follow bob").
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
 		OK()
 	cluster.Settle(t)
 
@@ -112,14 +114,22 @@ func TestCluster_BackfillMissingReply(t *testing.T) {
 		OK()
 	cluster.Settle(t)
 
-	alice.GotoInput(post.Links["💬 Reply"], "b").
+	bob.
+		GotoInput(post.Links["💬 Reply"], "c").
+		Contains(Line{Type: Quote, Text: "c"}).
+		FollowInput("💬 Reply", "d").
+		Contains(Line{Type: Quote, Text: "d"}).
+		FollowInput("💬 Reply", "e").
+		Contains(Line{Type: Quote, Text: "e"})
+	cluster.Settle(t)
+
+	alice.
+		GotoInput(post.Links["💬 Reply"], "b").
 		Contains(Line{Type: Quote, Text: "b"})
 
-	bob.GotoInput(post.Links["💬 Reply"], "c").
-		Contains(Line{Type: Quote, Text: "c"})
 	cluster.Settle(t)
 
 	dave.
-		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "b"})
+		FollowInput("🔭 View profile", "bob@b.localdomain").
+		Contains(Line{Type: Quote, Text: "f"})
 }
