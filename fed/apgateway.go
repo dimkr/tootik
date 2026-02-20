@@ -27,6 +27,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strconv"
 
@@ -340,18 +341,15 @@ func (l *Listener) handleApGatewayContext(w http.ResponseWriter, r *http.Request
 		},
 		l.DB,
 		`
-		select id from
-		(
-			with recursive thread(id, inserted, depth) as (
-				select notes.id, notes.inserted, 1 as depth from notes
-				where notes.object->>'$.inReplyTo' = ?
-				union all
-				select notes.id, notes.inserted, t.depth + 1 from thread t
-				join notes on notes.object->>'$.inReplyTo' = t.id
-				where notes.public = 1
-			)
-			select * from thread order by inserted, depth
+		with recursive thread(id, inserted, depth) as (
+			select notes.id, notes.inserted, 1 as depth from notes
+			where notes.object->>'$.inReplyTo' = ?
+			union all
+			select notes.id, notes.inserted, t.depth + 1 from thread t
+			join notes on notes.object->>'$.inReplyTo' = t.id
+			where notes.public = 1
 		)
+		select id from thread order by inserted, depth
 		`,
 		postID,
 	); err != nil {
@@ -374,8 +372,6 @@ func (l *Listener) handleApGatewayContext(w http.ResponseWriter, r *http.Request
 	}
 
 	slog.Info("Returning context collection", "id", contextID)
-
-	println(string(j))
 
 	w.Header().Set("Content-Type", `application/activity+json; charset=utf-8`)
 	w.Write(j)
