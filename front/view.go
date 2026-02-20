@@ -126,16 +126,22 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				`
 				select json(note), json(author), depth from
 				(
-					with recursive thread(note, author, depth) as (
-						select notes.object as note, persons.actor as author, 1 as depth
+					with recursive thread(note, author, host, depth) as (
+						select notes.object as note, persons.actor as author, notes.host, 1 as depth
 						from notes
 						join persons on persons.id = notes.author
 						where notes.id = ?
 						union all
-						select notes.object as note, persons.actor as author, t.depth + 1
+						select notes.object as note, persons.actor as author, notes.host, t.depth + 1
 						from thread t
 						join notes on notes.id = t.note->>'$.inReplyTo'
 						join persons on persons.id = notes.author
+						union all
+						select notes.object as note, persons.actor as author, notes.host, -1 depth
+						from thread t
+						join notes on notes.object->>'$.context' = t.note->>'$.context' and notes.host = t.host
+						join persons on persons.id = notes.author
+						where notes.object->>'$.inReplyTo' is null t.object->>'$.inReplyTo' is not null and t.depth <= $2
 					)
 					select * from thread order by note->'$.inReplyTo' is null desc, depth limit ?
 				)
@@ -151,6 +157,10 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				for _, row := range rows {
 					if contextPosts == 0 && row.Parent.InReplyTo != "" {
 						// show a marker if the thread head is a reply (i.e. we don't have the actual head)
+						w.Text("[…]")
+						w.Empty()
+					} else if contextPosts == 1 && headDepth == -1 {
+						// show a marker if we don't know the number of missing replies
 						w.Text("[…]")
 						w.Empty()
 					} else if contextPosts == 1 && headDepth-row.CurrentDepth == 2 {
