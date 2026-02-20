@@ -250,6 +250,28 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 		}
 
 		note.BackfillContext = contextID
+	} else if inReplyTo != nil {
+		var contextID sql.NullString
+		if err := h.DB.QueryRowContext(
+			r.Context,
+			`
+			with recursive thread(id, depth, author, parent, context) as (
+				select notes.id, 1 as depth, notes.author, notes.object->>'$.inReplyTo' as parent, notes.object->>'$.context' as context from notes
+				where notes.id = $1
+				union all
+				select notes.id, t.depth + 1, notes.author, notes.object->>'$.inReplyTo' as parent, notes.object->>'$.context' as context from thread t
+				join notes on notes.id = t.parent
+			)
+			select context from thread where context is not null and parent is null and exists (select 1 from persons where persons.id = thread.author and persons.ed25519privkey is not null)
+			`,
+			inReplyTo.ID,
+		).Scan(&contextID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+			r.Log.Error("Failed to fetch context ID", "error", err)
+			w.Error()
+			return
+		} else if err == nil && contextID.Valid {
+			note.BackfillContext = contextID.String
+		}
 	}
 
 	var err error
