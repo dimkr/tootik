@@ -45,12 +45,13 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 	var note ap.Object
 	var author ap.Actor
 	var group sql.Null[ap.Actor]
+	var host string
 
 	if r.User == nil {
 		err = h.DB.QueryRowContext(
 			r.Context,
 			`
-			select json(notes.object), json(persons.actor), json(groups.actor) from notes
+			select json(notes.object), json(persons.actor), json(groups.actor), notes.host from notes
 			join persons on persons.id = notes.author
 			left join (select id, actor from persons where actor->>'$.type' = 'Group') groups on exists (select 1 from shares where shares.by = groups.id and shares.note = $1)
 			where
@@ -63,7 +64,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		err = h.DB.QueryRowContext(
 			r.Context,
 			`
-			select json(notes.object), json(persons.actor), json(groups.actor) from notes
+			select json(notes.object), json(persons.actor), json(groups.actor), notes.host from notes
 			join persons on persons.id = notes.author
 			left join (select id, actor from persons where actor->>'$.type' = 'Group') groups on exists (select 1 from shares where shares.by = groups.id and shares.note = $1)
 			where
@@ -92,7 +93,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			`,
 			postID,
 			r.User.ID,
-		).Scan(&note, &author, &group)
+		).Scan(&note, &author, &group, &host)
 	}
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Info("Post was not found", "post", postID)
@@ -123,33 +124,35 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				r.Context,
 				h.DB,
 				`
-				select json(note), json(author), depth from
+				select json(note), json(author), min(depth) as min_depth from
 				(
-					with recursive thread(id, note, author, depth) as (
-						select notes.id, notes.object as note, persons.actor as author, 1 as depth
+					with recursive thread(id, host, note, author, depth) as (
+						select notes.id, notes.host, notes.object as note, persons.actor as author, 0 as depth
 						from notes
 						join persons on persons.id = notes.author
 						where notes.id = $1
 						union all
-						select notes.id, notes.object as note, persons.actor as author, 123123 as depth
+						select notes.id, notes.host, notes.object as note, persons.actor as author, $2 as depth
 						from notes
 						join persons on persons.id = notes.author
-						where notes.object->>'$.context' = $2 and notes.object->>'$.inReplyTo' is null
+						where notes.object->>'$.context' = $3 and notes.host = $4 and notes.object->>'$.inReplyTo' is null
 						union all
-						select notes.id, notes.object as note, persons.actor as author, t.depth + 1
+						select notes.id, notes.host, notes.object as note, persons.actor as author, t.depth + 1
 						from thread t
 						join notes on notes.id = t.note->>'$.inReplyTo'
 						join persons on persons.id = notes.author
+						where t.depth <= $2
 					)
 					select id, note, author, depth from thread
 				)
 				group by id
-				order by depth desc
-				limit $3
+				order by min_depth desc
+				limit $2
 				`,
 				note.InReplyTo,
-				note.BackfillContext,
 				h.Config.PostContextDepth,
+				note.BackfillContext,
+				host,
 			); err != nil {
 				r.Log.Info("Failed to fetch context", "error", err)
 			} else if len(rows) == 0 {
