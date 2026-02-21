@@ -186,6 +186,10 @@ func (q *Queue) fetchParent(ctx context.Context, post *ap.Object, depth int) err
 		return errors.New("reached backfill depth")
 	}
 
+	if post.InReplyTo == "" {
+		return nil
+	}
+
 	if !post.IsPublic() {
 		return nil
 	}
@@ -345,12 +349,12 @@ func (q *Queue) fetchContext(ctx context.Context, post *ap.Object) error {
 
 		if _, err := q.fetchPost(ctx, s); err != nil {
 			slog.Warn("Failed to fetch post", "id", s, "error", err)
+		}
 
-			// assumption: each post has no replies or one reply
-			fetched++
-			if fetched == q.Config.BackfillDepth {
-				break
-			}
+		// assumption: each post has no replies or one reply
+		fetched++
+		if fetched == q.Config.BackfillDepth {
+			break
 		}
 	}
 

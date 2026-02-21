@@ -115,7 +115,6 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			w.Subtitle("Context")
 
 			headDepth := 0
-			contextPosts := 0
 			if rows, err := dbx.QueryCollect[struct {
 				Parent       ap.Object
 				ParentAuthor ap.Actor
@@ -126,44 +125,42 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				`
 				select json(note), json(author), depth from
 				(
-					with recursive thread(note, author, host, depth) as (
-						select notes.object as note, persons.actor as author, notes.host, 1 as depth
+					with recursive thread(id, note, author, depth) as (
+						select notes.id, notes.object as note, persons.actor as author, 1 as depth
 						from notes
 						join persons on persons.id = notes.author
-						where notes.id = ?
+						where notes.id = $1
 						union all
-						select notes.object as note, persons.actor as author, notes.host, t.depth + 1
+						select notes.id, notes.object as note, persons.actor as author, 123123 as depth
+						from notes
+						join persons on persons.id = notes.author
+						where notes.object->>'$.context' = $2 and notes.object->>'$.inReplyTo' is null
+						union all
+						select notes.id, notes.object as note, persons.actor as author, t.depth + 1
 						from thread t
 						join notes on notes.id = t.note->>'$.inReplyTo'
 						join persons on persons.id = notes.author
-						union all
-						select notes.object as note, persons.actor as author, notes.host, -1 depth
-						from thread t
-						join notes on notes.object->>'$.context' = t.note->>'$.context' and notes.host = t.host
-						join persons on persons.id = notes.author
-						where notes.object->>'$.inReplyTo' is null t.object->>'$.inReplyTo' is not null and t.depth <= $2
 					)
-					select * from thread order by note->'$.inReplyTo' is null desc, depth limit ?
+					select id, note, author, depth from thread
 				)
+				group by id
 				order by depth desc
+				limit $3
 				`,
 				note.InReplyTo,
+				note.BackfillContext,
 				h.Config.PostContextDepth,
 			); err != nil {
 				r.Log.Info("Failed to fetch context", "error", err)
 			} else if len(rows) == 0 {
 				w.Text("No context.")
 			} else {
-				for _, row := range rows {
-					if contextPosts == 0 && row.Parent.InReplyTo != "" {
+				for i, row := range rows {
+					if i == 0 && row.Parent.InReplyTo != "" {
 						// show a marker if the thread head is a reply (i.e. we don't have the actual head)
 						w.Text("[…]")
 						w.Empty()
-					} else if contextPosts == 1 && headDepth == -1 {
-						// show a marker if we don't know the number of missing replies
-						w.Text("[…]")
-						w.Empty()
-					} else if contextPosts == 1 && headDepth-row.CurrentDepth == 2 {
+					} else if i == 1 && headDepth-row.CurrentDepth == 2 {
 						// show the number of hidden replies if we only display the head and the bottom replies
 						w.Empty()
 
@@ -174,7 +171,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						}
 
 						w.Empty()
-					} else if contextPosts == 1 && row.CurrentDepth < headDepth-1 {
+					} else if i == 1 && row.CurrentDepth < headDepth-1 {
 						w.Empty()
 
 						if r.User == nil {
@@ -184,7 +181,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						}
 
 						w.Empty()
-					} else if contextPosts > 0 {
+					} else if i > 0 {
 						// put an empty line between replies
 						w.Empty()
 					}
@@ -200,10 +197,13 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						w.Quote(line)
 					}
 
-					contextPosts++
-
 					if row.Parent.InReplyTo == "" {
 						headDepth = row.CurrentDepth
+					}
+
+					if (i < len(rows)-1 && rows[i+1].Parent.InReplyTo != row.Parent.ID) || (i == len(rows)-1 && note.InReplyTo != row.Parent.ID) {
+						w.Empty()
+						w.Text("[…]")
 					}
 				}
 			}
