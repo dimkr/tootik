@@ -115,24 +115,23 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 
 			w.Subtitle("Context")
 
-			headDepth := 0
 			if rows, err := dbx.QueryCollect[struct {
-				Parent       ap.Object
-				ParentAuthor ap.Actor
-				CurrentDepth int
+				Note   ap.Object
+				Author ap.Actor
+				Depth  int
 			}](
 				r.Context,
 				h.DB,
 				`
-				select json(note), json(author), min(depth) as min_depth from
+				select json(note), json(author), max(depth) as max_depth from
 				(
 					with recursive thread(id, host, note, author, depth) as (
-						select notes.id, notes.host, notes.object as note, persons.actor as author, 0 as depth
+						select notes.id, notes.host, notes.object as note, persons.actor as author, 1 as depth
 						from notes
 						join persons on persons.id = notes.author
 						where notes.id = $1
 						union all
-						select notes.id, notes.host, notes.object as note, persons.actor as author, $2 as depth
+						select notes.id, notes.host, notes.object as note, persons.actor as author, 0 as depth
 						from notes
 						join persons on persons.id = notes.author
 						where notes.object->>'$.context' = $3 and notes.host = $4 and notes.object->>'$.inReplyTo' is null
@@ -141,12 +140,12 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						from thread t
 						join notes on notes.id = t.note->>'$.inReplyTo'
 						join persons on persons.id = notes.author
-						where t.depth <= $2
+						where t.depth < $2
 					)
 					select id, note, author, depth from thread
 				)
 				group by id
-				order by min_depth desc
+				order by max_depth <= 1, max_depth desc
 				limit $2
 				`,
 				note.InReplyTo,
@@ -158,29 +157,29 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			} else if len(rows) == 0 {
 				w.Text("No context.")
 			} else {
-				for i, row := range rows {
-					if i == 0 && row.Parent.InReplyTo != "" {
+				for i := range rows {
+					if i == 0 && rows[0].Note.InReplyTo != "" {
 						// show a marker if the thread head is a reply (i.e. we don't have the actual head)
 						w.Text("[…]")
 						w.Empty()
-					} else if i == 1 && headDepth-row.CurrentDepth == 2 {
+					} else if i == 1 && rows[0].Note.InReplyTo == "" && rows[0].Depth == 1 && rows[0].Depth-rows[i].Depth == 2 {
 						// show the number of hidden replies if we only display the head and the bottom replies
 						w.Empty()
 
 						if r.User == nil {
-							w.Link("/view/"+strings.TrimPrefix(row.Parent.InReplyTo, "https://"), "[1 reply]")
+							w.Link("/view/"+strings.TrimPrefix(rows[i].Note.InReplyTo, "https://"), "[1 reply]")
 						} else {
-							w.Link("/users/view/"+strings.TrimPrefix(row.Parent.InReplyTo, "https://"), "[1 reply]")
+							w.Link("/users/view/"+strings.TrimPrefix(rows[i].Note.InReplyTo, "https://"), "[1 reply]")
 						}
 
 						w.Empty()
-					} else if i == 1 && row.CurrentDepth < headDepth-1 {
+					} else if i == 1 && rows[0].Note.InReplyTo == "" && rows[0].Depth == 1 && rows[i].Depth < rows[0].Depth-1 {
 						w.Empty()
 
 						if r.User == nil {
-							w.Linkf("/view/"+strings.TrimPrefix(row.Parent.InReplyTo, "https://"), "[%d replies]", headDepth-row.CurrentDepth-1)
+							w.Linkf("/view/"+strings.TrimPrefix(rows[i].Note.InReplyTo, "https://"), "[%d replies]", rows[0].Depth-rows[i].Depth-1)
 						} else {
-							w.Linkf("/users/view/"+strings.TrimPrefix(row.Parent.InReplyTo, "https://"), "[%d replies]", headDepth-row.CurrentDepth-1)
+							w.Linkf("/users/view/"+strings.TrimPrefix(rows[i].Note.InReplyTo, "https://"), "[%d replies]", rows[0].Depth-rows[i].Depth-1)
 						}
 
 						w.Empty()
@@ -190,21 +189,17 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 					}
 
 					if r.User == nil {
-						w.Linkf("/view/"+strings.TrimPrefix(row.Parent.ID, "https://"), "%s %s", row.Parent.Published.Time.Format(time.DateOnly), row.ParentAuthor.PreferredUsername)
+						w.Linkf("/view/"+strings.TrimPrefix(rows[i].Note.ID, "https://"), "%s %s", rows[i].Note.Published.Time.Format(time.DateOnly), rows[i].Author.PreferredUsername)
 					} else {
-						w.Linkf("/users/view/"+strings.TrimPrefix(row.Parent.ID, "https://"), "%s %s", row.Parent.Published.Time.Format(time.DateOnly), row.ParentAuthor.PreferredUsername)
+						w.Linkf("/users/view/"+strings.TrimPrefix(rows[i].Note.ID, "https://"), "%s %s", rows[i].Note.Published.Time.Format(time.DateOnly), rows[i].Author.PreferredUsername)
 					}
 
-					contentLines, _ := h.getCompactNoteContent(&row.Parent)
+					contentLines, _ := h.getCompactNoteContent(&rows[i].Note)
 					for _, line := range contentLines {
 						w.Quote(line)
 					}
 
-					if row.Parent.InReplyTo == "" {
-						headDepth = row.CurrentDepth
-					}
-
-					if (i < len(rows)-1 && rows[i+1].Parent.InReplyTo != row.Parent.ID) || (i == len(rows)-1 && note.InReplyTo != row.Parent.ID) {
+					if (i < len(rows)-1 && rows[i+1].Note.InReplyTo != rows[i].Note.ID) || (i == len(rows)-1 && note.InReplyTo != rows[i].Note.ID) {
 						w.Empty()
 						w.Text("[…]")
 					}

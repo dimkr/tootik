@@ -43,11 +43,37 @@ func (q *Queue) backfill(ctx context.Context, activity *ap.Activity) error {
 		return nil
 	}
 
-	if err := q.fetchContext(ctx, post); err != nil {
+	if err := q.fetchParent(ctx, post, 0); err != nil {
 		return err
 	}
 
-	return q.fetchParent(ctx, post, 0)
+	var head ap.Object
+	if err := q.DB.QueryRowContext(
+		ctx,
+		`
+		select json(object) from
+		(
+			with recursive thread(id, object, depth) as (
+				select id, object, 0 as depth
+				from notes
+				where id = $1
+				union all
+				select notes.id, notes.object, t.depth + 1
+				from thread t
+				join notes on notes.id = t.object->>'$.inReplyTo'
+			)
+			select object, depth from thread order by depth desc
+			limit 1
+		)
+		`,
+		post.ID,
+	).Scan(&head); errors.Is(err, sql.ErrNoRows) {
+		return nil
+	} else if err != nil {
+		return err
+	} else {
+		return q.fetchContext(ctx, &head)
+	}
 }
 
 func (q *Queue) fetchPost(ctx context.Context, id string) (*ap.Object, error) {
@@ -336,8 +362,8 @@ func (q *Queue) fetchContext(ctx context.Context, post *ap.Object) error {
 		return errors.New("invalid items in " + post.BackfillContext)
 	}
 
-	fetched := 0
-	for _, item := range l {
+	// assumption: each post has no replies or one reply
+	for _, item := range l[:min(len(l), q.Config.BackfillDepth+1)] {
 		s, ok := item.(string)
 		if !ok {
 			return errors.New("non-string in " + post.BackfillContext)
@@ -349,12 +375,6 @@ func (q *Queue) fetchContext(ctx context.Context, post *ap.Object) error {
 
 		if _, err := q.fetchPost(ctx, s); err != nil {
 			slog.Warn("Failed to fetch post", "id", s, "error", err)
-		}
-
-		// assumption: each post has no replies or one reply
-		fetched++
-		if fetched == q.Config.BackfillDepth {
-			break
 		}
 	}
 
