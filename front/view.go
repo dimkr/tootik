@@ -59,7 +59,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				notes.public = 1
 			`,
 			postID,
-		).Scan(&note, &author, &group)
+		).Scan(&note, &author, &group, &host)
 	} else {
 		err = h.DB.QueryRowContext(
 			r.Context,
