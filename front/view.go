@@ -145,7 +145,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 					select id, note, author, depth from thread
 				)
 				group by id
-				order by max_depth <= 1, max_depth desc
+				order by max_depth <= 1 desc, max_depth desc
 				limit $2
 				`,
 				note.InReplyTo,
