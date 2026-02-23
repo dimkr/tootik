@@ -278,6 +278,10 @@ func (q *Queue) fetchParent(ctx context.Context, post *ap.Object, depth int) err
 }
 
 func (q *Queue) fetchContext(ctx context.Context, post *ap.Object) error {
+	if q.Config.BackfillDepth < 1 {
+		return nil
+	}
+
 	if post.InReplyTo == "" {
 		return nil
 	}
@@ -354,7 +358,7 @@ func (q *Queue) fetchContext(ctx context.Context, post *ap.Object) error {
 
 	items := m["items"]
 	if items == nil {
-		return errors.New("no items in " + post.BackfillContext)
+		return errors.New("no list of items in " + post.BackfillContext)
 	}
 
 	l, ok := items.([]any)
@@ -362,20 +366,21 @@ func (q *Queue) fetchContext(ctx context.Context, post *ap.Object) error {
 		return errors.New("invalid items in " + post.BackfillContext)
 	}
 
-	// assumption: each post has no replies or one reply
-	for _, item := range l[:min(len(l), q.Config.BackfillDepth+1)] {
-		s, ok := item.(string)
-		if !ok {
-			return errors.New("non-string in " + post.BackfillContext)
-		}
+	if len(l) == 0 {
+		return errors.New("empty list of items in " + post.BackfillContext)
+	}
 
-		if s == post.ID {
-			continue
-		}
+	s, ok := l[0].(string)
+	if !ok {
+		return errors.New("non-string in " + post.BackfillContext)
+	}
 
-		if _, err := q.fetchPost(ctx, s); err != nil {
-			slog.Warn("Failed to fetch post", "id", s, "error", err)
-		}
+	if s == post.ID {
+		return nil
+	}
+
+	if _, err := q.fetchPost(ctx, s); err != nil {
+		slog.Warn("Failed to fetch toplevel post", "id", s, "error", err)
 	}
 
 	return nil
