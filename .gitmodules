@@ -1,3 +1,6 @@
 [submodule "cmd/demo/bestline"]
 	path = cmd/demo/bestline
 	url = https://github.com/jart/bestline
+[submodule "cmd/local/bestline"]
+	path = cmd/local/bestline
+	url = https://github.com/jart/bestline

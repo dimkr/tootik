@@ -30,14 +30,21 @@ import (
 	"fmt"
 	"log/slog"
 	"math/big"
+	"net/url"
 	"os"
+	"os/exec"
 	"os/signal"
+	"os/user"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/dimkr/tootik/cluster"
+	"github.com/dimkr/tootik/front/text"
+	"golang.org/x/term"
 )
 
 func generateCert(user string) (tls.Certificate, error) {
@@ -85,10 +92,180 @@ func generateCert(user string) (tls.Certificate, error) {
 	return tls.X509KeyPair(certPEM.Bytes(), keyPEM.Bytes())
 }
 
+func render(p cluster.Page) ([]string, []string) {
+	cols, _, err := term.GetSize(int(os.Stdout.Fd()))
+	if err != nil {
+		cols = 80
+	}
+
+	var lines, links []string
+	linkID := 1
+	for _, l := range p.Lines {
+		switch l.Type {
+		case cluster.Heading:
+			for _, line := range text.WordWrap(l.Text, cols-2, -1) {
+				lines = append(lines, "\033[4m# "+line+"\033[0m")
+			}
+
+		case cluster.SubHeading:
+			for _, line := range text.WordWrap(l.Text, cols-3, -1) {
+				lines = append(lines, "\033[4m## "+line+"\033[0m")
+			}
+
+		case cluster.Quote:
+			for _, line := range text.WordWrap(l.Text, cols-2, -1) {
+				lines = append(lines, "> "+line)
+			}
+
+		case cluster.Item:
+			for i, line := range text.WordWrap(l.Text, cols-2, -1) {
+				if i == 0 {
+					lines = append(lines, "* "+line)
+				} else {
+					lines = append(lines, " "+line)
+				}
+			}
+
+		case cluster.Link:
+			prefix := fmt.Sprintf("[%d] ", linkID)
+			for i, line := range text.WordWrap(l.Text, cols-len(prefix), -1) {
+				if i == 0 {
+					lines = append(lines, fmt.Sprintf("\033[4;36m[%d]\033[0;39m %s", linkID, line))
+				} else {
+					lines = append(lines, strings.Repeat(" ", len(prefix))+line)
+				}
+			}
+			links = append(links, l.URL)
+			linkID++
+
+		case cluster.Preformatted:
+			lines = append(lines, text.WordWrap(l.Text, cols, -1)[0])
+
+		default:
+			lines = append(lines, text.WordWrap(l.Text, cols, -1)...)
+		}
+	}
+
+	return lines, links
+}
+
+func shell(ctx context.Context, server *cluster.Server, user string) error {
+	cert, err := generateCert(user)
+	if err != nil {
+		return err
+	}
+
+	var links []string
+
+	p := server.Handle(cert, "/users")
+
+	bestlineSetHintsCallback(func(text string, ansi1, ansi2 *string) string {
+		if text == "" && len(links) > 0 {
+			*ansi1 = "\033[90m"
+			*ansi2 = "\033[0m"
+			return fmt.Sprintf(" 1-%d", len(links))
+		} else if len(links) == 0 {
+			return ""
+		}
+
+		if n, err := strconv.Atoi(text); err == nil && n > 0 {
+			i := 0
+			for _, line := range p.Lines {
+				if line.Type != cluster.Link {
+					continue
+				}
+
+				i++
+				if i == n {
+					*ansi1 = "\033[90m"
+					*ansi2 = "\033[0m"
+					return " " + line.Text
+				}
+			}
+		}
+
+		return ""
+	})
+
+	for {
+		if err := ctx.Err(); err != nil {
+			break
+		}
+
+		var lines, history []string
+		lines, links = render(p)
+
+		if len(lines) > 0 {
+			c := exec.CommandContext(ctx, "less", "-r")
+			c.Stdin = strings.NewReader(strings.Join(lines, "\n"))
+			c.Stdout = os.Stdout
+			c.Stderr = os.Stderr
+			if err := c.Run(); err != nil {
+				return err
+			}
+		}
+
+		prompt := ">"
+		if strings.HasPrefix(p.Status, "10 ") {
+			prompt = p.Status[3:]
+		} else {
+			for _, line := range p.Lines {
+				if line.Type == cluster.Heading {
+					prompt = line.Text
+					break
+				}
+			}
+		}
+
+		line, err := bestline("\033[35m%s>\033[0m ", prompt)
+		if err != nil {
+			break
+		}
+
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		if n, err := strconv.Atoi(line); err == nil && n > 0 && n <= len(links) {
+			nextURL := links[n-1]
+			u, err := url.Parse(nextURL)
+			if err != nil {
+				return err
+			}
+			history = append(history, p.Path)
+			p = p.Goto(u.String())
+		} else if strings.HasPrefix(p.Status, "10 ") {
+			u, err := url.Parse(p.Path)
+			if err != nil {
+				return err
+			}
+			u.RawQuery = url.QueryEscape(line)
+			history = append(history, p.Path)
+			p = p.Goto(u.String())
+		} else {
+			u, err := url.Parse(line)
+			if err != nil {
+				fmt.Printf("Invalid URL or command: %s\n", line)
+				continue
+			}
+			history = append(history, p.Path)
+			p = p.Goto(u.String())
+		}
+	}
+
+	return nil
+}
+
 func main() {
+	shellMode := flag.Bool("shell", false, "Start an interactive shell")
+
 	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s USERNAME PATH INPUT\n\n", os.Args[0])
+		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [-shell | USERNAME PATH INPUT]\n\n", os.Args[0])
 		fmt.Fprintln(flag.CommandLine.Output(), "Simulates a local social network.")
+		fmt.Fprintln(flag.CommandLine.Output(), "")
+		fmt.Fprintln(flag.CommandLine.Output(), "  -shell")
+		fmt.Fprintln(flag.CommandLine.Output(), "    Start an interactive shell as the current OS user.")
 		fmt.Fprintln(flag.CommandLine.Output(), "")
 		fmt.Fprintln(flag.CommandLine.Output(), "USERNAME is the user to authenticate as.")
 		fmt.Fprintln(flag.CommandLine.Output(), "PATH is a Gemini path (e.g. /users, /local, /users/say).")
@@ -108,7 +285,7 @@ func main() {
 	}
 	flag.Parse()
 
-	if flag.NArg() != 3 {
+	if !*shellMode && flag.NArg() != 3 {
 		flag.Usage()
 	}
 
@@ -154,7 +331,21 @@ func main() {
 	cl["local.example"].Config.MaxPostsLength = 1024 * 1024 * 1024
 	cl["local.example"].Config.MaxPostsPerDay = 1024
 
-	username := os.Args[1]
+	if *shellMode {
+		u, err := user.Current()
+		if err != nil {
+			slog.Error("Failed to determine current user")
+			os.Exit(1)
+		}
+
+		if err := shell(ctx, cl["local.example"], u.Username); err != nil {
+			slog.Error("Shell error", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	username := flag.Arg(0)
 
 	cert, err := generateCert(username)
 	if err != nil {
@@ -162,8 +353,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	path := os.Args[2]
-	input := os.Args[3]
+	path := flag.Arg(1)
+	input := flag.Arg(2)
 
 	os.Stdout.WriteString(cl["local.example"].HandleInput(cert, path, input).Raw)
 }
