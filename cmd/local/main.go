@@ -292,6 +292,8 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
+	slog.SetDefault(slog.New(slog.DiscardHandler))
+
 	var baseDir string
 	if runtime.GOOS == "linux" {
 		baseDir = os.Getenv("XDG_DATA_HOME")
