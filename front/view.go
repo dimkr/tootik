@@ -59,7 +59,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				notes.public = 1
 			`,
 			postID,
-		).Scan(&note, &author, &group)
+		).Scan(&note, &author, &group, &host)
 	} else {
 		err = h.DB.QueryRowContext(
 			r.Context,
@@ -145,7 +145,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 					select id, note, author, depth from thread
 				)
 				group by id
-				order by max_depth <= 1 desc, max_depth desc
+				order by note->>'$.inReplyTo' is null desc, max_depth desc
 				limit $2
 				`,
 				note.InReplyTo,
@@ -199,7 +199,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						w.Quote(line)
 					}
 
-					if (i < len(rows)-1 && rows[i+1].Note.InReplyTo != rows[i].Note.ID) || (i == len(rows)-1 && note.InReplyTo != rows[i].Note.ID) {
+					if rows[i].Depth == 0 {
 						w.Empty()
 						w.Text("[…]")
 					}
