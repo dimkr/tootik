@@ -248,7 +248,6 @@ func NewServer(t T, domain string, client fed.Client) *Server {
 
 func (s *Server) Stop() {
 	s.DB.Close()
-	os.Remove(s.dbPath)
 
 	s.tlsListener.Close()
 
