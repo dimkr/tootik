@@ -44,7 +44,8 @@ func (q *Queue) backfill(ctx context.Context, activity *ap.Activity) error {
 	}
 
 	if err := q.fetchParent(ctx, post, 0); err != nil {
-		return err
+		// TODO
+		//return err
 	}
 
 	var head ap.Object

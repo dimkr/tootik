@@ -122,6 +122,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			}](
 				r.Context,
 				h.DB,
+				// TODO: understand why $1, $2, etc' fails with datatype mismatch, specifically limit $2
 				`
 				select json(note), json(author), max(depth) as max_depth from
 				(
@@ -129,29 +130,30 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						select notes.id, notes.host, notes.object as note, persons.actor as author, 1 as depth
 						from notes
 						join persons on persons.id = notes.author
-						where notes.id = $1
+						where notes.id = ?
 						union all
 						select notes.id, notes.host, notes.object as note, persons.actor as author, 0 as depth
 						from notes
 						join persons on persons.id = notes.author
-						where notes.object->>'$.context' = $3 and notes.host = $4 and notes.object->>'$.inReplyTo' is null
+						where notes.object->>'$.context' = ? and notes.host = ? and notes.object->>'$.inReplyTo' is null
 						union all
 						select notes.id, notes.host, notes.object as note, persons.actor as author, t.depth + 1
 						from thread t
 						join notes on notes.id = t.note->>'$.inReplyTo'
 						join persons on persons.id = notes.author
-						where t.depth < $2
+						where t.depth < ?
 					)
 					select id, note, author, depth from thread
 				)
 				group by id
 				order by note->>'$.inReplyTo' is null desc, max_depth desc
-				limit $2
+				limit ?
 				`,
 				note.InReplyTo,
-				h.Config.PostContextDepth,
 				note.BackfillContext,
 				host,
+				h.Config.PostContextDepth,
+				h.Config.PostContextDepth,
 			); err != nil {
 				r.Log.Info("Failed to fetch context", "error", err)
 			} else if len(rows) == 0 {
