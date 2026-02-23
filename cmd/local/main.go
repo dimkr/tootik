@@ -281,6 +281,8 @@ func main() {
 		fmt.Fprintln(flag.CommandLine.Output(), "")
 		fmt.Fprintln(flag.CommandLine.Output(), "Non-existing users must register first:")
 		fmt.Fprintf(flag.CommandLine.Output(), "  %s USERNAME /users/register generate\n", os.Args[0])
+		fmt.Fprintln(flag.CommandLine.Output(), "")
+		fmt.Fprintln(flag.CommandLine.Output(), "New users should read /users/help for more information.")
 		os.Exit(2)
 	}
 	flag.Parse()
