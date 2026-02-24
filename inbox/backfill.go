@@ -43,11 +43,9 @@ func (q *Queue) backfill(ctx context.Context, activity *ap.Activity) error {
 		return nil
 	}
 
-	if err := q.fetchParent(ctx, post, 0); err != nil {
-		// TODO
-		//return err
-	}
+	fetchErr := q.fetchParent(ctx, post, 0)
 
+	var contextErr error
 	var head ap.Object
 	if err := q.DB.QueryRowContext(
 		ctx,
@@ -73,8 +71,10 @@ func (q *Queue) backfill(ctx context.Context, activity *ap.Activity) error {
 	} else if err != nil {
 		return err
 	} else {
-		return q.fetchContext(ctx, &head)
+		contextErr = q.fetchContext(ctx, &head)
 	}
+
+	return errors.Join(fetchErr, contextErr)
 }
 
 func (q *Queue) fetchPost(ctx context.Context, id string) (*ap.Object, error) {
@@ -380,8 +380,43 @@ func (q *Queue) fetchContext(ctx context.Context, post *ap.Object) error {
 		return nil
 	}
 
-	if _, err := q.fetchPost(ctx, s); err != nil {
-		slog.Warn("Failed to fetch toplevel post", "id", s, "error", err)
+	/*
+		fetch the toplevel post (the first item) if
+		1. the topmost reply we have appears in the list of items
+		2. its parent appears in the list, before it
+		3. the first item is not the topmost reply or its parent
+	*/
+	var first string
+	parentIndex := -1
+	for i, item := range l {
+		s, ok := item.(string)
+		if !ok {
+			if i == 0 {
+				break
+			}
+
+			parentIndex = -1
+			continue
+		}
+
+		if i == 0 {
+			first = s
+		}
+
+		if s == post.InReplyTo {
+			parentIndex = i
+			continue
+		}
+
+		if s == post.ID {
+			if parentIndex >= 0 && i > parentIndex && first != "" && first != post.ID && first != post.InReplyTo {
+				if _, err := q.fetchPost(ctx, first); err != nil {
+					slog.Warn("Failed to fetch toplevel post", "id", s, "error", err)
+				}
+			}
+
+			break
+		}
 	}
 
 	return nil
