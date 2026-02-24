@@ -33,6 +33,50 @@ import (
 	"github.com/dimkr/tootik/proof"
 )
 
+func (q *Queue) fetchCachedPost(ctx context.Context, id string) (*ap.Object, error) {
+	var post ap.Object
+	return &post, q.DB.QueryRowContext(
+		ctx,
+		/*
+			we want to use the post we have and avoid fetching if
+			1. it was deleted, or
+			2. it's a post by a local user, or
+			3. it's *not* a post by a local user, but it was updated recently or it's likely that edits and deletion
+			   will be federated to us because we've received at least one activity
+		*/
+		`
+		select json(object) from notes
+		where
+				id = $1
+				and (
+						deleted = 1
+						or exists (
+								select 1 from persons where
+										persons.id = notes.author
+										and persons.ed25519privkey is not null
+						)
+						or (
+								not exists (
+										select 1 from persons where
+												persons.id = notes.author
+												and persons.ed25519privkey is not null
+								) and (
+										max(inserted, updated) > $2
+										or exists (
+												select 1 from history where
+														(activity->>'$.type' = 'Create' or activity->>'$.type' = 'Update')
+														and coalesce(activity->>'$.actor.id', activity->>'$.actor') = notes.author
+														and activity->>'$.object.id' = $1
+										)
+								)
+						)
+				)
+		`,
+		id,
+		time.Now().Add(-q.Config.BackfillInterval).Unix(),
+	).Scan(&post)
+}
+
 func (q *Queue) backfill(ctx context.Context, activity *ap.Activity) error {
 	if !(activity.Type == ap.Create || activity.Type == ap.Update) {
 		return nil
@@ -64,14 +108,17 @@ func (q *Queue) backfill(ctx context.Context, activity *ap.Activity) error {
 			select object, depth from thread order by depth desc
 			limit 1
 		)
+		where object->>'$.inReplyTo' is null
 		`,
 		post.ID,
-	).Scan(&head); errors.Is(err, sql.ErrNoRows) {
-		return nil
-	} else if err != nil {
-		return err
-	} else {
+	).Scan(&head); err == nil {
+		if _, err := q.fetchCachedPost(ctx, head.ID); errors.Is(err, sql.ErrNoRows) {
+			_, contextErr = q.fetchPost(ctx, head.ID)
+		}
+	} else if errors.Is(err, sql.ErrNoRows) {
 		contextErr = q.fetchContext(ctx, &head)
+	} else {
+		contextErr = err
 	}
 
 	return errors.Join(fetchErr, contextErr)
@@ -221,49 +268,9 @@ func (q *Queue) fetchParent(ctx context.Context, post *ap.Object, depth int) err
 		return nil
 	}
 
-	var cached ap.Object
-	if err := q.DB.QueryRowContext(
-		ctx,
-		/*
-			we want to use the post we have and avoid fetching if
-			1. it was deleted, or
-			2. it's a post by a local user, or
-			3. it's *not* a post by a local user, but it was updated recently or it's likely that edits and deletion
-			   will be federated to us because we've received at least one activity
-		*/
-		`
-		select json(object) from notes
-		where
-				id = $1
-				and (
-						deleted = 1
-						or exists (
-								select 1 from persons where
-										persons.id = notes.author
-										and persons.ed25519privkey is not null
-						)
-						or (
-								not exists (
-										select 1 from persons where
-												persons.id = notes.author
-												and persons.ed25519privkey is not null
-								) and (
-										max(inserted, updated) > $2
-										or exists (
-												select 1 from history where
-														(activity->>'$.type' = 'Create' or activity->>'$.type' = 'Update')
-														and coalesce(activity->>'$.actor.id', activity->>'$.actor') = notes.author
-														and activity->>'$.object.id' = $1
-										)
-								)
-						)
-				)
-		`,
-		post.InReplyTo,
-		time.Now().Add(-q.Config.BackfillInterval).Unix(),
-	).Scan(&cached); err == nil {
+	if cached, err := q.fetchCachedPost(ctx, post.InReplyTo); err == nil {
 		slog.Debug("Skipping fetching of parent post", "parent", post.InReplyTo, "depth", depth)
-		return q.fetchParent(ctx, &cached, depth+1)
+		return q.fetchParent(ctx, cached, depth+1)
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}

@@ -127,6 +127,8 @@ Every time tootik receives a **public** reply, it tries to fetch parent posts un
 
 If the origin of a previously fetched post doesn't send `Update` or `Delete` activities, tootik detects edits or deletion by re-fetching that post. This re-fetch is triggered exclusively when processing a `Create` or `Update` activity for a reply (or a nested reply, up to `BackfillDepth` depth) to that post, provided it hasn't been updated within the `BackfillInterval` and no `Update` activity for it exists in the `history` table.
 
+If `BackfillDepth` is greater than 0 and tootik receives a reply in a thread with missing or deleted intermediate replies, it may be unable to fetch all parent posts. However, if the reply includes a `context` property as defined in [FEP-f228](https://codeberg.org/fediverse/fep/src/branch/main/fep/f228/fep-f228.md) (in "collection of posts" mode), tootik uses the URI in the `context` property to fetch the root post of the thread directly.
+
 ## Account Migration
 
 tootik supports [Mastodon's account migration mechanism](https://docs.joinmastodon.org/spec/activitypub/#Move), but ignores `Move` activities. Account migration is handled by a periodic job. If a user follows a federated user with the `movedTo` attribute set and the new account's `alsoKnownAs` attribute points back to the old account, this job sends follow requests to the new user and cancels old ones.
