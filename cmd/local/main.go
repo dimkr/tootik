@@ -332,7 +332,7 @@ func main() {
 	cl["local.example"].Config.MinBookmarkInterval = 1
 	cl["local.example"].Config.MinActorEditInterval = 1
 
-	cl["local.example"].Config.MaxPostsLength = 1024 * 1024 * 1024
+	cl["local.example"].Config.MaxPostsLength = 900
 	cl["local.example"].Config.MaxPostsPerDay = 1024
 
 	if *shellMode {
