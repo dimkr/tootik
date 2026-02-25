@@ -49,5 +49,9 @@ func (h *Handler) delete(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.Redirect(r.URL.Path)
+	if r.User == nil {
+		w.Redirect("/view/" + args[1])
+	} else {
+		w.Redirect("/users/view/" + args[1])
+	}
 }
