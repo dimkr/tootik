@@ -96,12 +96,12 @@ func (q *Queue) backfill(ctx context.Context, activity *ap.Activity) error {
 		`
 		select json(object) from
 		(
-			with recursive thread(id, object, depth) as (
-				select id, object, 0 as depth
+			with recursive thread(object, depth) as (
+				select object, 0 as depth
 				from notes
-				where id = $1
+				where id = ?
 				union all
-				select notes.id, notes.object, t.depth + 1
+				select notes.object, t.depth + 1
 				from thread t
 				join notes on notes.id = t.object->>'$.inReplyTo'
 			)
@@ -109,6 +109,7 @@ func (q *Queue) backfill(ctx context.Context, activity *ap.Activity) error {
 			limit 1
 		)
 		where object->>'$.inReplyTo' is null
+		limit 1
 		`,
 		post.ID,
 	).Scan(&head); err == nil {
