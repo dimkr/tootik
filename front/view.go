@@ -136,7 +136,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						join persons on persons.id = notes.author
 						where notes.object->>'$.context' = ? and notes.object->>'$.inReplyTo' is null
 						union all
-						select notes.id, notes.host, notes.object as note, persons.actor as author, t.depth + 1
+						select notes.id, notes.object as note, persons.actor as author, t.depth + 1
 						from thread t
 						join notes on notes.id = t.note->>'$.inReplyTo'
 						join persons on persons.id = notes.author
