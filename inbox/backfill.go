@@ -117,8 +117,8 @@ func (q *Queue) backfill(ctx context.Context, activity *ap.Activity) error {
 			_, contextErr = q.fetchPost(ctx, head.ID)
 		}
 	} else if errors.Is(err, sql.ErrNoRows) {
-		contextErr = q.fetchContext(ctx, &head)
-	} else {
+		contextErr = q.fetchContext(ctx, post)
+	} else if !errors.Is(err, sql.ErrNoRows) {
 		contextErr = err
 	}
 
