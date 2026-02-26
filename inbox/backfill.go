@@ -299,18 +299,9 @@ func (q *Queue) fetchContext(ctx context.Context, post *ap.Object) error {
 		return nil
 	}
 
-	postOrigin, err := ap.Origin(post.ID)
-	if err != nil {
-		return fmt.Errorf("failed to determine origin of %s: %w", post.ID, err)
-	}
-
 	contextOrigin, err := ap.Origin(post.BackfillContext)
 	if err != nil {
 		return fmt.Errorf("failed to determine origin of %s: %w", post.BackfillContext, err)
-	}
-
-	if contextOrigin != postOrigin {
-		return fmt.Errorf("%s does not belong to %s", postOrigin, contextOrigin)
 	}
 
 	var exists int
@@ -352,10 +343,6 @@ func (q *Queue) fetchContext(ctx context.Context, post *ap.Object) error {
 		return fmt.Errorf("%s is not %s", collection.ID, post.BackfillContext)
 	}
 
-	if collection.AttributedTo != post.AttributedTo {
-		return fmt.Errorf("%s is not owned by %s", collection.AttributedTo, post.AttributedTo)
-	}
-
 	if collection.First == nil {
 		return errors.New("no first page in " + post.BackfillContext)
 	}
@@ -386,6 +373,15 @@ func (q *Queue) fetchContext(ctx context.Context, post *ap.Object) error {
 
 	if s == post.ID {
 		return nil
+	}
+
+	headOrigin, err := ap.Origin(s)
+	if err != nil {
+		return fmt.Errorf("failed to determine origin of %s: %w", post.ID, err)
+	}
+
+	if headOrigin != contextOrigin {
+		return fmt.Errorf("%s does not belong to %s", headOrigin, contextOrigin)
 	}
 
 	/*

@@ -87,9 +87,9 @@ func TestCluster_BackfillDeletedParentSameServer(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
 	defer cluster.Stop()
 
-	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
-	bob := cluster["a.localdomain"].Register(bobKeypair).OK()
-	carol := cluster["b.localdomain"].Register(carolKeypair).OK()
+	alice := cluster["a.localdomain"].RegisterPortable(aliceKeypair).OK()
+	bob := cluster["a.localdomain"].RegisterPortable(bobKeypair).OK()
+	carol := cluster["b.localdomain"].RegisterPortable(carolKeypair).OK()
 
 	carol.
 		FollowInput("🔭 View profile", "bob@a.localdomain").
@@ -131,9 +131,9 @@ func TestCluster_BackfillDeletedParentDifferentServer(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
 	defer cluster.Stop()
 
-	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
-	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
-	carol := cluster["c.localdomain"].Register(carolKeypair).OK()
+	alice := cluster["a.localdomain"].RegisterPortable(aliceKeypair).OK()
+	bob := cluster["b.localdomain"].RegisterPortable(bobKeypair).OK()
+	carol := cluster["c.localdomain"].RegisterPortable(carolKeypair).OK()
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
