@@ -90,31 +90,31 @@ func (q *Queue) backfill(ctx context.Context, activity *ap.Activity) error {
 	fetchErr := q.fetchParent(ctx, post, 0)
 
 	var contextErr error
-	var head ap.Object
+	var headID string
 	if err := q.DB.QueryRowContext(
 		ctx,
 		`
-		select json(object) from
+		select id from
 		(
-			with recursive thread(object, depth) as (
-				select object, 0 as depth
+			with recursive thread(id, object, depth) as (
+				select id, object, 0 as depth
 				from notes
 				where id = ?
 				union all
-				select notes.object, t.depth + 1
+				select id, notes.object, t.depth + 1
 				from thread t
 				join notes on notes.id = t.object->>'$.inReplyTo'
 			)
-			select object, depth from thread order by depth desc
+			select id, object, depth from thread order by depth desc
 			limit 1
 		)
 		where object->>'$.inReplyTo' is null
 		limit 1
 		`,
 		post.ID,
-	).Scan(&head); err == nil {
-		if _, err := q.fetchCachedPost(ctx, head.ID); errors.Is(err, sql.ErrNoRows) {
-			_, contextErr = q.fetchPost(ctx, head.ID)
+	).Scan(&headID); err == nil {
+		if _, err := q.fetchCachedPost(ctx, headID); errors.Is(err, sql.ErrNoRows) {
+			_, contextErr = q.fetchPost(ctx, headID)
 		}
 	} else if errors.Is(err, sql.ErrNoRows) {
 		contextErr = q.fetchContext(ctx, post)
@@ -412,15 +412,23 @@ func (q *Queue) fetchContext(ctx context.Context, post *ap.Object) error {
 			continue
 		}
 
-		if s == post.ID {
-			if parentIndex >= 0 && i > parentIndex && first != "" && first != post.ID && first != post.InReplyTo {
-				if _, err := q.fetchPost(ctx, first); err != nil {
-					slog.Warn("Failed to fetch toplevel post", "id", s, "error", err)
-				}
-			}
-
-			break
+		if s != post.ID {
+			continue
 		}
+
+		if !(parentIndex >= 0 && i > parentIndex && first != "" && first != post.ID && first != post.InReplyTo) {
+			return nil
+		}
+
+		if _, err := q.fetchCachedPost(ctx, first); err == nil {
+			slog.Debug("Skipping fetching of thread head", "id", first)
+			return nil
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
+
+		_, err = q.fetchPost(ctx, first)
+		return err
 	}
 
 	return nil
