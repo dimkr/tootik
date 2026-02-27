@@ -195,7 +195,23 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						w.Quote(line)
 					}
 
-					if rows[i].Depth == 0 {
+					if len(rows) == 1 && rows[0].Note.InReplyTo == "" && rows[0].Depth > 2 {
+						w.Empty()
+
+						if r.User == nil {
+							w.Linkf("/view/"+strings.TrimPrefix(note.InReplyTo, "https://"), "[%d replies]", rows[0].Depth-1)
+						} else {
+							w.Linkf("/users/view/"+strings.TrimPrefix(note.InReplyTo, "https://"), "[%d replies]", rows[0].Depth-1)
+						}
+					} else if len(rows) == 1 && rows[0].Note.InReplyTo == "" && rows[0].Depth == 2 {
+						w.Empty()
+
+						if r.User == nil {
+							w.Link("/view/"+strings.TrimPrefix(note.InReplyTo, "https://"), "[1 reply]")
+						} else {
+							w.Link("/users/view/"+strings.TrimPrefix(note.InReplyTo, "https://"), "[1 reply]")
+						}
+					} else if rows[i].Depth == 0 {
 						w.Empty()
 						w.Text("[…]")
 					}
