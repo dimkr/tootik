@@ -123,7 +123,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				h.DB,
 				// TODO: understand why $1, $2, etc' fails with datatype mismatch, specifically limit $2
 				`
-				select json(note), json(author), max(depth) as max_depth from
+				select json(note), json(author), max_depth from
 				(
 					with recursive thread(id, note, author, depth) as (
 						select notes.id, notes.object as note, persons.actor as author, 1 as depth
@@ -140,17 +140,13 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						from thread t
 						join notes on notes.id = t.note->>'$.inReplyTo'
 						join persons on persons.id = notes.author
-						where t.depth < ?
 					)
-					select id, note, author, depth from thread
+					select note, author, max(depth) as max_depth from thread group by id order by note->'$.inReplyTo' is null desc, max_depth limit ?
 				)
-				group by id
-				order by note->>'$.inReplyTo' is null desc, max_depth desc
-				limit ?
+				order by max_depth desc
 				`,
 				note.InReplyTo,
 				note.BackfillContext,
-				h.Config.PostContextDepth,
 				h.Config.PostContextDepth,
 			); err != nil {
 				r.Log.Info("Failed to fetch context", "error", err)
@@ -162,7 +158,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						// show a marker if the thread head is a reply (i.e. we don't have the actual head)
 						w.Text("[…]")
 						w.Empty()
-					} else if i == 1 && rows[0].Note.InReplyTo == "" && rows[0].Depth == 1 && rows[0].Depth-rows[i].Depth == 2 {
+					} else if i == 1 && rows[0].Note.InReplyTo == "" && rows[0].Depth > 0 && rows[0].Depth-rows[i].Depth == 2 {
 						// show the number of hidden replies if we only display the head and the bottom replies
 						w.Empty()
 
@@ -173,7 +169,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						}
 
 						w.Empty()
-					} else if i == 1 && rows[0].Note.InReplyTo == "" && rows[0].Depth == 1 && rows[i].Depth < rows[0].Depth-1 {
+					} else if i == 1 && rows[0].Note.InReplyTo == "" && rows[0].Depth > 0 && rows[i].Depth < rows[0].Depth-1 {
 						w.Empty()
 
 						if r.User == nil {
