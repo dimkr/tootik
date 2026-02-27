@@ -162,7 +162,6 @@ func validateOrigin(domain string, activity *Activity, origin string, depth uint
 					return fmt.Errorf("invalid context host: %s", contextOrigin)
 				}
 			}
-
 		} else if s, ok := activity.Object.(string); ok {
 			if stringOrigin, err := Origin(s); err != nil {
 				return err
