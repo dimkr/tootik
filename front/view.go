@@ -121,7 +121,6 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			}](
 				r.Context,
 				h.DB,
-				// TODO: understand why $1, $2, etc' fails with datatype mismatch, specifically limit $2
 				`
 				select json(note), json(author), max_depth from
 				(
