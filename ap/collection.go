@@ -38,6 +38,7 @@ type Collection struct {
 	TotalItems   *int64         `json:"totalItems,omitempty"`
 	OrderedItems any            `json:"orderedItems,omitzero"`
 	AttributedTo string         `json:"attributedTo,omitempty"`
+	Proof        Proof          `json:"proof,omitzero"`
 }
 
 // CollectionPage represents a [Collection] page.
@@ -50,4 +51,5 @@ type CollectionPage struct {
 	PartOf       string             `json:"partOf,omitempty"`
 	Items        any                `json:"items,omitzero"`
 	OrderedItems any                `json:"orderedItems,omitzero"`
+	Proof        Proof              `json:"proof,omitzero"`
 }

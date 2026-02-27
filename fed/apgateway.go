@@ -313,12 +313,12 @@ func (l *Listener) handleApGatewayContext(w http.ResponseWriter, r *http.Request
 	}
 
 	var postID string
+	var ed25519PrivKey []byte
 	if err := l.DB.QueryRowContext(
 		r.Context(),
-		`select id, author from notes where object->>'$.context' = ? and object->>'$.inReplyTo' is null and host = ?`,
+		`select notes.id, notes.author, persons.ed25519privkey from notes join persons on persons.id = notes.author where notes.object->>'$.context' = ? and notes.object->>'$.inReplyTo' is null and persons.ed25519privkey is not null`,
 		contextID,
-		l.Domain,
-	).Scan(&postID, &collection.AttributedTo); errors.Is(err, sql.ErrNoRows) {
+	).Scan(&postID, &collection.AttributedTo, &ed25519PrivKey); errors.Is(err, sql.ErrNoRows) {
 		slog.Warn("Context does not exist", "id", contextID)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -361,6 +361,20 @@ func (l *Listener) handleApGatewayContext(w http.ResponseWriter, r *http.Request
 		Type:   ap.UnorderedCollectionPage,
 		PartOf: contextID,
 		Items:  items,
+	}
+
+	var err error
+	collection.Proof, err = proof.Create(
+		httpsig.Key{
+			ID:         collection.AttributedTo + "#ed25519-key",
+			PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey),
+		},
+		collection,
+	)
+	if err != nil {
+		slog.Warn("Failed to add proof to context", "id", contextID, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	j, err := json.Marshal(collection)

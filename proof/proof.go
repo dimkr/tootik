@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -56,6 +56,16 @@ func Create(key httpsig.Key, doc any) (ap.Proof, error) {
 		return create(key, time.Now(), &clone, clone.Context)
 
 	case *ap.Actor:
+		clone := *v
+		clone.Proof = ap.Proof{}
+		return create(key, time.Now(), &clone, clone.Context)
+
+	case *ap.Collection:
+		clone := *v
+		clone.Proof = ap.Proof{}
+		return create(key, time.Now(), &clone, clone.Context)
+
+	case *ap.CollectionPage:
 		clone := *v
 		clone.Proof = ap.Proof{}
 		return create(key, time.Now(), &clone, clone.Context)
