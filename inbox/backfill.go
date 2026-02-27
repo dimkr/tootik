@@ -101,7 +101,7 @@ func (q *Queue) backfill(ctx context.Context, activity *ap.Activity) error {
 				from notes
 				where id = ?
 				union all
-				select id, notes.object, t.depth + 1
+				select notes.id, notes.object, t.depth + 1
 				from thread t
 				join notes on notes.id = t.object->>'$.inReplyTo'
 			)
