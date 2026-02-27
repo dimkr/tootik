@@ -24,8 +24,8 @@ type (
 const (
 	UnorderedCollection     CollectionType     = "Collection"
 	OrderedCollection       CollectionType     = "OrderedCollection"
-	OrderedCollectionPage   CollectionPageType = "OrderedCollectionPage"
 	UnorderedCollectionPage CollectionPageType = "CollectionPage"
+	OrderedCollectionPage   CollectionPageType = "OrderedCollectionPage"
 )
 
 // Collection represents an ActivityPub collection.
