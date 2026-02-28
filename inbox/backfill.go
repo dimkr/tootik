@@ -384,6 +384,26 @@ func (q *Queue) fetchContext(ctx context.Context, post *ap.Object) error {
 		return fmt.Errorf("%s does not belong to %s", headOrigin, contextOrigin)
 	}
 
+	if ap.IsPortable(collection.ID) {
+		m := ap.KeyRegex.FindStringSubmatch(collection.Proof.VerificationMethod)
+		if m == nil {
+			return fmt.Errorf("%s does not contain a public key", collection.Proof.VerificationMethod)
+		}
+
+		if suffix, ok := strings.CutPrefix(contextOrigin, "did:key:"); !ok || suffix != m[1] {
+			return fmt.Errorf("key %s does not belong to %s", m[1], contextOrigin)
+		}
+
+		publicKey, err := data.DecodeEd25519PublicKey(m[1])
+		if err != nil {
+			return fmt.Errorf("failed to verify proof using %s: %w", collection.Proof.VerificationMethod, err)
+		}
+
+		if err := proof.Verify(publicKey, collection.Proof, body); err != nil {
+			return err
+		}
+	}
+
 	/*
 		fetch the toplevel post (the first item) if
 		1. the topmost reply we have appears in the list of items
