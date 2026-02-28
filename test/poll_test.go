@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -678,7 +678,7 @@ func TestPoll_Local3OptionsAnd2VotesAndDeletedVote(t *testing.T) {
 	assert.Contains(strings.Split(view, "\n"), "0          I couldn't care less")
 
 	delete := server.Handle("/users/delete/"+reply[15:len(reply)-2], server.Carol)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Carol.ID, "https://")), delete)
+	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", reply[15:len(reply)-2]), delete)
 
 	poller := outbox.Poller{
 		Domain: domain,

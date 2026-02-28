@@ -114,86 +114,105 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 
 			w.Subtitle("Context")
 
-			headDepth := 0
-			contextPosts := 0
 			if rows, err := dbx.QueryCollect[struct {
-				Parent       ap.Object
-				ParentAuthor ap.Actor
-				CurrentDepth int
+				Note   ap.Object
+				Author ap.Actor
+				Depth  int
 			}](
 				r.Context,
 				h.DB,
 				`
-				select json(note), json(author), depth from
+				select json(note), json(author), max_depth from
 				(
-					with recursive thread(note, author, depth) as (
-						select notes.object as note, persons.actor as author, 1 as depth
+					with recursive thread(id, note, author, depth) as (
+						select notes.id, notes.object as note, persons.actor as author, 1 as depth
 						from notes
 						join persons on persons.id = notes.author
 						where notes.id = ?
 						union all
-						select notes.object as note, persons.actor as author, t.depth + 1
+						select notes.id, notes.object as note, persons.actor as author, 0 as depth
+						from notes
+						join persons on persons.id = notes.author
+						where notes.object->>'$.context' = ? and notes.object->>'$.inReplyTo' is null
+						union all
+						select notes.id, notes.object as note, persons.actor as author, t.depth + 1
 						from thread t
 						join notes on notes.id = t.note->>'$.inReplyTo'
 						join persons on persons.id = notes.author
 					)
-					select * from thread order by note->'$.inReplyTo' is null desc, depth limit ?
+					select note, author, max(depth) as max_depth from thread group by id order by note->'$.inReplyTo' is null desc, max_depth limit ?
 				)
-				order by depth desc
+				order by max_depth desc
 				`,
 				note.InReplyTo,
+				note.BackfillContext,
 				h.Config.PostContextDepth,
 			); err != nil {
 				r.Log.Info("Failed to fetch context", "error", err)
 			} else if len(rows) == 0 {
 				w.Text("No context.")
 			} else {
-				for _, row := range rows {
-					if contextPosts == 0 && row.Parent.InReplyTo != "" {
+				for i := range rows {
+					if i == 0 && rows[0].Note.InReplyTo != "" {
 						// show a marker if the thread head is a reply (i.e. we don't have the actual head)
 						w.Text("[…]")
 						w.Empty()
-					} else if contextPosts == 1 && headDepth-row.CurrentDepth == 2 {
+					} else if i == 1 && rows[0].Note.InReplyTo == "" && rows[0].Depth > 0 && rows[0].Depth-rows[i].Depth == 2 {
 						// show the number of hidden replies if we only display the head and the bottom replies
 						w.Empty()
 
 						if r.User == nil {
-							w.Link("/view/"+strings.TrimPrefix(row.Parent.InReplyTo, "https://"), "[1 reply]")
+							w.Link("/view/"+strings.TrimPrefix(rows[i].Note.InReplyTo, "https://"), "[1 reply]")
 						} else {
-							w.Link("/users/view/"+strings.TrimPrefix(row.Parent.InReplyTo, "https://"), "[1 reply]")
+							w.Link("/users/view/"+strings.TrimPrefix(rows[i].Note.InReplyTo, "https://"), "[1 reply]")
 						}
 
 						w.Empty()
-					} else if contextPosts == 1 && row.CurrentDepth < headDepth-1 {
+					} else if i == 1 && rows[0].Note.InReplyTo == "" && rows[0].Depth > 0 && rows[i].Depth < rows[0].Depth-1 {
 						w.Empty()
 
 						if r.User == nil {
-							w.Linkf("/view/"+strings.TrimPrefix(row.Parent.InReplyTo, "https://"), "[%d replies]", headDepth-row.CurrentDepth-1)
+							w.Linkf("/view/"+strings.TrimPrefix(rows[i].Note.InReplyTo, "https://"), "[%d replies]", rows[0].Depth-rows[i].Depth-1)
 						} else {
-							w.Linkf("/users/view/"+strings.TrimPrefix(row.Parent.InReplyTo, "https://"), "[%d replies]", headDepth-row.CurrentDepth-1)
+							w.Linkf("/users/view/"+strings.TrimPrefix(rows[i].Note.InReplyTo, "https://"), "[%d replies]", rows[0].Depth-rows[i].Depth-1)
 						}
 
 						w.Empty()
-					} else if contextPosts > 0 {
+					} else if i > 0 {
 						// put an empty line between replies
 						w.Empty()
 					}
 
 					if r.User == nil {
-						w.Linkf("/view/"+strings.TrimPrefix(row.Parent.ID, "https://"), "%s %s", row.Parent.Published.Time.Format(time.DateOnly), row.ParentAuthor.PreferredUsername)
+						w.Linkf("/view/"+strings.TrimPrefix(rows[i].Note.ID, "https://"), "%s %s", rows[i].Note.Published.Time.Format(time.DateOnly), rows[i].Author.PreferredUsername)
 					} else {
-						w.Linkf("/users/view/"+strings.TrimPrefix(row.Parent.ID, "https://"), "%s %s", row.Parent.Published.Time.Format(time.DateOnly), row.ParentAuthor.PreferredUsername)
+						w.Linkf("/users/view/"+strings.TrimPrefix(rows[i].Note.ID, "https://"), "%s %s", rows[i].Note.Published.Time.Format(time.DateOnly), rows[i].Author.PreferredUsername)
 					}
 
-					contentLines, _ := h.getCompactNoteContent(&row.Parent)
+					contentLines, _ := h.getCompactNoteContent(&rows[i].Note)
 					for _, line := range contentLines {
 						w.Quote(line)
 					}
 
-					contextPosts++
+					if len(rows) == 1 && rows[0].Note.InReplyTo == "" && rows[0].Depth > 2 {
+						w.Empty()
 
-					if row.Parent.InReplyTo == "" {
-						headDepth = row.CurrentDepth
+						if r.User == nil {
+							w.Linkf("/view/"+strings.TrimPrefix(note.InReplyTo, "https://"), "[%d replies]", rows[0].Depth-1)
+						} else {
+							w.Linkf("/users/view/"+strings.TrimPrefix(note.InReplyTo, "https://"), "[%d replies]", rows[0].Depth-1)
+						}
+					} else if len(rows) == 1 && rows[0].Note.InReplyTo == "" && rows[0].Depth == 2 {
+						w.Empty()
+
+						if r.User == nil {
+							w.Link("/view/"+strings.TrimPrefix(note.InReplyTo, "https://"), "[1 reply]")
+						} else {
+							w.Link("/users/view/"+strings.TrimPrefix(note.InReplyTo, "https://"), "[1 reply]")
+						}
+					} else if rows[i].Depth == 0 {
+						w.Empty()
+						w.Text("[…]")
 					}
 				}
 			}

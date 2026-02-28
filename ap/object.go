@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -57,6 +57,7 @@ type Object struct {
 	Quote             string            `json:"quote,omitempty"`
 	InteractionPolicy InteractionPolicy `json:"interactionPolicy,omitzero"`
 	Proof             Proof             `json:"proof,omitzero"`
+	BackfillContext   string            `json:"context,omitempty"`
 
 	// polls
 	VotersCount int64        `json:"votersCount,omitempty"`

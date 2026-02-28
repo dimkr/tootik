@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -172,7 +172,7 @@ func TestView_OneReplyPostDeleted(t *testing.T) {
 	assert.Contains(view, "Welcome Bob")
 
 	delete := server.Handle("/users/delete/"+id, server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), delete)
+	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), delete)
 
 	view = server.Handle("/users/view/"+replyHash, server.Alice)
 	assert.Contains(view, "Welcome Bob")
@@ -247,7 +247,7 @@ func TestView_OneReplyPostDeletedUnauthenticatedUser(t *testing.T) {
 	assert.Contains(view, "Welcome Bob")
 
 	delete := server.Handle("/users/delete/"+id, server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), delete)
+	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), delete)
 
 	view = server.Handle("/view/"+replyHash, nil)
 	assert.Contains(view, "Welcome Bob")
@@ -274,7 +274,7 @@ func TestView_OneReplyReplyDeleted(t *testing.T) {
 	assert.Contains(view, "Welcome Bob")
 
 	delete := server.Handle("/users/delete/"+replyHash, server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), delete)
+	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", replyHash), delete)
 
 	view = server.Handle("/users/view/"+id, server.Alice)
 	assert.Contains(view, "Hello world")

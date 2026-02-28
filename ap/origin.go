@@ -152,6 +152,15 @@ func validateOrigin(domain string, activity *Activity, origin string, depth uint
 				if authorOrigin != origin {
 					return fmt.Errorf("invalid author host: %s", authorOrigin)
 				}
+			} else if obj.BackfillContext != "" && obj.InReplyTo == "" {
+				contextOrigin, err := Origin(obj.BackfillContext)
+				if err != nil {
+					return err
+				}
+
+				if contextOrigin != origin {
+					return fmt.Errorf("invalid context host: %s", contextOrigin)
+				}
 			}
 		} else if s, ok := activity.Object.(string); ok {
 			if stringOrigin, err := Origin(s); err != nil {

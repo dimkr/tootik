@@ -133,4 +133,33 @@ func TestCluster_Context(t *testing.T) {
 		NotContains(Line{Type: Quote, Text: "c"}).
 		Contains(Line{Type: Quote, Text: "d"}).
 		Contains(Line{Type: Quote, Text: "e"})
+
+	cluster["b.localdomain"].Config.PostContextDepth--
+
+	bob.
+		Goto(e.Path).
+		Contains(Line{Type: Quote, Text: "a"}).
+		Contains(Line{Type: Link, Text: "[3 replies]", URL: d.Path}).
+		NotContains(Line{Type: Quote, Text: "b"}).
+		NotContains(Line{Type: Quote, Text: "c"}).
+		NotContains(Line{Type: Quote, Text: "d"}).
+		Contains(Line{Type: Quote, Text: "e"})
+
+	bob.
+		Goto(d.Path).
+		Contains(Line{Type: Quote, Text: "a"}).
+		Contains(Line{Type: Link, Text: "[2 replies]", URL: c.Path}).
+		NotContains(Line{Type: Quote, Text: "b"}).
+		NotContains(Line{Type: Quote, Text: "c"}).
+		Contains(Line{Type: Quote, Text: "d"}).
+		Contains(Line{Type: Quote, Text: "e"})
+
+	bob.
+		Goto(c.Path).
+		Contains(Line{Type: Quote, Text: "a"}).
+		Contains(Line{Type: Link, Text: "[1 reply]", URL: b.Path}).
+		NotContains(Line{Type: Quote, Text: "b"}).
+		Contains(Line{Type: Quote, Text: "c"}).
+		Contains(Line{Type: Quote, Text: "d"}).
+		NotContains(Line{Type: Quote, Text: "e"})
 }
