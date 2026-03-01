@@ -43,7 +43,9 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/cluster"
+	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/front/text/plain"
 	"golang.org/x/term"
 )
 
@@ -259,6 +261,7 @@ func shell(ctx context.Context, server *cluster.Server, user string) error {
 
 func main() {
 	shellMode := flag.Bool("shell", false, "Start an interactive shell")
+	usersMode := flag.Bool("users", false, "List registered users")
 
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [-shell | USERNAME PATH INPUT]\n\n", os.Args[0])
@@ -266,6 +269,10 @@ func main() {
 		fmt.Fprintln(flag.CommandLine.Output(), "")
 		fmt.Fprintln(flag.CommandLine.Output(), "  -shell")
 		fmt.Fprintln(flag.CommandLine.Output(), "    Start an interactive shell as the current OS user.")
+		fmt.Fprintln(flag.CommandLine.Output(), "")
+		fmt.Fprintln(flag.CommandLine.Output(), "  -users")
+		fmt.Fprintln(flag.CommandLine.Output(), "    List registered users.")
+		fmt.Fprintln(flag.CommandLine.Output(), "")
 		fmt.Fprintln(flag.CommandLine.Output(), "")
 		fmt.Fprintln(flag.CommandLine.Output(), "USERNAME is the user to authenticate as.")
 		fmt.Fprintln(flag.CommandLine.Output(), "PATH is a Gemini path (e.g. /users, /local, /users/say).")
@@ -287,14 +294,16 @@ func main() {
 	}
 	flag.Parse()
 
-	if !*shellMode && flag.NArg() != 3 {
+	if (!*shellMode && !*usersMode && flag.NArg() != 3) || (*shellMode && *usersMode) || ((*shellMode || *usersMode) && flag.NArg() > 0) {
 		flag.Usage()
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	slog.SetDefault(slog.New(slog.DiscardHandler))
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+		Level: slog.LevelWarn,
+	})))
 
 	var baseDir string
 	if runtime.GOOS == "linux" {
@@ -346,6 +355,39 @@ func main() {
 			slog.Error("Shell error", "error", err)
 			os.Exit(1)
 		}
+		return
+	}
+
+	if *usersMode {
+		first := true
+		if err := dbx.QueryScan(
+			ctx,
+			func(row struct{ Name, Bio string }) {
+				if !first {
+					os.Stdout.Write([]byte{'\n'})
+				}
+
+				os.Stdout.WriteString("Username: ")
+				os.Stdout.WriteString(row.Name)
+				os.Stdout.Write([]byte{'\n'})
+
+				os.Stdout.WriteString("Bio: ")
+				bio, _ := plain.FromHTML(row.Bio)
+				os.Stdout.WriteString(bio)
+				os.Stdout.Write([]byte{'\n'})
+
+				first = false
+			},
+			func(err error) bool {
+				return false
+			},
+			cl["local.example"].DB,
+			`select actor->>'$.preferredUsername' , actor->>'$.summary' from persons where actor->>'$.type' = 'Person'`,
+		); err != nil {
+			slog.Error("Failed to list users", "error", err)
+			os.Exit(1)
+		}
+
 		return
 	}
 
