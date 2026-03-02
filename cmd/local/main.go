@@ -25,6 +25,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"database/sql"
 	"encoding/pem"
 	"flag"
 	"fmt"
@@ -362,7 +363,10 @@ func main() {
 		first := true
 		if err := dbx.QueryScan(
 			ctx,
-			func(row struct{ Name, Bio string }) {
+			func(row struct {
+				Name string
+				Bio  sql.NullString
+			}) {
 				if !first {
 					os.Stdout.Write([]byte{'\n'})
 				}
@@ -372,8 +376,10 @@ func main() {
 				os.Stdout.Write([]byte{'\n'})
 
 				os.Stdout.WriteString("Bio: ")
-				bio, _ := plain.FromHTML(row.Bio)
-				os.Stdout.WriteString(bio)
+				if row.Bio.Valid {
+					bio, _ := plain.FromHTML(row.Bio.String)
+					os.Stdout.WriteString(bio)
+				}
 				os.Stdout.Write([]byte{'\n'})
 
 				first = false
