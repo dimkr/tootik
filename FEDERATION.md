@@ -271,7 +271,7 @@ When tootik forwards activities, it assumes that other servers use the same URL 
 
 ## Limitations
 
-* tootik does not support `ap://` identifiers, location hints and delivery to `outbox`.
+* tootik does not support `ap://` identifiers and location hints.
 * tootik assumes that activity and object IDs don't change: for example, it assumes that `Update` activities for portable posts preserve the `id` field of the original object. This matches the expectation of servers that don't support data portability and simplifies the implementation.
 * tootik provides limited support for fetching of objects (like posts) and activities from `/.well-known/apgateway`: replication of data across all actors with the same canonical ID is primarily achieved using forwarding.
 * The RSA key under `publicKey` is generated during registration, so different actors owned by the same DID will use different RSA keys when they talk to servers that don't support Ed25519 signatures. Therefore, servers that cache only one RSA key for two actors with the same canonical ID (which shouldn't exist) might fail to validate some signatures.
