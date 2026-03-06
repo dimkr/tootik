@@ -18,7 +18,6 @@ package test
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -39,7 +38,7 @@ func TestDelete_HappyFlow(t *testing.T) {
 	assert.Contains(view, "Hello world")
 
 	delete := server.Handle("/users/delete/"+id, server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), delete)
+	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), delete)
 
 	view = server.Handle("/users/view/"+id, server.Alice)
 	assert.NotContains(view, "Hello world")
@@ -118,14 +117,14 @@ func TestDelete_WithReply(t *testing.T) {
 	assert.Contains(view, "Welcome Alice")
 
 	delete := server.Handle("/users/delete/"+replyID, server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), delete)
+	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", replyID), delete)
 
 	view = server.Handle("/users/view/"+replyID, server.Alice)
 	assert.Contains(view, "Hello world")
 	assert.NotContains(view, "Welcome Alice")
 
 	delete = server.Handle("/users/delete/"+postID, server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), delete)
+	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", postID), delete)
 
 	view = server.Handle("/users/view/"+postID, server.Alice)
 	assert.NotContains(view, "Hello world")
@@ -153,14 +152,14 @@ func TestDelete_WithReplyPostDeletedFirst(t *testing.T) {
 	assert.Contains(view, "Welcome Alice")
 
 	delete := server.Handle("/users/delete/"+postID, server.Alice)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), delete)
+	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", postID), delete)
 
 	view = server.Handle("/users/view/"+postID, server.Alice)
 	assert.NotContains(view, "Hello world")
 	assert.Contains(view, "Welcome Alice")
 
 	delete = server.Handle("/users/delete/"+replyID, server.Bob)
-	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), delete)
+	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", replyID), delete)
 
 	view = server.Handle("/users/view/"+replyID, server.Alice)
 	assert.NotContains(view, "Hello world")
