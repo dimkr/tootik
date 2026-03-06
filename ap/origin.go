@@ -169,7 +169,7 @@ func validateOrigin(domain string, activity *Activity, origin string, depth uint
 				return fmt.Errorf("invalid object host: %s", stringOrigin)
 			}
 		} else {
-			return fmt.Errorf("invalid object: %T", obj)
+			return fmt.Errorf("invalid object: %T", activity.Object)
 		}
 
 	case Announce:
@@ -182,6 +182,47 @@ func validateOrigin(domain string, activity *Activity, origin string, depth uint
 			return errors.New("empty ID")
 		} else if _, err := Origin(s); err != nil {
 			return err
+		}
+
+	case QuoteRequest:
+		// $origin can only create objects that belong to $origin
+		if inst, ok := activity.Instrument.(*Object); ok {
+			if instrumentOrigin, err := Origin(inst.ID); err != nil {
+				return err
+			} else if instrumentOrigin != origin {
+				return fmt.Errorf("invalid object host: %s", instrumentOrigin)
+			} else if inst.AttributedTo != "" && inst.AttributedTo != activity.Actor {
+				authorOrigin, err := Origin(inst.AttributedTo)
+				if err != nil {
+					return err
+				}
+
+				if authorOrigin != origin {
+					return fmt.Errorf("invalid author host: %s", authorOrigin)
+				}
+			} else if inst.BackfillContext != "" && inst.InReplyTo == "" {
+				contextOrigin, err := Origin(inst.BackfillContext)
+				if err != nil {
+					return err
+				}
+
+				if contextOrigin != origin {
+					return fmt.Errorf("invalid context host: %s", contextOrigin)
+				}
+			}
+		} else {
+			return fmt.Errorf("invalid instrument: %T", activity.Instrument)
+		}
+
+		// $origin can only quote posts that belong to us
+		if s, ok := activity.Object.(string); ok {
+			if objectOrigin, err := Origin(s); err != nil {
+				return err
+			} else if objectOrigin != domain && !strings.HasPrefix(objectOrigin, "did:") {
+				return fmt.Errorf("invalid object host: %s", objectOrigin)
+			}
+		} else {
+			return fmt.Errorf("invalid object: %T", activity.Object)
 		}
 
 	default:
