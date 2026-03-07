@@ -43,7 +43,7 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		server.inbox.Accept(
+		server.inbox.AcceptFollow(
 			context.Background(),
 			server.Alice,
 			httpsig.Key{},
@@ -111,7 +111,7 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		server.inbox.Accept(
+		server.inbox.AcceptFollow(
 			context.Background(),
 			server.Alice,
 			httpsig.Key{},
@@ -174,7 +174,7 @@ func TestForward_LocalReplyToLocalPublicPost(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		server.inbox.Accept(
+		server.inbox.AcceptFollow(
 			context.Background(),
 			server.Alice,
 			httpsig.Key{},
@@ -218,7 +218,7 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		server.inbox.Accept(
+		server.inbox.AcceptFollow(
 			context.Background(),
 			server.Alice,
 			httpsig.Key{},
@@ -298,7 +298,7 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		server.inbox.Accept(
+		server.inbox.AcceptFollow(
 			context.Background(),
 			server.Alice,
 			httpsig.Key{},
@@ -363,7 +363,7 @@ func TestForward_ReplyToDM(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		server.inbox.Accept(
+		server.inbox.AcceptFollow(
 			context.Background(),
 			server.Alice,
 			httpsig.Key{},
@@ -482,7 +482,7 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		server.inbox.Accept(
+		server.inbox.AcceptFollow(
 			context.Background(),
 			server.Alice,
 			httpsig.Key{},
@@ -601,7 +601,7 @@ func TestForward_MaxDepth(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		server.inbox.Accept(
+		server.inbox.AcceptFollow(
 			context.Background(),
 			server.Alice,
 			httpsig.Key{},
@@ -711,7 +711,7 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		server.inbox.Accept(
+		server.inbox.AcceptFollow(
 			context.Background(),
 			server.Alice,
 			httpsig.Key{},
@@ -833,7 +833,7 @@ func TestForward_ReplyToLocalPostByLocalFollower(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		server.inbox.Accept(
+		server.inbox.AcceptFollow(
 			context.Background(),
 			server.Alice,
 			httpsig.Key{},
@@ -874,7 +874,7 @@ func TestForward_EditedReplyToLocalPostByLocalFollower(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		server.inbox.Accept(
+		server.inbox.AcceptFollow(
 			context.Background(),
 			server.Alice,
 			httpsig.Key{},
@@ -922,7 +922,7 @@ func TestForward_DeletedReplyToLocalPostByLocalFollower(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		server.inbox.Accept(
+		server.inbox.AcceptFollow(
 			context.Background(),
 			server.Alice,
 			httpsig.Key{},
@@ -976,7 +976,7 @@ func TestForward_EditedReplyToPublicPost(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		server.inbox.Accept(
+		server.inbox.AcceptFollow(
 			context.Background(),
 			server.Alice,
 			httpsig.Key{},
@@ -1076,7 +1076,7 @@ func TestForward_ResentEditedReplyToPublicPost(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		server.inbox.Accept(
+		server.inbox.AcceptFollow(
 			context.Background(),
 			server.Alice,
 			httpsig.Key{},
@@ -1187,7 +1187,7 @@ func TestForward_DeletedReplyToPublicPost(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		server.inbox.Accept(
+		server.inbox.AcceptFollow(
 			context.Background(),
 			server.Alice,
 			httpsig.Key{},
@@ -1265,7 +1265,7 @@ func TestForward_DeletedDeletedReplyToPublicPost(t *testing.T) {
 	defer tx.Rollback()
 
 	assert.NoError(
-		server.inbox.Accept(
+		server.inbox.AcceptFollow(
 			context.Background(),
 			server.Alice,
 			httpsig.Key{},

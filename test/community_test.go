@@ -121,7 +121,7 @@ func TestCommunity_NewThreadNotFollowing(t *testing.T) {
 	assert.NoError(err)
 
 	assert.NoError(
-		server.inbox.Accept(
+		server.inbox.AcceptFollow(
 			context.Background(),
 			server.Alice,
 			httpsig.Key{},
@@ -179,7 +179,7 @@ func TestCommunity_NewThreadNotPublic(t *testing.T) {
 	assert.NoError(err)
 
 	assert.NoError(
-		server.inbox.Accept(
+		server.inbox.AcceptFollow(
 			context.Background(),
 			server.Alice,
 			httpsig.Key{},
@@ -240,7 +240,7 @@ func TestCommunity_ReplyInThread(t *testing.T) {
 	assert.NoError(err)
 
 	assert.NoError(
-		server.inbox.Accept(
+		server.inbox.AcceptFollow(
 			context.Background(),
 			server.Alice,
 			httpsig.Key{},
@@ -394,7 +394,7 @@ func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
 	assert.NoError(err)
 
 	assert.NoError(
-		server.inbox.Accept(
+		server.inbox.AcceptFollow(
 			context.Background(),
 			server.Alice,
 			httpsig.Key{},
@@ -489,7 +489,7 @@ func TestCommunity_DuplicateReplyInThread(t *testing.T) {
 	assert.NoError(err)
 
 	assert.NoError(
-		server.inbox.Accept(
+		server.inbox.AcceptFollow(
 			context.Background(),
 			server.Alice,
 			httpsig.Key{},
@@ -591,7 +591,7 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 	assert.NoError(err)
 
 	assert.NoError(
-		server.inbox.Accept(
+		server.inbox.AcceptFollow(
 			context.Background(),
 			server.Alice,
 			httpsig.Key{},
@@ -714,7 +714,7 @@ func TestCommunity_UnknownEditedReplyInThread(t *testing.T) {
 	assert.NoError(err)
 
 	assert.NoError(
-		server.inbox.Accept(
+		server.inbox.AcceptFollow(
 			context.Background(),
 			server.Alice,
 			httpsig.Key{},
