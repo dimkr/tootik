@@ -14,13 +14,10 @@ jobs:
       image: debian:trixie-slim
     timeout-minutes: 20
     steps:
+      - uses: actions/checkout@v4
       - run: |
           apt-get update -qq
-          apt-get install -y --no-install-recommends git ca-certificates gcc libc6-dev
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - run: git config --global --add safe.directory `pwd`
+          apt-get install -y --no-install-recommends gcc libc6-dev
       - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
@@ -54,12 +51,10 @@ jobs:
       image: debian:trixie-slim
     timeout-minutes: 10
     steps:
+      - uses: actions/checkout@v4
       - run: |
           apt-get update -qq
-          apt-get install -y --no-install-recommends git ca-certificates gcc libc6-dev less
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+          apt-get install -y --no-install-recommends gcc libc6-dev less
       - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
