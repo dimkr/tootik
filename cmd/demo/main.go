@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"github.com/creack/pty"
+	"github.com/dimkr/slopline"
 	"github.com/dimkr/tootik/cluster"
 	"github.com/dimkr/tootik/front/text"
 	"golang.org/x/term"
@@ -305,7 +306,7 @@ func main() {
 	var history []string
 	var links []string
 
-	bestlineSetHintsCallback(func(text string, ansi1, ansi2 *string) string {
+	slopline.SetHintsCallback(func(text string, ansi1, ansi2 *string) string {
 		if text == "" && len(links) > 0 {
 			*ansi1 = "\033[90m"
 			*ansi2 = "\033[0m"
@@ -363,17 +364,17 @@ func main() {
 			}
 		}
 
-		line, err := bestline("\033[35m%s>\033[0m ", prompt)
-		if err != nil {
+		line := slopline.Line(fmt.Sprintf("\033[35m%s>\033[0m ", prompt))
+		if line == nil {
 			break
 		}
 
-		line = strings.TrimSpace(line)
-		if line == "" {
+		trimmed := strings.TrimSpace(*line)
+		if trimmed == "" {
 			continue
 		}
 
-		if n, err := strconv.Atoi(line); err == nil && n > 0 && n <= len(links) {
+		if n, err := strconv.Atoi(trimmed); err == nil && n > 0 && n <= len(links) {
 			nextURL := links[n-1]
 			u, err := url.Parse(nextURL)
 			if err != nil {
@@ -386,13 +387,13 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
-			u.RawQuery = url.QueryEscape(line)
+			u.RawQuery = url.QueryEscape(trimmed)
 			history = append(history, p.Path)
 			p = p.Goto(u.String())
 		} else {
-			u, err := url.Parse(line)
+			u, err := url.Parse(trimmed)
 			if err != nil {
-				fmt.Printf("Invalid URL or command: %s\n", line)
+				fmt.Printf("Invalid URL or command: %s\n", trimmed)
 				continue
 			}
 			history = append(history, p.Path)
