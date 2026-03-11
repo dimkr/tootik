@@ -282,7 +282,7 @@ func main() {
 		fmt.Fprintln(flag.CommandLine.Output(), "The response is a Gemini protocol response containing a gemtext")
 		fmt.Fprintln(flag.CommandLine.Output(), "document, printed to stdout.")
 		fmt.Fprintln(flag.CommandLine.Output(), "")
-		fmt.Fprintln(flag.CommandLine.Output(), "Gemtext is a markup format that consists of newline (\n) delimited")
+		fmt.Fprintln(flag.CommandLine.Output(), `Gemtext is a markup format that consists of newline (\n) delimited`)
 		fmt.Fprintln(flag.CommandLine.Output(), "lines that can be classified into 8 types according to their prefix:")
 		fmt.Fprintln(flag.CommandLine.Output(), "heading (#), sub-heading (##), sub-sub-heading (###), link (=>), list")
 		fmt.Fprintln(flag.CommandLine.Output(), "item (*), quote (>), preformatted block toggle (```) or text.")
