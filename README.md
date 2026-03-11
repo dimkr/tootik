@@ -478,4 +478,4 @@ During tests, all [http.Request](https://pkg.go.dev/net/http#Request)s sent by t
 
 tootik is free and unencumbered software released under the terms of the [Apache License Version 2.0](https://www.apache.org/licenses/LICENSE-2.0); see LICENSE for the license text.
 
-The ASCII art logo at the top was made using [FIGlet](http://www.figlet.org/).
+The ASCII art logo in `front/logo.go` was made using [FIGlet](http://www.figlet.org/).

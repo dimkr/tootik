@@ -241,7 +241,7 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
 
-			if err := inbox.Accept(ctx, &followed, httpsig.Key{ID: followed.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)}, activity.Actor, activity.ID, tx); err != nil {
+			if err := inbox.AcceptFollow(ctx, &followed, httpsig.Key{ID: followed.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)}, activity.Actor, activity.ID, tx); err != nil {
 				return fmt.Errorf("failed to accept %s: %w", activity.ID, err)
 			}
 		} else {
@@ -454,6 +454,43 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 		}
 
 		slog.Info("Updated post", "activity", activity, "post", post.ID)
+
+	case ap.QuoteRequest:
+		postID, ok := activity.Object.(string)
+		if !ok {
+			slog.Debug("Ignoring unsupported QuoteRequest object", "activity", activity)
+			return nil
+		}
+
+		var actor ap.Actor
+		var ed25519PrivKey []byte
+		if err := tx.QueryRowContext(
+			ctx,
+			`
+			select ed25519privkey, json(actor) from notes
+			join persons on persons.id = notes.author
+			where notes.id = ? and notes.public = 1 and notes.deleted = 0 and persons.ed25519privkey is not null
+			`,
+			postID,
+		).Scan(&ed25519PrivKey, &actor); errors.Is(err, sql.ErrNoRows) {
+			slog.Debug("Received invalid quote request", "activity", activity)
+			return nil
+		} else if err != nil {
+			return fmt.Errorf("failed to fetch quoted post %s author: %w", postID, err)
+		}
+
+		if err := inbox.acceptRequest(
+			ctx,
+			&actor,
+			httpsig.Key{
+				ID:         actor.AssertionMethod[0].ID,
+				PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey),
+			},
+			activity,
+			tx,
+		); err != nil {
+			return fmt.Errorf("failed to accept quote of %s by %s: %w", postID, actor.ID, err)
+		}
 
 	case ap.Move:
 		slog.Debug("Ignoring Move activity", "activity", activity)

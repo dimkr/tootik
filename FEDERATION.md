@@ -12,7 +12,7 @@ tootik supports quote posts using the `quote` property proposed by [FEP-044f](ht
 
 ## Interaction Policies
 
-tootik doesn't support interaction policies. It marks all public posts with `"automaticApproval": ["https://www.w3.org/ns/activitystreams#Public"]` and allows quoting of all public posts with this policy.
+tootik doesn't support interaction policies. It marks all public posts with `"automaticApproval": ["https://www.w3.org/ns/activitystreams#Public"]` and allows quoting of all public posts with this policy. If another server sends a `QuoteRequest`, tootik automatically responds with `Accept`.
 
 ## Users
 
@@ -126,6 +126,8 @@ The problem of "ghost replies" happens when tootik receives a reply for a missin
 Every time tootik receives a **public** reply, it tries to fetch parent posts until the thread depth reaches `BackfillDepth`.
 
 If the origin of a previously fetched post doesn't send `Update` or `Delete` activities, tootik detects edits or deletion by re-fetching that post. This re-fetch is triggered exclusively when processing a `Create` or `Update` activity for a reply (or a nested reply, up to `BackfillDepth` depth) to that post, provided it hasn't been updated within the `BackfillInterval` and no `Update` activity for it exists in the `history` table.
+
+If `BackfillDepth` is greater than 0 and tootik receives a reply in a thread with missing or deleted intermediate replies, it may be unable to fetch all parent posts. However, if the reply includes a `context` property as defined in [FEP-f228](https://codeberg.org/fediverse/fep/src/branch/main/fep/f228/fep-f228.md) (in "collection of posts" mode), tootik uses it to fetch the root post of the thread directly.
 
 ## Account Migration
 
@@ -271,7 +273,7 @@ When tootik forwards activities, it assumes that other servers use the same URL 
 
 ## Limitations
 
-* tootik does not support `ap://` identifiers, location hints and delivery to `outbox`.
+* tootik does not support `ap://` identifiers and location hints.
 * tootik assumes that activity and object IDs don't change: for example, it assumes that `Update` activities for portable posts preserve the `id` field of the original object. This matches the expectation of servers that don't support data portability and simplifies the implementation.
 * tootik provides limited support for fetching of objects (like posts) and activities from `/.well-known/apgateway`: replication of data across all actors with the same canonical ID is primarily achieved using forwarding.
 * The RSA key under `publicKey` is generated during registration, so different actors owned by the same DID will use different RSA keys when they talk to servers that don't support Ed25519 signatures. Therefore, servers that cache only one RSA key for two actors with the same canonical ID (which shouldn't exist) might fail to validate some signatures.
