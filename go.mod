@@ -5,6 +5,7 @@ go 1.26.1
 require (
 	github.com/btcsuite/btcutil v1.0.2
 	github.com/creack/pty v1.1.24
+	github.com/dimkr/slopline v0.0.0-20260309210829-23dbd2fdaa5f
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/google/uuid v1.6.0
 	github.com/gowebpki/jcs v1.0.1

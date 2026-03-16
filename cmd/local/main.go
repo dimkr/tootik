@@ -43,6 +43,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/dimkr/slopline"
 	"github.com/dimkr/tootik/cluster"
 	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/front/text"
@@ -162,7 +163,7 @@ func shell(ctx context.Context, server *cluster.Server, user string) error {
 
 	p := server.Handle(cert, "/users")
 
-	bestlineSetHintsCallback(func(text string, ansi1, ansi2 *string) string {
+	slopline.SetHintsCallback(func(text string, ansi1, ansi2 *string) string {
 		if text == "" && len(links) > 0 {
 			*ansi1 = "\033[90m"
 			*ansi2 = "\033[0m"
@@ -220,12 +221,12 @@ func shell(ctx context.Context, server *cluster.Server, user string) error {
 			}
 		}
 
-		line, err := bestline("\033[35m%s>\033[0m ", prompt)
-		if err != nil {
+		linep := slopline.Line(fmt.Sprintf("\033[35m%s>\033[0m ", prompt))
+		if linep == nil {
 			break
 		}
 
-		line = strings.TrimSpace(line)
+		line := strings.TrimSpace(*linep)
 		if line == "" {
 			continue
 		}
