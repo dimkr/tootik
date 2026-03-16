@@ -303,9 +303,10 @@ func (s *Server) handle(cert tls.Certificate, path, input string, redirects int)
 		s.Test.Fatalf("Failed to send request: %v", err)
 	}
 
-	s.Frontend.Handle(s.Test.Context(), serverTlsConn)
-
-	serverTlsConn.Close()
+	go func() {
+		s.Frontend.Handle(s.Test.Context(), serverTlsConn)
+		serverTlsConn.Close()
+	}()
 
 	resp, err := io.ReadAll(clientTlsConn)
 	if err != nil {
