@@ -365,12 +365,12 @@ func main() {
 			break
 		}
 
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
+		line = strings.TrimSpace(line)
+		if line == "" {
 			continue
 		}
 
-		if n, err := strconv.Atoi(trimmed); err == nil && n > 0 && n <= len(links) {
+		if n, err := strconv.Atoi(line); err == nil && n > 0 && n <= len(links) {
 			nextURL := links[n-1]
 			u, err := url.Parse(nextURL)
 			if err != nil {
@@ -383,13 +383,13 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
-			u.RawQuery = url.QueryEscape(trimmed)
+			u.RawQuery = url.QueryEscape(line)
 			history = append(history, p.Path)
 			p = p.Goto(u.String())
 		} else {
-			u, err := url.Parse(trimmed)
+			u, err := url.Parse(line)
 			if err != nil {
-				fmt.Printf("Invalid URL or command: %s\n", trimmed)
+				fmt.Printf("Invalid URL or command: %s\n", line)
 				continue
 			}
 			history = append(history, p.Path)
