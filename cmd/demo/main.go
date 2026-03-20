@@ -306,13 +306,11 @@ func main() {
 	var history []string
 	var links []string
 
-	slopline.SetHintsCallback(func(text string, ansi1, ansi2 *string) string {
+	slopline.SetHintsCallback(func(text string) (string, string, string) {
 		if text == "" && len(links) > 0 {
-			*ansi1 = "\033[90m"
-			*ansi2 = "\033[0m"
-			return fmt.Sprintf(" 1-%d", len(links))
+			return fmt.Sprintf(" 1-%d", len(links)), "\033[90m", "\033[0m"
 		} else if len(links) == 0 {
-			return ""
+			return "", "", ""
 		}
 
 		if n, err := strconv.Atoi(text); err == nil && n > 0 {
@@ -324,14 +322,12 @@ func main() {
 
 				i++
 				if i == n {
-					*ansi1 = "\033[90m"
-					*ansi2 = "\033[0m"
-					return " " + line.Text
+					return " " + line.Text, "\033[90m", "\033[0m"
 				}
 			}
 		}
 
-		return ""
+		return "", "", ""
 	})
 
 	for {
@@ -364,12 +360,12 @@ func main() {
 			}
 		}
 
-		line := slopline.Line(fmt.Sprintf("\033[35m%s>\033[0m ", prompt))
-		if line == nil {
+		line, err := slopline.Line(fmt.Sprintf("\033[35m%s>\033[0m ", prompt))
+		if err != nil {
 			break
 		}
 
-		trimmed := strings.TrimSpace(*line)
+		trimmed := strings.TrimSpace(line)
 		if trimmed == "" {
 			continue
 		}
