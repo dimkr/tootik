@@ -11,7 +11,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.21
 	github.com/mattn/go-sqlite3 v1.14.37
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/image v0.37.0
+	golang.org/x/image v0.38.0
 	golang.org/x/net v0.52.0
 	golang.org/x/term v0.41.0
 )
