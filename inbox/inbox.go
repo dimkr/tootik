@@ -235,7 +235,7 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 
 			if _, err := tx.ExecContext(
 				ctx,
-				`INSERT INTO follows (id, follower, followed, accepted, insertednano) VALUES($1, $2, $3, $4, 1) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = 1, insertednano = $4`,
+				`INSERT INTO follows (id, follower, followed, insertednano, accepted) VALUES($1, $2, $3, $4, 1) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = 1, insertednano = $4`,
 				activity.ID,
 				activity.Actor,
 				followed.ID,
