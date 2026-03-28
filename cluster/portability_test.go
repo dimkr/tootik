@@ -1043,7 +1043,7 @@ func TestCluster_InboxFetchHappyFlow(t *testing.T) {
 		t.Fatalf("Failed to decode inbox: %v", err)
 	}
 
-	r, err = http.NewRequestWithContext(t.Context(), http.MethodGet, inbox.First, nil)
+	r, err = http.NewRequestWithContext(t.Context(), http.MethodGet, inbox.First.(string), nil)
 	if err != nil {
 		t.Fatalf("Failed to create HTTP request: %v", err)
 	}
@@ -1355,7 +1355,7 @@ func TestCluster_OutboxImport(t *testing.T) {
 		t.Fatalf("Failed to decode inbox: %v", err)
 	}
 
-	r, err = http.NewRequestWithContext(t.Context(), http.MethodGet, inbox.First, nil)
+	r, err = http.NewRequestWithContext(t.Context(), http.MethodGet, inbox.First.(string), nil)
 	if err != nil {
 		t.Fatalf("Failed to create HTTP request: %v", err)
 	}

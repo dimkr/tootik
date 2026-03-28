@@ -142,8 +142,6 @@ type Config struct {
 	BackfillInterval time.Duration
 }
 
-var defaultMaxInvitationsPerUser = 5
-
 // FillDefaults replaces missing or invalid settings with defaults.
 func (c *Config) FillDefaults() {
 	if c.DatabaseOptions == "" {
@@ -155,7 +153,7 @@ func (c *Config) FillDefaults() {
 	}
 
 	if c.MaxInvitationsPerUser == nil {
-		c.MaxInvitationsPerUser = &defaultMaxInvitationsPerUser
+		c.MaxInvitationsPerUser = new(5)
 	}
 
 	if c.InvitationTimeout == 0 {

@@ -23,9 +23,10 @@ import (
 )
 
 func structFieldPtrs(t reflect.Type, base unsafe.Pointer) []any {
-	fields := reflect.VisibleFields(t)
-	ptrs := make([]any, len(fields))
-	for i, field := range fields {
+	n := t.NumField()
+	ptrs := make([]any, n)
+	for i := range n {
+		field := t.Field(i)
 		ptrs[i] = reflect.NewAt(field.Type, unsafe.Add(base, field.Offset)).Interface()
 	}
 

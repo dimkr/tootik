@@ -241,6 +241,19 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 		note.InteractionPolicy.CanQuote.AutomaticApproval.Add(ap.Public)
 	}
 
+	if ap.IsPortable(note.ID) && inReplyTo == nil && note.IsPublic() {
+		contextID, err := h.Inbox.NewID(r.User.ID, "context")
+		if err != nil {
+			r.Log.Error("Failed to generate context ID", "error", err)
+			w.Error()
+			return
+		}
+
+		note.BackfillContext = contextID
+	} else if inReplyTo != nil {
+		note.BackfillContext = inReplyTo.BackfillContext
+	}
+
 	var err error
 	if oldNote != nil {
 		note.Published = oldNote.Published

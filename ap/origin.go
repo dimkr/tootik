@@ -152,6 +152,15 @@ func validateOrigin(domain string, activity *Activity, origin string, depth uint
 				if authorOrigin != origin {
 					return fmt.Errorf("invalid author host: %s", authorOrigin)
 				}
+			} else if obj.BackfillContext != "" && obj.InReplyTo == "" {
+				contextOrigin, err := Origin(obj.BackfillContext)
+				if err != nil {
+					return err
+				}
+
+				if contextOrigin != origin {
+					return fmt.Errorf("invalid context host: %s", contextOrigin)
+				}
 			}
 		} else if s, ok := activity.Object.(string); ok {
 			if stringOrigin, err := Origin(s); err != nil {
@@ -160,7 +169,7 @@ func validateOrigin(domain string, activity *Activity, origin string, depth uint
 				return fmt.Errorf("invalid object host: %s", stringOrigin)
 			}
 		} else {
-			return fmt.Errorf("invalid object: %T", obj)
+			return fmt.Errorf("invalid object: %T", activity.Object)
 		}
 
 	case Announce:
@@ -173,6 +182,31 @@ func validateOrigin(domain string, activity *Activity, origin string, depth uint
 			return errors.New("empty ID")
 		} else if _, err := Origin(s); err != nil {
 			return err
+		}
+
+	case QuoteRequest:
+		// $origin can only create objects that belong to $origin
+		if inst, ok := activity.Instrument.(*Object); ok {
+			if instrumentOrigin, err := Origin(inst.ID); err != nil {
+				return err
+			} else if instrumentOrigin != origin {
+				return fmt.Errorf("invalid object host: %s", instrumentOrigin)
+			} else if inst.AttributedTo != activity.Actor {
+				return fmt.Errorf("invalid object author: %s", inst.AttributedTo)
+			}
+		} else {
+			return fmt.Errorf("invalid instrument: %T", activity.Instrument)
+		}
+
+		// $origin can only quote posts that belong to us
+		if s, ok := activity.Object.(string); ok {
+			if objectOrigin, err := Origin(s); err != nil {
+				return err
+			} else if objectOrigin != domain && !strings.HasPrefix(objectOrigin, "did:") {
+				return fmt.Errorf("invalid object host: %s", objectOrigin)
+			}
+		} else {
+			return fmt.Errorf("invalid object: %T", activity.Object)
 		}
 
 	default:

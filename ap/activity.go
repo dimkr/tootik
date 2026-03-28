@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -31,15 +31,16 @@ type ActivityType string
 const (
 	MaxActivityDepth = 3
 
-	Create   ActivityType = "Create"
-	Follow   ActivityType = "Follow"
-	Accept   ActivityType = "Accept"
-	Reject   ActivityType = "Reject"
-	Undo     ActivityType = "Undo"
-	Delete   ActivityType = "Delete"
-	Announce ActivityType = "Announce"
-	Update   ActivityType = "Update"
-	Move     ActivityType = "Move"
+	Create       ActivityType = "Create"
+	Follow       ActivityType = "Follow"
+	Accept       ActivityType = "Accept"
+	Reject       ActivityType = "Reject"
+	Undo         ActivityType = "Undo"
+	Delete       ActivityType = "Delete"
+	Announce     ActivityType = "Announce"
+	Update       ActivityType = "Update"
+	Move         ActivityType = "Move"
+	QuoteRequest ActivityType = "QuoteRequest"
 
 	Like       ActivityType = "Like"
 	Dislike    ActivityType = "Dislike"
@@ -49,29 +50,32 @@ const (
 )
 
 type anyActivity struct {
-	Context any             `json:"@context"`
-	ID      string          `json:"id"`
-	Type    ActivityType    `json:"type"`
-	Actor   json.RawMessage `json:"actor"`
-	Object  json.RawMessage `json:"object"`
-	To      Audience        `json:"to"`
-	CC      Audience        `json:"cc"`
-	Proof   Proof           `json:"proof"`
+	Context    any             `json:"@context"`
+	ID         string          `json:"id"`
+	Type       ActivityType    `json:"type"`
+	Actor      json.RawMessage `json:"actor"`
+	Object     json.RawMessage `json:"object"`
+	To         Audience        `json:"to"`
+	CC         Audience        `json:"cc"`
+	Proof      Proof           `json:"proof"`
+	Instrument json.RawMessage `json:"instrument"`
 }
 
 // Activity represents an ActivityPub activity.
 // Object can point to another Activity, an [Object] or a string.
 type Activity struct {
-	Context   any          `json:"@context,omitempty"`
-	ID        string       `json:"id"`
-	Type      ActivityType `json:"type"`
-	Actor     string       `json:"actor"`
-	Object    any          `json:"object"`
-	Target    string       `json:"target,omitempty"`
-	To        Audience     `json:"to"`
-	CC        Audience     `json:"cc"`
-	Published Time         `json:"published,omitzero"`
-	Proof     Proof        `json:"proof,omitzero"`
+	Context    any          `json:"@context,omitempty"`
+	ID         string       `json:"id"`
+	Type       ActivityType `json:"type"`
+	Actor      string       `json:"actor"`
+	Object     any          `json:"object"`
+	Target     string       `json:"target,omitempty"`
+	To         Audience     `json:"to"`
+	CC         Audience     `json:"cc"`
+	Published  Time         `json:"published,omitzero"`
+	Proof      Proof        `json:"proof,omitzero"`
+	Instrument any          `json:"instrument,omitempty"`
+	Result     string       `json:"result,omitempty"`
 }
 
 var (
@@ -79,20 +83,21 @@ var (
 	ErrUnsupportedActivity = errors.New("unsupported activity")
 
 	knownActivityTypes = map[ActivityType]struct{}{
-		Create:     {},
-		Follow:     {},
-		Accept:     {},
-		Reject:     {},
-		Undo:       {},
-		Delete:     {},
-		Announce:   {},
-		Update:     {},
-		Move:       {},
-		Like:       {},
-		Dislike:    {},
-		EmojiReact: {},
-		Add:        {},
-		Remove:     {},
+		Create:       {},
+		Follow:       {},
+		Accept:       {},
+		Reject:       {},
+		Undo:         {},
+		Delete:       {},
+		Announce:     {},
+		Update:       {},
+		Move:         {},
+		Like:         {},
+		Dislike:      {},
+		EmojiReact:   {},
+		Add:          {},
+		Remove:       {},
+		QuoteRequest: {},
 	}
 )
 
@@ -140,6 +145,17 @@ func (a *Activity) UnmarshalJSON(b []byte) error {
 		a.Object = link
 	} else {
 		return ErrInvalidActivity
+	}
+
+	if common.Instrument != nil {
+		var instrument Object
+		if err := json.Unmarshal(common.Instrument, &instrument); err == nil {
+			a.Instrument = &instrument
+		} else if err := json.Unmarshal(common.Instrument, &instrument.ID); err == nil {
+			a.Instrument = instrument.ID
+		} else {
+			return ErrInvalidActivity
+		}
 	}
 
 	return nil

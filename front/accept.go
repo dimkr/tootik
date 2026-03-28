@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -55,7 +55,7 @@ func (h *Handler) accept(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := h.Inbox.Accept(r.Context, r.User, r.Keys[1], follower, followID, tx); err != nil {
+	if err := h.Inbox.AcceptFollow(r.Context, r.User, r.Keys[1], follower, followID, tx); err != nil {
 		r.Log.Warn("Failed to accept follow request", "follower", follower, "error", err)
 		w.Error()
 		return

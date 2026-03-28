@@ -28,14 +28,21 @@ import (
 	"github.com/dimkr/tootik/proof"
 )
 
-func (inbox *Inbox) accept(ctx context.Context, followed *ap.Actor, key httpsig.Key, follower, followID string, tx *sql.Tx) error {
-	id, err := inbox.NewID(followed.ID, "accept")
+func (inbox *Inbox) accept(
+	ctx context.Context,
+	actor *ap.Actor,
+	key httpsig.Key,
+	request *ap.Activity,
+	result string,
+	tx *sql.Tx,
+) (*ap.Activity, string, error) {
+	id, err := inbox.NewID(actor.ID, "accept")
 	if err != nil {
-		return err
+		return nil, "", err
 	}
 
 	recipients := ap.Audience{}
-	recipients.Add(follower)
+	recipients.Add(request.Actor)
 
 	accept := &ap.Activity{
 		Context: []string{
@@ -43,55 +50,113 @@ func (inbox *Inbox) accept(ctx context.Context, followed *ap.Actor, key httpsig.
 			"https://w3id.org/security/data-integrity/v1",
 			"https://w3id.org/security/v1",
 		},
-		Type:  ap.Accept,
-		ID:    id,
-		Actor: followed.ID,
-		To:    recipients,
-		Object: &ap.Activity{
-			Actor:  follower,
-			Type:   ap.Follow,
-			Object: followed,
-			ID:     followID,
-		},
+		Type:   ap.Accept,
+		ID:     id,
+		Actor:  actor.ID,
+		To:     recipients,
+		Object: request,
+		Result: result,
 	}
 
 	if !inbox.Config.DisableIntegrityProofs {
 		if accept.Proof, err = proof.Create(key, accept); err != nil {
-			return err
+			return nil, "", err
 		}
 	}
 
 	s, err := danger.MarshalJSON(accept)
 	if err != nil {
-		return err
+		return nil, "", err
 	}
 
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
 		s,
-		followed.ID,
+		actor.ID,
 		time.Now().UnixNano(),
 	); err != nil {
-		return err
+		return nil, "", err
 	}
 
-	return inbox.ProcessActivity(
+	return accept, s, nil
+}
+
+// Accept queues an Accept activity for delivery.
+func (inbox *Inbox) AcceptFollow(
+	ctx context.Context,
+	followed *ap.Actor,
+	key httpsig.Key,
+	follower, followID string,
+	tx *sql.Tx,
+) error {
+	if accept, raw, err := inbox.accept(
+		ctx,
+		followed,
+		key,
+		&ap.Activity{
+			Actor:  follower,
+			Type:   ap.Follow,
+			Object: followed,
+			ID:     followID,
+		},
+		"",
+		tx,
+	); err != nil {
+		return fmt.Errorf("failed to accept %s from %s by %s: %w", followID, follower, followed.ID, err)
+	} else if err := inbox.ProcessActivity(
 		ctx,
 		tx,
 		sql.NullString{},
 		followed,
 		accept,
-		s,
+		raw,
 		1,
 		false,
-	)
+	); err != nil {
+		return fmt.Errorf("failed to accept %s from %s by %s: %w", followID, follower, followed.ID, err)
+	}
+
+	return nil
 }
 
-// Accept queues an Accept activity for delivery.
-func (inbox *Inbox) Accept(ctx context.Context, followed *ap.Actor, key httpsig.Key, follower, followID string, tx *sql.Tx) error {
-	if err := inbox.accept(ctx, followed, key, follower, followID, tx); err != nil {
-		return fmt.Errorf("failed to accept %s from %s by %s: %w", followID, follower, followed.ID, err)
+func (inbox *Inbox) acceptRequest(
+	ctx context.Context,
+	actor *ap.Actor,
+	key httpsig.Key,
+	request *ap.Activity,
+	tx *sql.Tx,
+) error {
+	var instrumentID string
+	switch v := request.Instrument.(type) {
+	case *ap.Object:
+		instrumentID = v.ID
+	case string:
+		instrumentID = v
+	default:
+		return fmt.Errorf("invalid instrument type: %T", request.Instrument)
+	}
+
+	stampID, err := inbox.NewID(actor.ID, "stamp")
+	if err != nil {
+		return err
+	}
+
+	if _, _, err := inbox.accept(
+		ctx,
+		actor,
+		key,
+		&ap.Activity{
+			Type:       request.Type,
+			ID:         request.ID,
+			Actor:      request.Actor,
+			Object:     request.Object,
+			Instrument: instrumentID,
+		},
+		stampID,
+		tx,
+	); err != nil {
+		return fmt.Errorf("failed to accept %s from %s by %s: %w", request.ID, request.Actor, actor.ID, err)
 	}
 
 	return nil

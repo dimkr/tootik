@@ -1,49 +1,8 @@
-```
-          ..    .        ..                                        ..
- ...            .       ....                     ...
- ...   .     .   .   .   ... ..      .  .     .  . ...                 ...
- ..    .  .    ..   .         .    .. .       .. ..     .                   .
- .,     .               . . . ..             .  ..                  .        .
- .                .     . .. .. .... .       .  .  .               ..  ..
-            .              ..   ...  .       .    .   .   .        ..  .   .
- .   .        .   ..        .    ..             ...' .. .          .   .    . .
- . .              . .    .  __     .     .__  _ __ ,; .'. .  .     ....
-    . .          .         / /____  ___  /./_(_) /__  .'  ..         . .  . .
-  ..      ... .    .  .   /.__/ _ \/ _ \/ __/./  '_/.   .       .. .   .    .
-  .'   ...  .             \__/\___/\___/\__/_/_/\_\              .  .  . .
-      .         .    .    . .    .    ...     ... .           .      ..
- ..  .. .   . .... ..  .  .         ..   .  .     .          .  .  ... ....' .
-   ...  .      .   .  .. .  ... ...      . ..   ..         .,..    .....
- .   ..   ......             . .''.  .  ..          .         . .  ...
- ' .      .. ..  ..     . . ... ......::.   ..       .,.       .  .. ....    ..
- . ....  . .....     .  .. .  . ... . .,'.   .        ..          ,..  ..
- . .    .  .  . ..   .  .   .. .  .     ..     ..  .  . .       . . .        .'
-   .  ....   '...                ...    . .  ..  .     ...     . '.   '     ...
-
-# localhost.localdomain:8443
-
-Welcome, fedinaut! localhost.localdomain:8443 is a text-based social network.
-
-────
-
-📻 My feed
-📞 Mentions
-⚡️ Follows
-🐕 Followers
-😈 My profile
-📡 Local feed
-🏕️ Communities
-🔥 Hashtags
-🔭 View profile
-🔖 Bookmarks
-🔎 Search posts
-📣 New post
-⚙️ Settings
-📊 Status
-🛟 Help
-```
+# tootik
 
 [![Latest release](https://img.shields.io/github/v/release/dimkr/tootik)](https://github.com/dimkr/tootik/releases) [![Build status](https://github.com/dimkr/tootik/actions/workflows/ci.yml/badge.svg)](https://github.com/dimkr/tootik/actions) [![Go Reference](https://pkg.go.dev/badge/github.com/dimkr/tootik.svg)](https://pkg.go.dev/github.com/dimkr/tootik)
+
+![alice@pizza.example demo](https://github.com/dimkr/tootik/raw/refs/heads/pizza.example/demo.svg)
 
 ## Overview
 
@@ -124,7 +83,12 @@ This makes tootik lightweight, private and accessible:
 
 ## Using tootik
 
-You can join an [existing instance](gemini://hd.206267.xyz) or [set up your own](SETUP.md).
+You can join an [existing instance](gemini://didkey.000090000.xyz) or [set up your own](SETUP.md).
+
+## Interactive Demo
+
+	go generate ./migrations
+	go run -tags fts5 ./cmd/demo
 
 ## Building
 
@@ -514,4 +478,4 @@ During tests, all [http.Request](https://pkg.go.dev/net/http#Request)s sent by t
 
 tootik is free and unencumbered software released under the terms of the [Apache License Version 2.0](https://www.apache.org/licenses/LICENSE-2.0); see LICENSE for the license text.
 
-The ASCII art logo at the top was made using [FIGlet](http://www.figlet.org/).
+The ASCII art logo in `front/logo.go` was made using [FIGlet](http://www.figlet.org/).

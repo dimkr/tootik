@@ -1,5 +1,5 @@
 /*
-Copyright 2023, 2024 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,36 +16,48 @@ limitations under the License.
 
 package text
 
+import "github.com/mattn/go-runewidth"
+
 // WordWrap wraps long lines.
 func WordWrap(text string, width, maxLines int) []string {
 	if text == "" {
 		return []string{""}
 	}
 
-	runes := []rune(text)
 	var lines []string
+	runes := []rune(text)
+	start := 0
 
-	for i := 0; i < len(runes) && (maxLines == -1 || len(lines) <= maxLines); {
-		if i >= len(runes)-width {
-			lines = append(lines, string(runes[i:]))
-			break
-		}
-
+	for start < len(runes) && (maxLines == -1 || len(lines) <= maxLines) {
+		lineWidth := 0
 		lastSpace := -1
+		lineRunes := 0
 
-		for j := i + width - 1; j > i; j-- {
-			if runes[j] == ' ' || runes[j] == '\t' {
-				lastSpace = j
+		for i := start; i < len(runes); i++ {
+			if rw := runewidth.RuneWidth(runes[i]); lineWidth+rw > width {
 				break
+			} else {
+				lineWidth += rw
+			}
+
+			lineRunes++
+			if runes[i] == ' ' || runes[i] == '\t' {
+				lastSpace = i
 			}
 		}
 
-		if lastSpace >= 0 {
-			lines = append(lines, string(runes[i:lastSpace]))
-			i = lastSpace + 1
+		if lineRunes == 0 {
+			lines = append(lines, string(runes[start:start+1]))
+			start++
+			continue
+		}
+
+		if start+lineRunes < len(runes) && lastSpace > start {
+			lines = append(lines, string(runes[start:lastSpace]))
+			start = lastSpace + 1
 		} else {
-			lines = append(lines, string(runes[i:i+width]))
-			i += width
+			lines = append(lines, string(runes[start:start+lineRunes]))
+			start += lineRunes
 		}
 	}
 
