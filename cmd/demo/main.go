@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"github.com/creack/pty"
+	"github.com/dimkr/slopline"
 	"github.com/dimkr/tootik/cluster"
 	"github.com/dimkr/tootik/front/text"
 	"golang.org/x/term"
@@ -305,13 +306,11 @@ func main() {
 	var history []string
 	var links []string
 
-	bestlineSetHintsCallback(func(text string, ansi1, ansi2 *string) string {
+	slopline.SetHintsCallback(func(text string) (string, string, string) {
 		if text == "" && len(links) > 0 {
-			*ansi1 = "\033[90m"
-			*ansi2 = "\033[0m"
-			return fmt.Sprintf(" 1-%d", len(links))
+			return fmt.Sprintf(" 1-%d", len(links)), "\033[90m", "\033[0m"
 		} else if len(links) == 0 {
-			return ""
+			return "", "", ""
 		}
 
 		if n, err := strconv.Atoi(text); err == nil && n > 0 {
@@ -323,14 +322,12 @@ func main() {
 
 				i++
 				if i == n {
-					*ansi1 = "\033[90m"
-					*ansi2 = "\033[0m"
-					return " " + line.Text
+					return " " + line.Text, "\033[90m", "\033[0m"
 				}
 			}
 		}
 
-		return ""
+		return "", "", ""
 	})
 
 	for {
@@ -363,7 +360,7 @@ func main() {
 			}
 		}
 
-		line, err := bestline("\033[35m%s>\033[0m ", prompt)
+		line, err := slopline.Line(fmt.Sprintf("\033[35m%s>\033[0m ", prompt))
 		if err != nil {
 			break
 		}
