@@ -75,7 +75,7 @@ func (inbox *Inbox) processCreateActivity(ctx context.Context, tx *sql.Tx, sende
 			if shared {
 				if _, err := tx.ExecContext(
 					ctx,
-					`INSERT OR IGNORE INTO shares (note, by, activity, inserted) VALUES(?,?,?)`,
+					`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
 					post.ID,
 					sender.ID,
 					activity.ID,
