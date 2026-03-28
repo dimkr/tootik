@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -129,9 +129,9 @@ f7Kgs5SdkJkcanCS3Ibes8Tsm+ChRANCAASHeVcvjBZvyo7QoERqFtJWHE+KtxAJ
 func TestRegister_RedirectNoCertificate(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_journal_mode=WAL", t.Name())
+	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_pragma=journal_mode(WAL)", t.Name())
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sql.Open("sqlite", dbPath)
 	assert.NoError(err)
 
 	var cfg cfg.Config
@@ -206,9 +206,9 @@ func TestRegister_RedirectNoCertificate(t *testing.T) {
 func TestRegister_InvitationRequired(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_journal_mode=WAL", t.Name())
+	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_pragma=journal_mode(WAL)", t.Name())
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sql.Open("sqlite", dbPath)
 	assert.NoError(err)
 
 	var cfg cfg.Config
@@ -288,9 +288,9 @@ func TestRegister_InvitationRequired(t *testing.T) {
 func TestRegister_InvitationPrompt(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_journal_mode=WAL", t.Name())
+	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_pragma=journal_mode(WAL)", t.Name())
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sql.Open("sqlite", dbPath)
 	assert.NoError(err)
 
 	var cfg cfg.Config
@@ -370,9 +370,9 @@ func TestRegister_InvitationPrompt(t *testing.T) {
 func TestRegister_InvalidInvitationCode(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_journal_mode=WAL", t.Name())
+	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_pragma=journal_mode(WAL)", t.Name())
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sql.Open("sqlite", dbPath)
 	assert.NoError(err)
 
 	var cfg cfg.Config
@@ -452,9 +452,9 @@ func TestRegister_InvalidInvitationCode(t *testing.T) {
 func TestRegister_Redirect(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_journal_mode=WAL", t.Name())
+	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_pragma=journal_mode(WAL)", t.Name())
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sql.Open("sqlite", dbPath)
 	assert.NoError(err)
 
 	var cfg cfg.Config
@@ -532,9 +532,9 @@ func TestRegister_Redirect(t *testing.T) {
 func TestRegister_NoCertificate(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_journal_mode=WAL", t.Name())
+	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_pragma=journal_mode(WAL)", t.Name())
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sql.Open("sqlite", dbPath)
 	assert.NoError(err)
 
 	var cfg cfg.Config
@@ -609,9 +609,9 @@ func TestRegister_NoCertificate(t *testing.T) {
 func TestRegister_HappyFlow(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_journal_mode=WAL", t.Name())
+	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_pragma=journal_mode(WAL)", t.Name())
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sql.Open("sqlite", dbPath)
 	assert.NoError(err)
 
 	var cfg cfg.Config
@@ -689,9 +689,9 @@ func TestRegister_HappyFlow(t *testing.T) {
 func TestRegister_AlreadyRegistered(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_journal_mode=WAL", t.Name())
+	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_pragma=journal_mode(WAL)", t.Name())
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sql.Open("sqlite", dbPath)
 	assert.NoError(err)
 
 	var cfg cfg.Config
@@ -773,9 +773,9 @@ func TestRegister_AlreadyRegistered(t *testing.T) {
 func TestRegister_Twice(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_journal_mode=WAL", t.Name())
+	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_pragma=journal_mode(WAL)", t.Name())
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sql.Open("sqlite", dbPath)
 	assert.NoError(err)
 
 	var cfg cfg.Config
@@ -860,9 +860,9 @@ func TestRegister_Twice(t *testing.T) {
 func TestRegister_Throttling(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_journal_mode=WAL", t.Name())
+	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_pragma=journal_mode(WAL)", t.Name())
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sql.Open("sqlite", dbPath)
 	assert.NoError(err)
 
 	var cfg cfg.Config
@@ -956,9 +956,9 @@ func TestRegister_Throttling(t *testing.T) {
 func TestRegister_Throttling30Minutes(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_journal_mode=WAL", t.Name())
+	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_pragma=journal_mode(WAL)", t.Name())
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sql.Open("sqlite", dbPath)
 	assert.NoError(err)
 
 	var cfg cfg.Config
@@ -1055,9 +1055,9 @@ func TestRegister_Throttling30Minutes(t *testing.T) {
 func TestRegister_Throttling1Hour(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_journal_mode=WAL", t.Name())
+	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_pragma=journal_mode(WAL)", t.Name())
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sql.Open("sqlite", dbPath)
 	assert.NoError(err)
 
 	var cfg cfg.Config
@@ -1154,9 +1154,9 @@ func TestRegister_Throttling1Hour(t *testing.T) {
 func TestRegister_TwoCertificates(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_journal_mode=WAL", t.Name())
+	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_pragma=journal_mode(WAL)", t.Name())
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sql.Open("sqlite", dbPath)
 	assert.NoError(err)
 
 	var cfg cfg.Config
@@ -1266,9 +1266,9 @@ func TestRegister_TwoCertificates(t *testing.T) {
 func TestRegister_ForbiddenUserName(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_journal_mode=WAL", t.Name())
+	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?_pragma=journal_mode(WAL)", t.Name())
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sql.Open("sqlite", dbPath)
 	assert.NoError(err)
 
 	var cfg cfg.Config
