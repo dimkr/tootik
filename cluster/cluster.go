@@ -17,7 +17,12 @@ limitations under the License.
 // Package cluster contains complex tests that involve multiple servers.
 package cluster
 
-import "github.com/dimkr/tootik/inbox"
+import (
+	"maps"
+	"slices"
+
+	"github.com/dimkr/tootik/inbox"
+)
 
 // Cluster represents a collection of servers that talk to each other.
 type Cluster Client
@@ -37,10 +42,14 @@ func NewCluster(t T, domain ...string) Cluster {
 
 // Settle waits until all servers are done processing queued activities, both incoming and outgoing.
 func (c Cluster) Settle(t T) {
+	domains := slices.Sorted(maps.Keys(c))
+
 	for {
 		again := false
 
-		for d, server := range c {
+		for _, d := range domains {
+			server := c[d]
+
 			if n, err := server.Incoming.ProcessBatch(t.Context()); err != nil {
 				server.Test.Fatalf("Failed to process incoming queue on %s: %v", d, err)
 			} else if n > 0 {
@@ -59,7 +68,9 @@ func (c Cluster) Settle(t T) {
 		}
 	}
 
-	for d, server := range c {
+	for _, d := range domains {
+		server := c[d]
+
 		if err := (inbox.FeedUpdater{Domain: d, Config: server.Config, DB: server.DB}).Run(t.Context()); err != nil {
 			server.Test.Fatalf("Failed to update feeds on %s: %v", d, err)
 		}
