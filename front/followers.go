@@ -77,7 +77,7 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 		select follows.insertednano, json(persons.actor), follows.accepted from follows
 		join persons on persons.id = follows.follower
 		where follows.followed = $1 and (accepted is null or accepted = 1)
-		order by follows.insertednano
+		order by follows.insertednano desc
 		`,
 		r.User.ID,
 	)
