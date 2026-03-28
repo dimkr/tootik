@@ -75,7 +75,7 @@ func (inbox *Inbox) processCreateActivity(ctx context.Context, tx *sql.Tx, sende
 			if shared {
 				if _, err := tx.ExecContext(
 					ctx,
-					`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
+					`INSERT OR IGNORE INTO shares (note, by, activity, inserted) VALUES(?,?,?)`,
 					post.ID,
 					sender.ID,
 					activity.ID,
@@ -203,10 +203,11 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 				return fmt.Errorf("failed to validate follow request for %s by %s: %w", followedID, activity.Actor, err)
 			} else if _, err := tx.ExecContext(
 				ctx,
-				`INSERT INTO follows (id, follower, followed) VALUES($1, $2, $3) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = NULL, inserted = UNIXEPOCH()`,
+				`INSERT INTO follows (id, follower, followed, insertednano) VALUES($1, $2, $3, $4) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = NULL, insertednano = $4`,
 				activity.ID,
 				localFollowerID,
 				followedID,
+				time.Now().UnixNano(),
 			); err != nil {
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
@@ -221,10 +222,11 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 
 			if _, err := tx.ExecContext(
 				ctx,
-				`INSERT INTO follows (id, follower, followed) VALUES($1, $2, $3) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = NULL, inserted = UNIXEPOCH()`,
+				`INSERT INTO follows (id, follower, followed, insertednano) VALUES($1, $2, $3, $4) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = NULL, insertednano = $4`,
 				activity.ID,
 				activity.Actor,
 				followed.ID,
+				time.Now().UnixNano(),
 			); err != nil {
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
@@ -233,10 +235,11 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 
 			if _, err := tx.ExecContext(
 				ctx,
-				`INSERT INTO follows (id, follower, followed, accepted) VALUES($1, $2, $3, 1) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = 1, inserted = UNIXEPOCH()`,
+				`INSERT INTO follows (id, follower, followed, accepted, insertednano) VALUES($1, $2, $3, $4, 1) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = 1, insertednano = $4`,
 				activity.ID,
 				activity.Actor,
 				followed.ID,
+				time.Now().UnixNano(),
 			); err != nil {
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}

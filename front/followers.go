@@ -74,10 +74,10 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 			return true
 		},
 		`
-		select follows.inserted, json(persons.actor), follows.accepted from follows
+		select follows.insertednano, json(persons.actor), follows.accepted from follows
 		join persons on persons.id = follows.follower
 		where follows.followed = $1 and (accepted is null or accepted = 1)
-		order by follows.inserted desc
+		order by follows.insertednano
 		`,
 		r.User.ID,
 	)
@@ -103,7 +103,7 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 			w.Linkf(
 				"/users/outbox/"+param,
 				"%s %s",
-				time.Unix(row.Inserted, 0).Format(time.DateOnly),
+				time.Unix(0, row.Inserted).Format(time.DateOnly),
 				h.getActorDisplayName(&row.Follower),
 			)
 

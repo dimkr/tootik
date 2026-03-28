@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -51,7 +51,7 @@ func TestMove_FederatedToFederated(t *testing.T) {
 		),
 	)
 
-	_, err = server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
+	_, err = server.db.Exec(`update follows set accepted = 1, insertednano = (unixepoch()-3600)*1000000000`)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
@@ -106,7 +106,7 @@ func TestMove_FederatedToFederatedTwoAccounts(t *testing.T) {
 		),
 	)
 
-	_, err = server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
+	_, err = server.db.Exec(`update follows set accepted = 1, insertednano = (unixepoch()-3600)*1000000000`)
 	assert.NoError(err)
 
 	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db)
@@ -154,7 +154,7 @@ func TestMove_FederatedToFederatedNotLinked(t *testing.T) {
 		),
 	)
 
-	_, err = server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
+	_, err = server.db.Exec(`update follows set accepted = 1, insertednano = (unixepoch()-3600)*1000000000`)
 	assert.NoError(err)
 
 	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db)
@@ -195,7 +195,7 @@ func TestMove_FederatedToLocal(t *testing.T) {
 		),
 	)
 
-	_, err = server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
+	_, err = server.db.Exec(`update follows set accepted = 1, insertednano = (unixepoch()-3600)*1000000000`)
 	assert.NoError(err)
 
 	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db)
@@ -236,7 +236,7 @@ func TestMove_FederatedToLocalLinked(t *testing.T) {
 		),
 	)
 
-	_, err = server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
+	_, err = server.db.Exec(`update follows set accepted = 1, insertednano = (unixepoch()-3600)*1000000000`)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(`UPDATE persons SET actor = jsonb_set(actor, '$.alsoKnownAs', $1) WHERE id = $2`, "https://127.0.0.1/user/dan", server.Bob.ID)
@@ -296,7 +296,7 @@ func TestMove_FollowingBoth(t *testing.T) {
 		),
 	)
 
-	_, err = server.db.Exec(`update follows set accepted = 1, inserted = unixepoch()-3600`)
+	_, err = server.db.Exec(`update follows set accepted = 1, insertednano = (unixepoch()-3600)*1000000000`)
 	assert.NoError(err)
 
 	resolver := fed.NewResolver(nil, domain, server.cfg, &http.Client{}, server.db)

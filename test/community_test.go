@@ -52,10 +52,11 @@ func TestCommunity_NewThread(t *testing.T) {
 	defer tx.Rollback()
 
 	_, err = tx.Exec(
-		`insert into follows (id, follower, followed) values (?, ?, ?)`,
+		`insert into follows (id, follower, followed, insertednano) values (?, ?, ?, ?)`,
 		"https://127.0.0.1/follow/1",
 		"https://127.0.0.1/user/dan",
 		server.Alice.ID,
+		time.Now().UnixNano(),
 	)
 	assert.NoError(err)
 
@@ -113,10 +114,11 @@ func TestCommunity_NewThreadNotFollowing(t *testing.T) {
 	defer tx.Rollback()
 
 	_, err = tx.Exec(
-		`insert into follows (id, follower, followed) values (?, ?, ?)`,
+		`insert into follows (id, follower, followed, insertednano) values (?, ?, ?, ?)`,
 		"https://127.0.0.1/follow/1",
 		"https://127.0.0.1/user/dan",
 		server.Alice.ID,
+		time.Now().UnixNano(),
 	)
 	assert.NoError(err)
 
@@ -171,10 +173,11 @@ func TestCommunity_NewThreadNotPublic(t *testing.T) {
 	defer tx.Rollback()
 
 	_, err = tx.Exec(
-		`insert into follows (id, follower, followed) values (?, ?, ?)`,
+		`insert into follows (id, follower, followed, insertednano) values (?, ?, ?, ?)`,
 		"https://127.0.0.1/follow/1",
 		"https://127.0.0.1/user/dan",
 		server.Alice.ID,
+		time.Now().UnixNano(),
 	)
 	assert.NoError(err)
 
@@ -232,10 +235,11 @@ func TestCommunity_ReplyInThread(t *testing.T) {
 	defer tx.Rollback()
 
 	_, err = tx.Exec(
-		`insert into follows (id, follower, followed) values (?, ?, ?)`,
+		`insert into follows (id, follower, followed, insertednano) values (?, ?, ?, ?)`,
 		"https://127.0.0.1/follow/1",
 		"https://127.0.0.1/user/dan",
 		server.Alice.ID,
+		time.Now().UnixNano(),
 	)
 	assert.NoError(err)
 
@@ -386,10 +390,11 @@ func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
 	defer tx.Rollback()
 
 	_, err = tx.Exec(
-		`insert into follows (id, follower, followed) values (?, ?, ?)`,
+		`insert into follows (id, follower, followed, insertednano) values (?, ?, ?, ?)`,
 		"https://127.0.0.1/follow/1",
 		"https://127.0.0.1/user/dan",
 		server.Alice.ID,
+		time.Now().UnixNano(),
 	)
 	assert.NoError(err)
 
@@ -481,10 +486,11 @@ func TestCommunity_DuplicateReplyInThread(t *testing.T) {
 	defer tx.Rollback()
 
 	_, err = tx.Exec(
-		`insert into follows (id, follower, followed) values (?, ?, ?)`,
+		`insert into follows (id, follower, followed, insertednano) values (?, ?, ?, ?)`,
 		"https://127.0.0.1/follow/1",
 		"https://127.0.0.1/user/dan",
 		server.Alice.ID,
+		time.Now().UnixNano(),
 	)
 	assert.NoError(err)
 
@@ -583,10 +589,11 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 	defer tx.Rollback()
 
 	_, err = tx.Exec(
-		`insert into follows (id, follower, followed) values (?, ?, ?)`,
+		`insert into follows (id, follower, followed, insertednano) values (?, ?, ?, ?)`,
 		"https://127.0.0.1/follow/1",
 		"https://127.0.0.1/user/dan",
 		server.Alice.ID,
+		time.Now().UnixNano(),
 	)
 	assert.NoError(err)
 
@@ -706,10 +713,11 @@ func TestCommunity_UnknownEditedReplyInThread(t *testing.T) {
 	defer tx.Rollback()
 
 	_, err = tx.Exec(
-		`insert into follows (id, follower, followed) values (?, ?, ?)`,
+		`insert into follows (id, follower, followed, insertednano) values (?, ?, ?, ?)`,
 		"https://127.0.0.1/follow/1",
 		"https://127.0.0.1/user/dan",
 		server.Alice.ID,
+		time.Now().UnixNano(),
 	)
 	assert.NoError(err)
 
