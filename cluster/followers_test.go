@@ -142,8 +142,7 @@ func TestCluster_PostToFollowers_Rejected(t *testing.T) {
 		NotContains(Line{Type: Quote, Text: "hello"})
 
 	carol.
-		Follow("🐕 Followers").
-		Follow("🔴 Reject").
+		Goto("/users/followers/reject/a.localdomain/user/alice").
 		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/bob"}).
 		Contains(Line{Type: Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/bob"}).
 		NotContains(Line{Type: Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
