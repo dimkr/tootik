@@ -24,7 +24,8 @@ jobs:
       - run: |
           go generate ./migrations
           go vet ./...
-          go test ./... -failfast -vet off -race
+          go test ./... -failfast -vet off -tags netgo,sqlite_omit_load_extension,fts5 -race
+          CGO_ENABLED=0 go test ./... -failfast -vet off -race
       - run: |
           version="${{ inputs.version }}"
           echo "TOOTIK_VERSION=${version#v}" >> "$GITHUB_ENV"
