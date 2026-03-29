@@ -66,7 +66,7 @@ func newTestServer() *server {
 
 	path := f.Name()
 
-	db, err := sql.Open("sqlite", path+"?"+sqlite.JournalModeWAL)
+	db, err := sql.Open(sqlite.DriverName, path+"?"+sqlite.JournalModeWAL)
 	if err != nil {
 		panic(err)
 	}

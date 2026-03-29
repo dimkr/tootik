@@ -777,7 +777,7 @@ func TestResolve_FederatedActorCachedActorHostWithPort(t *testing.T) {
 	path := f.Name()
 	defer os.Remove(path)
 
-	db, err := sql.Open(sqlite.Driver, path+"?"+sqlite.JournalModeWAL)
+	db, err := sql.Open(sqlite.DriverName, path+"?"+sqlite.JournalModeWAL)
 	assert.NoError(err)
 
 	blockList := BlockList{}
