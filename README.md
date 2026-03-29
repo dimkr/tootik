@@ -102,7 +102,7 @@ To build a static executable:
 
 To build a smaller executable without support for profiling, add the `no_pprof` build tag:
 
-	go build -tags no_pprof ./cmd/tootik
+	CGO_ENABLED=0 go build -tags no_pprof ./cmd/tootik
 
 ## Architecture
 
