@@ -93,7 +93,7 @@ You can join an [existing instance](gemini://didkey.000090000.xyz) or [set up yo
 ## Building
 
 	go generate ./migrations
-	go build ./cmd/tootik
+	go build ./cmd/tootik -tags fts5
 
 To build a static executable:
 
