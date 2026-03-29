@@ -56,7 +56,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
-      - run: go generate ./... && TERM=xterm-256color go run -tags fts5 ./cmd/demo -record demo.cast
+      - run: go generate ./... && TERM=xterm-256color CGO_ENABLED=0 go run ./cmd/demo -record demo.cast
       - run: go tool termsvg export demo.cast -o demo.svg -m
       - uses: actions/upload-artifact@v6
         with:
