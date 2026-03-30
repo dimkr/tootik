@@ -90,6 +90,12 @@ You can join an [existing instance](gemini://didkey.000090000.xyz) or [set up yo
 	go generate ./migrations
 	go run -tags fts5 ./cmd/demo
 
+## Database Drivers
+
+tootik supports two `database/sql` drivers:
+* [`github.com/mattn/go-sqlite3`](https://github.com/mattn/go-sqlite3)
+* [`modernc.org/sqlite`](https://gitlab.com/cznic/sqlite), enabled when `CGO_ENABLED=0`
+
 ## Building
 
 	go generate ./migrations
