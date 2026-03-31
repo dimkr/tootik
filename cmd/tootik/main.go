@@ -50,7 +50,7 @@ import (
 	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/migrations"
 	"github.com/dimkr/tootik/outbox"
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/dimkr/tootik/sqlite"
 )
 
 const (
@@ -150,7 +150,7 @@ func main() {
 		defer blockList.Close()
 	}
 
-	db, err := sql.Open("sqlite3", fmt.Sprintf("%s?%s", *dbPath, cfg.DatabaseOptions))
+	db, err := sql.Open(sqlite.DriverName, fmt.Sprintf("%s?%s", *dbPath, cfg.DatabaseOptions))
 	if err != nil {
 		panic(err)
 	}

@@ -39,7 +39,7 @@ import (
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/migrations"
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/dimkr/tootik/sqlite"
 )
 
 type Server struct {
@@ -105,7 +105,7 @@ func createDB(ctx context.Context, domain, path string, cfg *cfg.Config) (*sql.D
 		defer migrationsLock.Unlock()
 	}
 
-	db, err := sql.Open("sqlite3", fmt.Sprintf("%s?%s", path, cfg.DatabaseOptions))
+	db, err := sql.Open(sqlite.DriverName, fmt.Sprintf("%s?%s", path, cfg.DatabaseOptions))
 	if ok {
 		return db, err
 	}

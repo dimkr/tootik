@@ -34,7 +34,7 @@ import (
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/migrations"
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/dimkr/tootik/sqlite"
 )
 
 const domain = "localhost.localdomain:8443"
@@ -66,7 +66,7 @@ func newTestServer() *server {
 
 	path := f.Name()
 
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL")
+	db, err := sql.Open(sqlite.DriverName, path+"?"+sqlite.JournalModeWAL)
 	if err != nil {
 		panic(err)
 	}
