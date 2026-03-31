@@ -163,13 +163,11 @@ func shell(ctx context.Context, server *cluster.Server, user string) error {
 
 	p := server.Handle(cert, "/users")
 
-	slopline.SetHintsCallback(func(text string, ansi1, ansi2 *string) string {
+	slopline.SetHintsCallback(func(text string) (string, string, string) {
 		if text == "" && len(links) > 0 {
-			*ansi1 = "\033[90m"
-			*ansi2 = "\033[0m"
-			return fmt.Sprintf(" 1-%d", len(links))
+			return fmt.Sprintf(" 1-%d", len(links)), "\033[90m", "\033[0m"
 		} else if len(links) == 0 {
-			return ""
+			return "", "", ""
 		}
 
 		if n, err := strconv.Atoi(text); err == nil && n > 0 {
@@ -181,14 +179,12 @@ func shell(ctx context.Context, server *cluster.Server, user string) error {
 
 				i++
 				if i == n {
-					*ansi1 = "\033[90m"
-					*ansi2 = "\033[0m"
-					return " " + line.Text
+					return " " + line.Text, "\033[90m", "\033[0m"
 				}
 			}
 		}
 
-		return ""
+		return "", "", ""
 	})
 
 	for {
@@ -221,12 +217,12 @@ func shell(ctx context.Context, server *cluster.Server, user string) error {
 			}
 		}
 
-		linep := slopline.Line(fmt.Sprintf("\033[35m%s>\033[0m ", prompt))
-		if linep == nil {
+		line, err := slopline.Line(fmt.Sprintf("\033[35m%s>\033[0m ", prompt))
+		if err != nil {
 			break
 		}
 
-		line := strings.TrimSpace(*linep)
+		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
