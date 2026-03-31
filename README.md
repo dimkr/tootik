@@ -90,6 +90,12 @@ You can join an [existing instance](gemini://didkey.000090000.xyz) or [set up yo
 	go generate ./migrations
 	go run -tags fts5 ./cmd/demo
 
+## Database Drivers
+
+tootik supports two `database/sql` drivers:
+* [`github.com/mattn/go-sqlite3`](https://github.com/mattn/go-sqlite3)
+* [`modernc.org/sqlite`](https://gitlab.com/cznic/sqlite), enabled when `CGO_ENABLED=0`
+
 ## Building
 
 	go generate ./migrations
@@ -98,11 +104,11 @@ You can join an [existing instance](gemini://didkey.000090000.xyz) or [set up yo
 To build a static executable:
 
 	go generate ./migrations
-	go build -tags netgo,sqlite_omit_load_extension,fts5 -ldflags "-linkmode external -extldflags -static" ./cmd/tootik
+	CGO_ENABLED=0 go build ./cmd/tootik
 
 To build a smaller executable without support for profiling, add the `no_pprof` build tag:
 
-	go build -tags netgo,sqlite_omit_load_extension,fts5,no_pprof -ldflags "-linkmode external -extldflags -static" ./cmd/tootik
+	CGO_ENABLED=0 go build -tags no_pprof ./cmd/tootik
 
 ## Architecture
 
