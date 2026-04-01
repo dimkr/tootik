@@ -26,6 +26,7 @@ jobs:
           go vet ./...
           go test ./... -failfast -vet off -tags netgo,sqlite_omit_load_extension,fts5 -race
           CGO_ENABLED=0 go test ./... -failfast -vet off
+          CGO_ENABLED=0 go test ./... -failfast -vet off -tags wasm2go
       - run: |
           version="${{ inputs.version }}"
           echo "TOOTIK_VERSION=${version#v}" >> "$GITHUB_ENV"

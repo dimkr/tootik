@@ -1,4 +1,4 @@
-//go:build cgo
+//go:build cgo && !wasm2go
 
 /*
 Copyright 2026 Dima Krasner
@@ -23,6 +23,7 @@ import _ "github.com/mattn/go-sqlite3"
 const (
 	DriverName = "sqlite3"
 
+	Scheme         = ""
 	DefaultOptions = "_journal_mode=WAL&_synchronous=1&_busy_timeout=5000&_txlock=immediate"
 	JournalModeWAL = "_journal_mode=WAL"
 )

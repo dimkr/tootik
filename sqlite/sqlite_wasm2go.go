@@ -1,4 +1,4 @@
-//go:build !cgo && !wasm2go
+//go:build wasm2go
 
 /*
 Copyright 2026 Dima Krasner
@@ -18,12 +18,12 @@ limitations under the License.
 
 package sqlite
 
-import _ "modernc.org/sqlite"
+import _ "github.com/ncruces/go-sqlite3/driver"
 
 const (
-	DriverName = "sqlite"
+	DriverName = "sqlite3"
 
-	Scheme         = ""
+	Scheme         = "file:"
 	DefaultOptions = "_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(5000)&_txlock=immediate"
 	JournalModeWAL = "_pragma=journal_mode(WAL)"
 )

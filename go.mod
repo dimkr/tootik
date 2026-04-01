@@ -11,6 +11,7 @@ require (
 	github.com/gowebpki/jcs v1.0.1
 	github.com/mattn/go-runewidth v0.0.21
 	github.com/mattn/go-sqlite3 v1.14.38
+	github.com/ncruces/go-sqlite3 v0.33.2
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/image v0.38.0
 	golang.org/x/net v0.52.0
@@ -28,7 +29,9 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mrmarble/termsvg v0.10.0 // indirect
+	github.com/ncruces/go-sqlite3-wasm v1.0.4-0.20260329114232-2491c387476c // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
+	github.com/ncruces/julianday v1.0.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rs/zerolog v1.34.0 // indirect
