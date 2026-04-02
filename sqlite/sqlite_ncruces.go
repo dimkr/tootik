@@ -1,4 +1,4 @@
-//go:build wasm2go
+//go:build sqlite_ncruces && !sqlite_mattn && !sqlite_modernc
 
 /*
 Copyright 2026 Dima Krasner

@@ -93,9 +93,9 @@ You can join an [existing instance](gemini://didkey.000090000.xyz) or [set up yo
 ## Database Drivers
 
 tootik supports three `database/sql` drivers:
-* [`github.com/mattn/go-sqlite3`](https://github.com/mattn/go-sqlite3)
-* [`modernc.org/sqlite`](https://gitlab.com/cznic/sqlite), enabled when `CGO_ENABLED=0`
-* [`github.com/ncruces/go-sqlite3/driver`](https://github.com/ncruces/go-sqlite3), enabled when `CGO_ENABLED=0` and `-tags wasm2go`
+* [`github.com/mattn/go-sqlite3`](https://github.com/mattn/go-sqlite3), enabled when `CGO_ENABLED=1` or `-tags sqlite_mattn`
+* [`modernc.org/sqlite`](https://gitlab.com/cznic/sqlite), enabled when `CGO_ENABLED=0` or `-tags sqlite_modernc`
+* [`github.com/ncruces/go-sqlite3/driver`](https://github.com/ncruces/go-sqlite3), enabled when `-tags sqlite_ncruces`
 
 ## Building
 

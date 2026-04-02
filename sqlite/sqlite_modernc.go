@@ -1,4 +1,4 @@
-//go:build cgo && !wasm2go
+//go:build (sqlite_modernc && !sqlite_mattn && !sqlite_ncruces) || (!cgo && !sqlite_modernc && !sqlite_mattn && !sqlite_ncruces)
 
 /*
 Copyright 2026 Dima Krasner
@@ -18,12 +18,12 @@ limitations under the License.
 
 package sqlite
 
-import _ "github.com/mattn/go-sqlite3"
+import _ "modernc.org/sqlite"
 
 const (
-	DriverName = "sqlite3"
+	DriverName = "sqlite"
 
 	Scheme         = ""
-	DefaultOptions = "_journal_mode=WAL&_synchronous=1&_busy_timeout=5000&_txlock=immediate"
-	JournalModeWAL = "_journal_mode=WAL"
+	DefaultOptions = "_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(5000)&_txlock=immediate"
+	JournalModeWAL = "_pragma=journal_mode(WAL)"
 )
