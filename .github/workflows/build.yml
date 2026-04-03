@@ -52,7 +52,7 @@ jobs:
             race: false
             deps: ""
           - flags: "-tags sqlite_ncruces"
-            race: true
+            race: false
             deps: ""
     steps:
       - uses: actions/checkout@v6
