@@ -52,17 +52,17 @@ jobs:
           - flags: "-tags sqlite_ncruces"
             race: true
     steps:
-         - uses: actions/checkout@v6
-         - if: ${{ matrix.race }}
-           run: |
-             apt-get update -qq
-             apt-get install -y --no-install-recommends ca-certificates gcc libc6-dev
-         - uses: actions/setup-go@v6
-           with:
-             go-version-file: 'go.mod'
-         - run: |
-             go generate ./migrations
-             go test ./... -failfast -vet off ${{ matrix.flags }}${{ matrix.race && ' -race' || '' }}
+      - uses: actions/checkout@v6
+      - if: ${{ matrix.race }}
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends ca-certificates gcc libc6-dev
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+      - run: |
+          go generate ./migrations
+          go test ./... -failfast -vet off ${{ matrix.flags }}${{ matrix.race && ' -race' || '' }}
   demo:
     permissions: {}
     runs-on: ubuntu-latest
@@ -70,17 +70,17 @@ jobs:
       image: debian:trixie-slim
     timeout-minutes: 10
     steps:
-         - uses: actions/checkout@v6
-         - run: |
-             apt-get update -qq
-             apt-get install -y --no-install-recommends git ca-certificates less
-         - uses: actions/setup-go@v6
-           with:
-             go-version-file: 'go.mod'
-         - run: go generate ./... && TERM=xterm-256color CGO_ENABLED=0 go run ./cmd/demo -record demo.cast
-         - run: go tool termsvg export demo.cast -o demo.svg -m
-         - uses: actions/upload-artifact@v6
-           with:
-             name: demo-${{ inputs.version }}
-             path: ./demo.svg
-             retention-days: 1
+      - uses: actions/checkout@v6
+      - run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends git ca-certificates less
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+      - run: go generate ./... && TERM=xterm-256color CGO_ENABLED=0 go run ./cmd/demo -record demo.cast
+      - run: go tool termsvg export demo.cast -o demo.svg -m
+      - uses: actions/upload-artifact@v6
+        with:
+          name: demo-${{ inputs.version }}
+          path: ./demo.svg
+          retention-days: 1
