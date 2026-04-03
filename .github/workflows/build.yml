@@ -18,6 +18,9 @@ jobs:
          - uses: actions/setup-go@v6
            with:
              go-version-file: 'go.mod'
+           run: |
+             apt-get update -qq
+             apt-get install -y --no-install-recommends ca-certificates
          - run: |
              go generate ./migrations
              go vet ./...
