@@ -14,28 +14,28 @@ jobs:
       image: debian:trixie-slim
     timeout-minutes: 20
     steps:
-         - uses: actions/checkout@v6
-         - uses: actions/setup-go@v6
-           with:
-             go-version-file: 'go.mod'
-           run: |
-             apt-get update -qq
-             apt-get install -y --no-install-recommends ca-certificates
-         - run: |
-             go generate ./migrations
-             go vet ./...
-         - run: |
-             version="${{ inputs.version }}"
-             echo "TOOTIK_VERSION=${version#v}" >> "$GITHUB_ENV"
-         - run: CGO_ENABLED=0 go build -tags no_pprof -ldflags "-w -s -X github.com/dimkr/tootik/buildinfo.Version=${TOOTIK_VERSION}" -trimpath -o tootik-amd64 ./cmd/tootik
-         - run: GOARCH=arm64 CGO_ENABLED=0 go build -tags no_pprof -ldflags "-w -s -X github.com/dimkr/tootik/buildinfo.Version=${TOOTIK_VERSION}" -trimpath -o tootik-arm64 ./cmd/tootik
-         - run: GOARCH=arm CGO_ENABLED=0 go build -tags no_pprof -ldflags "-w -s -X github.com/dimkr/tootik/buildinfo.Version=${TOOTIK_VERSION}" -trimpath -o tootik-arm ./cmd/tootik
-         - run: GOARCH=386 CGO_ENABLED=0 go build -tags no_pprof -ldflags "-w -s -X github.com/dimkr/tootik/buildinfo.Version=${TOOTIK_VERSION}" -trimpath -o tootik-386 ./cmd/tootik
-         - uses: actions/upload-artifact@v6
-           with:
-             name: tootik-${{ inputs.version }}
-             path: tootik-*
-             retention-days: 1
+      - uses: actions/checkout@v6
+      - run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends ca-certificates
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+      - run: |
+          go generate ./migrations
+          go vet ./...
+      - run: |
+          version="${{ inputs.version }}"
+          echo "TOOTIK_VERSION=${version#v}" >> "$GITHUB_ENV"
+      - run: CGO_ENABLED=0 go build -tags no_pprof -ldflags "-w -s -X github.com/dimkr/tootik/buildinfo.Version=${TOOTIK_VERSION}" -trimpath -o tootik-amd64 ./cmd/tootik
+      - run: GOARCH=arm64 CGO_ENABLED=0 go build -tags no_pprof -ldflags "-w -s -X github.com/dimkr/tootik/buildinfo.Version=${TOOTIK_VERSION}" -trimpath -o tootik-arm64 ./cmd/tootik
+      - run: GOARCH=arm CGO_ENABLED=0 go build -tags no_pprof -ldflags "-w -s -X github.com/dimkr/tootik/buildinfo.Version=${TOOTIK_VERSION}" -trimpath -o tootik-arm ./cmd/tootik
+      - run: GOARCH=386 CGO_ENABLED=0 go build -tags no_pprof -ldflags "-w -s -X github.com/dimkr/tootik/buildinfo.Version=${TOOTIK_VERSION}" -trimpath -o tootik-386 ./cmd/tootik
+      - uses: actions/upload-artifact@v6
+        with:
+          name: tootik-${{ inputs.version }}
+          path: tootik-*
+          retention-days: 1
   test:
     permissions: {}
     runs-on: ubuntu-latest
