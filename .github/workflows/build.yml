@@ -21,9 +21,13 @@ jobs:
       - run: |
           apt-get update -qq
           apt-get install -y --no-install-recommends git ca-certificates
+      - run: echo ${{ matrix.goarch }} > goarch
       - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
+          cache-dependency-path: |
+            go.sum
+            goarch
       - run: |
           go generate ./migrations
           go vet ./...
@@ -59,9 +63,13 @@ jobs:
       - run: |
           apt-get update -qq
           apt-get install -y --no-install-recommends ca-certificates ${{ matrix.deps }}
+      - run: echo "${{ matrix.flags }}" > flags
       - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
+          cache-dependency-path: |
+            go.sum
+            flags
       - run: |
           go generate ./migrations
           go test ./... -failfast -vet off ${{ matrix.flags }} ${{ matrix.race && '-race' || '' }}
