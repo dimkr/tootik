@@ -45,7 +45,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - flags: "-tags sqlite_mattn"
+          - flags: "-tags sqlite_mattn,fts5"
             race: true
             deps: "gcc libc6-dev"
           - flags: "-tags sqlite_modernc"
