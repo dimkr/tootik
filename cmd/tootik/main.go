@@ -18,7 +18,6 @@ package main
 
 import (
 	"context"
-
 	"crypto/ed25519"
 	"crypto/tls"
 	"database/sql"
