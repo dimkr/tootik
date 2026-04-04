@@ -194,7 +194,7 @@ func seed(t cluster.T, keyPairs map[string]tls.Certificate) cluster.Cluster {
 		GotoInput(aliceReplyToCarol2.Links["💬 Reply"], "@alice I've got a sensor that measures the exact volatile organic compounds in truffle oil. Want to borrow it?").
 		OK()
 
-	noodlesPost1 := carol.Follow("📣 New post").FollowInput("📣 Anyone", "@noodles I just had some amazing ramen!").OK()
+	noodlesPost1 := carol.Follow("📣 New post").FollowInput("📣 Anyone", "!noodles I just had some amazing ramen!").OK()
 	cl.Settle(t)
 
 	grace.GotoInput(noodlesPost1.Links["💬 Reply"], "@carol Ramen is life!").OK()
