@@ -250,7 +250,7 @@ func main() {
 		must(cast.Input("6"))
 		delay(ctx, time.Second)
 		must(cast.Input("\r"))
-		must(cast.Type(ctx, "@noodles Super important question\r"))
+		must(cast.Type(ctx, "!noodles Super important question\r"))
 		delay(ctx, time.Second)
 		must(cast.Down(ctx, 3))
 		delay(ctx, time.Second*2)
