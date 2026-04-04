@@ -10,13 +10,8 @@ jobs:
   analysis:
     permissions: {}
     runs-on: ubuntu-latest
-    container:
-      image: debian:trixie-slim
     timeout-minutes: 5
     steps:
-      - run: |
-          apt-get update -qq
-          apt-get install -y --no-install-recommends git ca-certificates
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with:
@@ -30,8 +25,6 @@ jobs:
   static:
     permissions: {}
     runs-on: ubuntu-latest
-    container:
-      image: debian:trixie-slim
     timeout-minutes: 5
     strategy:
       matrix:
@@ -61,26 +54,18 @@ jobs:
   test:
     permissions: {}
     runs-on: ubuntu-latest
-    container:
-      image: debian:trixie-slim
     timeout-minutes: 20
     strategy:
       matrix:
         include:
           - flags: "-tags sqlite_mattn,fts5"
             race: true
-            deps: "gcc libc6-dev"
           - flags: "-tags sqlite_modernc"
             race: false
-            deps: ""
           - flags: "-tags sqlite_ncruces"
             race: false
-            deps: ""
     steps:
       - uses: actions/checkout@v6
-      - run: |
-          apt-get update -qq
-          apt-get install -y --no-install-recommends ca-certificates ${{ matrix.deps }}
       - run: echo "${{ matrix.flags }}" > flags
       - uses: actions/setup-go@v6
         with:
@@ -94,14 +79,9 @@ jobs:
   demo:
     permissions: {}
     runs-on: ubuntu-latest
-    container:
-      image: debian:trixie-slim
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
-      - run: |
-          apt-get update -qq
-          apt-get install -y --no-install-recommends ca-certificates less
       - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
