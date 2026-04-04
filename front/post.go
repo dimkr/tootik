@@ -37,7 +37,7 @@ const (
 )
 
 var (
-	mentionRegex = regexp.MustCompile(`\B@([a-zA-Z0-9_-]+)(?:@((?:\w+\.)+\w+(?::\d{1,5}){0,1})){0,1}\b`)
+	mentionRegex = regexp.MustCompile(`\B([@!])([a-zA-Z0-9_-]+)(?:@((?:\w+\.)+\w+(?::\d{1,5}){0,1})){0,1}\b`)
 	hashtagRegex = regexp.MustCompile(`\B#\w{1,32}\b`)
 	pollRegex    = regexp.MustCompile(`^\[(?:(?i)POLL)\s+(.+)\s*\]\s*(.+)`)
 )
@@ -101,17 +101,18 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 	}
 
 	for _, mention := range mentionRegex.FindAllStringSubmatch(content, -1) {
-		if len(mention) < 3 {
+		if len(mention) < 4 {
 			continue
 		}
+
 		var actorID string
 		var err error
-		if mention[2] == "" && inReplyTo != nil {
-			err = h.DB.QueryRowContext(r.Context, `select id from (select id, case when id = $1 then 5 when exists (select 1 from notes where notes.id = $2 and exists (select 1 from json_each(notes.object->'$.to') where value = persons.id)) then 4 when exists (select 1 from notes where notes.id = $2 and exists (select 1 from json_each(notes.object->'$.cc') where value = persons.id)) then 3 when id in (select followed from follows where follower = $3 and accepted = 1) then 2 when ed25519privkey is not null then 1 else 0 end as score from persons where actor->>'$.preferredUsername' = $4) where score > 0 order by score desc limit 1`, inReplyTo.AttributedTo, inReplyTo.ID, r.User.ID, mention[1]).Scan(&actorID)
-		} else if mention[2] == "" && inReplyTo == nil {
-			err = h.DB.QueryRowContext(r.Context, `select id from (select id, case when ed25519privkey is not null then 2 when id in (select followed from follows where follower = $1 and accepted = 1) then 1 else 0 end as score from persons where actor->>'$.preferredUsername' = $2) where score > 0 order by score desc limit 1`, r.User.ID, mention[1]).Scan(&actorID)
+		if mention[3] == "" && inReplyTo != nil {
+			err = h.DB.QueryRowContext(r.Context, `select id from (select id, actor, case when id = $1 then 5 when exists (select 1 from notes where notes.id = $2 and exists (select 1 from json_each(notes.object->'$.to') where value = persons.id)) then 4 when exists (select 1 from notes where notes.id = $2 and exists (select 1 from json_each(notes.object->'$.cc') where value = persons.id)) then 3 when id in (select followed from follows where follower = $3 and accepted = 1) then 2 when ed25519privkey is not null then 1 else 0 end as score from persons where actor->>'$.preferredUsername' = $4) where ((actor->>'$.type' = 'Group') is $5) and score > 0 order by score desc limit 1`, inReplyTo.AttributedTo, inReplyTo.ID, r.User.ID, mention[2], mention[1] == "!").Scan(&actorID)
+		} else if mention[3] == "" && inReplyTo == nil {
+			err = h.DB.QueryRowContext(r.Context, `select id from (select id, actor, case when ed25519privkey is not null then 2 when id in (select followed from follows where follower = $1 and accepted = 1) then 1 else 0 end as score from persons where actor->>'$.preferredUsername' = $2) where ((actor->>'$.type' = 'Group') is $3) and score > 0 order by score desc limit 1`, r.User.ID, mention[2], mention[1] == "!").Scan(&actorID)
 		} else {
-			err = h.DB.QueryRowContext(r.Context, `select id from persons where actor->>'$.preferredUsername' = $1 and host = $2`, mention[1], mention[2]).Scan(&actorID)
+			err = h.DB.QueryRowContext(r.Context, `select id from persons where actor->>'$.preferredUsername' = $1 and host = $2 and ((actor->>'$.type' = 'Group') is $3)`, mention[2], mention[3], mention[1] == "!").Scan(&actorID)
 		}
 
 		if err != nil {
