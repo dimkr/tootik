@@ -9,14 +9,14 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/google/uuid v1.6.0
 	github.com/gowebpki/jcs v1.0.1
-	github.com/mattn/go-runewidth v0.0.21
-	github.com/mattn/go-sqlite3 v1.14.38
+	github.com/mattn/go-runewidth v0.0.22
+	github.com/mattn/go-sqlite3 v1.14.40
 	github.com/ncruces/go-sqlite3 v0.33.2
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/image v0.38.0
 	golang.org/x/net v0.52.0
 	golang.org/x/term v0.41.0
-	modernc.org/sqlite v1.48.0
+	modernc.org/sqlite v1.48.1
 )
 
 require (
