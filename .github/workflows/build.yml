@@ -25,6 +25,7 @@ jobs:
           go mod tidy -compat=`grep -m1 ^go go.mod | cut -f 2 -d ' '`
           go generate ./migrations
           go fix ./...
+          git config --global --add safe.directory `pwd`
           git diff --exit-code
           go vet ./...
   static:
