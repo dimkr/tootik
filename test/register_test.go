@@ -130,7 +130,7 @@ f7Kgs5SdkJkcanCS3Ibes8Tsm+ChRANCAASHeVcvjBZvyo7QoERqFtJWHE+KtxAJ
 func TestRegister_RedirectNoCertificate(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?%s", t.Name(), sqlite.JournalModeWAL)
+	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
 	db, err := sql.Open(sqlite.DriverName, dbPath)
 	assert.NoError(err)
@@ -207,7 +207,7 @@ func TestRegister_RedirectNoCertificate(t *testing.T) {
 func TestRegister_InvitationRequired(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?%s", t.Name(), sqlite.JournalModeWAL)
+	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
 	db, err := sql.Open(sqlite.DriverName, dbPath)
 	assert.NoError(err)
@@ -289,7 +289,7 @@ func TestRegister_InvitationRequired(t *testing.T) {
 func TestRegister_InvitationPrompt(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?%s", t.Name(), sqlite.JournalModeWAL)
+	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
 	db, err := sql.Open(sqlite.DriverName, dbPath)
 	assert.NoError(err)
@@ -371,7 +371,7 @@ func TestRegister_InvitationPrompt(t *testing.T) {
 func TestRegister_InvalidInvitationCode(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?%s", t.Name(), sqlite.JournalModeWAL)
+	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
 	db, err := sql.Open(sqlite.DriverName, dbPath)
 	assert.NoError(err)
@@ -453,7 +453,7 @@ func TestRegister_InvalidInvitationCode(t *testing.T) {
 func TestRegister_Redirect(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?%s", t.Name(), sqlite.JournalModeWAL)
+	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
 	db, err := sql.Open(sqlite.DriverName, dbPath)
 	assert.NoError(err)
@@ -533,7 +533,7 @@ func TestRegister_Redirect(t *testing.T) {
 func TestRegister_NoCertificate(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?%s", t.Name(), sqlite.JournalModeWAL)
+	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
 	db, err := sql.Open(sqlite.DriverName, dbPath)
 	assert.NoError(err)
@@ -610,7 +610,7 @@ func TestRegister_NoCertificate(t *testing.T) {
 func TestRegister_HappyFlow(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?%s", t.Name(), sqlite.JournalModeWAL)
+	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
 	db, err := sql.Open(sqlite.DriverName, dbPath)
 	assert.NoError(err)
@@ -690,7 +690,7 @@ func TestRegister_HappyFlow(t *testing.T) {
 func TestRegister_AlreadyRegistered(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?%s", t.Name(), sqlite.JournalModeWAL)
+	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
 	db, err := sql.Open(sqlite.DriverName, dbPath)
 	assert.NoError(err)
@@ -774,7 +774,7 @@ func TestRegister_AlreadyRegistered(t *testing.T) {
 func TestRegister_Twice(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?%s", t.Name(), sqlite.JournalModeWAL)
+	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
 	db, err := sql.Open(sqlite.DriverName, dbPath)
 	assert.NoError(err)
@@ -861,7 +861,7 @@ func TestRegister_Twice(t *testing.T) {
 func TestRegister_Throttling(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?%s", t.Name(), sqlite.JournalModeWAL)
+	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
 	db, err := sql.Open(sqlite.DriverName, dbPath)
 	assert.NoError(err)
@@ -957,7 +957,7 @@ func TestRegister_Throttling(t *testing.T) {
 func TestRegister_Throttling30Minutes(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?%s", t.Name(), sqlite.JournalModeWAL)
+	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
 	db, err := sql.Open(sqlite.DriverName, dbPath)
 	assert.NoError(err)
@@ -1056,7 +1056,7 @@ func TestRegister_Throttling30Minutes(t *testing.T) {
 func TestRegister_Throttling1Hour(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?%s", t.Name(), sqlite.JournalModeWAL)
+	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
 	db, err := sql.Open(sqlite.DriverName, dbPath)
 	assert.NoError(err)
@@ -1155,7 +1155,7 @@ func TestRegister_Throttling1Hour(t *testing.T) {
 func TestRegister_TwoCertificates(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?%s", t.Name(), sqlite.JournalModeWAL)
+	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
 	db, err := sql.Open(sqlite.DriverName, dbPath)
 	assert.NoError(err)
@@ -1267,7 +1267,7 @@ func TestRegister_TwoCertificates(t *testing.T) {
 func TestRegister_ForbiddenUserName(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("/tmp/%s.sqlite3?%s", t.Name(), sqlite.JournalModeWAL)
+	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
 	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
 	db, err := sql.Open(sqlite.DriverName, dbPath)
 	assert.NoError(err)

@@ -7,52 +7,78 @@ on:
         type: string
 
 jobs:
-  static:
+  analysis:
     permissions: {}
     runs-on: ubuntu-latest
-    container:
-      image: debian:trixie-slim
-    timeout-minutes: 20
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
-      - run: |
-          apt-get update -qq
-          apt-get install -y --no-install-recommends git ca-certificates gcc libc6-dev
       - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
       - run: |
+          go mod tidy -compat=$(grep -m1 ^go go.mod | cut -f 2 -d ' ')
           go generate ./migrations
+          go fix ./...
+          git diff --exit-code
           go vet ./...
-          go test ./... -failfast -vet off -tags netgo,sqlite_omit_load_extension,fts5 -race
-          CGO_ENABLED=0 go test ./... -failfast -vet off
+  static:
+    permissions: {}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      matrix:
+        goarch: [amd64, arm64, arm, 386]
+    steps:
+      - uses: actions/checkout@v6
+      - run: echo ${{ matrix.goarch }} > goarch
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+          cache-dependency-path: |
+            go.sum
+            goarch
+      - run: go generate ./migrations
       - run: |
           version="${{ inputs.version }}"
           echo "TOOTIK_VERSION=${version#v}" >> "$GITHUB_ENV"
-      - run: |
-          CGO_ENABLED=0 go build -tags no_pprof -ldflags "-w -s -X github.com/dimkr/tootik/buildinfo.Version=${TOOTIK_VERSION}" -trimpath -o tootik-amd64 ./cmd/tootik
-      - run: |
-          GOARCH=arm64 CGO_ENABLED=0 go build -tags no_pprof -ldflags "-w -s -X github.com/dimkr/tootik/buildinfo.Version=${TOOTIK_VERSION}" -trimpath -o tootik-arm64 ./cmd/tootik
-      - run: |
-          GOARCH=arm CGO_ENABLED=0 go build -tags no_pprof -ldflags "-w -s -X github.com/dimkr/tootik/buildinfo.Version=${TOOTIK_VERSION}" -trimpath -o tootik-arm ./cmd/tootik
-      - run: |
-          GOARCH=386 CGO_ENABLED=0 go build -tags no_pprof -ldflags "-w -s -X github.com/dimkr/tootik/buildinfo.Version=${TOOTIK_VERSION}" -trimpath -o tootik-386 ./cmd/tootik
+      - run: CGO_ENABLED=0 GOARCH=${{ matrix.goarch }} go build -tags no_pprof -ldflags "-w -s -X github.com/dimkr/tootik/buildinfo.Version=${TOOTIK_VERSION}" -trimpath ./cmd/tootik
       - uses: actions/upload-artifact@v6
         with:
-          name: tootik-${{ inputs.version }}
-          path: tootik-*
+          name: tootik-${{ inputs.version }}-${{ matrix.goarch }}
+          path: tootik
           retention-days: 1
+  test:
+    permissions: {}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        include:
+          - flags: "-tags sqlite_mattn,fts5"
+            race: true
+          - flags: "-tags sqlite_modernc"
+            race: false
+          - flags: "-tags sqlite_ncruces"
+            race: false
+    steps:
+      - uses: actions/checkout@v6
+      - run: echo "${{ matrix.flags }}" > flags
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+          cache-dependency-path: |
+            go.sum
+            flags
+      - run: |
+          go generate ./migrations
+          go test ./... -failfast -vet off ${{ matrix.flags }} ${{ matrix.race && '-race' || '' }}
   demo:
     permissions: {}
     runs-on: ubuntu-latest
-    container:
-      image: debian:trixie-slim
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
-      - run: |
-          apt-get update -qq
-          apt-get install -y --no-install-recommends git ca-certificates less
       - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
