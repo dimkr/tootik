@@ -7,6 +7,22 @@ on:
         type: string
 
 jobs:
+  analysis:
+    permissions: {}
+    runs-on: ubuntu-latest
+    container:
+      image: debian:trixie-slim
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+      - run: |
+          go generate ./migrations
+          go vet ./...
+          go fix ./...
+          git diff --exit-code
   static:
     permissions: {}
     runs-on: ubuntu-latest
@@ -28,9 +44,7 @@ jobs:
           cache-dependency-path: |
             go.sum
             goarch
-      - run: |
-          go generate ./migrations
-          go vet ./...
+      - run: go generate ./migrations
       - run: |
           version="${{ inputs.version }}"
           echo "TOOTIK_VERSION=${version#v}" >> "$GITHUB_ENV"
