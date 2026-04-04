@@ -31,9 +31,6 @@ jobs:
         goarch: [amd64, arm64, arm, 386]
     steps:
       - uses: actions/checkout@v6
-      - run: |
-          apt-get update -qq
-          apt-get install -y --no-install-recommends ca-certificates
       - run: echo ${{ matrix.goarch }} > goarch
       - uses: actions/setup-go@v6
         with:
