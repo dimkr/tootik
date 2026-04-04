@@ -14,10 +14,10 @@ jobs:
       image: debian:trixie-slim
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v6
       - run: |
           apt-get update -qq
           apt-get install -y --no-install-recommends git ca-certificates
+      - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
@@ -25,7 +25,6 @@ jobs:
           go mod tidy -compat=`grep -m1 ^go go.mod | cut -f 2 -d ' '`
           go generate ./migrations
           go fix ./...
-          git config --global --add safe.directory `pwd`
           git diff --exit-code
           go vet ./...
   static:
