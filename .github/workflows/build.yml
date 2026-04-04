@@ -22,10 +22,11 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - run: |
+          go mod tidy -compat=`grep -m1 ^go go.mod | cut -f 2 -d ' '`
           go generate ./migrations
-          go vet ./...
           go fix ./...
           git diff --exit-code
+          go vet ./...
   static:
     permissions: {}
     runs-on: ubuntu-latest
