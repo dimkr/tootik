@@ -1,4 +1,4 @@
-//go:build cgo
+//go:build sqlite_ncruces && !sqlite_mattn && !sqlite_modernc
 
 /*
 Copyright 2026 Dima Krasner
@@ -18,11 +18,12 @@ limitations under the License.
 
 package sqlite
 
-import _ "github.com/mattn/go-sqlite3"
+import _ "github.com/ncruces/go-sqlite3/driver"
 
 const (
 	DriverName = "sqlite3"
 
-	DefaultOptions = "_journal_mode=WAL&_synchronous=1&_busy_timeout=5000&_txlock=immediate"
-	JournalModeWAL = "_journal_mode=WAL"
+	Scheme         = "file:"
+	DefaultOptions = "_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(5000)&_txlock=immediate"
+	JournalModeWAL = "_pragma=journal_mode(WAL)"
 )

@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/download-artifact@v8
         with:
-          name: tootik-${{ github.ref_name }}
+          pattern: tootik-${{ github.ref_name }}-*
           path: artifacts
       - uses: actions/download-artifact@v8
         with:

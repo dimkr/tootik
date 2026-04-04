@@ -105,7 +105,7 @@ func createDB(ctx context.Context, domain, path string, cfg *cfg.Config) (*sql.D
 		defer migrationsLock.Unlock()
 	}
 
-	db, err := sql.Open(sqlite.DriverName, fmt.Sprintf("%s?%s", path, cfg.DatabaseOptions))
+	db, err := sql.Open(sqlite.DriverName, fmt.Sprintf("%s%s?%s", sqlite.Scheme, path, cfg.DatabaseOptions))
 	if ok {
 		return db, err
 	}
