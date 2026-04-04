@@ -41,7 +41,7 @@ func (h *Handler) certificates(w text.Writer, r *Request, args ...string) {
 			return true
 		},
 		`
-		select inserted, hash, approved, expires from certificates
+		select inserted, expires, hash, approved from certificates
 		where user = ?
 		order by inserted
 		`,
