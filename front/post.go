@@ -111,7 +111,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 			rows, err = h.DB.QueryContext(
 				r.Context,
 				`
-				select $1 from persons where
+				select id from persons where
 					actor->>'$.preferredUsername' = $1
 					and ((actor->>'$.type' = 'Group') is $2)
 					and (
@@ -131,7 +131,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 			rows, err = h.DB.QueryContext(
 				r.Context,
 				`
-				select $1 from persons where
+				select id from persons where
 					actor->>'$.preferredUsername' = $1
 					and host = $2
 					and ((actor->>'$.type' = 'Group') is $3)
