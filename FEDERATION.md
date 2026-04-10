@@ -20,7 +20,7 @@ tootik users are `Person`s.
 
 ## Communities
 
-tootik communities are `Group`s.
+tootik communities are `Group`s and it supports mentions using the `!` prefix (for example, `!memes@example.org`) to refer to `Group`s.
 
 tootik automatically sends an `Announce` activity to followers of the community when `to` or `cc` of a post by a follower mention the community. In addition, tootik forwards the original activity but without wrapping it with an `Announce` activity like [FEP-1b12](https://codeberg.org/fediverse/fep/src/branch/main/fep/1b12/fep-1b12.md) says.
 
