@@ -14,8 +14,8 @@ require (
 	github.com/ncruces/go-sqlite3 v0.33.2
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/image v0.39.0
-	golang.org/x/net v0.52.0
-	golang.org/x/term v0.41.0
+	golang.org/x/net v0.53.0
+	golang.org/x/term v0.42.0
 	modernc.org/sqlite v1.48.2
 )
 
@@ -37,7 +37,7 @@ require (
 	github.com/rs/zerolog v1.34.0 // indirect
 	github.com/tdewolff/minify/v2 v2.23.8 // indirect
 	github.com/tdewolff/parse/v2 v2.8.1 // indirect
-	golang.org/x/sys v0.42.0 // indirect
+	golang.org/x/sys v0.43.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/libc v1.70.0 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
