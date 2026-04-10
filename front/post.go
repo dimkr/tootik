@@ -116,8 +116,13 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 					and ((actor->>'$.type' = 'Group') is $2)
 					and (
 						id = $3
-						or exists (select 1 from notes where notes.id = $4 and (exists (select 1 from json_each(notes.object->'$.to') where value = persons.id)) or exists (select 1 from json_each(notes.object->'$.cc') where value = persons.id))
- 						or ed25519privkey is not null
+						or exists (
+							select 1 from notes where notes.id = $4
+							and (
+								exists (select 1 from json_each(notes.object->'$.to') where value = persons.id)
+								or exists (select 1 from json_each(notes.object->'$.cc') where value = persons.id)
+							)
+ 						) or ed25519privkey is not null
 						or id in (select followed from follows where follower = $5 and accepted = 1)
 					)
 				`,
@@ -137,8 +142,13 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 					and ((actor->>'$.type' = 'Group') is $3)
 					and (
 						id = $4
-						or exists (select 1 from notes where notes.id = $5 and (exists (select 1 from json_each(notes.object->'$.to') where value = persons.id)) or exists (select 1 from json_each(notes.object->'$.cc') where value = persons.id))
-						or ed25519privkey is not null
+						or exists (
+							select 1 from notes where notes.id = $5
+							and (
+								exists (select 1 from json_each(notes.object->'$.to') where value = persons.id)
+								or exists (select 1 from json_each(notes.object->'$.cc') where value = persons.id)
+							)
+						) or ed25519privkey is not null
 						or id in (select followed from follows where follower = $6 and accepted = 1)
 					)
 				`,
