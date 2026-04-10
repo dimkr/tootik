@@ -111,17 +111,19 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 			rows, err = h.DB.QueryContext(
 				r.Context,
 				`
-				select $1 from persons where actor->>'$.preferredUsername' = $2 and ((actor->>'$.type' = 'Group') is $3) and id = $1
-				union
-				select id from persons where actor->>'$.preferredUsername' = $2 and ((actor->>'$.type' = 'Group') is $3) and exists (select 1 from notes where notes.id = $4 and (exists (select 1 from json_each(notes.object->'$.to') where value = persons.id)) or exists (select 1 from json_each(notes.object->'$.cc') where value = persons.id))
-				union
-				select id from persons where actor->>'$.preferredUsername' = $2 and ((actor->>'$.type' = 'Group') is $3) and ed25519privkey is not null
-				union
-				select id from persons where actor->>'$.preferredUsername' = $2 and ((actor->>'$.type' = 'Group') is $3) and id in (select followed from follows where follower = $5 and accepted = 1)
+				select $1 from persons where
+					actor->>'$.preferredUsername' = $1
+					and ((actor->>'$.type' = 'Group') is $2)
+					and (
+						id = $3
+						or exists (select 1 from notes where notes.id = $4 and (exists (select 1 from json_each(notes.object->'$.to') where value = persons.id)) or exists (select 1 from json_each(notes.object->'$.cc') where value = persons.id))
+ 						or ed25519privkey is not null
+						or id in (select followed from follows where follower = $5 and accepted = 1)
+					)
 				`,
-				inReplyTo.AttributedTo,
 				mention[2],
 				mention[1] == "!",
+				inReplyTo.AttributedTo,
 				inReplyTo.ID,
 				r.User.ID,
 			)
@@ -129,18 +131,21 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 			rows, err = h.DB.QueryContext(
 				r.Context,
 				`
-				select $1 from persons where actor->>'$.preferredUsername' = $2 and host = $3 and ((actor->>'$.type' = 'Group') is $4) and id = $1
-				union
-				select id from persons where actor->>'$.preferredUsername' = $2 and host = $3 and ((actor->>'$.type' = 'Group') is $4) and exists (select 1 from notes where notes.id = $5 and (exists (select 1 from json_each(notes.object->'$.to') where value = persons.id)) or exists (select 1 from json_each(notes.object->'$.cc') where value = persons.id))
-				union
-				select id from persons where actor->>'$.preferredUsername' = $2 and host = $3 and ((actor->>'$.type' = 'Group') is $4) and ed25519privkey is not null
-				union
-				select id from persons where actor->>'$.preferredUsername' = $2 and host = $3 and ((actor->>'$.type' = 'Group') is $4) and id in (select followed from follows where follower = $6 and accepted = 1)
+				select $1 from persons where
+					actor->>'$.preferredUsername' = $1
+					and host = $2
+					and ((actor->>'$.type' = 'Group') is $3)
+					and (
+						id = $4
+						or exists (select 1 from notes where notes.id = $5 and (exists (select 1 from json_each(notes.object->'$.to') where value = persons.id)) or exists (select 1 from json_each(notes.object->'$.cc') where value = persons.id))
+						or ed25519privkey is not null
+						or id in (select followed from follows where follower = $6 and accepted = 1)
+					)
 				`,
-				inReplyTo.AttributedTo,
 				mention[2],
 				mention[3],
 				mention[1] == "!",
+				inReplyTo.AttributedTo,
 				inReplyTo.ID,
 				r.User.ID,
 			)
@@ -148,9 +153,13 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 			rows, err = h.DB.QueryContext(
 				r.Context,
 				`
-				select id from persons where actor->>'$.preferredUsername' = $1 and ((actor->>'$.type' = 'Group') is $2) and ed25519privkey is not null
-				union
-				select id from persons where actor->>'$.preferredUsername' = $1 and ((actor->>'$.type' = 'Group') is $2) and id in (select followed from follows where follower = $3 and accepted = 1)
+				select id from persons where
+					actor->>'$.preferredUsername' = $1
+					and ((actor->>'$.type' = 'Group') is $2)
+					and (
+						ed25519privkey is not null
+						or id in (select followed from follows where follower = $3 and accepted = 1)
+					)
 				`,
 				mention[2],
 				mention[1] == "!",
@@ -160,9 +169,13 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 			rows, err = h.DB.QueryContext(
 				r.Context,
 				`
-				select id from persons where actor->>'$.preferredUsername' = $1 and host = $2 and ((actor->>'$.type' = 'Group') is $3)
-				union
-				select id from persons where actor->>'$.preferredUsername' = $1 and host = $2 and ((actor->>'$.type' = 'Group') is $3) and id in (select followed from follows where follower = $4 and accepted = 1)
+				select id from persons where
+					actor->>'$.preferredUsername' = $1
+					and host = $2
+					and (
+						((actor->>'$.type' = 'Group') is $3)
+						or id in (select followed from follows where follower = $4 and accepted = 1)
+					)
 				`,
 				mention[2],
 				mention[3],
@@ -172,7 +185,12 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 		} else {
 			rows, err = h.DB.QueryContext(
 				r.Context,
-				`select id from persons where actor->>'$.preferredUsername' = $1 and host = $2 and ((actor->>'$.type' = 'Group') is $3)`,
+				`
+				select id from persons where
+					actor->>'$.preferredUsername' = $1
+					and host = $2
+					and ((actor->>'$.type' = 'Group') is $3)
+				`,
 				mention[2],
 				mention[3],
 				mention[1] == "!",
