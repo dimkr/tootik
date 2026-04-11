@@ -31,8 +31,9 @@ func CollectRows[T any](rows *sql.Rows, expected int, ignore func(error) bool) (
 
 	if err := ScanRows(
 		rows,
-		func(row T) {
+		func(row T) error {
 			scanned = append(scanned, row)
+			return nil
 		},
 		ignore,
 	); err != nil {

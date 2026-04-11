@@ -26,6 +26,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/text/plain"
 	"github.com/dimkr/tootik/inbox"
@@ -105,11 +106,12 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 			continue
 		}
 
-		var rows *sql.Rows
+		var actorID string
 		var err error
 		if mention[3] == "" && inReplyTo != nil {
-			rows, err = h.DB.QueryContext(
+			actorID, err = dbx.QueryScanRow[string](
 				r.Context,
+				h.DB,
 				`
 				select id from persons where
 					actor->>'$.preferredUsername' = $1
@@ -125,6 +127,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
  						) or ed25519privkey is not null
 						or id in (select followed from follows where follower = $5 and accepted = 1)
 					)
+				limit 2
 				`,
 				mention[2],
 				mention[1] == "!",
@@ -133,8 +136,9 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 				r.User.ID,
 			)
 		} else if mention[3] != "" && inReplyTo != nil {
-			rows, err = h.DB.QueryContext(
+			actorID, err = dbx.QueryScanRow[string](
 				r.Context,
+				h.DB,
 				`
 				select id from persons where
 					actor->>'$.preferredUsername' = $1
@@ -151,6 +155,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 						) or ed25519privkey is not null
 						or id in (select followed from follows where follower = $6 and accepted = 1)
 					)
+				limit 2
 				`,
 				mention[2],
 				mention[3],
@@ -160,8 +165,9 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 				r.User.ID,
 			)
 		} else if mention[3] == "" && inReplyTo == nil {
-			rows, err = h.DB.QueryContext(
+			actorID, err = dbx.QueryScanRow[string](
 				r.Context,
+				h.DB,
 				`
 				select id from persons where
 					actor->>'$.preferredUsername' = $1
@@ -170,14 +176,16 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 						ed25519privkey is not null
 						or id in (select followed from follows where follower = $3 and accepted = 1)
 					)
+				limit 2
 				`,
 				mention[2],
 				mention[1] == "!",
 				r.User.ID,
 			)
 		} else if mention[3] != "" && inReplyTo == nil {
-			rows, err = h.DB.QueryContext(
+			actorID, err = dbx.QueryScanRow[string](
 				r.Context,
+				h.DB,
 				`
 				select id from persons where
 					actor->>'$.preferredUsername' = $1
@@ -186,6 +194,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 						((actor->>'$.type' = 'Group') is $3)
 						or id in (select followed from follows where follower = $4 and accepted = 1)
 					)
+				limit 2
 				`,
 				mention[2],
 				mention[3],
@@ -193,13 +202,15 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 				r.User.ID,
 			)
 		} else {
-			rows, err = h.DB.QueryContext(
+			actorID, err = dbx.QueryScanRow[string](
 				r.Context,
+				h.DB,
 				`
 				select id from persons where
 					actor->>'$.preferredUsername' = $1
 					and host = $2
 					and ((actor->>'$.type' = 'Group') is $3)
+				limit 2
 				`,
 				mention[2],
 				mention[3],
@@ -207,37 +218,16 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 			)
 		}
 
-		if err != nil {
-			r.Log.Warn("Failed to resolve mention", "mention", mention[0], "error", err)
-			w.Error()
-			return
-		}
-
-		if !rows.Next() {
-			rows.Close()
+		if errors.Is(err, sql.ErrNoRows) {
 			r.Log.Warn("No results for mention", "mention", mention[0])
 			w.Statusf(40, "Unresolved mention: %s", mention[0])
 			return
-		}
-
-		var actorID string
-		if err := rows.Scan(&actorID); err != nil {
-			rows.Close()
-			r.Log.Warn("Failed to read first result for mention", "mention", mention[0], "error", err)
-			w.Error()
-			return
-		}
-
-		if rows.Next() {
-			rows.Close()
+		} else if errors.Is(err, dbx.ErrMultipleRows) {
 			r.Log.Warn("Ambigious mention", "mention", mention[0])
 			w.Statusf(40, "Ambiguous mention: %s", mention[0])
 			return
-		}
-
-		if err := rows.Err(); err != nil {
-			rows.Close()
-			r.Log.Warn("Failed to check for error", "mention", mention[0], "error", err)
+		} else if err != nil {
+			r.Log.Warn("Failed to resolve mention", "mention", mention[0], "error", err)
 			w.Error()
 			return
 		}
