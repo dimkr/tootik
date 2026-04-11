@@ -26,6 +26,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/text/plain"
 	"github.com/dimkr/tootik/inbox"
@@ -108,20 +109,112 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 		var actorID string
 		var err error
 		if mention[3] == "" && inReplyTo != nil {
-			err = h.DB.QueryRowContext(r.Context, `select id from (select id, actor, case when id = $1 then 5 when exists (select 1 from notes where notes.id = $2 and exists (select 1 from json_each(notes.object->'$.to') where value = persons.id)) then 4 when exists (select 1 from notes where notes.id = $2 and exists (select 1 from json_each(notes.object->'$.cc') where value = persons.id)) then 3 when id in (select followed from follows where follower = $3 and accepted = 1) then 2 when ed25519privkey is not null then 1 else 0 end as score from persons where actor->>'$.preferredUsername' = $4) where ((actor->>'$.type' = 'Group') is $5) and score > 0 order by score desc limit 1`, inReplyTo.AttributedTo, inReplyTo.ID, r.User.ID, mention[2], mention[1] == "!").Scan(&actorID)
-		} else if mention[3] == "" && inReplyTo == nil {
-			err = h.DB.QueryRowContext(r.Context, `select id from (select id, actor, case when ed25519privkey is not null then 2 when id in (select followed from follows where follower = $1 and accepted = 1) then 1 else 0 end as score from persons where actor->>'$.preferredUsername' = $2) where ((actor->>'$.type' = 'Group') is $3) and score > 0 order by score desc limit 1`, r.User.ID, mention[2], mention[1] == "!").Scan(&actorID)
+			actorID, err = dbx.QueryScanRow[string](
+				r.Context,
+				h.DB,
+				`
+				select id from persons where
+					actor->>'$.preferredUsername' = $1
+					and ((actor->>'$.type' = 'Group') is $2)
+					and (
+						id = $3
+						or exists (
+							select 1 from notes where notes.id = $4
+							and (
+								exists (select 1 from json_each(notes.object->'$.to') where value = persons.id)
+								or exists (select 1 from json_each(notes.object->'$.cc') where value = persons.id)
+							)
+ 						) or ed25519privkey is not null
+						or id in (select followed from follows where follower = $5 and accepted = 1)
+					)
+				limit 2
+				`,
+				mention[2],
+				mention[1] == "!",
+				inReplyTo.AttributedTo,
+				inReplyTo.ID,
+				r.User.ID,
+			)
+		} else if mention[3] != "" && inReplyTo != nil {
+			actorID, err = dbx.QueryScanRow[string](
+				r.Context,
+				h.DB,
+				`
+				select id from persons where
+					actor->>'$.preferredUsername' = $1
+					and host = $2
+					and ((actor->>'$.type' = 'Group') is $3)
+					and (
+						id = $4
+						or exists (
+							select 1 from notes where notes.id = $5
+							and (
+								exists (select 1 from json_each(notes.object->'$.to') where value = persons.id)
+								or exists (select 1 from json_each(notes.object->'$.cc') where value = persons.id)
+							)
+						) or ed25519privkey is not null
+						or id in (select followed from follows where follower = $6 and accepted = 1)
+					)
+				limit 2
+				`,
+				mention[2],
+				mention[3],
+				mention[1] == "!",
+				inReplyTo.AttributedTo,
+				inReplyTo.ID,
+				r.User.ID,
+			)
+		} else if mention[3] == "" {
+			actorID, err = dbx.QueryScanRow[string](
+				r.Context,
+				h.DB,
+				`
+				select id from persons where
+					actor->>'$.preferredUsername' = $1
+					and ((actor->>'$.type' = 'Group') is $2)
+					and (
+						ed25519privkey is not null
+						or id in (select followed from follows where follower = $3 and accepted = 1)
+					)
+				limit 2
+				`,
+				mention[2],
+				mention[1] == "!",
+				r.User.ID,
+			)
 		} else {
-			err = h.DB.QueryRowContext(r.Context, `select id from persons where actor->>'$.preferredUsername' = $1 and host = $2 and ((actor->>'$.type' = 'Group') is $3)`, mention[2], mention[3], mention[1] == "!").Scan(&actorID)
+			actorID, err = dbx.QueryScanRow[string](
+				r.Context,
+				h.DB,
+				`
+				select id from persons where
+					actor->>'$.preferredUsername' = $1
+					and host = $2
+					and (
+						((actor->>'$.type' = 'Group') is $3)
+						or id in (select followed from follows where follower = $4 and accepted = 1)
+					)
+				limit 2
+				`,
+				mention[2],
+				mention[3],
+				mention[1] == "!",
+				r.User.ID,
+			)
 		}
 
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				r.Log.Warn("Failed to guess mentioned actor ID", "mention", mention[0])
-			} else {
-				r.Log.Warn("Failed to guess mentioned actor ID", "mention", mention[0], "error", err)
-			}
-			continue
+		if errors.Is(err, sql.ErrNoRows) {
+			r.Log.Warn("No results for mention", "mention", mention[0])
+			w.Statusf(40, "Unresolved mention: %s", mention[0])
+			return
+		} else if errors.Is(err, dbx.ErrMultipleRows) {
+			r.Log.Warn("Ambigious mention", "mention", mention[0])
+			w.Statusf(40, "Ambiguous mention: %s", mention[0])
+			return
+		} else if err != nil {
+			r.Log.Warn("Failed to resolve mention", "mention", mention[0], "error", err)
+			w.Error()
+			return
 		}
 
 		r.Log.Info("Adding mention", "name", mention[0], "actor", actorID)

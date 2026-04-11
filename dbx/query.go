@@ -19,7 +19,10 @@ package dbx
 import (
 	"context"
 	"database/sql"
+	"errors"
 )
+
+var ErrMultipleRows = errors.New("expected one result")
 
 // QueryCollectCountIgnore runs a SQL query.
 //
@@ -100,5 +103,55 @@ func QueryScan[T any](
 	}
 	defer rows.Close()
 
-	return ScanRows(rows, collect, ignore)
+	return ScanRows(
+		rows,
+		func(row T) error {
+			collect(row)
+			return nil
+		},
+		ignore,
+	)
+}
+
+// QueryScanRow is like [QueryScan] but expects one result.
+//
+// It fails with [ErrMultipleRows] if the query returns more than one result.
+func QueryScanRow[T any](
+	ctx context.Context,
+	db *sql.DB,
+	query string,
+	args ...any,
+) (T, error) {
+	var zero T
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return zero, err
+	}
+	defer rows.Close()
+
+	var first sql.Null[T]
+	if err := ScanRows(
+		rows,
+		func(row T) error {
+			if first.Valid {
+				return ErrMultipleRows
+			}
+
+			first.Valid = true
+			first.V = row
+			return nil
+		},
+		func(err error) bool {
+			return false
+		},
+	); err != nil {
+		return zero, err
+	}
+
+	if !first.Valid {
+		return zero, sql.ErrNoRows
+	}
+
+	return first.V, nil
 }
