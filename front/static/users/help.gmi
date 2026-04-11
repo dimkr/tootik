@@ -92,8 +92,9 @@ Posts should be up to {{.Config.MaxPostsLength}} characters long.
 Links are detected automatically and don't need to be wrapped with HTML <a> tags or preceded by a => marker.
 
 Mentioned users should be preceded by @, i.e. @user or @user@host. If the host part is unspecified, tootik tries to guess it using:
-* The parent post author (if this is a reply)
+* Thread participants and recipients (if this is a reply)
 * Followed users
+* Users on {{.Domain}}
 
 To mention a community, use ! instead of @, i.e. !community or !community@host.
 

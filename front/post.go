@@ -117,23 +117,35 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 					actor->>'$.preferredUsername' = $1
 					and ((actor->>'$.type' = 'Group') is $2)
 					and (
-						id = $3
-						or exists (
-							select 1 from notes where notes.id = $4
-							and (
-								exists (select 1 from json_each(notes.object->'$.to') where value = persons.id)
-								or exists (select 1 from json_each(notes.object->'$.cc') where value = persons.id)
-							)
- 						) or ed25519privkey is not null
-						or id in (select followed from follows where follower = $5 and accepted = 1)
+						exists (
+							select 1 from (
+								with recursive thread(id, object) as (
+									select notes.id, notes.object from notes
+									where notes.id = $3
+									union all
+									select notes.id, notes.object from thread t
+									join notes on notes.object->>'$.inReplyTo' = t.id
+									where (
+										notes.public = 1
+										or exists (select 1 from json_each(notes.object->'$.to') where value = $4 or value = $5)
+										or exists (select 1 from json_each(notes.object->'$.cc') where value = $4 or value = $5)
+									)
+								)
+								select id, object from thread
+							) parents where
+								parents.object->>'$.attributedTo' = persons.id
+								or exists (select 1 from json_each(parents.object->'$.to') where value = persons.id)
+								or exists (select 1 from json_each(parents.object->'$.cc') where value = persons.id)
+						) or ed25519privkey is not null
+						or id in (select followed from follows where follower = $4 and accepted = 1)
 					)
 				limit 2
 				`,
 				mention[2],
 				mention[1] == "!",
-				inReplyTo.AttributedTo,
 				inReplyTo.ID,
 				r.User.ID,
+				r.User.Followers,
 			)
 		} else if mention[3] != "" && inReplyTo != nil {
 			actorID, err = dbx.QueryScanRow[string](
@@ -145,24 +157,36 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 					and host = $2
 					and ((actor->>'$.type' = 'Group') is $3)
 					and (
-						id = $4
-						or exists (
-							select 1 from notes where notes.id = $5
-							and (
-								exists (select 1 from json_each(notes.object->'$.to') where value = persons.id)
-								or exists (select 1 from json_each(notes.object->'$.cc') where value = persons.id)
-							)
+						exists (
+							select 1 from (
+								with recursive thread(id, object) as (
+									select notes.id, notes.object from notes
+									where notes.id = $4
+									union all
+									select notes.id, notes.object from thread t
+									join notes on notes.object->>'$.inReplyTo' = t.id
+									where (
+										notes.public = 1
+										or exists (select 1 from json_each(notes.object->'$.to') where value = $5 or value = $6)
+										or exists (select 1 from json_each(notes.object->'$.cc') where value = $5 or value = $6)
+									)
+								)
+								select id, object from thread
+							) parents where
+								parents.object->>'$.attributedTo' = persons.id
+								or exists (select 1 from json_each(parents.object->'$.to') where value = persons.id)
+								or exists (select 1 from json_each(parents.object->'$.cc') where value = persons.id)
 						) or ed25519privkey is not null
-						or id in (select followed from follows where follower = $6 and accepted = 1)
+						or id in (select followed from follows where follower = $5 and accepted = 1)
 					)
 				limit 2
 				`,
 				mention[2],
 				mention[3],
 				mention[1] == "!",
-				inReplyTo.AttributedTo,
 				inReplyTo.ID,
 				r.User.ID,
+				r.User.Followers,
 			)
 		} else if mention[3] == "" {
 			actorID, err = dbx.QueryScanRow[string](

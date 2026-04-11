@@ -57,6 +57,45 @@ func TestMention_ResolvedOP(t *testing.T) {
 		Contains(Line{Type: Link, Text: "alice", URL: "/users/outbox/a.localdomain/user/alice"})
 }
 
+func TestMention_ResolvedParticipant(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
+
+	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["c.localdomain"].Register(carolKeypair).OK()
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	carol.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	cluster.Settle(t)
+
+	post := alice.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "post").
+		OK()
+	cluster.Settle(t)
+
+	reply1 := bob.
+		GotoInput(post.Links["💬 Reply"], "@alice reply 1").
+		OK()
+	cluster.Settle(t)
+
+	reply2 := alice.
+		GotoInput(reply1.Links["💬 Reply"], "reply 2").
+		OK()
+	cluster.Settle(t)
+
+	carol.
+		GotoInput(reply2.Links["💬 Reply"], "@bob reply 3").
+		Contains(Line{Type: Link, Text: "bob", URL: "/users/outbox/b.localdomain/user/bob"})
+}
+
 func TestMention_AmbiguousOPAndFollowed(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
 	defer cluster.Stop()
