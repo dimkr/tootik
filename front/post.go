@@ -164,7 +164,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 				inReplyTo.ID,
 				r.User.ID,
 			)
-		} else if mention[3] == "" && inReplyTo == nil {
+		} else if mention[3] == "" {
 			actorID, err = dbx.QueryScanRow[string](
 				r.Context,
 				h.DB,
@@ -182,7 +182,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 				mention[1] == "!",
 				r.User.ID,
 			)
-		} else if mention[3] != "" && inReplyTo == nil {
+		} else {
 			actorID, err = dbx.QueryScanRow[string](
 				r.Context,
 				h.DB,
@@ -200,21 +200,6 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 				mention[3],
 				mention[1] == "!",
 				r.User.ID,
-			)
-		} else {
-			actorID, err = dbx.QueryScanRow[string](
-				r.Context,
-				h.DB,
-				`
-				select id from persons where
-					actor->>'$.preferredUsername' = $1
-					and host = $2
-					and ((actor->>'$.type' = 'Group') is $3)
-				limit 2
-				`,
-				mention[2],
-				mention[3],
-				mention[1] == "!",
 			)
 		}
 
