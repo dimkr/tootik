@@ -16,7 +16,12 @@ limitations under the License.
 
 package cluster
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/front/user"
+)
 
 func TestMention_ResolvedOP(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
@@ -50,6 +55,45 @@ func TestMention_ResolvedOP(t *testing.T) {
 	carol.
 		GotoInput(reply1.Links["💬 Reply"], "@alice reply 2").
 		Contains(Line{Type: Link, Text: "alice", URL: "/users/outbox/a.localdomain/user/alice"})
+}
+
+func TestMention_AmbiguousOPAndFollowed(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
+
+	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	cluster["b.localdomain"].Register(aliceKeypair).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["c.localdomain"].Register(carolKeypair).OK()
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	carol.
+		FollowInput("🔭 View profile", "alice@b.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	carol.
+		FollowInput("🔭 View profile", "bob@b.localdomain").
+		Follow("⚡ Follow bob").
+		OK()
+	cluster.Settle(t)
+
+	post := alice.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "post").
+		OK()
+	cluster.Settle(t)
+
+	reply1 := bob.
+		GotoInput(post.Links["💬 Reply"], "@alice reply 1").
+		OK()
+	cluster.Settle(t)
+
+	carol.
+		GotoInput(reply1.Links["💬 Reply"], "@alice reply 2").
+		Error("40 Ambiguous mention: @alice")
 }
 
 func TestMention_ResolvedFollow(t *testing.T) {
@@ -93,6 +137,92 @@ func TestMention_ResolvedUserAndHost(t *testing.T) {
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "@bob@c.localdomain post").
 		Contains(Line{Type: Link, Text: "bob", URL: "/users/outbox/c.localdomain/user/bob"})
+}
+
+func TestMention_AmbiguousFollowedAndGroup(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
+
+	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	cluster["b.localdomain"].Register(bobKeypair).OK()
+
+	if _, _, err := user.CreatePortable(t.Context(), "c.localdomain", cluster["c.localdomain"].DB, cluster["c.localdomain"].Config, "bob", ap.Group, nil); err != nil {
+		t.Fatal("Failed to create community")
+	}
+
+	alice.
+		FollowInput("🔭 View profile", "bob@b.localdomain").
+		Follow("⚡ Follow bob").
+		OK()
+	alice.
+		FollowInput("🔭 View profile", "bob@c.localdomain").
+		Follow("⚡ Follow bob").
+		OK()
+	cluster.Settle(t)
+
+	alice.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "@bob post").
+		Contains(Line{Type: Link, Text: "bob", URL: "/users/outbox/b.localdomain/user/bob"})
+}
+
+func TestMention_AmbiguousGroupAndFollowed(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
+
+	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	cluster["b.localdomain"].Register(bobKeypair).OK()
+
+	group, _, err := user.CreatePortable(t.Context(), "c.localdomain", cluster["c.localdomain"].DB, cluster["c.localdomain"].Config, "bob", ap.Group, nil)
+	if err != nil {
+		t.Fatal("Failed to create community")
+	}
+
+	alice.
+		FollowInput("🔭 View profile", "bob@b.localdomain").
+		Follow("⚡ Follow bob").
+		OK()
+	alice.
+		FollowInput("🔭 View profile", "bob@c.localdomain").
+		Follow("⚡ Follow bob").
+		OK()
+	cluster.Settle(t)
+
+	alice.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "!bob post").
+		Contains(Line{Type: Link, Text: "bob", URL: "/users/outbox/" + group.ID[8:]})
+}
+
+func TestMention_AmbiguousGroupAndGroup(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
+
+	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	cluster["b.localdomain"].Register(bobKeypair).OK()
+
+	if _, _, err := user.CreatePortable(t.Context(), "b.localdomain", cluster["b.localdomain"].DB, cluster["b.localdomain"].Config, "bob", ap.Group, nil); err != nil {
+		t.Fatal("Failed to create community")
+	}
+
+	if _, _, err := user.CreatePortable(t.Context(), "c.localdomain", cluster["c.localdomain"].DB, cluster["c.localdomain"].Config, "bob", ap.Group, nil); err != nil {
+		t.Fatal("Failed to create community")
+	}
+
+	alice.
+		FollowInput("🔭 View profile", "bob@b.localdomain").
+		Follow("⚡ Follow bob").
+		OK()
+	alice.
+		FollowInput("🔭 View profile", "bob@c.localdomain").
+		Follow("⚡ Follow bob").
+		OK()
+	cluster.Settle(t)
+
+	alice.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "!bob post").
+		Error("40 Ambiguous mention: !bob")
 }
 
 func TestMention_Unresolved(t *testing.T) {
