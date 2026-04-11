@@ -49,7 +49,7 @@ func TestMention_ResolvedOP(t *testing.T) {
 
 	carol.
 		GotoInput(reply1.Links["💬 Reply"], "@alice reply 2").
-		OK()
+		Contains(Line{Type: Link, Text: "alice", URL: "/users/outbox/a.localdomain/user/alice"})
 }
 
 func TestMention_ResolvedFollow(t *testing.T) {
@@ -68,7 +68,7 @@ func TestMention_ResolvedFollow(t *testing.T) {
 	alice.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "@bob post").
-		OK()
+		Contains(Line{Type: Link, Text: "bob", URL: "/users/outbox/b.localdomain/user/bob"})
 }
 
 func TestMention_ResolvedUserAndHost(t *testing.T) {
@@ -92,7 +92,7 @@ func TestMention_ResolvedUserAndHost(t *testing.T) {
 	alice.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "@bob@c.localdomain post").
-		OK()
+		Contains(Line{Type: Link, Text: "bob", URL: "/users/outbox/c.localdomain/user/bob"})
 }
 
 func TestMention_Unresolved(t *testing.T) {
