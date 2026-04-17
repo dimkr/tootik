@@ -16,7 +16,7 @@ require (
 	golang.org/x/image v0.39.0
 	golang.org/x/net v0.53.0
 	golang.org/x/term v0.42.0
-	modernc.org/sqlite v1.48.2
+	modernc.org/sqlite v1.49.1
 )
 
 require (
@@ -39,7 +39,7 @@ require (
 	github.com/tdewolff/parse/v2 v2.8.1 // indirect
 	golang.org/x/sys v0.43.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	modernc.org/libc v1.70.0 // indirect
+	modernc.org/libc v1.72.0 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
