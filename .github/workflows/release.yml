@@ -29,7 +29,7 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifacts/tootik-*
+            artifacts/*/tootik-*
             demo/demo.svg
           fail_on_unmatched_files: true
       - run: |
