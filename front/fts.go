@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/dimkr/tootik/front/text"
 )
