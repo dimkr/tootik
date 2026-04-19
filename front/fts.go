@@ -54,6 +54,8 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 		query = query[:loc[0]]
 	}
 
+	query = fmt.Sprintf(`"%s"`, strings.ReplaceAll(query, `"`, `""`))
+
 	var rows *sql.Rows
 	if r.User == nil {
 		rows, err = h.DB.QueryContext(
