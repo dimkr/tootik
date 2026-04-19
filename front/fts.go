@@ -69,7 +69,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 					groups.actor->>'$.type' = 'Group' and exists (select 1 from shares where shares.by = groups.id and shares.note = notes.id)
 				where
 					notes.public = 1 and
-					notesfts.content match $1
+					notesfts match 'content:(' || $1 || ')'
 				order by rank desc
 				limit $2
 				offset $3
@@ -112,14 +112,14 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 					where
 						follows.follower = $2 and
 						follows.accepted = 1 and
-						notesfts.content match $1
+						notesfts match 'content:(' || $1 || ')'
 					union all
 					select notes.id, notes.object, notes.author, notes.inserted, rank, 0 as aud from
 					notesfts
 					join notes on
 						notes.id = notesfts.id
 					where
-						notesfts.content match $1 and
+						notesfts match 'content:(' || $1 || ')' and
 						(
 							$2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
 							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $2)) or
