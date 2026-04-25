@@ -137,6 +137,17 @@ func insertActor(
 		return err
 	}
 
+	if len(actor.AssertionMethod) > 1 {
+		if _, err := tx.ExecContext(
+			ctx,
+			`INSERT OR IGNORE INTO keys (id, actor) VALUES (?, ?)`,
+			actor.AssertionMethod[1].ID,
+			actor.ID,
+		); err != nil {
+			return err
+		}
+	}
+
 	return tx.Commit()
 }
 
@@ -185,6 +196,11 @@ func CreatePortableWithKey(
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate RSA key pair: %w", err)
 	}
 
+	ed25519Pub2, ed25519Priv2, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate second Ed25519 key pair: %w", err)
+	}
+
 	ed25519PubMultibase := data.EncodeEd25519PublicKey(ed25519Pub)
 
 	id := fmt.Sprintf("https://%s/.well-known/apgateway/did:key:%s/actor", domain, ed25519PubMultibase)
@@ -215,6 +231,12 @@ func CreatePortableWithKey(
 		},
 		AssertionMethod: []ap.AssertionMethod{
 			{
+				ID:                 id + "#ed25519-key-2",
+				Type:               "Multikey",
+				Controller:         id,
+				PublicKeyMultibase: data.EncodeEd25519PublicKey(ed25519Pub2),
+			},
+			{
 				ID:                 id + "#ed25519-key",
 				Type:               "Multikey",
 				Controller:         id,
@@ -238,7 +260,7 @@ func CreatePortableWithKey(
 
 	keys := [2]httpsig.Key{
 		{ID: actor.PublicKey.ID, PrivateKey: rsaPriv},
-		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519Priv},
+		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519Priv2},
 	}
 
 	if err := insertActor(ctx, &actor, rsaPriv, ed25519Priv, keys, cert, db, cfg); err != nil {

@@ -109,7 +109,7 @@ func (l *Listener) handleApGatewayOutboxPost(w http.ResponseWriter, r *http.Requ
 	expectedPublicKey := did[len("did:key:"):]
 
 	if m := ap.KeyRegex.FindStringSubmatch(activity.Proof.VerificationMethod); m == nil || m[1] != expectedPublicKey {
-		slog.Warn("Could not find expected key in verification method", "activity", activity.ID, "method", activity.Proof.VerificationMethod)
+		slog.Warn("Could not find expected key in verification method", "activity", activity.ID, "proof", activity.Proof)
 		w.WriteHeader(http.StatusForbidden)
 		json.NewEncoder(w).Encode(map[string]any{"error": "invalid verificationMethod"})
 		return
@@ -147,11 +147,15 @@ func (l *Listener) handleApGatewayOutboxPost(w http.ResponseWriter, r *http.Requ
 }
 
 func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Request, did string) {
-	if _, key, err := l.verifyRequestUsingKeyID(r, nil); err != nil {
+	if key, actor, err := l.verifyRequest(r, nil, ap.Offline, l.AppActorKeys); err != nil {
 		slog.Warn("Failed to verify inbox request", "did", did, "error", err)
 		w.WriteHeader(http.StatusNotFound)
 		return
-	} else if key != did[len("did:key:"):] {
+	} else if origin, err := ap.Origin(actor.ID); err != nil {
+		slog.Warn("Denying inbox request", "did", did, "key", key, "error", err)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	} else if origin != did {
 		slog.Warn("Denying inbox request", "did", did, "key", key)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -391,11 +395,15 @@ func (l *Listener) handleApGatewayContext(w http.ResponseWriter, r *http.Request
 }
 
 func (l *Listener) handleApGatewayOutboxGet(w http.ResponseWriter, r *http.Request, did string) {
-	if _, key, err := l.verifyRequestUsingKeyID(r, nil); err != nil {
+	if key, actor, err := l.verifyRequest(r, nil, ap.Offline, l.AppActorKeys); err != nil {
 		slog.Warn("Failed to verify outbox request", "did", did, "error", err)
 		w.WriteHeader(http.StatusNotFound)
 		return
-	} else if key != did[len("did:key:"):] {
+	} else if origin, err := ap.Origin(actor.ID); err != nil {
+		slog.Warn("Denying outbox request", "did", did, "key", key, "error", err)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	} else if origin != did {
 		slog.Warn("Denying outbox request", "did", did, "key", key)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -591,14 +599,15 @@ func (l *Listener) fetchSenderFollowers(
 	r *http.Request,
 	did string,
 ) (bool, *ap.Actor, string, *sql.Rows) {
-	_, key, err := l.verifyRequestUsingKeyID(r, nil)
-	if err != nil {
+	if key, actor, err := l.verifyRequest(r, nil, ap.Offline, l.AppActorKeys); err != nil {
 		slog.Warn("Failed to verify followers request", "did", did, "error", err)
 		w.WriteHeader(http.StatusNotFound)
 		return false, nil, "", nil
-	}
-
-	if key != did[len("did:key:"):] {
+	} else if origin, err := ap.Origin(actor.ID); err != nil {
+		slog.Warn("Denying followers request", "did", did, "key", key, "error", err)
+		w.WriteHeader(http.StatusNotFound)
+		return false, nil, "", nil
+	} else if origin != did {
 		slog.Warn("Denying followers request", "did", did, "key", key)
 		w.WriteHeader(http.StatusNotFound)
 		return false, nil, "", nil

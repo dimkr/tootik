@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -34,9 +35,39 @@ import (
 	"github.com/dimkr/tootik/proof"
 )
 
-var errNoKeyInKeyID = errors.New("key origin does not contain a key")
+var (
+	errNoKeyInKeyID               = errors.New("key origin does not contain a key")
+	didKeyVerificationMethodRegex = regexp.MustCompile(`^did:key:(z6Mk[a-km-zA-HJ-NP-Z1-9]+|u7Q[A-Za-z0-9_-]+)#(z6Mk[a-km-zA-HJ-NP-Z1-9]+|u7Q[A-Za-z0-9_-]+)$`)
+)
+
+func verifyProof(actor *ap.Actor, p ap.Proof, raw []byte) error {
+	publicKey, err := getVerificationMethod(actor, p.VerificationMethod)
+	if err != nil {
+		return fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
+	}
+
+	if err := proof.Verify(publicKey, p, raw); err != nil {
+		return fmt.Errorf("failed to verify proof using %s: %w", p.VerificationMethod, err)
+	}
+
+	return nil
+}
+
+func getVerificationMethod(actor *ap.Actor, keyID string) (ed25519.PublicKey, error) {
+	if m := didKeyVerificationMethodRegex.FindStringSubmatch(keyID); m != nil && m[1] == m[2] {
+		raw, err := data.DecodeEd25519PublicKey(m[1])
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse %s: %w", m[1], err)
+		}
+
+		return raw, nil
+	}
+
+	return getKeyByID(actor, keyID)
+}
 
 func getKeyByID(actor *ap.Actor, keyID string) (ed25519.PublicKey, error) {
+
 	for _, key := range actor.AssertionMethod {
 		if key.ID != keyID {
 			continue
@@ -102,16 +133,6 @@ func (l *Listener) verifyEd25519RequestSignatureUsingKeyID(sig *httpsig.Signatur
 	return m[1], nil
 }
 
-func (l *Listener) verifyRequestUsingKeyID(r *http.Request, body []byte) (*httpsig.Signature, string, error) {
-	sig, err := l.extractRequestSignature(r, body)
-	if err != nil {
-		return nil, "", err
-	}
-
-	key, err := l.verifyEd25519RequestSignatureUsingKeyID(sig)
-	return sig, key, err
-}
-
 func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.ResolverFlag, keys [2]httpsig.Key) (*httpsig.Signature, *ap.Actor, error) {
 	sig, err := l.extractRequestSignature(r, body)
 	if err != nil {
@@ -166,7 +187,7 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 
 func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Activity, raw []byte, flags ap.ResolverFlag, keys [2]httpsig.Key) (*ap.Actor, error) {
 	if m := ap.KeyRegex.FindStringSubmatch(p.VerificationMethod); m != nil {
-		if m2 := ap.GatewayURLRegex.FindStringSubmatch(activity.Actor); m2 != nil {
+		if m2 := ap.GatewayURLRegex.FindStringSubmatch(activity.Actor); m2 != nil && m2[1] == m[1] {
 			if m2[1] != m[1] {
 				return nil, fmt.Errorf("key %s does not belong to %s", m[1], activity.Actor)
 			}
@@ -193,14 +214,5 @@ func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Act
 		return nil, fmt.Errorf("key %s belongs to %s, not %s", p.VerificationMethod, actor.ID, activity.Actor)
 	}
 
-	publicKey, err := getKeyByID(actor, p.VerificationMethod)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
-	}
-
-	if err := proof.Verify(publicKey, p, raw); err != nil {
-		return nil, fmt.Errorf("failed to verify proof using %s: %w", p.VerificationMethod, err)
-	}
-
-	return actor, nil
+	return actor, verifyProof(actor, p, raw)
 }

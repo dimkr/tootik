@@ -37,7 +37,6 @@ import (
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/lock"
-	"github.com/dimkr/tootik/proof"
 )
 
 // Resolver retrieves actor objects given their ID.
@@ -548,14 +547,9 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 		}
 	}
 
-	if m := ap.GatewayURLRegex.FindStringSubmatch(actor.ID); m != nil {
-		publicKey, err := data.DecodeEd25519PublicKey(m[1])
-		if err != nil {
-			return nil, cachedActor, fmt.Errorf("failed to parse key %s for %s to verify proof: %w", m[1], actor.ID, err)
-		}
-
-		if err := proof.Verify(publicKey, actor.Proof, body); err != nil {
-			return nil, cachedActor, fmt.Errorf("failed to verify proof for %s: %w", actor.ID, err)
+	if ap.GatewayURLRegex.MatchString(actor.ID) {
+		if err := verifyProof(&actor, actor.Proof, body); err != nil {
+			return nil, cachedActor, err
 		}
 	}
 
