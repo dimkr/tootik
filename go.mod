@@ -10,7 +10,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gowebpki/jcs v1.0.1
 	github.com/mattn/go-runewidth v0.0.23
-	github.com/mattn/go-sqlite3 v1.14.42
+	github.com/mattn/go-sqlite3 v1.14.44
 	github.com/ncruces/go-sqlite3 v0.34.0
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/image v0.39.0
