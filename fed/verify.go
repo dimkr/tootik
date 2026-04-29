@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
@@ -57,53 +56,10 @@ func (l *Listener) extractRequestSignature(r *http.Request, body []byte) (*https
 	return sig, err
 }
 
-func (l *Listener) verifyEd25519RequestSignatureUsingKeyID(sig *httpsig.Signature) (string, error) {
-	if sig.Alg != "ed25519" {
-		return "", errNoKeyInKeyID
-	}
-
-	m := ap.KeyRegex.FindStringSubmatch(sig.KeyID)
-	if m == nil {
-		return "", errNoKeyInKeyID
-	}
-
-	keyOrigin, err := ap.Origin(sig.KeyID)
-	if err != nil {
-		return "", fmt.Errorf("failed to get origin of %s: %w", sig.KeyID, err)
-	}
-
-	suffix, ok := strings.CutPrefix(keyOrigin, "did:key:")
-	if !ok || suffix != m[1] {
-		return "", errors.New("key origin is not portable")
-	}
-
-	raw, err := data.DecodeEd25519PublicKey(m[1])
-	if err != nil {
-		return "", fmt.Errorf("failed to parse %s: %w", sig.KeyID, err)
-	}
-
-	if err := sig.Verify(raw); err != nil {
-		return "", fmt.Errorf("failed to verify message using %s: %w", sig.KeyID, err)
-	}
-
-	return m[1], nil
-}
-
 func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.ResolverFlag, keys [2]httpsig.Key) (*httpsig.Signature, *ap.Actor, error) {
 	sig, err := l.extractRequestSignature(r, body)
 	if err != nil {
 		return nil, nil, err
-	}
-
-	if _, err := l.verifyEd25519RequestSignatureUsingKeyID(sig); err != nil && !errors.Is(err, errNoKeyInKeyID) {
-		return nil, nil, err
-	} else if err == nil {
-		actor, err := l.Resolver.ResolveID(r.Context(), keys, sig.KeyID, flags)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to fetch %s: %w", sig.KeyID, err)
-		}
-
-		return sig, actor, nil
 	}
 
 	actor, err := l.Resolver.ResolveID(r.Context(), keys, sig.KeyID, flags)
