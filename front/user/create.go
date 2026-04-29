@@ -263,7 +263,7 @@ func CreatePortableWithKey(
 		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519Priv2},
 	}
 
-	if err := insertActor(ctx, &actor, rsaPriv, ed25519Priv, keys, cert, db, cfg); err != nil {
+	if err := insertActor(ctx, &actor, rsaPriv, ed25519Priv2, keys, cert, db, cfg); err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to insert %s: %w", id, err)
 	}
 

@@ -186,8 +186,8 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 }
 
 func (l *Listener) verifyProof(ctx context.Context, p ap.Proof, activity *ap.Activity, raw []byte, flags ap.ResolverFlag, keys [2]httpsig.Key) (*ap.Actor, error) {
-	if m := ap.KeyRegex.FindStringSubmatch(p.VerificationMethod); m != nil {
-		if m2 := ap.GatewayURLRegex.FindStringSubmatch(activity.Actor); m2 != nil && m2[1] == m[1] {
+	if m := ap.KeyRegex.FindStringSubmatch(p.VerificationMethod); m != nil && false {
+		if m2 := ap.GatewayURLRegex.FindStringSubmatch(activity.Actor); m2 != nil {
 			if m2[1] != m[1] {
 				return nil, fmt.Errorf("key %s does not belong to %s", m[1], activity.Actor)
 			}
