@@ -17,14 +17,19 @@ limitations under the License.
 package ap
 
 import (
+	"crypto/ed25519"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"regexp"
 
 	"github.com/dimkr/tootik/danger"
+	"github.com/dimkr/tootik/data"
 )
 
 type ActorType string
+
+var didKeyVerificationMethodRegex = regexp.MustCompile(`^did:key:(z6Mk[a-km-zA-HJ-NP-Z1-9]+|u7Q[A-Za-z0-9_-]+)#(z6Mk[a-km-zA-HJ-NP-Z1-9]+|u7Q[A-Za-z0-9_-]+)$`)
 
 const (
 	Person      ActorType = "Person"
@@ -75,4 +80,42 @@ func (a *Actor) Scan(src any) error {
 
 func (a *Actor) Value() (driver.Value, error) {
 	return danger.MarshalJSON(a)
+}
+
+func (a *Actor) GetVerificationMethod(keyID string) (ed25519.PublicKey, error) {
+	if m := didKeyVerificationMethodRegex.FindStringSubmatch(keyID); m != nil && m[1] == m[2] {
+		raw, err := data.DecodeEd25519PublicKey(m[1])
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse %s: %w", m[1], err)
+		}
+
+		return raw, nil
+	}
+
+	return a.GetKeyByID(keyID)
+}
+
+func (a *Actor) GetKeyByID(keyID string) (ed25519.PublicKey, error) {
+	for _, key := range a.AssertionMethod {
+		if key.ID != keyID {
+			continue
+		}
+
+		if key.Type != "Multikey" {
+			continue
+		}
+
+		if key.Controller != a.ID {
+			continue
+		}
+
+		raw, err := data.DecodeEd25519PublicKey(key.PublicKeyMultibase)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse %s: %w", key.ID, err)
+		}
+
+		return raw, nil
+	}
+
+	return nil, fmt.Errorf("key %s does not exist", keyID)
 }

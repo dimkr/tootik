@@ -18,13 +18,11 @@ package fed
 
 import (
 	"context"
-	"crypto/ed25519"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"fmt"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
 
@@ -35,13 +33,10 @@ import (
 	"github.com/dimkr/tootik/proof"
 )
 
-var (
-	errNoKeyInKeyID               = errors.New("key origin does not contain a key")
-	didKeyVerificationMethodRegex = regexp.MustCompile(`^did:key:(z6Mk[a-km-zA-HJ-NP-Z1-9]+|u7Q[A-Za-z0-9_-]+)#(z6Mk[a-km-zA-HJ-NP-Z1-9]+|u7Q[A-Za-z0-9_-]+)$`)
-)
+var errNoKeyInKeyID = errors.New("key origin does not contain a key")
 
 func verifyProof(actor *ap.Actor, p ap.Proof, raw []byte) error {
-	publicKey, err := getVerificationMethod(actor, p.VerificationMethod)
+	publicKey, err := actor.GetVerificationMethod(p.VerificationMethod)
 	if err != nil {
 		return fmt.Errorf("failed to get key %s to verify proof: %w", p.VerificationMethod, err)
 	}
@@ -51,45 +46,6 @@ func verifyProof(actor *ap.Actor, p ap.Proof, raw []byte) error {
 	}
 
 	return nil
-}
-
-func getVerificationMethod(actor *ap.Actor, keyID string) (ed25519.PublicKey, error) {
-	if m := didKeyVerificationMethodRegex.FindStringSubmatch(keyID); m != nil && m[1] == m[2] {
-		raw, err := data.DecodeEd25519PublicKey(m[1])
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse %s: %w", m[1], err)
-		}
-
-		return raw, nil
-	}
-
-	return getKeyByID(actor, keyID)
-}
-
-func getKeyByID(actor *ap.Actor, keyID string) (ed25519.PublicKey, error) {
-
-	for _, key := range actor.AssertionMethod {
-		if key.ID != keyID {
-			continue
-		}
-
-		if key.Type != "Multikey" {
-			continue
-		}
-
-		if key.Controller != actor.ID {
-			continue
-		}
-
-		raw, err := data.DecodeEd25519PublicKey(key.PublicKeyMultibase)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse %s: %w", key.ID, err)
-		}
-
-		return raw, nil
-	}
-
-	return nil, fmt.Errorf("key %s does not exist", keyID)
 }
 
 func (l *Listener) extractRequestSignature(r *http.Request, body []byte) (*httpsig.Signature, error) {
@@ -168,7 +124,7 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 			}
 		}
 	} else {
-		publicKey, err = getKeyByID(actor, sig.KeyID)
+		publicKey, err = actor.GetKeyByID(sig.KeyID)
 		if err != nil {
 			return nil, nil, err
 		}

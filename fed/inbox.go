@@ -28,13 +28,10 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"strings"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/danger"
-	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
-	"github.com/dimkr/tootik/proof"
 )
 
 var unsupportedActivityTypes = map[ap.ActivityType]struct{}{
@@ -104,30 +101,12 @@ func (l *Listener) fetchObject(ctx context.Context, id string, keys [2]httpsig.K
 		return true, nil, err
 	}
 
-	m := ap.KeyRegex.FindStringSubmatch(withProof.Proof.VerificationMethod)
-	if m == nil {
-		return true, nil, fmt.Errorf("%s does not contain a public key", withProof.Proof.VerificationMethod)
-	}
-
-	origin, err := ap.Origin(id)
+	actor, err := l.Resolver.ResolveID(ctx, keys, withProof.Proof.VerificationMethod, 0)
 	if err != nil {
-		return true, nil, fmt.Errorf("failed to get origin of %s: %w", id, err)
+		return true, nil, fmt.Errorf("failed to get key %s to verify proof: %w", withProof.Proof.VerificationMethod, err)
 	}
 
-	if suffix, ok := strings.CutPrefix(origin, "did:key:"); !ok || suffix != m[1] {
-		return true, nil, fmt.Errorf("key %s does not belong to %s", m[1], origin)
-	}
-
-	publicKey, err := data.DecodeEd25519PublicKey(m[1])
-	if err != nil {
-		return true, nil, fmt.Errorf("failed to verify proof using %s: %w", withProof.Proof.VerificationMethod, err)
-	}
-
-	if err := proof.Verify(publicKey, withProof.Proof, body); err != nil {
-		return true, nil, err
-	}
-
-	return true, body, nil
+	return true, nil, verifyProof(actor, withProof.Proof, body)
 }
 
 func (l *Listener) handleSharedInbox(w http.ResponseWriter, r *http.Request) {
