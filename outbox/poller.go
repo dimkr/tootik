@@ -40,7 +40,9 @@ type pollResult struct {
 }
 
 func (p *Poller) Run(ctx context.Context) error {
-	rows, err := dbx.QueryCollectIgnore[struct {
+	prefix := fmt.Sprintf("https://%s/%%", p.Domain)
+
+	votes, err := dbx.QueryCollectIgnore[struct {
 		PollID string
 		Option sql.NullString
 		Count  int64
@@ -52,21 +54,51 @@ func (p *Poller) Run(ctx context.Context) error {
 			return true
 		},
 		`select poll, option, count(case when voter is not null then 1 end) from (select polls.id as poll, votes.object->>'$.name' as option, votes.author as voter from notes polls left join notes votes on votes.object->>'$.inReplyTo' = polls.id and votes.deleted = 0 where polls.object->>'$.type' = 'Question' and polls.id like $1 and polls.deleted = 0 and polls.object->>'$.closed' is null and (votes.object->>'$.name' is not null or votes.id is null) group by poll, option, voter) group by poll, option`,
-		fmt.Sprintf("https://%s/%%", p.Domain),
+		prefix,
 	)
 	if err != nil {
 		return err
 	}
 
-	votes := map[pollResult]int64{}
+	voters, err := dbx.QueryCollectIgnore[struct {
+		PollID string
+		Count  int64
+	}](
+		ctx,
+		p.DB,
+		func(err error) bool {
+			slog.Warn("Failed to scan poll result", "error", err)
+			return true
+		},
+		`
+		select polls.id, count(distinct voters.cid) from
+		notes polls
+		join notes votes on votes.object->>'$.inReplyTo' = polls.id
+		join persons voters on voters.id = votes.author
+		where
+			polls.object->>'$.type' = 'Question'
+			and polls.id like $1
+			and polls.deleted = 0
+			and votes.deleted = 0
+			and polls.object->>'$.closed' is null
+			and votes.object->>'$.name' is not null
+		group by polls.id
+		`,
+		prefix,
+	)
+	if err != nil {
+		return err
+	}
+
+	results := map[pollResult]int64{}
 	polls := map[string]*ap.Object{}
 	authors := map[string]*ap.Actor{}
 	keys := map[string]ed25519.PrivateKey{}
 
-	for _, row := range rows {
-		if _, ok := polls[row.PollID]; ok {
-			if row.Option.Valid {
-				votes[pollResult{PollID: row.PollID, Option: row.Option.String}] = row.Count
+	for _, vote := range votes {
+		if _, ok := polls[vote.PollID]; ok {
+			if vote.Option.Valid {
+				results[pollResult{PollID: vote.PollID, Option: vote.Option.String}] = vote.Count
 			}
 			continue
 		}
@@ -77,47 +109,66 @@ func (p *Poller) Run(ctx context.Context) error {
 		if err := p.DB.QueryRowContext(
 			ctx,
 			"select json(notes.object), json(persons.actor), persons.ed25519privkey from notes join persons on persons.id = notes.author where notes.id = ? and notes.deleted = 0",
-			row.PollID,
+			vote.PollID,
 		).Scan(&obj, &author, &ed25519PrivKey); err != nil {
-			slog.Warn("Failed to fetch poll", "poll", row.PollID, "error", err)
+			slog.Warn("Failed to fetch poll", "poll", vote.PollID, "error", err)
 			continue
 		}
 
-		polls[row.PollID] = &obj
-		if row.Option.Valid {
-			votes[pollResult{PollID: row.PollID, Option: row.Option.String}] = row.Count
+		polls[vote.PollID] = &obj
+		if vote.Option.Valid {
+			results[pollResult{PollID: vote.PollID, Option: vote.Option.String}] = vote.Count
 		}
 
-		authors[row.PollID] = &author
-		keys[row.PollID] = ed25519.NewKeyFromSeed(ed25519PrivKey)
+		authors[vote.PollID] = &author
+		keys[vote.PollID] = ed25519.NewKeyFromSeed(ed25519PrivKey)
+	}
+
+	changed := make(map[string]bool, len(polls))
+
+	for _, item := range voters {
+		if poll, ok := polls[item.PollID]; ok && poll.VotersCount == item.Count {
+			changed[item.PollID] = false
+		} else if ok {
+			poll.VotersCount = item.Count
+			changed[item.PollID] = true
+		}
+	}
+
+	for pollID, poll := range polls {
+		if _, ok := changed[pollID]; !ok && poll.VotersCount != 0 {
+			poll.VotersCount = 0
+
+			for i := range poll.AnyOf {
+				poll.AnyOf[i].Replies.TotalItems = 0
+			}
+
+			changed[pollID] = true
+		}
 	}
 
 	now := ap.Time{Time: time.Now()}
 
 	for pollID, poll := range polls {
-		changed := false
+		if (poll.EndTime == (ap.Time{}) || now.After(poll.EndTime.Time)) && poll.Closed == (ap.Time{}) {
+			poll.Closed = now
+			changed[pollID] = true
+		}
 
-		poll.VotersCount = 0
+		if poll.VotersCount == 0 {
+			continue
+		}
 
 		for i := range poll.AnyOf {
-			count, ok := votes[pollResult{PollID: poll.ID, Option: poll.AnyOf[i].Name}]
-			if !ok {
-				changed = changed || poll.AnyOf[i].Replies.TotalItems > 0
-				poll.AnyOf[i].Replies.TotalItems = 0
-				continue
+			if count := results[pollResult{PollID: poll.ID, Option: poll.AnyOf[i].Name}]; poll.AnyOf[i].Replies.TotalItems != count {
+				poll.AnyOf[i].Replies.TotalItems = count
+				changed[pollID] = true
 			}
-
-			changed = changed || poll.AnyOf[i].Replies.TotalItems != count
-			poll.AnyOf[i].Replies.TotalItems = count
-			poll.VotersCount += count
 		}
+	}
 
-		if poll.EndTime == (ap.Time{}) || now.After(poll.EndTime.Time) {
-			poll.Closed = now
-			changed = true
-		}
-
-		if !changed {
+	for pollID, poll := range polls {
+		if !changed[pollID] {
 			continue
 		}
 
