@@ -37,7 +37,7 @@ const maxDepth = 32
 var (
 	urlRegex                = regexp.MustCompile(`\b(https|http|gemini|titan|gopher|gophers|spartan|guppy):\/\/\S+\b`)
 	pDelim                  = regexp.MustCompile(`([^\n])\n\n+([^\n])`)
-	mentionRegex            = regexp.MustCompile(`\B@(\w+)(?:@(?:(?:\w+\.)+\w+(?::\d{1,5}){0,1})){0,1}\b`)
+	mentionRegex            = regexp.MustCompile(`\B[@!](\w+)(?:@(?:(?:\w+\.)+\w+(?::\d{1,5}){0,1})){0,1}\b`)
 	multipleLineBreaksRegex = regexp.MustCompile(`\n{3,}`)
 )
 

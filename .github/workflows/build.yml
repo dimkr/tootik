@@ -42,11 +42,11 @@ jobs:
       - run: |
           version="${{ inputs.version }}"
           echo "TOOTIK_VERSION=${version#v}" >> "$GITHUB_ENV"
-      - run: CGO_ENABLED=0 GOARCH=${{ matrix.goarch }} go build -tags no_pprof -ldflags "-w -s -X github.com/dimkr/tootik/buildinfo.Version=${TOOTIK_VERSION}" -trimpath ./cmd/tootik
+      - run: CGO_ENABLED=0 GOARCH=${{ matrix.goarch }} go build -tags no_pprof -ldflags "-w -s -X github.com/dimkr/tootik/buildinfo.Version=${TOOTIK_VERSION}" -trimpath -o tootik-${{ matrix.goarch }} ./cmd/tootik
       - uses: actions/upload-artifact@v6
         with:
           name: tootik-${{ inputs.version }}-${{ matrix.goarch }}
-          path: tootik
+          path: tootik-${{ matrix.goarch }}
           retention-days: 1
   test:
     permissions: {}

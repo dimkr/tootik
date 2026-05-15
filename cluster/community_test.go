@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -48,19 +48,19 @@ func TestCluster_PostInCommunity(t *testing.T) {
 
 	post := carol.
 		Follow("📣 New post").
-		FollowInput("📣 Anyone", "@stuff@g.localdomain hello").
-		Contains(Line{Type: Quote, Text: "@stuff@g.localdomain hello"})
+		FollowInput("📣 Anyone", "!stuff@g.localdomain hello").
+		Contains(Line{Type: Quote, Text: "!stuff@g.localdomain hello"})
 	cluster.Settle(t)
 
 	alice.
 		Refresh().
-		Contains(Line{Type: Quote, Text: "@stuff@g.localdomain hello"})
+		Contains(Line{Type: Quote, Text: "!stuff@g.localdomain hello"})
 	bob = bob.
 		FollowInput("🔭 View profile", "stuff@g.localdomain").
-		Contains(Line{Type: Quote, Text: "@stuff@g.localdomain hello"})
+		Contains(Line{Type: Quote, Text: "!stuff@g.localdomain hello"})
 	carol.
 		Refresh().
-		Contains(Line{Type: Quote, Text: "@stuff@g.localdomain hello"})
+		Contains(Line{Type: Quote, Text: "!stuff@g.localdomain hello"})
 
 	post.FollowInput("🩹 Edit", "hola").OK()
 	cluster.Settle(t)
@@ -114,8 +114,8 @@ func TestCluster_ReplyInCommunity(t *testing.T) {
 
 	post := carol.
 		Follow("📣 New post").
-		FollowInput("📣 Anyone", "@stuff@g.localdomain hello").
-		Contains(Line{Type: Quote, Text: "@stuff@g.localdomain hello"})
+		FollowInput("📣 Anyone", "!stuff@g.localdomain hello").
+		Contains(Line{Type: Quote, Text: "!stuff@g.localdomain hello"})
 	cluster.Settle(t)
 
 	reply := alice.

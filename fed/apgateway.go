@@ -650,8 +650,9 @@ func (l *Listener) doHandleApGatewayFollowers(
 
 	if err := dbx.ScanRows(
 		rows,
-		func(follower string) {
+		func(follower string) error {
 			items.Add(follower)
+			return nil
 		},
 		func(err error) bool {
 			return false

@@ -194,7 +194,7 @@ func seed(t cluster.T, keyPairs map[string]tls.Certificate) cluster.Cluster {
 		GotoInput(aliceReplyToCarol2.Links["💬 Reply"], "@alice I've got a sensor that measures the exact volatile organic compounds in truffle oil. Want to borrow it?").
 		OK()
 
-	noodlesPost1 := carol.Follow("📣 New post").FollowInput("📣 Anyone", "@noodles I just had some amazing ramen!").OK()
+	noodlesPost1 := carol.Follow("📣 New post").FollowInput("📣 Anyone", "!noodles I just had some amazing ramen!").OK()
 	cl.Settle(t)
 
 	grace.GotoInput(noodlesPost1.Links["💬 Reply"], "@carol Ramen is life!").OK()
@@ -260,7 +260,7 @@ func seed(t cluster.T, keyPairs map[string]tls.Certificate) cluster.Cluster {
 		GotoInput(graceReplyToCarol.Links["💬 Reply"], "@dave Dave, that's just because you're bad at bowling! 😂 Challenge accepted! I'll see you at the lanes.").
 		OK()
 
-	noodlesPost2 := eve.Follow("📣 New post").FollowInput("📣 Anyone", "@noodles Fresh udon is the best thing ever.").OK()
+	noodlesPost2 := eve.Follow("📣 New post").FollowInput("📣 Anyone", "!noodles Fresh udon is the best thing ever.").OK()
 	cl.Settle(t)
 
 	judy.GotoInput(noodlesPost2.Links["💬 Reply"], "@eve Udon is so comforting.").OK()
@@ -327,7 +327,7 @@ func seed(t cluster.T, keyPairs map[string]tls.Certificate) cluster.Cluster {
 		OK()
 	cl.Settle(t)
 
-	noodlesPost3 := grace.Follow("📣 New post").FollowInput("📣 Anyone", "@noodles Anyone has a good recipe for pad thai?").OK()
+	noodlesPost3 := grace.Follow("📣 New post").FollowInput("📣 Anyone", "!noodles Anyone has a good recipe for pad thai?").OK()
 	cl.Settle(t)
 
 	dave.GotoInput(noodlesPost3.Links["💬 Reply"], "@grace I have a great one, I'll send it to you!").OK()

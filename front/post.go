@@ -26,6 +26,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/front/text/plain"
 	"github.com/dimkr/tootik/inbox"
@@ -37,7 +38,7 @@ const (
 )
 
 var (
-	mentionRegex = regexp.MustCompile(`\B@([a-zA-Z0-9_-]+)(?:@((?:\w+\.)+\w+(?::\d{1,5}){0,1})){0,1}\b`)
+	mentionRegex = regexp.MustCompile(`\B([@!])([a-zA-Z0-9_-]+)(?:@((?:\w+\.)+\w+(?::\d{1,5}){0,1})){0,1}\b`)
 	hashtagRegex = regexp.MustCompile(`\B#\w{1,32}\b`)
 	pollRegex    = regexp.MustCompile(`^\[(?:(?i)POLL)\s+(.+)\s*\]\s*(.+)`)
 )
@@ -101,26 +102,143 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 	}
 
 	for _, mention := range mentionRegex.FindAllStringSubmatch(content, -1) {
-		if len(mention) < 3 {
+		if len(mention) < 4 {
 			continue
-		}
-		var actorID string
-		var err error
-		if mention[2] == "" && inReplyTo != nil {
-			err = h.DB.QueryRowContext(r.Context, `select id from (select id, case when id = $1 then 5 when exists (select 1 from notes where notes.id = $2 and exists (select 1 from json_each(notes.object->'$.to') where value = persons.id)) then 4 when exists (select 1 from notes where notes.id = $2 and exists (select 1 from json_each(notes.object->'$.cc') where value = persons.id)) then 3 when id in (select followed from follows where follower = $3 and accepted = 1) then 2 when ed25519privkey is not null then 1 else 0 end as score from persons where actor->>'$.preferredUsername' = $4) where score > 0 order by score desc limit 1`, inReplyTo.AttributedTo, inReplyTo.ID, r.User.ID, mention[1]).Scan(&actorID)
-		} else if mention[2] == "" && inReplyTo == nil {
-			err = h.DB.QueryRowContext(r.Context, `select id from (select id, case when ed25519privkey is not null then 2 when id in (select followed from follows where follower = $1 and accepted = 1) then 1 else 0 end as score from persons where actor->>'$.preferredUsername' = $2) where score > 0 order by score desc limit 1`, r.User.ID, mention[1]).Scan(&actorID)
-		} else {
-			err = h.DB.QueryRowContext(r.Context, `select id from persons where actor->>'$.preferredUsername' = $1 and host = $2`, mention[1], mention[2]).Scan(&actorID)
 		}
 
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				r.Log.Warn("Failed to guess mentioned actor ID", "mention", mention[0])
-			} else {
-				r.Log.Warn("Failed to guess mentioned actor ID", "mention", mention[0], "error", err)
-			}
-			continue
+		var actorID string
+		var err error
+		if mention[3] == "" && inReplyTo != nil {
+			actorID, err = dbx.QueryScanRow[string](
+				r.Context,
+				h.DB,
+				`
+				select id from persons where
+					actor->>'$.preferredUsername' = $1
+					and ((actor->>'$.type' = 'Group') is $2)
+					and (
+						exists (
+							select 1 from (
+								with recursive thread(id, object) as (
+									select notes.id, notes.object from notes
+									where notes.id = $3
+									union all
+									select notes.id, notes.object from thread t
+									join notes on notes.object->>'$.inReplyTo' = t.id
+									where (
+										notes.public = 1
+										or exists (select 1 from json_each(notes.object->'$.to') where value = $4 or value = $5)
+										or exists (select 1 from json_each(notes.object->'$.cc') where value = $4 or value = $5)
+									)
+								)
+								select id, object from thread
+							) parents where
+								parents.object->>'$.attributedTo' = persons.id
+								or exists (select 1 from json_each(parents.object->'$.to') where value = persons.id)
+								or exists (select 1 from json_each(parents.object->'$.cc') where value = persons.id)
+						) or ed25519privkey is not null
+						or id in (select followed from follows where follower = $4 and accepted = 1)
+					)
+				limit 2
+				`,
+				mention[2],
+				mention[1] == "!",
+				inReplyTo.ID,
+				r.User.ID,
+				r.User.Followers,
+			)
+		} else if mention[3] != "" && inReplyTo != nil {
+			actorID, err = dbx.QueryScanRow[string](
+				r.Context,
+				h.DB,
+				`
+				select id from persons where
+					actor->>'$.preferredUsername' = $1
+					and host = $2
+					and ((actor->>'$.type' = 'Group') is $3)
+					and (
+						exists (
+							select 1 from (
+								with recursive thread(id, object) as (
+									select notes.id, notes.object from notes
+									where notes.id = $4
+									union all
+									select notes.id, notes.object from thread t
+									join notes on notes.object->>'$.inReplyTo' = t.id
+									where (
+										notes.public = 1
+										or exists (select 1 from json_each(notes.object->'$.to') where value = $5 or value = $6)
+										or exists (select 1 from json_each(notes.object->'$.cc') where value = $5 or value = $6)
+									)
+								)
+								select id, object from thread
+							) parents where
+								parents.object->>'$.attributedTo' = persons.id
+								or exists (select 1 from json_each(parents.object->'$.to') where value = persons.id)
+								or exists (select 1 from json_each(parents.object->'$.cc') where value = persons.id)
+						) or ed25519privkey is not null
+						or id in (select followed from follows where follower = $5 and accepted = 1)
+					)
+				limit 2
+				`,
+				mention[2],
+				mention[3],
+				mention[1] == "!",
+				inReplyTo.ID,
+				r.User.ID,
+				r.User.Followers,
+			)
+		} else if mention[3] == "" {
+			actorID, err = dbx.QueryScanRow[string](
+				r.Context,
+				h.DB,
+				`
+				select id from persons where
+					actor->>'$.preferredUsername' = $1
+					and ((actor->>'$.type' = 'Group') is $2)
+					and (
+						ed25519privkey is not null
+						or id in (select followed from follows where follower = $3 and accepted = 1)
+					)
+				limit 2
+				`,
+				mention[2],
+				mention[1] == "!",
+				r.User.ID,
+			)
+		} else {
+			actorID, err = dbx.QueryScanRow[string](
+				r.Context,
+				h.DB,
+				`
+				select id from persons where
+					actor->>'$.preferredUsername' = $1
+					and host = $2
+					and (
+						((actor->>'$.type' = 'Group') is $3)
+						or id in (select followed from follows where follower = $4 and accepted = 1)
+					)
+				limit 2
+				`,
+				mention[2],
+				mention[3],
+				mention[1] == "!",
+				r.User.ID,
+			)
+		}
+
+		if errors.Is(err, sql.ErrNoRows) {
+			r.Log.Warn("No results for mention", "mention", mention[0])
+			w.Statusf(40, "Unresolved mention: %s", mention[0])
+			return
+		} else if errors.Is(err, dbx.ErrMultipleRows) {
+			r.Log.Warn("Ambigious mention", "mention", mention[0])
+			w.Statusf(40, "Ambiguous mention: %s", mention[0])
+			return
+		} else if err != nil {
+			r.Log.Warn("Failed to resolve mention", "mention", mention[0], "error", err)
+			w.Error()
+			return
 		}
 
 		r.Log.Info("Adding mention", "name", mention[0], "actor", actorID)
