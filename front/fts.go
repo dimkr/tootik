@@ -22,7 +22,6 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
-	"strings"
 
 	"github.com/dimkr/tootik/front/text"
 )
@@ -54,8 +53,6 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 		offset = int(offset64)
 		query = query[:loc[0]]
 	}
-
-	query = fmt.Sprintf(`"%s"`, strings.ReplaceAll(query, `"`, `""`))
 
 	var rows *sql.Rows
 	if r.User == nil {
