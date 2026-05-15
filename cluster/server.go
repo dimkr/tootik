@@ -20,8 +20,10 @@ import (
 	"context"
 	"crypto/tls"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"net/url"
@@ -30,6 +32,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/fed"
@@ -62,6 +65,7 @@ type Server struct {
 
 const (
 	maxRedirects = 5
+	maxBindTries = 10
 )
 
 var (
@@ -195,12 +199,27 @@ func NewServer(t T, domain string, client fed.Client) *Server {
 		t.Fatalf("Failed to run create the federation handler: %v", err)
 	}
 
-	socketPath := fmt.Sprintf("/tmp/%s-%s.socket", t.Name(), domain)
-	os.Remove(socketPath)
+	var socketPath string
+	var listener net.Listener
+	tries := 1
+	for {
+		socketPath = filepath.Join(
+			t.TempDir(),
+			fmt.Sprintf("%s-%s-%d.socket", t.Name(), domain, 10000+rand.UintN(10000)),
+		)
 
-	listener, err := net.Listen("unix", socketPath)
-	if err != nil {
-		t.Fatalf("Failed to listen: %v", err)
+		listener, err = net.Listen("unix", socketPath)
+		if err == nil {
+			break
+		} else if !errors.Is(err, syscall.EADDRINUSE) {
+			t.Fatalf("Failed to listen: %v", err)
+		}
+
+		if tries == maxBindTries {
+			t.Fatal("Failed to listen")
+		}
+
+		tries++
 	}
 
 	serverCfg := tls.Config{
@@ -248,7 +267,6 @@ func NewServer(t T, domain string, client fed.Client) *Server {
 
 func (s *Server) Stop() {
 	s.DB.Close()
-	os.Remove(s.dbPath)
 
 	s.tlsListener.Close()
 
