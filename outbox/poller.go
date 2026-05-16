@@ -55,26 +55,33 @@ func (p *Poller) Run(ctx context.Context) error {
 			return true
 		},
 		`
-		WITH polls AS (
-			SELECT id FROM notes WHERE object->>'$.type' = 'Question' AND id LIKE $1 AND deleted = 0 AND object->>'$.closed' IS NULL
-		),
-		votes_per_voter AS (
-			SELECT polls.id AS poll, votes.object->>'$.name' AS option, votes.author AS voter
-			FROM polls
-			LEFT JOIN notes votes ON votes.object->>'$.inReplyTo' = polls.id AND votes.deleted = 0 AND votes.object->>'$.name' IS NOT NULL
-			GROUP BY poll, option, voter
-		),
-		voter_counts AS (
-			SELECT polls.id AS poll, COUNT(DISTINCT voters.cid) AS total
-			FROM polls
-			JOIN notes votes ON votes.object->>'$.inReplyTo' = polls.id AND votes.deleted = 0 AND votes.object->>'$.name' IS NOT NULL
-			JOIN persons voters ON voters.id = votes.author
-			GROUP BY poll
+		with options as (
+			select notes.id as poll, json_each.value->>'$.name' as option
+			from notes, json_each(notes.object->'$.anyOf')
+			where
+				notes.object->>'$.type' = 'Question'
+				and notes.id like $1
+				and notes.deleted = 0
+				and notes.object->>'$.closed' is null
 		)
-		SELECT vpv.poll, vpv.option, COUNT(vpv.voter), COALESCE(vc.total, 0)
-		FROM votes_per_voter vpv
-		LEFT JOIN voter_counts vc ON vpv.poll = vc.poll
-		GROUP BY vpv.poll, vpv.option
+		select options.poll, options.option, coalesce(option_counts.count, 0), coalesce(voter_counts.count, 0)
+		from options
+		left join (
+			select options.poll, options.option, count(distinct voters.cid) as count
+			from options
+			join notes votes on votes.object->>'$.inReplyTo' = options.poll and votes.object->>'$.name' = options.option
+			join persons voters on voters.id = votes.author
+			where votes.deleted = 0
+			group by options.poll, options.option
+		) option_counts on option_counts.poll = options.poll and option_counts.option = options.option
+		left join (
+			select options.poll, count(distinct voters.cid) as count
+			from options
+			join notes votes on votes.object->>'$.inReplyTo' = options.poll and votes.object->>'$.name' = options.option
+			join persons voters on voters.id = votes.author
+			where votes.deleted = 0
+			group by options.poll
+		) voter_counts on voter_counts.poll = options.poll
 		`,
 		prefix,
 	)
