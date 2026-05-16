@@ -93,11 +93,12 @@ func (p *Poller) Run(ctx context.Context) error {
 	}
 
 	type poll struct {
-		Object      ap.Object
-		Author      ap.Actor
-		Key         ed25519.PrivateKey
-		VotersCount int64
-		Votes       map[string]int64
+		ap.Object
+
+		Author             ap.Actor
+		Key                ed25519.PrivateKey
+		CurrentVotersCount int64
+		CurrentVotes       map[string]int64
 	}
 	polls := map[string]*poll{}
 
@@ -105,17 +106,17 @@ func (p *Poller) Run(ctx context.Context) error {
 		info, ok := polls[row.PollID]
 		if !ok {
 			info = &poll{
-				Object:      row.Object,
-				Author:      row.Actor,
-				Key:         ed25519.NewKeyFromSeed(row.ED25519PrivKey),
-				VotersCount: row.VotersCount,
-				Votes:       make(map[string]int64, len(row.Object.AnyOf)),
+				Object:             row.Object,
+				Author:             row.Actor,
+				Key:                ed25519.NewKeyFromSeed(row.ED25519PrivKey),
+				CurrentVotersCount: row.VotersCount,
+				CurrentVotes:       make(map[string]int64, len(row.Object.AnyOf)),
 			}
 			polls[row.PollID] = info
 		}
 
 		if row.Option.Valid {
-			info.Votes[row.Option.String] = row.OptionCount
+			info.CurrentVotes[row.Option.String] = row.OptionCount
 		}
 	}
 
@@ -124,19 +125,19 @@ func (p *Poller) Run(ctx context.Context) error {
 	for id, poll := range polls {
 		changed := false
 
-		if poll.Object.VotersCount != poll.VotersCount {
-			poll.Object.VotersCount = poll.VotersCount
+		if poll.VotersCount != poll.CurrentVotersCount {
+			poll.VotersCount = poll.CurrentVotersCount
 			changed = true
 		}
 
-		if (poll.Object.EndTime.IsZero() || now.After(poll.Object.EndTime.Time)) && poll.Object.Closed.IsZero() {
-			poll.Object.Closed = now
+		if (poll.EndTime.IsZero() || now.After(poll.EndTime.Time)) && poll.Closed.IsZero() {
+			poll.Closed = now
 			changed = true
 		}
 
-		for i := range poll.Object.AnyOf {
-			if count := poll.Votes[poll.Object.AnyOf[i].Name]; poll.Object.AnyOf[i].Replies.TotalItems != count {
-				poll.Object.AnyOf[i].Replies.TotalItems = count
+		for i := range poll.AnyOf {
+			if count := poll.CurrentVotes[poll.AnyOf[i].Name]; poll.AnyOf[i].Replies.TotalItems != count {
+				poll.AnyOf[i].Replies.TotalItems = count
 				changed = true
 			}
 		}
@@ -145,7 +146,7 @@ func (p *Poller) Run(ctx context.Context) error {
 			continue
 		}
 
-		poll.Object.Updated = now
+		poll.Updated = now
 
 		slog.Info("Updating poll results", "poll", id)
 
