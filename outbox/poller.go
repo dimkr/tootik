@@ -122,7 +122,7 @@ func (p *Poller) Run(ctx context.Context) error {
 
 	now := ap.Time{Time: time.Now()}
 
-	for id, poll := range polls {
+	for pollID, poll := range polls {
 		changed := false
 
 		if poll.VotersCount != poll.CurrentVotersCount {
@@ -130,7 +130,7 @@ func (p *Poller) Run(ctx context.Context) error {
 			changed = true
 		}
 
-		if (poll.EndTime.IsZero() || now.After(poll.EndTime.Time)) && poll.Closed.IsZero() {
+		if poll.EndTime.IsZero() || now.After(poll.EndTime.Time) {
 			poll.Closed = now
 			changed = true
 		}
@@ -148,7 +148,7 @@ func (p *Poller) Run(ctx context.Context) error {
 
 		poll.Updated = now
 
-		slog.Info("Updating poll results", "poll", id)
+		slog.Info("Updating poll results", "poll", pollID)
 
 		if err := p.Inbox.UpdateNote(
 			ctx,
@@ -159,7 +159,7 @@ func (p *Poller) Run(ctx context.Context) error {
 			},
 			&poll.Object,
 		); err != nil {
-			slog.Warn("Failed to update poll results", "poll", id, "error", err)
+			slog.Warn("Failed to update poll results", "poll", pollID, "error", err)
 		}
 	}
 
