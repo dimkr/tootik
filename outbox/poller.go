@@ -42,27 +42,11 @@ type pollResult struct {
 func (p *Poller) Run(ctx context.Context) error {
 	prefix := fmt.Sprintf("https://%s/%%", p.Domain)
 
-	votes, err := dbx.QueryCollectIgnore[struct {
-		PollID string
-		Option sql.NullString
-		Count  int64
-	}](
-		ctx,
-		p.DB,
-		func(err error) bool {
-			slog.Warn("Failed to scan poll result", "error", err)
-			return true
-		},
-		`select poll, option, count(case when voter is not null then 1 end) from (select polls.id as poll, votes.object->>'$.name' as option, votes.author as voter from notes polls left join notes votes on votes.object->>'$.inReplyTo' = polls.id and votes.deleted = 0 where polls.object->>'$.type' = 'Question' and polls.id like $1 and polls.deleted = 0 and polls.object->>'$.closed' is null and (votes.object->>'$.name' is not null or votes.id is null) group by poll, option, voter) group by poll, option`,
-		prefix,
-	)
-	if err != nil {
-		return err
-	}
-
-	voters, err := dbx.QueryCollectIgnore[struct {
-		PollID string
-		Count  int64
+	rows, err := dbx.QueryCollectIgnore[struct {
+		PollID      string
+		Option      sql.NullString
+		OptionCount int64
+		VotersCount int64
 	}](
 		ctx,
 		p.DB,
@@ -71,18 +55,26 @@ func (p *Poller) Run(ctx context.Context) error {
 			return true
 		},
 		`
-		select polls.id, count(distinct voters.cid) from
-		notes polls
-		join notes votes on votes.object->>'$.inReplyTo' = polls.id
-		join persons voters on voters.id = votes.author
-		where
-			polls.object->>'$.type' = 'Question'
-			and polls.id like $1
-			and polls.deleted = 0
-			and votes.deleted = 0
-			and polls.object->>'$.closed' is null
-			and votes.object->>'$.name' is not null
-		group by polls.id
+		WITH polls AS (
+			SELECT id FROM notes WHERE object->>'$.type' = 'Question' AND id LIKE $1 AND deleted = 0 AND object->>'$.closed' IS NULL
+		),
+		votes_per_voter AS (
+			SELECT polls.id AS poll, votes.object->>'$.name' AS option, votes.author AS voter
+			FROM polls
+			LEFT JOIN notes votes ON votes.object->>'$.inReplyTo' = polls.id AND votes.deleted = 0 AND votes.object->>'$.name' IS NOT NULL
+			GROUP BY poll, option, voter
+		),
+		voter_counts AS (
+			SELECT polls.id AS poll, COUNT(DISTINCT voters.cid) AS total
+			FROM polls
+			JOIN notes votes ON votes.object->>'$.inReplyTo' = polls.id AND votes.deleted = 0 AND votes.object->>'$.name' IS NOT NULL
+			JOIN persons voters ON voters.id = votes.author
+			GROUP BY poll
+		)
+		SELECT vpv.poll, vpv.option, COUNT(vpv.voter), COALESCE(vc.total, 0)
+		FROM votes_per_voter vpv
+		LEFT JOIN voter_counts vc ON vpv.poll = vc.poll
+		GROUP BY vpv.poll, vpv.option
 		`,
 		prefix,
 	)
@@ -94,11 +86,14 @@ func (p *Poller) Run(ctx context.Context) error {
 	polls := map[string]*ap.Object{}
 	authors := map[string]*ap.Actor{}
 	keys := map[string]ed25519.PrivateKey{}
+	voterCounts := map[string]int64{}
 
-	for _, vote := range votes {
-		if _, ok := polls[vote.PollID]; ok {
-			if vote.Option.Valid {
-				results[pollResult{PollID: vote.PollID, Option: vote.Option.String}] = vote.Count
+	for _, r := range rows {
+		voterCounts[r.PollID] = r.VotersCount
+
+		if _, ok := polls[r.PollID]; ok {
+			if r.Option.Valid {
+				results[pollResult{PollID: r.PollID, Option: r.Option.String}] = r.OptionCount
 			}
 			continue
 		}
@@ -109,40 +104,33 @@ func (p *Poller) Run(ctx context.Context) error {
 		if err := p.DB.QueryRowContext(
 			ctx,
 			"select json(notes.object), json(persons.actor), persons.ed25519privkey from notes join persons on persons.id = notes.author where notes.id = ? and notes.deleted = 0",
-			vote.PollID,
+			r.PollID,
 		).Scan(&obj, &author, &ed25519PrivKey); err != nil {
-			slog.Warn("Failed to fetch poll", "poll", vote.PollID, "error", err)
+			slog.Warn("Failed to fetch poll", "poll", r.PollID, "error", err)
 			continue
 		}
 
-		polls[vote.PollID] = &obj
-		if vote.Option.Valid {
-			results[pollResult{PollID: vote.PollID, Option: vote.Option.String}] = vote.Count
+		polls[r.PollID] = &obj
+		if r.Option.Valid {
+			results[pollResult{PollID: r.PollID, Option: r.Option.String}] = r.OptionCount
 		}
 
-		authors[vote.PollID] = &author
-		keys[vote.PollID] = ed25519.NewKeyFromSeed(ed25519PrivKey)
+		authors[r.PollID] = &author
+		keys[r.PollID] = ed25519.NewKeyFromSeed(ed25519PrivKey)
 	}
 
 	changed := make(map[string]bool, len(polls))
 
-	for _, item := range voters {
-		if poll, ok := polls[item.PollID]; ok && poll.VotersCount == item.Count {
-			changed[item.PollID] = false
+	for pollID, count := range voterCounts {
+		if poll, ok := polls[pollID]; ok && poll.VotersCount == count {
+			changed[pollID] = false
 		} else if ok {
-			poll.VotersCount = item.Count
-			changed[item.PollID] = true
-		}
-	}
-
-	for pollID, poll := range polls {
-		if _, ok := changed[pollID]; !ok && poll.VotersCount != 0 {
-			poll.VotersCount = 0
-
-			for i := range poll.AnyOf {
-				poll.AnyOf[i].Replies.TotalItems = 0
+			poll.VotersCount = count
+			if count == 0 {
+				for i := range poll.AnyOf {
+					poll.AnyOf[i].Replies.TotalItems = 0
+				}
 			}
-
 			changed[pollID] = true
 		}
 	}
