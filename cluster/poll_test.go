@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -137,6 +137,137 @@ func TestCluster_Poll(t *testing.T) {
 		Contains(Line{Type: Preformatted, Text: "0          Orange"})
 	carol.
 		Goto(poll.Path).
+		Contains(Line{Type: Preformatted, Text: "0          Gray"}).
+		Contains(Line{Type: Preformatted, Text: "0          Orange"})
+}
+
+func TestCluster_PollVotersCount(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
+
+	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["c.localdomain"].Register(carolKeypair).OK()
+
+	alice = alice.
+		FollowInput("🔭 View profile", "bob@b.localdomain").
+		Follow("⚡ Follow bob").
+		OK()
+	carol = carol.
+		FollowInput("🔭 View profile", "bob@b.localdomain").
+		Follow("⚡ Follow bob").
+		OK()
+	cluster.Settle(t)
+
+	poll := bob.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "[POLL Favorite color] Gray | Orange").
+		OK()
+	cluster.Settle(t)
+
+	aliceVote1 := alice.
+		Goto(poll.Links["📮 Vote Gray"]).
+		OK()
+	aliceVote2 := alice.
+		Goto(poll.Links["📮 Vote Orange"]).
+		OK()
+	carolVote := carol.
+		Goto(poll.Links["📮 Vote Gray"]).
+		OK()
+	cluster.Settle(t)
+
+	poller := outbox.Poller{
+		Domain: "b.localdomain",
+		DB:     cluster["b.localdomain"].DB,
+		Inbox:  cluster["b.localdomain"].Inbox,
+	}
+	if err := poller.Run(t.Context()); err != nil {
+		t.Fatalf("Failed to process votes: %v", err)
+	}
+	cluster.Settle(t)
+
+	bob.
+		Goto(poll.Path).
+		Contains(Line{Type: SubHeading, Text: "📊 Results (2 voters)"}).
+		Contains(Line{Type: Preformatted, Text: "2 ████████ Gray"}).
+		Contains(Line{Type: Preformatted, Text: "1 ████     Orange"})
+	alice.
+		Goto(poll.Path).
+		Contains(Line{Type: SubHeading, Text: "📊 Results (2 voters)"}).
+		Contains(Line{Type: Preformatted, Text: "2 ████████ Gray"}).
+		Contains(Line{Type: Preformatted, Text: "1 ████     Orange"})
+	carol.
+		Goto(poll.Path).
+		Contains(Line{Type: SubHeading, Text: "📊 Results (2 voters)"}).
+		Contains(Line{Type: Preformatted, Text: "2 ████████ Gray"}).
+		Contains(Line{Type: Preformatted, Text: "1 ████     Orange"})
+
+	carolVote.Follow("💣 Delete").OK()
+	cluster.Settle(t)
+	if err := poller.Run(t.Context()); err != nil {
+		t.Fatalf("Failed to process votes: %v", err)
+	}
+	cluster.Settle(t)
+
+	bob.
+		Goto(poll.Path).
+		Contains(Line{Type: SubHeading, Text: "📊 Results (one voter)"}).
+		Contains(Line{Type: Preformatted, Text: "1 ████████ Gray"}).
+		Contains(Line{Type: Preformatted, Text: "1 ████████ Orange"})
+	alice.
+		Goto(poll.Path).
+		Contains(Line{Type: SubHeading, Text: "📊 Results (one voter)"}).
+		Contains(Line{Type: Preformatted, Text: "1 ████████ Gray"}).
+		Contains(Line{Type: Preformatted, Text: "1 ████████ Orange"})
+	carol.
+		Goto(poll.Path).
+		Contains(Line{Type: SubHeading, Text: "📊 Results (one voter)"}).
+		Contains(Line{Type: Preformatted, Text: "1 ████████ Gray"}).
+		Contains(Line{Type: Preformatted, Text: "1 ████████ Orange"})
+
+	aliceVote2.Follow("💣 Delete").OK()
+	cluster.Settle(t)
+	if err := poller.Run(t.Context()); err != nil {
+		t.Fatalf("Failed to process votes: %v", err)
+	}
+	cluster.Settle(t)
+
+	bob.
+		Goto(poll.Path).
+		Contains(Line{Type: SubHeading, Text: "📊 Results (one voter)"}).
+		Contains(Line{Type: Preformatted, Text: "1 ████████ Gray"}).
+		Contains(Line{Type: Preformatted, Text: "0          Orange"})
+	alice.
+		Goto(poll.Path).
+		Contains(Line{Type: SubHeading, Text: "📊 Results (one voter)"}).
+		Contains(Line{Type: Preformatted, Text: "1 ████████ Gray"}).
+		Contains(Line{Type: Preformatted, Text: "0          Orange"})
+	carol.
+		Goto(poll.Path).
+		Contains(Line{Type: SubHeading, Text: "📊 Results (one voter)"}).
+		Contains(Line{Type: Preformatted, Text: "1 ████████ Gray"}).
+		Contains(Line{Type: Preformatted, Text: "0          Orange"})
+
+	aliceVote1.Follow("💣 Delete").OK()
+	cluster.Settle(t)
+	if err := poller.Run(t.Context()); err != nil {
+		t.Fatalf("Failed to process votes: %v", err)
+	}
+	cluster.Settle(t)
+
+	bob.
+		Goto(poll.Path).
+		Contains(Line{Type: SubHeading, Text: "📊 Results (0 voters)"}).
+		Contains(Line{Type: Preformatted, Text: "0          Gray"}).
+		Contains(Line{Type: Preformatted, Text: "0          Orange"})
+	alice.
+		Goto(poll.Path).
+		Contains(Line{Type: SubHeading, Text: "📊 Results (0 voters)"}).
+		Contains(Line{Type: Preformatted, Text: "0          Gray"}).
+		Contains(Line{Type: Preformatted, Text: "0          Orange"})
+	carol.
+		Goto(poll.Path).
+		Contains(Line{Type: SubHeading, Text: "📊 Results (0 voters)"}).
 		Contains(Line{Type: Preformatted, Text: "0          Gray"}).
 		Contains(Line{Type: Preformatted, Text: "0          Orange"})
 }

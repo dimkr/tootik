@@ -35,15 +35,15 @@ type Poller struct {
 	Inbox  ap.Inbox
 }
 
-type pollResult struct {
-	PollID, Option string
-}
-
 func (p *Poller) Run(ctx context.Context) error {
 	rows, err := dbx.QueryCollectIgnore[struct {
-		PollID string
-		Option sql.NullString
-		Count  int64
+		PollID         string
+		Option         sql.NullString
+		OptionCount    int64
+		VotersCount    int64
+		Object         ap.Object
+		Actor          ap.Actor
+		ED25519PrivKey []byte
 	}](
 		ctx,
 		p.DB,
@@ -51,65 +51,93 @@ func (p *Poller) Run(ctx context.Context) error {
 			slog.Warn("Failed to scan poll result", "error", err)
 			return true
 		},
-		`select poll, option, count(case when voter is not null then 1 end) from (select polls.id as poll, votes.object->>'$.name' as option, votes.author as voter from notes polls left join notes votes on votes.object->>'$.inReplyTo' = polls.id and votes.deleted = 0 where polls.object->>'$.type' = 'Question' and polls.id like $1 and polls.deleted = 0 and polls.object->>'$.closed' is null and (votes.object->>'$.name' is not null or votes.id is null) group by poll, option, voter) group by poll, option`,
+		`
+		with polls as (
+			select notes.id, notes.object, persons.actor as author, persons.ed25519privkey
+			from notes
+			join persons on persons.id = notes.author
+			where
+				notes.object->>'$.type' = 'Question'
+				and notes.id like $1
+				and notes.deleted = 0
+				and notes.object->>'$.closed' is null
+		)
+		select
+			polls.id,
+			anyof.value->>'$.name',
+			coalesce(option_counts.count, 0),
+			coalesce(voter_counts.count, 0),
+			json(polls.object),
+			json(polls.author),
+			polls.ed25519privkey
+		from polls
+		join json_each(polls.object->'$.anyOf') as anyof
+		left join (
+			select polls.id as poll, votes.object->>'$.name' as name, count(distinct voters.cid) as count
+			from notes votes
+			join polls on votes.object->>'$.inReplyTo' = polls.id
+			join persons voters on voters.id = votes.author
+			where votes.deleted = 0
+			group by poll, name
+		) option_counts on option_counts.poll = polls.id and option_counts.name = anyof.value->>'$.name'
+		left join (
+			select polls.id as poll, count(distinct voters.cid) as count
+			from notes votes
+			join polls on votes.object->>'$.inReplyTo' = polls.id
+			join persons voters on voters.id = votes.author
+			where votes.deleted = 0
+			group by poll
+		) voter_counts on voter_counts.poll = polls.id
+		`,
 		fmt.Sprintf("https://%s/%%", p.Domain),
 	)
 	if err != nil {
 		return err
 	}
 
-	votes := map[pollResult]int64{}
-	polls := map[string]*ap.Object{}
-	authors := map[string]*ap.Actor{}
-	keys := map[string]ed25519.PrivateKey{}
+	type poll struct {
+		ap.Object
+
+		Author             ap.Actor
+		Key                ed25519.PrivateKey
+		CurrentVotersCount int64
+		CurrentVotes       map[string]int64
+	}
+	polls := map[string]*poll{}
 
 	for _, row := range rows {
-		if _, ok := polls[row.PollID]; ok {
-			if row.Option.Valid {
-				votes[pollResult{PollID: row.PollID, Option: row.Option.String}] = row.Count
+		info, ok := polls[row.PollID]
+		if !ok {
+			info = &poll{
+				Object:             row.Object,
+				Author:             row.Actor,
+				Key:                ed25519.NewKeyFromSeed(row.ED25519PrivKey),
+				CurrentVotersCount: row.VotersCount,
+				CurrentVotes:       make(map[string]int64, len(row.Object.AnyOf)),
 			}
-			continue
+			polls[row.PollID] = info
 		}
 
-		var obj ap.Object
-		var author ap.Actor
-		var ed25519PrivKey []byte
-		if err := p.DB.QueryRowContext(
-			ctx,
-			"select json(notes.object), json(persons.actor), persons.ed25519privkey from notes join persons on persons.id = notes.author where notes.id = ? and notes.deleted = 0",
-			row.PollID,
-		).Scan(&obj, &author, &ed25519PrivKey); err != nil {
-			slog.Warn("Failed to fetch poll", "poll", row.PollID, "error", err)
-			continue
-		}
-
-		polls[row.PollID] = &obj
 		if row.Option.Valid {
-			votes[pollResult{PollID: row.PollID, Option: row.Option.String}] = row.Count
+			info.CurrentVotes[row.Option.String] = row.OptionCount
 		}
-
-		authors[row.PollID] = &author
-		keys[row.PollID] = ed25519.NewKeyFromSeed(ed25519PrivKey)
 	}
 
 	now := ap.Time{Time: time.Now()}
 
-	for pollID, poll := range polls {
+	for _, poll := range polls {
 		changed := false
 
-		poll.VotersCount = 0
+		if poll.VotersCount != poll.CurrentVotersCount {
+			poll.VotersCount = poll.CurrentVotersCount
+			changed = true
+		}
 
 		for i := range poll.AnyOf {
-			count, ok := votes[pollResult{PollID: poll.ID, Option: poll.AnyOf[i].Name}]
-			if !ok {
-				changed = changed || poll.AnyOf[i].Replies.TotalItems > 0
-				poll.AnyOf[i].Replies.TotalItems = 0
-				continue
+			if count := poll.CurrentVotes[poll.AnyOf[i].Name]; poll.AnyOf[i].Replies.TotalItems != count {
+				poll.AnyOf[i].Replies.TotalItems = count
+				changed = true
 			}
-
-			changed = changed || poll.AnyOf[i].Replies.TotalItems != count
-			poll.AnyOf[i].Replies.TotalItems = count
-			poll.VotersCount += count
 		}
 
 		if poll.EndTime == (ap.Time{}) || now.After(poll.EndTime.Time) {
@@ -125,8 +153,15 @@ func (p *Poller) Run(ctx context.Context) error {
 
 		slog.Info("Updating poll results", "poll", poll.ID)
 
-		author := authors[pollID]
-		if err := p.Inbox.UpdateNote(ctx, author, httpsig.Key{ID: author.AssertionMethod[0].ID, PrivateKey: keys[pollID]}, poll); err != nil {
+		if err := p.Inbox.UpdateNote(
+			ctx,
+			&poll.Author,
+			httpsig.Key{
+				ID:         poll.Author.AssertionMethod[0].ID,
+				PrivateKey: poll.Key,
+			},
+			&poll.Object,
+		); err != nil {
 			slog.Warn("Failed to update poll results", "poll", poll.ID, "error", err)
 		}
 	}
