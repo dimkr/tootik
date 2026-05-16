@@ -148,7 +148,7 @@ func (p *Poller) Run(ctx context.Context) error {
 
 		poll.Updated = now
 
-		slog.Info("Updating poll results", "poll", pollID)
+		slog.Info("Updating poll results", "poll", poll.ID)
 
 		if err := p.Inbox.UpdateNote(
 			ctx,
