@@ -53,7 +53,7 @@ func (p *Poller) Run(ctx context.Context) error {
 		},
 		`
 		with polls as (
-			select notes.id, notes.object, persons.actor, persons.ed25519privkey
+			select notes.id, notes.object, persons.actor as author, persons.ed25519privkey
 			from notes
 			join persons on persons.id = notes.author
 			where notes.object->>'$.type' = 'Question'
@@ -67,7 +67,7 @@ func (p *Poller) Run(ctx context.Context) error {
 			coalesce(option_counts.count, 0),
 			coalesce(voter_counts.count, 0),
 			json(polls.object),
-			json(polls.actor),
+			json(polls.author),
 			polls.ed25519privkey
 		from polls
 		join json_each(polls.object->'$.anyOf') as anyof
