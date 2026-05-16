@@ -125,16 +125,11 @@ func (p *Poller) Run(ctx context.Context) error {
 
 	now := ap.Time{Time: time.Now()}
 
-	for pollID, poll := range polls {
+	for _, poll := range polls {
 		changed := false
 
 		if poll.VotersCount != poll.CurrentVotersCount {
 			poll.VotersCount = poll.CurrentVotersCount
-			changed = true
-		}
-
-		if poll.EndTime == (ap.Time{}) || now.After(poll.EndTime.Time) {
-			poll.Closed = now
 			changed = true
 		}
 
@@ -143,6 +138,11 @@ func (p *Poller) Run(ctx context.Context) error {
 				poll.AnyOf[i].Replies.TotalItems = count
 				changed = true
 			}
+		}
+
+		if poll.EndTime == (ap.Time{}) || now.After(poll.EndTime.Time) {
+			poll.Closed = now
+			changed = true
 		}
 
 		if !changed {
