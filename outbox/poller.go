@@ -130,7 +130,7 @@ func (p *Poller) Run(ctx context.Context) error {
 			changed = true
 		}
 
-		if poll.EndTime.IsZero() || now.After(poll.EndTime.Time) {
+		if poll.EndTime == (ap.Time{}) || now.After(poll.EndTime.Time) {
 			poll.Closed = now
 			changed = true
 		}
