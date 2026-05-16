@@ -72,15 +72,17 @@ func (p *Poller) Run(ctx context.Context) error {
 		from polls
 		join json_each(polls.object->'$.anyOf') as anyof
 		left join (
-			select votes.object->>'$.inReplyTo' as poll, votes.object->>'$.name' as option, count(distinct voters.cid) as count
+			select polls.id as poll, votes.object->>'$.name' as option, count(distinct voters.cid) as count
 			from notes votes
+			join polls on votes.object->>'$.inReplyTo' = polls.id
 			join persons voters on voters.id = votes.author
 			where votes.deleted = 0
 			group by poll, option
 		) option_counts on option_counts.poll = polls.id and option_counts.option = anyof.value->>'$.name'
 		left join (
-			select votes.object->>'$.inReplyTo' as poll, count(distinct voters.cid) as count
+			select polls.id as poll, count(distinct voters.cid) as count
 			from notes votes
+			join polls on votes.object->>'$.inReplyTo' = polls.id
 			join persons voters on voters.id = votes.author
 			where votes.deleted = 0
 			group by poll
