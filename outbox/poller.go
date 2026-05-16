@@ -162,7 +162,7 @@ func (p *Poller) Run(ctx context.Context) error {
 			},
 			&poll.Object,
 		); err != nil {
-			slog.Warn("Failed to update poll results", "poll", pollID, "error", err)
+			slog.Warn("Failed to update poll results", "poll", poll.ID, "error", err)
 		}
 	}
 
