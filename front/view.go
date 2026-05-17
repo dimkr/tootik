@@ -45,13 +45,12 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 	var note ap.Object
 	var author ap.Actor
 	var group sql.Null[ap.Actor]
-	var repliesCount, quotesCount, sharesCount int
 
 	if r.User == nil {
 		err = h.DB.QueryRowContext(
 			r.Context,
 			`
-			select json(notes.object), json(persons.actor), json(groups.actor), notes.replies_count, notes.quotes_count, notes.shares_count from notes
+			select json(notes.object), json(persons.actor), json(groups.actor) from notes
 			join persons on persons.id = notes.author
 			left join (select id, actor from persons where actor->>'$.type' = 'Group') groups on exists (select 1 from shares where shares.by = groups.id and shares.note = $1)
 			where
@@ -59,12 +58,12 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				notes.public = 1
 			`,
 			postID,
-		).Scan(&note, &author, &group, &repliesCount, &quotesCount, &sharesCount)
+		).Scan(&note, &author, &group)
 	} else {
 		err = h.DB.QueryRowContext(
 			r.Context,
 			`
-			select json(notes.object), json(persons.actor), json(groups.actor), notes.replies_count, notes.quotes_count, notes.shares_count from notes
+			select json(notes.object), json(persons.actor), json(groups.actor) from notes
 			join persons on persons.id = notes.author
 			left join (select id, actor from persons where actor->>'$.type' = 'Group') groups on exists (select 1 from shares where shares.by = groups.id and shares.note = $1)
 			where
@@ -93,7 +92,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			`,
 			postID,
 			r.User.ID,
-		).Scan(&note, &author, &group, &repliesCount, &quotesCount, &sharesCount)
+		).Scan(&note, &author, &group)
 	}
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Info("Post was not found", "post", postID)
