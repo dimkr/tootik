@@ -59,11 +59,8 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 		rows, err = h.DB.QueryContext(
 			r.Context,
 			`
-				with top as (
-					select id, rank from notesfts where content match $1 order by rank limit 500
-				)
 				select json(notes.object), json(authors.actor), json(groups.actor), notes.inserted, notes.replies_count, notes.quotes_count, notes.shares_count from
-				top
+				(select id, rank from notesfts where content match $1 order by rank limit $2) top
 				join notes on
 					notes.id = top.id
 				join persons authors on
@@ -73,10 +70,11 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 				where
 					notes.public = 1
 				order by top.rank
-				limit $2
-				offset $3
+				limit $3
+				offset $4
 			`,
 			query,
+			h.Config.MaxFTSResults,
 			h.Config.PostsPerPage,
 			offset,
 		)
@@ -84,13 +82,10 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 		rows, err = h.DB.QueryContext(
 			r.Context,
 			`
-				with top as (
-					select id, rank from notesfts where content match $1 order by rank limit 500
-				)
 				select json(u.object), json(authors.actor), json(groups.actor), u.inserted, u.replies_count, u.quotes_count, u.shares_count from
 				(
 					select notes.id, notes.object, notes.author, notes.inserted, notes.replies_count, notes.quotes_count, notes.shares_count, top.rank, 2 as aud from
-					top
+					(select id, rank from notesfts where content match $1 order by rank limit $2) top
 					join notes on
 						notes.id = top.id
 					where
@@ -114,7 +109,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 					top on
 						top.id = notes.id
 					where
-						follows.follower = $2 and
+						follows.follower = $3 and
 						follows.accepted = 1
 					union all
 					select notes.id, notes.object, notes.author, notes.inserted, notes.replies_count, notes.quotes_count, notes.shares_count, top.rank, 0 as aud from
@@ -138,10 +133,11 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 					round(u.rank, 1),
 					min(u.aud),
 					u.rank
-				limit $3
-				offset $4
+				limit $4
+				offset $5
 			`,
 			query,
+			h.Config.MaxFTSResults,
 			r.User.ID,
 			h.Config.PostsPerPage,
 			offset,
