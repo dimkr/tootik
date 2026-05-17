@@ -35,7 +35,7 @@ func (h *Handler) bookmarks(w text.Writer, r *Request, args ...string) {
 		func(offset int) (*sql.Rows, error) {
 			return h.DB.QueryContext(
 				r.Context,
-				`select json(notes.object), json(persons.actor), null as sharer, notes.inserted from bookmarks
+				`select json(notes.object), json(persons.actor), null as sharer, notes.inserted, notes.replies_count, notes.quotes_count, notes.shares_count from bookmarks
 				join notes
 				on
 					notes.id = bookmarks.note

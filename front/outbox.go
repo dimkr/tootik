@@ -79,12 +79,12 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// unauthenticated users can only see public posts in a group
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select json(u.object), json(authors.actor), null, max(u.inserted, coalesce(max(case when replies.deleted = 0 then replies.inserted end), 0)) from (
-				select notes.id, notes.object, notes.author, shares.inserted from shares
+			`select json(u.object), json(authors.actor), null, max(u.inserted, coalesce(max(case when replies.deleted = 0 then replies.inserted end), 0)), u.replies_count, u.quotes_count, u.shares_count from (
+				select notes.id, notes.object, notes.author, shares.inserted, notes.replies_count, notes.quotes_count, notes.shares_count from shares
 				join notes on notes.id = shares.note
 				where shares.by = $1 and notes.public = 1 and notes.object->>'$.inReplyTo' is null
 				union all
-				select notes.id, notes.object, notes.author, notes.inserted from notes
+				select notes.id, notes.object, notes.author, notes.inserted, notes.replies_count, notes.quotes_count, notes.shares_count from notes
 				where notes.author = $1 and notes.public = 1 and notes.object->>'$.inReplyTo' is null
 			) u
 			join persons authors on authors.id = u.author
@@ -99,8 +99,8 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// users can see public posts in a group and non-public posts if they follow the group
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select json(u.object), json(authors.actor), null, max(u.inserted, coalesce(max(case when replies.deleted = 0 then replies.inserted end), 0)) from (
-				select notes.id, notes.object, notes.author, shares.inserted from shares
+			`select json(u.object), json(authors.actor), null, max(u.inserted, coalesce(max(case when replies.deleted = 0 then replies.inserted end), 0)), u.replies_count, u.quotes_count, u.shares_count from (
+				select notes.id, notes.object, notes.author, shares.inserted, notes.replies_count, notes.quotes_count, notes.shares_count from shares
 				join notes on notes.id = shares.note
 				where
 					shares.by = $1 and
@@ -110,7 +110,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 					) and
 					notes.object->>'$.inReplyTo' is null
 				union all
-				select notes.id, notes.object, notes.author, notes.inserted from notes
+				select notes.id, notes.object, notes.author, notes.inserted, notes.replies_count, notes.quotes_count, notes.shares_count from notes
 				where
 					notes.author = $1 and
 					(
@@ -132,12 +132,12 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// unauthenticated users can only see public posts
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select json(object), json(actor), json(sharer), max(inserted) from (
-				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
+			`select json(object), json(actor), json(sharer), max(inserted), replies_count, quotes_count, shares_count from (
+				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer, notes.replies_count, notes.quotes_count, notes.shares_count from notes
 				join persons on persons.id = $1
 				where notes.author = $1 and notes.public = 1
 				union all
-				select notes.id, authors.actor, notes.object, shares.inserted, sharers.actor as by from
+				select notes.id, authors.actor, notes.object, shares.inserted, sharers.actor as by, notes.replies_count, notes.quotes_count, notes.shares_count from
 				shares
 				join notes on notes.id = shares.note
 				join persons authors on authors.id = notes.author
@@ -154,12 +154,12 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// users can see all their posts
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select json(object), json(actor), json(sharer), max(inserted) from (
-				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
+			`select json(object), json(actor), json(sharer), max(inserted), replies_count, quotes_count, shares_count from (
+				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer, notes.replies_count, notes.quotes_count, notes.shares_count from notes
 				join persons on persons.id = notes.author
 				where notes.author = $1
 				union all
-				select notes.id, authors.actor, notes.object, shares.inserted, sharers.actor as by from shares
+				select notes.id, authors.actor, notes.object, shares.inserted, sharers.actor as by, notes.replies_count, notes.quotes_count, notes.shares_count from shares
 				join notes on notes.id = shares.note
 				join persons authors on authors.id = notes.author
 				join persons sharers on sharers.id = $1
@@ -175,12 +175,12 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// users can see only public posts by others, posts to followers if following, and DMs
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select json(object), json(actor), json(sharer), max(inserted) from (
-				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
+			`select json(object), json(actor), json(sharer), max(inserted), replies_count, quotes_count, shares_count from (
+				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer, notes.replies_count, notes.quotes_count, notes.shares_count from notes
 				join persons on persons.id = $1
 				where notes.author = $1 and notes.public = 1
 				union
-				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer from notes
+				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer, notes.replies_count, notes.quotes_count, notes.shares_count from notes
 				join persons on persons.id = $1
 				where (
 					notes.author = $1 and (
@@ -190,7 +190,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 					)
 				)
 				union
-				select notes.id, authors.actor, object, notes.inserted, null as sharer from notes
+				select notes.id, authors.actor, object, notes.inserted, null as sharer, notes.replies_count, notes.quotes_count, notes.shares_count from notes
 				join persons on
 					persons.actor->>'$.followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
 					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers')) or
@@ -201,7 +201,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 					persons.id = $1 and
 					exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
 				union all
-				select notes.id, authors.actor, notes.object, shares.inserted, sharers.actor as by from
+				select notes.id, authors.actor, notes.object, shares.inserted, sharers.actor as by, notes.replies_count, notes.quotes_count, notes.shares_count from
 				shares
 				join notes on notes.id = shares.note
 				join persons authors on authors.id = notes.author

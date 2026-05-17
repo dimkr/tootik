@@ -31,14 +31,14 @@ func (h *Handler) local(w text.Writer, r *Request, args ...string) {
 			return h.DB.QueryContext(
 				r.Context,
 				`
-					select json(object), json(actor), json(sharer), inserted from
+					select json(object), json(actor), json(sharer), inserted, replies_count, quotes_count, shares_count from
 					(
-						select notes.object, persons.actor, null as sharer, notes.inserted from persons
+						select notes.object, persons.actor, null as sharer, notes.inserted, notes.replies_count, notes.quotes_count, notes.shares_count from persons
 						join notes
 						on notes.author = persons.id
 						where notes.public = 1 and persons.host = $1
 						union all
-						select notes.object, persons.actor, sharers.actor as sharer, shares.inserted from persons sharers
+						select notes.object, persons.actor, sharers.actor as sharer, shares.inserted, notes.replies_count, notes.quotes_count, notes.shares_count from persons sharers
 						join shares
 						on shares.by = sharers.id
 						join notes
