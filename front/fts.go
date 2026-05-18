@@ -118,9 +118,9 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 						notes.id = top.id
 					where
 						(
-							$2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $2)) or
-							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $2))
+							$3 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $3)) or
+							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $3))
 						)
 				) u
 				join persons authors on
