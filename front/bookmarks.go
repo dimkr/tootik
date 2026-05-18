@@ -35,26 +35,30 @@ func (h *Handler) bookmarks(w text.Writer, r *Request, args ...string) {
 		func(offset int) (*sql.Rows, error) {
 			return h.DB.QueryContext(
 				r.Context,
-				`select json(notes.object), json(persons.actor), null as sharer, notes.inserted, notes.replies_count, notes.quotes_count, notes.shares_count from bookmarks
-				join notes
-				on
-					notes.id = bookmarks.note
-				join persons
-				on
-					persons.id = notes.author
-				where
-					bookmarks.by = $1 and 
-					(
-						notes.author = $1 or
-						notes.public = 1 or
-						exists (select 1 from json_each(notes.object->'$.to') where exists (select 1 from follows join persons on persons.id = follows.followed where follows.follower = $1 and follows.followed = notes.author and follows.accepted = 1 and (notes.author = value or persons.actor->>'$.followers' = value))) or
-						exists (select 1 from json_each(notes.object->'$.cc') where exists (select 1 from follows join persons on persons.id = follows.followed where follows.follower = $1 and follows.followed = notes.author and follows.accepted = 1 and (notes.author = value or persons.actor->>'$.followers' = value))) or
-						exists (select 1 from json_each(notes.object->'$.to') where value = $1) or
-						exists (select 1 from json_each(notes.object->'$.cc') where value = $1)
-					)
-				order by bookmarks.inserted desc
-				limit $2
-				offset $3`,
+				`select json(page.object), json(authors.actor), null as sharer, page.inserted, notes.replies_count, notes.quotes_count, notes.shares_count, parent_authors.actor->>'$.preferredUsername'
+				(
+					select notes.id, notes.object, notes.author, bookmarks.inserted from bookmarks
+					join notes
+					on
+						notes.id = bookmarks.note
+					where
+						bookmarks.by = $1 and
+						(
+							notes.author = $1 or
+							notes.public = 1 or
+							exists (select 1 from json_each(notes.object->'$.to') where exists (select 1 from follows join persons on persons.id = follows.followed where follows.follower = $1 and follows.followed = notes.author and follows.accepted = 1 and (notes.author = value or persons.actor->>'$.followers' = value))) or
+							exists (select 1 from json_each(notes.object->'$.cc') where exists (select 1 from follows join persons on persons.id = follows.followed where follows.follower = $1 and follows.followed = notes.author and follows.accepted = 1 and (notes.author = value or persons.actor->>'$.followers' = value))) or
+							exists (select 1 from json_each(notes.object->'$.to') where value = $1) or
+							exists (select 1 from json_each(notes.object->'$.cc') where value = $1)
+						)
+					order by bookmarks.inserted desc
+					limit $2
+					offset $3
+				) page
+				join persons authors on authors.id = page.author
+				left join notes parents on parents.id = page.object->>'$.inReplyTo'
+				left join persons parent_authors on persons.id = parents.author
+				order by page.inserted desc`,
 				r.User.ID,
 				h.Config.PostsPerPage,
 				offset,

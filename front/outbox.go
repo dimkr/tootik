@@ -79,7 +79,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// unauthenticated users can only see public posts in a group
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select json(u.object), json(authors.actor), null, max(u.inserted, coalesce(max(case when replies.deleted = 0 then replies.inserted end), 0)), u.replies_count, u.quotes_count, u.shares_count from (
+			`select json(u.object), json(authors.actor), null, max(u.inserted, coalesce(max(case when replies.deleted = 0 then replies.inserted end), 0)), u.replies_count, u.quotes_count, u.shares_count, null from (
 				select notes.id, notes.object, notes.author, shares.inserted, notes.replies_count, notes.quotes_count, notes.shares_count from shares
 				join notes on notes.id = shares.note
 				where shares.by = $1 and notes.public = 1 and notes.object->>'$.inReplyTo' is null
@@ -99,7 +99,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// users can see public posts in a group and non-public posts if they follow the group
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select json(u.object), json(authors.actor), null, max(u.inserted, coalesce(max(case when replies.deleted = 0 then replies.inserted end), 0)), u.replies_count, u.quotes_count, u.shares_count from (
+			`select json(u.object), json(authors.actor), null, max(u.inserted, coalesce(max(case when replies.deleted = 0 then replies.inserted end), 0)), u.replies_count, u.quotes_count, u.shares_count, null from (
 				select notes.id, notes.object, notes.author, shares.inserted, notes.replies_count, notes.quotes_count, notes.shares_count from shares
 				join notes on notes.id = shares.note
 				where
@@ -132,7 +132,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// unauthenticated users can only see public posts
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select json(object), json(actor), json(sharer), max(inserted), replies_count, quotes_count, shares_count from (
+			`select json(u.object), json(u.actor), json(u.sharer), max(u.inserted), u.replies_count, u.quotes_count, u.shares_count, parent_authors.actor->>'$.preferredUsername' from (
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer, notes.replies_count, notes.quotes_count, notes.shares_count from notes
 				join persons on persons.id = $1
 				where notes.author = $1 and notes.public = 1
@@ -143,9 +143,11 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 				join persons authors on authors.id = notes.author
 				join persons sharers on sharers.id = $1
 				where shares.by = $1 and notes.public = 1
-			)
-			group by id
-			order by max(inserted) desc limit $2 offset $3`,
+			) u
+			left join notes parent_notes on parent_notes.id = u.object->>'$.inReplyTo'
+			left join persons parent_authors on parent_authors.id = parent_notes.author
+			group by u.id
+			order by max(u.inserted) desc limit $2 offset $3`,
 			actorID,
 			h.Config.PostsPerPage,
 			offset,
@@ -154,7 +156,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// users can see all their posts
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select json(object), json(actor), json(sharer), max(inserted), replies_count, quotes_count, shares_count from (
+			`select json(u.object), json(u.actor), json(u.sharer), max(u.inserted), u.replies_count, u.quotes_count, u.shares_count, parent_authors.actor->>'$.preferredUsername' from (
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer, notes.replies_count, notes.quotes_count, notes.shares_count from notes
 				join persons on persons.id = notes.author
 				where notes.author = $1
@@ -164,9 +166,11 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 				join persons authors on authors.id = notes.author
 				join persons sharers on sharers.id = $1
 				where shares.by = $1
-			)
-			group by id
-			order by max(inserted) desc limit $2 offset $3`,
+			) u
+			left join notes parent_notes on parent_notes.id = u.object->>'$.inReplyTo'
+			left join persons parent_authors on parent_authors.id = parent_notes.author
+			group by u.id
+			order by max(u.inserted) desc limit $2 offset $3`,
 			actorID,
 			h.Config.PostsPerPage,
 			offset,
@@ -175,7 +179,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// users can see only public posts by others, posts to followers if following, and DMs
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select json(object), json(actor), json(sharer), max(inserted), replies_count, quotes_count, shares_count from (
+			`select json(u.object), json(u.actor), json(u.sharer), max(u.inserted), u.replies_count, u.quotes_count, u.shares_count, parent_authors.actor->>'$.preferredUsername' from (
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer, notes.replies_count, notes.quotes_count, notes.shares_count from notes
 				join persons on persons.id = $1
 				where notes.author = $1 and notes.public = 1
@@ -207,9 +211,11 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 				join persons authors on authors.id = notes.author
 				join persons sharers on sharers.id = $1
 				where shares.by = $1 and notes.public = 1
-			)
-			group by id
-			order by max(inserted) desc limit $3 offset $4`,
+			) u
+			left join notes parent_notes on parent_notes.id = u.object->>'$.inReplyTo'
+			left join persons parent_authors on parent_authors.id = parent_notes.author
+			group by u.id
+			order by max(u.inserted) desc limit $3 offset $4`,
 			actorID,
 			r.User.ID,
 			h.Config.PostsPerPage,

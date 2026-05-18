@@ -35,7 +35,7 @@ func (h *Handler) mentions(w text.Writer, r *Request, args ...string) {
 		func(offset int) (*sql.Rows, error) {
 			return h.DB.QueryContext(
 				r.Context,
-				`select json(page.note), json(page.author), json(page.sharer), page.inserted, notes.replies_count, notes.quotes_count, notes.shares_count from (
+				`select json(page.note), json(page.author), json(page.sharer), page.inserted, notes.replies_count, notes.quotes_count, notes.shares_count, parent_authors.actor->>'$.preferredUsername' from (
 					select note, author, sharer, inserted from feed
 					where
 						follower = $1 and
@@ -48,7 +48,12 @@ func (h *Handler) mentions(w text.Writer, r *Request, args ...string) {
 					limit $2
 					offset $3
 				) page
-				join notes on notes.id = page.note->>'$.id'
+				join notes on
+					notes.id = page.note->>'$.id'
+				left join notes parent_notes on
+					parent_notes.id = notes.object->>'$.inReplyTo'
+				left join persons parent_authors on
+					parent_authors.id = parent_notes.author
 				order by page.inserted desc
 				`,
 				r.User.ID,

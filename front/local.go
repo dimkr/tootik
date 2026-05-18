@@ -31,25 +31,37 @@ func (h *Handler) local(w text.Writer, r *Request, args ...string) {
 			return h.DB.QueryContext(
 				r.Context,
 				`
-					select json(object), json(actor), json(sharer), inserted, replies_count, quotes_count, shares_count from
-					(
-						select notes.object, persons.actor, null as sharer, notes.inserted, notes.replies_count, notes.quotes_count, notes.shares_count from persons
-						join notes
-						on notes.author = persons.id
-						where notes.public = 1 and persons.host = $1
-						union all
-						select notes.object, persons.actor, sharers.actor as sharer, shares.inserted, notes.replies_count, notes.quotes_count, notes.shares_count from persons sharers
-						join shares
-						on shares.by = sharers.id
-						join notes
-						on notes.id = shares.note
-						join persons
-						on persons.id = notes.author
-						where notes.public = 1 and sharers.host = $1
-					)
-					order by inserted desc
-					limit $2
-					offset $3
+					select json(notes.object), json(authors.actor), json(sharers.actor), page.inserted, notes.replies_count, notes.quotes_count, notes.shares_count, parent_authors.actor->>'$.preferredUsername' from (
+						select id, author, sharer, inserted from
+						(
+							select notes.id, notes.author, null as sharer, notes.inserted from persons
+							join notes
+							on notes.author = persons.id
+							where notes.public = 1 and persons.host = $1
+							union all
+							select notes.id, notes.author, sharers.id as sharer, shares.inserted from persons sharers
+							join shares
+							on shares.by = sharers.id
+							join notes
+							on notes.id = shares.note
+							where notes.public = 1 and sharers.host = $1
+						)
+						order by inserted desc
+						limit $2
+						offset $3
+					) page
+					join notes on
+						notes.id = page.id
+					join persons authors on
+						authors.id = page.author
+					left join notes parent_notes on
+						parent_notes.id = notes.object->>'$.inReplyTo'
+					left join persons parent_authors on
+						parent_authors.id = parent_notes.author
+					left join persons sharers on
+						sharers.id = page.sharer
+					order by
+						page.inserted desc
 				`,
 				h.Domain,
 				h.Config.PostsPerPage,

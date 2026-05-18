@@ -59,12 +59,16 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 		rows, err = h.DB.QueryContext(
 			r.Context,
 			`
-				select json(notes.object), json(authors.actor), json(groups.actor), notes.inserted, notes.replies_count, notes.quotes_count, notes.shares_count from
+				select json(notes.object), json(authors.actor), json(groups.actor), notes.inserted, notes.replies_count, notes.quotes_count, notes.shares_count, parent_authors.actor->>'$.preferredUsername' from
 				(select id, rank from notesfts where content match $1 order by rank limit $2) top
 				join notes on
 					notes.id = top.id
 				join persons authors on
 					authors.id = notes.author and coalesce(authors.actor->>'$.discoverable', 1)
+				left join notes parent_notes on
+					parent_notes.id = notes.object->>'$.inReplyTo'
+				left join persons parent_authors on
+					parent_authors.id = parent_notes.author
 				left join persons groups on
 					groups.actor->>'$.type' = 'Group' and exists (select 1 from shares where shares.by = groups.id and shares.note = notes.id)
 				where
@@ -85,7 +89,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 				with top as (
 					select id, rank from notesfts where content match $1 order by rank limit $2
 				)
-				select json(u.object), json(authors.actor), json(groups.actor), u.inserted, u.replies_count, u.quotes_count, u.shares_count from
+				select json(u.object), json(authors.actor), json(groups.actor), u.inserted, u.replies_count, u.quotes_count, u.shares_count, parent_authors.actor->>'$.preferredUsername' from
 				(
 					select notes.id, notes.object, notes.author, notes.inserted, notes.replies_count, notes.quotes_count, notes.shares_count, top.rank, 2 as aud from
 					top
@@ -128,6 +132,10 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 				) u
 				join persons authors on
 					authors.id = u.author and coalesce(authors.actor->>'$.discoverable', 1)
+				left join notes parent_notes on
+					parent_notes.id = u.object->>'$.inReplyTo'
+				left join persons parent_authors on
+					parent_authors.id = parent_notes.author
 				left join persons groups on
 					groups.actor->>'$.type' = 'Group' and exists (select 1 from shares where shares.by = groups.id and shares.note = u.id)
 				group by

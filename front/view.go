@@ -541,7 +541,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		replies, err = h.DB.QueryContext(
 			r.Context,
 			`
-			select json(replies.object), json(persons.actor), null as sharer, replies.inserted, replies.replies_count, replies.quotes_count, replies.shares_count from notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
+			select json(replies.object), json(persons.actor), null as sharer, replies.inserted, replies.replies_count, replies.quotes_count, replies.shares_count, null from notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
 			left join persons on persons.id = replies.author
 			where
 				notes.id = $1 and
@@ -556,7 +556,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		replies, err = h.DB.QueryContext(
 			r.Context,
 			`
-			select json(replies.object), json(persons.actor), null as sharer, replies.inserted, replies.replies_count, replies.quotes_count, replies.shares_count from
+			select json(replies.object), json(persons.actor), null as sharer, replies.inserted, replies.replies_count, replies.quotes_count, replies.shares_count, null from
 			notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
 			left join persons on persons.id = replies.author
 			where

@@ -18,7 +18,6 @@ package front
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -251,6 +250,7 @@ func (h *Handler) printCompactNote(
 	published time.Time,
 	printParentAuthor bool,
 	replies, quotes, shares int64,
+	parentAuthorUsername sql.NullString,
 ) {
 	if note.AttributedTo == "" {
 		r.Log.Warn("Note has no author", "id", note.ID)
@@ -270,15 +270,6 @@ func (h *Handler) printCompactNote(
 		title.WriteString(" ┃ edited")
 	}
 
-	var parentAuthor sql.Null[ap.Actor]
-	if note.InReplyTo != "" {
-		if err := h.DB.QueryRowContext(r.Context, `select json(persons.actor) from notes join persons on persons.id = notes.author where notes.id = ?`, note.InReplyTo).Scan(&parentAuthor); err != nil && errors.Is(err, sql.ErrNoRows) {
-			r.Log.Info("Parent post or author is missing", "id", note.InReplyTo)
-		} else if err != nil {
-			r.Log.Warn("Failed to query parent post author", "id", note.InReplyTo, "error", err)
-		}
-	}
-
 	meta := metaBuilder{w: &title}
 
 	// show link # only if at least one link doesn't point to the post
@@ -292,11 +283,11 @@ func (h *Handler) printCompactNote(
 		fmt.Fprintf(&meta, " %d#️", len(hashtags))
 	}
 
-	if len(mentionedUsers.OrderedMap) == 1 && (!parentAuthor.Valid || !mentionedUsers.Contains(parentAuthor.V.ID)) {
+	if len(mentionedUsers.OrderedMap) == 1 && (!parentAuthorUsername.Valid || !mentionedUsers.Contains(parentAuthorUsername.String)) {
 		meta.Write(danger.Bytes(" 1👤"))
-	} else if len(mentionedUsers.OrderedMap) > 1 && (!parentAuthor.Valid || !mentionedUsers.Contains(parentAuthor.V.ID)) {
+	} else if len(mentionedUsers.OrderedMap) > 1 && (!parentAuthorUsername.Valid || !mentionedUsers.Contains(parentAuthorUsername.String)) {
 		fmt.Fprintf(&meta, " %d👤", len(mentionedUsers.OrderedMap))
-	} else if len(mentionedUsers.OrderedMap) > 1 && parentAuthor.Valid && mentionedUsers.Contains(parentAuthor.V.ID) {
+	} else if len(mentionedUsers.OrderedMap) > 1 && parentAuthorUsername.Valid && mentionedUsers.Contains(parentAuthorUsername.String) {
 		fmt.Fprintf(&meta, " %d👤", len(mentionedUsers.OrderedMap)-1)
 	}
 
@@ -312,9 +303,9 @@ func (h *Handler) printCompactNote(
 		fmt.Fprintf(&meta, " %d🔁", shares)
 	}
 
-	if printParentAuthor && parentAuthor.Valid && parentAuthor.V.PreferredUsername != "" {
-		fmt.Fprintf(&title, " ┃ RE: %s", parentAuthor.V.PreferredUsername)
-	} else if printParentAuthor && note.InReplyTo != "" && (!parentAuthor.Valid || parentAuthor.V.PreferredUsername == "") {
+	if printParentAuthor && parentAuthorUsername.Valid {
+		fmt.Fprintf(&title, " ┃ RE: %s", parentAuthorUsername.String)
+	} else if printParentAuthor && note.InReplyTo != "" && !parentAuthorUsername.Valid {
 		title.WriteString(" ┃ RE: ?")
 	}
 
@@ -335,6 +326,7 @@ func (h *Handler) PrintNotes(w text.Writer, r *Request, rows *sql.Rows, printPar
 		Author, Sharer          sql.Null[ap.Actor]
 		Published               int64
 		Replies, Quotes, Shares int64
+		ParentAuthorUsername    sql.NullString
 	}](
 		rows,
 		h.Config.PostsPerPage,
@@ -381,6 +373,7 @@ func (h *Handler) PrintNotes(w text.Writer, r *Request, rows *sql.Rows, printPar
 				row.Replies,
 				row.Quotes,
 				row.Shares,
+				row.ParentAuthorUsername,
 			)
 		} else {
 			h.printCompactNote(
@@ -394,6 +387,7 @@ func (h *Handler) PrintNotes(w text.Writer, r *Request, rows *sql.Rows, printPar
 				row.Replies,
 				row.Quotes,
 				row.Shares,
+				row.ParentAuthorUsername,
 			)
 		}
 
