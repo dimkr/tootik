@@ -87,7 +87,8 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 				)
 				select json(u.object), json(authors.actor), json(groups.actor), u.inserted, u.replies_count, u.quotes_count, u.shares_count from
 				(
-					select notes.id, notes.object, notes.author, notes.inserted, notes.replies_count, notes.quotes_count, notes.shares_count, top.rank, 2 as aud from top
+					select notes.id, notes.object, notes.author, notes.inserted, notes.replies_count, notes.quotes_count, notes.shares_count, top.rank, 2 as aud from
+					top
 					join notes on
 						notes.id = top.id
 					where
