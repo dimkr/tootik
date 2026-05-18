@@ -35,9 +35,8 @@ func (h *Handler) bookmarks(w text.Writer, r *Request, args ...string) {
 		func(offset int) (*sql.Rows, error) {
 			return h.DB.QueryContext(
 				r.Context,
-				`select json(page.object), json(authors.actor), null as sharer, page.inserted, notes.replies_count, notes.quotes_count, notes.shares_count, parent_authors.actor->>'$.preferredUsername'
-				(
-					select notes.id, notes.object, notes.author, bookmarks.inserted from bookmarks
+				`select json(page.object), json(authors.actor), null as sharer, page.inserted, page.replies_count, page.quotes_count, page.shares_count, parent_authors.actor->>'$.preferredUsername' from (
+					select notes.id, notes.object, notes.author, notes.replies_count, notes.quotes_count, notes.shares_count, bookmarks.inserted from bookmarks
 					join notes
 					on
 						notes.id = bookmarks.note
@@ -57,7 +56,7 @@ func (h *Handler) bookmarks(w text.Writer, r *Request, args ...string) {
 				) page
 				join persons authors on authors.id = page.author
 				left join notes parents on parents.id = page.object->>'$.inReplyTo'
-				left join persons parent_authors on persons.id = parents.author
+				left join persons parent_authors on parent_authors.id = parents.author
 				order by page.inserted desc`,
 				r.User.ID,
 				h.Config.PostsPerPage,
