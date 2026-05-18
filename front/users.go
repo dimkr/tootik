@@ -35,16 +35,19 @@ func (h *Handler) users(w text.Writer, r *Request, args ...string) {
 		func(offset int) (*sql.Rows, error) {
 			return h.DB.QueryContext(
 				r.Context,
-				`select json(feed.note), json(feed.author), json(feed.sharer), feed.inserted, notes.replies_count, notes.quotes_count, notes.shares_count from
-				feed
-				join notes on
-					notes.id = feed.note->>'$.id'
-				where
-					feed.follower = $1
-				order by
-					feed.inserted desc
-				limit $2
-				offset $3`,
+				`
+				select json(page.note), json(page.author), json(page.sharer), page.inserted, notes.replies_count, notes.quotes_count, notes.shares_count from
+				(
+					select note, author, sharer, inserted from feed
+					where
+						follower = $1
+					order by
+						inserted desc
+					limit $2
+					offset $3
+				) page
+				join notes on notes.id = page.note->>'$.id'
+				`,
 				r.User.ID,
 				h.Config.PostsPerPage,
 				offset,
