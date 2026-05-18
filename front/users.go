@@ -36,8 +36,7 @@ func (h *Handler) users(w text.Writer, r *Request, args ...string) {
 			return h.DB.QueryContext(
 				r.Context,
 				`
-				select json(page.note), json(page.author), json(page.sharer), page.inserted, notes.replies_count, notes.quotes_count, notes.shares_count from
-				(
+				select json(page.note), json(page.author), json(page.sharer), page.inserted, notes.replies_count, notes.quotes_count, notes.shares_count from (
 					select note, author, sharer, inserted from feed
 					where
 						follower = $1
@@ -47,6 +46,7 @@ func (h *Handler) users(w text.Writer, r *Request, args ...string) {
 					offset $3
 				) page
 				join notes on notes.id = page.note->>'$.id'
+				order by page.inserted desc
 				`,
 				r.User.ID,
 				h.Config.PostsPerPage,
