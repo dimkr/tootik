@@ -54,7 +54,7 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 			UPDATE notes
 			SET nreplies = MAX(0, nreplies - 1)
 			WHERE id = NEW.object->>'$.inReplyTo';
-		END;
+		END
 	`); err != nil {
 		return err
 	}
@@ -86,7 +86,7 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 			UPDATE notes
 			SET nquotes = MAX(0, nquotes - 1)
 			WHERE id = NEW.object->>'$.quote';
-		END;
+		END
 	`); err != nil {
 		return err
 	}
