@@ -28,7 +28,8 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 	}
 
 	if _, err := tx.ExecContext(ctx, `
-		CREATE TRIGGER nreplies_inc AFTER INSERT ON notes WHEN NEW.object->>'$.inReplyTo' IS NOT NULL
+		CREATE TRIGGER nreplies_insert AFTER INSERT ON notes
+		WHEN NEW.object->>'$.inReplyTo' IS NOT NULL
 		BEGIN
 			UPDATE notes SET nreplies = nreplies + 1 WHERE id = NEW.object->>'$.inReplyTo';
 		END
@@ -37,7 +38,8 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 	}
 
 	if _, err := tx.ExecContext(ctx, `
-		CREATE TRIGGER nreplies_dec AFTER DELETE ON notes WHEN OLD.object->>'$.inReplyTo' IS NOT NULL
+		CREATE TRIGGER nreplies_delete AFTER DELETE ON notes
+		WHEN OLD.object->>'$.inReplyTo' IS NOT NULL AND OLD.deleted = 0
 		BEGIN
 			UPDATE notes SET nreplies = MAX(0, nreplies - 1) WHERE id = OLD.object->>'$.inReplyTo';
 		END
@@ -46,7 +48,20 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 	}
 
 	if _, err := tx.ExecContext(ctx, `
-		CREATE TRIGGER nquotes_inc AFTER INSERT ON notes WHEN NEW.object->>'$.quote' IS NOT NULL
+		CREATE TRIGGER nreplies_update AFTER UPDATE OF deleted ON notes
+		WHEN OLD.deleted = 0 AND NEW.deleted = 1 AND NEW.object->>'$.inReplyTo' IS NOT NULL
+		BEGIN
+			UPDATE notes
+			SET nreplies = MAX(0, nreplies - 1)
+			WHERE id = NEW.object->>'$.inReplyTo';
+		END;
+	`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		CREATE TRIGGER nquotes_insert AFTER INSERT ON notes
+		WHEN NEW.object->>'$.quote' IS NOT NULL
 		BEGIN
 			UPDATE notes SET nquotes = nquotes + 1 WHERE id = NEW.object->>'$.quote';
 		END
@@ -55,7 +70,8 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 	}
 
 	if _, err := tx.ExecContext(ctx, `
-		CREATE TRIGGER nquotes_dec AFTER DELETE ON notes WHEN OLD.object->>'$.quote' IS NOT NULL
+		CREATE TRIGGER nquotes_delete AFTER DELETE ON notes
+		WHEN OLD.object->>'$.quote' IS NOT NULL AND OLD.deleted = 0
 		BEGIN
 			UPDATE notes SET nquotes = MAX(0, nquotes - 1) WHERE id = OLD.object->>'$.quote';
 		END
@@ -64,7 +80,19 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 	}
 
 	if _, err := tx.ExecContext(ctx, `
-		CREATE TRIGGER nshares_inc AFTER INSERT ON shares
+		CREATE TRIGGER nquotes_update AFTER UPDATE OF deleted ON notes
+		WHEN OLD.deleted = 0 AND NEW.deleted = 1 AND NEW.object->>'$.quote' IS NOT NULL
+		BEGIN
+			UPDATE notes
+			SET nquotes = MAX(0, nquotes - 1)
+			WHERE id = NEW.object->>'$.quote';
+		END;
+	`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		CREATE TRIGGER nshares_insert AFTER INSERT ON shares
 		BEGIN
 			UPDATE notes SET nshares = nshares + 1 WHERE id = NEW.note;
 		END
@@ -73,7 +101,7 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 	}
 
 	if _, err := tx.ExecContext(ctx, `
-		CREATE TRIGGER nshares_dec AFTER DELETE ON shares
+		CREATE TRIGGER nshares_delete AFTER DELETE ON shares
 		BEGIN
 			UPDATE notes SET nshares = MAX(0, nshares - 1) WHERE id = OLD.note;
 		END
