@@ -59,7 +59,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 		rows, err = h.DB.QueryContext(
 			r.Context,
 			`
-				select json(notes.object), json(authors.actor), json(groups.actor), notes.inserted, notes.replies_count, notes.quotes_count, notes.shares_count, parent_authors.actor->>'$.preferredUsername' from
+				select json(notes.object), json(authors.actor), json(groups.actor), notes.inserted, notes.nreplies, notes.nquotes, notes.nshares, parent_authors.actor->>'$.preferredUsername' from
 				(select id, rank from notesfts where content match $1 order by rank limit $2) top
 				join notes on
 					notes.id = top.id
@@ -89,16 +89,16 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 				with top as (
 					select id, rank from notesfts where content match $1 order by rank limit $2
 				)
-				select json(u.object), json(authors.actor), json(groups.actor), u.inserted, u.replies_count, u.quotes_count, u.shares_count, parent_authors.actor->>'$.preferredUsername' from
+				select json(u.object), json(authors.actor), json(groups.actor), u.inserted, u.nreplies, u.nquotes, u.nshares, parent_authors.actor->>'$.preferredUsername' from
 				(
-					select notes.id, notes.object, notes.author, notes.inserted, notes.replies_count, notes.quotes_count, notes.shares_count, top.rank, 2 as aud from
+					select notes.id, notes.object, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares, top.rank, 2 as aud from
 					top
 					join notes on
 						notes.id = top.id
 					where
 						notes.public = 1
 					union all
-					select notes.id, notes.object, notes.author, notes.inserted, notes.replies_count, notes.quotes_count, notes.shares_count, top.rank, 1 as aud from
+					select notes.id, notes.object, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares, top.rank, 1 as aud from
 					follows
 					join
 					persons
@@ -119,7 +119,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 						follows.follower = $3 and
 						follows.accepted = 1
 					union all
-					select notes.id, notes.object, notes.author, notes.inserted, notes.replies_count, notes.quotes_count, notes.shares_count, top.rank, 0 as aud from
+					select notes.id, notes.object, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares, top.rank, 0 as aud from
 					top
 					join notes on
 						notes.id = top.id

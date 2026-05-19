@@ -32,15 +32,15 @@ func (h *Handler) hashtag(w text.Writer, r *Request, args ...string) {
 		func(offset int) (*sql.Rows, error) {
 			return h.DB.QueryContext(
 				r.Context,
-				`select json(page.object), json(persons.actor), null, page.inserted, page.replies_count, page.quotes_count, page.shares_count, parent_authors.actor->>'$.preferredUsername' from (
-					select notes.id, notes.object, notes.author, notes.inserted, notes.replies_count, notes.quotes_count, notes.shares_count from
+				`select json(page.object), json(persons.actor), null, page.inserted, page.nreplies, page.nquotes, page.nshares, parent_authors.actor->>'$.preferredUsername' from (
+					select notes.id, notes.object, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares from
 					notes
 					join hashtags on
 						notes.id = hashtags.note
 					where
 						notes.public = 1 and hashtags.hashtag = $1
 					order by
-						notes.replies_count desc, notes.inserted/(24*60*60) desc, notes.inserted desc
+						notes.nreplies desc, notes.inserted/(24*60*60) desc, notes.inserted desc
 					limit $2
 					offset $3
 				) page
@@ -51,7 +51,7 @@ func (h *Handler) hashtag(w text.Writer, r *Request, args ...string) {
 				left join persons parent_authors on
 					parent_authors.id = parent_notes.author
 				order by
-					page.replies_count desc, page.inserted/(24*60*60) desc, page.inserted desc`,
+					page.nreplies desc, page.inserted/(24*60*60) desc, page.inserted desc`,
 				tag,
 				h.Config.PostsPerPage,
 				offset,
