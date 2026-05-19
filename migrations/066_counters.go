@@ -31,7 +31,9 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 		CREATE TRIGGER nreplies_insert AFTER INSERT ON notes
 		WHEN NEW.object->>'$.inReplyTo' IS NOT NULL
 		BEGIN
-			UPDATE notes SET nreplies = nreplies + 1 WHERE id = NEW.object->>'$.inReplyTo';
+			UPDATE notes
+			SET nreplies = nreplies + 1
+			WHERE id = NEW.object->>'$.inReplyTo';
 		END
 	`); err != nil {
 		return err
@@ -41,7 +43,9 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 		CREATE TRIGGER nreplies_delete AFTER DELETE ON notes
 		WHEN OLD.object->>'$.inReplyTo' IS NOT NULL AND OLD.deleted = 0
 		BEGIN
-			UPDATE notes SET nreplies = MAX(0, nreplies - 1) WHERE id = OLD.object->>'$.inReplyTo';
+			UPDATE notes
+			SET nreplies = MAX(0, nreplies - 1)
+			WHERE id = OLD.object->>'$.inReplyTo';
 		END
 	`); err != nil {
 		return err
@@ -63,7 +67,9 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 		CREATE TRIGGER nquotes_insert AFTER INSERT ON notes
 		WHEN NEW.object->>'$.quote' IS NOT NULL
 		BEGIN
-			UPDATE notes SET nquotes = nquotes + 1 WHERE id = NEW.object->>'$.quote';
+			UPDATE notes
+			SET nquotes = nquotes + 1
+			WHERE id = NEW.object->>'$.quote';
 		END
 	`); err != nil {
 		return err
@@ -73,7 +79,9 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 		CREATE TRIGGER nquotes_delete AFTER DELETE ON notes
 		WHEN OLD.object->>'$.quote' IS NOT NULL AND OLD.deleted = 0
 		BEGIN
-			UPDATE notes SET nquotes = MAX(0, nquotes - 1) WHERE id = OLD.object->>'$.quote';
+			UPDATE notes
+			SET nquotes = MAX(0, nquotes - 1)
+			WHERE id = OLD.object->>'$.quote';
 		END
 	`); err != nil {
 		return err
@@ -94,7 +102,9 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 	if _, err := tx.ExecContext(ctx, `
 		CREATE TRIGGER nshares_insert AFTER INSERT ON shares
 		BEGIN
-			UPDATE notes SET nshares = nshares + 1 WHERE id = NEW.note;
+			UPDATE notes
+			SET nshares = nshares + 1
+			WHERE id = NEW.note;
 		END
 	`); err != nil {
 		return err
@@ -103,7 +113,9 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 	if _, err := tx.ExecContext(ctx, `
 		CREATE TRIGGER nshares_delete AFTER DELETE ON shares
 		BEGIN
-			UPDATE notes SET nshares = MAX(0, nshares - 1) WHERE id = OLD.note;
+			UPDATE notes
+			SET nshares = MAX(0, nshares - 1)
+			WHERE id = OLD.note;
 		END
 	`); err != nil {
 		return err
