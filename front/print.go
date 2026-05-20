@@ -303,7 +303,7 @@ func (h *Handler) printCompactNote(
 		fmt.Fprintf(&meta, " %d🔁", shares)
 	}
 
-	if printParentAuthor && parentAuthor.Valid {
+	if printParentAuthor && parentAuthor.Valid && parentAuthor.V.PreferredUsername != "" {
 		fmt.Fprintf(&title, " ┃ RE: %s", parentAuthor.V.PreferredUsername)
 	} else if printParentAuthor && note.InReplyTo != "" && (!parentAuthor.Valid || parentAuthor.V.PreferredUsername == "") {
 		title.WriteString(" ┃ RE: ?")
