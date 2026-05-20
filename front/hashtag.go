@@ -32,7 +32,7 @@ func (h *Handler) hashtag(w text.Writer, r *Request, args ...string) {
 		func(offset int) (*sql.Rows, error) {
 			return h.DB.QueryContext(
 				r.Context,
-				`select json(page.object), json(persons.actor), null, page.inserted, page.nreplies, page.nquotes, page.nshares, parent_authors.actor->>'$.preferredUsername' from (
+				`select json(page.object), json(persons.actor), null, page.inserted, page.nreplies, page.nquotes, page.nshares, json(parent_authors.actor) from (
 					select notes.id, notes.object, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares from
 					notes
 					join hashtags on

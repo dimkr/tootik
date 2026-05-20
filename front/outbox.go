@@ -132,7 +132,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// unauthenticated users can only see public posts
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select json(u.object), json(u.actor), json(u.sharer), max(u.inserted), u.nreplies, u.nquotes, u.nshares, parent_authors.actor->>'$.preferredUsername' from (
+			`select json(u.object), json(u.actor), json(u.sharer), max(u.inserted), u.nreplies, u.nquotes, u.nshares, json(parent_authors.actor) from (
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer, notes.nreplies, notes.nquotes, notes.nshares from notes
 				join persons on persons.id = $1
 				where notes.author = $1 and notes.public = 1
@@ -156,7 +156,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// users can see all their posts
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select json(u.object), json(u.actor), json(u.sharer), max(u.inserted), u.nreplies, u.nquotes, u.nshares, parent_authors.actor->>'$.preferredUsername' from (
+			`select json(u.object), json(u.actor), json(u.sharer), max(u.inserted), u.nreplies, u.nquotes, u.nshares, json(parent_authors.actor) from (
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer, notes.nreplies, notes.nquotes, notes.nshares from notes
 				join persons on persons.id = notes.author
 				where notes.author = $1
@@ -179,7 +179,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// users can see only public posts by others, posts to followers if following, and DMs
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select json(u.object), json(u.actor), json(u.sharer), max(u.inserted), u.nreplies, u.nquotes, u.nshares, parent_authors.actor->>'$.preferredUsername' from (
+			`select json(u.object), json(u.actor), json(u.sharer), max(u.inserted), u.nreplies, u.nquotes, u.nshares, json(parent_authors.actor) from (
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer, notes.nreplies, notes.nquotes, notes.nshares from notes
 				join persons on persons.id = $1
 				where notes.author = $1 and notes.public = 1

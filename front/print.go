@@ -249,8 +249,8 @@ func (h *Handler) printCompactNote(
 	sharer *ap.Actor,
 	published time.Time,
 	printParentAuthor bool,
+	parentAuthor sql.Null[ap.Actor],
 	replies, quotes, shares int64,
-	parentAuthorUsername sql.NullString,
 ) {
 	if note.AttributedTo == "" {
 		r.Log.Warn("Note has no author", "id", note.ID)
@@ -283,11 +283,11 @@ func (h *Handler) printCompactNote(
 		fmt.Fprintf(&meta, " %d#️", len(hashtags))
 	}
 
-	if len(mentionedUsers.OrderedMap) == 1 && (!parentAuthorUsername.Valid || !mentionedUsers.Contains(parentAuthorUsername.String)) {
+	if len(mentionedUsers.OrderedMap) == 1 && (!parentAuthor.Valid || !mentionedUsers.Contains(parentAuthor.V.ID)) {
 		meta.Write(danger.Bytes(" 1👤"))
-	} else if len(mentionedUsers.OrderedMap) > 1 && (!parentAuthorUsername.Valid || !mentionedUsers.Contains(parentAuthorUsername.String)) {
+	} else if len(mentionedUsers.OrderedMap) > 1 && (!parentAuthor.Valid || !mentionedUsers.Contains(parentAuthor.V.ID)) {
 		fmt.Fprintf(&meta, " %d👤", len(mentionedUsers.OrderedMap))
-	} else if len(mentionedUsers.OrderedMap) > 1 && parentAuthorUsername.Valid && mentionedUsers.Contains(parentAuthorUsername.String) {
+	} else if len(mentionedUsers.OrderedMap) > 1 && parentAuthor.Valid && mentionedUsers.Contains(parentAuthor.V.ID) {
 		fmt.Fprintf(&meta, " %d👤", len(mentionedUsers.OrderedMap)-1)
 	}
 
@@ -303,9 +303,9 @@ func (h *Handler) printCompactNote(
 		fmt.Fprintf(&meta, " %d🔁", shares)
 	}
 
-	if printParentAuthor && parentAuthorUsername.Valid {
-		fmt.Fprintf(&title, " ┃ RE: %s", parentAuthorUsername.String)
-	} else if printParentAuthor && note.InReplyTo != "" && !parentAuthorUsername.Valid {
+	if printParentAuthor && parentAuthor.Valid {
+		fmt.Fprintf(&title, " ┃ RE: %s", parentAuthor.V.PreferredUsername)
+	} else if printParentAuthor && note.InReplyTo != "" && !parentAuthor.Valid {
 		title.WriteString(" ┃ RE: ?")
 	}
 
@@ -326,7 +326,7 @@ func (h *Handler) PrintNotes(w text.Writer, r *Request, rows *sql.Rows, printPar
 		Author, Sharer          sql.Null[ap.Actor]
 		Published               int64
 		Replies, Quotes, Shares int64
-		ParentAuthorUsername    sql.NullString
+		ParentAuthor            sql.Null[ap.Actor]
 	}](
 		rows,
 		h.Config.PostsPerPage,
@@ -370,10 +370,10 @@ func (h *Handler) PrintNotes(w text.Writer, r *Request, rows *sql.Rows, printPar
 				&row.Sharer.V,
 				time.Unix(row.Published, 0),
 				printParentAuthor,
+				row.ParentAuthor,
 				row.Replies,
 				row.Quotes,
 				row.Shares,
-				row.ParentAuthorUsername,
 			)
 		} else {
 			h.printCompactNote(
@@ -384,10 +384,10 @@ func (h *Handler) PrintNotes(w text.Writer, r *Request, rows *sql.Rows, printPar
 				nil,
 				time.Unix(row.Published, 0),
 				printParentAuthor,
+				row.ParentAuthor,
 				row.Replies,
 				row.Quotes,
 				row.Shares,
-				row.ParentAuthorUsername,
 			)
 		}
 

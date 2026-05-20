@@ -59,7 +59,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 		rows, err = h.DB.QueryContext(
 			r.Context,
 			`
-				select json(notes.object), json(authors.actor), json(groups.actor), notes.inserted, notes.nreplies, notes.nquotes, notes.nshares, parent_authors.actor->>'$.preferredUsername' from
+				select json(notes.object), json(authors.actor), json(groups.actor), notes.inserted, notes.nreplies, notes.nquotes, notes.nshares, json(parent_authors.actor) from
 				(select id, rank from notesfts where content match $1 order by rank limit $2) top
 				join notes on
 					notes.id = top.id
@@ -89,7 +89,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 				with top as (
 					select id, rank from notesfts where content match $1 order by rank limit $2
 				)
-				select json(u.object), json(authors.actor), json(groups.actor), u.inserted, u.nreplies, u.nquotes, u.nshares, parent_authors.actor->>'$.preferredUsername' from
+				select json(u.object), json(authors.actor), json(groups.actor), u.inserted, u.nreplies, u.nquotes, u.nshares, json(parent_authors.actor) from
 				(
 					select notes.id, notes.object, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares, top.rank, 2 as aud from
 					top
