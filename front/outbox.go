@@ -79,18 +79,21 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// unauthenticated users can only see public posts in a group
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select json(u.object), json(authors.actor), null, max(u.inserted, coalesce(max(case when replies.deleted = 0 then replies.inserted end), 0)), u.nreplies, u.nquotes, u.nshares, null from (
-				select notes.id, notes.object, notes.author, shares.inserted, notes.nreplies, notes.nquotes, notes.nshares from shares
-				join notes on notes.id = shares.note
-				where shares.by = $1 and notes.public = 1 and notes.object->>'$.inReplyTo' is null
-				union all
-				select notes.id, notes.object, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares from notes
-				where notes.author = $1 and notes.public = 1 and notes.object->>'$.inReplyTo' is null
-			) u
-			join persons authors on authors.id = u.author
-			left join notes replies on replies.object->>'$.inReplyTo' = u.id
-			group by u.id
-			order by max(u.inserted, coalesce(max(case when replies.deleted = 0 then replies.inserted end), 0)) / 86400 desc, count(replies.id) filter (where replies.deleted = 0) desc, u.inserted desc limit $2 offset $3`,
+			`select json(page.object), json(authors.actor), null, page.pulse, page.nreplies, page.nquotes, page.nshares, null from (
+				select u.id, u.object, u.author, max(u.nreplies) as nreplies, max(u.nquotes) as nquotes, max(u.nshares) as nshares, max(u.pulse) as pulse from (
+					select notes.id, notes.object, notes.author, notes.nreplies, notes.nquotes, notes.nshares, notes.pulse from shares
+					join notes on notes.id = shares.note
+					where shares.by = $1 and notes.public = 1 and notes.object->>'$.inReplyTo' is null
+					union all
+					select notes.id, notes.object, notes.author, notes.nreplies, notes.nquotes, notes.nshares, notes.pulse from notes
+					where notes.author = $1 and notes.public = 1 and notes.object->>'$.inReplyTo' is null
+				) u
+				group by u.id
+				order by max(pulse) / 86400 desc, nreplies desc, pulse desc
+				limit $2 offset $3
+			) page
+			join persons authors on authors.id = page.author
+			order by page.pulse / 86400 desc, page.nreplies desc, page.pulse desc`,
 			actorID,
 			h.Config.PostsPerPage,
 			offset,
@@ -99,30 +102,33 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// users can see public posts in a group and non-public posts if they follow the group
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select json(u.object), json(authors.actor), null, max(u.inserted, coalesce(max(case when replies.deleted = 0 then replies.inserted end), 0)), u.nreplies, u.nquotes, u.nshares, null from (
-				select notes.id, notes.object, notes.author, shares.inserted, notes.nreplies, notes.nquotes, notes.nshares from shares
-				join notes on notes.id = shares.note
-				where
-					shares.by = $1 and
-					(
-						notes.public = 1 or
-						exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
-					) and
-					notes.object->>'$.inReplyTo' is null
-				union all
-				select notes.id, notes.object, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares from notes
-				where
-					notes.author = $1 and
-					(
-						notes.public = 1 or
-						exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
-					) and
-					notes.object->>'$.inReplyTo' is null
-			) u
-			join persons authors on authors.id = u.author
-			left join notes replies on replies.object->>'$.inReplyTo' = u.id
-			group by u.id
-			order by max(u.inserted, coalesce(max(case when replies.deleted = 0 then replies.inserted end), 0)) / 86400 desc, count(replies.id) filter (where replies.deleted = 0) desc, u.inserted desc limit $3 offset $4`,
+			`select json(page.object), json(authors.actor), null, page.pulse, page.nreplies, page.nquotes, page.nshares, null from (
+				select u.id, u.object, u.author, max(u.nreplies) as nreplies, max(u.nquotes) as nquotes, max(u.nshares) as nshares, max(u.pulse) as pulse from (
+					select notes.id, notes.object, notes.author, notes.nreplies, notes.nquotes, notes.nshares, notes.pulse from shares
+					join notes on notes.id = shares.note
+					where
+						shares.by = $1 and
+						(
+							notes.public = 1 or
+							exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
+						) and
+						notes.object->>'$.inReplyTo' is null
+					union all
+					select notes.id, notes.object, notes.author, notes.nreplies, notes.nquotes, notes.nshares, notes.pulse from notes
+					where
+						notes.author = $1 and
+						(
+							notes.public = 1 or
+							exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
+						) and
+						notes.object->>'$.inReplyTo' is null
+				) u
+				group by u.id
+				order by max(pulse) / 86400 desc, nreplies desc, pulse desc
+				limit $3 offset $4
+			) page
+			join persons authors on authors.id = page.author
+			order by page.pulse / 86400 desc, page.nreplies desc, page.pulse desc`,
 			actorID,
 			r.User.ID,
 			h.Config.PostsPerPage,
@@ -179,43 +185,43 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// users can see only public posts by others, posts to followers if following, and DMs
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select json(u.object), json(u.actor), json(u.sharer), max(u.inserted), u.nreplies, u.nquotes, u.nshares, json(parent_authors.actor) from (
-				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer, notes.nreplies, notes.nquotes, notes.nshares from notes
-				join persons on persons.id = $1
-				where notes.author = $1 and notes.public = 1
-				union
-				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer, notes.nreplies, notes.nquotes, notes.nshares from notes
-				join persons on persons.id = $1
-				where (
-					notes.author = $1 and (
-						$2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-						(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $2)) or
-						(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $2))
-					)
-				)
-				union
-				select notes.id, authors.actor, object, notes.inserted, null as sharer, notes.nreplies, notes.nquotes, notes.nshares from notes
-				join persons on
-					persons.actor->>'$.followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers')) or
-					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers'))
-				join persons authors on authors.id = $1
-				where notes.public = 0 and
-					notes.author = $1 and
-					persons.id = $1 and
-					exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
-				union all
-				select notes.id, authors.actor, notes.object, shares.inserted, sharers.actor as by, notes.nreplies, notes.nquotes, notes.nshares from
-				shares
-				join notes on notes.id = shares.note
-				join persons authors on authors.id = notes.author
-				join persons sharers on sharers.id = $1
-				where shares.by = $1 and notes.public = 1
-			) u
-			left join notes parent_notes on parent_notes.id = u.object->>'$.inReplyTo'
+			`select json(page.object), json(authors.actor), json(sharers.actor), page.inserted, page.nreplies, page.nquotes, page.nshares, json(parent_authors.actor) from (
+				select u.id, u.object, u.author, u.sharer_id, max(u.nreplies) as nreplies, max(u.nquotes) as nquotes, max(u.nshares) as nshares, max(u.inserted) as inserted from (
+					select notes.id, notes.author, notes.object, notes.inserted, null as sharer_id, notes.nreplies, notes.nquotes, notes.nshares from notes
+					where notes.author = $1 and notes.public = 1
+					union
+					select notes.id, notes.author, notes.object, notes.inserted, null as sharer_id, notes.nreplies, notes.nquotes, notes.nshares from notes
+					where
+						notes.author = $1 and (
+							$2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $2)) or
+							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $2))
+						)
+					union
+					select notes.id, notes.author, notes.object, notes.inserted, null as sharer_id, notes.nreplies, notes.nquotes, notes.nshares from notes
+					where
+						notes.public = 0 and
+						notes.author = $1 and
+						exists (select 1 from persons where persons.id = $1 and (
+							persons.actor->>'$.followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers')) or
+							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers'))
+						)) and
+						exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
+					union all
+					select notes.id, notes.author, notes.object, shares.inserted, $1 as sharer_id, notes.nreplies, notes.nquotes, notes.nshares from
+					shares
+					join notes on notes.id = shares.note
+					where shares.by = $1 and notes.public = 1
+				) u
+				group by u.id
+				order by max(u.inserted) desc limit $3 offset $4
+			) page
+			join persons authors on authors.id = page.author
+			left join persons sharers on sharers.id = page.sharer_id
+			left join notes parent_notes on parent_notes.id = page.object->>'$.inReplyTo'
 			left join persons parent_authors on parent_authors.id = parent_notes.author
-			group by u.id
-			order by max(u.inserted) desc limit $3 offset $4`,
+			order by page.inserted desc`,
 			actorID,
 			r.User.ID,
 			h.Config.PostsPerPage,

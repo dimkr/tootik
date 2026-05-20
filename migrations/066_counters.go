@@ -18,11 +18,25 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
+	if _, err := tx.ExecContext(ctx, `ALTER TABLE notes ADD COLUMN pulse INTEGER DEFAULT (UNIXEPOCH())`); err != nil {
+		return err
+	}
+
 	if _, err := tx.ExecContext(ctx, `
 		UPDATE notes SET
 			nreplies = (SELECT COUNT(*) FROM notes r WHERE r.object->>'$.inReplyTo' = notes.id AND deleted = 0),
 			nquotes = (SELECT COUNT(*) FROM notes quotes WHERE quotes.object->>'$.quote' = notes.id AND deleted = 0),
-			nshares = (SELECT COUNT(*) FROM shares WHERE shares.note = notes.id)
+			nshares = (SELECT COUNT(*) FROM shares WHERE shares.note = notes.id),
+			pulse = COALESCE(
+				(SELECT MAX(v) FROM (
+					SELECT MAX(replies.inserted) as v FROM notes replies WHERE replies.object->>'$.inReplyTo' = notes.id AND replies.deleted = 0
+					UNION ALL
+					SELECT MAX(quotes.inserted) as v FROM notes quotes WHERE quotes.object->>'$.quote' = notes.id AND quotes.deleted = 0
+					UNION ALL
+					SELECT MAX(shares.inserted) as v FROM shares WHERE shares.note = notes.id
+				)),
+				notes.inserted
+			)
 	`); err != nil {
 		return err
 	}
@@ -34,6 +48,20 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 			UPDATE notes
 			SET nreplies = nreplies + 1
 			WHERE id = NEW.object->>'$.inReplyTo';
+
+			UPDATE notes
+			SET pulse = MAX(pulse, NEW.inserted)
+			WHERE id IN (
+				WITH RECURSIVE thread(id, depth) AS (
+					SELECT NEW.object->>'$.inReplyTo', 1
+					UNION ALL
+					SELECT n.object->>'$.inReplyTo', t.depth + 1
+					FROM notes n
+					JOIN thread t ON n.id = t.id
+					WHERE n.object->>'$.inReplyTo' IS NOT NULL AND t.depth <= 5
+				)
+				SELECT id FROM thread WHERE id IS NOT NULL
+			);
 		END
 	`); err != nil {
 		return err
@@ -68,7 +96,7 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 		WHEN NEW.object->>'$.quote' IS NOT NULL
 		BEGIN
 			UPDATE notes
-			SET nquotes = nquotes + 1
+			SET nquotes = nquotes + 1, pulse = MAX(pulse, NEW.inserted)
 			WHERE id = NEW.object->>'$.quote';
 		END
 	`); err != nil {
@@ -103,7 +131,7 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 		CREATE TRIGGER nshares_insert AFTER INSERT ON shares
 		BEGIN
 			UPDATE notes
-			SET nshares = nshares + 1
+			SET nshares = nshares + 1, pulse = MAX(pulse, NEW.inserted)
 			WHERE id = NEW.note;
 		END
 	`); err != nil {
@@ -127,7 +155,17 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 			UPDATE notes SET
 				nreplies = (SELECT COUNT(*) FROM notes WHERE object->>'$.inReplyTo' = NEW.id AND deleted = 0),
 				nquotes = (SELECT COUNT(*) FROM notes WHERE object->>'$.quote' = NEW.id AND deleted = 0),
-				nshares = (SELECT COUNT(*) FROM shares WHERE note = NEW.id)
+				nshares = (SELECT COUNT(*) FROM shares WHERE note = NEW.id),
+				pulse = COALESCE(
+					(SELECT MAX(v) FROM (
+						SELECT MAX(replies.inserted) as v FROM notes replies WHERE replies.object->>'$.inReplyTo' = NEW.id AND replies.deleted = 0
+						UNION ALL
+						SELECT MAX(quotes.inserted) as v FROM notes quotes WHERE quotes.object->>'$.quote' = NEW.id AND quotes.deleted = 0
+						UNION ALL
+						SELECT MAX(shares.inserted) as v FROM shares WHERE shares.note = NEW.id
+					)),
+					NEW.inserted
+				)
 			WHERE id = NEW.id;
 		END
 	`); err != nil {
