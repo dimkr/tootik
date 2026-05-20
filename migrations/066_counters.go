@@ -37,6 +37,7 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 				)),
 				notes.inserted
 			)
+		WHERE deleted = 0
 	`); err != nil {
 		return err
 	}
