@@ -18,7 +18,7 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `ALTER TABLE notes ADD COLUMN pulse INTEGER DEFAULT (UNIXEPOCH())`); err != nil {
+	if _, err := tx.ExecContext(ctx, `ALTER TABLE notes ADD COLUMN pulse INTEGER DEFAULT 0`); err != nil {
 		return err
 	}
 
