@@ -13,7 +13,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.44
 	github.com/ncruces/go-sqlite3 v0.34.2
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/image v0.40.0
+	golang.org/x/image v0.41.0
 	golang.org/x/net v0.54.0
 	golang.org/x/term v0.43.0
 	modernc.org/sqlite v1.50.1
