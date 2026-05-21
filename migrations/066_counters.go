@@ -24,20 +24,19 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 
 	if _, err := tx.ExecContext(ctx, `
 		UPDATE notes SET
-			nreplies = (SELECT COUNT(*) FROM notes r WHERE r.object->>'$.inReplyTo' = notes.id AND deleted = 0),
-			nquotes = (SELECT COUNT(*) FROM notes quotes WHERE quotes.object->>'$.quote' = notes.id AND deleted = 0),
+			nreplies = (SELECT COUNT(*) FROM notes r WHERE r.object->>'$.inReplyTo' = notes.id),
+			nquotes = (SELECT COUNT(*) FROM notes quotes WHERE quotes.object->>'$.quote' = notes.id),
 			nshares = (SELECT COUNT(*) FROM shares WHERE shares.note = notes.id),
 			pulse = COALESCE(
 				(SELECT MAX(v) FROM (
-					SELECT MAX(replies.inserted) as v FROM notes replies WHERE replies.object->>'$.inReplyTo' = notes.id AND replies.deleted = 0
+					SELECT MAX(replies.inserted) as v FROM notes replies WHERE replies.object->>'$.inReplyTo' = notes.id
 					UNION ALL
-					SELECT MAX(quotes.inserted) as v FROM notes quotes WHERE quotes.object->>'$.quote' = notes.id AND quotes.deleted = 0
+					SELECT MAX(quotes.inserted) as v FROM notes quotes WHERE quotes.object->>'$.quote' = notes.id
 					UNION ALL
 					SELECT MAX(shares.inserted) as v FROM shares WHERE shares.note = notes.id
 				)),
 				notes.inserted
 			)
-		WHERE deleted = 0
 	`); err != nil {
 		return err
 	}
@@ -70,23 +69,11 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 
 	if _, err := tx.ExecContext(ctx, `
 		CREATE TRIGGER nreplies_delete AFTER DELETE ON notes
-		WHEN OLD.object->>'$.inReplyTo' IS NOT NULL AND OLD.deleted = 0
+		WHEN OLD.object->>'$.inReplyTo' IS NOT NULL
 		BEGIN
 			UPDATE notes
 			SET nreplies = MAX(0, nreplies - 1)
 			WHERE id = OLD.object->>'$.inReplyTo';
-		END
-	`); err != nil {
-		return err
-	}
-
-	if _, err := tx.ExecContext(ctx, `
-		CREATE TRIGGER nreplies_update AFTER UPDATE OF deleted ON notes
-		WHEN OLD.deleted = 0 AND NEW.deleted = 1 AND NEW.object->>'$.inReplyTo' IS NOT NULL
-		BEGIN
-			UPDATE notes
-			SET nreplies = MAX(0, nreplies - 1)
-			WHERE id = NEW.object->>'$.inReplyTo';
 		END
 	`); err != nil {
 		return err
@@ -106,23 +93,11 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 
 	if _, err := tx.ExecContext(ctx, `
 		CREATE TRIGGER nquotes_delete AFTER DELETE ON notes
-		WHEN OLD.object->>'$.quote' IS NOT NULL AND OLD.deleted = 0
+		WHEN OLD.object->>'$.quote' IS NOT NULL
 		BEGIN
 			UPDATE notes
 			SET nquotes = MAX(0, nquotes - 1)
 			WHERE id = OLD.object->>'$.quote';
-		END
-	`); err != nil {
-		return err
-	}
-
-	if _, err := tx.ExecContext(ctx, `
-		CREATE TRIGGER nquotes_update AFTER UPDATE OF deleted ON notes
-		WHEN OLD.deleted = 0 AND NEW.deleted = 1 AND NEW.object->>'$.quote' IS NOT NULL
-		BEGIN
-			UPDATE notes
-			SET nquotes = MAX(0, nquotes - 1)
-			WHERE id = NEW.object->>'$.quote';
 		END
 	`); err != nil {
 		return err
@@ -154,14 +129,14 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 		CREATE TRIGGER notes_insert AFTER INSERT ON notes
 		BEGIN
 			UPDATE notes SET
-				nreplies = (SELECT COUNT(*) FROM notes WHERE object->>'$.inReplyTo' = NEW.id AND deleted = 0),
-				nquotes = (SELECT COUNT(*) FROM notes WHERE object->>'$.quote' = NEW.id AND deleted = 0),
+				nreplies = (SELECT COUNT(*) FROM notes WHERE object->>'$.inReplyTo' = NEW.id),
+				nquotes = (SELECT COUNT(*) FROM notes WHERE object->>'$.quote' = NEW.id),
 				nshares = (SELECT COUNT(*) FROM shares WHERE note = NEW.id),
 				pulse = COALESCE(
 					(SELECT MAX(v) FROM (
-						SELECT MAX(replies.inserted) as v FROM notes replies WHERE replies.object->>'$.inReplyTo' = NEW.id AND replies.deleted = 0
+						SELECT MAX(replies.inserted) as v FROM notes replies WHERE replies.object->>'$.inReplyTo' = NEW.id
 						UNION ALL
-						SELECT MAX(quotes.inserted) as v FROM notes quotes WHERE quotes.object->>'$.quote' = NEW.id AND quotes.deleted = 0
+						SELECT MAX(quotes.inserted) as v FROM notes quotes WHERE quotes.object->>'$.quote' = NEW.id
 						UNION ALL
 						SELECT MAX(shares.inserted) as v FROM shares WHERE shares.note = NEW.id
 					)),
