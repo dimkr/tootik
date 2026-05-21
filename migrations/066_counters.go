@@ -32,8 +32,6 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 					SELECT MAX(replies.inserted) as v FROM notes replies WHERE replies.object->>'$.inReplyTo' = notes.id
 					UNION ALL
 					SELECT MAX(quotes.inserted) as v FROM notes quotes WHERE quotes.object->>'$.quote' = notes.id
-					UNION ALL
-					SELECT MAX(shares.inserted) as v FROM shares WHERE shares.note = notes.id
 				)),
 				notes.inserted
 			)
@@ -107,7 +105,7 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 		CREATE TRIGGER nshares_insert AFTER INSERT ON shares
 		BEGIN
 			UPDATE notes
-			SET nshares = nshares + 1, pulse = MAX(pulse, NEW.inserted)
+			SET nshares = nshares + 1
 			WHERE id = NEW.note;
 		END
 	`); err != nil {
@@ -137,8 +135,6 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 						SELECT MAX(replies.inserted) as v FROM notes replies WHERE replies.object->>'$.inReplyTo' = NEW.id
 						UNION ALL
 						SELECT MAX(quotes.inserted) as v FROM notes quotes WHERE quotes.object->>'$.quote' = NEW.id
-						UNION ALL
-						SELECT MAX(shares.inserted) as v FROM shares WHERE shares.note = NEW.id
 					)),
 					NEW.inserted
 				)
