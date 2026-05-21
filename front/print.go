@@ -299,7 +299,7 @@ func (h *Handler) printCompactNote(
 		fmt.Fprintf(&meta, " %d♻️", quotes)
 	}
 
-	if shares > 0 {
+	if (sharer == nil && shares > 0) || (sharer != nil && shares > 1) {
 		fmt.Fprintf(&meta, " %d🔁", shares)
 	}
 
