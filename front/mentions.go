@@ -36,20 +36,17 @@ func (h *Handler) mentions(w text.Writer, r *Request, args ...string) {
 			return h.DB.QueryContext(
 				r.Context,
 				`select json(page.note), json(authors.actor), json(sharers.actor), page.inserted, notes.nreplies, notes.nquotes, notes.nshares, json(parent_authors.actor) from (
-					select notes.object as note, author, sharer, inserted from feed
-					join notes
-					on notes.id = feed.note
+					select note, author, sharer, inserted from feed
 					where
-						feed.follower = $1 and
-						(
-							exists (select 1 from json_each(notes.object->'$.to') where value = $1) or
-							exists (select 1 from json_each(notes.object->'$.cc') where value = $1)
-						)
+						follower = $1
+						and mention = 1
 					order by
-						feed.inserted desc
+						inserted desc
 					limit $2
 					offset $3
 				) page
+				join notes on
+					notes.id = page.note
 				join persons authors on
 					authors.id = page.author
 				left join persons sharers on

@@ -144,11 +144,21 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE TABLE nfeed(follower TEXT NOT NULL, note TEXT NOT NULL, author TEXT NOT NULL, sharer TEXT, inserted INTEGER NOT NULL)`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE TABLE nfeed(follower TEXT NOT NULL, note TEXT NOT NULL, author TEXT NOT NULL, sharer TEXT, mention INTEGER NOT NULL DEFAULT 0, inserted INTEGER NOT NULL)`); err != nil {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `INSERT INTO nfeed(follower, note, author, sharer, inserted) SELECT follower, note->>'$.id', author->>'$.id', sharer->>'$.id', inserted FROM feed`); err != nil {
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO nfeed(follower, note, author, sharer, mention, inserted)
+		SELECT
+			follower,
+			note->>'$.id',
+			author->>'$.id',
+			sharer->>'$.id',
+			exists (select 1 from json_each(note->'$.to') where value = follower) or exists (select 1 from json_each(note->'$.cc') where value = follower),
+			inserted
+		FROM feed
+	`); err != nil {
 		return err
 	}
 
