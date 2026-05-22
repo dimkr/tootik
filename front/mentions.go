@@ -35,23 +35,27 @@ func (h *Handler) mentions(w text.Writer, r *Request, args ...string) {
 		func(offset int) (*sql.Rows, error) {
 			return h.DB.QueryContext(
 				r.Context,
-				`select json(page.note), json(page.author), json(page.sharer), page.inserted, notes.nreplies, notes.nquotes, notes.nshares, json(parent_authors.actor) from (
-					select note, author, sharer, inserted from feed
+				`select json(page.note), json(authors.actor), json(sharers.actor), page.inserted, notes.nreplies, notes.nquotes, notes.nshares, json(parent_authors.actor) from (
+					select notes.object as note, author, sharer, inserted from feed
+					join notes
+					on notes.id = feed.note
 					where
-						follower = $1 and
+						feed.follower = $1 and
 						(
-							exists (select 1 from json_each(note->'$.to') where value = $1) or
-							exists (select 1 from json_each(note->'$.cc') where value = $1)
+							exists (select 1 from json_each(notes.object->'$.to') where value = $1) or
+							exists (select 1 from json_each(notes.object->'$.cc') where value = $1)
 						)
 					order by
 						feed.inserted desc
 					limit $2
 					offset $3
 				) page
-				join notes on
-					notes.id = page.note->>'$.id'
+				join persons authors on
+					authors.id = page.author
+				left join persons sharers on
+					sharers.id = page.sharer
 				left join notes parent_notes on
-					parent_notes.id = notes.object->>'$.inReplyTo'
+					parent_notes.id = page.note->>'$.inReplyTo'
 				left join persons parent_authors on
 					parent_authors.id = parent_notes.author
 				order by page.inserted desc

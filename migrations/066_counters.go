@@ -144,5 +144,41 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
+	if _, err := tx.ExecContext(ctx, `CREATE TABLE nfeed(follower TEXT NOT NULL, note TEXT NOT NULL, author TEXT NOT NULL, sharer TEXT, inserted INTEGER NOT NULL)`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `INSERT INTO nfeed(follower, note, author, sharer, inserted) SELECT follower, note->>'$.id', author->>'$.id', sharer->>'$.id', inserted FROM feed`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `DROP TABLE feed`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `ALTER TABLE nfeed RENAME TO feed`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX feedfollowerinserted ON feed(follower, inserted)`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX feedinserted ON feed(inserted)`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX feednote ON feed(note)`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX feedauthorid ON feed(author)`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX feedshareid ON feed(sharer) WHERE sharer IS NOT NULL`); err != nil {
+		return err
+	}
+
 	return nil
 }

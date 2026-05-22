@@ -36,8 +36,8 @@ func (h *Handler) users(w text.Writer, r *Request, args ...string) {
 			return h.DB.QueryContext(
 				r.Context,
 				`
-				select json(page.note), json(page.author), json(page.sharer), page.inserted, notes.nreplies, notes.nquotes, notes.nshares, json(parent_authors.actor) from (
-					select note, author, sharer, inserted from feed
+				select json(notes.object), json(authors.actor), json(sharers.actor), page.inserted, notes.nreplies, notes.nquotes, notes.nshares, json(parent_authors.actor) from (
+					select note, sharer, inserted from feed
 					where
 						follower = $1
 					order by
@@ -46,7 +46,11 @@ func (h *Handler) users(w text.Writer, r *Request, args ...string) {
 					offset $3
 				) page
 				join notes on
-					notes.id = page.note->>'$.id'
+					notes.id = page.note
+				join persons authors on
+					authors.id = notes.author
+				left join persons sharers on
+					sharers.id = page.sharer
 				left join notes parent_notes on
 					parent_notes.id = notes.object->>'$.inReplyTo'
 				left join persons parent_authors on
