@@ -107,7 +107,7 @@ func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, post *ap.Object
 		return err
 	}
 
-	if _, err = tx.ExecContext(ctx, `insert into feed(follower, note, author, inserted) values(?, ?, jsonb(?), unixepoch())`, author.ID, post.ID, author); err != nil {
+	if _, err = tx.ExecContext(ctx, `insert into feed(follower, note, author, inserted) values($1, $1, $2, unixepoch())`, author.ID, post.ID); err != nil {
 		return err
 	}
 
