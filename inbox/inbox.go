@@ -172,9 +172,6 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 			if _, err := tx.ExecContext(ctx, `delete from hashtags where note = ?`, deleted); err != nil {
 				return fmt.Errorf("cannot delete %s: %w", deleted, err)
 			}
-			if _, err := tx.ExecContext(ctx, `delete from shares where note = ?`, deleted); err != nil {
-				return fmt.Errorf("cannot delete %s: %w", deleted, err)
-			}
 		}
 
 	case ap.Follow:
