@@ -63,8 +63,13 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 			where
 				follows.follower like $1 and
 				follows.accepted = 1 and
-				notes.inserted >= $2 and
-				not exists (select 1 from feed where feed.follower = follows.follower and feed.note = notes.id and feed.sharer is null)
+				(
+					notes.inserted > $2 or
+					(
+						notes.inserted = $2 and
+						not exists (select 1 from feed where feed.follower = follows.follower and feed.note = notes.id and feed.sharer is null)
+					)
+				)
 			union
 			select myposts.author as follower, notes.id as note, notes.author, null as sharer, 0 as mention, notes.inserted from
 			notes myposts
@@ -74,9 +79,14 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 				notes.object->>'$.inReplyTo' = myposts.id
 			where
 				notes.author != myposts.author and
-				notes.inserted >= $2 and
 				myposts.author like $1 and
-				not exists (select 1 from feed where feed.follower = myposts.author and feed.note = notes.id and feed.sharer is null)
+				(
+					notes.inserted > $2 or
+					(
+						notes.inserted >= $2 and
+						not exists (select 1 from feed where feed.follower = myposts.author and feed.note = notes.id and feed.sharer is null)
+					)
+				)
 			union all
 			select follows.follower, notes.id as note, notes.author, follows.followed as sharer, (exists (select 1 from json_each(notes.object->'$.to') where value = follows.follower) or exists (select 1 from json_each(notes.object->'$.cc') where value = follows.follower)) as mention, shares.inserted from
 			follows
@@ -90,10 +100,15 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 				notes.id = shares.note
 			where
 				notes.public = 1 and
-				shares.inserted >= $2 and
 				follows.follower like $1 and
 				follows.accepted = 1 and
-				not exists (select 1 from feed where feed.follower = follows.follower and feed.note = notes.id and feed.sharer = follows.followed)
+				(
+					shares.inserted > $2 or
+					(
+						shares.inserted = $2 and
+						not exists (select 1 from feed where feed.follower = follows.follower and feed.note = notes.id and feed.sharer = follows.followed)
+					)
+				)
 		`,
 		fmt.Sprintf("https://%s/%%", u.Domain),
 		since,
