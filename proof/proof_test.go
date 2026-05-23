@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -57,10 +57,11 @@ func TestProof_Sign(t *testing.T) {
 }
 
 // https://codeberg.org/fediverse/fep/src/commit/3a5942066f989d8317befe6457b48237bc61efe0/fep/8b32/fep-8b32.feature#L67
+// proof is wrapped with []
 func TestProof_Verify(t *testing.T) {
 	t.Parallel()
 
-	raw := []byte(`{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/security/data-integrity/v1"],"id":"https://server.example/activities/1","type":"Create","actor":"https://server.example/users/alice","object":{"id":"https://server.example/objects/1","type":"Note","attributedTo":"https://server.example/users/alice","content":"Hello world","location":{"type":"Place","longitude":-71.184902,"latitude":25.273962}},"proof":{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/security/data-integrity/v1"],"type":"DataIntegrityProof","cryptosuite":"eddsa-jcs-2022","verificationMethod":"https://server.example/users/alice#ed25519-key","proofPurpose":"assertionMethod","proofValue":"zLaewdp4H9kqtwyrLatK4cjY5oRHwVcw4gibPSUDYDMhi4M49v8pcYk3ZB6D69dNpAPbUmY8ocuJ3m9KhKJEEg7z","created":"2023-02-24T23:36:38Z"}}`)
+	raw := []byte(`{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/security/data-integrity/v1"],"id":"https://server.example/activities/1","type":"Create","actor":"https://server.example/users/alice","object":{"id":"https://server.example/objects/1","type":"Note","attributedTo":"https://server.example/users/alice","content":"Hello world","location":{"type":"Place","longitude":-71.184902,"latitude":25.273962}},"proof":[{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/security/data-integrity/v1"],"type":"DataIntegrityProof","cryptosuite":"eddsa-jcs-2022","verificationMethod":"https://server.example/users/alice#ed25519-key","proofPurpose":"assertionMethod","proofValue":"zLaewdp4H9kqtwyrLatK4cjY5oRHwVcw4gibPSUDYDMhi4M49v8pcYk3ZB6D69dNpAPbUmY8ocuJ3m9KhKJEEg7z","created":"2023-02-24T23:36:38Z"}]}`)
 
 	var a ap.Activity
 	if err := json.Unmarshal(raw, &a); err != nil {
