@@ -43,7 +43,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 		ctx,
 		`
 			insert into feed(follower, note, author, sharer, mention, inserted)
-			select follows.follower, notes.id as note, notes.author, null as sharer, 0 as mention, notes.inserted from
+			select follows.follower, notes.id as note, notes.author, null as sharer, (exists (select 1 from json_each(notes.object->'$.to') where value = follows.follower) or exists (select 1 from json_each(notes.object->'$.cc') where value = follows.follower)) as mention, notes.inserted from
 			follows
 			join
 			persons
@@ -88,7 +88,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 					)
 				)
 			union all
-			select follows.follower, notes.id as note, notes.author, follows.followed as sharer, (exists (select 1 from json_each(notes.object->'$.to') where value = follows.follower) or exists (select 1 from json_each(notes.object->'$.cc') where value = follows.follower)) as mention, shares.inserted from
+			select follows.follower, notes.id as note, notes.author, follows.followed as sharer, 0 as mention, shares.inserted from
 			follows
 			join
 			shares
