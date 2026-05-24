@@ -22,19 +22,49 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
+	if _, err := tx.ExecContext(ctx, `UPDATE notes SET pulse = inserted`); err != nil {
+		return err
+	}
+
 	if _, err := tx.ExecContext(ctx, `
-		UPDATE notes SET
-			nreplies = (SELECT COUNT(*) FROM notes r WHERE r.object->>'$.inReplyTo' = notes.id),
-			nquotes = (SELECT COUNT(*) FROM notes quotes WHERE quotes.object->>'$.quote' = notes.id),
-			nshares = (SELECT COUNT(*) FROM shares WHERE shares.note = notes.id AND shares.by IS NOT notes.object->>'$.audience'),
-			pulse = COALESCE(
-				(SELECT MAX(v) FROM (
-					SELECT MAX(replies.inserted) as v FROM notes replies WHERE replies.object->>'$.inReplyTo' = notes.id
-					UNION ALL
-					SELECT MAX(quotes.inserted) as v FROM notes quotes WHERE quotes.object->>'$.quote' = notes.id
-				)),
-				notes.inserted
-			)
+		UPDATE notes
+		SET nreplies = rc.count, pulse = MAX(notes.pulse, rc.pulse)
+		FROM (
+			SELECT object->>'$.inReplyTo' AS parent, COUNT(*) AS count, MAX(inserted) AS pulse
+			FROM notes
+			WHERE parent IS NOT NULL
+			GROUP BY parent
+		) rc
+		WHERE notes.id = rc.parent
+	`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE notes
+		SET nshares = sc.count, pulse = MAX(notes.pulse, sc.pulse)
+		FROM (
+			SELECT shares.note, COUNT(*) AS count, MAX(shares.inserted) AS pulse
+			FROM shares
+			JOIN notes ON shares.note = notes.id
+			WHERE shares.by IS NOT notes.object->>'$.audience'
+			GROUP BY shares.note
+		) sc
+		WHERE notes.id = sc.note
+	`); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE notes
+		SET nquotes = qc.count, pulse = MAX(notes.pulse, qc.pulse)
+		FROM (
+			SELECT object->>'$.quote' AS quote, COUNT(*) AS count, MAX(inserted) AS pulse
+			FROM notes
+			WHERE quote IS NOT NULL
+			GROUP BY quote
+		) qc
+		WHERE notes.id = qc.quote
 	`); err != nil {
 		return err
 	}
