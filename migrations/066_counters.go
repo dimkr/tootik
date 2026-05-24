@@ -26,7 +26,7 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 		UPDATE notes SET
 			nreplies = (SELECT COUNT(*) FROM notes r WHERE r.object->>'$.inReplyTo' = notes.id),
 			nquotes = (SELECT COUNT(*) FROM notes quotes WHERE quotes.object->>'$.quote' = notes.id),
-			nshares = (SELECT COUNT(*) FROM shares WHERE shares.note = notes.id),
+			nshares = (SELECT COUNT(*) FROM shares WHERE shares.note = notes.id AND shares.by IS NOT notes.object->>'$.audience'),
 			pulse = COALESCE(
 				(SELECT MAX(v) FROM (
 					SELECT MAX(replies.inserted) as v FROM notes replies WHERE replies.object->>'$.inReplyTo' = notes.id
@@ -106,7 +106,7 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 		BEGIN
 			UPDATE notes
 			SET nshares = nshares + 1
-			WHERE id = NEW.note;
+			WHERE id = NEW.note AND NEW.by IS NOT object->>'$.audience';
 		END
 	`); err != nil {
 		return err
@@ -117,7 +117,7 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 		BEGIN
 			UPDATE notes
 			SET nshares = MAX(0, nshares - 1)
-			WHERE id = OLD.note;
+			WHERE id = OLD.note AND OLD.by IS NOT object->>'$.audience';
 		END
 	`); err != nil {
 		return err
@@ -129,7 +129,7 @@ func counters(ctx context.Context, domain string, tx *sql.Tx) error {
 			UPDATE notes SET
 				nreplies = (SELECT COUNT(*) FROM notes WHERE object->>'$.inReplyTo' = NEW.id),
 				nquotes = (SELECT COUNT(*) FROM notes WHERE object->>'$.quote' = NEW.id),
-				nshares = (SELECT COUNT(*) FROM shares WHERE note = NEW.id),
+				nshares = (SELECT COUNT(*) FROM shares WHERE note = NEW.id AND shares.by IS NOT NEW.object->>'$.audience'),
 				pulse = COALESCE(
 					(SELECT MAX(v) FROM (
 						SELECT MAX(replies.inserted) as v FROM notes replies WHERE replies.object->>'$.inReplyTo' = NEW.id
