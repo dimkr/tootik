@@ -59,22 +59,26 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 		rows, err = h.DB.QueryContext(
 			r.Context,
 			`
-				select json(notes.object), json(authors.actor), json(groups.actor), notes.inserted from
-				notesfts
+				select json(notes.object), json(authors.actor), json(groups.actor), notes.inserted, notes.nreplies, notes.nquotes, notes.nshares, json(parent_authors.actor) from
+				(select id, rank from notesfts where content match $1 order by rank limit $2) top
 				join notes on
-					notes.id = notesfts.id
+					notes.id = top.id
 				join persons authors on
 					authors.id = notes.author and coalesce(authors.actor->>'$.discoverable', 1)
+				left join notes parent_notes on
+					parent_notes.id = notes.object->>'$.inReplyTo'
+				left join persons parent_authors on
+					parent_authors.id = parent_notes.author
 				left join persons groups on
 					groups.actor->>'$.type' = 'Group' and exists (select 1 from shares where shares.by = groups.id and shares.note = notes.id)
 				where
-					notes.public = 1 and
-					notesfts.content match $1
-				order by rank desc
-				limit $2
-				offset $3
+					notes.public = 1
+				order by top.rank
+				limit $3
+				offset $4
 			`,
 			query,
+			h.Config.MaxFTSResults,
 			h.Config.PostsPerPage,
 			offset,
 		)
@@ -82,17 +86,19 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 		rows, err = h.DB.QueryContext(
 			r.Context,
 			`
-				select json(u.object), json(authors.actor), json(groups.actor), u.inserted from
+				with top as (
+					select id, rank from notesfts where content match $1 order by rank limit $2
+				)
+				select json(u.object), json(authors.actor), json(groups.actor), u.inserted, u.nreplies, u.nquotes, u.nshares, json(parent_authors.actor) from
 				(
-					select notes.id, notes.object, notes.author, notes.inserted, rank, 2 as aud from
-					notesfts
+					select notes.id, notes.object, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares, top.rank, 2 as aud from
+					top
 					join notes on
-						notes.id = notesfts.id
+						notes.id = top.id
 					where
-						notes.public = 1 and
-						notesfts.content match $1
+						notes.public = 1
 					union all
-					select notes.id, notes.object, notes.author, notes.inserted, rank, 1 as aud from
+					select notes.id, notes.object, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares, top.rank, 1 as aud from
 					follows
 					join
 					persons
@@ -107,27 +113,29 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 							(persons.actor->>'$.type' = 'Group' and exists (select 1 from shares where shares.by = persons.id and shares.note = notes.id))
 						)
 					join
-					notesfts on
-						notesfts.id = notes.id
+					top on
+						top.id = notes.id
 					where
-						follows.follower = $2 and
-						follows.accepted = 1 and
-						notesfts.content match $1
+						follows.follower = $3 and
+						follows.accepted = 1
 					union all
-					select notes.id, notes.object, notes.author, notes.inserted, rank, 0 as aud from
-					notesfts
+					select notes.id, notes.object, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares, top.rank, 0 as aud from
+					top
 					join notes on
-						notes.id = notesfts.id
+						notes.id = top.id
 					where
-						notesfts.content match $1 and
 						(
-							$2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $2)) or
-							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $2))
+							$3 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $3)) or
+							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $3))
 						)
 				) u
 				join persons authors on
 					authors.id = u.author and coalesce(authors.actor->>'$.discoverable', 1)
+				left join notes parent_notes on
+					parent_notes.id = u.object->>'$.inReplyTo'
+				left join persons parent_authors on
+					parent_authors.id = parent_notes.author
 				left join persons groups on
 					groups.actor->>'$.type' = 'Group' and exists (select 1 from shares where shares.by = groups.id and shares.note = u.id)
 				group by
@@ -136,10 +144,11 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 					round(u.rank, 1),
 					min(u.aud),
 					u.rank
-				limit $3
-				offset $4
+				limit $4
+				offset $5
 			`,
 			query,
+			h.Config.MaxFTSResults,
 			r.User.ID,
 			h.Config.PostsPerPage,
 			offset,

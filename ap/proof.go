@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@ limitations under the License.
 
 package ap
 
+import "encoding/json"
+
 type Proof struct {
 	Context            any    `json:"@context,omitempty"`
 	Type               string `json:"type"`
@@ -24,4 +26,22 @@ type Proof struct {
 	Purpose            string `json:"proofPurpose"`
 	Value              string `json:"proofValue,omitempty"`
 	Created            string `json:"created"`
+}
+
+func (p *Proof) UnmarshalJSON(b []byte) error {
+	type proof Proof
+	var single proof
+	if err := json.Unmarshal(b, &single); err == nil {
+		*p = Proof(single)
+	} else {
+		// forte@6d30fce1d6 send an array at least in some cases
+		var arr []json.RawMessage
+		if err := json.Unmarshal(b, &arr); err != nil {
+			return err
+		} else if len(arr) > 0 {
+			return json.Unmarshal(arr[0], (*proof)(p))
+		}
+	}
+
+	return nil
 }

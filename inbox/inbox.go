@@ -68,10 +68,6 @@ func (inbox *Inbox) processCreateActivity(ctx context.Context, tx *sql.Tx, sende
 				return fmt.Errorf("failed to set %s audience to %s: %w", post.ID, audience.String, err)
 			}
 
-			if _, err := tx.ExecContext(ctx, `update feed set note = jsonb_set(note, '$.audience', ?) where note->>'$.id' = ? and note->>'$.audience' is null`, post.Audience, post.ID); err != nil {
-				return fmt.Errorf("failed to set %s audience to %s: %w", post.ID, audience.String, err)
-			}
-
 			if shared {
 				if _, err := tx.ExecContext(
 					ctx,
@@ -174,12 +170,6 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 				return fmt.Errorf("cannot delete %s: %w", deleted, err)
 			}
 			if _, err := tx.ExecContext(ctx, `delete from hashtags where note = ?`, deleted); err != nil {
-				return fmt.Errorf("cannot delete %s: %w", deleted, err)
-			}
-			if _, err := tx.ExecContext(ctx, `delete from shares where note = ?`, deleted); err != nil {
-				return fmt.Errorf("cannot delete %s: %w", deleted, err)
-			}
-			if _, err := tx.ExecContext(ctx, `delete from feed where note->>'$.id' = ?`, deleted); err != nil {
 				return fmt.Errorf("cannot delete %s: %w", deleted, err)
 			}
 		}
@@ -441,15 +431,6 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 			); err != nil {
 				return fmt.Errorf("failed to update post %s: %w", post.ID, err)
 			}
-		}
-
-		if _, err := tx.ExecContext(
-			ctx,
-			`update feed set note = jsonb(?) where note->>'$.id' = ?`,
-			post,
-			post.ID,
-		); err != nil {
-			return fmt.Errorf("failed to update post %s: %w", post.ID, err)
 		}
 
 		if err := inbox.forwardActivity(ctx, tx, post, activity, rawActivity); err != nil {

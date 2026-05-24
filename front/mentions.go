@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -35,18 +35,28 @@ func (h *Handler) mentions(w text.Writer, r *Request, args ...string) {
 		func(offset int) (*sql.Rows, error) {
 			return h.DB.QueryContext(
 				r.Context,
-				`select json(note), json(author), json(sharer), inserted from
-				feed
-				where
-					follower = $1 and
-					(
-						exists (select 1 from json_each(note->'$.to') where value = $1) or
-						exists (select 1 from json_each(note->'$.cc') where value = $1)
-					)
-				order by
-					inserted desc
-				limit $2
-				offset $3`,
+				`select json(notes.object), json(authors.actor), json(sharers.actor), page.inserted, notes.nreplies, notes.nquotes, notes.nshares, json(parent_authors.actor) from (
+					select note, author, sharer, inserted from feed
+					where
+						follower = $1
+						and mention = 1
+					order by
+						inserted desc
+					limit $2
+					offset $3
+				) page
+				join notes on
+					notes.id = page.note
+				join persons authors on
+					authors.id = page.author
+				left join persons sharers on
+					sharers.id = page.sharer
+				left join notes parent_notes on
+					parent_notes.id = notes.object->>'$.inReplyTo'
+				left join persons parent_authors on
+					parent_authors.id = parent_notes.author
+				order by page.inserted desc
+				`,
 				r.User.ID,
 				h.Config.PostsPerPage,
 				offset,

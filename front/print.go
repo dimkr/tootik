@@ -18,7 +18,6 @@ package front
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -242,7 +241,17 @@ func (h *Handler) getNoteContent(note *ap.Object, compact bool) ([]string, data.
 	return content, links, hashtags, mentionedUsers
 }
 
-func (h *Handler) printCompactNote(w text.Writer, r *Request, note *ap.Object, author *ap.Actor, sharer *ap.Actor, published time.Time, printParentAuthor bool) {
+func (h *Handler) printCompactNote(
+	w text.Writer,
+	r *Request,
+	note *ap.Object,
+	author *ap.Actor,
+	sharer *ap.Actor,
+	published time.Time,
+	printParentAuthor bool,
+	parentAuthor sql.Null[ap.Actor],
+	replies, quotes, shares int64,
+) {
 	if note.AttributedTo == "" {
 		r.Log.Warn("Note has no author", "id", note.ID)
 		return
@@ -250,36 +259,15 @@ func (h *Handler) printCompactNote(w text.Writer, r *Request, note *ap.Object, a
 
 	contentLines, links, hashtags, mentionedUsers := h.getNoteContent(note, true)
 
-	var replies int
-	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where object->>'$.inReplyTo' = ?`, note.ID).Scan(&replies); err != nil {
-		r.Log.Warn("Failed to count replies", "id", note.ID, "error", err)
-	}
-
-	var quotes int
-	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where object->>'$.quote' = ?`, note.ID).Scan(&quotes); err != nil {
-		r.Log.Warn("Failed to count quotes", "id", note.ID, "error", err)
-	}
-
-	authorDisplayName := author.PreferredUsername
-
 	var title strings.Builder
 	if sharer != nil {
-		fmt.Fprintf(&title, "%s %s ┃ 🔄 %s", published.Format(time.DateOnly), authorDisplayName, sharer.PreferredUsername)
+		fmt.Fprintf(&title, "%s %s ┃ 🔄 %s", published.Format(time.DateOnly), author.PreferredUsername, sharer.PreferredUsername)
 	} else {
-		fmt.Fprintf(&title, "%s %s", published.Format(time.DateOnly), authorDisplayName)
+		fmt.Fprintf(&title, "%s %s", published.Format(time.DateOnly), author.PreferredUsername)
 	}
 
 	if note.Updated != (ap.Time{}) {
 		title.WriteString(" ┃ edited")
-	}
-
-	var parentAuthor sql.Null[ap.Actor]
-	if note.InReplyTo != "" {
-		if err := h.DB.QueryRowContext(r.Context, `select json(persons.actor) from notes join persons on persons.id = notes.author where notes.id = ?`, note.InReplyTo).Scan(&parentAuthor); err != nil && errors.Is(err, sql.ErrNoRows) {
-			r.Log.Info("Parent post or author is missing", "id", note.InReplyTo)
-		} else if err != nil {
-			r.Log.Warn("Failed to query parent post author", "id", note.InReplyTo, "error", err)
-		}
 	}
 
 	meta := metaBuilder{w: &title}
@@ -311,6 +299,10 @@ func (h *Handler) printCompactNote(w text.Writer, r *Request, note *ap.Object, a
 		fmt.Fprintf(&meta, " %d♻️", quotes)
 	}
 
+	if (sharer == nil && shares > 0) || (sharer != nil && shares > 1) {
+		fmt.Fprintf(&meta, " %d🔁", shares)
+	}
+
 	if printParentAuthor && parentAuthor.Valid && parentAuthor.V.PreferredUsername != "" {
 		fmt.Fprintf(&title, " ┃ RE: %s", parentAuthor.V.PreferredUsername)
 	} else if printParentAuthor && note.InReplyTo != "" && (!parentAuthor.Valid || parentAuthor.V.PreferredUsername == "") {
@@ -330,9 +322,11 @@ func (h *Handler) printCompactNote(w text.Writer, r *Request, note *ap.Object, a
 
 func (h *Handler) PrintNotes(w text.Writer, r *Request, rows *sql.Rows, printParentAuthor, printDaySeparators bool, fallback string) int {
 	scanned, err := dbx.CollectRows[struct {
-		Note           ap.Object
-		Author, Sharer sql.Null[ap.Actor]
-		Published      int64
+		Note                    ap.Object
+		Author, Sharer          sql.Null[ap.Actor]
+		Published               int64
+		Replies, Quotes, Shares int64
+		ParentAuthor            sql.Null[ap.Actor]
 	}](
 		rows,
 		h.Config.PostsPerPage,
@@ -368,9 +362,33 @@ func (h *Handler) PrintNotes(w text.Writer, r *Request, rows *sql.Rows, printPar
 		}
 
 		if row.Sharer.Valid {
-			h.printCompactNote(w, r, &row.Note, &row.Author.V, &row.Sharer.V, time.Unix(row.Published, 0), printParentAuthor)
+			h.printCompactNote(
+				w,
+				r,
+				&row.Note,
+				&row.Author.V,
+				&row.Sharer.V,
+				time.Unix(row.Published, 0),
+				printParentAuthor,
+				row.ParentAuthor,
+				row.Replies,
+				row.Quotes,
+				row.Shares,
+			)
 		} else {
-			h.printCompactNote(w, r, &row.Note, &row.Author.V, nil, time.Unix(row.Published, 0), printParentAuthor)
+			h.printCompactNote(
+				w,
+				r,
+				&row.Note,
+				&row.Author.V,
+				nil,
+				time.Unix(row.Published, 0),
+				printParentAuthor,
+				row.ParentAuthor,
+				row.Replies,
+				row.Quotes,
+				row.Shares,
+			)
 		}
 
 		lastDay = currentDay
