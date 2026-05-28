@@ -21,7 +21,7 @@ This page shows popular hashtags, allowing you to discover trends and shared int
 
 > 🔎 Search posts
 
-This is a full-text search tool that lists posts containing keyword(s), ordered by relevance.
+This is a full-text search tool that lists posts containing keyword(s), ordered by relevance and limited to {{.Config.MaxFTSResults}} results.
 
 > 📊 Status
 

@@ -74,6 +74,7 @@ type Config struct {
 	PostsPerPage     int
 	PostContextDepth int
 	RepliesPerPage   int
+	MaxFTSResults    int
 	MaxOffset        int
 
 	SharesPerPost int
@@ -280,6 +281,10 @@ func (c *Config) FillDefaults() {
 
 	if c.RepliesPerPage <= 0 {
 		c.RepliesPerPage = 10
+	}
+
+	if c.MaxFTSResults <= 0 {
+		c.MaxFTSResults = 500
 	}
 
 	if c.MaxOffset <= 0 {
