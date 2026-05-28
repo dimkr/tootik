@@ -150,11 +150,11 @@ func deleteActor(ctx context.Context, db *sql.DB, id string) {
 		slog.Warn("Failed to delete bookmarks by actor", "id", id, "error", err)
 	}
 
-	if _, err := db.ExecContext(ctx, `delete from feed where sharer->>'$.id' = ?`, id); err != nil {
+	if _, err := db.ExecContext(ctx, `delete from feed where sharer = ?`, id); err != nil {
 		slog.Warn("Failed to delete shares by actor", "id", id, "error", err)
 	}
 
-	if _, err := db.ExecContext(ctx, `delete from feed where author->>'$.id' = ?`, id); err != nil {
+	if _, err := db.ExecContext(ctx, `delete from feed where author = ?`, id); err != nil {
 		slog.Warn("Failed to delete shares by actor", "id", id, "error", err)
 	}
 
@@ -587,24 +587,6 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 		); err != nil {
 			return nil, cachedActor, fmt.Errorf("failed to associate %s with %s: %w", keyID, actor.ID, err)
 		}
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`UPDATE feed SET author = JSONB(?) WHERE author->>'$.id' = ?`,
-		bodyString,
-		actor.ID,
-	); err != nil {
-		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`UPDATE feed SET sharer = JSONB(?) WHERE sharer->>'$.id' = ?`,
-		bodyString,
-		actor.ID,
-	); err != nil {
-		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
 	}
 
 	if capabilities > 0 {

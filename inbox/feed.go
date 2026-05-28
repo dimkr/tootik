@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ type FeedUpdater struct {
 func (u FeedUpdater) Run(ctx context.Context) error {
 	since := int64(0)
 	var ts sql.NullInt64
-	if err := u.DB.QueryRowContext(ctx, `select max(inserted) from feed where follower != author->>'$.id' and (sharer is null or follower != sharer->>'$.id')`).Scan(&ts); err != nil {
+	if err := u.DB.QueryRowContext(ctx, `select max(inserted) from feed where follower != author and (sharer is null or follower != sharer)`).Scan(&ts); err != nil {
 		return err
 	} else if ts.Valid {
 		since = ts.Int64
@@ -42,8 +42,8 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 	if _, err := u.DB.ExecContext(
 		ctx,
 		`
-			insert into feed(follower, note, author, sharer, inserted)
-			select follows.follower, notes.object as note, persons.actor as author, null as sharer, notes.inserted from
+			insert into feed(follower, note, author, sharer, mention, inserted)
+			select follows.follower, notes.id as note, notes.author, null as sharer, (exists (select 1 from json_each(notes.object->'$.to') where value = follows.follower) or exists (select 1 from json_each(notes.object->'$.cc') where value = follows.follower)) as mention, notes.inserted from
 			follows
 			join
 			persons
@@ -63,26 +63,32 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 			where
 				follows.follower like $1 and
 				follows.accepted = 1 and
-				notes.inserted >= $2 and
-				not exists (select 1 from feed where feed.follower = follows.follower and feed.note->>'$.id' = notes.id and feed.sharer is null)
+				(
+					notes.inserted > $2 or
+					(
+						notes.inserted = $2 and
+						not exists (select 1 from feed where feed.follower = follows.follower and feed.note = notes.id and feed.sharer is null)
+					)
+				)
 			union
-			select myposts.author as follower, notes.object as note, authors.actor as author, null as sharer, notes.inserted from
+			select myposts.author as follower, notes.id as note, notes.author, null as sharer, 0 as mention, notes.inserted from
 			notes myposts
 			join
 			notes
 			on
 				notes.object->>'$.inReplyTo' = myposts.id
-			join
-			persons authors
-			on
-				authors.id = notes.author
 			where
 				notes.author != myposts.author and
-				notes.inserted >= $2 and
 				myposts.author like $1 and
-				not exists (select 1 from feed where feed.follower = myposts.author and feed.note->>'$.id' = notes.id and feed.sharer is null)
+				(
+					notes.inserted > $2 or
+					(
+						notes.inserted >= $2 and
+						not exists (select 1 from feed where feed.follower = myposts.author and feed.note = notes.id and feed.sharer is null)
+					)
+				)
 			union all
-			select follows.follower, notes.object as note, authors.actor as author, sharers.actor as sharer, shares.inserted from
+			select follows.follower, notes.id as note, notes.author, follows.followed as sharer, 0 as mention, shares.inserted from
 			follows
 			join
 			shares
@@ -92,20 +98,17 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 			notes
 			on
 				notes.id = shares.note
-			join
-			persons authors
-			on
-				authors.id = notes.author
-			join
-			persons sharers
-			on
-				sharers.id = follows.followed
 			where
 				notes.public = 1 and
-				shares.inserted >= $2 and
 				follows.follower like $1 and
 				follows.accepted = 1 and
-				not exists (select 1 from feed where feed.follower = follows.follower and feed.note->>'$.id' = notes.id and feed.sharer->>'$.id' = sharers.id)
+				(
+					shares.inserted > $2 or
+					(
+						shares.inserted = $2 and
+						not exists (select 1 from feed where feed.follower = follows.follower and feed.note = notes.id and feed.sharer = follows.followed)
+					)
+				)
 		`,
 		fmt.Sprintf("https://%s/%%", u.Domain),
 		since,

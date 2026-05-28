@@ -50,7 +50,7 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 		(
 			select followed, max(inserted) as inserted from
 			(
-				select coalesce(sharer->>'$.id', author->>'$.id') as followed, inserted
+				select coalesce(sharer, author) as followed, inserted
 				from feed
 				where
 					follower = $1 and
