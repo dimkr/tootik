@@ -16,7 +16,7 @@ require (
 	golang.org/x/image v0.41.0
 	golang.org/x/net v0.55.0
 	golang.org/x/term v0.43.0
-	modernc.org/sqlite v1.50.1
+	modernc.org/sqlite v1.51.0
 )
 
 require (
