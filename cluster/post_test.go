@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@ package cluster
 
 import (
 	"testing"
+
+	"github.com/dimkr/tootik/gemtext"
 )
 
 func TestCluster_PublicPost(t *testing.T) {
@@ -37,36 +39,36 @@ func TestCluster_PublicPost(t *testing.T) {
 	post := carol.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "hello").
-		Contains(Line{Type: Quote, Text: "hello"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
 	cluster.Settle(t)
 
 	alice = alice.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
-		Contains(Line{Type: Quote, Text: "hello"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
 	bob = bob.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
-		Contains(Line{Type: Quote, Text: "hello"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
 
 	post.FollowInput("🩹 Edit", "hola").
-		Contains(Line{Type: Quote, Text: "hola"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
 	cluster.Settle(t)
 
 	alice.
 		Refresh().
-		Contains(Line{Type: Quote, Text: "hola"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
 	bob.
 		Refresh().
-		Contains(Line{Type: Quote, Text: "hola"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
 
 	post.Follow("💣 Delete").OK()
 	cluster.Settle(t)
 
 	alice.
 		Refresh().
-		NotContains(Line{Type: Quote, Text: "hola"})
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
 	bob.
 		Refresh().
-		NotContains(Line{Type: Quote, Text: "hola"})
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
 }
 
 func TestCluster_PostToFollowers(t *testing.T) {
@@ -86,32 +88,32 @@ func TestCluster_PostToFollowers(t *testing.T) {
 	post := carol.
 		Follow("📣 New post").
 		FollowInput("🔔 Your followers and mentioned users", "hello").
-		Contains(Line{Type: Quote, Text: "hello"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
 	cluster.Settle(t)
 
 	alice = alice.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
-		Contains(Line{Type: Quote, Text: "hello"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
 
 	bob = bob.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
-		NotContains(Line{Type: Quote, Text: "hello"})
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
 
 	post.FollowInput("🩹 Edit", "hola").OK()
 	cluster.Settle(t)
 
 	alice.Refresh().
-		Contains(Line{Type: Quote, Text: "hola"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
 	bob.Refresh().
-		NotContains(Line{Type: Quote, Text: "hola"})
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
 
 	post.Follow("💣 Delete").OK()
 	cluster.Settle(t)
 
 	alice.Refresh().
-		NotContains(Line{Type: Quote, Text: "hola"})
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
 	bob.Refresh().
-		NotContains(Line{Type: Quote, Text: "hola"})
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
 }
 
 func TestCluster_DM(t *testing.T) {
@@ -126,29 +128,29 @@ func TestCluster_DM(t *testing.T) {
 		FollowInput("🔭 View profile", "alice@a.localdomain").
 		Follow("📣 New post").
 		FollowInput("💌 Mentioned users only", "@alice@a.localdomain hello").
-		Contains(Line{Type: Quote, Text: "@alice@a.localdomain hello"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "@alice@a.localdomain hello"})
 	cluster.Settle(t)
 
 	alice = alice.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
-		Contains(Line{Type: Quote, Text: "@alice@a.localdomain hello"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "@alice@a.localdomain hello"})
 	bob = bob.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
-		NotContains(Line{Type: Quote, Text: "@alice@a.localdomain hello"})
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "@alice@a.localdomain hello"})
 
 	post.FollowInput("🩹 Edit", "hola").OK()
 	cluster.Settle(t)
 
 	alice.Refresh().
-		Contains(Line{Type: Quote, Text: "hola"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
 	bob.Refresh().
-		NotContains(Line{Type: Quote, Text: "hola"})
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
 
 	post.Follow("💣 Delete").OK()
 	cluster.Settle(t)
 
 	alice.Refresh().
-		NotContains(Line{Type: Quote, Text: "hola"})
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
 	bob.Refresh().
-		NotContains(Line{Type: Quote, Text: "hola"})
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
 }

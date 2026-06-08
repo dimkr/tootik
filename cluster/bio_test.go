@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,7 +16,11 @@ limitations under the License.
 
 package cluster
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/dimkr/tootik/gemtext"
+)
 
 func TestBio_Set(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
@@ -28,14 +32,14 @@ func TestBio_Set(t *testing.T) {
 	bob.
 		Follow("⚙️ Settings").
 		Follow("📜 Bio").
-		Contains(Line{Type: Text, Text: "Bio is empty."}).
+		Contains(gemtext.Line{Type: gemtext.Text, Text: "Bio is empty."}).
 		FollowInput("Set", "hello world\nthis is my bio").
-		NotContains(Line{Type: Text, Text: "Bio is empty."}).
-		Contains(Line{Type: Quote, Text: "hello world"}).
-		Contains(Line{Type: Quote, Text: "this is my bio"})
+		NotContains(gemtext.Line{Type: gemtext.Text, Text: "Bio is empty."}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello world"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "this is my bio"})
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(Line{Type: Quote, Text: "hello world"}).
-		Contains(Line{Type: Quote, Text: "this is my bio"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello world"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "this is my bio"})
 }

@@ -20,6 +20,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/dimkr/tootik/gemtext"
 )
 
 func TestServer_InvitationHappyFlow(t *testing.T) {
@@ -37,7 +39,7 @@ func TestServer_InvitationHappyFlow(t *testing.T) {
 		Follow("⚙️ Settings").
 		Follow("🎟️ Invitations").
 		FollowInput("➕ Generate", bobCode).
-		Contains(Line{Type: Text, Text: "Code: " + bobCode})
+		Contains(gemtext.Line{Type: gemtext.Text, Text: "Code: " + bobCode})
 
 	accept := s.HandleInput(bobKeypair, "/users/invitations/accept", bobCode)
 	accept.Error("11 base58-encoded Ed25519 private key or 'generate' to generate")
@@ -46,9 +48,9 @@ func TestServer_InvitationHappyFlow(t *testing.T) {
 	alice.
 		Follow("⚙️ Settings").
 		Follow("🎟️ Invitations").
-		Contains(Line{Type: Link, Text: "Used by: bob", URL: "/users/outbox/a.localdomain/user/bob"}).
+		Contains(gemtext.Line{Type: gemtext.Link, Text: "Used by: bob", URL: "/users/outbox/a.localdomain/user/bob"}).
 		FollowInput("➕ Generate", carolCode).
-		Contains(Line{Type: Text, Text: "Code: " + carolCode})
+		Contains(gemtext.Line{Type: gemtext.Text, Text: "Code: " + carolCode})
 
 	accept = s.HandleInput(carolKeypair, "/users/invitations/accept", carolCode)
 	accept.Error("11 base58-encoded Ed25519 private key or 'generate' to generate")
@@ -70,7 +72,7 @@ func TestServer_WrongCode(t *testing.T) {
 		Follow("⚙️ Settings").
 		Follow("🎟️ Invitations").
 		FollowInput("➕ Generate", bobCode).
-		Contains(Line{Type: Text, Text: "Code: " + bobCode})
+		Contains(gemtext.Line{Type: gemtext.Text, Text: "Code: " + bobCode})
 
 	s.HandleInput(bobKeypair, "/users/invitations/accept", carolCode).Error("40 Invalid invitation code")
 
@@ -93,7 +95,7 @@ func TestServer_ExpiredCode(t *testing.T) {
 		Follow("⚙️ Settings").
 		Follow("🎟️ Invitations").
 		FollowInput("➕ Generate", bobCode).
-		Contains(Line{Type: Text, Text: "Code: " + bobCode})
+		Contains(gemtext.Line{Type: gemtext.Text, Text: "Code: " + bobCode})
 
 	select {
 	case <-time.After(1):
@@ -123,7 +125,7 @@ func TestServer_CodeReuse(t *testing.T) {
 		Follow("⚙️ Settings").
 		Follow("🎟️ Invitations").
 		FollowInput("➕ Generate", bobCode).
-		Contains(Line{Type: Text, Text: "Code: " + bobCode})
+		Contains(gemtext.Line{Type: gemtext.Text, Text: "Code: " + bobCode})
 
 	accept := s.HandleInput(bobKeypair, "/users/invitations/accept", bobCode)
 	accept.Error("11 base58-encoded Ed25519 private key or 'generate' to generate")
@@ -148,12 +150,12 @@ func TestServer_InvitationLimit(t *testing.T) {
 	alice.
 		Follow("⚙️ Settings").
 		Follow("🎟️ Invitations").
-		Contains(Line{Type: Link, Text: "➕ Generate", URL: "/users/invitations/generate"}).
-		NotContains(Line{Type: Text, Text: "Reached the maximum number of invitations."}).
+		Contains(gemtext.Line{Type: gemtext.Link, Text: "➕ Generate", URL: "/users/invitations/generate"}).
+		NotContains(gemtext.Line{Type: gemtext.Text, Text: "Reached the maximum number of invitations."}).
 		FollowInput("➕ Generate", bobCode).
-		Contains(Line{Type: Text, Text: "Code: " + bobCode}).
-		NotContains(Line{Type: Link, Text: "➕ Generate", URL: "/users/invitations/generate"}).
-		Contains(Line{Type: Text, Text: "Reached the maximum number of invitations."})
+		Contains(gemtext.Line{Type: gemtext.Text, Text: "Code: " + bobCode}).
+		NotContains(gemtext.Line{Type: gemtext.Link, Text: "➕ Generate", URL: "/users/invitations/generate"}).
+		Contains(gemtext.Line{Type: gemtext.Text, Text: "Reached the maximum number of invitations."})
 
 	alice.Goto("/users/invitations/generate").
 		Error("40 Reached the maximum number of invitations")
@@ -165,11 +167,11 @@ func TestServer_InvitationLimit(t *testing.T) {
 	alice.
 		Follow("⚙️ Settings").
 		Follow("🎟️ Invitations").
-		Contains(Line{Type: Link, Text: "Used by: bob", URL: "/users/outbox/a.localdomain/user/bob"}).
+		Contains(gemtext.Line{Type: gemtext.Link, Text: "Used by: bob", URL: "/users/outbox/a.localdomain/user/bob"}).
 		FollowInput("➕ Generate", carolCode).
-		Contains(Line{Type: Text, Text: "Code: " + carolCode}).
-		NotContains(Line{Type: Link, Text: "➕ Generate", URL: "/users/invitations/generate"}).
-		Contains(Line{Type: Text, Text: "Reached the maximum number of invitations."})
+		Contains(gemtext.Line{Type: gemtext.Text, Text: "Code: " + carolCode}).
+		NotContains(gemtext.Line{Type: gemtext.Link, Text: "➕ Generate", URL: "/users/invitations/generate"}).
+		Contains(gemtext.Line{Type: gemtext.Text, Text: "Reached the maximum number of invitations."})
 
 	accept = s.HandleInput(carolKeypair, "/users/invitations/accept", carolCode)
 	accept.Error("11 base58-encoded Ed25519 private key or 'generate' to generate")
@@ -182,8 +184,8 @@ func TestServer_InvitationLimit(t *testing.T) {
 		Follow("➕ Generate").
 		Follow("➕ Generate").
 		Follow("➕ Generate").
-		NotContains(Line{Type: Link, Text: "➕ Generate", URL: "/users/invitations/generate"}).
-		Contains(Line{Type: Text, Text: "Reached the maximum number of invitations."})
+		NotContains(gemtext.Line{Type: gemtext.Link, Text: "➕ Generate", URL: "/users/invitations/generate"}).
+		Contains(gemtext.Line{Type: gemtext.Text, Text: "Reached the maximum number of invitations."})
 
 	alice.Goto("/users/invitations/generate").
 		Error("40 Reached the maximum number of invitations")
@@ -192,9 +194,9 @@ func TestServer_InvitationLimit(t *testing.T) {
 		Follow("⚙️ Settings").
 		Follow("🎟️ Invitations").
 		Follow("➖ Revoke").
-		NotContains(Line{Type: Text, Text: "Reached the maximum number of invitations."}).
+		NotContains(gemtext.Line{Type: gemtext.Text, Text: "Reached the maximum number of invitations."}).
 		Follow("➕ Generate").
-		Contains(Line{Type: Text, Text: "Reached the maximum number of invitations."})
+		Contains(gemtext.Line{Type: gemtext.Text, Text: "Reached the maximum number of invitations."})
 }
 
 func TestServer_InvitationCreateDeleteAccept(t *testing.T) {
@@ -212,7 +214,7 @@ func TestServer_InvitationCreateDeleteAccept(t *testing.T) {
 	var code string
 	found := false
 	for _, line := range page.Lines {
-		if line.Type != Text {
+		if line.Type != gemtext.Text {
 			continue
 		}
 
@@ -226,9 +228,9 @@ func TestServer_InvitationCreateDeleteAccept(t *testing.T) {
 	}
 
 	page.
-		Contains(Line{Type: Text, Text: "Code: " + code}).
+		Contains(gemtext.Line{Type: gemtext.Text, Text: "Code: " + code}).
 		Follow("➖ Revoke").
-		NotContains(Line{Type: Text, Text: "Code: " + code})
+		NotContains(gemtext.Line{Type: gemtext.Text, Text: "Code: " + code})
 
 	s.
 		HandleInput(bobKeypair, "/users/invitations/accept", code).
@@ -237,7 +239,7 @@ func TestServer_InvitationCreateDeleteAccept(t *testing.T) {
 	alice.
 		Follow("⚙️ Settings").
 		Follow("🎟️ Invitations").
-		NotContains(Line{Type: Text, Text: "Code: " + code})
+		NotContains(gemtext.Line{Type: gemtext.Text, Text: "Code: " + code})
 }
 
 func TestServer_InvitationCreateAcceptDelete(t *testing.T) {
@@ -255,7 +257,7 @@ func TestServer_InvitationCreateAcceptDelete(t *testing.T) {
 	var code string
 	found := false
 	for _, line := range page.Lines {
-		if line.Type != Text {
+		if line.Type != gemtext.Text {
 			continue
 		}
 

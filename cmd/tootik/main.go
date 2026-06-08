@@ -17,16 +17,23 @@ limitations under the License.
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/tls"
+	"crypto/x509"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 
@@ -35,6 +42,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/dimkr/slopline"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/buildinfo"
 	"github.com/dimkr/tootik/cfg"
@@ -43,8 +51,10 @@ import (
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/front/gemini"
+	"github.com/dimkr/tootik/front/text/gmi"
 	tplain "github.com/dimkr/tootik/front/text/plain"
 	"github.com/dimkr/tootik/front/user"
+	"github.com/dimkr/tootik/gemtext"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/icon"
 	"github.com/dimkr/tootik/inbox"
@@ -78,12 +88,133 @@ var (
 	version       = flag.Bool("version", false, "Print version and exit")
 )
 
+func shell(
+	ctx context.Context,
+	handler front.Handler,
+	appActor *ap.Actor,
+	appActorKeys [2]httpsig.Key,
+) error {
+	u, err := url.Parse(fmt.Sprintf("gemini://%s/users", *domain))
+	if err != nil {
+		return err
+	}
+
+	prompt := *domain
+	var buf bytes.Buffer
+
+	for {
+		buf.Reset()
+
+		w := gmi.Wrap(&buf)
+		handler.Handle(
+			&front.Request{
+				Context: ctx,
+				URL:     u,
+				Log:     slog.Default(),
+				User:    appActor,
+				Keys:    appActorKeys,
+			},
+			w,
+		)
+		w.Flush()
+
+		status, lines, links := gemtext.Parse(buf.String())
+
+		slopline.SetHintsCallback(func(text string) (string, string, string) {
+			if text == "" && len(links) > 0 {
+				return fmt.Sprintf(" 1-%d", len(links)), "\033[90m", "\033[0m"
+			} else if len(links) == 0 {
+				return "", "", ""
+			}
+
+			if n, err := strconv.Atoi(text); err == nil && n > 0 {
+				i := 0
+				for _, line := range lines {
+					if line.Type != gemtext.Link {
+						continue
+					}
+
+					i++
+					if i == n {
+						return " " + line.Text, "\033[90m", "\033[0m"
+					}
+				}
+			}
+
+			return "", "", ""
+		})
+
+		if strings.HasPrefix(status, "30 ") {
+			rel, _ := url.Parse(status[3 : buf.Len()-2])
+			u = u.ResolveReference(rel)
+			continue
+		}
+
+		if strings.HasPrefix(status, "10 ") {
+			prompt = status[3:]
+		} else {
+			if err := gemtext.Pager(ctx, lines, 80); err != nil {
+				return err
+			}
+
+			for _, line := range lines {
+				if line.Type == gemtext.Heading {
+					prompt = line.Text
+					break
+				}
+			}
+		}
+
+		line, err := slopline.Line(fmt.Sprintf("\033[35m%s>\033[0m ", prompt))
+		if errors.Is(err, io.EOF) {
+			return nil
+		} else if err != nil {
+			return err
+		}
+
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		if n, err := strconv.Atoi(line); err == nil && n > 0 && n <= len(links) {
+			linkID := 1
+			for _, line := range lines {
+				if line.Type != gemtext.Link {
+					continue
+				}
+
+				if linkID < n {
+					linkID++
+					continue
+				}
+
+				rel, err := url.Parse(line.URL)
+				if err != nil {
+					return err
+				}
+
+				u = u.ResolveReference(rel)
+				break
+			}
+		} else {
+			rel, err := url.Parse(line)
+			if err != nil {
+				fmt.Printf("Invalid URL or command: %s\n", line)
+			}
+
+			u = u.ResolveReference(rel)
+		}
+	}
+}
+
 func main() {
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [flag]... [arg...]\n", os.Args[0])
 		flag.PrintDefaults()
 
 		fmt.Fprintf(flag.CommandLine.Output(), "\n%s [flag]...\n\tRun tootik\n", os.Args[0])
+		fmt.Fprintf(flag.CommandLine.Output(), "\n%s [flag]... shell [NAME]\n\tRun interactive shell\n", os.Args[0])
 		fmt.Fprintf(flag.CommandLine.Output(), "\n%s [flag]... add-community NAME\n\tAdd a community\n", os.Args[0])
 		fmt.Fprintf(flag.CommandLine.Output(), "\n%s [flag]... set-bio NAME PATH\n\tSet user's bio\n", os.Args[0])
 		fmt.Fprintf(flag.CommandLine.Output(), "\n%s [flag]... set-avatar NAME PATH\n\tSet user's avatar\n", os.Args[0])
@@ -98,7 +229,7 @@ func main() {
 	}
 
 	cmd := flag.Arg(0)
-	if !((cmd == "" && flag.NArg() == 0) || (cmd == "add-community" && flag.NArg() == 2 && flag.Arg(1) != "") || ((cmd == "set-bio" || cmd == "set-avatar") && flag.NArg() == 3 && flag.Arg(1) != "" && flag.Arg(2) != "")) {
+	if !((cmd == "" && flag.NArg() == 0) || (cmd == "shell" && flag.NArg() <= 2) || (cmd == "add-community" && flag.NArg() == 2 && flag.Arg(1) != "") || ((cmd == "set-bio" || cmd == "set-avatar") && flag.NArg() == 3 && flag.Arg(1) != "" && flag.Arg(2) != "")) {
 		flag.Usage()
 	}
 
@@ -207,6 +338,38 @@ func main() {
 	}
 
 	switch cmd {
+	case "shell":
+		handler, err := front.NewHandler(*domain, &cfg, resolver, db, localInbox)
+		if err != nil {
+			panic(err)
+		}
+
+		if flag.NArg() == 2 {
+			var actor ap.Actor
+			var rsaPrivKeyDer, ed25519PrivKey []byte
+			if err := db.QueryRowContext(
+				ctx,
+				`select json(actor), rsaprivkey, ed25519privkey from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null`,
+				flag.Arg(1),
+			).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey); err != nil {
+				panic(err)
+			}
+
+			rsaPrivKey, err := x509.ParsePKCS1PrivateKey(rsaPrivKeyDer)
+			if err != nil {
+				panic(err)
+			}
+
+			shell(ctx, handler, &actor, [2]httpsig.Key{
+				{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
+				{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)},
+			})
+		} else if err := shell(ctx, handler, appActor, appActorKeys); err != nil {
+			panic(err)
+		}
+
+		return
+
 	case "add-community":
 		_, _, err := user.CreatePortable(ctx, *domain, db, &cfg, flag.Arg(1), ap.Group, nil)
 		if err != nil {

@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/dimkr/tootik/gemtext"
 	"github.com/dimkr/tootik/outbox"
 )
 
@@ -60,7 +61,7 @@ func TestDeleter_OldData(t *testing.T) {
 		OK()
 
 	for _, line := range bob.FollowInput("🔭 View profile", "carol@b.localdomain").Lines {
-		if line.Type != Link {
+		if line.Type != gemtext.Link {
 			continue
 		}
 
@@ -77,11 +78,11 @@ func TestDeleter_OldData(t *testing.T) {
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(Line{Type: Quote, Text: "hello 1"}).
-		Contains(Line{Type: Quote, Text: "hello 2"}).
-		Contains(Line{Type: Quote, Text: "hello 3"}).
-		Contains(Line{Type: Quote, Text: "hi 1"}).
-		Contains(Line{Type: Quote, Text: "hi 2"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello 1"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello 2"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello 3"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hi 1"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hi 2"})
 
 	if res, err := cluster["b.localdomain"].DB.ExecContext(t.Context(), `update notes set inserted = inserted - (24 * 60 * 60 * 31) where object->>'$.content' = '<p>hello 1</p>'`); err != nil {
 		t.Fatalf("Failed to set post #1 insertion time: %v", err)
@@ -126,18 +127,18 @@ func TestDeleter_OldData(t *testing.T) {
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(Line{Type: Quote, Text: "hello 1"}).
-		Contains(Line{Type: Quote, Text: "hello 2"}).
-		Contains(Line{Type: Quote, Text: "hello 3"}).
-		Contains(Line{Type: Quote, Text: "hi 1"}).
-		Contains(Line{Type: Quote, Text: "hi 2"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello 1"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello 2"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello 3"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hi 1"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hi 2"})
 
 	bob.
 		Follow("⚙️ Settings").
 		Follow("⏳ Post deletion policy").
-		Contains(Line{Type: Text, Text: "Current setting: old posts are not deleted automatically."}).
+		Contains(gemtext.Line{Type: gemtext.Text, Text: "Current setting: old posts are not deleted automatically."}).
 		Follow("After a month").
-		Contains(Line{Type: Text, Text: "Current setting: posts are deleted after a month."})
+		Contains(gemtext.Line{Type: gemtext.Text, Text: "Current setting: posts are deleted after a month."})
 
 	if err := deleter.Run(t.Context()); err != nil {
 		t.Fatalf("Deleter has failed: %v", err)
@@ -145,21 +146,21 @@ func TestDeleter_OldData(t *testing.T) {
 
 	carol.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		NotContains(Line{Type: Quote, Text: "hello 1"}).
-		NotContains(Line{Type: Quote, Text: "hello 2"}).
-		Contains(Line{Type: Quote, Text: "hello 3"}).
-		Contains(Line{Type: Quote, Text: "hi 1"}).
-		NotContains(Line{Type: Quote, Text: "hi 2"})
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello 1"}).
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello 2"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello 3"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hi 1"}).
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hi 2"})
 
 	cluster.Settle(t)
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		NotContains(Line{Type: Quote, Text: "hello 1"}).
-		NotContains(Line{Type: Quote, Text: "hello 2"}).
-		Contains(Line{Type: Quote, Text: "hello 3"}).
-		Contains(Line{Type: Quote, Text: "hi 1"}).
-		NotContains(Line{Type: Quote, Text: "hi 2"})
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello 1"}).
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello 2"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello 3"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hi 1"}).
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hi 2"})
 }
 
 func TestDeleter_Disabled(t *testing.T) {
@@ -173,9 +174,9 @@ func TestDeleter_Disabled(t *testing.T) {
 	bob.
 		Follow("⚙️ Settings").
 		Follow("⏳ Post deletion policy").
-		Contains(Line{Type: Text, Text: "Current setting: old posts are not deleted automatically."}).
+		Contains(gemtext.Line{Type: gemtext.Text, Text: "Current setting: old posts are not deleted automatically."}).
 		Follow("After a month").
-		Contains(Line{Type: Text, Text: "Current setting: posts are deleted after a month."})
+		Contains(gemtext.Line{Type: gemtext.Text, Text: "Current setting: posts are deleted after a month."})
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
@@ -206,7 +207,7 @@ func TestDeleter_Disabled(t *testing.T) {
 		OK()
 
 	for _, line := range bob.FollowInput("🔭 View profile", "carol@b.localdomain").Lines {
-		if line.Type != Link {
+		if line.Type != gemtext.Link {
 			continue
 		}
 
@@ -223,11 +224,11 @@ func TestDeleter_Disabled(t *testing.T) {
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(Line{Type: Quote, Text: "hello 1"}).
-		Contains(Line{Type: Quote, Text: "hello 2"}).
-		Contains(Line{Type: Quote, Text: "hello 3"}).
-		Contains(Line{Type: Quote, Text: "hi 1"}).
-		Contains(Line{Type: Quote, Text: "hi 2"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello 1"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello 2"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello 3"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hi 1"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hi 2"})
 
 	if res, err := cluster["b.localdomain"].DB.ExecContext(t.Context(), `update notes set inserted = inserted - (24 * 60 * 60 * 31) where object->>'$.content' = '<p>hello 1</p>'`); err != nil {
 		t.Fatalf("Failed to set post #1 insertion time: %v", err)
@@ -264,9 +265,9 @@ func TestDeleter_Disabled(t *testing.T) {
 	bob.
 		Follow("⚙️ Settings").
 		Follow("⏳ Post deletion policy").
-		Contains(Line{Type: Text, Text: "Current setting: posts are deleted after a month."}).
+		Contains(gemtext.Line{Type: gemtext.Text, Text: "Current setting: posts are deleted after a month."}).
 		Follow("Never").
-		Contains(Line{Type: Text, Text: "Current setting: old posts are not deleted automatically."})
+		Contains(gemtext.Line{Type: gemtext.Text, Text: "Current setting: old posts are not deleted automatically."})
 
 	deleter := outbox.Deleter{
 		DB:    cluster["b.localdomain"].DB,
@@ -279,19 +280,19 @@ func TestDeleter_Disabled(t *testing.T) {
 
 	carol.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(Line{Type: Quote, Text: "hello 1"}).
-		Contains(Line{Type: Quote, Text: "hello 2"}).
-		Contains(Line{Type: Quote, Text: "hello 3"}).
-		Contains(Line{Type: Quote, Text: "hi 1"}).
-		Contains(Line{Type: Quote, Text: "hi 2"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello 1"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello 2"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello 3"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hi 1"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hi 2"})
 
 	cluster.Settle(t)
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(Line{Type: Quote, Text: "hello 1"}).
-		Contains(Line{Type: Quote, Text: "hello 2"}).
-		Contains(Line{Type: Quote, Text: "hello 3"}).
-		Contains(Line{Type: Quote, Text: "hi 1"}).
-		Contains(Line{Type: Quote, Text: "hi 2"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello 1"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello 2"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello 3"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hi 1"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hi 2"})
 }

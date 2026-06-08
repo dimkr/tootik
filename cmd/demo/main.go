@@ -32,8 +32,7 @@ import (
 
 	"github.com/creack/pty"
 	"github.com/dimkr/slopline"
-	"github.com/dimkr/tootik/cluster"
-	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/gemtext"
 	"golang.org/x/term"
 )
 
@@ -43,58 +42,6 @@ const (
 )
 
 var record = flag.String("record", "", "record to a file")
-
-func render(p cluster.Page) ([]string, []string) {
-	var lines, links []string
-	linkID := 1
-	for _, l := range p.Lines {
-		switch l.Type {
-		case cluster.Heading:
-			for _, line := range text.WordWrap(l.Text, cols-2, -1) {
-				lines = append(lines, "\033[4m# "+line+"\033[0m")
-			}
-
-		case cluster.SubHeading:
-			for _, line := range text.WordWrap(l.Text, cols-3, -1) {
-				lines = append(lines, "\033[4m## "+line+"\033[0m")
-			}
-
-		case cluster.Quote:
-			for _, line := range text.WordWrap(l.Text, cols-2, -1) {
-				lines = append(lines, "> "+line)
-			}
-
-		case cluster.Item:
-			for i, line := range text.WordWrap(l.Text, cols-2, -1) {
-				if i == 0 {
-					lines = append(lines, "* "+line)
-				} else {
-					lines = append(lines, " "+line)
-				}
-			}
-
-		case cluster.Link:
-			prefix := fmt.Sprintf("[%d] ", linkID)
-			for i, line := range text.WordWrap(l.Text, cols-len(prefix), -1) {
-				if i == 0 {
-					lines = append(lines, fmt.Sprintf("\033[4;36m[%d]\033[0;39m %s", linkID, line))
-				} else {
-					lines = append(lines, strings.Repeat(" ", len(prefix))+line)
-				}
-			}
-			links = append(links, l.URL)
-			linkID++
-
-		case cluster.Preformatted:
-			lines = append(lines, text.WordWrap(l.Text, cols, -1)[0])
-
-		default:
-			lines = append(lines, text.WordWrap(l.Text, cols, -1)...)
-		}
-	}
-
-	return lines, links
-}
 
 func delay(ctx context.Context, d time.Duration) {
 	select {
@@ -303,7 +250,6 @@ func main() {
 	defer cl.Stop()
 
 	p := cl["pizza.example"].Handle(keyPairs["alice"], "/users")
-	var history []string
 	var links []string
 
 	slopline.SetHintsCallback(func(text string) (string, string, string) {
@@ -316,7 +262,7 @@ func main() {
 		if n, err := strconv.Atoi(text); err == nil && n > 0 {
 			i := 0
 			for _, line := range p.Lines {
-				if line.Type != cluster.Link {
+				if line.Type != gemtext.Link {
 					continue
 				}
 
@@ -335,17 +281,15 @@ func main() {
 			break
 		}
 
-		var lines []string
-		lines, links = render(p)
-
-		if len(lines) > 0 {
-			c := exec.CommandContext(ctx, "less", "-r")
-			c.Stdin = strings.NewReader(strings.Join(lines, "\n"))
-			c.Stdout = os.Stdout
-			c.Stderr = os.Stderr
-			if err := c.Run(); err != nil {
-				panic(err)
+		links = links[:0]
+		for _, line := range p.Lines {
+			if line.Type == gemtext.Link {
+				links = append(links, line.URL)
 			}
+		}
+
+		if err := gemtext.Pager(ctx, p.Lines, cols); err != nil {
+			panic(err)
 		}
 
 		prompt := "pizza.example"
@@ -353,7 +297,7 @@ func main() {
 			prompt = p.Status[3:]
 		} else {
 			for _, line := range p.Lines {
-				if line.Type == cluster.Heading {
+				if line.Type == gemtext.Heading {
 					prompt = line.Text
 					break
 				}
@@ -376,7 +320,6 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
-			history = append(history, p.Path)
 			p = p.Goto(u.String())
 		} else if strings.HasPrefix(p.Status, "10 ") {
 			u, err := url.Parse(p.Path)
@@ -384,7 +327,6 @@ func main() {
 				panic(err)
 			}
 			u.RawQuery = url.QueryEscape(line)
-			history = append(history, p.Path)
 			p = p.Goto(u.String())
 		} else {
 			u, err := url.Parse(line)
@@ -392,7 +334,6 @@ func main() {
 				fmt.Printf("Invalid URL or command: %s\n", line)
 				continue
 			}
-			history = append(history, p.Path)
 			p = p.Goto(u.String())
 		}
 	}

@@ -16,7 +16,11 @@ limitations under the License.
 
 package cluster
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/dimkr/tootik/gemtext"
+)
 
 func TestCluster_BackfillMissingParent(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
@@ -44,30 +48,30 @@ func TestCluster_BackfillMissingParent(t *testing.T) {
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(Line{Type: Quote, Text: "hello"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
 
 	carol.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		NotContains(Line{Type: Quote, Text: "hello"})
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
 
 	reply := alice.GotoInput(post.Links["💬 Reply"], "hi").
-		Contains(Line{Type: Quote, Text: "hi"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hi"})
 	cluster.Settle(t)
 
 	carol.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "hi"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hi"})
 
 	carol.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(Line{Type: Quote, Text: "hello"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
 
 	post.Follow("💣 Delete").OK()
 	cluster.Settle(t)
 
 	carol.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(Line{Type: Quote, Text: "hello"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
 
 	cluster["c.localdomain"].Config.BackfillInterval = 0
 
@@ -76,11 +80,11 @@ func TestCluster_BackfillMissingParent(t *testing.T) {
 
 	carol.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "hola"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
 
 	carol.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		NotContains(Line{Type: Quote, Text: "hello"})
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
 }
 
 func TestCluster_BackfillDeletedParentSameServer(t *testing.T) {
@@ -104,15 +108,15 @@ func TestCluster_BackfillDeletedParentSameServer(t *testing.T) {
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "a"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "a"})
 
 	deleted := alice.
 		GotoInput(head.Links["💬 Reply"], "b").
-		Contains(Line{Type: Quote, Text: "b"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "b"})
 
 	reply := bob.
 		GotoInput(deleted.Links["💬 Reply"], "c").
-		Contains(Line{Type: Quote, Text: "c"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "c"})
 
 	deleted.
 		Follow("💣 Delete").
@@ -122,9 +126,9 @@ func TestCluster_BackfillDeletedParentSameServer(t *testing.T) {
 
 	carol.
 		Goto(reply.Path).
-		Contains(Line{Type: Quote, Text: "a"}).
-		NotContains(Line{Type: Quote, Text: "b"}).
-		Contains(Line{Type: Quote, Text: "c"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "a"}).
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "b"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "c"})
 }
 
 func TestCluster_BackfillDeletedParentDifferentServer(t *testing.T) {
@@ -153,11 +157,11 @@ func TestCluster_BackfillDeletedParentDifferentServer(t *testing.T) {
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "a"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "a"})
 
 	deleted := alice.
 		GotoInput(head.Links["💬 Reply"], "b").
-		Contains(Line{Type: Quote, Text: "b"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "b"})
 	cluster.Settle(t)
 
 	deleted.
@@ -165,12 +169,12 @@ func TestCluster_BackfillDeletedParentDifferentServer(t *testing.T) {
 		OK()
 	reply := bob.
 		GotoInput(deleted.Links["💬 Reply"], "c").
-		Contains(Line{Type: Quote, Text: "c"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "c"})
 	cluster.Settle(t)
 
 	carol.
 		Goto(reply.Path).
-		Contains(Line{Type: Quote, Text: "a"}).
-		NotContains(Line{Type: Quote, Text: "b"}).
-		Contains(Line{Type: Quote, Text: "c"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "a"}).
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "b"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "c"})
 }

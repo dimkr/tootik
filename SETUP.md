@@ -222,6 +222,18 @@ tootik -domain $domain -db /tootik-data/db.sqlite3 set-bio fountainpens /tmp/bio
 tootik -domain $domain -db /tootik-data/db.sqlite3 set-avatar fountainpens /tmp/avatar.png
 ```
 
+To run an interactive shell:
+
+```
+tootik -domain $domain -db /tootik-data/db.sqlite3 shell
+```
+
+To run an interactive shell on behalf of a user named `alice`:
+
+```
+tootik -domain $domain -db /tootik-data/db.sqlite3 shell alice
+```
+
 ## Running behind a reverse proxy
 
 * Run tootik with `-plain`, so it speaks HTTP and the reverse proxy handles TLS.

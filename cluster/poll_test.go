@@ -19,6 +19,7 @@ package cluster
 import (
 	"testing"
 
+	"github.com/dimkr/tootik/gemtext"
 	"github.com/dimkr/tootik/outbox"
 )
 
@@ -67,16 +68,16 @@ func TestCluster_Poll(t *testing.T) {
 
 	bob.
 		Goto(poll.Path).
-		Contains(Line{Type: Preformatted, Text: "2 ████████ Gray"}).
-		Contains(Line{Type: Preformatted, Text: "1 ████     Orange"})
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "2 ████████ Gray"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "1 ████     Orange"})
 	alice.
 		Goto(poll.Path).
-		Contains(Line{Type: Preformatted, Text: "2 ████████ Gray"}).
-		Contains(Line{Type: Preformatted, Text: "1 ████     Orange"})
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "2 ████████ Gray"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "1 ████     Orange"})
 	carol.
 		Goto(poll.Path).
-		Contains(Line{Type: Preformatted, Text: "2 ████████ Gray"}).
-		Contains(Line{Type: Preformatted, Text: "1 ████     Orange"})
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "2 ████████ Gray"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "1 ████     Orange"})
 
 	alice.Follow("💣 Delete").OK()
 	cluster.Settle(t)
@@ -87,16 +88,16 @@ func TestCluster_Poll(t *testing.T) {
 
 	bob.
 		Goto(poll.Path).
-		Contains(Line{Type: Preformatted, Text: "1 ████████ Gray"}).
-		Contains(Line{Type: Preformatted, Text: "1 ████████ Orange"})
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "1 ████████ Gray"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "1 ████████ Orange"})
 	alice.
 		Goto(poll.Path).
-		Contains(Line{Type: Preformatted, Text: "1 ████████ Gray"}).
-		Contains(Line{Type: Preformatted, Text: "1 ████████ Orange"})
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "1 ████████ Gray"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "1 ████████ Orange"})
 	carol.
 		Goto(poll.Path).
-		Contains(Line{Type: Preformatted, Text: "1 ████████ Gray"}).
-		Contains(Line{Type: Preformatted, Text: "1 ████████ Orange"})
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "1 ████████ Gray"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "1 ████████ Orange"})
 
 	carol.Follow("💣 Delete").OK()
 	cluster.Settle(t)
@@ -107,16 +108,16 @@ func TestCluster_Poll(t *testing.T) {
 
 	bob.
 		Goto(poll.Path).
-		Contains(Line{Type: Preformatted, Text: "0          Gray"}).
-		Contains(Line{Type: Preformatted, Text: "1 ████████ Orange"})
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "0          Gray"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "1 ████████ Orange"})
 	alice.
 		Goto(poll.Path).
-		Contains(Line{Type: Preformatted, Text: "0          Gray"}).
-		Contains(Line{Type: Preformatted, Text: "1 ████████ Orange"})
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "0          Gray"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "1 ████████ Orange"})
 	carol.
 		Goto(poll.Path).
-		Contains(Line{Type: Preformatted, Text: "0          Gray"}).
-		Contains(Line{Type: Preformatted, Text: "1 ████████ Orange"})
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "0          Gray"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "1 ████████ Orange"})
 
 	bob.
 		Follow("💣 Delete").
@@ -129,16 +130,16 @@ func TestCluster_Poll(t *testing.T) {
 
 	bob.
 		Goto(poll.Path).
-		Contains(Line{Type: Preformatted, Text: "0          Gray"}).
-		Contains(Line{Type: Preformatted, Text: "0          Orange"})
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "0          Gray"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "0          Orange"})
 	alice.
 		Goto(poll.Path).
-		Contains(Line{Type: Preformatted, Text: "0          Gray"}).
-		Contains(Line{Type: Preformatted, Text: "0          Orange"})
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "0          Gray"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "0          Orange"})
 	carol.
 		Goto(poll.Path).
-		Contains(Line{Type: Preformatted, Text: "0          Gray"}).
-		Contains(Line{Type: Preformatted, Text: "0          Orange"})
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "0          Gray"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "0          Orange"})
 }
 
 func TestCluster_PollVotersCount(t *testing.T) {
@@ -188,19 +189,19 @@ func TestCluster_PollVotersCount(t *testing.T) {
 
 	bob.
 		Goto(poll.Path).
-		Contains(Line{Type: SubHeading, Text: "📊 Results (2 voters)"}).
-		Contains(Line{Type: Preformatted, Text: "2 ████████ Gray"}).
-		Contains(Line{Type: Preformatted, Text: "1 ████     Orange"})
+		Contains(gemtext.Line{Type: gemtext.SubHeading, Text: "📊 Results (2 voters)"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "2 ████████ Gray"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "1 ████     Orange"})
 	alice.
 		Goto(poll.Path).
-		Contains(Line{Type: SubHeading, Text: "📊 Results (2 voters)"}).
-		Contains(Line{Type: Preformatted, Text: "2 ████████ Gray"}).
-		Contains(Line{Type: Preformatted, Text: "1 ████     Orange"})
+		Contains(gemtext.Line{Type: gemtext.SubHeading, Text: "📊 Results (2 voters)"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "2 ████████ Gray"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "1 ████     Orange"})
 	carol.
 		Goto(poll.Path).
-		Contains(Line{Type: SubHeading, Text: "📊 Results (2 voters)"}).
-		Contains(Line{Type: Preformatted, Text: "2 ████████ Gray"}).
-		Contains(Line{Type: Preformatted, Text: "1 ████     Orange"})
+		Contains(gemtext.Line{Type: gemtext.SubHeading, Text: "📊 Results (2 voters)"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "2 ████████ Gray"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "1 ████     Orange"})
 
 	carolVote.Follow("💣 Delete").OK()
 	cluster.Settle(t)
@@ -211,19 +212,19 @@ func TestCluster_PollVotersCount(t *testing.T) {
 
 	bob.
 		Goto(poll.Path).
-		Contains(Line{Type: SubHeading, Text: "📊 Results (one voter)"}).
-		Contains(Line{Type: Preformatted, Text: "1 ████████ Gray"}).
-		Contains(Line{Type: Preformatted, Text: "1 ████████ Orange"})
+		Contains(gemtext.Line{Type: gemtext.SubHeading, Text: "📊 Results (one voter)"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "1 ████████ Gray"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "1 ████████ Orange"})
 	alice.
 		Goto(poll.Path).
-		Contains(Line{Type: SubHeading, Text: "📊 Results (one voter)"}).
-		Contains(Line{Type: Preformatted, Text: "1 ████████ Gray"}).
-		Contains(Line{Type: Preformatted, Text: "1 ████████ Orange"})
+		Contains(gemtext.Line{Type: gemtext.SubHeading, Text: "📊 Results (one voter)"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "1 ████████ Gray"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "1 ████████ Orange"})
 	carol.
 		Goto(poll.Path).
-		Contains(Line{Type: SubHeading, Text: "📊 Results (one voter)"}).
-		Contains(Line{Type: Preformatted, Text: "1 ████████ Gray"}).
-		Contains(Line{Type: Preformatted, Text: "1 ████████ Orange"})
+		Contains(gemtext.Line{Type: gemtext.SubHeading, Text: "📊 Results (one voter)"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "1 ████████ Gray"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "1 ████████ Orange"})
 
 	aliceVote2.Follow("💣 Delete").OK()
 	cluster.Settle(t)
@@ -234,19 +235,19 @@ func TestCluster_PollVotersCount(t *testing.T) {
 
 	bob.
 		Goto(poll.Path).
-		Contains(Line{Type: SubHeading, Text: "📊 Results (one voter)"}).
-		Contains(Line{Type: Preformatted, Text: "1 ████████ Gray"}).
-		Contains(Line{Type: Preformatted, Text: "0          Orange"})
+		Contains(gemtext.Line{Type: gemtext.SubHeading, Text: "📊 Results (one voter)"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "1 ████████ Gray"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "0          Orange"})
 	alice.
 		Goto(poll.Path).
-		Contains(Line{Type: SubHeading, Text: "📊 Results (one voter)"}).
-		Contains(Line{Type: Preformatted, Text: "1 ████████ Gray"}).
-		Contains(Line{Type: Preformatted, Text: "0          Orange"})
+		Contains(gemtext.Line{Type: gemtext.SubHeading, Text: "📊 Results (one voter)"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "1 ████████ Gray"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "0          Orange"})
 	carol.
 		Goto(poll.Path).
-		Contains(Line{Type: SubHeading, Text: "📊 Results (one voter)"}).
-		Contains(Line{Type: Preformatted, Text: "1 ████████ Gray"}).
-		Contains(Line{Type: Preformatted, Text: "0          Orange"})
+		Contains(gemtext.Line{Type: gemtext.SubHeading, Text: "📊 Results (one voter)"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "1 ████████ Gray"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "0          Orange"})
 
 	aliceVote1.Follow("💣 Delete").OK()
 	cluster.Settle(t)
@@ -257,17 +258,17 @@ func TestCluster_PollVotersCount(t *testing.T) {
 
 	bob.
 		Goto(poll.Path).
-		Contains(Line{Type: SubHeading, Text: "📊 Results (0 voters)"}).
-		Contains(Line{Type: Preformatted, Text: "0          Gray"}).
-		Contains(Line{Type: Preformatted, Text: "0          Orange"})
+		Contains(gemtext.Line{Type: gemtext.SubHeading, Text: "📊 Results (0 voters)"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "0          Gray"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "0          Orange"})
 	alice.
 		Goto(poll.Path).
-		Contains(Line{Type: SubHeading, Text: "📊 Results (0 voters)"}).
-		Contains(Line{Type: Preformatted, Text: "0          Gray"}).
-		Contains(Line{Type: Preformatted, Text: "0          Orange"})
+		Contains(gemtext.Line{Type: gemtext.SubHeading, Text: "📊 Results (0 voters)"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "0          Gray"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "0          Orange"})
 	carol.
 		Goto(poll.Path).
-		Contains(Line{Type: SubHeading, Text: "📊 Results (0 voters)"}).
-		Contains(Line{Type: Preformatted, Text: "0          Gray"}).
-		Contains(Line{Type: Preformatted, Text: "0          Orange"})
+		Contains(gemtext.Line{Type: gemtext.SubHeading, Text: "📊 Results (0 voters)"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "0          Gray"}).
+		Contains(gemtext.Line{Type: gemtext.Preformatted, Text: "0          Orange"})
 }

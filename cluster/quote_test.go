@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ package cluster
 import (
 	"strings"
 	"testing"
+
+	"github.com/dimkr/tootik/gemtext"
 )
 
 func TestCluster_PublicPostQuote(t *testing.T) {
@@ -41,12 +43,12 @@ func TestCluster_PublicPostQuote(t *testing.T) {
 	post := bob.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "hello").
-		Contains(Line{Type: Quote, Text: "hello"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
 	cluster.Settle(t)
 
 	profile := alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(Line{Type: Quote, Text: "hello"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
 
 	quoted := false
 	for desc, url := range profile.Links {
@@ -54,8 +56,8 @@ func TestCluster_PublicPostQuote(t *testing.T) {
 			profile.
 				Follow(desc).
 				FollowInput("♻️ Quote", "hola").
-				Contains(Line{Type: Quote, Text: "hola"}).
-				Contains(Line{Type: Quote, Text: "hello"})
+				Contains(gemtext.Line{Type: gemtext.Quote, Text: "hola"}).
+				Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
 
 			quoted = true
 			break
@@ -71,6 +73,6 @@ func TestCluster_PublicPostQuote(t *testing.T) {
 	post.
 		Refresh().
 		Follow("♻️ alice").
-		Contains(Line{Type: Quote, Text: "hola"}).
-		Contains(Line{Type: Quote, Text: "hello"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hola"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
 }

@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/gemtext"
 	"github.com/dimkr/tootik/front/user"
 )
 
@@ -54,7 +55,7 @@ func TestMention_ResolvedOP(t *testing.T) {
 
 	carol.
 		GotoInput(reply1.Links["💬 Reply"], "@alice reply 2").
-		Contains(Line{Type: Link, Text: "alice", URL: "/users/outbox/a.localdomain/user/alice"})
+		Contains(gemtext.Line{Type: gemtext.Link, Text: "alice", URL: "/users/outbox/a.localdomain/user/alice"})
 }
 
 func TestMention_ResolvedParticipant(t *testing.T) {
@@ -93,7 +94,7 @@ func TestMention_ResolvedParticipant(t *testing.T) {
 
 	carol.
 		GotoInput(reply2.Links["💬 Reply"], "@bob reply 3").
-		Contains(Line{Type: Link, Text: "bob", URL: "/users/outbox/b.localdomain/user/bob"})
+		Contains(gemtext.Line{Type: gemtext.Link, Text: "bob", URL: "/users/outbox/b.localdomain/user/bob"})
 }
 
 func TestMention_AmbiguousOPAndFollowed(t *testing.T) {
@@ -171,7 +172,7 @@ func TestMention_ResolvedOPAndFollowed(t *testing.T) {
 
 	carol.
 		GotoInput(reply1.Links["💬 Reply"], "@alice@a.localdomain reply 2").
-		Contains(Line{Type: Link, Text: "alice", URL: "/users/outbox/a.localdomain/user/alice"})
+		Contains(gemtext.Line{Type: gemtext.Link, Text: "alice", URL: "/users/outbox/a.localdomain/user/alice"})
 }
 
 func TestMention_ResolvedFollow(t *testing.T) {
@@ -190,7 +191,7 @@ func TestMention_ResolvedFollow(t *testing.T) {
 	alice.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "@bob post").
-		Contains(Line{Type: Link, Text: "bob", URL: "/users/outbox/b.localdomain/user/bob"})
+		Contains(gemtext.Line{Type: gemtext.Link, Text: "bob", URL: "/users/outbox/b.localdomain/user/bob"})
 }
 
 func TestMention_ResolvedUserAndHost(t *testing.T) {
@@ -214,7 +215,7 @@ func TestMention_ResolvedUserAndHost(t *testing.T) {
 	alice.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "@bob@c.localdomain post").
-		Contains(Line{Type: Link, Text: "bob", URL: "/users/outbox/c.localdomain/user/bob"})
+		Contains(gemtext.Line{Type: gemtext.Link, Text: "bob", URL: "/users/outbox/c.localdomain/user/bob"})
 }
 
 func TestMention_AmbiguousFollowedAndGroup(t *testing.T) {
@@ -241,7 +242,7 @@ func TestMention_AmbiguousFollowedAndGroup(t *testing.T) {
 	alice.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "@bob post").
-		Contains(Line{Type: Link, Text: "bob", URL: "/users/outbox/b.localdomain/user/bob"})
+		Contains(gemtext.Line{Type: gemtext.Link, Text: "bob", URL: "/users/outbox/b.localdomain/user/bob"})
 }
 
 func TestMention_AmbiguousGroupAndFollowed(t *testing.T) {
@@ -269,7 +270,7 @@ func TestMention_AmbiguousGroupAndFollowed(t *testing.T) {
 	alice.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "!bob post").
-		Contains(Line{Type: Link, Text: "bob", URL: "/users/outbox/" + group.ID[8:]})
+		Contains(gemtext.Line{Type: gemtext.Link, Text: "bob", URL: "/users/outbox/" + group.ID[8:]})
 }
 
 func TestMention_AmbiguousGroupAndGroup(t *testing.T) {

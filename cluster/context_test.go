@@ -16,7 +16,11 @@ limitations under the License.
 
 package cluster
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/dimkr/tootik/gemtext"
+)
 
 func TestCluster_Context(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
@@ -38,128 +42,128 @@ func TestCluster_Context(t *testing.T) {
 
 	b := a.
 		FollowInput("💬 Reply", "b").
-		Contains(Line{Type: Quote, Text: "b"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "b"})
 
 	c := b.
 		FollowInput("💬 Reply", "c").
-		Contains(Line{Type: Quote, Text: "c"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "c"})
 
 	d := c.
 		FollowInput("💬 Reply", "d").
-		Contains(Line{Type: Quote, Text: "d"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "d"})
 
 	e := d.
 		FollowInput("💬 Reply", "e").
-		Contains(Line{Type: Quote, Text: "e"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "e"})
 
 	f := e.
 		FollowInput("💬 Reply", "f").
-		Contains(Line{Type: Quote, Text: "f"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "f"})
 
 	i := f.
 		FollowInput("💬 Reply", "g").
-		Contains(Line{Type: Quote, Text: "g"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "g"}).
 		FollowInput("💬 Reply", "h").
-		Contains(Line{Type: Quote, Text: "h"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "h"}).
 		FollowInput("💬 Reply", "i").
-		Contains(Line{Type: Quote, Text: "i"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "i"})
 	cluster.Settle(t)
 
 	cluster["b.localdomain"].Config.PostContextDepth = 5
 
 	bob.
 		Goto(i.Path).
-		Contains(Line{Type: Quote, Text: "a"}).
-		Contains(Line{Type: Link, Text: "[3 replies]", URL: d.Path}).
-		NotContains(Line{Type: Quote, Text: "b"}).
-		NotContains(Line{Type: Quote, Text: "c"}).
-		NotContains(Line{Type: Quote, Text: "d"}).
-		Contains(Line{Type: Quote, Text: "e"}).
-		Contains(Line{Type: Quote, Text: "f"}).
-		Contains(Line{Type: Quote, Text: "g"}).
-		Contains(Line{Type: Quote, Text: "h"}).
-		Contains(Line{Type: Quote, Text: "i"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "a"}).
+		Contains(gemtext.Line{Type: gemtext.Link, Text: "[3 replies]", URL: d.Path}).
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "b"}).
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "c"}).
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "d"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "e"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "f"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "g"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "h"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "i"})
 
 	cluster["b.localdomain"].Config.PostContextDepth = 4
 
 	bob.
 		Goto(i.Path).
-		Contains(Line{Type: Quote, Text: "a"}).
-		Contains(Line{Type: Link, Text: "[4 replies]", URL: e.Path}).
-		NotContains(Line{Type: Quote, Text: "b"}).
-		NotContains(Line{Type: Quote, Text: "c"}).
-		NotContains(Line{Type: Quote, Text: "d"}).
-		NotContains(Line{Type: Quote, Text: "e"}).
-		Contains(Line{Type: Quote, Text: "f"}).
-		Contains(Line{Type: Quote, Text: "g"}).
-		Contains(Line{Type: Quote, Text: "h"}).
-		Contains(Line{Type: Quote, Text: "i"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "a"}).
+		Contains(gemtext.Line{Type: gemtext.Link, Text: "[4 replies]", URL: e.Path}).
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "b"}).
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "c"}).
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "d"}).
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "e"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "f"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "g"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "h"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "i"})
 
 	bob.
 		Goto(f.Path).
-		Contains(Line{Type: Quote, Text: "a"}).
-		Contains(Line{Type: Link, Text: "[1 reply]", URL: b.Path}).
-		NotContains(Line{Type: Quote, Text: "b"}).
-		Contains(Line{Type: Quote, Text: "c"}).
-		Contains(Line{Type: Quote, Text: "d"}).
-		Contains(Line{Type: Quote, Text: "e"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "a"}).
+		Contains(gemtext.Line{Type: gemtext.Link, Text: "[1 reply]", URL: b.Path}).
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "b"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "c"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "d"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "e"})
 
 	bob.
 		Goto(e.Path).
-		Contains(Line{Type: Quote, Text: "a"}).
-		Contains(Line{Type: Quote, Text: "b"}).
-		Contains(Line{Type: Quote, Text: "c"}).
-		Contains(Line{Type: Quote, Text: "d"}).
-		Contains(Line{Type: Quote, Text: "e"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "a"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "b"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "c"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "d"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "e"})
 
 	cluster["b.localdomain"].Config.PostContextDepth--
 
 	bob.
 		Goto(e.Path).
-		Contains(Line{Type: Quote, Text: "a"}).
-		Contains(Line{Type: Link, Text: "[1 reply]", URL: b.Path}).
-		NotContains(Line{Type: Quote, Text: "b"}).
-		Contains(Line{Type: Quote, Text: "c"}).
-		Contains(Line{Type: Quote, Text: "d"}).
-		Contains(Line{Type: Quote, Text: "e"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "a"}).
+		Contains(gemtext.Line{Type: gemtext.Link, Text: "[1 reply]", URL: b.Path}).
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "b"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "c"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "d"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "e"})
 
 	cluster["b.localdomain"].Config.PostContextDepth--
 
 	bob.
 		Goto(e.Path).
-		Contains(Line{Type: Quote, Text: "a"}).
-		Contains(Line{Type: Link, Text: "[2 replies]", URL: c.Path}).
-		NotContains(Line{Type: Quote, Text: "b"}).
-		NotContains(Line{Type: Quote, Text: "c"}).
-		Contains(Line{Type: Quote, Text: "d"}).
-		Contains(Line{Type: Quote, Text: "e"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "a"}).
+		Contains(gemtext.Line{Type: gemtext.Link, Text: "[2 replies]", URL: c.Path}).
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "b"}).
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "c"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "d"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "e"})
 
 	cluster["b.localdomain"].Config.PostContextDepth--
 
 	bob.
 		Goto(e.Path).
-		Contains(Line{Type: Quote, Text: "a"}).
-		Contains(Line{Type: Link, Text: "[3 replies]", URL: d.Path}).
-		NotContains(Line{Type: Quote, Text: "b"}).
-		NotContains(Line{Type: Quote, Text: "c"}).
-		NotContains(Line{Type: Quote, Text: "d"}).
-		Contains(Line{Type: Quote, Text: "e"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "a"}).
+		Contains(gemtext.Line{Type: gemtext.Link, Text: "[3 replies]", URL: d.Path}).
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "b"}).
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "c"}).
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "d"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "e"})
 
 	bob.
 		Goto(d.Path).
-		Contains(Line{Type: Quote, Text: "a"}).
-		Contains(Line{Type: Link, Text: "[2 replies]", URL: c.Path}).
-		NotContains(Line{Type: Quote, Text: "b"}).
-		NotContains(Line{Type: Quote, Text: "c"}).
-		Contains(Line{Type: Quote, Text: "d"}).
-		Contains(Line{Type: Quote, Text: "e"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "a"}).
+		Contains(gemtext.Line{Type: gemtext.Link, Text: "[2 replies]", URL: c.Path}).
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "b"}).
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "c"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "d"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "e"})
 
 	bob.
 		Goto(c.Path).
-		Contains(Line{Type: Quote, Text: "a"}).
-		Contains(Line{Type: Link, Text: "[1 reply]", URL: b.Path}).
-		NotContains(Line{Type: Quote, Text: "b"}).
-		Contains(Line{Type: Quote, Text: "c"}).
-		Contains(Line{Type: Quote, Text: "d"}).
-		NotContains(Line{Type: Quote, Text: "e"})
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "a"}).
+		Contains(gemtext.Line{Type: gemtext.Link, Text: "[1 reply]", URL: b.Path}).
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "b"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "c"}).
+		Contains(gemtext.Line{Type: gemtext.Quote, Text: "d"}).
+		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "e"})
 }
