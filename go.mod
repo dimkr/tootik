@@ -15,7 +15,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/image v0.42.0
 	golang.org/x/net v0.55.0
-	golang.org/x/term v0.43.0
+	golang.org/x/term v0.44.0
 	modernc.org/sqlite v1.52.0
 )
 
@@ -37,7 +37,7 @@ require (
 	github.com/rs/zerolog v1.34.0 // indirect
 	github.com/tdewolff/minify/v2 v2.23.8 // indirect
 	github.com/tdewolff/parse/v2 v2.8.1 // indirect
-	golang.org/x/sys v0.45.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
