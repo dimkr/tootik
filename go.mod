@@ -14,7 +14,7 @@ require (
 	github.com/ncruces/go-sqlite3 v0.34.4
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/image v0.42.0
-	golang.org/x/net v0.55.0
+	golang.org/x/net v0.56.0
 	golang.org/x/term v0.44.0
 	modernc.org/sqlite v1.52.0
 )
