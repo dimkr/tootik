@@ -19,7 +19,6 @@ package inbox
 import (
 	"context"
 	"database/sql"
-	"fmt"
 
 	"github.com/dimkr/tootik/cfg"
 )
@@ -61,7 +60,8 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers' or value = follows.follower))
 				)
 			where
-				follows.follower like $1 and
+				follows.follower >= 'https://' || $1 || '/' and
+				follows.follower < 'https://' || $1 || '0' and
 				follows.accepted = 1 and
 				(
 					notes.inserted > $2 or
@@ -79,7 +79,8 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 				notes.object->>'$.inReplyTo' = myposts.id
 			where
 				notes.author != myposts.author and
-				myposts.author like $1 and
+				myposts.author >= 'https://' || $1 || '/' and
+				myposts.author < 'https://' || $1 || '0' and
 				(
 					notes.inserted > $2 or
 					(
@@ -100,7 +101,8 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 				notes.id = shares.note
 			where
 				notes.public = 1 and
-				follows.follower like $1 and
+				follows.follower >= 'https://' || $1 || '/' and
+				follows.follower < 'https://' || $1 || '0' and
 				follows.accepted = 1 and
 				(
 					shares.inserted > $2 or
@@ -110,7 +112,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 					)
 				)
 		`,
-		fmt.Sprintf("https://%s/%%", u.Domain),
+		u.Domain,
 		since,
 	); err != nil {
 		return err
