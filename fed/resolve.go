@@ -138,7 +138,7 @@ func (r *Resolver) validate(try func() (*ap.Actor, *ap.Actor, error)) (*ap.Actor
 }
 
 func deleteActor(ctx context.Context, db *sql.DB, id string) {
-	if _, err := db.ExecContext(ctx, `delete from notesfts where exists (select 1 from notes where notes.author = ? and notesfts.id = notes.id)`, id); err != nil {
+	if _, err := db.ExecContext(ctx, `delete from notesfts where exists (select 1 from notes where notes.author = ? and notes.rowid = notesfts.rowid)`, id); err != nil {
 		slog.Warn("Failed to delete notes by actor", "id", id, "error", err)
 	}
 

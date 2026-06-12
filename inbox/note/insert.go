@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -83,21 +83,22 @@ func Insert(ctx context.Context, tx *sql.Tx, note *ap.Object) error {
 		public = 1
 	}
 
-	if _, err := tx.ExecContext(
+	var rowID int64
+	if err := tx.QueryRowContext(
 		ctx,
-		`INSERT INTO notes (id, author, object, public) VALUES (?, ?, JSONB(?), ?)`,
+		`INSERT INTO notes (id, author, object, public) VALUES (?, ?, JSONB(?), ?) RETURNING rowid`,
 		note.ID,
 		note.AttributedTo,
 		&note,
 		public,
-	); err != nil {
+	).Scan(&rowID); err != nil {
 		return fmt.Errorf("failed to insert note %s: %w", note.ID, err)
 	}
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO notesfts (id, content) VALUES(?,?)`,
-		note.ID,
+		`INSERT INTO notesfts (rowid, content) VALUES(?,?)`,
+		rowID,
 		Flatten(note),
 	); err != nil {
 		return fmt.Errorf("failed to insert note %s: %w", note.ID, err)
