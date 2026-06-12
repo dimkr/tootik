@@ -20,10 +20,8 @@ import (
 	"context"
 	"crypto/tls"
 	"database/sql"
-	"errors"
 	"fmt"
 	"io"
-	"math/rand/v2"
 	"net"
 	"net/http"
 	"net/url"
@@ -32,7 +30,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"syscall"
 
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/fed"
@@ -58,14 +55,12 @@ type Server struct {
 	Incoming     *inbox.Queue
 	Outgoing     *fed.Queue
 
-	listener, tlsListener net.Listener
-	socketPath            string
-	dbPath                string
+	serverKeyPair tls.Certificate
+	dbPath        string
 }
 
 const (
 	maxRedirects = 5
-	maxBindTries = 10
 )
 
 var (
@@ -199,36 +194,6 @@ func NewServer(t T, domain string, client fed.Client) *Server {
 		t.Fatalf("Failed to run create the federation handler: %v", err)
 	}
 
-	var socketPath string
-	var listener net.Listener
-	tries := 1
-	for {
-		socketPath = filepath.Join(
-			t.TempDir(),
-			fmt.Sprintf("%s-%s-%d.socket", t.Name(), domain, 10000+rand.UintN(10000)),
-		)
-
-		listener, err = net.Listen("unix", socketPath)
-		if err == nil {
-			break
-		} else if !errors.Is(err, syscall.EADDRINUSE) {
-			t.Fatalf("Failed to listen: %v", err)
-		}
-
-		if tries == maxBindTries {
-			t.Fatal("Failed to listen")
-		}
-
-		tries++
-	}
-
-	serverCfg := tls.Config{
-		Certificates: []tls.Certificate{serverKeyPair},
-		ClientAuth:   tls.RequestClientCert,
-	}
-
-	tlsListener := tls.NewListener(listener, &serverCfg)
-
 	return &Server{
 		Test:         t,
 		Domain:       domain,
@@ -258,20 +223,14 @@ func NewServer(t T, domain string, client fed.Client) *Server {
 			DB:       db,
 			Resolver: resolver,
 		},
-		listener:    listener,
-		tlsListener: tlsListener,
-		socketPath:  socketPath,
-		dbPath:      dbPath,
+		serverKeyPair: serverKeyPair,
+		dbPath:        dbPath,
 	}
 }
 
 func (s *Server) Stop() {
 	s.DB.Close()
-
-	s.tlsListener.Close()
-
-	s.listener.Close()
-	os.Remove(s.socketPath)
+	os.Remove(s.dbPath)
 }
 
 func (s *Server) handle(cert tls.Certificate, path, input string, redirects int) Page {
@@ -279,32 +238,28 @@ func (s *Server) handle(cert tls.Certificate, path, input string, redirects int)
 		s.Test.Fatal("Too many redirects")
 	}
 
-	clientCfg := tls.Config{
+	clientConn, serverConn := net.Pipe()
+	defer clientConn.Close()
+	defer serverConn.Close()
+
+	clientTlsConn := tls.Client(clientConn, &tls.Config{
 		Certificates:       []tls.Certificate{cert},
 		InsecureSkipVerify: true,
-	}
-
-	clientConn, err := net.Dial("unix", s.socketPath)
-	if err != nil {
-		s.Test.Fatalf("Failed to connect: %v", err)
-	}
-	defer clientConn.Close()
-
-	serverTlsConn, err := s.tlsListener.Accept()
-	if err != nil {
-		s.Test.Fatalf("Failed to accept connection: %v", err)
-	}
-	defer serverTlsConn.Close()
-
-	clientTlsConn := tls.Client(clientConn, &clientCfg)
+	})
 	defer clientTlsConn.Close()
+
+	serverTlsConn := tls.Server(serverConn, &tls.Config{
+		Certificates: []tls.Certificate{s.serverKeyPair},
+		ClientAuth:   tls.RequestClientCert,
+	})
+	defer serverTlsConn.Close()
 
 	c := make(chan error)
 	go func() {
-		c <- clientTlsConn.Handshake()
+		c <- clientTlsConn.HandshakeContext(s.Test.Context())
 	}()
 	go func() {
-		c <- serverTlsConn.(*tls.Conn).Handshake()
+		c <- serverTlsConn.HandshakeContext(s.Test.Context())
 	}()
 	for range 2 {
 		if err := <-c; err != nil {
@@ -312,6 +267,12 @@ func (s *Server) handle(cert tls.Certificate, path, input string, redirects int)
 		}
 	}
 
+	go func() {
+		s.Frontend.Handle(s.Test.Context(), serverTlsConn)
+		serverTlsConn.Close()
+	}()
+
+	var err error
 	if input == "" {
 		_, err = fmt.Fprintf(clientTlsConn, "gemini://%s%s\r\n", s.Domain, path)
 	} else {
@@ -320,11 +281,6 @@ func (s *Server) handle(cert tls.Certificate, path, input string, redirects int)
 	if err != nil {
 		s.Test.Fatalf("Failed to send request: %v", err)
 	}
-
-	go func() {
-		s.Frontend.Handle(s.Test.Context(), serverTlsConn)
-		serverTlsConn.Close()
-	}()
 
 	resp, err := io.ReadAll(clientTlsConn)
 	if err != nil {

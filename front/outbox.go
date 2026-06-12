@@ -79,13 +79,13 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// unauthenticated users can only see public posts in a group
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select json(page.object), json(authors.actor), null, page.pulse, page.nreplies, page.nquotes, page.nshares, null from (
-				select u.id, u.object, u.author, max(u.nreplies) as nreplies, max(u.nquotes) as nquotes, max(u.nshares) as nshares, max(u.pulse) as pulse from (
-					select notes.id, notes.object, notes.author, notes.nreplies, notes.nquotes, notes.nshares, notes.pulse from shares
+			`select json(page.object), json(authors.actor), null, page.inserted, page.nreplies, page.nquotes, page.nshares, null from (
+				select u.id, u.object, u.author, max(u.inserted) as inserted, max(u.nreplies) as nreplies, max(u.nquotes) as nquotes, max(u.nshares) as nshares, max(u.pulse) as pulse from (
+					select notes.id, notes.object, notes.author, shares.inserted, notes.nreplies, notes.nquotes, notes.nshares, notes.pulse from shares
 					join notes on notes.id = shares.note
 					where shares.by = $1 and notes.public = 1 and notes.object->>'$.inReplyTo' is null
 					union all
-					select notes.id, notes.object, notes.author, notes.nreplies, notes.nquotes, notes.nshares, notes.pulse from notes
+					select notes.id, notes.object, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares, notes.pulse from notes
 					where notes.author = $1 and notes.public = 1 and notes.object->>'$.inReplyTo' is null
 				) u
 				group by u.id
@@ -102,9 +102,9 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		// users can see public posts in a group and non-public posts if they follow the group
 		rows, err = h.DB.QueryContext(
 			r.Context,
-			`select json(page.object), json(authors.actor), null, page.pulse, page.nreplies, page.nquotes, page.nshares, null from (
-				select u.id, u.object, u.author, max(u.nreplies) as nreplies, max(u.nquotes) as nquotes, max(u.nshares) as nshares, max(u.pulse) as pulse from (
-					select notes.id, notes.object, notes.author, notes.nreplies, notes.nquotes, notes.nshares, notes.pulse from shares
+			`select json(page.object), json(authors.actor), null, page.inserted, page.nreplies, page.nquotes, page.nshares, null from (
+				select u.id, u.object, u.author, u.inserted, max(u.nreplies) as nreplies, max(u.nquotes) as nquotes, max(u.nshares) as nshares, max(u.pulse) as pulse from (
+					select notes.id, notes.object, notes.author, shares.inserted, notes.nreplies, notes.nquotes, notes.nshares, notes.pulse from shares
 					join notes on notes.id = shares.note
 					where
 						shares.by = $1 and
@@ -114,7 +114,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 						) and
 						notes.object->>'$.inReplyTo' is null
 					union all
-					select notes.id, notes.object, notes.author, notes.nreplies, notes.nquotes, notes.nshares, notes.pulse from notes
+					select notes.id, notes.object, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares, notes.pulse from notes
 					where
 						notes.author = $1 and
 						(
