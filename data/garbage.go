@@ -114,5 +114,9 @@ func (gc *GarbageCollector) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to remove expired certificates: %w", err)
 	}
 
+	if _, err := gc.DB.ExecContext(ctx, `pragma optimize`); err != nil {
+		return fmt.Errorf("failed to optimize: %w", err)
+	}
+
 	return nil
 }
