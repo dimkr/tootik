@@ -18,7 +18,15 @@ limitations under the License.
 
 package sqlite
 
-import _ "github.com/ncruces/go-sqlite3/driver"
+import (
+	"github.com/ncruces/go-sqlite3"
+	_ "github.com/ncruces/go-sqlite3/driver"
+	"github.com/ncruces/go-sqlite3/ext/fts5"
+)
+
+func init() {
+	sqlite3.AutoExtension(fts5.Register)
+}
 
 const (
 	DriverName = "sqlite3"
