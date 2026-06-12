@@ -173,6 +173,10 @@ func (a *Activity) Scan(src any) error {
 }
 
 func (a *Activity) Value() (driver.Value, error) {
+	if a == nil {
+		return nil, nil
+	}
+
 	return danger.MarshalJSON(a)
 }
 

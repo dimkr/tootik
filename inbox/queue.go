@@ -91,7 +91,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			slog.Error("Failed to scan activity", "error", err)
 			return true
 		},
-		`select inbox.id, inbox.path, json(persons.actor), json(inbox.activity), inbox.raw, inbox.raw->>'$.type' = 'Announce' as shared from (select * from inbox limit -1 offset case when (select count(*) from inbox) >= $1 then $1/10 else 0 end) inbox left join persons on persons.id = inbox.sender order by inbox.id limit $2`,
+		`select inbox.id, inbox.path, json(persons.actor), coalesce(json(inbox.activity), inbox.raw), inbox.raw, inbox.raw->>'$.type' = 'Announce' as shared from (select * from inbox order by id limit -1 offset case when (select count(*) from (select 1 from inbox limit $1)) >= $1 then $1/10 else 0 end) inbox left join persons on persons.id = inbox.sender order by inbox.id limit $2`,
 		q.Config.MaxActivitiesQueueSize,
 		q.Config.ActivitiesBatchSize,
 	)
