@@ -132,10 +132,9 @@ func (l *Listener) handleApGatewayOutboxPost(w http.ResponseWriter, r *http.Requ
 
 	if _, err = l.DB.ExecContext(
 		r.Context(),
-		`INSERT OR IGNORE INTO inbox (path, sender, activity, raw) VALUES (?, ?, JSONB(?), ?)`,
+		`INSERT OR IGNORE INTO inbox (path, sender, raw) VALUES (?, ?, ?)`,
 		r.URL.Path,
 		activity.Actor,
-		rawActivity,
 		danger.String(rawActivity),
 	); err != nil {
 		slog.Error("Failed to insert activity", "activity", activity.ID, "error", err)

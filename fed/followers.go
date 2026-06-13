@@ -71,7 +71,7 @@ func fetchFollowers(ctx context.Context, db *sql.DB, followed, host string) (ap.
 			return false
 		},
 		db,
-		`SELECT follower FROM follows WHERE followed = ? AND follower LIKE 'https://' || ? || '/%' AND accepted = 1`,
+		`SELECT follower FROM follows WHERE followed = $1 AND follower >= 'https://' || $2 || '/' AND follower < 'https://' || $2 || '0' AND accepted = 1`,
 		followed,
 		host,
 	); err != nil {
@@ -96,7 +96,7 @@ func digestFollowers(ctx context.Context, db *sql.DB, followed, host string) (st
 			return false
 		},
 		db,
-		`SELECT follower FROM follows WHERE followed = ? AND follower LIKE 'https://' || ? || '/%' AND accepted = 1`,
+		`SELECT follower FROM follows WHERE followed = $1 AND follower >= 'https://' || $2 || '/' AND follower < 'https://' || $2 || '0' AND accepted = 1`,
 		followed,
 		host,
 	); err != nil {

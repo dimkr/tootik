@@ -138,7 +138,7 @@ func (r *Resolver) validate(try func() (*ap.Actor, *ap.Actor, error)) (*ap.Actor
 }
 
 func deleteActor(ctx context.Context, db *sql.DB, id string) {
-	if _, err := db.ExecContext(ctx, `delete from notesfts where exists (select 1 from notes where notes.author = ? and notesfts.id = notes.id)`, id); err != nil {
+	if _, err := db.ExecContext(ctx, `delete from notesfts where exists (select 1 from notes where notes.author = ? and notes.rowid = notesfts.rowid)`, id); err != nil {
 		slog.Warn("Failed to delete notes by actor", "id", id, "error", err)
 	}
 
@@ -592,7 +592,7 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 	if capabilities > 0 {
 		if _, err = tx.ExecContext(
 			ctx,
-			`INSERT INTO servers (host, capabilities) VALUES ($1, $2) ON CONFLICT(host) DO UPDATE SET capabilities = capabilities | $2, updated = UNIXEPOCH()`,
+			`INSERT INTO servers (host, capabilities) VALUES ($1, $2) ON CONFLICT(host) DO UPDATE SET capabilities = capabilities | $2, updated = UNIXEPOCH() WHERE capabilities | $2 != capabilities`,
 			req.Host,
 			capabilities,
 		); err != nil {

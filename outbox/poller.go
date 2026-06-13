@@ -20,7 +20,6 @@ import (
 	"context"
 	"crypto/ed25519"
 	"database/sql"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -58,7 +57,8 @@ func (p *Poller) Run(ctx context.Context) error {
 			join persons on persons.id = notes.author
 			where
 				notes.object->>'$.type' = 'Question'
-				and notes.id like $1
+				and notes.id >= 'https://' || $1 || '/'
+				and notes.id < 'https://' || $1 || '0'
 				and notes.deleted = 0
 				and notes.object->>'$.closed' is null
 		)
@@ -89,7 +89,7 @@ func (p *Poller) Run(ctx context.Context) error {
 			group by poll
 		) voter_counts on voter_counts.poll = polls.id
 		`,
-		fmt.Sprintf("https://%s/%%", p.Domain),
+		p.Domain,
 	)
 	if err != nil {
 		return err

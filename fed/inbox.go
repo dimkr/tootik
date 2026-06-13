@@ -408,6 +408,11 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 		}
 	}
 
+	// store only the raw activity if it's sufficient
+	if queued == &activity {
+		queued = nil
+	}
+
 	if _, err = l.DB.ExecContext(
 		r.Context(),
 		`INSERT OR IGNORE INTO inbox (path, sender, activity, raw) VALUES (?, ?, JSONB(?), ?)`,
@@ -443,7 +448,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 	if capabilities > 0 {
 		if _, err = l.DB.ExecContext(
 			r.Context(),
-			`INSERT INTO servers (host, capabilities) VALUES ($1, $2) ON CONFLICT(host) DO UPDATE SET capabilities = capabilities | $2, updated = UNIXEPOCH()`,
+			`INSERT INTO servers (host, capabilities) VALUES ($1, $2) ON CONFLICT(host) DO UPDATE SET capabilities = capabilities | $2, updated = UNIXEPOCH() WHERE capabilities | $2 != capabilities`,
 			senderHost,
 			capabilities,
 		); err != nil {
