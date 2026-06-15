@@ -23,8 +23,6 @@ import (
 	"fmt"
 	"strings"
 
-	"log/slog"
-
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text/plain"
 )
@@ -60,24 +58,6 @@ func Flatten(note *ap.Object) string {
 
 // Insert inserts a post.
 func Insert(ctx context.Context, tx *sql.Tx, note *ap.Object) error {
-	hashtags := map[string]string{}
-
-	for _, tag := range note.Tag {
-		if tag.Type != ap.Hashtag {
-			continue
-		}
-
-		if tag.Name == "" {
-			continue
-		}
-
-		if tag.Name[0] == '#' {
-			hashtags[strings.ToLower(tag.Name[1:])] = tag.Name[1:]
-		} else {
-			hashtags[strings.ToLower(tag.Name)] = tag.Name
-		}
-	}
-
 	public := 0
 	if note.IsPublic() {
 		public = 1
@@ -102,12 +82,6 @@ func Insert(ctx context.Context, tx *sql.Tx, note *ap.Object) error {
 		Flatten(note),
 	); err != nil {
 		return fmt.Errorf("failed to insert note %s: %w", note.ID, err)
-	}
-
-	for _, hashtag := range hashtags {
-		if _, err := tx.ExecContext(ctx, `insert into hashtags (note, hashtag) values(?,?)`, note.ID, hashtag); err != nil {
-			slog.Warn("Failed to tag post", "post", note.ID, "hashtag", hashtag, "error", err)
-		}
 	}
 
 	return nil

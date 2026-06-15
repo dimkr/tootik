@@ -50,6 +50,7 @@ type Server struct {
 	Resolver     *fed.Resolver
 	AppActorKeys [2]httpsig.Key
 	Frontend     gemini.Listener
+	Cache        *sync.Map
 	Backend      http.Handler
 	Inbox        *inbox.Inbox
 	Incoming     *inbox.Queue
@@ -172,7 +173,9 @@ func NewServer(t T, domain string, client fed.Client) *Server {
 		DB:     db,
 	}
 
-	handler, err := front.NewHandler(domain, &cfg, resolver, db, localInbox)
+	cache := &sync.Map{}
+
+	handler, err := front.NewHandlerWithCache(domain, &cfg, resolver, db, localInbox, cache)
 	if err != nil {
 		t.Fatalf("Failed to run create a Handler: %v", err)
 	}
@@ -207,6 +210,7 @@ func NewServer(t T, domain string, client fed.Client) *Server {
 			DB:      db,
 			Handler: handler,
 		},
+		Cache:   cache,
 		Backend: backend,
 		Inbox:   localInbox,
 		Incoming: &inbox.Queue{

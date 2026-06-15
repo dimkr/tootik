@@ -162,10 +162,6 @@ func deleteActor(ctx context.Context, db *sql.DB, id string) {
 		slog.Warn("Failed to delete notes by actor", "id", id, "error", err)
 	}
 
-	if _, err := db.ExecContext(ctx, `delete from hashtags where note in (select id from notes where author = ?)`, id); err != nil {
-		slog.Warn("Failed to delete hashtags by actor", "id", id, "error", err)
-	}
-
 	if _, err := db.ExecContext(ctx, `delete from follows where follower = $1 or followed = $1`, id); err != nil {
 		slog.Warn("Failed to delete follows for actor", "id", id, "error", err)
 	}
