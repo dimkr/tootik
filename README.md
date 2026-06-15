@@ -467,7 +467,7 @@ The tests use three main constructs: [Client](https://pkg.go.dev/github.com/dimk
 During tests, all [http.Request](https://pkg.go.dev/net/http#Request)s sent by tootik (like those sent by [fed.Resolver](https://pkg.go.dev/github.com/dimkr/tootik/fed#Resolver)) are sent through [Client](https://pkg.go.dev/github.com/dimkr/tootik/cluster#Client).
 
 [Server](https://pkg.go.dev/github.com/dimkr/tootik/cluster#Server) handles all kinds of incoming requests:
-* It uses a Unix socket wrapped with TLS and [gemini.Listener](https://pkg.go.dev/github.com/dimkr/tootik/front/gemini#Listener) to allow tests to simulate interaction with the [Gemini](https://geminiprotocol.net/) interface, including user authentication through client certificates
+* Wraps [net.Pipe](https://pkg.go.dev/net#Pipe) with TLS and [gemini.Listener](https://pkg.go.dev/github.com/dimkr/tootik/front/gemini#Listener) to allow tests to simulate interaction with the [Gemini](https://geminiprotocol.net/) interface, including user authentication through client certificates
 * It uses the same [http.Handler](https://pkg.go.dev/net/http#Handler) as [fed.Listener](https://pkg.go.dev/github.com/dimkr/tootik/front/fed#Listener) to handle an incoming [http.Request](https://pkg.go.dev/net/http#Request) but without needing an actual HTTP server
 
 [Client](https://pkg.go.dev/github.com/dimkr/tootik/cluster#Client) holds a mapping between domain names and [Server](https://pkg.go.dev/github.com/dimkr/tootik/cluster#Server)s: it allows these servers to talk to each other by passing the [http.Request](https://pkg.go.dev/net/http#Request) sent by one server to the [http.Handler](https://pkg.go.dev/net/http#Handler) of another.
