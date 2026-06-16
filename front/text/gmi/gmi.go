@@ -14,5 +14,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package gmi reads and writes Gemini responses.
+// Package gmi reads, writes and displays Gemini responses.
 package gmi
