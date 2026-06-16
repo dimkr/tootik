@@ -16,7 +16,11 @@ limitations under the License.
 
 package cluster
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/dimkr/tootik/front/text/gmi"
+)
 
 func TestCluster_Hashtag(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
@@ -34,64 +38,64 @@ func TestCluster_Hashtag(t *testing.T) {
 	alice.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "hi #world").
-		Contains(Line{Type: Quote, Text: "hi #world"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi #world"}).
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "hi #peoplE").
-		Contains(Line{Type: Quote, Text: "hi #peoplE"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi #peoplE"})
 
 	post := bob.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "hello #world").
-		Contains(Line{Type: Quote, Text: "hello #world"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello #world"})
 	cluster.Settle(t)
 
 	alice = alice.
 		Follow("🔥 Hashtags").
 		FollowInput("🔎 Posts by hashtag", "world").
-		Contains(Line{Type: Quote, Text: "hi #world"}).
-		Contains(Line{Type: Quote, Text: "hello #world"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi #world"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello #world"})
 
 	post.FollowInput("🩹 Edit", "hello #world #people").
-		Contains(Line{Type: Quote, Text: "hello #world #people"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello #world #people"})
 	cluster.Settle(t)
 
 	alice.
 		Follow("🔥 Hashtags").
 		FollowInput("🔎 Posts by hashtag", "world").
-		Contains(Line{Type: Quote, Text: "hi #world"}).
-		Contains(Line{Type: Quote, Text: "hello #world #people"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi #world"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello #world #people"}).
 		Follow("🔥 Hashtags").
 		FollowInput("🔎 Posts by hashtag", "people").
-		Contains(Line{Type: Quote, Text: "hi #peoplE"}).
-		Contains(Line{Type: Quote, Text: "hello #world #people"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi #peoplE"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello #world #people"})
 
 	post.FollowInput("🩹 Edit", "hello #world #people #PeOpLe").
-		Contains(Line{Type: Quote, Text: "hello #world #people #PeOpLe"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello #world #people #PeOpLe"})
 	cluster.Settle(t)
 
 	alice.
 		Follow("🔥 Hashtags").
 		FollowInput("🔎 Posts by hashtag", "world").
-		Contains(Line{Type: Quote, Text: "hi #world"}).
-		Contains(Line{Type: Quote, Text: "hello #world #people #PeOpLe"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi #world"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello #world #people #PeOpLe"}).
 		Follow("🔥 Hashtags").
 		FollowInput("🔎 Posts by hashtag", "people").
-		Contains(Line{Type: Quote, Text: "hi #peoplE"}).
-		Contains(Line{Type: Quote, Text: "hello #world #people #PeOpLe"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi #peoplE"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello #world #people #PeOpLe"}).
 		Follow("🔥 Hashtags").
 		FollowInput("🔎 Posts by hashtag", "PEOPLE").
-		Contains(Line{Type: Quote, Text: "hi #peoplE"}).
-		Contains(Line{Type: Quote, Text: "hello #world #people #PeOpLe"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi #peoplE"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello #world #people #PeOpLe"})
 
 	post.FollowInput("🩹 Edit", "hello #people").
-		Contains(Line{Type: Quote, Text: "hello #people"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello #people"})
 	cluster.Settle(t)
 
 	alice.
 		Follow("🔥 Hashtags").
 		FollowInput("🔎 Posts by hashtag", "people").
-		Contains(Line{Type: Quote, Text: "hi #peoplE"}).
-		Contains(Line{Type: Quote, Text: "hello #people"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi #peoplE"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello #people"})
 
 	post.Follow("💣 Delete").OK()
 	cluster.Settle(t)
@@ -99,6 +103,6 @@ func TestCluster_Hashtag(t *testing.T) {
 	alice.
 		Follow("🔥 Hashtags").
 		FollowInput("🔎 Posts by hashtag", "people").
-		Contains(Line{Type: Quote, Text: "hi #peoplE"}).
-		NotContains(Line{Type: Quote, Text: "hello #people"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi #peoplE"}).
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hello #people"})
 }
