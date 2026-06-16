@@ -136,7 +136,7 @@ outer:
 			}
 		}
 
-		if err := gmi.Render(ctx, lines, 80); err != nil {
+		if err := gmi.Render(ctx, lines); err != nil {
 			return err
 		}
 

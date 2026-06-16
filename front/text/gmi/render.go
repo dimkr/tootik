@@ -9,7 +9,10 @@ import (
 	"strings"
 
 	"github.com/dimkr/tootik/front/text"
+	"golang.org/x/term"
 )
+
+const fallbackCols = 80
 
 func render(lines []Line, cols int, w io.Writer) {
 	linkID := 1
@@ -63,7 +66,12 @@ func render(lines []Line, cols int, w io.Writer) {
 }
 
 // Render displays a Gemtext document inside a pager.
-func Render(ctx context.Context, lines []Line, cols int) error {
+func Render(ctx context.Context, lines []Line) error {
+	cols, _, err := term.GetSize(int(os.Stdout.Fd()))
+	if err != nil {
+		cols = fallbackCols
+	}
+
 	c := exec.CommandContext(ctx, "less", "-r")
 
 	stdin, err := c.StdinPipe()
