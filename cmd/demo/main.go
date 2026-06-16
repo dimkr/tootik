@@ -18,21 +18,17 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
-	"fmt"
 	"log/slog"
-	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
-	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
 	"github.com/creack/pty"
-	"github.com/dimkr/slopline"
-	"github.com/dimkr/tootik/gemtext"
+	"github.com/dimkr/tootik/front/shell"
 	"golang.org/x/term"
 )
 
@@ -249,92 +245,12 @@ func main() {
 	cl := seed(t{tempDir: tempDir, ctx: ctx}, keyPairs)
 	defer cl.Stop()
 
-	p := cl["pizza.example"].Handle(keyPairs["alice"], "/users")
-	var links []string
-
-	slopline.SetHintsCallback(func(text string) (string, string, string) {
-		if text == "" && len(links) > 0 {
-			return fmt.Sprintf(" 1-%d", len(links)), "\033[90m", "\033[0m"
-		} else if len(links) == 0 {
-			return "", "", ""
-		}
-
-		if n, err := strconv.Atoi(text); err == nil && n > 0 {
-			i := 0
-			for _, line := range p.Lines {
-				if line.Type != gemtext.Link {
-					continue
-				}
-
-				i++
-				if i == n {
-					return " " + line.Text, "\033[90m", "\033[0m"
-				}
-			}
-		}
-
-		return "", "", ""
-	})
-
-	for {
-		if err := ctx.Err(); err != nil {
-			break
-		}
-
-		links = links[:0]
-		for _, line := range p.Lines {
-			if line.Type == gemtext.Link {
-				links = append(links, line.URL)
-			}
-		}
-
-		if err := gemtext.Pager(ctx, p.Lines, cols); err != nil {
-			panic(err)
-		}
-
-		prompt := "pizza.example"
-		if strings.HasPrefix(p.Status, "10 ") {
-			prompt = p.Status[3:]
-		} else {
-			for _, line := range p.Lines {
-				if line.Type == gemtext.Heading {
-					prompt = line.Text
-					break
-				}
-			}
-		}
-
-		line, err := slopline.Line(fmt.Sprintf("\033[35m%s>\033[0m ", prompt))
-		if err != nil {
-			break
-		}
-
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
-		if n, err := strconv.Atoi(line); err == nil && n > 0 && n <= len(links) {
-			nextURL := links[n-1]
-			u, err := url.Parse(nextURL)
-			if err != nil {
-				panic(err)
-			}
-			p = p.Goto(u.String())
-		} else if strings.HasPrefix(p.Status, "10 ") {
-			u, err := url.Parse(p.Path)
-			if err != nil {
-				panic(err)
-			}
-			u.RawQuery = url.QueryEscape(line)
-			p = p.Goto(u.String())
-		} else {
-			u, err := url.Parse(line)
-			if err != nil {
-				fmt.Printf("Invalid URL or command: %s\n", line)
-				continue
-			}
-			p = p.Goto(u.String())
-		}
+	if err := shell.Run(
+		ctx,
+		cl["pizza.example"].Frontend.Handler,
+		"alice",
+		"pizza.example",
+	); err != nil && !errors.Is(err, context.Canceled) {
+		panic(err)
 	}
 }
