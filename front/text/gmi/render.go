@@ -62,6 +62,7 @@ func render(lines []Line, cols int, w io.Writer) {
 	}
 }
 
+// Pager renders a Gemtext document inside a pager.
 func Pager(ctx context.Context, lines []Line, cols int) error {
 	c := exec.CommandContext(ctx, "less", "-r")
 

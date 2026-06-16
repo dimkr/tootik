@@ -18,6 +18,7 @@ package gmi
 
 import "strings"
 
+// Parse parses a Gemtext document.
 func Parse(resp string) (string, []Line, map[string]string) {
 	end := strings.Index(resp, "\r\n")
 	if end == -1 {
