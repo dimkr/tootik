@@ -20,7 +20,7 @@ import (
 	"crypto/tls"
 	"slices"
 
-	"github.com/dimkr/tootik/gemtext"
+	"github.com/dimkr/tootik/front/text/gmi"
 )
 
 // Respnonse represents a frontend page displayed to the user.
@@ -28,7 +28,7 @@ type Page struct {
 	Path   string
 	Raw    string
 	Status string
-	Lines  []gemtext.Line
+	Lines  []gmi.Line
 	Links  map[string]string
 
 	cert   tls.Certificate
@@ -36,7 +36,7 @@ type Page struct {
 }
 
 func parseResponse(s *Server, cert tls.Certificate, req, resp string) Page {
-	status, lines, links := gemtext.Parse(resp)
+	status, lines, links := gmi.Parse(resp)
 
 	return Page{
 		Path:   req,
@@ -64,7 +64,7 @@ func (p Page) Error(err string) {
 	}
 }
 
-func (p Page) Contains(line gemtext.Line) Page {
+func (p Page) Contains(line gmi.Line) Page {
 	if !slices.Contains(p.Lines, line) {
 		p.server.Test.Fatalf(`%s does not contain "%s" line`, p.Raw, line.Text)
 	}
@@ -72,7 +72,7 @@ func (p Page) Contains(line gemtext.Line) Page {
 	return p
 }
 
-func (p Page) NotContains(line gemtext.Line) Page {
+func (p Page) NotContains(line gmi.Line) Page {
 	if slices.Contains(p.Lines, line) {
 		p.server.Test.Fatalf(`%s does contains "%s" line`, p.Raw, line.Text)
 	}

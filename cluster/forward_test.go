@@ -19,7 +19,7 @@ package cluster
 import (
 	"testing"
 
-	"github.com/dimkr/tootik/gemtext"
+	"github.com/dimkr/tootik/front/text/gmi"
 )
 
 func TestCluster_ReplyForwardingWithIntegrityProofs(t *testing.T) {
@@ -47,44 +47,44 @@ func TestCluster_ReplyForwardingWithIntegrityProofs(t *testing.T) {
 	cluster.Settle(t)
 
 	reply := alice.GotoInput(post.Links["💬 Reply"], "hi").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 	cluster.Settle(t)
 
 	bob = bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 	alice.
 		Follow("😈 My profile").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 	carol = carol.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 
 	reply.FollowInput("🩹 Edit", "hola").OK()
 	cluster.Settle(t)
 
 	bob.
 		Refresh().
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	alice.
 		Follow("😈 My profile").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	carol.
 		Refresh().
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 
 	reply.Follow("💣 Delete").OK()
 	cluster.Settle(t)
 
 	bob.
 		Refresh().
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	alice.
 		Follow("😈 My profile").
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	carol.
 		Refresh().
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 }
 
 func TestCluster_ReplyForwardingWithoutIntegrityProofs(t *testing.T) {
@@ -115,42 +115,42 @@ func TestCluster_ReplyForwardingWithoutIntegrityProofs(t *testing.T) {
 	cluster.Settle(t)
 
 	reply := alice.GotoInput(post.Links["💬 Reply"], "hi").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 	cluster.Settle(t)
 
 	bob = bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 	alice.
 		Follow("😈 My profile").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 	carol = carol.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 
 	reply.FollowInput("🩹 Edit", "hola").OK()
 	cluster.Settle(t)
 
 	bob.
 		Refresh().
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	alice.
 		Follow("😈 My profile").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	carol.
 		Refresh().
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 
 	reply.Follow("💣 Delete").OK()
 	cluster.Settle(t)
 
 	bob.
 		Refresh().
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	alice.
 		Follow("😈 My profile").
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	carol.
 		Refresh().
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 }

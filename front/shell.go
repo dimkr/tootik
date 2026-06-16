@@ -14,8 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package shell displays the frontend as an interactive shell.
-package shell
+package front
 
 import (
 	"bytes"
@@ -32,14 +31,12 @@ import (
 
 	"github.com/dimkr/slopline"
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/front/text/gmi"
-	"github.com/dimkr/tootik/gemtext"
 	"github.com/dimkr/tootik/httpsig"
 )
 
-// Run runs a shell on behalf of a user.
-func Run(ctx context.Context, handler front.Handler, user, domain string) error {
+// Shell runs an interactive shell on behalf of a user.
+func (h *Handler) Shell(ctx context.Context, user, domain string) error {
 	u, err := url.Parse(fmt.Sprintf("gemini://%s/users", domain))
 	if err != nil {
 		return err
@@ -47,7 +44,7 @@ func Run(ctx context.Context, handler front.Handler, user, domain string) error 
 
 	var actor ap.Actor
 	var rsaPrivKeyDer, ed25519PrivKey []byte
-	if err := handler.DB.QueryRowContext(
+	if err := h.DB.QueryRowContext(
 		ctx,
 		`select json(actor), rsaprivkey, ed25519privkey from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null`,
 		user,
@@ -71,8 +68,8 @@ outer:
 		buf.Reset()
 
 		w := gmi.Wrap(&buf)
-		handler.Handle(
-			&front.Request{
+		h.Handle(
+			&Request{
 				Context: ctx,
 				URL:     u,
 				Log:     slog.Default(),
@@ -86,7 +83,7 @@ outer:
 		)
 		w.Flush()
 
-		status, lines, links := gemtext.Parse(buf.String())
+		status, lines, links := gmi.Parse(buf.String())
 
 		slopline.SetHintsCallback(func(text string) (string, string, string) {
 			if text == "" && len(links) > 0 {
@@ -98,7 +95,7 @@ outer:
 			if n, err := strconv.Atoi(text); err == nil && n > 0 {
 				i := 0
 				for _, line := range lines {
-					if line.Type != gemtext.Link {
+					if line.Type != gmi.Link {
 						continue
 					}
 
@@ -139,13 +136,13 @@ outer:
 			}
 		}
 
-		if err := gemtext.Pager(ctx, lines, 80); err != nil {
+		if err := gmi.Pager(ctx, lines, 80); err != nil {
 			return err
 		}
 
 		prompt := domain
 		for _, line := range lines {
-			if line.Type == gemtext.Heading {
+			if line.Type == gmi.Heading {
 				prompt = line.Text
 				break
 			}
@@ -166,7 +163,7 @@ outer:
 		if n, err := strconv.Atoi(line); err == nil && n > 0 && n <= len(links) {
 			linkID := 1
 			for _, line := range lines {
-				if line.Type != gemtext.Link {
+				if line.Type != gmi.Link {
 					continue
 				}
 

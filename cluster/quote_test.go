@@ -20,7 +20,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dimkr/tootik/gemtext"
+	"github.com/dimkr/tootik/front/text/gmi"
 )
 
 func TestCluster_PublicPostQuote(t *testing.T) {
@@ -43,12 +43,12 @@ func TestCluster_PublicPostQuote(t *testing.T) {
 	post := bob.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "hello").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 	cluster.Settle(t)
 
 	profile := alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 
 	quoted := false
 	for desc, url := range profile.Links {
@@ -56,8 +56,8 @@ func TestCluster_PublicPostQuote(t *testing.T) {
 			profile.
 				Follow(desc).
 				FollowInput("♻️ Quote", "hola").
-				Contains(gemtext.Line{Type: gemtext.Quote, Text: "hola"}).
-				Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+				Contains(gmi.Line{Type: gmi.Quote, Text: "hola"}).
+				Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 
 			quoted = true
 			break
@@ -73,6 +73,6 @@ func TestCluster_PublicPostQuote(t *testing.T) {
 	post.
 		Refresh().
 		Follow("♻️ alice").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hola"}).
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 }

@@ -44,7 +44,6 @@ import (
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/front/gemini"
-	"github.com/dimkr/tootik/front/shell"
 	tplain "github.com/dimkr/tootik/front/text/plain"
 	"github.com/dimkr/tootik/front/user"
 	"github.com/dimkr/tootik/httpsig"
@@ -221,7 +220,7 @@ func main() {
 			user = flag.Arg(1)
 		}
 
-		if err := shell.Run(ctx, handler, user, *domain); err != nil && !errors.Is(err, context.Canceled) {
+		if err := handler.Shell(ctx, user, *domain); err != nil && !errors.Is(err, context.Canceled) {
 			panic(err)
 		}
 

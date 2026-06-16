@@ -19,7 +19,7 @@ package cluster
 import (
 	"testing"
 
-	"github.com/dimkr/tootik/gemtext"
+	"github.com/dimkr/tootik/front/text/gmi"
 )
 
 func TestName_Set(t *testing.T) {
@@ -32,11 +32,11 @@ func TestName_Set(t *testing.T) {
 	bob.
 		Follow("⚙️ Settings").
 		Follow("📛 Display name").
-		Contains(gemtext.Line{Type: gemtext.Text, Text: "Display name is not set."}).
+		Contains(gmi.Line{Type: gmi.Text, Text: "Display name is not set."}).
 		FollowInput("Set", "bobby").
-		NotContains(gemtext.Line{Type: gemtext.Text, Text: "Display name: bobby."})
+		NotContains(gmi.Line{Type: gmi.Text, Text: "Display name: bobby."})
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(gemtext.Line{Type: gemtext.Heading, Text: "👽 bobby (bob@b.localdomain)"})
+		Contains(gmi.Line{Type: gmi.Heading, Text: "👽 bobby (bob@b.localdomain)"})
 }

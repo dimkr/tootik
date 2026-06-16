@@ -20,8 +20,8 @@ import (
 	"testing"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/front/text/gmi"
 	"github.com/dimkr/tootik/front/user"
-	"github.com/dimkr/tootik/gemtext"
 )
 
 func TestCluster_PostInCommunity(t *testing.T) {
@@ -50,44 +50,44 @@ func TestCluster_PostInCommunity(t *testing.T) {
 	post := carol.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "!stuff@g.localdomain hello").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "!stuff@g.localdomain hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "!stuff@g.localdomain hello"})
 	cluster.Settle(t)
 
 	alice.
 		Refresh().
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "!stuff@g.localdomain hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "!stuff@g.localdomain hello"})
 	bob = bob.
 		FollowInput("🔭 View profile", "stuff@g.localdomain").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "!stuff@g.localdomain hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "!stuff@g.localdomain hello"})
 	carol.
 		Refresh().
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "!stuff@g.localdomain hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "!stuff@g.localdomain hello"})
 
 	post.FollowInput("🩹 Edit", "hola").OK()
 	cluster.Settle(t)
 
 	alice.
 		Refresh().
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	bob.
 		Refresh().
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	carol.
 		Refresh().
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 
 	post.Follow("💣 Delete").OK()
 	cluster.Settle(t)
 
 	alice.
 		Refresh().
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	bob.
 		Refresh().
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	carol.
 		Refresh().
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 }
 
 func TestCluster_ReplyInCommunity(t *testing.T) {
@@ -116,47 +116,47 @@ func TestCluster_ReplyInCommunity(t *testing.T) {
 	post := carol.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "!stuff@g.localdomain hello").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "!stuff@g.localdomain hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "!stuff@g.localdomain hello"})
 	cluster.Settle(t)
 
 	reply := alice.
 		GotoInput(post.Links["💬 Reply"], "hi").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 	cluster.Settle(t)
 
 	alice.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 	carol.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 
 	reply.FollowInput("🩹 Edit", "hola").OK()
 	cluster.Settle(t)
 
 	alice.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	carol.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 
 	reply.Follow("💣 Delete").OK()
 	cluster.Settle(t)
 
 	alice.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	carol.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 }

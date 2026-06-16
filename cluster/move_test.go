@@ -19,7 +19,7 @@ package cluster
 import (
 	"testing"
 
-	"github.com/dimkr/tootik/gemtext"
+	"github.com/dimkr/tootik/front/text/gmi"
 	"github.com/dimkr/tootik/outbox"
 )
 
@@ -68,17 +68,17 @@ func TestCluster_MovedAccount(t *testing.T) {
 
 	bob.
 		Follow("⚡️ Follows").
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "👽 carol (carol@c.localdomain)", URL: "/users/outbox/c.localdomain/user/carol"})
+		Contains(gmi.Line{Type: gmi.Link, Text: "👽 carol (carol@c.localdomain)", URL: "/users/outbox/c.localdomain/user/carol"})
 
 	carol.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "hello").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 	cluster.Settle(t)
 
 	bob.
 		FollowInput("🔭 View profile", "carol@c.localdomain").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 }
 
 func TestCluster_DeletedInstance(t *testing.T) {
@@ -97,12 +97,12 @@ func TestCluster_DeletedInstance(t *testing.T) {
 	bob.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "hello").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 	cluster.Settle(t)
 
 	alice.
 		Follow("📻 My feed").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 
 	cluster["b.localdomain"] = NewServer(t, "b.localdomain", Client{})
 
@@ -112,7 +112,7 @@ func TestCluster_DeletedInstance(t *testing.T) {
 
 	alice.
 		Follow("📻 My feed").
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 
 	cluster.Settle(t)
 }

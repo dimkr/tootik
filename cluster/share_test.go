@@ -19,7 +19,7 @@ package cluster
 import (
 	"testing"
 
-	"github.com/dimkr/tootik/gemtext"
+	"github.com/dimkr/tootik/front/text/gmi"
 )
 
 func TestCluster_ShareUnshare(t *testing.T) {
@@ -57,24 +57,24 @@ func TestCluster_ShareUnshare(t *testing.T) {
 
 	bob = bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 	alice.
 		Refresh().
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 	carol.
 		Refresh().
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 
 	share.Follow("🔄️ Unshare").OK()
 	cluster.Settle(t)
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 	alice.
 		Follow("😈 My profile").
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 	carol.
 		Refresh().
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 }

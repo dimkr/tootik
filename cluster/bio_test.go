@@ -19,7 +19,7 @@ package cluster
 import (
 	"testing"
 
-	"github.com/dimkr/tootik/gemtext"
+	"github.com/dimkr/tootik/front/text/gmi"
 )
 
 func TestBio_Set(t *testing.T) {
@@ -32,14 +32,14 @@ func TestBio_Set(t *testing.T) {
 	bob.
 		Follow("⚙️ Settings").
 		Follow("📜 Bio").
-		Contains(gemtext.Line{Type: gemtext.Text, Text: "Bio is empty."}).
+		Contains(gmi.Line{Type: gmi.Text, Text: "Bio is empty."}).
 		FollowInput("Set", "hello world\nthis is my bio").
-		NotContains(gemtext.Line{Type: gemtext.Text, Text: "Bio is empty."}).
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello world"}).
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "this is my bio"})
+		NotContains(gmi.Line{Type: gmi.Text, Text: "Bio is empty."}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello world"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "this is my bio"})
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello world"}).
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "this is my bio"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello world"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "this is my bio"})
 }

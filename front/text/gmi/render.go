@@ -1,4 +1,4 @@
-package gemtext
+package gmi
 
 import (
 	"context"

@@ -19,7 +19,7 @@ package cluster
 import (
 	"testing"
 
-	"github.com/dimkr/tootik/gemtext"
+	"github.com/dimkr/tootik/front/text/gmi"
 )
 
 func TestCluster_PostToFollowers_Approved(t *testing.T) {
@@ -35,61 +35,61 @@ func TestCluster_PostToFollowers_Approved(t *testing.T) {
 		Follow("⚡ Follow carol").
 		OK().
 		Follow("⚡️ Follows").
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "👽 carol (carol@b.localdomain) - pending approval", URL: "/users/outbox/b.localdomain/user/carol"})
+		Contains(gmi.Line{Type: gmi.Link, Text: "👽 carol (carol@b.localdomain) - pending approval", URL: "/users/outbox/b.localdomain/user/carol"})
 	cluster.Settle(t)
 
 	alice.
 		Follow("⚡️ Follows").
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "👽 carol (carol@b.localdomain)", URL: "/users/outbox/b.localdomain/user/carol"})
+		Contains(gmi.Line{Type: gmi.Link, Text: "👽 carol (carol@b.localdomain)", URL: "/users/outbox/b.localdomain/user/carol"})
 
 	carol.
 		Follow("📣 New post").
 		FollowInput("🔔 Your followers and mentioned users", "hello").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 	cluster.Settle(t)
 
 	carol.
 		Follow("🐕 Followers").
 		Follow("🔒 Approve new follow requests manually").
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "🔓 Approve new follow requests automatically", URL: "/users/followers?unlock"}).
-		NotContains(gemtext.Line{Type: gemtext.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"})
+		Contains(gmi.Line{Type: gmi.Link, Text: "🔓 Approve new follow requests automatically", URL: "/users/followers?unlock"}).
+		NotContains(gmi.Line{Type: gmi.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
+		Contains(gmi.Line{Type: gmi.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"})
 
 	carol.
 		Follow("📻 My feed").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 
 	bob.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello"}).
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hello"}).
 		Follow("⚡ Follow carol (requires approval)").
 		OK().
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello"}).
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hello"}).
 		Follow("⚡️ Follows").
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "👽 carol (carol@b.localdomain) - pending approval", URL: "/users/outbox/b.localdomain/user/carol"})
+		Contains(gmi.Line{Type: gmi.Link, Text: "👽 carol (carol@b.localdomain) - pending approval", URL: "/users/outbox/b.localdomain/user/carol"})
 	cluster.Settle(t)
 
 	bob.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello"}).
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hello"}).
 		Follow("📻 My feed").
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 
 	carol.
 		Follow("🐕 Followers").
 		Follow("🟢 Accept").
-		NotContains(gemtext.Line{Type: gemtext.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"}).
-		NotContains(gemtext.Line{Type: gemtext.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/bob"}).
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/bob"})
+		NotContains(gmi.Line{Type: gmi.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
+		Contains(gmi.Line{Type: gmi.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"}).
+		NotContains(gmi.Line{Type: gmi.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/bob"}).
+		Contains(gmi.Line{Type: gmi.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/bob"})
 	cluster.Settle(t)
 
 	bob.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "🔌 Unfollow carol", URL: "/users/unfollow/b.localdomain/user/carol"}).
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"}).
+		Contains(gmi.Line{Type: gmi.Link, Text: "🔌 Unfollow carol", URL: "/users/unfollow/b.localdomain/user/carol"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"}).
 		Follow("📻 My feed").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 }
 
 func TestCluster_PostToFollowers_Rejected(t *testing.T) {
@@ -105,62 +105,62 @@ func TestCluster_PostToFollowers_Rejected(t *testing.T) {
 		Follow("⚡ Follow carol").
 		OK().
 		Follow("⚡️ Follows").
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "👽 carol (carol@b.localdomain) - pending approval", URL: "/users/outbox/b.localdomain/user/carol"})
+		Contains(gmi.Line{Type: gmi.Link, Text: "👽 carol (carol@b.localdomain) - pending approval", URL: "/users/outbox/b.localdomain/user/carol"})
 	cluster.Settle(t)
 
 	bob.
 		Follow("⚡️ Follows").
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "👽 carol (carol@b.localdomain)", URL: "/users/outbox/b.localdomain/user/carol"})
+		Contains(gmi.Line{Type: gmi.Link, Text: "👽 carol (carol@b.localdomain)", URL: "/users/outbox/b.localdomain/user/carol"})
 
 	carol.
 		Follow("📣 New post").
 		FollowInput("🔔 Your followers and mentioned users", "hello").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 	cluster.Settle(t)
 
 	carol.
 		Follow("🐕 Followers").
 		Follow("🔒 Approve new follow requests manually").
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "🔓 Approve new follow requests automatically", URL: "/users/followers?unlock"}).
-		NotContains(gemtext.Line{Type: gemtext.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/bob"}).
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/bob"})
+		Contains(gmi.Line{Type: gmi.Link, Text: "🔓 Approve new follow requests automatically", URL: "/users/followers?unlock"}).
+		NotContains(gmi.Line{Type: gmi.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/bob"}).
+		Contains(gmi.Line{Type: gmi.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/bob"})
 
 	carol.
 		Follow("📻 My feed").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 
 	alice.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello"}).
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hello"}).
 		Follow("⚡ Follow carol (requires approval)").
 		OK().
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello"}).
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hello"}).
 		Follow("⚡️ Follows").
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "👽 carol (carol@b.localdomain) - pending approval", URL: "/users/outbox/b.localdomain/user/carol"})
+		Contains(gmi.Line{Type: gmi.Link, Text: "👽 carol (carol@b.localdomain) - pending approval", URL: "/users/outbox/b.localdomain/user/carol"})
 	cluster.Settle(t)
 
 	alice.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello"}).
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hello"}).
 		Follow("📻 My feed").
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 
 	carol.
 		Goto("/users/followers/reject/a.localdomain/user/alice").
-		NotContains(gemtext.Line{Type: gemtext.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/bob"}).
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/bob"}).
-		NotContains(gemtext.Line{Type: gemtext.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
-		NotContains(gemtext.Line{Type: gemtext.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"})
+		NotContains(gmi.Line{Type: gmi.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/bob"}).
+		Contains(gmi.Line{Type: gmi.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/bob"}).
+		NotContains(gmi.Line{Type: gmi.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
+		NotContains(gmi.Line{Type: gmi.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"})
 	cluster.Settle(t)
 
 	alice.
 		Follow("⚡️ Follows").
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "👽 carol (carol@b.localdomain) - rejected", URL: "/users/outbox/b.localdomain/user/carol"}).
+		Contains(gmi.Line{Type: gmi.Link, Text: "👽 carol (carol@b.localdomain) - rejected", URL: "/users/outbox/b.localdomain/user/carol"}).
 		FollowInput("🔭 View profile", "carol@b.localdomain").
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "🔌 Unfollow carol (rejected)", URL: "/users/unfollow/b.localdomain/user/carol"}).
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello"}).
+		Contains(gmi.Line{Type: gmi.Link, Text: "🔌 Unfollow carol (rejected)", URL: "/users/unfollow/b.localdomain/user/carol"}).
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hello"}).
 		Follow("📻 My feed").
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 }
 
 func TestCluster_PostToFollowers_DisabledThenAccepted(t *testing.T) {
@@ -174,64 +174,64 @@ func TestCluster_PostToFollowers_DisabledThenAccepted(t *testing.T) {
 	carol.
 		Follow("🐕 Followers").
 		Follow("🔒 Approve new follow requests manually").
-		Contains(gemtext.Line{Type: gemtext.Text, Text: "No follow requests."}).
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "🔓 Approve new follow requests automatically", URL: "/users/followers?unlock"})
+		Contains(gmi.Line{Type: gmi.Text, Text: "No follow requests."}).
+		Contains(gmi.Line{Type: gmi.Link, Text: "🔓 Approve new follow requests automatically", URL: "/users/followers?unlock"})
 
 	alice.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
 		Follow("⚡ Follow carol (requires approval)").
 		OK().
 		Follow("⚡️ Follows").
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "👽 carol (carol@b.localdomain) - pending approval", URL: "/users/outbox/b.localdomain/user/carol"})
+		Contains(gmi.Line{Type: gmi.Link, Text: "👽 carol (carol@b.localdomain) - pending approval", URL: "/users/outbox/b.localdomain/user/carol"})
 	cluster.Settle(t)
 
 	carol.
 		Follow("🐕 Followers").
 		Follow("🔓 Approve new follow requests automatically").
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "🔒 Approve new follow requests manually", URL: "/users/followers?lock"}).
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"})
+		Contains(gmi.Line{Type: gmi.Link, Text: "🔒 Approve new follow requests manually", URL: "/users/followers?lock"}).
+		Contains(gmi.Line{Type: gmi.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
+		Contains(gmi.Line{Type: gmi.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"})
 	cluster.Settle(t)
 
 	alice.
 		Follow("⚡️ Follows").
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "👽 carol (carol@b.localdomain) - pending approval", URL: "/users/outbox/b.localdomain/user/carol"})
+		Contains(gmi.Line{Type: gmi.Link, Text: "👽 carol (carol@b.localdomain) - pending approval", URL: "/users/outbox/b.localdomain/user/carol"})
 
 	bob.
 		FollowInput("🔭 View profile", "carol@b.localdomain").
 		Follow("⚡ Follow carol").
 		OK().
 		Follow("⚡️ Follows").
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "👽 carol (carol@b.localdomain) - pending approval", URL: "/users/outbox/b.localdomain/user/carol"})
+		Contains(gmi.Line{Type: gmi.Link, Text: "👽 carol (carol@b.localdomain) - pending approval", URL: "/users/outbox/b.localdomain/user/carol"})
 	cluster.Settle(t)
 
 	bob.
 		Follow("⚡️ Follows").
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "👽 carol (carol@b.localdomain)", URL: "/users/outbox/b.localdomain/user/carol"})
+		Contains(gmi.Line{Type: gmi.Link, Text: "👽 carol (carol@b.localdomain)", URL: "/users/outbox/b.localdomain/user/carol"})
 
 	carol.
 		Follow("📣 New post").
 		FollowInput("🔔 Your followers and mentioned users", "hello").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 	cluster.Settle(t)
 
 	alice.
 		Follow("📻 My feed").
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 	bob.
 		Follow("📻 My feed").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 
 	carol.
 		Follow("🐕 Followers").
 		Follow("🟢 Accept").
-		NotContains(gemtext.Line{Type: gemtext.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"})
+		NotContains(gmi.Line{Type: gmi.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
+		Contains(gmi.Line{Type: gmi.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"})
 	cluster.Settle(t)
 
 	alice.
 		Follow("📻 My feed").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 }
 
 func TestCluster_PostToFollowers_ApprovedLocally(t *testing.T) {
@@ -245,49 +245,49 @@ func TestCluster_PostToFollowers_ApprovedLocally(t *testing.T) {
 	bob.
 		Follow("🐕 Followers").
 		Follow("🔒 Approve new follow requests manually").
-		Contains(gemtext.Line{Type: gemtext.Text, Text: "No follow requests."}).
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "🔓 Approve new follow requests automatically", URL: "/users/followers?unlock"})
+		Contains(gmi.Line{Type: gmi.Text, Text: "No follow requests."}).
+		Contains(gmi.Line{Type: gmi.Link, Text: "🔓 Approve new follow requests automatically", URL: "/users/followers?unlock"})
 
 	alice.
 		FollowInput("🔭 View profile", "bob@a.localdomain").
 		Follow("⚡ Follow bob (requires approval)").
 		OK().
 		Follow("⚡️ Follows").
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "😈 bob (bob@a.localdomain) - pending approval", URL: "/users/outbox/a.localdomain/user/bob"})
+		Contains(gmi.Line{Type: gmi.Link, Text: "😈 bob (bob@a.localdomain) - pending approval", URL: "/users/outbox/a.localdomain/user/bob"})
 
 	bob.
 		Follow("📣 New post").
 		FollowInput("🔔 Your followers and mentioned users", "hello").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 
 	alice.
 		Follow("📻 My feed").
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 
 	bob.
 		Follow("🐕 Followers").
 		Follow("🟢 Accept").
-		NotContains(gemtext.Line{Type: gemtext.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"})
+		NotContains(gmi.Line{Type: gmi.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
+		Contains(gmi.Line{Type: gmi.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"})
 
 	cluster.Settle(t)
 
 	alice.
 		Follow("📻 My feed").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 
 	carol.
 		Follow("📻 My feed").
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 
 	bob.
 		Follow("🐕 Followers").
 		Follow("🔓 Approve new follow requests automatically").
-		NotContains(gemtext.Line{Type: gemtext.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"}).
-		NotContains(gemtext.Line{Type: gemtext.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/carol"}).
-		NotContains(gemtext.Line{Type: gemtext.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/carol"}).
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "🔒 Approve new follow requests manually", URL: "/users/followers?lock"})
+		NotContains(gmi.Line{Type: gmi.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
+		Contains(gmi.Line{Type: gmi.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"}).
+		NotContains(gmi.Line{Type: gmi.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/carol"}).
+		NotContains(gmi.Line{Type: gmi.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/carol"}).
+		Contains(gmi.Line{Type: gmi.Link, Text: "🔒 Approve new follow requests manually", URL: "/users/followers?lock"})
 
 	carol.
 		FollowInput("🔭 View profile", "bob@a.localdomain").
@@ -297,7 +297,7 @@ func TestCluster_PostToFollowers_ApprovedLocally(t *testing.T) {
 
 	carol.
 		Follow("📻 My feed").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 }
 
 func TestCluster_PostToFollowers_RejectedLocally(t *testing.T) {
@@ -311,40 +311,40 @@ func TestCluster_PostToFollowers_RejectedLocally(t *testing.T) {
 	bob.
 		Follow("🐕 Followers").
 		Follow("🔒 Approve new follow requests manually").
-		Contains(gemtext.Line{Type: gemtext.Text, Text: "No follow requests."}).
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "🔓 Approve new follow requests automatically", URL: "/users/followers?unlock"})
+		Contains(gmi.Line{Type: gmi.Text, Text: "No follow requests."}).
+		Contains(gmi.Line{Type: gmi.Link, Text: "🔓 Approve new follow requests automatically", URL: "/users/followers?unlock"})
 
 	alice.
 		FollowInput("🔭 View profile", "bob@a.localdomain").
 		Follow("⚡ Follow bob (requires approval)").
 		OK().
 		Follow("⚡️ Follows").
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "😈 bob (bob@a.localdomain) - pending approval", URL: "/users/outbox/a.localdomain/user/bob"})
+		Contains(gmi.Line{Type: gmi.Link, Text: "😈 bob (bob@a.localdomain) - pending approval", URL: "/users/outbox/a.localdomain/user/bob"})
 
 	bob.
 		Follow("📣 New post").
 		FollowInput("🔔 Your followers and mentioned users", "hello").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 
 	alice.
 		Follow("📻 My feed").
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 
 	bob.
 		Follow("🐕 Followers").
 		Follow("🔴 Reject").
-		NotContains(gemtext.Line{Type: gemtext.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
-		NotContains(gemtext.Line{Type: gemtext.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"})
+		NotContains(gmi.Line{Type: gmi.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
+		NotContains(gmi.Line{Type: gmi.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"})
 
 	cluster.Settle(t)
 
 	alice.
 		Follow("📻 My feed").
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 
 	carol.
 		Follow("📻 My feed").
-		NotContains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 
 	carol.
 		FollowInput("🔭 View profile", "bob@a.localdomain").
@@ -354,15 +354,15 @@ func TestCluster_PostToFollowers_RejectedLocally(t *testing.T) {
 	bob.
 		Follow("🐕 Followers").
 		Follow("🟢 Accept").
-		NotContains(gemtext.Line{Type: gemtext.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
-		NotContains(gemtext.Line{Type: gemtext.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"}).
-		NotContains(gemtext.Line{Type: gemtext.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/carol"}).
-		Contains(gemtext.Line{Type: gemtext.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/carol"})
+		NotContains(gmi.Line{Type: gmi.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/alice"}).
+		NotContains(gmi.Line{Type: gmi.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/alice"}).
+		NotContains(gmi.Line{Type: gmi.Link, Text: "🟢 Accept", URL: "/users/followers/accept/a.localdomain/user/carol"}).
+		Contains(gmi.Line{Type: gmi.Link, Text: "🔴 Reject", URL: "/users/followers/reject/a.localdomain/user/carol"})
 	cluster.Settle(t)
 
 	carol.
 		Follow("📻 My feed").
-		Contains(gemtext.Line{Type: gemtext.Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 }
 
 func TestCluster_PostToFollowers_AcceptTwice(t *testing.T) {

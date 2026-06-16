@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"github.com/creack/pty"
-	"github.com/dimkr/tootik/front/shell"
 	"golang.org/x/term"
 )
 
@@ -245,9 +244,8 @@ func main() {
 	cl := seed(t{tempDir: tempDir, ctx: ctx}, keyPairs)
 	defer cl.Stop()
 
-	if err := shell.Run(
+	if err := cl["pizza.example"].Frontend.Handler.Shell(
 		ctx,
-		cl["pizza.example"].Frontend.Handler,
 		"alice",
 		"pizza.example",
 	); err != nil && !errors.Is(err, context.Canceled) {
