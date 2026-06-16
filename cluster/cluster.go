@@ -75,6 +75,10 @@ func (c Cluster) Settle(t T) {
 			server.Test.Fatalf("Failed to update feeds on %s: %v", d, err)
 		}
 	}
+
+	for _, server := range c {
+		server.Cache.Clear()
+	}
 }
 
 // Stop stops all servers in the cluster.
