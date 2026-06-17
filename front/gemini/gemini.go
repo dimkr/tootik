@@ -43,9 +43,11 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/danger"
+	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/front/text/gmi"
 	"github.com/dimkr/tootik/httpsig"
+	"golang.org/x/crypto/acme/autocert"
 )
 
 type Listener struct {
@@ -235,7 +237,7 @@ func generateSelfSignedKeyPair(domain string) ([]byte, []byte, error) {
 	return certPEM, keyPEM, nil
 }
 
-func (gl *Listener) getCertificate() (tls.Certificate, error) {
+func (gl *Listener) getCertificate(ctx context.Context) (tls.Certificate, error) {
 	certExists := true
 
 	certPEM, err := os.ReadFile(gl.CertPath)
@@ -246,39 +248,60 @@ func (gl *Listener) getCertificate() (tls.Certificate, error) {
 	}
 
 	keyPEM, err := os.ReadFile(gl.KeyPath)
-	if errors.Is(err, fs.ErrNotExist) && !certExists {
-		certPEM, keyPEM, err = generateSelfSignedKeyPair(gl.Domain)
-		if err != nil {
-			return tls.Certificate{}, err
-		}
+	if err != nil && !(errors.Is(err, fs.ErrNotExist) && !certExists) {
+		return tls.Certificate{}, err
+	} else if err == nil {
+		return tls.X509KeyPair(certPEM, keyPEM)
+	}
 
-		if err := os.WriteFile(gl.CertPath, certPEM, 0600); err != nil {
-			os.Remove(gl.CertPath)
-			return tls.Certificate{}, err
-		}
-
-		if err := os.WriteFile(gl.KeyPath, keyPEM, 0600); err != nil {
-			os.Remove(gl.KeyPath)
-			os.Remove(gl.CertPath)
-			return tls.Certificate{}, err
-		}
-
-		slog.Info(
-			"Generated self-signed certificate",
-			"domain", gl.Domain,
-			"cert", gl.CertPath,
-			"key", gl.KeyPath,
-		)
-	} else if err != nil {
+	tx, err := gl.DB.BeginTx(ctx, nil)
+	if err != nil {
 		return tls.Certificate{}, err
 	}
+	defer tx.Rollback()
+
+	cache := data.Cache[Listener]{DB: tx}
+
+	if certPEM, err := cache.Get(ctx, "cert"); err != nil && !errors.Is(err, autocert.ErrCacheMiss) {
+		return tls.Certificate{}, err
+	} else if err == nil {
+		if keyPEM, err := cache.Get(ctx, "key"); err != nil && !errors.Is(err, autocert.ErrCacheMiss) {
+			return tls.Certificate{}, err
+		} else if err == nil {
+			return tls.X509KeyPair(certPEM, keyPEM)
+		}
+	}
+
+	certPEM, keyPEM, err = generateSelfSignedKeyPair(gl.Domain)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	if err := cache.Put(ctx, "cert", certPEM); err != nil {
+		return tls.Certificate{}, err
+	}
+
+	if err := cache.Put(ctx, "key", keyPEM); err != nil {
+		return tls.Certificate{}, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return tls.Certificate{}, err
+	}
+
+	slog.Info(
+		"Generated self-signed certificate",
+		"domain", gl.Domain,
+		"cert", gl.CertPath,
+		"key", gl.KeyPath,
+	)
 
 	return tls.X509KeyPair(certPEM, keyPEM)
 }
 
 // ListenAndServe handles Gemini requests.
 func (gl *Listener) ListenAndServe(ctx context.Context) error {
-	cert, err := gl.getCertificate()
+	cert, err := gl.getCertificate(ctx)
 	if err != nil {
 		return err
 	}

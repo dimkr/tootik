@@ -33,6 +33,7 @@ import (
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/fsnotify/fsnotify"
 	"golang.org/x/crypto/acme/autocert"
@@ -115,7 +116,7 @@ func (l *Listener) tlsConfig() (*tls.Config, error) {
 	if errors.Is(err, fs.ErrNotExist) && !certExists && !l.Plain {
 		config = (&autocert.Manager{
 			Prompt:     autocert.AcceptTOS,
-			Cache:      dbAutoCertCache{DB: l.DB},
+			Cache:      data.Cache[Listener]{DB: l.DB},
 			HostPolicy: autocert.HostWhitelist(l.Domain),
 		}).TLSConfig()
 	} else if err != nil && !l.Plain {
