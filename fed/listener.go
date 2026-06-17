@@ -21,10 +21,12 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"errors"
+	"io/fs"
 	"log/slog"
 	"math"
 	"net"
 	"net/http"
+	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -33,6 +35,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/fsnotify/fsnotify"
+	"golang.org/x/crypto/acme/autocert"
 )
 
 type Listener struct {
@@ -93,6 +96,44 @@ func (l *Listener) NewHandler() (http.Handler, error) {
 	}
 }
 
+func (l *Listener) tlsConfig() (*tls.Config, error) {
+	if l.Plain {
+		return nil, nil
+	}
+
+	certExists := true
+
+	certPEM, err := os.ReadFile(l.Cert)
+	if errors.Is(err, fs.ErrNotExist) {
+		certExists = false
+	} else if err != nil {
+		return nil, err
+	}
+
+	config := &tls.Config{}
+	keyPEM, err := os.ReadFile(l.Key)
+	if errors.Is(err, fs.ErrNotExist) && !certExists && !l.Plain {
+		config = (&autocert.Manager{
+			Prompt:     autocert.AcceptTOS,
+			Cache:      dbAutoCertCache{DB: l.DB},
+			HostPolicy: autocert.HostWhitelist(l.Domain),
+		}).TLSConfig()
+	} else if err != nil && !l.Plain {
+		return nil, err
+	} else if err == nil {
+		cert, err := tls.X509KeyPair(certPEM, keyPEM)
+		if err != nil {
+			return nil, err
+		}
+
+		config.Certificates = []tls.Certificate{cert}
+	}
+
+	config.MinVersion = tls.VersionTLS12
+
+	return config, nil
+}
+
 // ListenAndServe handles HTTP requests from other servers.
 func (l *Listener) ListenAndServe(ctx context.Context) error {
 	handler, err := l.NewHandler()
@@ -125,6 +166,11 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 	}
 
 	for ctx.Err() == nil {
+		tlsConfig, err := l.tlsConfig()
+		if err != nil {
+			return err
+		}
+
 		var wg sync.WaitGroup
 		serverCtx, stopServer := context.WithCancel(ctx)
 
@@ -135,9 +181,7 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 				return serverCtx
 			},
 			ReadTimeout: time.Second * 30,
-			TLSConfig: &tls.Config{
-				MinVersion: tls.VersionTLS12,
-			},
+			TLSConfig:   tlsConfig,
 		}
 
 		wg.Go(func() {
@@ -181,11 +225,10 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 		})
 
 		slog.Info("Starting server")
-		var err error
 		if l.Plain {
 			err = server.ListenAndServe()
 		} else {
-			err = server.ListenAndServeTLS(l.Cert, l.Key)
+			err = server.ListenAndServeTLS("", "")
 		}
 
 		stopServer()

@@ -23,52 +23,23 @@ The $5/mo nodes at [Linode](https://www.linode.com/lp/refer/?r=2e06503874831fe79
 
 **In every command that appears in this guide, replace `$domain` with your domain** or simply run `domain=` followed by your domain now.
 
-3. Install [Certbot](https://certbot.eff.org/) and generate a HTTPS certificate for federation:
-
-```
-apt update
-apt install snapd
-snap install --classic certbot
-ln -s /snap/bin/certbot /usr/bin/certbot
-certbot certonly --standalone
-```
-
-4. Create a directory for tootik files and copy the certificate:
+3. Create a directory for tootik files:
 
 ```
 mkdir /tootik-cfg
-cp /etc/letsencrypt/live/*/fullchain.pem /tootik-cfg/https-cert.pem
-cp /etc/letsencrypt/live/*/privkey.pem /tootik-cfg/https-key.pem
 ```
 
-5. Create a post-renewal hook that updates the copied certificate on renewal:
+If you already have a Gemini certificate that you wish to use, place the certificate in `/tootik-cfg/gemini-cert.pem` and the private key in `/tootik-cfg/gemini-key.pem`. **If neither exists**, tootik generates a self-signed `secp256r1` certificate with a 10 year lifespan, then writes it to disk.
 
-```
-cat << EOF > /etc/letsencrypt/renewal-hooks/deploy/tootik.sh
-#!/bin/sh
+If you already have a HTTPS certificate that you wish to use, place the certificate in `/tootik-cfg/https-cert.pem` and the private key in `/tootik-cfg/https-key.pem`. tootik monitors these files for changes and should restart its HTTPS listener automatically once they get replaced on renewal. **If neither file exists**, tootik uses [Let's Encrypt](https://letsencrypt.org/) and the `tls-alpn-01` ACME challenge type, while accepting its Terms of Service, then caches the certificate in the database.
 
-cp -f /etc/letsencrypt/live/*/fullchain.pem /tootik-cfg/https-cert.pem
-cp -f /etc/letsencrypt/live/*/privkey.pem /tootik-cfg/https-key.pem
-EOF
-chmod 755 /etc/letsencrypt/renewal-hooks/deploy/tootik.sh
-```
-
-tootik monitors these files for changes and should restart its HTTPS listener automatically every time the certificate is renewed and the hook replaces the files.
-
-6. Generate a self-signed TLS certificate for the Gemini frontend
-
-```
-openssl ecparam -name prime256v1 -genkey -out /tmp/ec.pem
-openssl req -new -x509 -key /tmp/ec.pem -sha256 -nodes -subj "/CN=$domain" -out /tootik-cfg/gemini-cert.pem -keyout /tootik-cfg/gemini-key.pem -days 3650
-```
-
-7. Download the [Garden Fence](https://github.com/gardenfence/blocklist) blocklist:
+4. Download the [Garden Fence](https://github.com/gardenfence/blocklist) blocklist:
 
 ```
 curl -L https://github.com/gardenfence/blocklist/raw/main/gardenfence-mastodon.csv > /tootik-cfg/gardenfence-mastodon.csv
 ```
 
-8. Create an unprivileged user and a separate directory for the tootik database, then download tootik and run it:
+5. Create an unprivileged user and a separate directory for the tootik database, then download tootik and run it:
 
 ```
 mkdir /tootik-data
@@ -85,7 +56,7 @@ We use a separate directory for the database because tootik monitors the directo
 
 **tootik writes logs to stderr. Keep this shell open for troubleshooting purposes, and continue in another.**
 
-9. From a remote machine, verify that tootik is accessible over HTTPS:
+6. From a remote machine, verify that tootik is accessible over HTTPS:
 
 ```
 curl -v https://$domain
@@ -100,11 +71,11 @@ Output should contain:
 
 If `curl` times out, check your server's firewall: port 443 is probably blocked.
 
-10. Verify that tootik is accessible from a remote machine over Gemini, with any Gemini client.
+7. Verify that tootik is accessible from a remote machine over Gemini, with any Gemini client.
 
 If you have a graphical web browser and a Gemini client that configures itself as the default handler for gemini:// URLs, opening https://$domain through the web browser should display a popup that asks you to use the Gemini client instead. Otherwise, fire up your Gemini client and navigate to gemini://$domain.
 
-11. Register by creating a client certificate or clicking "Sign in" and use "View profile" to verify that your instance is able to "discover" users on other servers.
+8. Register by creating a client certificate or clicking "Sign in" and use "View profile" to verify that your instance is able to "discover" users on other servers.
 
 Once a user is discovered, you can follow this user and your instance should start receiving new posts by this user. They should appear under your user's inbox ("My feed") after a while (`FeedUpdateInterval`) and the user's profile.
 
@@ -112,19 +83,19 @@ Once a user is discovered, you can follow this user and your instance should sta
 
 If certificate validation fails for all outgoing requests, try to update CA certificates using `apt update && apt-get install --only-upgrade ca-certificates` and synchronize the server's clock using `apt install systemd-timesyncd && timedatectl set-ntp true`.
 
-12. Repeat the same check in the other direction: try to search for your user in your tootik instance (`$user@$domain`) from another ActivityPub-compatible server, then follow it and check if the other server receives new posts by your tootik user.
+9. Repeat the same check in the other direction: try to search for your user in your tootik instance (`$user@$domain`) from another ActivityPub-compatible server, then follow it and check if the other server receives new posts by your tootik user.
 
 **If you don't see any posts, check tootik's output.**
 
-13. Ask tootik to stop using CTRL+c and wait.
+10. Ask tootik to stop using CTRL+c and wait.
 
-14. Write tootik's defaults to a configuration file that can be edited later:
+11. Write tootik's defaults to a configuration file that can be edited later:
 
 ```
 tootik -dumpcfg > /tootik-cfg/cfg.json
 ```
 
-15. Add a systemd unit for tootik, to make it run at startup, restart it if it crashes, and save its log on disk (with log rotation):
+12. Add a systemd unit for tootik, to make it run at startup, restart it if it crashes, and save its log on disk (with log rotation):
 
 ```
 cat << EOF > /etc/systemd/system/tootik.service
