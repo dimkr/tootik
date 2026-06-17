@@ -46,7 +46,7 @@ useradd -mr tootik
 chown -R tootik:tootik /tootik-cfg /tootik-data
 curl -L https://github.com/dimkr/tootik/releases/latest/download/tootik-$(case `uname -m` in x86_64) echo amd64;; aarch64) echo arm64;; i686) echo 386;; armv7l) echo arm;; esac) -o /usr/local/bin/tootik
 chmod 755 /usr/local/bin/tootik
-tootik -domain $domain -addr :443 -gemaddr :1965 -blocklist /tootik-cfg/gardenfence-mastodon.csv -db /tootik-data/db.sqlite3
+tootik -domain $domain -blocklist /tootik-cfg/gardenfence-mastodon.csv -db /tootik-data/db.sqlite3
 ```
 
 To enable more verbose logging, add `-loglevel -4`.
@@ -101,7 +101,7 @@ Description=tootik
 After=network.target
 
 [Service]
-ExecStart=tootik -domain $domain -addr :443 -gemaddr :1965 -blocklist /tootik-cfg/gardenfence-mastodon.csv -db /tootik-data/db.sqlite3 -cfg /tootik-cfg/cfg.json
+ExecStart=tootik -domain $domain -blocklist /tootik-cfg/gardenfence-mastodon.csv -db /tootik-data/db.sqlite3 -cfg /tootik-cfg/cfg.json
 User=tootik
 Group=tootik
 AmbientCapabilities=CAP_NET_BIND_SERVICE
