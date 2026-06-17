@@ -29,9 +29,9 @@ The $5/mo nodes at [Linode](https://www.linode.com/lp/refer/?r=2e06503874831fe79
 mkdir /tootik-cfg
 ```
 
-If you already have a Gemini certificate that you wish to use, place the certificate in `/tootik-cfg/gemini-cert.pem` and the private key in `/tootik-cfg/gemini-key.pem`. **If neither exists**, tootik generates a self-signed `secp256r1` certificate with a 10 year lifespan, then writes it to disk.
+If you already have a Gemini certificate that you wish to use, place the certificate in `/tootik-cfg/gemini-cert.pem` and the private key in `/tootik-cfg/gemini-key.pem`, then run tootik with `-gemcert /tootik-cfg/gemini-cert.pem -gemkey /tootik-cfg/gemini-key.pem`. Otherwise, tootik generates a self-signed `secp256r1` certificate with a 10 year lifespan, then writes it to disk.
 
-If you already have a HTTPS certificate that you wish to use, place the certificate in `/tootik-cfg/https-cert.pem` and the private key in `/tootik-cfg/https-key.pem`. tootik monitors these files for changes and should restart its HTTPS listener automatically once they get replaced on renewal. **If neither file exists**, tootik uses [Let's Encrypt](https://letsencrypt.org/) and the `tls-alpn-01` ACME challenge type, while accepting its Terms of Service, then caches the certificate in the database.
+If you already have a HTTPS certificate that you wish to use, place the certificate in `/tootik-cfg/https-cert.pem` and the private key in `/tootik-cfg/https-key.pem`, then run tootik with `-cert /tootik-cfg/https-cert.pem -key /tootik-cfg/https-key.pem`; tootik monitors these files for changes and should restart its HTTPS listener automatically once they get replaced on renewal. Otherwise, tootik uses [Let's Encrypt](https://letsencrypt.org/) and the `tls-alpn-01` ACME challenge type, while accepting its Terms of Service, then caches the certificate in the database.
 
 4. Download the [Garden Fence](https://github.com/gardenfence/blocklist) blocklist:
 
@@ -47,7 +47,7 @@ useradd -mr tootik
 chown -R tootik:tootik /tootik-cfg /tootik-data
 curl -L https://github.com/dimkr/tootik/releases/latest/download/tootik-$(case `uname -m` in x86_64) echo amd64;; aarch64) echo arm64;; i686) echo 386;; armv7l) echo arm;; esac) -o /usr/local/bin/tootik
 chmod 755 /usr/local/bin/tootik
-tootik -domain $domain -addr :443 -gemaddr :1965 -blocklist /tootik-cfg/gardenfence-mastodon.csv -cert /tootik-cfg/https-cert.pem -key /tootik-cfg/https-key.pem -gemcert /tootik-cfg/gemini-cert.pem -gemkey /tootik-cfg/gemini-key.pem -db /tootik-data/db.sqlite3
+tootik -domain $domain -addr :443 -gemaddr :1965 -blocklist /tootik-cfg/gardenfence-mastodon.csv -db /tootik-data/db.sqlite3
 ```
 
 To enable more verbose logging, add `-loglevel -4`.
@@ -104,7 +104,7 @@ Description=tootik
 After=network.target
 
 [Service]
-ExecStart=tootik -domain $domain -addr :443 -gemaddr :1965 -blocklist /tootik-cfg/gardenfence-mastodon.csv -cert /tootik-cfg/https-cert.pem -key /tootik-cfg/https-key.pem -gemcert /tootik-cfg/gemini-cert.pem -gemkey /tootik-cfg/gemini-key.pem -db /tootik-data/db.sqlite3 -cfg /tootik-cfg/cfg.json
+ExecStart=tootik -domain $domain -addr :443 -gemaddr :1965 -blocklist /tootik-cfg/gardenfence-mastodon.csv -db /tootik-data/db.sqlite3 -cfg /tootik-cfg/cfg.json
 User=tootik
 Group=tootik
 AmbientCapabilities=CAP_NET_BIND_SERVICE
