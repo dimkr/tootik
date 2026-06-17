@@ -1,3 +1,19 @@
+/*
+Copyright 2026 Dima Krasner
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package gmi
 
 import (
@@ -17,29 +33,37 @@ const fallbackCols = 80
 func render(lines []Line, cols int, w io.Writer) {
 	linkID := 1
 
+	writeString := func(s string) (int, error) {
+		return w.Write([]byte(s))
+	}
+
+	if sw, ok := w.(io.StringWriter); ok {
+		writeString = sw.WriteString
+	}
+
 	for _, l := range lines {
 		switch l.Type {
 		case Heading:
 			for _, line := range text.WordWrap(l.Text, cols-2, -1) {
-				io.WriteString(w, "\033[4m# "+line+"\033[0m\n")
+				writeString("\033[4m# " + line + "\033[0m\n")
 			}
 
 		case SubHeading:
 			for _, line := range text.WordWrap(l.Text, cols-3, -1) {
-				io.WriteString(w, "\033[4m## "+line+"\033[0m\n")
+				writeString("\033[4m## " + line + "\033[0m\n")
 			}
 
 		case Quote:
 			for _, line := range text.WordWrap(l.Text, cols-2, -1) {
-				io.WriteString(w, "> "+line+"\n")
+				writeString("> " + line + "\n")
 			}
 
 		case Item:
 			for i, line := range text.WordWrap(l.Text, cols-2, -1) {
 				if i == 0 {
-					io.WriteString(w, "* "+line+"\n")
+					writeString("* " + line + "\n")
 				} else {
-					io.WriteString(w, " "+line+"\n")
+					writeString(" " + line + "\n")
 				}
 			}
 
@@ -47,19 +71,19 @@ func render(lines []Line, cols int, w io.Writer) {
 			prefix := fmt.Sprintf("[%d] ", linkID)
 			for i, line := range text.WordWrap(l.Text, cols-len(prefix), -1) {
 				if i == 0 {
-					io.WriteString(w, fmt.Sprintf("\033[4;36m[%d]\033[0;39m %s\n", linkID, line))
+					writeString(fmt.Sprintf("\033[4;36m[%d]\033[0;39m %s\n", linkID, line))
 				} else {
-					io.WriteString(w, strings.Repeat(" ", len(prefix))+line+"\n")
+					writeString(strings.Repeat(" ", len(prefix)) + line + "\n")
 				}
 			}
 			linkID++
 
 		case Preformatted:
-			io.WriteString(w, text.WordWrap(l.Text, cols, -1)[0]+"\n")
+			writeString(text.WordWrap(l.Text, cols, -1)[0] + "\n")
 
 		default:
 			for _, line := range text.WordWrap(l.Text, cols, -1) {
-				io.WriteString(w, line+"\n")
+				writeString(line + "\n")
 			}
 		}
 	}
