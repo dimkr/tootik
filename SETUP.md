@@ -5,7 +5,6 @@
 To install tootik, you need to:
 
 * Get a server and point a domain to it
-* Generate a valid HTTPS certificate (we're using a free [Let's Encrypt](https://letsencrypt.org/) certificate) and a Gemini certificate
 * Manually run tootik on your server (we're using a prebuilt static executable for x86 or ARM)
 * Verify that the Gemini frontend is accessible and works
 * Verify that federation works in both directions
