@@ -28,7 +28,7 @@ The $5/mo nodes at [Linode](https://www.linode.com/lp/refer/?r=2e06503874831fe79
 mkdir /tootik-cfg
 ```
 
-If you already have a Gemini certificate that you wish to use, place the certificate in `/tootik-cfg/gemini-cert.pem` and the private key in `/tootik-cfg/gemini-key.pem`, then run tootik with `-gemcert /tootik-cfg/gemini-cert.pem -gemkey /tootik-cfg/gemini-key.pem`. Otherwise, tootik generates a self-signed `secp256r1` certificate with a 10 year lifespan, then writes it to disk.
+If you already have a Gemini certificate that you wish to use, place the certificate in `/tootik-cfg/gemini-cert.pem` and the private key in `/tootik-cfg/gemini-key.pem`, then run tootik with `-gemcert /tootik-cfg/gemini-cert.pem -gemkey /tootik-cfg/gemini-key.pem`. Otherwise, tootik generates a self-signed `secp256r1` certificate with a 10 year lifespan.
 
 If you already have a HTTPS certificate that you wish to use, place the certificate in `/tootik-cfg/https-cert.pem` and the private key in `/tootik-cfg/https-key.pem`, then run tootik with `-cert /tootik-cfg/https-cert.pem -key /tootik-cfg/https-key.pem`; tootik monitors the directories containing these files for changes and should restart its HTTPS listener automatically once they get replaced on renewal. Therefore, putting these files in the same directory as the database or the blocklist can result in many wakeups and increased CPU usage. If you don't have a HTTPS certificate, tootik falls back to generating one using [Let's Encrypt](https://letsencrypt.org/) and the `tls-alpn-01` ACME challenge type, while accepting its Terms of Service, then caches the certificate in the database and renews it automatically.
 

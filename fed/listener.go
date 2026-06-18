@@ -28,6 +28,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -111,17 +112,19 @@ func (l *Listener) tlsConfig() (*tls.Config, error) {
 		return nil, err
 	}
 
+	host, _, _ := strings.Cut(l.Domain, ":")
+
 	config := &tls.Config{}
 	keyPEM, err := os.ReadFile(l.Key)
-	if errors.Is(err, fs.ErrNotExist) && !certExists && !l.Plain {
+	if errors.Is(err, fs.ErrNotExist) && !certExists {
 		config = (&autocert.Manager{
 			Prompt:     autocert.AcceptTOS,
 			Cache:      data.Cache[Listener]{DB: l.DB},
-			HostPolicy: autocert.HostWhitelist(l.Domain),
+			HostPolicy: autocert.HostWhitelist(host),
 		}).TLSConfig()
-	} else if err != nil && !l.Plain {
+	} else if err != nil {
 		return nil, err
-	} else if err == nil {
+	} else {
 		cert, err := tls.X509KeyPair(certPEM, keyPEM)
 		if err != nil {
 			return nil, err

@@ -37,6 +37,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -204,9 +205,11 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 }
 
 func generateSelfSignedCertificate(priv *ecdsa.PrivateKey, domain string, now time.Time) ([]byte, error) {
+	host, _, _ := strings.Cut(domain, ":")
+
 	template := x509.Certificate{
 		Subject: pkix.Name{
-			CommonName: domain,
+			CommonName: host,
 		},
 		NotBefore:             now,
 		NotAfter:              now.Add(time.Hour * 24 * 365 * 10),
@@ -252,13 +255,24 @@ func (gl *Listener) getCertificate(ctx context.Context) (tls.Certificate, error)
 	var priv *ecdsa.PrivateKey
 
 	keyPEM, err = cache.Get(ctx, "key")
-	if errors.Is(err, autocert.ErrCacheMiss) {
-		ecPriv, err := ecdsa.GenerateKey(elliptic.P256(), nil)
+	if err != nil && !errors.Is(err, autocert.ErrCacheMiss) {
+		return tls.Certificate{}, err
+	} else if err == nil {
+		if der, _ := pem.Decode(keyPEM); der != nil {
+			priv, err = x509.ParseECPrivateKey(der.Bytes)
+			if err != nil {
+				return tls.Certificate{}, err
+			}
+		}
+	}
+
+	if priv == nil {
+		priv, err = ecdsa.GenerateKey(elliptic.P256(), nil)
 		if err != nil {
 			return tls.Certificate{}, err
 		}
 
-		privBytes, err := x509.MarshalECPrivateKey(ecPriv)
+		privBytes, err := x509.MarshalECPrivateKey(priv)
 		if err != nil {
 			return tls.Certificate{}, err
 		}
@@ -269,17 +283,7 @@ func (gl *Listener) getCertificate(ctx context.Context) (tls.Certificate, error)
 			return tls.Certificate{}, err
 		}
 
-		priv = ecPriv
 		slog.Info("Generated private key")
-	} else if err != nil {
-		return tls.Certificate{}, err
-	} else {
-		der, _ := pem.Decode(keyPEM)
-
-		priv, err = x509.ParseECPrivateKey(der.Bytes)
-		if err != nil {
-			return tls.Certificate{}, err
-		}
 	}
 
 	certPEM, err = cache.Get(ctx, "cert")
@@ -297,13 +301,11 @@ func (gl *Listener) getCertificate(ctx context.Context) (tls.Certificate, error)
 	} else if err != nil {
 		return tls.Certificate{}, err
 	} else {
-		cert, err := tls.X509KeyPair(certPEM, keyPEM)
-		if err != nil {
-			return tls.Certificate{}, err
-		}
-
 		now := time.Now()
-		if now.Before(cert.Leaf.NotAfter) {
+
+		if cert, err := tls.X509KeyPair(certPEM, keyPEM); err != nil {
+			slog.Warn("Failed to load certificate", "error", err)
+		} else if now.Before(cert.Leaf.NotAfter) {
 			slog.Debug("Using existing self-signed certificate", "domain", gl.Domain, "until", cert.Leaf.NotAfter)
 			return cert, nil
 		}

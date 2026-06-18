@@ -137,6 +137,9 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 	var publicKey any
 	if actor.PublicKey.ID == sig.KeyID {
 		publicKeyPem, _ := pem.Decode(danger.Bytes(actor.PublicKey.PublicKeyPem))
+		if publicKeyPem == nil {
+			return nil, nil, fmt.Errorf("failed to decode %s", sig.KeyID)
+		}
 
 		var err error
 		publicKey, err = x509.ParsePKIXPublicKey(publicKeyPem.Bytes)
