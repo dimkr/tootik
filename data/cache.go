@@ -57,7 +57,13 @@ func (c Cache[T]) Get(ctx context.Context, key string) ([]byte, error) {
 func (c Cache[T]) Put(ctx context.Context, key string, data []byte) error {
 	_, err := c.DB.ExecContext(
 		ctx,
-		`insert into cache(module, key, data) values(? || '.' || ?, ?, ?)`,
+		`
+		insert into cache
+			(module, key, data)
+		values
+			($1 || '.' || $2, $3, $4)
+		on conflict(module, key) do update set data = $4
+		`,
 		reflect.TypeFor[T]().PkgPath(),
 		reflect.TypeFor[T]().Name(),
 		key,

@@ -203,14 +203,7 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 	gl.Handler.Handle(&r, w)
 }
 
-func generateSelfSignedKeyPair(domain string) ([]byte, []byte, error) {
-	priv, err := ecdsa.GenerateKey(elliptic.P256(), nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	now := time.Now()
-
+func generateSelfSignedCertificate(priv *ecdsa.PrivateKey, domain string, now time.Time) ([]byte, error) {
 	template := x509.Certificate{
 		Subject: pkix.Name{
 			CommonName: domain,
@@ -224,17 +217,10 @@ func generateSelfSignedKeyPair(domain string) ([]byte, []byte, error) {
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	privBytes, err := x509.MarshalECPrivateKey(priv)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
-	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: privBytes})
-	return certPEM, keyPEM, nil
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: derBytes}), nil
 }
 
 func (gl *Listener) getCertificate(ctx context.Context) (tls.Certificate, error) {
@@ -251,6 +237,7 @@ func (gl *Listener) getCertificate(ctx context.Context) (tls.Certificate, error)
 	if err != nil && !(errors.Is(err, fs.ErrNotExist) && !certExists) {
 		return tls.Certificate{}, err
 	} else if err == nil {
+		slog.Debug("Using certificate from disk")
 		return tls.X509KeyPair(certPEM, keyPEM)
 	}
 
@@ -262,39 +249,80 @@ func (gl *Listener) getCertificate(ctx context.Context) (tls.Certificate, error)
 
 	cache := data.Cache[Listener]{DB: tx}
 
-	if certPEM, err := cache.Get(ctx, "cert"); err != nil && !errors.Is(err, autocert.ErrCacheMiss) {
-		return tls.Certificate{}, err
-	} else if err == nil {
-		if keyPEM, err := cache.Get(ctx, "key"); err != nil && !errors.Is(err, autocert.ErrCacheMiss) {
+	var priv *ecdsa.PrivateKey
+
+	keyPEM, err = cache.Get(ctx, "key")
+	if errors.Is(err, autocert.ErrCacheMiss) {
+		ecPriv, err := ecdsa.GenerateKey(elliptic.P256(), nil)
+		if err != nil {
 			return tls.Certificate{}, err
-		} else if err == nil {
-			return tls.X509KeyPair(certPEM, keyPEM)
+		}
+
+		privBytes, err := x509.MarshalECPrivateKey(ecPriv)
+		if err != nil {
+			return tls.Certificate{}, err
+		}
+
+		keyPEM = pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: privBytes})
+
+		if err := cache.Put(ctx, "key", keyPEM); err != nil {
+			return tls.Certificate{}, err
+		}
+
+		priv = ecPriv
+		slog.Info("Generated private key")
+	} else if err != nil {
+		return tls.Certificate{}, err
+	} else {
+		der, _ := pem.Decode(keyPEM)
+
+		priv, err = x509.ParseECPrivateKey(der.Bytes)
+		if err != nil {
+			return tls.Certificate{}, err
 		}
 	}
 
-	certPEM, keyPEM, err = generateSelfSignedKeyPair(gl.Domain)
-	if err != nil {
-		return tls.Certificate{}, err
-	}
+	certPEM, err = cache.Get(ctx, "cert")
+	if errors.Is(err, autocert.ErrCacheMiss) {
+		certPEM, err = generateSelfSignedCertificate(priv, gl.Domain, time.Now())
+		if err != nil {
+			return tls.Certificate{}, err
+		}
 
-	if err := cache.Put(ctx, "cert", certPEM); err != nil {
-		return tls.Certificate{}, err
-	}
+		if err := cache.Put(ctx, "cert", certPEM); err != nil {
+			return tls.Certificate{}, err
+		}
 
-	if err := cache.Put(ctx, "key", keyPEM); err != nil {
+		slog.Info("Generated self-signed certificate", "domain", gl.Domain)
+	} else if err != nil {
 		return tls.Certificate{}, err
+	} else {
+		cert, err := tls.X509KeyPair(certPEM, keyPEM)
+		if err != nil {
+			return tls.Certificate{}, err
+		}
+
+		now := time.Now()
+		if now.Before(cert.Leaf.NotAfter) {
+			slog.Debug("Using existing self-signed certificate", "domain", gl.Domain, "until", cert.Leaf.NotAfter)
+			return cert, nil
+		}
+
+		certPEM, err = generateSelfSignedCertificate(priv, gl.Domain, now)
+		if err != nil {
+			return tls.Certificate{}, err
+		}
+
+		if err := cache.Put(ctx, "cert", certPEM); err != nil {
+			return tls.Certificate{}, err
+		}
+
+		slog.Info("Renewed self-signed certificate", "domain", gl.Domain)
 	}
 
 	if err := tx.Commit(); err != nil {
 		return tls.Certificate{}, err
 	}
-
-	slog.Info(
-		"Generated self-signed certificate",
-		"domain", gl.Domain,
-		"cert", gl.CertPath,
-		"key", gl.KeyPath,
-	)
 
 	return tls.X509KeyPair(certPEM, keyPEM)
 }
