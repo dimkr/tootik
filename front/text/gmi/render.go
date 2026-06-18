@@ -96,7 +96,7 @@ func Render(ctx context.Context, lines []Line) error {
 		cols = fallbackCols
 	}
 
-	c := exec.CommandContext(ctx, "less", "-r")
+	c := exec.CommandContext(ctx, "less", "-R")
 
 	stdin, err := c.StdinPipe()
 	if err != nil {

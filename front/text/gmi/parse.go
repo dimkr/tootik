@@ -37,9 +37,13 @@ func Parse(resp string) (string, []Line, map[string]string) {
 			} else if preformatted {
 				lines = append(lines, Line{Type: Preformatted, Text: line})
 			} else if strings.HasPrefix(line, "=> ") {
-				i := strings.IndexByte(line[3:], ' ')
-				lines = append(lines, Line{Type: Link, Text: line[4+i:], URL: line[3 : 3+i]})
-				links[line[4+i:]] = line[3 : 3+i]
+				if i := strings.IndexByte(line[3:], ' '); i < 0 {
+					lines = append(lines, Line{Type: Link, Text: line[3 : 3+i], URL: line[3 : 3+i]})
+					links[line[3:3+i]] = line[3 : 3+i]
+				} else {
+					lines = append(lines, Line{Type: Link, Text: line[4+i:], URL: line[3 : 3+i]})
+					links[line[4+i:]] = line[3 : 3+i]
+				}
 			} else if strings.HasPrefix(line, "# ") {
 				lines = append(lines, Line{Type: Heading, Text: line[2:]})
 			} else if strings.HasPrefix(line, "## ") {

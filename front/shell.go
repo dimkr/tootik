@@ -110,7 +110,11 @@ outer:
 		})
 
 		if strings.HasPrefix(status, "30 ") {
-			rel, _ := url.Parse(status[3 : buf.Len()-2])
+			rel, err := url.Parse(status[3:])
+			if err != nil {
+				return err
+			}
+
 			u = u.ResolveReference(rel)
 			continue
 		}
@@ -129,10 +133,8 @@ outer:
 					continue
 				}
 
-				if line != "" {
-					u.RawQuery = line
-					continue outer
-				}
+				u.RawQuery = line
+				continue outer
 			}
 		}
 
