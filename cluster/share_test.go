@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,7 +16,11 @@ limitations under the License.
 
 package cluster
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/dimkr/tootik/front/text/gmi"
+)
 
 func TestCluster_ShareUnshare(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
@@ -53,24 +57,24 @@ func TestCluster_ShareUnshare(t *testing.T) {
 
 	bob = bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 	alice.
 		Refresh().
-		Contains(Line{Type: Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 	carol.
 		Refresh().
-		Contains(Line{Type: Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 
 	share.Follow("🔄️ Unshare").OK()
 	cluster.Settle(t)
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		NotContains(Line{Type: Quote, Text: "hello"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 	alice.
 		Follow("😈 My profile").
-		NotContains(Line{Type: Quote, Text: "hello"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 	carol.
 		Refresh().
-		NotContains(Line{Type: Quote, Text: "hello"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 }

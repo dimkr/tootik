@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,7 +16,11 @@ limitations under the License.
 
 package cluster
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/dimkr/tootik/front/text/gmi"
+)
 
 func TestMetadata_Whitespace(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
@@ -29,21 +33,21 @@ func TestMetadata_Whitespace(t *testing.T) {
 		Follow("⚙️ Settings").
 		Follow("💳 Metadata").
 		FollowInput("➕ Add", "my website=it's http://localhost.localdomain").
-		Contains(Line{Type: Link, URL: "http://localhost.localdomain", Text: "my website: it's http://localhost.localdomain"})
+		Contains(gmi.Line{Type: gmi.Link, URL: "http://localhost.localdomain", Text: "my website: it's http://localhost.localdomain"})
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(Line{Type: Link, URL: "http://localhost.localdomain", Text: "my website: it's http://localhost.localdomain"})
+		Contains(gmi.Line{Type: gmi.Link, URL: "http://localhost.localdomain", Text: "my website: it's http://localhost.localdomain"})
 
 	bob.
 		Follow("⚙️ Settings").
 		Follow("💳 Metadata").
 		Follow("➖ Remove").
-		NotContains(Line{Type: Link, URL: "http://localhost.localdomain", Text: "my website: it's http://localhost.localdomain"})
+		NotContains(gmi.Line{Type: gmi.Link, URL: "http://localhost.localdomain", Text: "my website: it's http://localhost.localdomain"})
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		NotContains(Line{Type: Link, URL: "http://localhost.localdomain", Text: "my website: it's http://localhost.localdomain"})
+		NotContains(gmi.Line{Type: gmi.Link, URL: "http://localhost.localdomain", Text: "my website: it's http://localhost.localdomain"})
 }
 
 func TestMetadata_LineBreak(t *testing.T) {
@@ -57,13 +61,13 @@ func TestMetadata_LineBreak(t *testing.T) {
 		Follow("⚙️ Settings").
 		Follow("💳 Metadata").
 		FollowInput("➕ Add", "a=b").
-		Contains(Line{Type: Quote, Text: "a: b"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "a: b"}).
 		FollowInput("➕ Add", "c=d\ne").
 		Error("40 Bad input")
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(Line{Type: Quote, Text: "a: b"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "a: b"})
 }
 
 func TestMetadata_Link(t *testing.T) {
@@ -77,11 +81,11 @@ func TestMetadata_Link(t *testing.T) {
 		Follow("⚙️ Settings").
 		Follow("💳 Metadata").
 		FollowInput("➕ Add", "my website=http://localhost.localdomain/index.html").
-		Contains(Line{Type: Link, Text: "my website", URL: "http://localhost.localdomain/index.html"})
+		Contains(gmi.Line{Type: gmi.Link, Text: "my website", URL: "http://localhost.localdomain/index.html"})
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(Line{Type: Link, Text: "my website", URL: "http://localhost.localdomain/index.html"})
+		Contains(gmi.Line{Type: gmi.Link, Text: "my website", URL: "http://localhost.localdomain/index.html"})
 }
 
 func TestMetadata_HTML(t *testing.T) {
@@ -95,11 +99,11 @@ func TestMetadata_HTML(t *testing.T) {
 		Follow("⚙️ Settings").
 		Follow("💳 Metadata").
 		FollowInput("➕ Add", `HTML tags like <p>=<a>link</a><br/>`).
-		Contains(Line{Type: Quote, Text: "HTML tags like &lt;p&gt;: <a>link</a><br/>"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "HTML tags like &lt;p&gt;: <a>link</a><br/>"})
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(Line{Type: Quote, Text: "HTML tags like &lt;p&gt;: <a>link</a><br/>"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "HTML tags like &lt;p&gt;: <a>link</a><br/>"})
 }
 
 func TestMetadata_Equals(t *testing.T) {
@@ -113,11 +117,11 @@ func TestMetadata_Equals(t *testing.T) {
 		Follow("⚙️ Settings").
 		Follow("💳 Metadata").
 		FollowInput("➕ Add", "a=b=c").
-		Contains(Line{Type: Quote, Text: "a: b=c"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "a: b=c"})
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(Line{Type: Quote, Text: "a: b=c"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "a: b=c"})
 }
 
 func TestMetadata_Add(t *testing.T) {
@@ -131,16 +135,16 @@ func TestMetadata_Add(t *testing.T) {
 		Follow("⚙️ Settings").
 		Follow("💳 Metadata").
 		FollowInput("➕ Add", "a=b").
-		Contains(Line{Type: Quote, Text: "a: b"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "a: b"}).
 		FollowInput("➕ Add", "c=d").
-		Contains(Line{Type: Quote, Text: "c: d"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "c: d"}).
 		FollowInput("➕ Add", "c=d").
 		Error("40 Cannot add metadata field")
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(Line{Type: Quote, Text: "a: b"}).
-		Contains(Line{Type: Quote, Text: "c: d"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "a: b"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "c: d"})
 }
 
 func TestMetadata_Maximum(t *testing.T) {
@@ -154,13 +158,13 @@ func TestMetadata_Maximum(t *testing.T) {
 		Follow("⚙️ Settings").
 		Follow("💳 Metadata").
 		FollowInput("➕ Add", "a=b").
-		Contains(Line{Type: Quote, Text: "a: b"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "a: b"}).
 		FollowInput("➕ Add", "c=d").
-		Contains(Line{Type: Quote, Text: "c: d"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "c: d"}).
 		FollowInput("➕ Add", "e=f").
-		Contains(Line{Type: Quote, Text: "e: f"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "e: f"}).
 		FollowInput("➕ Add", "g=h").
-		Contains(Line{Type: Quote, Text: "g: h"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "g: h"}).
 		OK()
 
 	bob.
@@ -169,11 +173,11 @@ func TestMetadata_Maximum(t *testing.T) {
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(Line{Type: Quote, Text: "a: b"}).
-		Contains(Line{Type: Quote, Text: "c: d"}).
-		Contains(Line{Type: Quote, Text: "e: f"}).
-		Contains(Line{Type: Quote, Text: "g: h"}).
-		NotContains(Line{Type: Quote, Text: "i: j"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "a: b"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "c: d"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "e: f"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "g: h"}).
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "i: j"})
 }
 
 func TestMetadata_Remove(t *testing.T) {
@@ -194,10 +198,10 @@ func TestMetadata_Remove(t *testing.T) {
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(Line{Type: Quote, Text: "a: b"}).
-		Contains(Line{Type: Quote, Text: "c: d"}).
-		Contains(Line{Type: Quote, Text: "e: f"}).
-		Contains(Line{Type: Quote, Text: "g: h"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "a: b"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "c: d"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "e: f"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "g: h"})
 
 	list := bob.
 		Follow("⚙️ Settings").
@@ -216,10 +220,10 @@ func TestMetadata_Remove(t *testing.T) {
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(Line{Type: Quote, Text: "a: b"}).
-		Contains(Line{Type: Quote, Text: "c: d"}).
-		Contains(Line{Type: Quote, Text: "e: f"}).
-		NotContains(Line{Type: Quote, Text: "g: h"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "a: b"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "c: d"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "e: f"}).
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "g: h"})
 
 	list = list.
 		Follow("➖ Remove").
@@ -227,10 +231,10 @@ func TestMetadata_Remove(t *testing.T) {
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(Line{Type: Quote, Text: "a: b"}).
-		Contains(Line{Type: Quote, Text: "c: d"}).
-		NotContains(Line{Type: Quote, Text: "e: f"}).
-		NotContains(Line{Type: Quote, Text: "g: h"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "a: b"}).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "c: d"}).
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "e: f"}).
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "g: h"})
 
 	list.
 		Follow("➖ Remove").
@@ -239,8 +243,8 @@ func TestMetadata_Remove(t *testing.T) {
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		NotContains(Line{Type: Quote, Text: "a: b"}).
-		NotContains(Line{Type: Quote, Text: "c: d"}).
-		NotContains(Line{Type: Quote, Text: "e: f"}).
-		NotContains(Line{Type: Quote, Text: "g: h"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "a: b"}).
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "c: d"}).
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "e: f"}).
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "g: h"})
 }

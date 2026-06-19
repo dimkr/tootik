@@ -22,6 +22,7 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -84,6 +85,7 @@ func main() {
 		flag.PrintDefaults()
 
 		fmt.Fprintf(flag.CommandLine.Output(), "\n%s [flag]...\n\tRun tootik\n", os.Args[0])
+		fmt.Fprintf(flag.CommandLine.Output(), "\n%s [flag]... shell [NAME]\n\tRun interactive shell\n", os.Args[0])
 		fmt.Fprintf(flag.CommandLine.Output(), "\n%s [flag]... add-community NAME\n\tAdd a community\n", os.Args[0])
 		fmt.Fprintf(flag.CommandLine.Output(), "\n%s [flag]... set-bio NAME PATH\n\tSet user's bio\n", os.Args[0])
 		fmt.Fprintf(flag.CommandLine.Output(), "\n%s [flag]... set-avatar NAME PATH\n\tSet user's avatar\n", os.Args[0])
@@ -98,7 +100,7 @@ func main() {
 	}
 
 	cmd := flag.Arg(0)
-	if !((cmd == "" && flag.NArg() == 0) || (cmd == "add-community" && flag.NArg() == 2 && flag.Arg(1) != "") || ((cmd == "set-bio" || cmd == "set-avatar") && flag.NArg() == 3 && flag.Arg(1) != "" && flag.Arg(2) != "")) {
+	if !((cmd == "" && flag.NArg() == 0) || (cmd == "shell" && flag.NArg() <= 2) || (cmd == "add-community" && flag.NArg() == 2 && flag.Arg(1) != "") || ((cmd == "set-bio" || cmd == "set-avatar") && flag.NArg() == 3 && flag.Arg(1) != "" && flag.Arg(2) != "")) {
 		flag.Usage()
 	}
 
@@ -207,6 +209,23 @@ func main() {
 	}
 
 	switch cmd {
+	case "shell":
+		handler, err := front.NewHandler(*domain, &cfg, resolver, db, localInbox)
+		if err != nil {
+			panic(err)
+		}
+
+		user := "actor"
+		if flag.NArg() == 2 {
+			user = flag.Arg(1)
+		}
+
+		if err := handler.Shell(ctx, user, *domain); err != nil && !errors.Is(err, context.Canceled) {
+			panic(err)
+		}
+
+		return
+
 	case "add-community":
 		_, _, err := user.CreatePortable(ctx, *domain, db, &cfg, flag.Arg(1), ap.Group, nil)
 		if err != nil {

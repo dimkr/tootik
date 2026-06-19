@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,7 +16,11 @@ limitations under the License.
 
 package cluster
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/dimkr/tootik/front/text/gmi"
+)
 
 func TestCluster_ReplyForwardingWithIntegrityProofs(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
@@ -43,44 +47,44 @@ func TestCluster_ReplyForwardingWithIntegrityProofs(t *testing.T) {
 	cluster.Settle(t)
 
 	reply := alice.GotoInput(post.Links["💬 Reply"], "hi").
-		Contains(Line{Type: Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 	cluster.Settle(t)
 
 	bob = bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 	alice.
 		Follow("😈 My profile").
-		Contains(Line{Type: Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 	carol = carol.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 
 	reply.FollowInput("🩹 Edit", "hola").OK()
 	cluster.Settle(t)
 
 	bob.
 		Refresh().
-		Contains(Line{Type: Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	alice.
 		Follow("😈 My profile").
-		Contains(Line{Type: Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	carol.
 		Refresh().
-		Contains(Line{Type: Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 
 	reply.Follow("💣 Delete").OK()
 	cluster.Settle(t)
 
 	bob.
 		Refresh().
-		NotContains(Line{Type: Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	alice.
 		Follow("😈 My profile").
-		NotContains(Line{Type: Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	carol.
 		Refresh().
-		NotContains(Line{Type: Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 }
 
 func TestCluster_ReplyForwardingWithoutIntegrityProofs(t *testing.T) {
@@ -111,42 +115,42 @@ func TestCluster_ReplyForwardingWithoutIntegrityProofs(t *testing.T) {
 	cluster.Settle(t)
 
 	reply := alice.GotoInput(post.Links["💬 Reply"], "hi").
-		Contains(Line{Type: Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 	cluster.Settle(t)
 
 	bob = bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 	alice.
 		Follow("😈 My profile").
-		Contains(Line{Type: Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 	carol = carol.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 
 	reply.FollowInput("🩹 Edit", "hola").OK()
 	cluster.Settle(t)
 
 	bob.
 		Refresh().
-		Contains(Line{Type: Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	alice.
 		Follow("😈 My profile").
-		Contains(Line{Type: Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	carol.
 		Refresh().
-		Contains(Line{Type: Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 
 	reply.Follow("💣 Delete").OK()
 	cluster.Settle(t)
 
 	bob.
 		Refresh().
-		NotContains(Line{Type: Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	alice.
 		Follow("😈 My profile").
-		NotContains(Line{Type: Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	carol.
 		Refresh().
-		NotContains(Line{Type: Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 }

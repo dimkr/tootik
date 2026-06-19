@@ -28,6 +28,7 @@ import (
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/front/text/gmi"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/proof"
 )
@@ -57,44 +58,44 @@ func TestCluster_ReplyForwardingPortableActors(t *testing.T) {
 	cluster.Settle(t)
 
 	reply := alice.GotoInput(post.Links["💬 Reply"], "hi").
-		Contains(Line{Type: Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 	cluster.Settle(t)
 
 	bob = bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 	alice.
 		Follow("😈 My profile").
-		Contains(Line{Type: Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 	carol = carol.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 
 	reply.FollowInput("🩹 Edit", "hola").OK()
 	cluster.Settle(t)
 
 	bob.
 		Refresh().
-		Contains(Line{Type: Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	alice.
 		Follow("😈 My profile").
-		Contains(Line{Type: Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	carol.
 		Refresh().
-		Contains(Line{Type: Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 
 	reply.Follow("💣 Delete").OK()
 	cluster.Settle(t)
 
 	bob.
 		Refresh().
-		NotContains(Line{Type: Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	alice.
 		Follow("😈 My profile").
-		NotContains(Line{Type: Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	carol.
 		Refresh().
-		NotContains(Line{Type: Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 }
 
 func TestCluster_Gateways(t *testing.T) {
@@ -133,7 +134,7 @@ func TestCluster_Gateways(t *testing.T) {
 
 	bob.
 		Follow("⚡️ Follows").
-		Contains(Line{Type: Link, Text: "🚴 alice (alice@a.localdomain)", URL: "/users/outbox/a.localdomain/.well-known/apgateway/" + did + "/actor"})
+		Contains(gmi.Line{Type: gmi.Link, Text: "🚴 alice (alice@a.localdomain)", URL: "/users/outbox/a.localdomain/.well-known/apgateway/" + did + "/actor"})
 
 	post := alice.
 		Follow("📣 New post").
@@ -147,42 +148,42 @@ func TestCluster_Gateways(t *testing.T) {
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 
 	bob.
 		FollowInput("🔭 View profile", "carol@c.localdomain").
-		Contains(Line{Type: Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 
 	bob.GotoInput(post.Links["💬 Reply"], "hola").
-		Contains(Line{Type: Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	cluster.Settle(t)
 
 	alice.
 		Goto(post.Path).
-		Contains(Line{Type: Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 
 	carol.
 		Goto(post.Path).
-		Contains(Line{Type: Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 
 	carol.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(Line{Type: Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 
 	carol.GotoInput(post.Links["🩹 Edit"], "yo").
-		Contains(Line{Type: Quote, Text: "yo"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "yo"})
 	cluster.Settle(t)
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "yo"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "yo"})
 
 	carol.Goto(post.Links["💣 Delete"])
 	cluster.Settle(t)
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		NotContains(Line{Type: Quote, Text: "yo"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "yo"})
 }
 
 func TestCluster_ForwardedLegacyReply(t *testing.T) {
@@ -214,12 +215,12 @@ func TestCluster_ForwardedLegacyReply(t *testing.T) {
 	cluster.Settle(t)
 
 	bob.GotoInput(post.Links["💬 Reply"], "hi").
-		Contains(Line{Type: Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 	cluster.Settle(t)
 
 	carol.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(Line{Type: Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 }
 
 func TestCluster_ClientSideSigningInboxHappyFlow(t *testing.T) {
@@ -301,13 +302,13 @@ func TestCluster_ClientSideSigningInboxHappyFlow(t *testing.T) {
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		NotContains(Line{Type: Quote, Text: "hi"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 
 	cluster.Settle(t)
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 }
 
 func TestCluster_ClientSideSigningOutboxHappyFlow(t *testing.T) {
@@ -389,13 +390,13 @@ func TestCluster_ClientSideSigningOutboxHappyFlow(t *testing.T) {
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		NotContains(Line{Type: Quote, Text: "hi"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 
 	cluster.Settle(t)
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 }
 
 func TestCluster_ClientSideSigningOutboxWrongOutbox(t *testing.T) {
@@ -477,13 +478,13 @@ func TestCluster_ClientSideSigningOutboxWrongOutbox(t *testing.T) {
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		NotContains(Line{Type: Quote, Text: "hi"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 
 	cluster.Settle(t)
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		NotContains(Line{Type: Quote, Text: "hi"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 }
 
 func TestCluster_ClientSideSigningOutboxUnsupportedActivity(t *testing.T) {
@@ -558,13 +559,13 @@ func TestCluster_ClientSideSigningOutboxUnsupportedActivity(t *testing.T) {
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		NotContains(Line{Type: Quote, Text: "hi"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 
 	cluster.Settle(t)
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		NotContains(Line{Type: Quote, Text: "hi"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 }
 
 func TestCluster_ClientSideSigningOutboxNotActivity(t *testing.T) {
@@ -617,13 +618,13 @@ func TestCluster_ClientSideSigningOutboxNotActivity(t *testing.T) {
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		NotContains(Line{Type: Quote, Text: "hi"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 
 	cluster.Settle(t)
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		NotContains(Line{Type: Quote, Text: "hi"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 }
 
 func TestCluster_ClientSideSigningOutboxInvalidActivity(t *testing.T) {
@@ -705,13 +706,13 @@ func TestCluster_ClientSideSigningOutboxInvalidActivity(t *testing.T) {
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		NotContains(Line{Type: Quote, Text: "hi"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 
 	cluster.Settle(t)
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		NotContains(Line{Type: Quote, Text: "hi"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 }
 
 func TestCluster_ClientSideSigningOutboxNoProof(t *testing.T) {
@@ -788,13 +789,13 @@ func TestCluster_ClientSideSigningOutboxNoProof(t *testing.T) {
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		NotContains(Line{Type: Quote, Text: "hi"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 
 	cluster.Settle(t)
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		NotContains(Line{Type: Quote, Text: "hi"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 }
 
 func TestCluster_ClientSideSigningOutboxInvalidVerificationMethod(t *testing.T) {
@@ -878,13 +879,13 @@ func TestCluster_ClientSideSigningOutboxInvalidVerificationMethod(t *testing.T) 
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		NotContains(Line{Type: Quote, Text: "hi"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 
 	cluster.Settle(t)
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		NotContains(Line{Type: Quote, Text: "hi"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 }
 
 func TestCluster_ClientSideSigningOutboxInvalidProof(t *testing.T) {
@@ -968,13 +969,13 @@ func TestCluster_ClientSideSigningOutboxInvalidProof(t *testing.T) {
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		NotContains(Line{Type: Quote, Text: "hi"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 
 	cluster.Settle(t)
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		NotContains(Line{Type: Quote, Text: "hi"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 }
 
 func TestCluster_InboxFetchHappyFlow(t *testing.T) {
@@ -1315,11 +1316,11 @@ func TestCluster_OutboxImport(t *testing.T) {
 
 	alice.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		NotContains(Line{Type: Quote, Text: "hello"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 
 	r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://a.localdomain/.well-known/apgateway/"+did+"/actor/outbox", nil)
 	if err != nil {
@@ -1408,7 +1409,7 @@ func TestCluster_OutboxImport(t *testing.T) {
 
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 }
 
 func TestCluster_ClientSideSigningFollowersHappyFlow(t *testing.T) {

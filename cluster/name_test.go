@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,7 +16,11 @@ limitations under the License.
 
 package cluster
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/dimkr/tootik/front/text/gmi"
+)
 
 func TestName_Set(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
@@ -28,11 +32,11 @@ func TestName_Set(t *testing.T) {
 	bob.
 		Follow("⚙️ Settings").
 		Follow("📛 Display name").
-		Contains(Line{Type: Text, Text: "Display name is not set."}).
+		Contains(gmi.Line{Type: gmi.Text, Text: "Display name is not set."}).
 		FollowInput("Set", "bobby").
-		NotContains(Line{Type: Text, Text: "Display name: bobby."})
+		NotContains(gmi.Line{Type: gmi.Text, Text: "Display name: bobby."})
 
 	alice.
 		FollowInput("🔭 View profile", "bob@b.localdomain").
-		Contains(Line{Type: Heading, Text: "👽 bobby (bob@b.localdomain)"})
+		Contains(gmi.Line{Type: gmi.Heading, Text: "👽 bobby (bob@b.localdomain)"})
 }

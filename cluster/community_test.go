@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/front/text/gmi"
 	"github.com/dimkr/tootik/front/user"
 )
 
@@ -49,44 +50,44 @@ func TestCluster_PostInCommunity(t *testing.T) {
 	post := carol.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "!stuff@g.localdomain hello").
-		Contains(Line{Type: Quote, Text: "!stuff@g.localdomain hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "!stuff@g.localdomain hello"})
 	cluster.Settle(t)
 
 	alice.
 		Refresh().
-		Contains(Line{Type: Quote, Text: "!stuff@g.localdomain hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "!stuff@g.localdomain hello"})
 	bob = bob.
 		FollowInput("🔭 View profile", "stuff@g.localdomain").
-		Contains(Line{Type: Quote, Text: "!stuff@g.localdomain hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "!stuff@g.localdomain hello"})
 	carol.
 		Refresh().
-		Contains(Line{Type: Quote, Text: "!stuff@g.localdomain hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "!stuff@g.localdomain hello"})
 
 	post.FollowInput("🩹 Edit", "hola").OK()
 	cluster.Settle(t)
 
 	alice.
 		Refresh().
-		Contains(Line{Type: Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	bob.
 		Refresh().
-		Contains(Line{Type: Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	carol.
 		Refresh().
-		Contains(Line{Type: Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 
 	post.Follow("💣 Delete").OK()
 	cluster.Settle(t)
 
 	alice.
 		Refresh().
-		NotContains(Line{Type: Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	bob.
 		Refresh().
-		NotContains(Line{Type: Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	carol.
 		Refresh().
-		NotContains(Line{Type: Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 }
 
 func TestCluster_ReplyInCommunity(t *testing.T) {
@@ -115,47 +116,47 @@ func TestCluster_ReplyInCommunity(t *testing.T) {
 	post := carol.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "!stuff@g.localdomain hello").
-		Contains(Line{Type: Quote, Text: "!stuff@g.localdomain hello"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "!stuff@g.localdomain hello"})
 	cluster.Settle(t)
 
 	reply := alice.
 		GotoInput(post.Links["💬 Reply"], "hi").
-		Contains(Line{Type: Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 	cluster.Settle(t)
 
 	alice.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 	carol.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "hi"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
 
 	reply.FollowInput("🩹 Edit", "hola").OK()
 	cluster.Settle(t)
 
 	alice.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	carol.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		Contains(Line{Type: Quote, Text: "hola"})
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 
 	reply.Follow("💣 Delete").OK()
 	cluster.Settle(t)
 
 	alice.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		NotContains(Line{Type: Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	bob.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		NotContains(Line{Type: Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 	carol.
 		FollowInput("🔭 View profile", "alice@a.localdomain").
-		NotContains(Line{Type: Quote, Text: "hola"})
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
 }

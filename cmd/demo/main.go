@@ -18,22 +18,16 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
-	"fmt"
 	"log/slog"
-	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
-	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
 	"github.com/creack/pty"
-	"github.com/dimkr/slopline"
-	"github.com/dimkr/tootik/cluster"
-	"github.com/dimkr/tootik/front/text"
 	"golang.org/x/term"
 )
 
@@ -43,58 +37,6 @@ const (
 )
 
 var record = flag.String("record", "", "record to a file")
-
-func render(p cluster.Page) ([]string, []string) {
-	var lines, links []string
-	linkID := 1
-	for _, l := range p.Lines {
-		switch l.Type {
-		case cluster.Heading:
-			for _, line := range text.WordWrap(l.Text, cols-2, -1) {
-				lines = append(lines, "\033[4m# "+line+"\033[0m")
-			}
-
-		case cluster.SubHeading:
-			for _, line := range text.WordWrap(l.Text, cols-3, -1) {
-				lines = append(lines, "\033[4m## "+line+"\033[0m")
-			}
-
-		case cluster.Quote:
-			for _, line := range text.WordWrap(l.Text, cols-2, -1) {
-				lines = append(lines, "> "+line)
-			}
-
-		case cluster.Item:
-			for i, line := range text.WordWrap(l.Text, cols-2, -1) {
-				if i == 0 {
-					lines = append(lines, "* "+line)
-				} else {
-					lines = append(lines, " "+line)
-				}
-			}
-
-		case cluster.Link:
-			prefix := fmt.Sprintf("[%d] ", linkID)
-			for i, line := range text.WordWrap(l.Text, cols-len(prefix), -1) {
-				if i == 0 {
-					lines = append(lines, fmt.Sprintf("\033[4;36m[%d]\033[0;39m %s", linkID, line))
-				} else {
-					lines = append(lines, strings.Repeat(" ", len(prefix))+line)
-				}
-			}
-			links = append(links, l.URL)
-			linkID++
-
-		case cluster.Preformatted:
-			lines = append(lines, text.WordWrap(l.Text, cols, -1)[0])
-
-		default:
-			lines = append(lines, text.WordWrap(l.Text, cols, -1)...)
-		}
-	}
-
-	return lines, links
-}
 
 func delay(ctx context.Context, d time.Duration) {
 	select {
@@ -302,98 +244,11 @@ func main() {
 	cl := seed(t{tempDir: tempDir, ctx: ctx}, keyPairs)
 	defer cl.Stop()
 
-	p := cl["pizza.example"].Handle(keyPairs["alice"], "/users")
-	var history []string
-	var links []string
-
-	slopline.SetHintsCallback(func(text string) (string, string, string) {
-		if text == "" && len(links) > 0 {
-			return fmt.Sprintf(" 1-%d", len(links)), "\033[90m", "\033[0m"
-		} else if len(links) == 0 {
-			return "", "", ""
-		}
-
-		if n, err := strconv.Atoi(text); err == nil && n > 0 {
-			i := 0
-			for _, line := range p.Lines {
-				if line.Type != cluster.Link {
-					continue
-				}
-
-				i++
-				if i == n {
-					return " " + line.Text, "\033[90m", "\033[0m"
-				}
-			}
-		}
-
-		return "", "", ""
-	})
-
-	for {
-		if err := ctx.Err(); err != nil {
-			break
-		}
-
-		var lines []string
-		lines, links = render(p)
-
-		if len(lines) > 0 {
-			c := exec.CommandContext(ctx, "less", "-r")
-			c.Stdin = strings.NewReader(strings.Join(lines, "\n"))
-			c.Stdout = os.Stdout
-			c.Stderr = os.Stderr
-			if err := c.Run(); err != nil {
-				panic(err)
-			}
-		}
-
-		prompt := "pizza.example"
-		if strings.HasPrefix(p.Status, "10 ") {
-			prompt = p.Status[3:]
-		} else {
-			for _, line := range p.Lines {
-				if line.Type == cluster.Heading {
-					prompt = line.Text
-					break
-				}
-			}
-		}
-
-		line, err := slopline.Line(fmt.Sprintf("\033[35m%s>\033[0m ", prompt))
-		if err != nil {
-			break
-		}
-
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
-		if n, err := strconv.Atoi(line); err == nil && n > 0 && n <= len(links) {
-			nextURL := links[n-1]
-			u, err := url.Parse(nextURL)
-			if err != nil {
-				panic(err)
-			}
-			history = append(history, p.Path)
-			p = p.Goto(u.String())
-		} else if strings.HasPrefix(p.Status, "10 ") {
-			u, err := url.Parse(p.Path)
-			if err != nil {
-				panic(err)
-			}
-			u.RawQuery = url.QueryEscape(line)
-			history = append(history, p.Path)
-			p = p.Goto(u.String())
-		} else {
-			u, err := url.Parse(line)
-			if err != nil {
-				fmt.Printf("Invalid URL or command: %s\n", line)
-				continue
-			}
-			history = append(history, p.Path)
-			p = p.Goto(u.String())
-		}
+	if err := cl["pizza.example"].Frontend.Handler.Shell(
+		ctx,
+		"alice",
+		"pizza.example",
+	); err != nil && !errors.Is(err, context.Canceled) {
+		panic(err)
 	}
 }

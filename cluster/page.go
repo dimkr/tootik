@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,7 +19,8 @@ package cluster
 import (
 	"crypto/tls"
 	"slices"
-	"strings"
+
+	"github.com/dimkr/tootik/front/text/gmi"
 )
 
 // Respnonse represents a frontend page displayed to the user.
@@ -27,7 +28,7 @@ type Page struct {
 	Path   string
 	Raw    string
 	Status string
-	Lines  []Line
+	Lines  []gmi.Line
 	Links  map[string]string
 
 	cert   tls.Certificate
@@ -35,44 +36,12 @@ type Page struct {
 }
 
 func parseResponse(s *Server, cert tls.Certificate, req, resp string) Page {
-	end := strings.Index(resp, "\r\n")
-	if end == -1 {
-		return Page{}
-	}
-
-	lines := []Line{}
-	links := map[string]string{}
-
-	preformatted := false
-
-	if len(resp) > end+2 {
-		for line := range strings.SplitSeq(resp[end+2:], "\n") {
-			if strings.HasPrefix(line, "```") {
-				preformatted = !preformatted
-			} else if preformatted {
-				lines = append(lines, Line{Type: Preformatted, Text: line})
-			} else if strings.HasPrefix(line, "=> ") {
-				i := strings.IndexByte(line[3:], ' ')
-				lines = append(lines, Line{Type: Link, Text: line[4+i:], URL: line[3 : 3+i]})
-				links[line[4+i:]] = line[3 : 3+i]
-			} else if strings.HasPrefix(line, "# ") {
-				lines = append(lines, Line{Type: Heading, Text: line[2:]})
-			} else if strings.HasPrefix(line, "## ") {
-				lines = append(lines, Line{Type: SubHeading, Text: line[3:]})
-			} else if strings.HasPrefix(line, "* ") {
-				lines = append(lines, Line{Type: Item, Text: line[2:]})
-			} else if strings.HasPrefix(line, "> ") {
-				lines = append(lines, Line{Type: Quote, Text: line[2:]})
-			} else {
-				lines = append(lines, Line{Type: Text, Text: line})
-			}
-		}
-	}
+	status, lines, links := gmi.Parse(resp)
 
 	return Page{
 		Path:   req,
 		Raw:    resp,
-		Status: resp[:end],
+		Status: status,
 		Lines:  lines,
 		Links:  links,
 
@@ -95,7 +64,7 @@ func (p Page) Error(err string) {
 	}
 }
 
-func (p Page) Contains(line Line) Page {
+func (p Page) Contains(line gmi.Line) Page {
 	if !slices.Contains(p.Lines, line) {
 		p.server.Test.Fatalf(`%s does not contain "%s" line`, p.Raw, line.Text)
 	}
@@ -103,7 +72,7 @@ func (p Page) Contains(line Line) Page {
 	return p
 }
 
-func (p Page) NotContains(line Line) Page {
+func (p Page) NotContains(line gmi.Line) Page {
 	if slices.Contains(p.Lines, line) {
 		p.server.Test.Fatalf(`%s does contains "%s" line`, p.Raw, line.Text)
 	}
