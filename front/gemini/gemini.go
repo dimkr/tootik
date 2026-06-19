@@ -32,7 +32,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"log/slog"
 	"net"
 	"net/url"
@@ -227,19 +226,17 @@ func generateSelfSignedCertificate(priv *ecdsa.PrivateKey, domain string, now ti
 }
 
 func (gl *Listener) getCertificate(ctx context.Context) (tls.Certificate, error) {
-	certExists := true
+	if gl.CertPath != "" && gl.KeyPath != "" {
+		certPEM, err := os.ReadFile(gl.CertPath)
+		if err != nil {
+			return tls.Certificate{}, err
+		}
 
-	certPEM, err := os.ReadFile(gl.CertPath)
-	if errors.Is(err, fs.ErrNotExist) {
-		certExists = false
-	} else if err != nil {
-		return tls.Certificate{}, err
-	}
+		keyPEM, err := os.ReadFile(gl.KeyPath)
+		if err != nil {
+			return tls.Certificate{}, err
+		}
 
-	keyPEM, err := os.ReadFile(gl.KeyPath)
-	if err != nil && !(errors.Is(err, fs.ErrNotExist) && !certExists) {
-		return tls.Certificate{}, err
-	} else if err == nil {
 		slog.Debug("Using certificate from disk")
 		return tls.X509KeyPair(certPEM, keyPEM)
 	}
@@ -254,7 +251,7 @@ func (gl *Listener) getCertificate(ctx context.Context) (tls.Certificate, error)
 
 	var priv *ecdsa.PrivateKey
 
-	keyPEM, err = cache.Get(ctx, "key")
+	keyPEM, err := cache.Get(ctx, "key")
 	if err != nil && !errors.Is(err, autocert.ErrCacheMiss) {
 		return tls.Certificate{}, err
 	} else if err == nil {
@@ -286,7 +283,7 @@ func (gl *Listener) getCertificate(ctx context.Context) (tls.Certificate, error)
 		slog.Info("Generated private key")
 	}
 
-	certPEM, err = cache.Get(ctx, "cert")
+	certPEM, err := cache.Get(ctx, "cert")
 	if errors.Is(err, autocert.ErrCacheMiss) {
 		certPEM, err = generateSelfSignedCertificate(priv, gl.Domain, time.Now())
 		if err != nil {

@@ -21,7 +21,6 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"errors"
-	"io/fs"
 	"log/slog"
 	"math"
 	"net"
@@ -103,34 +102,35 @@ func (l *Listener) tlsConfig() (*tls.Config, error) {
 		return nil, nil
 	}
 
-	certExists := true
-
-	certPEM, err := os.ReadFile(l.Cert)
-	if errors.Is(err, fs.ErrNotExist) {
-		certExists = false
-	} else if err != nil {
-		return nil, err
-	}
-
-	host, _, _ := strings.Cut(l.Domain, ":")
-
 	config := &tls.Config{}
-	keyPEM, err := os.ReadFile(l.Key)
-	if errors.Is(err, fs.ErrNotExist) && !certExists {
-		config = (&autocert.Manager{
-			Prompt:     autocert.AcceptTOS,
-			Cache:      data.Cache[Listener]{DB: l.DB},
-			HostPolicy: autocert.HostWhitelist(host),
-		}).TLSConfig()
-	} else if err != nil {
-		return nil, err
-	} else {
+
+	if l.Cert != "" && l.Key != "" {
+		certPEM, err := os.ReadFile(l.Cert)
+		if err != nil {
+			return nil, err
+		}
+
+		keyPEM, err := os.ReadFile(l.Key)
+		if err != nil {
+			return nil, err
+		}
+
 		cert, err := tls.X509KeyPair(certPEM, keyPEM)
 		if err != nil {
 			return nil, err
 		}
 
 		config.Certificates = []tls.Certificate{cert}
+	}
+
+	if config.Certificates == nil {
+		host, _, _ := strings.Cut(l.Domain, ":")
+
+		config = (&autocert.Manager{
+			Prompt:     autocert.AcceptTOS,
+			Cache:      data.Cache[Listener]{DB: l.DB},
+			HostPolicy: autocert.HostWhitelist(host),
+		}).TLSConfig()
 	}
 
 	config.MinVersion = tls.VersionTLS12
