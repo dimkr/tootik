@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,26 +19,35 @@ package gemini
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"database/sql"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net"
 	"net/url"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/danger"
+	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/front/text/gmi"
 	"github.com/dimkr/tootik/httpsig"
+	"golang.org/x/crypto/acme/autocert"
 )
 
 type Listener struct {
@@ -194,9 +203,132 @@ func (gl *Listener) Handle(ctx context.Context, conn net.Conn) {
 	gl.Handler.Handle(&r, w)
 }
 
+func generateSelfSignedCertificate(priv *ecdsa.PrivateKey, domain string, now time.Time) ([]byte, error) {
+	host, _, _ := strings.Cut(domain, ":")
+
+	template := x509.Certificate{
+		Subject: pkix.Name{
+			CommonName: host,
+		},
+		NotBefore:             now,
+		NotAfter:              now.Add(time.Hour * 24 * 365 * 10),
+		KeyUsage:              x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+	}
+
+	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+	if err != nil {
+		return nil, err
+	}
+
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: derBytes}), nil
+}
+
+func (gl *Listener) getCertificate(ctx context.Context) (tls.Certificate, error) {
+	if gl.CertPath != "" && gl.KeyPath != "" {
+		certPEM, err := os.ReadFile(gl.CertPath)
+		if err != nil {
+			return tls.Certificate{}, err
+		}
+
+		keyPEM, err := os.ReadFile(gl.KeyPath)
+		if err != nil {
+			return tls.Certificate{}, err
+		}
+
+		slog.Debug("Using certificate from disk")
+		return tls.X509KeyPair(certPEM, keyPEM)
+	}
+
+	tx, err := gl.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+	defer tx.Rollback()
+
+	cache := data.Cache[Listener]{DB: tx}
+
+	var priv *ecdsa.PrivateKey
+
+	keyPEM, err := cache.Get(ctx, "key")
+	if err != nil && !errors.Is(err, autocert.ErrCacheMiss) {
+		return tls.Certificate{}, err
+	} else if err == nil {
+		if der, _ := pem.Decode(keyPEM); der != nil {
+			priv, err = x509.ParseECPrivateKey(der.Bytes)
+			if err != nil {
+				return tls.Certificate{}, err
+			}
+		}
+	}
+
+	if priv == nil {
+		priv, err = ecdsa.GenerateKey(elliptic.P256(), nil)
+		if err != nil {
+			return tls.Certificate{}, err
+		}
+
+		privBytes, err := x509.MarshalECPrivateKey(priv)
+		if err != nil {
+			return tls.Certificate{}, err
+		}
+
+		keyPEM = pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: privBytes})
+
+		if err := cache.Put(ctx, "key", keyPEM); err != nil {
+			return tls.Certificate{}, err
+		}
+
+		slog.Info("Generated private key")
+	}
+
+	certPEM, err := cache.Get(ctx, "cert")
+	if errors.Is(err, autocert.ErrCacheMiss) {
+		certPEM, err = generateSelfSignedCertificate(priv, gl.Domain, time.Now())
+		if err != nil {
+			return tls.Certificate{}, err
+		}
+
+		if err := cache.Put(ctx, "cert", certPEM); err != nil {
+			return tls.Certificate{}, err
+		}
+
+		slog.Info("Generated self-signed certificate", "domain", gl.Domain)
+	} else if err != nil {
+		return tls.Certificate{}, err
+	} else {
+		now := time.Now()
+
+		if cert, err := tls.X509KeyPair(certPEM, keyPEM); err != nil {
+			slog.Warn("Failed to load certificate", "error", err)
+		} else if now.Before(cert.Leaf.NotAfter) {
+			slog.Debug("Using existing self-signed certificate", "domain", gl.Domain, "until", cert.Leaf.NotAfter)
+			return cert, nil
+		}
+
+		certPEM, err = generateSelfSignedCertificate(priv, gl.Domain, now)
+		if err != nil {
+			return tls.Certificate{}, err
+		}
+
+		if err := cache.Put(ctx, "cert", certPEM); err != nil {
+			return tls.Certificate{}, err
+		}
+
+		slog.Info("Renewed self-signed certificate", "domain", gl.Domain)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return tls.Certificate{}, err
+	}
+
+	return tls.X509KeyPair(certPEM, keyPEM)
+}
+
 // ListenAndServe handles Gemini requests.
 func (gl *Listener) ListenAndServe(ctx context.Context) error {
-	cert, err := tls.LoadX509KeyPair(gl.CertPath, gl.KeyPath)
+	cert, err := gl.getCertificate(ctx)
 	if err != nil {
 		return err
 	}

@@ -44,7 +44,7 @@ func generateCert(cn string) ([]byte, []byte, error) {
 			CommonName: cn,
 		},
 		NotAfter:    time.Now().AddDate(0, 0, 1),
-		KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		KeyUsage:    x509.KeyUsageDigitalSignature,
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 	}
 

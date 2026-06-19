@@ -55,6 +55,7 @@ This makes tootik lightweight, private and accessible:
 
 ## Features
 
+* Easy installation, with automatic generation of TLS certificates
 * [Good compatibility with various fediverse servers](FEDERATION.md)
 * Text posts, with 3 privacy levels
   * Public
