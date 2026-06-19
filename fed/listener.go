@@ -25,14 +25,18 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
+	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/fsnotify/fsnotify"
+	"golang.org/x/crypto/acme/autocert"
 )
 
 type Listener struct {
@@ -93,6 +97,47 @@ func (l *Listener) NewHandler() (http.Handler, error) {
 	}
 }
 
+func (l *Listener) tlsConfig() (*tls.Config, error) {
+	if l.Plain {
+		return nil, nil
+	}
+
+	config := &tls.Config{}
+
+	if l.Cert != "" && l.Key != "" {
+		certPEM, err := os.ReadFile(l.Cert)
+		if err != nil {
+			return nil, err
+		}
+
+		keyPEM, err := os.ReadFile(l.Key)
+		if err != nil {
+			return nil, err
+		}
+
+		cert, err := tls.X509KeyPair(certPEM, keyPEM)
+		if err != nil {
+			return nil, err
+		}
+
+		config.Certificates = []tls.Certificate{cert}
+	}
+
+	if config.Certificates == nil {
+		host, _, _ := strings.Cut(l.Domain, ":")
+
+		config = (&autocert.Manager{
+			Prompt:     autocert.AcceptTOS,
+			Cache:      data.Cache[Listener]{DB: l.DB},
+			HostPolicy: autocert.HostWhitelist(host),
+		}).TLSConfig()
+	}
+
+	config.MinVersion = tls.VersionTLS12
+
+	return config, nil
+}
+
 // ListenAndServe handles HTTP requests from other servers.
 func (l *Listener) ListenAndServe(ctx context.Context) error {
 	handler, err := l.NewHandler()
@@ -125,6 +170,11 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 	}
 
 	for ctx.Err() == nil {
+		tlsConfig, err := l.tlsConfig()
+		if err != nil {
+			return err
+		}
+
 		var wg sync.WaitGroup
 		serverCtx, stopServer := context.WithCancel(ctx)
 
@@ -135,9 +185,7 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 				return serverCtx
 			},
 			ReadTimeout: time.Second * 30,
-			TLSConfig: &tls.Config{
-				MinVersion: tls.VersionTLS12,
-			},
+			TLSConfig:   tlsConfig,
 		}
 
 		wg.Go(func() {
@@ -181,11 +229,10 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 		})
 
 		slog.Info("Starting server")
-		var err error
 		if l.Plain {
 			err = server.ListenAndServe()
 		} else {
-			err = server.ListenAndServeTLS(l.Cert, l.Key)
+			err = server.ListenAndServeTLS("", "")
 		}
 
 		stopServer()
