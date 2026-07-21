@@ -25,6 +25,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	osuser "os/user"
 	"path/filepath"
 	"syscall"
 
@@ -38,12 +39,20 @@ func main() {
 		defaultDbPath = filepath.Join(cfgDir, "tootik-client", "client.sqlite3")
 	}
 
+	defaultUser := "user"
+	if current, err := osuser.Current(); err == nil {
+		defaultUser = current.Username
+	}
+
 	dbPath := flag.String("db", defaultDbPath, "database path")
+	user := flag.String("user", defaultUser, "user to authenticate as")
+	domain := flag.String("domain", "localhost", "server domain")
+	port := flag.Int("port", 1965, "server port")
 
 	flag.Usage = func() {
 		out := flag.CommandLine.Output()
 
-		fmt.Fprintf(out, "Usage: %s [-db PATH] [USERNAME][@DOMAIN] [PATH [INPUT]]\n\n", os.Args[0])
+		fmt.Fprintf(out, "Usage: %s [-user USERNAME] [-domain DOMAIN] [-port PORT] [-db PATH] [PATH [INPUT]]\n\n", os.Args[0])
 		fmt.Println(out, "Connects to a remote tootik or as USERNAME.")
 		fmt.Println(out, "")
 		flag.PrintDefaults()
@@ -76,7 +85,7 @@ func main() {
 	}
 	flag.Parse()
 
-	if flag.NArg() > 3 {
+	if flag.NArg() > 2 {
 		flag.Usage()
 	}
 
@@ -123,7 +132,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := front.Connect(ctx, db, flag.Arg(0), flag.Arg(1), flag.Arg(2)); err != nil && !errors.Is(err, context.Canceled) {
+	if err := front.Connect(ctx, db, *user, *domain, *port, flag.Arg(0), flag.Arg(1)); err != nil && !errors.Is(err, context.Canceled) {
 		slog.Error("Failed to connect", "error", err)
 		os.Exit(1)
 	}

@@ -35,6 +35,7 @@ import (
 	"net/url"
 	"os"
 	osuser "os/user"
+	"strconv"
 	"strings"
 	"time"
 
@@ -246,8 +247,7 @@ func (c *geminiClient) request(ctx context.Context, u *url.URL) (*url.URL, strin
 	return u, body, nil
 }
 
-func Connect(ctx context.Context, db *sql.DB, address, path, input string) error {
-	user, hostpart, _ := strings.Cut(address, "@")
+func Connect(ctx context.Context, db *sql.DB, user, domain string, port int, path, input string) error {
 	if user == "" {
 		current, err := osuser.Current()
 		if err != nil {
@@ -255,25 +255,20 @@ func Connect(ctx context.Context, db *sql.DB, address, path, input string) error
 		}
 		user = current.Username
 	}
-	if hostpart == "" {
-		hostpart = "localhost"
+	if domain == "" {
+		domain = "localhost"
 	}
 
-	host, port, err := net.SplitHostPort(hostpart)
-	if err != nil {
-		host, port = hostpart, defaultPort
-	} else if port == "" {
-		port = defaultPort
-	}
-	hostport := net.JoinHostPort(host, port)
+	portStr := strconv.Itoa(port)
+	hostport := net.JoinHostPort(domain, portStr)
 
 	cert, err := loadClientCert(ctx, db, user+"@"+hostport, user)
 	if err != nil {
 		return err
 	}
 
-	urlHost := host
-	if port != defaultPort {
+	urlHost := domain
+	if portStr != defaultPort {
 		urlHost = hostport
 	}
 	if path == "" {
