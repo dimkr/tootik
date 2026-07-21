@@ -23,10 +23,12 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"os/signal"
 	osuser "os/user"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/dimkr/tootik/front"
@@ -58,7 +60,8 @@ func main() {
 		flag.PrintDefaults()
 		fmt.Println(out, "")
 		fmt.Println(out, "PATH is a Gemini path (e.g. /users, /local, /users/say).")
-		fmt.Println(out, "INPUT is user input for the request.")
+		fmt.Println(out, "INPUT is user input for the request. It may also be embedded")
+		fmt.Println(out, `in PATH after a "?" as an escaped query, e.g. /users?30.`)
 		fmt.Println(out, "")
 		fmt.Println(out, "If stdout is a terminal, an interactive shell is started.")
 		fmt.Println(out, "Otherwise, the Gemini protocol response, containing a gemtext")
@@ -130,7 +133,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := front.Connect(ctx, db, *user, *host, *port, flag.Arg(0), flag.Arg(1)); err != nil && !errors.Is(err, context.Canceled) {
+	path := flag.Arg(0)
+	query := ""
+
+	if before, after, ok := strings.Cut(path, "?"); ok {
+		path = before
+		query = after
+	}
+
+	if input := flag.Arg(1); input != "" {
+		query = url.QueryEscape(input)
+	}
+
+	if err := front.Connect(ctx, db, *user, *host, *port, path, query); err != nil && !errors.Is(err, context.Canceled) {
 		slog.Error("Failed to connect", "error", err)
 		os.Exit(1)
 	}

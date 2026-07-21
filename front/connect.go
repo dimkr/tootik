@@ -276,7 +276,7 @@ func Connect(ctx context.Context, db *sql.DB, user, host string, port int, path,
 	}
 	u := &url.URL{Scheme: "gemini", Host: urlHost, Path: path}
 	if input != "" {
-		u.RawQuery = url.QueryEscape(input)
+		u.RawQuery = input
 	}
 
 	c := &geminiClient{db: db, cert: cert}
