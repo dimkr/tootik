@@ -52,7 +52,7 @@ const (
 )
 
 func generateClientCert(user string) ([]byte, []byte, error) {
-	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), nil)
 	if err != nil {
 		return nil, nil, err
 	}

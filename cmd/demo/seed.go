@@ -34,7 +34,7 @@ import (
 )
 
 func generateCert(cn string) ([]byte, []byte, error) {
-	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
