@@ -46,19 +46,17 @@ func main() {
 
 	dbPath := flag.String("db", defaultDbPath, "database path")
 	user := flag.String("user", defaultUser, "user to authenticate as")
-	domain := flag.String("domain", "localhost", "server domain")
+	host := flag.String("host", "localhost", "server host")
 	port := flag.Int("port", 1965, "server port")
 
 	flag.Usage = func() {
 		out := flag.CommandLine.Output()
 
-		fmt.Fprintf(out, "Usage: %s [-user USERNAME] [-domain DOMAIN] [-port PORT] [-db PATH] [PATH [INPUT]]\n\n", os.Args[0])
+		fmt.Fprintf(out, "Usage: %s [-user USERNAME] [-host HOST] [-port PORT] [-db PATH] [PATH [INPUT]]\n\n", os.Args[0])
 		fmt.Println(out, "Connects to a remote tootik or as USERNAME.")
 		fmt.Println(out, "")
 		flag.PrintDefaults()
 		fmt.Println(out, "")
-		fmt.Println(out, "USERNAME is the user to authenticate as; it defaults to OS user.")
-		fmt.Println(out, "@DOMAIN is defaults to localhost and port 1965.")
 		fmt.Println(out, "PATH is a Gemini path (e.g. /users, /local, /users/say).")
 		fmt.Println(out, "INPUT is user input for the request.")
 		fmt.Println(out, "")
@@ -77,7 +75,7 @@ func main() {
 		fmt.Println(out, "search and edit their profile.")
 		fmt.Println(out, "")
 		fmt.Println(out, "Non-existing users must register first:")
-		fmt.Fprintf(out, "  %s USERNAME[@DOMAIN] /users/register generate\n", os.Args[0])
+		fmt.Fprintf(out, "  %s /users/register generate\n", os.Args[0])
 		fmt.Println(out, "")
 		fmt.Println(out, "New users should read /users/help for more information.")
 
@@ -110,7 +108,7 @@ func main() {
 
 	if _, err := db.ExecContext(
 		ctx,
-		`create table if not exists tofu(domain text not null primary key, hash text not null, inserted integer default (unixepoch()))`,
+		`create table if not exists tofu(host text not null primary key, hash text not null, inserted integer default (unixepoch()))`,
 	); err != nil {
 		slog.Error("Failed to create table", "error", err)
 		os.Exit(1)
@@ -132,7 +130,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := front.Connect(ctx, db, *user, *domain, *port, flag.Arg(0), flag.Arg(1)); err != nil && !errors.Is(err, context.Canceled) {
+	if err := front.Connect(ctx, db, *user, *host, *port, flag.Arg(0), flag.Arg(1)); err != nil && !errors.Is(err, context.Canceled) {
 		slog.Error("Failed to connect", "error", err)
 		os.Exit(1)
 	}

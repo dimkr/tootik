@@ -127,8 +127,8 @@ func (c *geminiClient) verifyServer(ctx context.Context, hostport string, conn *
 	digest := fmt.Sprintf("%X", sha256.Sum256(state.PeerCertificates[0].Raw))
 
 	var known string
-	if err := c.db.QueryRowContext(ctx, `select hash from tofu where domain = ?`, hostport).Scan(&known); errors.Is(err, sql.ErrNoRows) {
-		_, err := c.db.ExecContext(ctx, `insert into tofu(domain, hash) values(?, ?)`, hostport, digest)
+	if err := c.db.QueryRowContext(ctx, `select hash from tofu where host = ?`, hostport).Scan(&known); errors.Is(err, sql.ErrNoRows) {
+		_, err := c.db.ExecContext(ctx, `insert into tofu(host, hash) values(?, ?)`, hostport, digest)
 		return err
 	} else if err != nil {
 		return err
@@ -247,7 +247,7 @@ func (c *geminiClient) request(ctx context.Context, u *url.URL) (*url.URL, strin
 	return u, body, nil
 }
 
-func Connect(ctx context.Context, db *sql.DB, user, domain string, port int, path, input string) error {
+func Connect(ctx context.Context, db *sql.DB, user, host string, port int, path, input string) error {
 	if user == "" {
 		current, err := osuser.Current()
 		if err != nil {
@@ -255,19 +255,19 @@ func Connect(ctx context.Context, db *sql.DB, user, domain string, port int, pat
 		}
 		user = current.Username
 	}
-	if domain == "" {
-		domain = "localhost"
+	if host == "" {
+		host = "localhost"
 	}
 
 	portStr := strconv.Itoa(port)
-	hostport := net.JoinHostPort(domain, portStr)
+	hostport := net.JoinHostPort(host, portStr)
 
 	cert, err := loadClientCert(ctx, db, user+"@"+hostport, user)
 	if err != nil {
 		return err
 	}
 
-	urlHost := domain
+	urlHost := host
 	if portStr != defaultPort {
 		urlHost = hostport
 	}
