@@ -138,7 +138,7 @@ outer:
 
 		if n, err := strconv.Atoi(line); err == nil && n > 0 {
 			linkID := 1
-			found := true
+			found := false
 			for _, line := range lines {
 				if line.Type != gmi.Link {
 					continue
@@ -148,6 +148,8 @@ outer:
 					linkID++
 					continue
 				}
+
+				found = true
 
 				rel, err := url.Parse(line.URL)
 				if err != nil {
