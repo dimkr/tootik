@@ -50,12 +50,19 @@ outer:
 		}
 		u = eff
 
-		status, lines, links := gmi.Parse(resp)
+		status, lines, _ := gmi.Parse(resp)
 
 		slopline.SetHintsCallback(func(text string) (string, string, string) {
-			if text == "" && len(links) > 0 {
-				return fmt.Sprintf(" 1-%d", len(links)), "\033[90m", "\033[0m"
-			} else if len(links) == 0 {
+			links := 0
+			for _, line := range lines {
+				if line.Type == gmi.Link {
+					links++
+				}
+			}
+
+			if text == "" && links > 0 {
+				return fmt.Sprintf(" 1-%d", links), "\033[90m", "\033[0m"
+			} else if links == 0 {
 				return "", "", ""
 			}
 
@@ -129,8 +136,9 @@ outer:
 			continue
 		}
 
-		if n, err := strconv.Atoi(line); err == nil && n > 0 && n <= len(links) {
+		if n, err := strconv.Atoi(line); err == nil && n > 0 {
 			linkID := 1
+			found := true
 			for _, line := range lines {
 				if line.Type != gmi.Link {
 					continue
@@ -149,14 +157,21 @@ outer:
 				u = u.ResolveReference(rel)
 				break
 			}
-		} else {
-			rel, err := url.Parse(line)
-			if err != nil {
-				fmt.Printf("Invalid URL or command: %s\n", line)
+
+			if !found {
+				fmt.Printf("Invalid link: %s\n", line)
 			}
 
-			u = u.ResolveReference(rel)
+			continue
 		}
+
+		rel, err := url.Parse(line)
+		if err != nil {
+			fmt.Printf("Invalid URL or command: %s\n", line)
+			continue
+		}
+
+		u = u.ResolveReference(rel)
 	}
 }
 
