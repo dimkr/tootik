@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -82,7 +82,7 @@ func TestSign_NoKeyID(t *testing.T) {
 }
 
 func TestSign_WrongKeyType(t *testing.T) {
-	_, priv, err := ed25519.GenerateKey(rand.Reader)
+	_, priv, err := ed25519.GenerateKey(nil)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)

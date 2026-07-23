@@ -35,60 +35,34 @@ import (
 	"github.com/dimkr/tootik/httpsig"
 )
 
-// Shell runs an interactive shell on behalf of a user.
-func (h *Handler) Shell(ctx context.Context, user, domain string) error {
-	u, err := url.Parse(fmt.Sprintf("gemini://%s/users", domain))
-	if err != nil {
-		return err
-	}
-
-	var actor ap.Actor
-	var rsaPrivKeyDer, ed25519PrivKey []byte
-	if err := h.DB.QueryRowContext(
-		ctx,
-		`select json(actor), rsaprivkey, ed25519privkey from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null`,
-		user,
-	).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey); err != nil {
-		panic(err)
-	}
-
-	rsaPrivKey, err := x509.ParsePKCS1PrivateKey(rsaPrivKeyDer)
-	if err != nil {
-		panic(err)
-	}
-
-	var buf bytes.Buffer
-
+// repl runs an interactive shell loop, fetching each response via fetch and
+// rendering it. domain is used as the fallback prompt when a page has no heading.
+func repl(ctx context.Context, domain string, u *url.URL, fetch func(context.Context, *url.URL) (*url.URL, string, error)) error {
 outer:
 	for {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 
-		buf.Reset()
+		eff, resp, err := fetch(ctx, u)
+		if err != nil {
+			return err
+		}
+		u = eff
 
-		w := gmi.Wrap(&buf)
-		h.Handle(
-			&Request{
-				Context: ctx,
-				URL:     u,
-				Log:     slog.Default(),
-				User:    &actor,
-				Keys: [2]httpsig.Key{
-					{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
-					{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)},
-				},
-			},
-			w,
-		)
-		w.Flush()
-
-		status, lines, links := gmi.Parse(buf.String())
+		status, lines, _ := gmi.Parse(resp)
 
 		slopline.SetHintsCallback(func(text string) (string, string, string) {
-			if text == "" && len(links) > 0 {
-				return fmt.Sprintf(" 1-%d", len(links)), "\033[90m", "\033[0m"
-			} else if len(links) == 0 {
+			links := 0
+			for _, line := range lines {
+				if line.Type == gmi.Link {
+					links++
+				}
+			}
+
+			if text == "" && links > 0 {
+				return fmt.Sprintf(" 1-%d", links), "\033[90m", "\033[0m"
+			} else if links == 0 {
 				return "", "", ""
 			}
 
@@ -109,7 +83,7 @@ outer:
 			return "", "", ""
 		})
 
-		if strings.HasPrefix(status, "30 ") {
+		if strings.HasPrefix(status, "30 ") || strings.HasPrefix(status, "31 ") {
 			rel, err := url.Parse(status[3:])
 			if err != nil {
 				return err
@@ -162,8 +136,9 @@ outer:
 			continue
 		}
 
-		if n, err := strconv.Atoi(line); err == nil && n > 0 && n <= len(links) {
+		if n, err := strconv.Atoi(line); err == nil && n > 0 {
 			linkID := 1
+			found := false
 			for _, line := range lines {
 				if line.Type != gmi.Link {
 					continue
@@ -174,6 +149,8 @@ outer:
 					continue
 				}
 
+				found = true
+
 				rel, err := url.Parse(line.URL)
 				if err != nil {
 					return err
@@ -182,13 +159,67 @@ outer:
 				u = u.ResolveReference(rel)
 				break
 			}
-		} else {
-			rel, err := url.Parse(line)
-			if err != nil {
-				fmt.Printf("Invalid URL or command: %s\n", line)
+
+			if !found {
+				fmt.Printf("Invalid link: %s\n", line)
 			}
 
-			u = u.ResolveReference(rel)
+			continue
 		}
+
+		rel, err := url.Parse(line)
+		if err != nil {
+			fmt.Printf("Invalid URL or command: %s\n", line)
+			continue
+		}
+
+		u = u.ResolveReference(rel)
 	}
+}
+
+// Shell runs an interactive shell on behalf of a user.
+func (h *Handler) Shell(ctx context.Context, user, domain string) error {
+	u, err := url.Parse(fmt.Sprintf("gemini://%s/users", domain))
+	if err != nil {
+		return err
+	}
+
+	var actor ap.Actor
+	var rsaPrivKeyDer, ed25519PrivKey []byte
+	if err := h.DB.QueryRowContext(
+		ctx,
+		`select json(actor), rsaprivkey, ed25519privkey from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null`,
+		user,
+	).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey); err != nil {
+		panic(err)
+	}
+
+	rsaPrivKey, err := x509.ParsePKCS1PrivateKey(rsaPrivKeyDer)
+	if err != nil {
+		panic(err)
+	}
+
+	var buf bytes.Buffer
+
+	return repl(ctx, domain, u, func(ctx context.Context, u *url.URL) (*url.URL, string, error) {
+		buf.Reset()
+
+		w := gmi.Wrap(&buf)
+		h.Handle(
+			&Request{
+				Context: ctx,
+				URL:     u,
+				Log:     slog.Default(),
+				User:    &actor,
+				Keys: [2]httpsig.Key{
+					{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
+					{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)},
+				},
+			},
+			w,
+		)
+		w.Flush()
+
+		return u, buf.String(), nil
+	})
 }

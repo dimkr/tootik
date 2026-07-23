@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -883,7 +883,7 @@ func TestVerify_WrongKeyType(t *testing.T) {
 	sig, err := Extract(req, body, "localhost", now, time.Minute)
 	assert.NoError(t, err)
 
-	pub2, _, err := ed25519.GenerateKey(rand.Reader)
+	pub2, _, err := ed25519.GenerateKey(nil)
 	assert.NoError(t, err)
 
 	assert.NoError(t, sig.Verify(&priv.PublicKey))
