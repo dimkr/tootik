@@ -89,3 +89,31 @@ jobs:
           name: demo-${{ inputs.version }}
           path: ./demo.svg
           retention-days: 1
+  client:
+    permissions: {}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: arm64
+    steps:
+      - uses: actions/checkout@v6
+      - run: echo ${{ matrix.goarch }} > goarch
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+          cache-dependency-path: |
+            go.sum
+            goarch
+      - run: CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -ldflags "-w -s" -trimpath -o tootik-client-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/tootik-client
+      - uses: actions/upload-artifact@v6
+        with:
+          name: tootik-client-${{ inputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: tootik-client-${{ matrix.goos }}-${{ matrix.goarch }}
+          retention-days: 1
