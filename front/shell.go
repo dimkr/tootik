@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package front
 
 import (
 	"bytes"
@@ -26,13 +26,13 @@ import (
 	"net/url"
 
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/front"
 	"github.com/dimkr/tootik/front/text/gmi"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/shell"
 )
 
-func runShell(ctx context.Context, h front.Handler, user, domain string) error {
+// Shell runs an interactive shell on behalf of a user.
+func (h Handler) Shell(ctx context.Context, user, domain string) error {
 	u, err := url.Parse(fmt.Sprintf("gemini://%s/users", domain))
 	if err != nil {
 		return err
@@ -60,7 +60,7 @@ func runShell(ctx context.Context, h front.Handler, user, domain string) error {
 
 		w := gmi.Wrap(&buf)
 		h.Handle(
-			&front.Request{
+			&Request{
 				Context: ctx,
 				URL:     u,
 				Log:     slog.Default(),
