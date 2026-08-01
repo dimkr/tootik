@@ -50,6 +50,7 @@ func main() {
 	user := flag.String("user", defaultUser, "user to authenticate as")
 	host := flag.String("host", "localhost", "server host")
 	port := flag.Int("port", 1965, "server port")
+	logLevel := flag.Int("loglevel", int(slog.LevelInfo), "Logging verbosity")
 
 	flag.Usage = func() {
 		out := flag.CommandLine.Output()
@@ -93,9 +94,12 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
-		Level: slog.LevelWarn,
-	})))
+	opts := slog.HandlerOptions{Level: slog.Level(*logLevel)}
+	if opts.Level == slog.LevelDebug {
+		opts.AddSource = true
+	}
+
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &opts)))
 
 	if err := os.MkdirAll(filepath.Dir(*dbPath), 0o700); err != nil {
 		slog.Error("Failed to create data directory", "error", err)
