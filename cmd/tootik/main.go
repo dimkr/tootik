@@ -220,7 +220,7 @@ func main() {
 			user = flag.Arg(1)
 		}
 
-		if err := handler.Shell(ctx, user, *domain); err != nil && !errors.Is(err, context.Canceled) {
+		if err := runShell(ctx, handler, user, *domain); err != nil && !errors.Is(err, context.Canceled) {
 			panic(err)
 		}
 

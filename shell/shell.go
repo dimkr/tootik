@@ -14,32 +14,33 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package front
+// Package shell implements an interactive shell that displays the tootik UI.
+package shell
 
 import (
-	"bytes"
 	"context"
-	"crypto/ed25519"
-	"crypto/x509"
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/dimkr/slopline"
-	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text/gmi"
-	"github.com/dimkr/tootik/httpsig"
 	"golang.org/x/term"
 )
 
-// repl runs an interactive shell loop, fetching each response via fetch and
-// rendering it. domain is used as the fallback prompt when a page has no heading.
-func repl(ctx context.Context, domain string, u *url.URL, fetch func(context.Context, *url.URL) (*url.URL, string, error)) error {
+// Shell runs an interactive shell.
+//
+// It uses fetch to fetch the next page and follows follows redirects.
+func Shell(
+	ctx context.Context,
+	domain string,
+	u *url.URL,
+	fetch func(context.Context, *url.URL) (*url.URL, string, error),
+) error {
 outer:
 	for {
 		if err := ctx.Err(); err != nil {
@@ -182,51 +183,4 @@ outer:
 
 		u = u.ResolveReference(rel)
 	}
-}
-
-// Shell runs an interactive shell on behalf of a user.
-func (h *Handler) Shell(ctx context.Context, user, domain string) error {
-	u, err := url.Parse(fmt.Sprintf("gemini://%s/users", domain))
-	if err != nil {
-		return err
-	}
-
-	var actor ap.Actor
-	var rsaPrivKeyDer, ed25519PrivKey []byte
-	if err := h.DB.QueryRowContext(
-		ctx,
-		`select json(actor), rsaprivkey, ed25519privkey from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null`,
-		user,
-	).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey); err != nil {
-		panic(err)
-	}
-
-	rsaPrivKey, err := x509.ParsePKCS1PrivateKey(rsaPrivKeyDer)
-	if err != nil {
-		panic(err)
-	}
-
-	var buf bytes.Buffer
-
-	return repl(ctx, domain, u, func(ctx context.Context, u *url.URL) (*url.URL, string, error) {
-		buf.Reset()
-
-		w := gmi.Wrap(&buf)
-		h.Handle(
-			&Request{
-				Context: ctx,
-				URL:     u,
-				Log:     slog.Default(),
-				User:    &actor,
-				Keys: [2]httpsig.Key{
-					{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
-					{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)},
-				},
-			},
-			w,
-		)
-		w.Flush()
-
-		return u, buf.String(), nil
-	})
 }

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package front
+package main
 
 import (
 	"context"
@@ -33,8 +33,6 @@ import (
 	"math/big"
 	"net"
 	"net/url"
-	osuser "os/user"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -43,7 +41,6 @@ const (
 	connectTimeout   = 30 * time.Second
 	maxResponseSize  = 16 * 1024 * 1024
 	defaultPort      = "1965"
-	maxRedirects     = 5
 	maxPermRedirects = 5
 	certYears        = 10
 )
@@ -242,41 +239,4 @@ func (c *geminiClient) request(ctx context.Context, u *url.URL) (*url.URL, strin
 	}
 
 	return u, body, nil
-}
-
-func Connect(ctx context.Context, db *sql.DB, user, host string, port int, path, input string) error {
-	if user == "" {
-		current, err := osuser.Current()
-		if err != nil {
-			return fmt.Errorf("failed to determine current user: %w", err)
-		}
-		user = current.Username
-	}
-	if host == "" {
-		host = "localhost"
-	}
-
-	portStr := strconv.Itoa(port)
-	hostport := net.JoinHostPort(host, portStr)
-
-	cert, err := loadClientCert(ctx, db, user+"@"+hostport, user)
-	if err != nil {
-		return err
-	}
-
-	urlHost := host
-	if portStr != defaultPort {
-		urlHost = hostport
-	}
-	if path == "" {
-		path = "/"
-	}
-	u := &url.URL{Scheme: "gemini", Host: urlHost, Path: path}
-	if input != "" {
-		u.RawQuery = input
-	}
-
-	c := &geminiClient{db: db, cert: cert}
-
-	return repl(ctx, hostport, u, c.request)
 }

@@ -104,13 +104,13 @@ jobs:
             goarch: arm64
     steps:
       - uses: actions/checkout@v6
-      - run: echo ${{ matrix.goarch }} > goarch
+      - run: echo ${{ matrix.goos }}/${{ matrix.goarch }} > target
       - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
           cache-dependency-path: |
             go.sum
-            goarch
+            target
       - run: CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -ldflags "-w -s" -trimpath -o tootik-client-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/tootik-client
       - uses: actions/upload-artifact@v6
         with:
