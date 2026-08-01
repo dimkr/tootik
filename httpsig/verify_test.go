@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ package httpsig
 import (
 	"bytes"
 	"crypto/ed25519"
-	"crypto/rand"
 	"crypto/rsa"
 	"net/http"
 	"strings"
@@ -30,7 +29,7 @@ import (
 )
 
 func TestVerify_TooOld(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -48,7 +47,7 @@ func TestVerify_TooOld(t *testing.T) {
 }
 
 func TestVerify_TooNew(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -66,7 +65,7 @@ func TestVerify_TooNew(t *testing.T) {
 }
 
 func TestVerify_NoDate(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -86,7 +85,7 @@ func TestVerify_NoDate(t *testing.T) {
 }
 
 func TestVerify_InvalidDate(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -106,7 +105,7 @@ func TestVerify_InvalidDate(t *testing.T) {
 }
 
 func TestVerify_WrongHost(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -124,7 +123,7 @@ func TestVerify_WrongHost(t *testing.T) {
 }
 
 func TestVerify_EmptyHost(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -145,7 +144,7 @@ func TestVerify_EmptyHost(t *testing.T) {
 }
 
 func TestVerify_NoHostFallback(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -167,7 +166,7 @@ func TestVerify_NoHostFallback(t *testing.T) {
 }
 
 func TestVerify_NoHostWrongFallback(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -187,7 +186,7 @@ func TestVerify_NoHostWrongFallback(t *testing.T) {
 }
 
 func TestVerify_TwoSignatureHeaders(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -207,7 +206,7 @@ func TestVerify_TwoSignatureHeaders(t *testing.T) {
 }
 
 func TestVerify_TwoKeyIDs(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -227,7 +226,7 @@ func TestVerify_TwoKeyIDs(t *testing.T) {
 }
 
 func TestVerify_TwoSignatures(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -247,7 +246,7 @@ func TestVerify_TwoSignatures(t *testing.T) {
 }
 
 func TestVerify_TwoHeaders(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -267,7 +266,7 @@ func TestVerify_TwoHeaders(t *testing.T) {
 }
 
 func TestVerify_InvalidAttribute(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -287,7 +286,7 @@ func TestVerify_InvalidAttribute(t *testing.T) {
 }
 
 func TestVerify_NoKeyID(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -307,7 +306,7 @@ func TestVerify_NoKeyID(t *testing.T) {
 }
 
 func TestVerify_NoSignature(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -327,7 +326,7 @@ func TestVerify_NoSignature(t *testing.T) {
 }
 
 func TestVerify_NoHeaders(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -347,7 +346,7 @@ func TestVerify_NoHeaders(t *testing.T) {
 }
 
 func TestVerify_InvalidSignatureBase64(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -367,7 +366,7 @@ func TestVerify_InvalidSignatureBase64(t *testing.T) {
 }
 
 func TestVerify_DuplicateHeaders(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -387,7 +386,7 @@ func TestVerify_DuplicateHeaders(t *testing.T) {
 }
 
 func TestVerify_HeadersOnlyWhitespace(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -407,7 +406,7 @@ func TestVerify_HeadersOnlyWhitespace(t *testing.T) {
 }
 
 func TestVerify_HeadersLeadingWhitespace(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -429,7 +428,7 @@ func TestVerify_HeadersLeadingWhitespace(t *testing.T) {
 }
 
 func TestVerify_HeadersTrailingWhitespace(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -451,7 +450,7 @@ func TestVerify_HeadersTrailingWhitespace(t *testing.T) {
 }
 
 func TestVerify_HeadersContainsWhitespace(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -473,7 +472,7 @@ func TestVerify_HeadersContainsWhitespace(t *testing.T) {
 }
 
 func TestVerify_TargetNotSigned(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -493,7 +492,7 @@ func TestVerify_TargetNotSigned(t *testing.T) {
 }
 
 func TestVerify_HostNotSigned(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -513,7 +512,7 @@ func TestVerify_HostNotSigned(t *testing.T) {
 }
 
 func TestVerify_DateNotSigned(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -533,7 +532,7 @@ func TestVerify_DateNotSigned(t *testing.T) {
 }
 
 func TestVerify_DigestNotSigned(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -553,7 +552,7 @@ func TestVerify_DigestNotSigned(t *testing.T) {
 }
 
 func TestVerify_MissingSignedHeader(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -573,7 +572,7 @@ func TestVerify_MissingSignedHeader(t *testing.T) {
 }
 
 func TestVerify_MissingSpecialSignedHeader(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -593,7 +592,7 @@ func TestVerify_MissingSpecialSignedHeader(t *testing.T) {
 }
 
 func TestVerify_DuplicateSignedHeader(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -615,7 +614,7 @@ func TestVerify_DuplicateSignedHeader(t *testing.T) {
 }
 
 func TestVerify_NoDigest(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -635,7 +634,7 @@ func TestVerify_NoDigest(t *testing.T) {
 }
 
 func TestVerify_ShortDigest(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -655,7 +654,7 @@ func TestVerify_ShortDigest(t *testing.T) {
 }
 
 func TestVerify_InvalidDigestAlgorithm(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -675,7 +674,7 @@ func TestVerify_InvalidDigestAlgorithm(t *testing.T) {
 }
 
 func TestVerify_InvalidDigestBase64(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -695,7 +694,7 @@ func TestVerify_InvalidDigestBase64(t *testing.T) {
 }
 
 func TestVerify_InvalidDigestHashSize(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -715,7 +714,7 @@ func TestVerify_InvalidDigestHashSize(t *testing.T) {
 }
 
 func TestVerify_WrongHash(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -735,7 +734,7 @@ func TestVerify_WrongHash(t *testing.T) {
 }
 
 func TestVerify_DifferentMethod(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -757,7 +756,7 @@ func TestVerify_DifferentMethod(t *testing.T) {
 }
 
 func TestVerify_DifferentHost(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -779,7 +778,7 @@ func TestVerify_DifferentHost(t *testing.T) {
 }
 
 func TestVerify_DifferentDate(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -801,7 +800,7 @@ func TestVerify_DifferentDate(t *testing.T) {
 }
 
 func TestVerify_DifferentContentType(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -823,7 +822,7 @@ func TestVerify_DifferentContentType(t *testing.T) {
 }
 
 func TestVerify_WrongKey(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -839,7 +838,7 @@ func TestVerify_WrongKey(t *testing.T) {
 	sig, err := Extract(req, body, "localhost", now, time.Minute)
 	assert.NoError(t, err)
 
-	priv2, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv2, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	assert.NoError(t, sig.Verify(&priv.PublicKey))
@@ -847,7 +846,7 @@ func TestVerify_WrongKey(t *testing.T) {
 }
 
 func TestVerify_SmallKey(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 1024)
+	priv, err := rsa.GenerateKey(nil, 1024)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -867,7 +866,7 @@ func TestVerify_SmallKey(t *testing.T) {
 }
 
 func TestVerify_WrongKeyType(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -883,7 +882,7 @@ func TestVerify_WrongKeyType(t *testing.T) {
 	sig, err := Extract(req, body, "localhost", now, time.Minute)
 	assert.NoError(t, err)
 
-	pub2, _, err := ed25519.GenerateKey(rand.Reader)
+	pub2, _, err := ed25519.GenerateKey(nil)
 	assert.NoError(t, err)
 
 	assert.NoError(t, sig.Verify(&priv.PublicKey))

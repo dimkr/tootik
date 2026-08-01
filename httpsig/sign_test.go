@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ package httpsig
 import (
 	"bytes"
 	"crypto/ed25519"
-	"crypto/rand"
 	"crypto/rsa"
 	"math/big"
 	"net/http"
@@ -30,7 +29,7 @@ import (
 )
 
 func TestSign_HappyFlow(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -50,7 +49,7 @@ func TestSign_HappyFlow(t *testing.T) {
 }
 
 func TestSign_Get(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -67,7 +66,7 @@ func TestSign_Get(t *testing.T) {
 }
 
 func TestSign_NoKeyID(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -82,7 +81,7 @@ func TestSign_NoKeyID(t *testing.T) {
 }
 
 func TestSign_WrongKeyType(t *testing.T) {
-	_, priv, err := ed25519.GenerateKey(rand.Reader)
+	_, priv, err := ed25519.GenerateKey(nil)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
@@ -97,7 +96,7 @@ func TestSign_WrongKeyType(t *testing.T) {
 }
 
 func TestSign_MissingHeader(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	assert.NoError(t, err)
 
 	body := []byte(`{"id":"a"}`)
