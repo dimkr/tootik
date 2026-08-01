@@ -26,6 +26,7 @@ import (
 	"io"
 	"log/slog"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 
@@ -33,6 +34,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text/gmi"
 	"github.com/dimkr/tootik/httpsig"
+	"golang.org/x/term"
 )
 
 // repl runs an interactive shell loop, fetching each response via fetch and
@@ -51,6 +53,44 @@ outer:
 		u = eff
 
 		status, lines, _ := gmi.Parse(resp)
+
+		if strings.HasPrefix(status, "30 ") || strings.HasPrefix(status, "31 ") {
+			rel, err := url.Parse(status[3:])
+			if err != nil {
+				return err
+			}
+
+			u = u.ResolveReference(rel)
+			continue
+		}
+
+		if strings.HasPrefix(status, "10 ") {
+			for {
+				line, err := slopline.Line(fmt.Sprintf("\033[35m%s>\033[0m ", status[3:]))
+				if errors.Is(err, io.EOF) {
+					return nil
+				} else if err != nil {
+					return err
+				}
+
+				line = strings.TrimSpace(line)
+				if line == "" {
+					continue
+				}
+
+				u.RawQuery = line
+				continue outer
+			}
+		}
+
+		if !term.IsTerminal(int(os.Stdout.Fd())) {
+			os.Stdout.WriteString(resp)
+			return nil
+		}
+
+		if err := gmi.Render(ctx, lines); err != nil {
+			return err
+		}
 
 		slopline.SetHintsCallback(func(text string) (string, string, string) {
 			links := 0
@@ -82,39 +122,6 @@ outer:
 
 			return "", "", ""
 		})
-
-		if strings.HasPrefix(status, "30 ") || strings.HasPrefix(status, "31 ") {
-			rel, err := url.Parse(status[3:])
-			if err != nil {
-				return err
-			}
-
-			u = u.ResolveReference(rel)
-			continue
-		}
-
-		if strings.HasPrefix(status, "10 ") {
-			for {
-				line, err := slopline.Line(fmt.Sprintf("\033[35m%s>\033[0m ", status[3:]))
-				if errors.Is(err, io.EOF) {
-					return nil
-				} else if err != nil {
-					return err
-				}
-
-				line = strings.TrimSpace(line)
-				if line == "" {
-					continue
-				}
-
-				u.RawQuery = line
-				continue outer
-			}
-		}
-
-		if err := gmi.Render(ctx, lines); err != nil {
-			return err
-		}
 
 		prompt := domain
 		for _, line := range lines {

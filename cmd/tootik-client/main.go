@@ -149,7 +149,15 @@ func main() {
 		query = url.QueryEscape(input)
 	}
 
-	if err := front.Connect(ctx, db, *user, *host, *port, path, query); err != nil && !errors.Is(err, context.Canceled) {
+	if err := front.Connect(
+		ctx,
+		db,
+		*user,
+		*host,
+		*port,
+		path,
+		query,
+	); err != nil && !errors.Is(err, context.Canceled) {
 		slog.Error("Failed to connect", "error", err)
 		os.Exit(1)
 	}

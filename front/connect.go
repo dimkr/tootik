@@ -33,13 +33,10 @@ import (
 	"math/big"
 	"net"
 	"net/url"
-	"os"
 	osuser "os/user"
 	"strconv"
 	"strings"
 	"time"
-
-	"golang.org/x/term"
 )
 
 const (
@@ -280,33 +277,6 @@ func Connect(ctx context.Context, db *sql.DB, user, host string, port int, path,
 	}
 
 	c := &geminiClient{db: db, cert: cert}
-
-	if !term.IsTerminal(int(os.Stdout.Fd())) {
-		for i := 0; ; i++ {
-			eff, resp, err := c.request(ctx, u)
-			if err != nil {
-				return err
-			}
-
-			status := resp
-			if before, _, ok := strings.Cut(resp, "\r\n"); ok {
-				status = before
-			}
-
-			if i < maxRedirects && (strings.HasPrefix(status, "30 ") || strings.HasPrefix(status, "31 ")) {
-				rel, err := url.Parse(strings.TrimSpace(status[3:]))
-				if err != nil {
-					return err
-				}
-
-				u = eff.ResolveReference(rel)
-				continue
-			}
-
-			_, err = os.Stdout.WriteString(resp)
-			return err
-		}
-	}
 
 	return repl(ctx, hostport, u, c.request)
 }
