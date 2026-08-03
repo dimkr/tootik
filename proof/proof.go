@@ -21,7 +21,9 @@ package proof
 
 import (
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -130,26 +132,17 @@ func Add(key httpsig.Key, now time.Time, raw []byte) ([]byte, error) {
 	return json.Marshal(m)
 }
 
-// Verify verifies an integrity proof.
-func Verify(key any, proof ap.Proof, raw []byte) error {
-	edKey, ok := key.(ed25519.PublicKey)
-	if !ok {
-		return fmt.Errorf("wrong key type: %T", key)
-	}
-
+// VerifyWithContext verifies an integrity proof.
+func VerifyWithContext(key any, proof ap.Proof, context any, raw []byte) error {
 	if proof.Type != "DataIntegrityProof" {
 		return errors.New("invalid type: " + proof.Type)
-	}
-
-	if proof.CryptoSuite != "eddsa-jcs-2022" {
-		return errors.New("invalid cryptosuite: " + proof.CryptoSuite)
 	}
 
 	if proof.Purpose != "assertionMethod" {
 		return errors.New("invalid purpose: " + proof.Purpose)
 	}
 
-	if len(proof.Value) <= 1 || proof.Value[0] != 'z' {
+	if len(proof.Value) <= 1 {
 		return errors.New("invalid value: " + proof.Value)
 	}
 
@@ -173,6 +166,7 @@ func Verify(key any, proof ap.Proof, raw []byte) error {
 	docHash := sha256.Sum256(data)
 
 	options := proof
+	options.Context = context
 	options.Value = ""
 
 	cfg, err := normalizeJSON(options)
@@ -182,9 +176,48 @@ func Verify(key any, proof ap.Proof, raw []byte) error {
 
 	cfgHash := sha256.Sum256(cfg)
 
-	if !ed25519.Verify(edKey, append(cfgHash[:], docHash[:]...), base58.Decode(proof.Value[1:])) {
-		return errors.New("proof verification failed")
+	switch proof.CryptoSuite {
+	case "eddsa-jcs-2022":
+		if proof.Value[0] != 'z' {
+			return errors.New("invalid value: " + proof.Value)
+		}
+
+		edKey, ok := key.(ed25519.PublicKey)
+		if !ok {
+			return fmt.Errorf("wrong key type: %T", key)
+		}
+
+		if !ed25519.Verify(edKey, append(cfgHash[:], docHash[:]...), base58.Decode(proof.Value[1:])) {
+			return errors.New("proof verification failed")
+		}
+
+	case "mldsa44-jcs-2024":
+		if proof.Value[0] != 'u' {
+			return errors.New("invalid value: " + proof.Value)
+		}
+
+		mlKey, ok := key.(*mldsa.PublicKey)
+		if !ok {
+			return fmt.Errorf("wrong key type: %T", key)
+		}
+
+		sig, err := base64.RawURLEncoding.DecodeString(proof.Value[1:])
+		if err != nil {
+			return fmt.Errorf("failed to decode proof: %w", err)
+		}
+
+		if err := mldsa.Verify(mlKey, append(cfgHash[:], docHash[:]...), sig, nil); err != nil {
+			return fmt.Errorf("proof verification failed: %w", err)
+		}
+
+	default:
+		return fmt.Errorf("invalid cryptosuite: %s/%T", proof.CryptoSuite, key)
 	}
 
 	return nil
+}
+
+// Verify verifies an integrity proof.
+func Verify(key any, proof ap.Proof, raw []byte) error {
+	return VerifyWithContext(key, proof, nil, raw)
 }
