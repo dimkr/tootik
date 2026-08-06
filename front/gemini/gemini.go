@@ -76,9 +76,10 @@ func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn, cfg *cfg.Con
 	certHash := fmt.Sprintf("%X", sha256.Sum256(clientCert.Raw))
 
 	var rsaPrivKeyDer, ed25519PrivKey []byte
+	var mldsa44PrivKeyEncoded string
 	var actor ap.Actor
 	var approved int
-	if err := gl.DB.QueryRowContext(ctx, `select json(persons.actor), persons.rsaprivkey, persons.ed25519privkey, certificates.approved from certificates join persons on persons.actor->>'$.preferredUsername' = certificates.user where persons.host = ? and certificates.hash = ? and certificates.expires > unixepoch()`, gl.Domain, certHash).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey, &approved); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := gl.DB.QueryRowContext(ctx, `select json(persons.actor), persons.rsaprivkey, persons.ed25519privkey, persons.mldsa44privkey, certificates.approved from certificates join persons on persons.actor->>'$.preferredUsername' = certificates.user where persons.host = ? and certificates.hash = ? and certificates.expires > unixepoch()`, gl.Domain, certHash).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey, &mldsa44PrivKeyEncoded, &approved); err != nil && errors.Is(err, sql.ErrNoRows) {
 		if cfg.RequireInvitation {
 			var accepted int
 			if err := gl.DB.QueryRowContext(ctx, `select exists (select 1 from invites where certhash = ?)`, certHash).Scan(&accepted); err != nil {
@@ -102,10 +103,16 @@ func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn, cfg *cfg.Con
 		return nil, [3]httpsig.Key{}, fmt.Errorf("failed to parse RSA private key for %s: %w", certHash, err)
 	}
 
+	mldsa44PrivKey, err := data.DecodeMLDSA44PrivateKey(mldsa44PrivKeyEncoded)
+	if err != nil {
+		return nil, [3]httpsig.Key{}, fmt.Errorf("failed to decode ML-DSA-44 private key for %s: %w", certHash, err)
+	}
+
 	slog.Debug("Found existing user", "hash", certHash, "user", actor.ID)
-	return &actor, [2]httpsig.Key{
+	return &actor, [3]httpsig.Key{
 		{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
 		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)},
+		{ID: actor.AssertionMethod[1].ID, PrivateKey: mldsa44PrivKey},
 	}, nil
 }
 

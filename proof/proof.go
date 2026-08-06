@@ -151,7 +151,7 @@ func Add(key httpsig.Key, now time.Time, raw []byte) ([]byte, error) {
 }
 
 // VerifyWithContext verifies an integrity proof.
-func VerifyWithContext(key crypto.PublicKey, proof ap.Proof, context any, raw []byte) error {
+func Verify(key crypto.PublicKey, proof ap.Proof, context any, raw []byte) error {
 	if proof.Type != "DataIntegrityProof" {
 		return errors.New("invalid type: " + proof.Type)
 	}
@@ -233,9 +233,4 @@ func VerifyWithContext(key crypto.PublicKey, proof ap.Proof, context any, raw []
 	}
 
 	return nil
-}
-
-// Verify verifies an integrity proof.
-func Verify(key crypto.PublicKey, proof ap.Proof, raw []byte) error {
-	return VerifyWithContext(key, proof, nil, raw)
 }

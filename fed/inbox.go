@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/ed25519"
-	"crypto/mldsa"
 	"crypto/x509"
 	"database/sql"
 	"encoding/json"
@@ -99,7 +98,8 @@ func (l *Listener) fetchObject(ctx context.Context, id string, keys [3]httpsig.K
 	}
 
 	var withProof struct {
-		Proof ap.Proof `json:"proof"`
+		Context any      `json:"@context"`
+		Proof   ap.Proof `json:"proof"`
 	}
 	if err := json.Unmarshal(body, &withProof); err != nil {
 		return true, nil, err
@@ -124,7 +124,7 @@ func (l *Listener) fetchObject(ctx context.Context, id string, keys [3]httpsig.K
 		return true, nil, fmt.Errorf("failed to verify proof using %s: %w", withProof.Proof.VerificationMethod, err)
 	}
 
-	if err := proof.Verify(publicKey, withProof.Proof, body); err != nil {
+	if err := proof.Verify(publicKey, withProof.Proof, withProof.Context, body); err != nil {
 		return true, nil, err
 	}
 
@@ -139,8 +139,9 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 	receiver := r.PathValue("username")
 
 	var actor ap.Actor
-	var rsaPrivKeyDer, ed25519PrivKey, mldsa44PrivKeySeed []byte
-	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519privkey, mldsa44privkey from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null`, receiver).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey, &mldsa44PrivKeySeed); errors.Is(err, sql.ErrNoRows) {
+	var rsaPrivKeyDer, ed25519PrivKey []byte
+	var mldsa44PrivKeyEncoded string
+	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519privkey, mldsa44privkey from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null`, receiver).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey, &mldsa44PrivKeyEncoded); errors.Is(err, sql.ErrNoRows) {
 		slog.Debug("Receiving user does not exist", "receiver", receiver)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -157,9 +158,9 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mldsa44PrivKey, err := mldsa.NewPrivateKey(mldsa.MLDSA44(), mldsa44PrivKeySeed)
+	mldsa44PrivKey, err := data.DecodeMLDSA44PrivateKey(mldsa44PrivKeyEncoded)
 	if err != nil {
-		slog.Warn("Failed to create ML-DSA-44 private key", "receiver", receiver, "error", err)
+		slog.Warn("Failed to decode ML-DSA-44 private key", "receiver", receiver, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -210,7 +211,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [3
 	var sig *httpsig.Signature
 	if activity.Proof != (ap.Proof{}) {
 		// if activity has an integrity proof, pretend it was sent by its actor even if forwarded by another
-		sender, err = l.verifyProof(r.Context(), activity.Proof, &activity, rawActivity, flags, keys)
+		sender, err = l.verifyProof(r.Context(), &activity, rawActivity, flags, keys)
 		if err != nil {
 			slog.Warn("Failed to verify integrity proof", "activity", &activity, "proof", &activity.Proof, "error", err)
 			w.WriteHeader(http.StatusUnauthorized)

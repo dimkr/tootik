@@ -220,7 +220,7 @@ func (q *Queue) fetchPost(ctx context.Context, id string) (*ap.Object, error) {
 			return nil, fmt.Errorf("failed to verify proof using %s: %w", post.Proof.VerificationMethod, err)
 		}
 
-		if err := proof.Verify(publicKey, post.Proof, body); err != nil {
+		if err := proof.Verify(publicKey, post.Proof, post.Context, body); err != nil {
 			return nil, err
 		}
 	}
@@ -399,7 +399,7 @@ func (q *Queue) fetchContext(ctx context.Context, post *ap.Object) error {
 			return fmt.Errorf("failed to verify proof using %s: %w", collection.Proof.VerificationMethod, err)
 		}
 
-		if err := proof.Verify(publicKey, collection.Proof, body); err != nil {
+		if err := proof.Verify(publicKey, collection.Proof, collection.Context, body); err != nil {
 			return err
 		}
 	}

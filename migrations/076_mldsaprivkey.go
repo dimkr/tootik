@@ -15,7 +15,7 @@ func mldsaprivkey(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	rows, err := tx.QueryContext(ctx, `SELECT id, JSON(actor) FROM persons WHERE ed25519privkey IS NOT NULL AND mldsa44privkey IS NULL`, domain)
+	rows, err := tx.QueryContext(ctx, `SELECT id, JSON(actor) FROM persons WHERE ed25519privkey IS NOT NULL`, domain)
 	if err != nil {
 		return err
 	}

@@ -88,11 +88,12 @@ func insertActor(
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT OR IGNORE INTO persons (id, actor, rsaprivkey, ed25519privkey) VALUES (?, JSONB(?), ?, ?)`,
+		`INSERT OR IGNORE INTO persons (id, actor, rsaprivkey, ed25519privkey, mldsa44privkey) VALUES (?, JSONB(?), ?, ?, ?)`,
 		actor.ID,
 		actor,
 		x509.MarshalPKCS1PrivateKey(rsaPriv),
 		ed25519Priv.Seed(),
+		data.EncodeMLDSA44PrivateKey(mldsa44Priv),
 	); err != nil {
 		return err
 	}

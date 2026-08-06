@@ -35,6 +35,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/danger"
+	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/httpsig"
 )
@@ -96,6 +97,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		RawActivity                   string
 		Actor                         ap.Actor
 		RsaPrivKeyDer, Ed25519PrivKey []byte
+		MLDSA44PrivKeyEncoded         string
 	}](
 		ctx,
 		q.DB,
@@ -104,7 +106,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			slog.Error("Failed to fetch post to deliver", "error", err)
 			return true
 		},
-		`select outbox.attempts, json(outbox.activity) as x, json(outbox.activity) as y, json(persons.actor), persons.rsaprivkey, persons.ed25519privkey from
+		`select outbox.attempts, json(outbox.activity) as x, json(outbox.activity) as y, json(persons.actor), persons.rsaprivkey, persons.ed25519privkey, persons.mldsa44privkey from
 		outbox
 		join persons
 		on
@@ -162,8 +164,8 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 	count := 0
 	for _, row := range rows {
-		if len(row.Actor.AssertionMethod) == 0 {
-			slog.Error("Actor has no Ed25519 key")
+		if len(row.Actor.AssertionMethod) < 2 {
+			slog.Error("Actor has no Ed25519 or ML-DSA-44 key")
 			continue
 		}
 
@@ -175,9 +177,16 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			continue
 		}
 
-		keys := [2]httpsig.Key{
+		mldsa44PrivKey, err := data.DecodeMLDSA44PrivateKey(row.MLDSA44PrivKeyEncoded)
+		if err != nil {
+			slog.Error("Failed to decode ML-DSA-44 private key", "error", err)
+			continue
+		}
+
+		keys := [3]httpsig.Key{
 			{ID: row.Actor.PublicKey.ID, PrivateKey: rsaPrivKey},
 			{ID: row.Actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(row.Ed25519PrivKey)},
+			{ID: row.Actor.AssertionMethod[1].ID, PrivateKey: mldsa44PrivKey},
 		}
 
 		if _, err := q.DB.ExecContext(
