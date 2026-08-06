@@ -150,7 +150,7 @@ func Add(key httpsig.Key, now time.Time, raw []byte) ([]byte, error) {
 	return json.Marshal(m)
 }
 
-// VerifyWithContext verifies an integrity proof.
+// Verify verifies an integrity proof.
 func Verify(key crypto.PublicKey, proof ap.Proof, context any, raw []byte) error {
 	if proof.Type != "DataIntegrityProof" {
 		return errors.New("invalid type: " + proof.Type)
@@ -184,7 +184,20 @@ func Verify(key crypto.PublicKey, proof ap.Proof, context any, raw []byte) error
 	docHash := sha256.Sum256(data)
 
 	options := proof
-	options.Context = context
+
+	switch proof.CryptoSuite {
+	case "eddsa-jcs-2022":
+		if options.Context == nil {
+			options.Context = context
+		}
+
+	case "mldsa44-jcs-2024":
+		options.Context = context
+
+	default:
+		return fmt.Errorf("invalid cryptosuite: %s/%T", proof.CryptoSuite, key)
+	}
+
 	options.Value = ""
 
 	cfg, err := normalizeJSON(options)
@@ -227,9 +240,6 @@ func Verify(key crypto.PublicKey, proof ap.Proof, context any, raw []byte) error
 		if err := mldsa.Verify(mlKey, append(cfgHash[:], docHash[:]...), sig, nil); err != nil {
 			return fmt.Errorf("proof verification failed: %w", err)
 		}
-
-	default:
-		return fmt.Errorf("invalid cryptosuite: %s/%T", proof.CryptoSuite, key)
 	}
 
 	return nil
