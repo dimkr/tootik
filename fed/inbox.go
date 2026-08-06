@@ -98,7 +98,8 @@ func (l *Listener) fetchObject(ctx context.Context, id string, keys [2]httpsig.K
 	}
 
 	var withProof struct {
-		Proof ap.Proof `json:"proof"`
+		Context any      `json:"@context"`
+		Proof   ap.Proof `json:"proof"`
 	}
 	if err := json.Unmarshal(body, &withProof); err != nil {
 		return true, nil, err
@@ -123,7 +124,7 @@ func (l *Listener) fetchObject(ctx context.Context, id string, keys [2]httpsig.K
 		return true, nil, fmt.Errorf("failed to verify proof using %s: %w", withProof.Proof.VerificationMethod, err)
 	}
 
-	if err := proof.Verify(publicKey, withProof.Proof, body); err != nil {
+	if err := proof.Verify(publicKey, withProof.Proof, withProof.Context, body); err != nil {
 		return true, nil, err
 	}
 

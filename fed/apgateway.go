@@ -123,7 +123,7 @@ func (l *Listener) handleApGatewayOutboxPost(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if err := proof.Verify(publicKey, activity.Proof, rawActivity); err != nil {
+	if err := proof.Verify(publicKey, activity.Proof, activity.Context, rawActivity); err != nil {
 		slog.Warn("Failed to verify proof", "activity", activity.ID, "error", err)
 		w.WriteHeader(http.StatusForbidden)
 		json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})

@@ -132,7 +132,7 @@ func Add(key httpsig.Key, now time.Time, raw []byte) ([]byte, error) {
 }
 
 // Verify verifies an integrity proof.
-func Verify(key crypto.PublicKey, proof ap.Proof, raw []byte) error {
+func Verify(key crypto.PublicKey, proof ap.Proof, context any, raw []byte) error {
 	edKey, ok := key.(ed25519.PublicKey)
 	if !ok {
 		return fmt.Errorf("wrong key type: %T", key)
@@ -175,6 +175,10 @@ func Verify(key crypto.PublicKey, proof ap.Proof, raw []byte) error {
 
 	options := proof
 	options.Value = ""
+
+	if options.Context == nil {
+		options.Context = context
+	}
 
 	cfg, err := normalizeJSON(options)
 	if err != nil {

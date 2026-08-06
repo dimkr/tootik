@@ -180,7 +180,7 @@ func (l *Listener) verifyProof(ctx context.Context, activity *ap.Activity, raw [
 				return nil, fmt.Errorf("failed to decode key %s to verify proof: %w", activity.Proof.VerificationMethod, err)
 			}
 
-			if err := proof.Verify(publicKey, activity.Proof, raw); err != nil {
+			if err := proof.Verify(publicKey, activity.Proof, activity.Context, raw); err != nil {
 				return nil, fmt.Errorf("failed to verify proof using %s: %w", activity.Proof.VerificationMethod, err)
 			}
 
@@ -202,7 +202,7 @@ func (l *Listener) verifyProof(ctx context.Context, activity *ap.Activity, raw [
 		return nil, fmt.Errorf("failed to get key %s to verify proof: %w", activity.Proof.VerificationMethod, err)
 	}
 
-	if err := proof.Verify(publicKey, activity.Proof, raw); err != nil {
+	if err := proof.Verify(publicKey, activity.Proof, activity.Context, raw); err != nil {
 		return nil, fmt.Errorf("failed to verify proof using %s: %w", activity.Proof.VerificationMethod, err)
 	}
 
