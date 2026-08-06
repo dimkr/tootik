@@ -201,7 +201,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 	var sig *httpsig.Signature
 	if activity.Proof != (ap.Proof{}) {
 		// if activity has an integrity proof, pretend it was sent by its actor even if forwarded by another
-		sender, err = l.verifyProof(r.Context(), activity.Proof, &activity, rawActivity, flags, keys)
+		sender, err = l.verifyProof(r.Context(), &activity, rawActivity, flags, keys)
 		if err != nil {
 			slog.Warn("Failed to verify integrity proof", "activity", &activity, "proof", &activity.Proof, "error", err)
 			w.WriteHeader(http.StatusUnauthorized)
