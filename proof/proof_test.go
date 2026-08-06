@@ -74,7 +74,7 @@ func TestProof_Verify(t *testing.T) {
 	}
 }
 
-// https://www.w3.org/TR/2026/WD-vc-di-quantum-resistant-1.0-20260616/#cryptosuite-mldsa44-jcs-2024
+// https://www.w3.org/TR/vc-di-quantum-resistant-1.0/#cryptosuite-mldsa44-jcs-2024
 func TestProof_VerifyMLDSA(t *testing.T) {
 	t.Parallel()
 
