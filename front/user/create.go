@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/ed25519"
-	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
@@ -38,7 +37,7 @@ import (
 )
 
 func generateRSAKey() (*rsa.PrivateKey, string, error) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(nil, 2048)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to generate key: %w", err)
 	}
