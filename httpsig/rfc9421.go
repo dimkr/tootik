@@ -213,7 +213,7 @@ func SignRFC9421(
 		sig = ed25519.Sign(v, danger.Bytes(s))
 
 	case *mldsa.PrivateKey:
-		sig, err = v.SignDeterministic(danger.Bytes(s), nil)
+		sig, err = v.Sign(nil, danger.Bytes(s), nil)
 
 	default:
 		return errors.New("invalid private key")

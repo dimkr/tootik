@@ -123,7 +123,7 @@ func create(key httpsig.Key, now time.Time, doc, context any) (ap.Proof, error) 
 		proof.Value = "z" + base58.Encode(ed25519.Sign(v, append(cfgHash[:], docHash[:]...)))
 
 	case *mldsa.PrivateKey:
-		sig, err := v.SignDeterministic(append(cfgHash[:], docHash[:]...), nil)
+		sig, err := v.Sign(nil, append(cfgHash[:], docHash[:]...), nil)
 		if err != nil {
 			return ap.Proof{}, err
 		}
