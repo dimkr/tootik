@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@ func DecodeEd25519PrivateKey(key string) (ed25519.PrivateKey, error) {
 	rawKey := base58.Decode(key[1:])
 
 	if len(rawKey) != ed25519.SeedSize+2 {
-		return nil, fmt.Errorf("invalid key length: %c", len(rawKey))
+		return nil, fmt.Errorf("invalid key length: %d", len(rawKey))
 	}
 
 	if rawKey[0] != 0x80 || rawKey[1] != 0x26 {
