@@ -79,7 +79,7 @@ func DecodeEd25519PublicKey(key string) (ed25519.PublicKey, error) {
 		}
 
 	default:
-		return nil, fmt.Errorf("invalid prefix: %d", key[0])
+		return nil, fmt.Errorf("invalid prefix: %c", key[0])
 	}
 
 	if len(rawKey) != ed25519.PublicKeySize+2 {
