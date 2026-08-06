@@ -135,13 +135,20 @@ func DecodeMLDSA44PublicKey(key string) (*mldsa.PublicKey, error) {
 		return nil, errors.New("empty key")
 	}
 
-	if key[0] != 'u' {
-		return nil, fmt.Errorf("invalid key prefix: %c", key[0])
-	}
+	var raw []byte
+	switch key[0] {
+	case 'u':
+		var err error
+		raw, err = base64.RawURLEncoding.DecodeString(key[1:])
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode key: %w", err)
+		}
 
-	raw, err := base64.RawURLEncoding.DecodeString(key[1:])
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode key: %w", err)
+	case 'z':
+		raw = base58.Decode(key[1:])
+
+	default:
+		return nil, fmt.Errorf("invalid key prefix: %c", key[0])
 	}
 
 	if len(raw) != 2+mldsa.MLDSA44PublicKeySize {
