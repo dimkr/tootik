@@ -20,6 +20,7 @@ limitations under the License.
 package proof
 
 import (
+	"crypto"
 	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/json"
@@ -131,7 +132,7 @@ func Add(key httpsig.Key, now time.Time, raw []byte) ([]byte, error) {
 }
 
 // Verify verifies an integrity proof.
-func Verify(key any, proof ap.Proof, raw []byte) error {
+func Verify(key crypto.PublicKey, proof ap.Proof, raw []byte) error {
 	edKey, ok := key.(ed25519.PublicKey)
 	if !ok {
 		return fmt.Errorf("wrong key type: %T", key)
