@@ -17,8 +17,10 @@ limitations under the License.
 package httpsig
 
 import (
+	"crypto/mldsa"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"math/big"
 	"net/http"
@@ -708,5 +710,38 @@ func TestRFC9421_VerifySignatureAge(t *testing.T) {
 				t.Fatal("Expected error")
 			}
 		})
+	}
+}
+
+// https://github.com/C2SP/C2SP/blob/3bc97b2329fee167f7ff39efbbbc316c84876105/httpsig-pq.md?plain=1#L253
+func TestRFC9421_MLDSA44(t *testing.T) {
+	t.Parallel()
+
+	rawPub, err := base64.StdEncoding.DecodeString("guWbbXQe/Y1a83/qIeU8MjIrRseICPuOyWzoGXk27Fia2lpk2uPxbEfh/iEmvY1z/LTtxSBFZS8zbgV04qa038ZokwE+QoBcISX0H4F9hEY3Oxg8SRtzrek0E+mBOc6R4ilBje5vodImgSMTMSXKuDz2PWqvrLY20AfLmMkLXZqVERYcW+S7iKyTP53cvtenYwealt3MGcZxLKRAMnCGBY3pRfj1xn6czY6OuMYNuJaW1rAeL2BeVpNA+XBA+HUHS1yTYOGw93ddFe9lw0RDex7Pw+tht/n31gggrR4D0kmE8L88Q5c2qWuQtxk9+cmHTm3u1WuG/vCRiubTA3DmY0pK1fO1etarscNRnZ06q5UfTgSQOMqR/PLXtqT9cZiN8GWQvum15uVuxXCubB4r7T3nz2ijyBPQfo+Ywd10QxI8dpGpsBd9SEslLo+esyFDt7+9t4c702PNC0121oI18PriNlKxjxshQljNnrXSZ4eCvhHrY5Le8B/mTwsb/LYPbBvktCecvkRxboTjhyq2anblDt5Hp55gn+0YRWUz7myuDjBD/+a2riHzOXCoLOtGvsfVTLAwLPYj/AIBbdVFrGq9MKldtcgiqTWhG6JWD/dxFrfUT4YIf2yWO9AbhkgkgPynKmV82sLda4L3JaABwSXVAB1vzDmxfQ17orBFxX2pK23G5EmrG8Ix/1O9NJ35LSxkZhUmNs+4zm9GRaChPbw04q//Gc9CPiE3xvv/BrRms5mIiRl7zT8o2mgNs/APM45mJrKClmYRQllKVwnKBj+njZkDv1CG2WeBv01COmic4P4EEraSmKO8I5sJ98gpTiA9jeBuvloLYdAInPyZui01GyQO4P3OETyAVqggBGIvajxWuio7eL+4XZmkX3AMb5XrfWtlfYCKUzhodcv7NM6M4LizEh0KZ8qSHsnVZxqwb5J9hb4oiR5/N7sgxjjtiBsbg/vJ1UmBZZR6hPjnLbLDTZ6PUMjeQNdoYGL0Cv4ESloaEtc4vhW/Aa2roIyoAM/kimrHYztNknxZK3nLQ9PXVp9Np1okp4VPUkOfHvy6Bk2WPQd8vdwrfE3xOPGrkhzdmlcsVEp3rIAW4s4Hem2A99CFSkbPePEEPG4uB3sVl73X+sr8+X7jFkiiy686eV73zQTrqL4OnrYJIkaZr6zLXHccvm1txmftmtS3WH3Ny0hGVjwxnu1femv2++2pZpZr67//WBksxPOG4xk6AA7xrHEAjRFA0b0g6AC3+WuZmaNCNMd8YdibEt/WHKg7uGWYetMf45cWxPxZmNl+jddlf1btTAfYZ+eXla3Tx/pg5fU2EWTXyTOVIRdRwAOpZHG7jFYCxRE2SWFFM2lwjLxzso69uABhM1zraUxo6TfOalw1x7S1NkTowesaJPlTMmr43N5hdbRyDD6qmcCSNNjDICvK/fv3ijSY0lueglt1Jf7O1fi9/s0CNGf8E/pQohdb/pzGhSlJRo73hC/wTmLEjFukAYNdNeJO8Fxge7j6rLHIOu22q8lK0DSsWqXXeFYt5mKmdTOFHN6soJQ7Uk43HgwoMreCn6xJQhl87CZu4SUzr5XztrsOV/YF5u5IYY8cDneoZW+0ldE+/8bvI8gi352YmfL9ZY5TacDexbl0S+hGbR7IPHh6av0N+odj2uBNt4Cjb3Mt3aYwQi2Yh9vD+CaGcz5AO67GAf7pIpS8naBrzQeNjdOYLxu6VcXT4zLO9Gu1Uv+RvkLPaalcAQ==")
+	if err != nil {
+		t.Fatalf("Failed to decode public key: %v", err)
+	}
+
+	pub, err := mldsa.NewPublicKey(mldsa.MLDSA44(), rawPub)
+	if err != nil {
+		t.Fatalf("Failed to parse public key: %v", err)
+	}
+
+	r, err := http.NewRequest(http.MethodGet, "https://example.com/foo?param=Value&Pet=dog", nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	r.Header.Set("Host", "example.com")
+	r.Header.Set("Date", "Mon, 06 Jul 2026 20:00:00 GMT")
+	r.Header.Set("Signature", "sig1=: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:")
+
+	sig, err := rfc9421Extract(r, `sig1=("@method" "@target-uri" "host" "date");created=1783368000;keyid="test-key-mldsa44";alg="ml-dsa-44"`, nil, r.URL.Host, time.Unix(1783368000, 0), time.Minute, nil)
+	if err != nil {
+		t.Fatalf("Failed to extract: %v", err)
+	}
+
+	if err := sig.Verify(pub); err != nil {
+		t.Fatalf("Failed to verify: %v", err)
 	}
 }
