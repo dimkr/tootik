@@ -134,7 +134,7 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 		return nil, nil, fmt.Errorf("failed to get key %s to verify message: %w", sig.KeyID, err)
 	}
 
-	var publicKey any
+	var publicKey crypto.PublicKey
 	if actor.PublicKey.ID == sig.KeyID {
 		publicKeyPem, _ := pem.Decode(danger.Bytes(actor.PublicKey.PublicKeyPem))
 		if publicKeyPem == nil {

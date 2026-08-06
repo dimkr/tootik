@@ -45,7 +45,7 @@ func DecodeEd25519PrivateKey(key string) (ed25519.PrivateKey, error) {
 	rawKey := base58.Decode(key[1:])
 
 	if len(rawKey) != ed25519.SeedSize+2 {
-		return nil, fmt.Errorf("invalid key length: %c", len(rawKey))
+		return nil, fmt.Errorf("invalid key length: %d", len(rawKey))
 	}
 
 	if rawKey[0] != 0x80 || rawKey[1] != 0x26 {
