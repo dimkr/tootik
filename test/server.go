@@ -49,7 +49,7 @@ type server struct {
 	Alice        *ap.Actor
 	Bob          *ap.Actor
 	Carol        *ap.Actor
-	AppActorKeys [2]httpsig.Key
+	AppActorKeys [3]httpsig.Key
 }
 
 func (s *server) Shutdown() {

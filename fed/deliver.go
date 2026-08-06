@@ -54,7 +54,7 @@ type deliveryJob struct {
 
 type deliveryTask struct {
 	Job     deliveryJob
-	Keys    [2]httpsig.Key
+	Keys    [3]httpsig.Key
 	Request *http.Request
 	Inbox   string
 }
@@ -318,7 +318,7 @@ func (q *Queue) consume(ctx context.Context, requests <-chan *deliveryTask, even
 func (q *Queue) queueTask(
 	ctx context.Context,
 	job deliveryJob,
-	keys [2]httpsig.Key,
+	keys [3]httpsig.Key,
 	inbox, contentLength string,
 	followers *partialFollowers,
 	tasks []chan *deliveryTask,
@@ -361,7 +361,7 @@ func (q *Queue) queueTask(
 func (q *Queue) queueTasks(
 	ctx context.Context,
 	job deliveryJob,
-	keys [2]httpsig.Key,
+	keys [3]httpsig.Key,
 	followers *partialFollowers,
 	tasks []chan *deliveryTask,
 	events chan<- deliveryEvent,

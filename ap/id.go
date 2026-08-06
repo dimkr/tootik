@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import (
 
 var (
 	// KeyRegex matches a Multibase-encoded Ed25519 public key.
-	KeyRegex = regexp.MustCompile(`\b(z6Mk[a-km-zA-HJ-NP-Z1-9]+|u7Q[A-Za-z0-9_-]+)\b`)
+	KeyRegex = regexp.MustCompile(`\b(z6Mk[a-km-zA-HJ-NP-Z1-9]+|u(?:7Q|ukC)[A-Za-z0-9_-]+)\b`)
 
 	// apURLRegex matches an ap:// URL.
 	apURLRegex = regexp.MustCompile(`^ap:\/\/did:key:(z6Mk[a-km-zA-HJ-NP-Z1-9]+)((?:[\/#?].*){0,1})`)

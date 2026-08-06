@@ -58,6 +58,12 @@ func Flatten(note *ap.Object) string {
 
 // Insert inserts a post.
 func Insert(ctx context.Context, tx *sql.Tx, note *ap.Object) error {
+	switch note.Type {
+	case ap.Note, ap.Page, ap.Article, ap.Question:
+	default:
+		return fmt.Errorf("cannot insert note %s of type %s", note.ID, note.Type)
+	}
+
 	public := 0
 	if note.IsPublic() {
 		public = 1

@@ -60,17 +60,17 @@ type Listener struct {
 	KeyPath  string
 }
 
-func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn, cfg *cfg.Config) (*ap.Actor, [2]httpsig.Key, error) {
+func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn, cfg *cfg.Config) (*ap.Actor, [3]httpsig.Key, error) {
 	state := tlsConn.ConnectionState()
 
 	if len(state.PeerCertificates) == 0 {
-		return nil, [2]httpsig.Key{}, nil
+		return nil, [3]httpsig.Key{}, nil
 	}
 
 	clientCert := state.PeerCertificates[0]
 
 	if time.Now().After(clientCert.NotAfter) {
-		return nil, [2]httpsig.Key{}, nil
+		return nil, [3]httpsig.Key{}, nil
 	}
 
 	certHash := fmt.Sprintf("%X", sha256.Sum256(clientCert.Raw))
@@ -82,24 +82,24 @@ func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn, cfg *cfg.Con
 		if cfg.RequireInvitation {
 			var accepted int
 			if err := gl.DB.QueryRowContext(ctx, `select exists (select 1 from invites where certhash = ?)`, certHash).Scan(&accepted); err != nil {
-				return nil, [2]httpsig.Key{}, err
+				return nil, [3]httpsig.Key{}, err
 			} else if accepted == 0 {
-				return nil, [2]httpsig.Key{}, front.ErrNotInvited
+				return nil, [3]httpsig.Key{}, front.ErrNotInvited
 			}
 		}
 
-		return nil, [2]httpsig.Key{}, front.ErrNotRegistered
+		return nil, [3]httpsig.Key{}, front.ErrNotRegistered
 	} else if err != nil {
-		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to fetch user for %s: %w", certHash, err)
+		return nil, [3]httpsig.Key{}, fmt.Errorf("failed to fetch user for %s: %w", certHash, err)
 	}
 
 	if approved == 0 {
-		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to fetch user for %s: %w", certHash, front.ErrNotApproved)
+		return nil, [3]httpsig.Key{}, fmt.Errorf("failed to fetch user for %s: %w", certHash, front.ErrNotApproved)
 	}
 
 	rsaPrivKey, err := x509.ParsePKCS1PrivateKey(rsaPrivKeyDer)
 	if err != nil {
-		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to parse RSA private key for %s: %w", certHash, err)
+		return nil, [3]httpsig.Key{}, fmt.Errorf("failed to parse RSA private key for %s: %w", certHash, err)
 	}
 
 	slog.Debug("Found existing user", "hash", certHash, "user", actor.ID)

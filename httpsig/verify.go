@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -233,7 +233,7 @@ func Extract(r *http.Request, body []byte, domain string, now time.Time, maxAge 
 }
 
 // Verify verifies a signature.
-func (s *Signature) Verify(key any) error {
+func (s *Signature) Verify(key crypto.PublicKey) error {
 	switch v := key.(type) {
 	case *rsa.PublicKey:
 		if _, ok := rsaAlgorithms[s.Alg]; !ok {

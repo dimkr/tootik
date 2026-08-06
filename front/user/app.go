@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ import (
 
 // CreateApplicationActor creates the special "actor" user.
 // This user is used to sign outgoing requests not initiated by a particular user.
-func CreateApplicationActor(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config) (*ap.Actor, [2]httpsig.Key, error) {
+func CreateApplicationActor(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config) (*ap.Actor, [3]httpsig.Key, error) {
 	var actor ap.Actor
 	var rsaPrivKeyDer, ed25519PrivKey []byte
 	if err := db.QueryRowContext(
@@ -45,12 +45,12 @@ func CreateApplicationActor(ctx context.Context, domain string, db *sql.DB, cfg 
 	); errors.Is(err, sql.ErrNoRows) {
 		return CreatePortable(ctx, domain, db, cfg, "actor", ap.Application, nil)
 	} else if err != nil {
-		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to fetch application actor: %w", err)
+		return nil, [3]httpsig.Key{}, fmt.Errorf("failed to fetch application actor: %w", err)
 	}
 
 	rsaPrivKey, err := x509.ParsePKCS1PrivateKey(rsaPrivKeyDer)
 	if err != nil {
-		return nil, [2]httpsig.Key{}, err
+		return nil, [3]httpsig.Key{}, err
 	}
 
 	return &actor, [2]httpsig.Key{

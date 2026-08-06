@@ -115,7 +115,7 @@ func (l *Listener) handleApGatewayOutboxPost(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	publicKey, err := data.DecodeEd25519PublicKey(expectedPublicKey)
+	publicKey, err := data.DecodePublicKey(expectedPublicKey)
 	if err != nil {
 		slog.Warn("Failed to decode key to verify proof", "activity", activity.ID, "error", err)
 		w.WriteHeader(http.StatusForbidden)
