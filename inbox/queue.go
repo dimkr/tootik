@@ -35,7 +35,7 @@ type Queue struct {
 	DB       *sql.DB
 	Inbox    ap.Inbox
 	Resolver ap.Resolver
-	Keys     [2]httpsig.Key
+	Keys     [3]httpsig.Key
 }
 
 type batchItem struct {

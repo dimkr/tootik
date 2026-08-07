@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,14 +23,14 @@ import (
 )
 
 var (
-	// KeyRegex matches a Multibase-encoded Ed25519 public key.
-	KeyRegex = regexp.MustCompile(`\b(z6Mk[a-km-zA-HJ-NP-Z1-9]+|u7Q[A-Za-z0-9_-]+)\b`)
+	// KeyRegex matches a Multibase-encoded Ed25519 or ML-DSA-44 public key.
+	KeyRegex = regexp.MustCompile(`\b(z(?:6Mk|4sd)[a-km-zA-HJ-NP-Z1-9]+|ukC[A-Za-z0-9_-]+)\b`)
 
 	// apURLRegex matches an ap:// URL.
-	apURLRegex = regexp.MustCompile(`^ap:\/\/did:key:(z6Mk[a-km-zA-HJ-NP-Z1-9]+)((?:[\/#?].*){0,1})`)
+	apURLRegex = regexp.MustCompile(`^ap:\/\/did:key:(z(?:6Mk|4sd)[a-km-zA-HJ-NP-Z1-9]+|ukC[A-Za-z0-9_-]+)([\/#?].*)?`)
 
 	// GatewayURLRegex matches an https:// gateway URL.
-	GatewayURLRegex = regexp.MustCompile(`^https:\/\/[a-z0-9-]+(?:\.[a-z0-9-]+)+\/\.well-known\/apgateway\/did:key:(z6Mk[a-km-zA-HJ-NP-Z1-9]+)((?:[\/#?].*){0,1})`)
+	GatewayURLRegex = regexp.MustCompile(`^https:\/\/[a-z0-9-]+(?:\.[a-z0-9-]+)+\/\.well-known\/apgateway\/did:key:(z(?:6Mk|4sd)[a-km-zA-HJ-NP-Z1-9]+|ukC[A-Za-z0-9_-]+)([\/#?].*)?`)
 )
 
 // IsPortable determines whether or not an ActivityPub ID is portable.

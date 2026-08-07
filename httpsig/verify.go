@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2026 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
@@ -266,6 +267,15 @@ func (s *Signature) Verify(key crypto.PublicKey) error {
 
 		if !ed25519.Verify(v, danger.Bytes(s.s), s.signature) {
 			return errors.New("invalid ed25519 signature")
+		}
+
+	case *mldsa.PublicKey:
+		if s.Alg != "" && s.Alg != "ml-dsa-44" {
+			return errors.New("alg is not ML-DSA-44: " + s.Alg)
+		}
+
+		if err := mldsa.Verify(v, danger.Bytes(s.s), s.signature, nil); err != nil {
+			return fmt.Errorf("invalid ML-DSA-44 signature: %w", err)
 		}
 
 	default:

@@ -26,6 +26,7 @@ import (
 	"net/url"
 
 	"github.com/dimkr/tootik/ap"
+	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text/gmi"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/shell"
@@ -40,15 +41,21 @@ func (h *Handler) Shell(ctx context.Context, user, domain string) error {
 
 	var actor ap.Actor
 	var rsaPrivKeyDer, ed25519PrivKey []byte
+	var mldsa44PrivKeyEncoded string
 	if err := h.DB.QueryRowContext(
 		ctx,
-		`select json(actor), rsaprivkey, ed25519privkey from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null`,
+		`select json(actor), rsaprivkey, ed25519privkey, mldsa44privkey from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null`,
 		user,
-	).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey); err != nil {
+	).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey, &mldsa44PrivKeyEncoded); err != nil {
 		panic(err)
 	}
 
 	rsaPrivKey, err := x509.ParsePKCS1PrivateKey(rsaPrivKeyDer)
+	if err != nil {
+		panic(err)
+	}
+
+	mldsa44PrivKey, err := data.DecodeMLDSA44PrivateKey(mldsa44PrivKeyEncoded)
 	if err != nil {
 		panic(err)
 	}
@@ -65,9 +72,10 @@ func (h *Handler) Shell(ctx context.Context, user, domain string) error {
 				URL:     u,
 				Log:     slog.Default(),
 				User:    &actor,
-				Keys: [2]httpsig.Key{
+				Keys: [3]httpsig.Key{
 					{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
 					{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)},
+					{ID: actor.AssertionMethod[1].ID, PrivateKey: mldsa44PrivKey},
 				},
 			},
 			w,
