@@ -149,6 +149,7 @@ func NewServer(t T, domain string, client fed.Client) *Server {
 	cfg.ResolverCacheTTL = 0
 	cfg.ResolverRetryInterval = 0
 	cfg.FollowersSyncInterval = 0
+	cfg.MLDSA44Threshold = 0.25
 	cfg.Ed25519Threshold = 0.25
 	cfg.RFC9421Threshold = 0.5
 	cfg.EnableNonPortableActorRegistration = true
