@@ -56,7 +56,7 @@ func EncodeMLDSA44Publickey(key *mldsa44.PublicKey) string {
 // DecodePrivateKey decodes a public key encoded by [EncodeEd25519PrivateKey] or [EncodeMLDSA44PrivateKey].
 func DecodePrivateKey(key string) (PrivateKey, error) {
 	if len(key) == 0 {
-		return nil, errors.New("key is empty")
+		return nil, errors.New("empty key")
 	}
 
 	var rawKey []byte
@@ -109,23 +109,14 @@ func DecodePublicKey(key string) (crypto.PublicKey, error) {
 		return nil, fmt.Errorf("invalid prefix: %c", key[0])
 	}
 
-	switch len(rawKey) {
-	case 2 + ed25519.PublicKeySize:
-		if rawKey[0] != 0xed || rawKey[1] != 0x01 {
-			return nil, fmt.Errorf("invalid prefix: %02x%02x", rawKey[0], rawKey[1])
-		}
-
+	if len(rawKey) == 2+ed25519.PublicKeySize && rawKey[0] == 0xed && rawKey[1] == 0x01 {
 		return ed25519.PublicKey(rawKey[2:]), nil
-
-	case 2 + mldsa44.PublicKeySize:
-		if rawKey[0] != 0x90 || rawKey[1] != 0x24 {
-			return nil, fmt.Errorf("invalid prefix: %02x%02x", rawKey[0], rawKey[1])
-		}
-
+	} else if len(rawKey) == 2+mldsa44.PublicKeySize && rawKey[0] == 0x90 && rawKey[1] == 0x24 {
 		pub := &mldsa44.PublicKey{}
 		return pub, pub.UnmarshalBinary(rawKey[2:])
-
-	default:
+	} else if len(rawKey) >= 2 {
+		return nil, fmt.Errorf("invalid prefix: %02x%02x", rawKey[0], rawKey[1])
+	} else {
 		return nil, fmt.Errorf("invalid key length: %d", len(rawKey))
 	}
 }
