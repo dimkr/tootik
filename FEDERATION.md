@@ -40,7 +40,7 @@ tootik implements [draft-cavage-http-signatures](https://datatracker.ietf.org/do
 * All other outgoing requests have `headers="(request-target) host date"`
 
 In addition, tootik partially implements [RFC9421](https://datatracker.ietf.org/doc/rfc9421/):
-* It supports `rsa-v1_5-sha256`, `ed25519` and [`ml-dsa-44`](https://github.com/C2SP/C2SP/blob/3bc97b2329fee167f7ff39efbbbc316c84876105/httpsig-pq.md) signatures
+* It supports `rsa-v1_5-sha256`, `ed25519` and [`ml-dsa-44`](https://c2sp.org/httpsig-pq@v1.0.0) signatures
 * If `alg` is specified, tootik validates the signature only if the key type matches `alg`
 * It obeys `expires` if specified, but also validates `created` using `MaxRequestAge`
 * Incoming `POST` requests must have at least `("@method" "@target-uri" "content-type" "content-digest")`

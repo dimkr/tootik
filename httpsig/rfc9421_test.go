@@ -714,7 +714,7 @@ func TestRFC9421_VerifySignatureAge(t *testing.T) {
 	}
 }
 
-// https://github.com/C2SP/C2SP/blob/3bc97b2329fee167f7ff39efbbbc316c84876105/httpsig-pq.md?plain=1#L253
+// https://c2sp.org/httpsig-pq@v1.0.0#machine-readable-test-vectors
 func TestRFC9421_MLDSA44(t *testing.T) {
 	t.Parallel()
 

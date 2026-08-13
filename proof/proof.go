@@ -17,6 +17,8 @@ limitations under the License.
 // Package proof creates and verifies integrity proofs.
 //
 // See https://codeberg.org/fediverse/fep/src/branch/main/fep/8b32/fep-8b32.md for more details.
+//
+// In addition to eddsa-jcs-2022, this package supports mldsa44-jcs-2024; see https://www.w3.org/TR/vc-di-quantum-resistant-1.0/#cryptosuite-mldsa44-jcs-2024.
 package proof
 
 import (
