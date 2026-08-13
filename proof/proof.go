@@ -124,7 +124,7 @@ func create(key httpsig.Key, now time.Time, doc, context any) (ap.Proof, error) 
 
 	case *mldsa44.PrivateKey:
 		sig := make([]byte, mldsa44.SignatureSize)
-		if err := mldsa44.SignTo(nil, append(cfgHash[:], docHash[:]...), nil, true, sig); err != nil {
+		if err := mldsa44.SignTo(v, append(cfgHash[:], docHash[:]...), nil, true, sig); err != nil {
 			return ap.Proof{}, err
 		}
 
