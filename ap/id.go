@@ -24,7 +24,7 @@ import (
 
 var (
 	// KeyRegex matches a Multibase-encoded Ed25519 or ML-DSA-44 public key.
-	KeyRegex = regexp.MustCompile(`\b(z6Mk[a-km-zA-HJ-NP-Z1-9]+|ukC[A-Za-z0-9_-]+)`)
+	KeyRegex = regexp.MustCompile(`\b(z(?:6Mk|4sd)[a-km-zA-HJ-NP-Z1-9]+|u(?:7Q|kC)[A-Za-z0-9_-]+)`)
 
 	// apURLRegex matches an ap:// URL.
 	apURLRegex = regexp.MustCompile(`^ap:\/\/did:key:(z6Mk[a-km-zA-HJ-NP-Z1-9]+|ukC[A-Za-z0-9_-]+)([\/#?].*)?`)
