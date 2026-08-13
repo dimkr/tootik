@@ -102,6 +102,10 @@ jobs:
             goarch: arm64
           - goos: darwin
             goarch: arm64
+          - goos: windows
+            goarch: amd64
+          - goos: windows
+            goarch: arm64
     steps:
       - uses: actions/checkout@v6
       - run: echo ${{ matrix.goos }}/${{ matrix.goarch }} > target
@@ -111,9 +115,9 @@ jobs:
           cache-dependency-path: |
             go.sum
             target
-      - run: CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -ldflags "-w -s" -trimpath -o tootik-client-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/tootik-client
+      - run: CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -ldflags "-w -s" -trimpath -o tootik-client-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }} ./cmd/tootik-client
       - uses: actions/upload-artifact@v6
         with:
           name: tootik-client-${{ inputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: tootik-client-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: tootik-client-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }}
           retention-days: 1
