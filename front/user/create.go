@@ -186,7 +186,7 @@ func CreatePortableWithKey(
 		mldsa44Priv *mldsa44.PrivateKey
 		mldsa44Pub  *mldsa44.PublicKey
 
-		ed25519PubMultibase, mldsa44PubMultibase, id string
+		ed25519PubMultibase, mldsa44PubMultibase, didKeyMultibase string
 	)
 
 	switch v := priv.(type) {
@@ -200,10 +200,8 @@ func CreatePortableWithKey(
 		ed25519Pub = v.Public().(ed25519.PublicKey)
 
 		ed25519PubMultibase = data.EncodeEd25519PublicKey(ed25519Pub)
-
-		id = fmt.Sprintf("https://%s/.well-known/apgateway/did:key:%s/actor", domain, ed25519PubMultibase)
-
 		mldsa44PubMultibase = data.EncodeMLDSA44Publickey(mldsa44Pub)
+		didKeyMultibase = ed25519PubMultibase
 
 	case *mldsa44.PrivateKey:
 		ed25519Pub, ed25519Priv, err = ed25519.GenerateKey(nil)
@@ -215,12 +213,11 @@ func CreatePortableWithKey(
 		mldsa44Pub = v.Public().(*mldsa44.PublicKey)
 
 		mldsa44PubMultibase = data.EncodeMLDSA44Publickey(mldsa44Pub)
-
-		id = fmt.Sprintf("https://%s/.well-known/apgateway/did:key:%s/actor", domain, mldsa44PubMultibase)
-
 		ed25519PubMultibase = data.EncodeEd25519PublicKey(ed25519Pub)
+		didKeyMultibase = mldsa44PubMultibase
 	}
 
+	id := fmt.Sprintf("https://%s/.well-known/apgateway/did:key:%s/actor", domain, didKeyMultibase)
 	actor := ap.Actor{
 		Context: []string{
 			"https://www.w3.org/ns/activitystreams",
