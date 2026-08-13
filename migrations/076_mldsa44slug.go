@@ -187,7 +187,7 @@ func mldsa44slug(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `INSERT INTO npersons(slug, id, actor, inserted, updated, fetched, ttl, rsaprivkey, ed25519seed, mldsa44seed) SELECT slugs.slug, persons.id, actor, inserted, updated, fetched, ttl, rsaprivkey, ed25519privkey, mldsa44seed FROM persons JOIN slugs ON slugs.id = persons.id`); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO npersons(slug, id, actor, inserted, updated, fetched, ttl, rsaprivkey, ed25519seed) SELECT slugs.slug, persons.id, actor, inserted, updated, fetched, ttl, rsaprivkey, ed25519privkey FROM persons JOIN slugs ON slugs.id = persons.id`); err != nil {
 		return err
 	}
 
