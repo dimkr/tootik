@@ -191,7 +191,7 @@ func mldsa44slug(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	rows, err := tx.QueryContext(ctx, `SELECT id, JSON(actor) FROM npersons WHERE ed25519seed IS NOT NULL`, domain)
+	rows, err := tx.QueryContext(ctx, `SELECT id, JSON(actor) FROM npersons WHERE ed25519seed IS NOT NULL`)
 	if err != nil {
 		return err
 	}
