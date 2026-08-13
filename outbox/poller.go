@@ -19,9 +19,10 @@ package outbox
 import (
 	"context"
 	"database/sql"
-	"github.com/dimkr/tootik/proof"
 	"log/slog"
 	"time"
+
+	"github.com/dimkr/tootik/proof"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/dbx"
@@ -36,14 +37,14 @@ type Poller struct {
 
 func (p *Poller) Run(ctx context.Context) error {
 	rows, err := dbx.QueryCollectIgnore[struct {
-		PollID         string
-		Option         sql.NullString
-		OptionCount    int64
-		VotersCount    int64
-		Object         ap.Object
-		Actor          ap.Actor
-		ED25519PrivKey []byte
-		MLDSA44Seed    []byte
+		PollID      string
+		Option      sql.NullString
+		OptionCount int64
+		VotersCount int64
+		Object      ap.Object
+		Actor       ap.Actor
+		ED25519Seed []byte
+		MLDSA44Seed []byte
 	}](
 		ctx,
 		p.DB,
@@ -113,7 +114,7 @@ func (p *Poller) Run(ctx context.Context) error {
 			info = &poll{
 				Object:             row.Object,
 				Author:             row.Actor,
-				Key:                proof.SigningSeed(&row.Actor, row.ED25519PrivKey, row.MLDSA44Seed),
+				Key:                proof.SigningSeed(&row.Actor, row.ED25519Seed, row.MLDSA44Seed),
 				CurrentVotersCount: row.VotersCount,
 				CurrentVotes:       make(map[string]int64, len(row.Object.AnyOf)),
 			}
