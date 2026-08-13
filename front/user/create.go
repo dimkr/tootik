@@ -88,7 +88,7 @@ func insertActor(
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO persons (slug, id, actor, rsaprivkey, ed25519privkey, mldsa44seed) VALUES (?, ?, JSONB(?), ?, ?, ?) ON CONFLICT(id) DO NOTHING`,
+		`INSERT INTO persons (slug, id, actor, rsaprivkey, ed25519seed, mldsa44seed) VALUES (?, ?, JSONB(?), ?, ?, ?) ON CONFLICT(id) DO NOTHING`,
 		ap.Slug(actor.ID),
 		actor.ID,
 		actor,

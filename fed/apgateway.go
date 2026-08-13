@@ -44,8 +44,8 @@ var apGatewayPathRegex = regexp.MustCompile(`\/.well-known\/apgateway\/(did:key:
 
 func (l *Listener) handleApGatewayInboxPost(w http.ResponseWriter, r *http.Request, did string) {
 	var actor ap.Actor
-	var rsaPrivKeyDer, ed25519PrivKey, mldsa44Seed []byte
-	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519privkey, mldsa44seed from persons where cid = 'ap://' || ? || '/actor' and ed25519privkey is not null`, did).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey, &mldsa44Seed); errors.Is(err, sql.ErrNoRows) {
+	var rsaPrivKeyDer, ed25519Seed, mldsa44Seed []byte
+	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519seed, mldsa44seed from persons where cid = 'ap://' || ? || '/actor' and ed25519seed is not null`, did).Scan(&actor, &rsaPrivKeyDer, &ed25519Seed, &mldsa44Seed); errors.Is(err, sql.ErrNoRows) {
 		slog.Debug("Receiving user does not exist", "did", did)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -66,7 +66,7 @@ func (l *Listener) handleApGatewayInboxPost(w http.ResponseWriter, r *http.Reque
 
 	l.doHandleInbox(w, r, [3]httpsig.Key{
 		{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
-		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)},
+		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519Seed)},
 		{ID: actor.AssertionMethod[1].ID, PrivateKey: mldsa44Priv},
 	})
 }
@@ -163,7 +163,7 @@ func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Reques
 	var inbox string
 	if err := l.DB.QueryRowContext(
 		r.Context(),
-		`select actor->>'$.inbox' from persons where cid = 'ap://' || ? || '/actor' and ed25519privkey is not null`,
+		`select actor->>'$.inbox' from persons where cid = 'ap://' || ? || '/actor' and ed25519seed is not null`,
 		did,
 	).Scan(&inbox); errors.Is(err, sql.ErrNoRows) {
 		slog.Warn("Inbox does not exist", "did", did)
@@ -317,12 +317,12 @@ func (l *Listener) handleApGatewayContext(w http.ResponseWriter, r *http.Request
 
 	var postID string
 	var author ap.Actor
-	var ed25519PrivKey, mldsa44Seed []byte
+	var ed25519Seed, mldsa44Seed []byte
 	if err := l.DB.QueryRowContext(
 		r.Context(),
-		`select notes.id, notes.author, json(persons.actor), persons.ed25519privkey, persons.mldsa44seed from notes join persons on persons.id = notes.author where notes.object->>'$.context' = ? and notes.object->>'$.inReplyTo' is null and persons.ed25519privkey is not null`,
+		`select notes.id, notes.author, json(persons.actor), persons.ed25519seed, persons.mldsa44seed from notes join persons on persons.id = notes.author where notes.object->>'$.context' = ? and notes.object->>'$.inReplyTo' is null and persons.ed25519seed is not null`,
 		contextID,
-	).Scan(&postID, &collection.AttributedTo, &author, &ed25519PrivKey, &mldsa44Seed); errors.Is(err, sql.ErrNoRows) {
+	).Scan(&postID, &collection.AttributedTo, &author, &ed25519Seed, &mldsa44Seed); errors.Is(err, sql.ErrNoRows) {
 		slog.Warn("Context does not exist", "id", contextID)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -369,7 +369,7 @@ func (l *Listener) handleApGatewayContext(w http.ResponseWriter, r *http.Request
 
 	var err error
 	collection.Proof, err = proof.Create(
-		proof.SigningSeed(&author, ed25519PrivKey, mldsa44Seed),
+		proof.SigningSeed(&author, ed25519Seed, mldsa44Seed),
 		collection,
 	)
 	if err != nil {
@@ -407,7 +407,7 @@ func (l *Listener) handleApGatewayOutboxGet(w http.ResponseWriter, r *http.Reque
 	var outbox string
 	if err := l.DB.QueryRowContext(
 		r.Context(),
-		`select actor->>'$.outbox' from persons where cid = ? and ed25519privkey is not null`,
+		`select actor->>'$.outbox' from persons where cid = ? and ed25519seed is not null`,
 		actorCID,
 	).Scan(&outbox); errors.Is(err, sql.ErrNoRows) {
 		slog.Warn("Outbox does not exist", "did", did)
@@ -608,7 +608,7 @@ func (l *Listener) fetchSenderFollowers(
 	var actor ap.Actor
 	if err := l.DB.QueryRowContext(
 		r.Context(),
-		`select json(actor) from persons where cid = 'ap://' || ? || '/actor' and ed25519privkey is not null`,
+		`select json(actor) from persons where cid = 'ap://' || ? || '/actor' and ed25519seed is not null`,
 		did,
 	).Scan(&actor); errors.Is(err, sql.ErrNoRows) {
 		slog.Warn("Denying followers request for non-existing user", "did", did)
@@ -700,15 +700,15 @@ func (l *Listener) handleAPGatewayGetObject(w http.ResponseWriter, r *http.Reque
 		select raw from
 		(
 			select json(actor) as raw from persons
-			where cid = $1 and ed25519privkey is not null
+			where cid = $1 and ed25519seed is not null
 			union all
 			select json(notes.object) as raw from notes
 			join persons on notes.author = persons.id
-			where notes.cid = $1 and notes.deleted = 0 and notes.public = 1 and persons.ed25519privkey is not null
+			where notes.cid = $1 and notes.deleted = 0 and notes.public = 1 and persons.ed25519seed is not null
 			union all
 			select json(outbox.activity) as raw from outbox
 			join persons on outbox.activity->>'$.actor' = persons.id
-			where outbox.cid = $1 and (exists (select 1 from json_each(outbox.activity->'$.cc') where value = $2) or exists (select 1 from json_each(outbox.activity->'$.to') where value = $2)) and persons.ed25519privkey is not null
+			where outbox.cid = $1 and (exists (select 1 from json_each(outbox.activity->'$.cc') where value = $2) or exists (select 1 from json_each(outbox.activity->'$.to') where value = $2)) and persons.ed25519seed is not null
 		)
 		limit 1
 		`,

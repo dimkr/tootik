@@ -105,7 +105,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			slog.Error("Failed to fetch post to deliver", "error", err)
 			return true
 		},
-		`select outbox.attempts, json(outbox.activity) as x, json(outbox.activity) as y, json(persons.actor), persons.rsaprivkey, persons.ed25519privkey, persons.mldsa44seed from
+		`select outbox.attempts, json(outbox.activity) as x, json(outbox.activity) as y, json(persons.actor), persons.rsaprivkey, persons.ed25519seed, persons.mldsa44seed from
 		outbox
 		join persons
 		on
@@ -408,7 +408,7 @@ func (q *Queue) queueTasks(
 				slog.Warn("Skipped an inbox", "activity", job.Activity.ID, "error", err)
 				return true
 			},
-			`select distinct coalesce(persons.actor->>'$.endpoints.sharedInbox', persons.actor->>'$.inbox') as inbox from persons join follows on follows.follower = persons.id where follows.followed = ? and follows.accepted = 1 and follows.follower not like ? and persons.ed25519privkey is null order by persons.actor->>'$.endpoints.sharedInbox' is not null desc, inbox`,
+			`select distinct coalesce(persons.actor->>'$.endpoints.sharedInbox', persons.actor->>'$.inbox') as inbox from persons join follows on follows.follower = persons.id where follows.followed = ? and follows.accepted = 1 and follows.follower not like ? and persons.ed25519seed is null order by persons.actor->>'$.endpoints.sharedInbox' is not null desc, inbox`,
 			job.Sender.ID,
 			fmt.Sprintf("https://%s/%%", activityID.Host),
 		)

@@ -92,7 +92,7 @@ func (m *Mover) Run(ctx context.Context) error {
 			return true
 		},
 		`
-			select json(persons.actor), persons.ed25519privkey, persons.mldsa44seed, old.id, new.id, follows.id, new.id = follows.follower or exists (select 1 from follows where follower = persons.id and followed = new.id) from
+			select json(persons.actor), persons.ed25519seed, persons.mldsa44seed, old.id, new.id, follows.id, new.id = follows.follower or exists (select 1 from follows where follower = persons.id and followed = new.id) from
 			persons old
 			join
 			persons new

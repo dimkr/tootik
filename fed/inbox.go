@@ -140,8 +140,8 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 	receiver := r.PathValue("username")
 
 	var actor ap.Actor
-	var rsaPrivKeyDer, ed25519PrivKey, mldsa44Seed []byte
-	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519privkey, mldsa44seed from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null`, receiver).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey, &mldsa44Seed); errors.Is(err, sql.ErrNoRows) {
+	var rsaPrivKeyDer, ed25519Seed, mldsa44Seed []byte
+	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519seed, mldsa44seed from persons where actor->>'$.preferredUsername' = ? and ed25519seed is not null`, receiver).Scan(&actor, &rsaPrivKeyDer, &ed25519Seed, &mldsa44Seed); errors.Is(err, sql.ErrNoRows) {
 		slog.Debug("Receiving user does not exist", "receiver", receiver)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -162,7 +162,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 
 	l.doHandleInbox(w, r, [3]httpsig.Key{
 		{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
-		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)},
+		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519Seed)},
 		{ID: actor.AssertionMethod[1].ID, PrivateKey: mldsa44Priv},
 	})
 }

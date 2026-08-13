@@ -43,7 +43,7 @@ func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 		ctx,
 		d.DB,
 		`
-		select json(persons.actor), persons.ed25519privkey, persons.mldsa44seed, json(outbox.activity) from persons
+		select json(persons.actor), persons.ed25519seed, persons.mldsa44seed, json(outbox.activity) from persons
 		join shares on shares.by = persons.id
 		join outbox on outbox.activity->>'$.actor' = shares.by and outbox.activity->>'$.object' = shares.note
 		where
@@ -91,7 +91,7 @@ func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 		ctx,
 		d.DB,
 		`
-		select json(persons.actor), persons.ed25519privkey, persons.mldsa44seed, json(notes.object) from persons
+		select json(persons.actor), persons.ed25519seed, persons.mldsa44seed, json(notes.object) from persons
 		join notes on notes.author = persons.id
 		where
 			persons.ttl is not null and

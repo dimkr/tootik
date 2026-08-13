@@ -76,10 +76,10 @@ func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn, cfg *cfg.Con
 
 	certHash := fmt.Sprintf("%X", sha256.Sum256(clientCert.Raw))
 
-	var rsaPrivKeyDer, ed25519PrivKey, mldsa44Seed []byte
+	var rsaPrivKeyDer, ed25519Seed, mldsa44Seed []byte
 	var actor ap.Actor
 	var approved int
-	if err := gl.DB.QueryRowContext(ctx, `select json(persons.actor), persons.rsaprivkey, persons.ed25519privkey, persons.mldsa44seed, certificates.approved from certificates join persons on persons.actor->>'$.preferredUsername' = certificates.user where persons.host = ? and certificates.hash = ? and certificates.expires > unixepoch()`, gl.Domain, certHash).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey, &mldsa44Seed, &approved); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := gl.DB.QueryRowContext(ctx, `select json(persons.actor), persons.rsaprivkey, persons.ed25519seed, persons.mldsa44seed, certificates.approved from certificates join persons on persons.actor->>'$.preferredUsername' = certificates.user where persons.host = ? and certificates.hash = ? and certificates.expires > unixepoch()`, gl.Domain, certHash).Scan(&actor, &rsaPrivKeyDer, &ed25519Seed, &mldsa44Seed, &approved); err != nil && errors.Is(err, sql.ErrNoRows) {
 		if cfg.RequireInvitation {
 			var accepted int
 			if err := gl.DB.QueryRowContext(ctx, `select exists (select 1 from invites where certhash = ?)`, certHash).Scan(&accepted); err != nil {
@@ -108,7 +108,7 @@ func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn, cfg *cfg.Con
 	slog.Debug("Found existing user", "hash", certHash, "user", actor.ID)
 	return &actor, [3]httpsig.Key{
 		{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
-		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)},
+		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519Seed)},
 		{ID: actor.AssertionMethod[1].ID, PrivateKey: mldsa44Priv},
 	}, nil
 }

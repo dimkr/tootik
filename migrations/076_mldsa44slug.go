@@ -183,15 +183,15 @@ func mldsa44slug(ctx context.Context, domain string, tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE TABLE npersons(slug TEXT NOT NULL PRIMARY KEY, id TEXT NOT NULL UNIQUE, actor JSONB NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()), updated INTEGER DEFAULT (UNIXEPOCH()), host TEXT AS (substr(substr(id, 9), 0, instr(substr(id, 9), '/'))), fetched INTEGER, ttl INTEGER, rsaprivkey BLOB, ed25519privkey BLOB, mldsa44seed BLOB, cid TEXT NOT NULL AS (CASE WHEN id LIKE 'https://%' AND (id LIKE '%/.well-known/apgateway/did:key:z6Mk%' OR id LIKE '%/.well-known/apgateway/did:key:ukC%') THEN 'ap://' || SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22, CASE WHEN INSTR(SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22), '?') > 0 THEN INSTR(SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22), '?') - 1 ELSE LENGTH(id) END) WHEN id LIKE 'https://%' THEN id ELSE NULL END))`); err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE TABLE npersons(slug TEXT NOT NULL PRIMARY KEY, id TEXT NOT NULL UNIQUE, actor JSONB NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()), updated INTEGER DEFAULT (UNIXEPOCH()), host TEXT AS (substr(substr(id, 9), 0, instr(substr(id, 9), '/'))), fetched INTEGER, ttl INTEGER, rsaprivkey BLOB, ed25519seed BLOB, mldsa44seed BLOB, cid TEXT NOT NULL AS (CASE WHEN id LIKE 'https://%' AND (id LIKE '%/.well-known/apgateway/did:key:z6Mk%' OR id LIKE '%/.well-known/apgateway/did:key:ukC%') THEN 'ap://' || SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22, CASE WHEN INSTR(SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22), '?') > 0 THEN INSTR(SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22), '?') - 1 ELSE LENGTH(id) END) WHEN id LIKE 'https://%' THEN id ELSE NULL END))`); err != nil {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `INSERT INTO npersons(slug, id, actor, inserted, updated, fetched, ttl, rsaprivkey, ed25519privkey, mldsa44seed) SELECT slugs.slug, persons.id, actor, inserted, updated, fetched, ttl, rsaprivkey, ed25519privkey, mldsa44seed FROM persons JOIN slugs ON slugs.id = persons.id`); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO npersons(slug, id, actor, inserted, updated, fetched, ttl, rsaprivkey, ed25519seed, mldsa44seed) SELECT slugs.slug, persons.id, actor, inserted, updated, fetched, ttl, rsaprivkey, ed25519privkey, mldsa44seed FROM persons JOIN slugs ON slugs.id = persons.id`); err != nil {
 		return err
 	}
 
-	rows, err := tx.QueryContext(ctx, `SELECT id, JSON(actor) FROM npersons WHERE ed25519privkey IS NOT NULL`, domain)
+	rows, err := tx.QueryContext(ctx, `SELECT id, JSON(actor) FROM npersons WHERE ed25519seed IS NOT NULL`, domain)
 	if err != nil {
 		return err
 	}
@@ -244,7 +244,7 @@ func mldsa44slug(ctx context.Context, domain string, tx *sql.Tx) error {
 		`CREATE INDEX personsmovedto ON persons(actor->>'$.movedTo') WHERE actor->>'$.movedTo' IS NOT NULL`,
 		`CREATE UNIQUE INDEX personspreferredusernamehosttype ON persons(actor->>'$.preferredUsername', host, actor->>'$.type')`,
 		`CREATE INDEX personscid ON persons(cid)`,
-		`CREATE UNIQUE INDEX personscidlocal ON persons(cid) WHERE ed25519privkey IS NOT NULL`,
+		`CREATE UNIQUE INDEX personscidlocal ON persons(cid) WHERE ed25519seed IS NOT NULL`,
 	} {
 		if _, err := tx.ExecContext(ctx, stmt); err != nil {
 			return err
