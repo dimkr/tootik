@@ -23,7 +23,7 @@ import (
 )
 
 func idLink(id string) string {
-	if len(id) < 64 {
+	if len(id) < 80 {
 		return strings.TrimPrefix(id, "https://")
 	}
 
