@@ -22,6 +22,9 @@ import (
 	"regexp"
 )
 
+// MLDSA44Prefix is the prefix of base64url-encoded ML-DSA-44 public keys.
+const MLDSA44Prefix = "ukC"
+
 var (
 	// KeyRegex matches a Multibase-encoded Ed25519 or ML-DSA-44 public key.
 	KeyRegex = regexp.MustCompile(`\b(z(?:6Mk|4sd)[a-km-zA-HJ-NP-Z1-9]+|u(?:7Q|kC)[A-Za-z0-9_-]+)`)

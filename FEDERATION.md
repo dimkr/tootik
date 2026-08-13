@@ -151,7 +151,7 @@ By default, tootik omits user and post counters unless `FillNodeInfoUsage` is ch
 
 # Data Portability
 
-tootik partially supports [FEP-ef61](https://codeberg.org/fediverse/fep/src/branch/main/fep/ef61/fep-ef61.md) portable actors, activities and objects.
+tootik partially supports [FEP-ef61](https://codeberg.org/fediverse/fep/src/branch/main/fep/ef61/fep-ef61.md) portable actors, activities and objects, and extends it by supporting DIDs constructed using base64url-encoded ML-DSA-44 keys.
 
 If
 * `alice@a.localdomain` is `https://a.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor`

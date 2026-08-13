@@ -19,9 +19,13 @@ package ap
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"strings"
+
+	"github.com/dimkr/tootik/danger"
 )
 
+// Slug shortens an ActivityPub ID.
 func Slug(id string) string {
-	sum := sha256.Sum256([]byte(id))
-	return base64.RawURLEncoding.EncodeToString(sum[:9])
+	sum := sha256.Sum256(danger.Bytes(strings.TrimPrefix(id, "https://")))
+	return base64.RawURLEncoding.EncodeToString(sum[:12])
 }

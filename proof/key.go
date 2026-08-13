@@ -14,48 +14,33 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package proof creates and verifies integrity proofs.
-//
-// See https://codeberg.org/fediverse/fep/src/branch/main/fep/8b32/fep-8b32.md for more details.
 package proof
 
 import (
 	"crypto/ed25519"
+	"strings"
 
 	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
 )
 
+// SigningKey the key that should be used to create proofs on behalf of actor.
 func SigningKey(id string, keys [3]httpsig.Key) httpsig.Key {
-	m := ap.GatewayURLRegex.FindStringSubmatch(id)
-	if m == nil {
-		return keys[1]
-	}
-
-	pub, err := data.DecodePublicKey(m[1])
-	if err != nil {
-		return keys[1]
-	}
-
-	if _, ok := pub.(*mldsa44.PublicKey); ok {
+	if m := ap.KeyRegex.FindStringSubmatch(id); m != nil && strings.HasPrefix(m[1], ap.MLDSA44Prefix) {
 		return keys[2]
 	}
 
 	return keys[1]
 }
 
+// SigningSeed the key that should be used to create proofs on behalf of actor.
 func SigningSeed(actor *ap.Actor, ed25519Seed, mldsa44Seed []byte) httpsig.Key {
-	if m := ap.GatewayURLRegex.FindStringSubmatch(actor.ID); m != nil {
-		if pub, err := data.DecodePublicKey(m[1]); err == nil {
-			if _, ok := pub.(*mldsa44.PublicKey); ok {
-				_, priv := mldsa44.NewKeyFromSeed((*[mldsa44.SeedSize]byte)(mldsa44Seed))
-				return httpsig.Key{
-					ID:         actor.AssertionMethod[1].ID,
-					PrivateKey: priv,
-				}
-			}
+	if m := ap.KeyRegex.FindStringSubmatch(actor.ID); m != nil && strings.HasPrefix(m[1], ap.MLDSA44Prefix) {
+		_, priv := mldsa44.NewKeyFromSeed((*[mldsa44.SeedSize]byte)(mldsa44Seed))
+		return httpsig.Key{
+			ID:         actor.AssertionMethod[1].ID,
+			PrivateKey: priv,
 		}
 	}
 
