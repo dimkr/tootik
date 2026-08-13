@@ -103,7 +103,7 @@ func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn, cfg *cfg.Con
 		return nil, [3]httpsig.Key{}, fmt.Errorf("failed to parse RSA private key for %s: %w", certHash, err)
 	}
 
-	_, mldsa44Priv := mldsa44.NewKeyFromSeed((*[32]byte)(mldsa44Seed))
+	_, mldsa44Priv := mldsa44.NewKeyFromSeed((*[mldsa44.SeedSize]byte)(mldsa44Seed))
 
 	slog.Debug("Found existing user", "hash", certHash, "user", actor.ID)
 	return &actor, [3]httpsig.Key{

@@ -176,7 +176,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			continue
 		}
 
-		_, mldsa44Priv := mldsa44.NewKeyFromSeed((*[32]byte)(row.MLDSA44Seed))
+		_, mldsa44Priv := mldsa44.NewKeyFromSeed((*[mldsa44.SeedSize]byte)(row.MLDSA44Seed))
 
 		keys := [3]httpsig.Key{
 			{ID: row.Actor.PublicKey.ID, PrivateKey: rsaPrivKey},

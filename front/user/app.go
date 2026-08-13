@@ -55,7 +55,7 @@ func CreateApplicationActor(ctx context.Context, domain string, db *sql.DB, cfg 
 		return nil, [3]httpsig.Key{}, err
 	}
 
-	_, mldsa44Priv := mldsa44.NewKeyFromSeed((*[32]byte)(mldsa44Seed))
+	_, mldsa44Priv := mldsa44.NewKeyFromSeed((*[mldsa44.SeedSize]byte)(mldsa44Seed))
 
 	return &actor, [3]httpsig.Key{
 		{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},

@@ -45,7 +45,7 @@ func (h *Handler) Shell(ctx context.Context, user, domain string) error {
 		ctx,
 		`select json(actor), rsaprivkey, ed25519privkey, mldsa44seed from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null`,
 		user,
-	).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey); err != nil {
+	).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey, &mldsa44Seed); err != nil {
 		panic(err)
 	}
 
@@ -54,7 +54,7 @@ func (h *Handler) Shell(ctx context.Context, user, domain string) error {
 		panic(err)
 	}
 
-	_, mldsa44Priv := mldsa44.NewKeyFromSeed((*[32]byte)(mldsa44Seed))
+	_, mldsa44Priv := mldsa44.NewKeyFromSeed((*[mldsa44.SeedSize]byte)(mldsa44Seed))
 
 	var buf bytes.Buffer
 
