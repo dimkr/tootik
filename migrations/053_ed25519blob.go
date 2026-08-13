@@ -2,6 +2,7 @@ package migrations
 
 import (
 	"context"
+	"crypto/ed25519"
 	"database/sql"
 
 	"github.com/dimkr/tootik/data"
@@ -28,7 +29,7 @@ func ed25519blob(ctx context.Context, domain string, tx *sql.Tx) error {
 				return err
 			}
 
-			if _, err := tx.ExecContext(ctx, `UPDATE persons SET ed25519privkeyblob = ? WHERE id = ?`, ed25519PrivKey.Seed(), id); err != nil {
+			if _, err := tx.ExecContext(ctx, `UPDATE persons SET ed25519privkeyblob = ? WHERE id = ?`, ed25519PrivKey.(ed25519.PrivateKey).Seed(), id); err != nil {
 				return err
 			}
 		}
