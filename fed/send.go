@@ -43,7 +43,7 @@ type sender struct {
 
 var userAgent = "tootik/" + buildinfo.Version
 
-func (s *sender) send(keys [2]httpsig.Key, req *http.Request, body []byte) (*http.Response, error) {
+func (s *sender) send(keys [3]httpsig.Key, req *http.Request, body []byte) (*http.Response, error) {
 	urlString := req.URL.String()
 
 	if req.URL.Scheme != "https" {
@@ -67,7 +67,10 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request, body []byte) (*htt
 		return nil, fmt.Errorf("failed to query server capabilities for %s: %w", req.URL.Host, err)
 	}
 
-	if capabilities&ap.RFC9421Ed25519Signatures == 0 && req.Method == http.MethodPost && rand.Float32() > s.Config.Ed25519Threshold {
+	if capabilities&ap.RFC9421MLDSA44Signatures == 0 && req.Method == http.MethodPost && rand.Float32() > s.Config.MLDSA44Threshold {
+		slog.Debug("Randomly enabling RFC9421 with ML-DSA-44", "server", req.URL.Host)
+		capabilities = ap.RFC9421MLDSA44Signatures
+	} else if capabilities&ap.RFC9421Ed25519Signatures == 0 && req.Method == http.MethodPost && rand.Float32() > s.Config.Ed25519Threshold {
 		slog.Debug("Randomly enabling RFC9421 with Ed25519", "server", req.URL.Host)
 		capabilities = ap.RFC9421Ed25519Signatures
 	} else if capabilities&ap.RFC9421RSASignatures == 0 && req.Method == http.MethodPost && rand.Float32() > s.Config.RFC9421Threshold {
@@ -75,7 +78,13 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request, body []byte) (*htt
 		capabilities = ap.RFC9421RSASignatures
 	}
 
-	if capabilities&ap.RFC9421Ed25519Signatures > 0 {
+	if capabilities&ap.RFC9421MLDSA44Signatures > 0 {
+		slog.Debug("Signing request using RFC9421 with ML-DSA-44", "method", req.Method, "url", urlString, "key", keys[1].ID)
+
+		if err := httpsig.SignRFC9421(req, body, keys[2], time.Now(), time.Time{}, httpsig.RFC9421DigestSHA256, "ml-dsa-44", nil); err != nil {
+			return nil, fmt.Errorf("failed to sign request for %s: %w", urlString, err)
+		}
+	} else if capabilities&ap.RFC9421Ed25519Signatures > 0 {
 		slog.Debug("Signing request using RFC9421 with Ed25519", "method", req.Method, "url", urlString, "key", keys[1].ID)
 
 		if err := httpsig.SignRFC9421(req, body, keys[1], time.Now(), time.Time{}, httpsig.RFC9421DigestSHA256, "ed25519", nil); err != nil {
@@ -134,7 +143,7 @@ func (s *sender) send(keys [2]httpsig.Key, req *http.Request, body []byte) (*htt
 	return resp, nil
 }
 
-func (s *sender) Get(ctx context.Context, keys [2]httpsig.Key, url string) (*http.Response, error) {
+func (s *sender) Get(ctx context.Context, keys [3]httpsig.Key, url string) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request to %s: %w", url, err)

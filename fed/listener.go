@@ -45,7 +45,7 @@ type Listener struct {
 	DB           *sql.DB
 	Resolver     *Resolver
 	AppActor     *ap.Actor
-	AppActorKeys [2]httpsig.Key
+	AppActorKeys [3]httpsig.Key
 	Addr         string
 	Cert         string
 	Key          string

@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package data
 
 import (
 	"bytes"
+	"crypto/mldsa"
 	"testing"
 )
 
@@ -34,6 +35,31 @@ func Test_FEP521b(t *testing.T) {
 	}
 
 	if !bytes.Equal(a, b) {
+		t.Fatal("Keys are different")
+	}
+}
+
+func Test_MLDSA44(t *testing.T) {
+	priv, err := mldsa.GenerateKey(mldsa.MLDSA44())
+	if err != nil {
+		t.Fatalf("Failed to generate: %v", err)
+	}
+
+	decodedPriv, err := DecodeMLDSA44PrivateKey(EncodeMLDSA44PrivateKey(priv))
+	if err != nil {
+		t.Fatalf("Failed to decode private key: %v", err)
+	}
+	if !decodedPriv.Equal(priv) {
+		t.Fatal("Private keys are different")
+	}
+
+	pub := priv.PublicKey()
+
+	decodedPub, err := DecodeMLDSA44PublicKey(EncodeMLDSA44Publickey(pub))
+	if err != nil {
+		t.Fatalf("Failed to decode public key: %v", err)
+	}
+	if !decodedPub.Equal(pub) {
 		t.Fatal("Keys are different")
 	}
 }
