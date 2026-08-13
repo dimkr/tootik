@@ -132,6 +132,8 @@ type Config struct {
 
 	FillNodeInfoUsage bool
 
+	CavageDraftFailureThreshold float32
+
 	RFC9421Threshold float32
 	Ed25519Threshold float32
 	MLDSA44Threshold float32
@@ -445,6 +447,10 @@ func (c *Config) FillDefaults() {
 
 	if c.HistoryTTL <= 0 {
 		c.HistoryTTL = time.Hour * 24 * 30
+	}
+
+	if c.CavageDraftFailureThreshold <= 0 || c.CavageDraftFailureThreshold > 1 {
+		c.CavageDraftFailureThreshold = 0.995
 	}
 
 	if c.RFC9421Threshold <= 0 || c.RFC9421Threshold > 1 {
