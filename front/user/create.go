@@ -124,27 +124,11 @@ func insertActor(
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT OR IGNORE INTO keys (id, actor) VALUES (?, ?)`,
+		`INSERT OR IGNORE INTO keys (id, actor) VALUES ($1, $2), ($1, $3), ($1, $4)`,
+		actor.ID,
 		actor.PublicKey.ID,
-		actor.ID,
-	); err != nil {
-		return err
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`INSERT OR IGNORE INTO keys (id, actor) VALUES (?, ?)`,
 		actor.AssertionMethod[0].ID,
-		actor.ID,
-	); err != nil {
-		return err
-	}
-
-	if _, err := tx.ExecContext(
-		ctx,
-		`INSERT OR IGNORE INTO keys (id, actor) VALUES (?, ?)`,
 		actor.AssertionMethod[1].ID,
-		actor.ID,
 	); err != nil {
 		return err
 	}
