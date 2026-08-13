@@ -80,7 +80,7 @@ func (m *Mover) Run(ctx context.Context) error {
 
 	rows, err := dbx.QueryCollectIgnore[struct {
 		Actor                     ap.Actor
-		Ed25519PrivKey            []byte
+		Ed25519Seed               []byte
 		MLDSA44Seed               []byte
 		OldID, NewID, OldFollowID string
 		OnlyRemove                bool
@@ -121,12 +121,12 @@ func (m *Mover) Run(ctx context.Context) error {
 			slog.Info("Removing follow of moved actor", "follow", row.OldFollowID, "old", row.OldID, "new", row.NewID)
 		} else {
 			slog.Info("Moving follow", "follow", row.OldFollowID, "old", row.OldID, "new", row.NewID)
-			if err := m.Inbox.Follow(ctx, &row.Actor, proof.SigningSeed(&row.Actor, row.Ed25519PrivKey, row.MLDSA44Seed), row.NewID); err != nil {
+			if err := m.Inbox.Follow(ctx, &row.Actor, proof.SigningSeed(&row.Actor, row.Ed25519Seed, row.MLDSA44Seed), row.NewID); err != nil {
 				slog.Warn("Failed to follow new actor", "follow", row.OldFollowID, "old", row.OldID, "new", row.NewID, "error", err)
 				continue
 			}
 		}
-		if err := m.Inbox.Unfollow(ctx, &row.Actor, proof.SigningSeed(&row.Actor, row.Ed25519PrivKey, row.MLDSA44Seed), row.OldID, row.OldFollowID); err != nil {
+		if err := m.Inbox.Unfollow(ctx, &row.Actor, proof.SigningSeed(&row.Actor, row.Ed25519Seed, row.MLDSA44Seed), row.OldID, row.OldFollowID); err != nil {
 			slog.Warn("Failed to unfollow old actor", "follow", row.OldFollowID, "old", row.OldID, "new", row.NewID, "error", err)
 		}
 	}

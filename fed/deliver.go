@@ -92,11 +92,11 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	slog.Debug("Polling delivery queue")
 
 	rows, err := dbx.QueryCollectCountIgnore[struct {
-		DeliveryAttempts                           int
-		Activity                                   ap.Activity
-		RawActivity                                string
-		Actor                                      ap.Actor
-		RsaPrivKeyDer, Ed25519PrivKey, MLDSA44Seed []byte
+		DeliveryAttempts                        int
+		Activity                                ap.Activity
+		RawActivity                             string
+		Actor                                   ap.Actor
+		RsaPrivKeyDer, Ed25519Seed, MLDSA44Seed []byte
 	}](
 		ctx,
 		q.DB,
@@ -180,7 +180,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 		keys := [3]httpsig.Key{
 			{ID: row.Actor.PublicKey.ID, PrivateKey: rsaPrivKey},
-			{ID: row.Actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(row.Ed25519PrivKey)},
+			{ID: row.Actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(row.Ed25519Seed)},
 			{ID: row.Actor.AssertionMethod[1].ID, PrivateKey: mldsa44Priv},
 		}
 

@@ -35,10 +35,10 @@ type Deleter struct {
 
 func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 	rows, err := dbx.QueryCollect[struct {
-		Sharer         ap.Actor
-		Ed25519PrivKey []byte
-		MLDSA44Seed    []byte
-		Share          ap.Activity
+		Sharer      ap.Actor
+		Ed25519Seed []byte
+		MLDSA44Seed []byte
+		Share       ap.Activity
 	}](
 		ctx,
 		d.DB,
@@ -64,7 +64,7 @@ func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 		if err := d.Inbox.Undo(
 			ctx,
 			&row.Sharer,
-			proof.SigningSeed(&row.Sharer, row.Ed25519PrivKey, row.MLDSA44Seed),
+			proof.SigningSeed(&row.Sharer, row.Ed25519Seed, row.MLDSA44Seed),
 			&row.Share,
 		); err != nil {
 			return false, err
@@ -83,10 +83,10 @@ func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 
 func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 	rows, err := dbx.QueryCollect[struct {
-		Author         ap.Actor
-		Ed25519PrivKey []byte
-		MLDSA44Seed    []byte
-		Note           ap.Object
+		Author      ap.Actor
+		Ed25519Seed []byte
+		MLDSA44Seed []byte
+		Note        ap.Object
 	}](
 		ctx,
 		d.DB,
@@ -112,7 +112,7 @@ func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 		if err := d.Inbox.Delete(
 			ctx,
 			&row.Author,
-			proof.SigningSeed(&row.Author, row.Ed25519PrivKey, row.MLDSA44Seed),
+			proof.SigningSeed(&row.Author, row.Ed25519Seed, row.MLDSA44Seed),
 			&row.Note,
 		); err != nil {
 			return false, err
