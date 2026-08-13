@@ -244,7 +244,6 @@ func (h *Handler) getNoteContent(note *ap.Object, compact bool) ([]string, data.
 func (h *Handler) printCompactNote(
 	w text.Writer,
 	r *Request,
-	slug string,
 	note *ap.Object,
 	author *ap.Actor,
 	sharer *ap.Actor,
@@ -311,9 +310,9 @@ func (h *Handler) printCompactNote(
 	}
 
 	if r.User == nil {
-		w.Link("/view/"+link(note.ID, slug), title.String())
+		w.Link("/view/"+idLink(note.ID), title.String())
 	} else {
-		w.Link("/users/view/"+link(note.ID, slug), title.String())
+		w.Link("/users/view/"+idLink(note.ID), title.String())
 	}
 
 	for _, line := range contentLines {
@@ -323,7 +322,6 @@ func (h *Handler) printCompactNote(
 
 func (h *Handler) PrintNotes(w text.Writer, r *Request, rows *sql.Rows, printParentAuthor, printDaySeparators bool, fallback string) int {
 	scanned, err := dbx.CollectRows[struct {
-		Slug                    string
 		Note                    ap.Object
 		Author, Sharer          sql.Null[ap.Actor]
 		Published               int64
@@ -367,7 +365,6 @@ func (h *Handler) PrintNotes(w text.Writer, r *Request, rows *sql.Rows, printPar
 			h.printCompactNote(
 				w,
 				r,
-				row.Slug,
 				&row.Note,
 				&row.Author.V,
 				&row.Sharer.V,
@@ -382,7 +379,6 @@ func (h *Handler) PrintNotes(w text.Writer, r *Request, rows *sql.Rows, printPar
 			h.printCompactNote(
 				w,
 				r,
-				row.Slug,
 				&row.Note,
 				&row.Author.V,
 				nil,

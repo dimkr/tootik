@@ -32,7 +32,6 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 	}
 
 	rows, err := dbx.QueryCollectIgnore[struct {
-		Slug     string
 		Actor    ap.Actor
 		Last     sql.NullInt64
 		Accepted sql.NullInt32
@@ -44,7 +43,7 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 			return true
 		},
 		`
-		select persons.slug, json(persons.actor), g.inserted/(24*60*60), follows.accepted from
+		select json(persons.actor), g.inserted/(24*60*60), follows.accepted from
 		follows
 		left join
 		(
@@ -96,17 +95,17 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 			displayName := h.getActorDisplayName(&row.Actor)
 
 			if !row.Accepted.Valid && row.Last.Valid {
-				w.Linkf("/users/outbox/"+link(row.Actor.ID, row.Slug), "%s %s - pending approval", time.Unix(row.Last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
+				w.Linkf("/users/outbox/"+idLink(row.Actor.ID), "%s %s - pending approval", time.Unix(row.Last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
 			} else if !row.Accepted.Valid {
-				w.Linkf("/users/outbox/"+link(row.Actor.ID, row.Slug), "%s - pending approval", displayName)
+				w.Linkf("/users/outbox/"+idLink(row.Actor.ID), "%s - pending approval", displayName)
 			} else if row.Last.Valid && row.Accepted.Int32 == 1 {
-				w.Linkf("/users/outbox/"+link(row.Actor.ID, row.Slug), "%s %s", time.Unix(row.Last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
+				w.Linkf("/users/outbox/"+idLink(row.Actor.ID), "%s %s", time.Unix(row.Last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
 			} else if row.Accepted.Int32 == 1 {
-				w.Link("/users/outbox/"+link(row.Actor.ID, row.Slug), displayName)
+				w.Link("/users/outbox/"+idLink(row.Actor.ID), displayName)
 			} else if row.Last.Valid {
-				w.Linkf("/users/outbox/"+link(row.Actor.ID, row.Slug), "%s %s - rejected", time.Unix(row.Last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
+				w.Linkf("/users/outbox/"+idLink(row.Actor.ID), "%s %s - rejected", time.Unix(row.Last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
 			} else {
-				w.Linkf("/users/outbox/"+link(row.Actor.ID, row.Slug), "%s - rejected", displayName)
+				w.Linkf("/users/outbox/"+idLink(row.Actor.ID), "%s - rejected", displayName)
 			}
 
 		}

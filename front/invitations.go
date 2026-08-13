@@ -38,7 +38,6 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 	rows, err := dbx.QueryCollectIgnore[struct {
 		Code              string
 		InviteInsertedSec int64
-		ActorSlug         sql.NullString
 		Actor             sql.Null[ap.Actor]
 		ActorInserted     sql.NullInt64
 	}](
@@ -49,7 +48,7 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 			return true
 		},
 		`
-		SELECT invites.code, invites.inserted, persons.slug, JSON(persons.actor), persons.inserted
+		SELECT invites.code, invites.inserted, JSON(persons.actor), persons.inserted
 		FROM invites
 		LEFT JOIN persons ON persons.id = invites.invited
 		WHERE invites.inviter = $1
@@ -82,7 +81,7 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 
 		if row.Actor.Valid {
 			w.Text("Used: " + time.Unix(row.ActorInserted.Int64, 0).Format(time.DateOnly))
-			w.Link("/users/outbox/"+link(row.Actor.V.ID, row.ActorSlug.String), "Used by: "+row.Actor.V.PreferredUsername)
+			w.Link("/users/outbox/"+idLink(row.Actor.V.ID), "Used by: "+row.Actor.V.PreferredUsername)
 		} else {
 			if expires := inserted.Add(h.Config.InvitationTimeout); now.After(expires) {
 				w.Text("Expired: " + expires.Format(time.DateOnly))

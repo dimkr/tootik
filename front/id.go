@@ -22,14 +22,10 @@ import (
 	"github.com/dimkr/tootik/ap"
 )
 
-func link(id, slug string) string {
+func idLink(id string) string {
 	if !ap.IsPortable(id) {
 		return strings.TrimPrefix(id, "https://")
 	}
 
-	return slug
-}
-
-func idLink(id string) string {
-	return link(id, ap.Slug(id))
+	return ap.Slug(id)
 }

@@ -36,7 +36,7 @@ func (h *Handler) users(w text.Writer, r *Request, args ...string) {
 			return h.DB.QueryContext(
 				r.Context,
 				`
-				select notes.slug, json(notes.object), json(authors.actor), json(sharers.actor), page.inserted, notes.nreplies, notes.nquotes, notes.nshares, json(parent_authors.actor) from (
+				select json(notes.object), json(authors.actor), json(sharers.actor), page.inserted, notes.nreplies, notes.nquotes, notes.nshares, json(parent_authors.actor) from (
 					select note, sharer, inserted from feed
 					where
 						follower = $1

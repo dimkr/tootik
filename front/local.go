@@ -31,15 +31,15 @@ func (h *Handler) local(w text.Writer, r *Request, args ...string) {
 			return h.DB.QueryContext(
 				r.Context,
 				`
-					select page.slug, json(notes.object), json(authors.actor), json(sharers.actor), page.inserted, notes.nreplies, notes.nquotes, notes.nshares, json(parent_authors.actor) from (
-						select slug, author, sharer, inserted from
+					select json(notes.object), json(authors.actor), json(sharers.actor), page.inserted, notes.nreplies, notes.nquotes, notes.nshares, json(parent_authors.actor) from (
+						select id, author, sharer, inserted from
 						(
-							select notes.slug, notes.author, null as sharer, notes.inserted from persons
+							select notes.id, notes.author, null as sharer, notes.inserted from persons
 							join notes
 							on notes.author = persons.id
 							where notes.public = 1 and persons.host = $1
 							union all
-							select notes.slug, notes.author, sharers.id as sharer, shares.inserted from persons sharers
+							select notes.id, notes.author, sharers.id as sharer, shares.inserted from persons sharers
 							join shares
 							on shares.by = sharers.id
 							join notes
@@ -51,7 +51,7 @@ func (h *Handler) local(w text.Writer, r *Request, args ...string) {
 						offset $3
 					) page
 					join notes on
-						notes.slug = page.slug
+						notes.id = page.id
 					join persons authors on
 						authors.id = page.author
 					left join notes parent_notes on
