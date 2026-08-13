@@ -75,7 +75,7 @@ func insertActor(
 ) error {
 	if !cfg.DisableIntegrityProofs {
 		var err error
-		if actor.Proof, err = proof.Create(keys[1], actor); err != nil {
+		if actor.Proof, err = proof.Create(proof.SigningKey(actor.ID, keys), actor); err != nil {
 			return err
 		}
 	}
@@ -88,7 +88,8 @@ func insertActor(
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT OR IGNORE INTO persons (id, actor, rsaprivkey, ed25519privkey, mldsa44seed) VALUES (?, JSONB(?), ?, ?, ?)`,
+		`INSERT INTO persons (slug, id, actor, rsaprivkey, ed25519privkey, mldsa44seed) VALUES (?, ?, JSONB(?), ?, ?, ?) ON CONFLICT(id) DO NOTHING`,
+		ap.Slug(actor.ID),
 		actor.ID,
 		actor,
 		x509.MarshalPKCS1PrivateKey(rsaPriv),

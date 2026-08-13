@@ -19,6 +19,7 @@ package front
 import (
 	"database/sql"
 	"errors"
+	"github.com/dimkr/tootik/proof"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
@@ -30,28 +31,28 @@ func (h *Handler) delete(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	postID := "https://" + args[1]
+	arg := args[1]
 
 	var note ap.Object
-	if err := h.DB.QueryRowContext(r.Context, `select json(object) from notes where id = ? and deleted = 0 and author in (select id from persons where cid = ?)`, postID, ap.Canonical(r.User.ID)).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.Warn("Attempted to delete a non-existing post", "post", postID, "error", err)
+	if err := h.DB.QueryRowContext(r.Context, `select json(object) from notes where (id = 'https://' || $1 or slug = $1) and deleted = 0 and author in (select id from persons where cid = $2)`, arg, ap.Canonical(r.User.ID)).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
+		r.Log.Warn("Attempted to delete a non-existing post", "post", arg, "error", err)
 		w.Error()
 		return
 	} else if err != nil {
-		r.Log.Warn("Failed to fetch post to delete", "post", postID, "error", err)
+		r.Log.Warn("Failed to fetch post to delete", "post", arg, "error", err)
 		w.Error()
 		return
 	}
 
-	if err := h.Inbox.Delete(r.Context, r.User, r.Keys[1], &note); err != nil {
+	if err := h.Inbox.Delete(r.Context, r.User, proof.SigningKey(r.User.ID, r.Keys), &note); err != nil {
 		r.Log.Error("Failed to delete post", "note", note.ID, "error", err)
 		w.Error()
 		return
 	}
 
 	if r.User == nil {
-		w.Redirect("/view/" + args[1])
+		w.Redirect("/view/" + arg)
 	} else {
-		w.Redirect("/users/view/" + args[1])
+		w.Redirect("/users/view/" + arg)
 	}
 }

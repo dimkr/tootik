@@ -21,10 +21,10 @@ package inbox
 
 import (
 	"context"
-	"crypto/ed25519"
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/dimkr/tootik/proof"
 	"log/slog"
 	"net/url"
 	"time"
@@ -32,7 +32,6 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
-	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/inbox/note"
 )
 
@@ -163,7 +162,7 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 				return fmt.Errorf("failed to delete %s: %w", deleted, err)
 			}
 
-			if _, err := tx.ExecContext(ctx, `delete from notesfts where rowid = (select rowid from notes where id = ?)`, deleted); err != nil {
+			if _, err := tx.ExecContext(ctx, `delete from notesfts where slug = (select slug from notes where id = ?)`, deleted); err != nil {
 				return fmt.Errorf("cannot delete %s: %w", deleted, err)
 			}
 			if _, err := tx.ExecContext(ctx, `update notes set object = jsonb_set(jsonb_remove(object, '$.name', '$.summary', '$.tag', '$.attachment', '$.votersCount', '$.oneOf', '$.anyOf'), '$.content', '[deleted]'), deleted = 1 where id = ?`, deleted); err != nil {
@@ -180,9 +179,9 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 			return errors.New("received an invalid follow request")
 		}
 
-		var ed25519PrivKey []byte
+		var ed25519PrivKey, mldsa44Seed []byte
 		var followed ap.Actor
-		if err := tx.QueryRowContext(ctx, `select ed25519privkey, json(actor) from persons where cid = ? order by ed25519privkey is not null desc limit 1`, ap.Canonical(followedID)).Scan(&ed25519PrivKey, &followed); errors.Is(err, sql.ErrNoRows) {
+		if err := tx.QueryRowContext(ctx, `select ed25519privkey, mldsa44seed, json(actor) from persons where cid = ? order by ed25519privkey is not null desc limit 1`, ap.Canonical(followedID)).Scan(&ed25519PrivKey, &mldsa44Seed, &followed); errors.Is(err, sql.ErrNoRows) {
 			var localFollowerID string
 			if err := tx.QueryRowContext(ctx, `select id from persons where cid = ? and ed25519privkey is not null`, ap.Canonical(activity.Actor)).Scan(&localFollowerID); errors.Is(err, sql.ErrNoRows) {
 				return fmt.Errorf("received an invalid follow request for %s by %s", followedID, activity.Actor)
@@ -231,7 +230,7 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
 
-			if err := inbox.AcceptFollow(ctx, &followed, httpsig.Key{ID: followed.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)}, activity.Actor, activity.ID, tx); err != nil {
+			if err := inbox.AcceptFollow(ctx, &followed, proof.SigningSeed(&followed, ed25519PrivKey, mldsa44Seed), activity.Actor, activity.ID, tx); err != nil {
 				return fmt.Errorf("failed to accept %s: %w", activity.ID, err)
 			}
 		} else {
@@ -422,7 +421,7 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 		if post.Content != oldPost.Content {
 			if _, err := tx.ExecContext(
 				ctx,
-				`update notesfts set content = ? where rowid = (select rowid from notes where id = ?)`,
+				`update notesfts set content = ? where slug = (select slug from notes where id = ?)`,
 				note.Flatten(post),
 				post.ID,
 			); err != nil {
@@ -444,16 +443,16 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 		}
 
 		var actor ap.Actor
-		var ed25519PrivKey []byte
+		var ed25519PrivKey, mldsa44Seed []byte
 		if err := tx.QueryRowContext(
 			ctx,
 			`
-			select ed25519privkey, json(actor) from notes
+			select ed25519privkey, mldsa44seed, json(actor) from notes
 			join persons on persons.id = notes.author
 			where notes.id = ? and notes.public = 1 and notes.deleted = 0 and persons.ed25519privkey is not null
 			`,
 			postID,
-		).Scan(&ed25519PrivKey, &actor); errors.Is(err, sql.ErrNoRows) {
+		).Scan(&ed25519PrivKey, &mldsa44Seed, &actor); errors.Is(err, sql.ErrNoRows) {
 			slog.Debug("Received invalid quote request", "activity", activity)
 			return nil
 		} else if err != nil {
@@ -463,10 +462,7 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 		if err := inbox.acceptRequest(
 			ctx,
 			&actor,
-			httpsig.Key{
-				ID:         actor.AssertionMethod[0].ID,
-				PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey),
-			},
+			proof.SigningSeed(&actor, ed25519PrivKey, mldsa44Seed),
 			activity,
 			tx,
 		); err != nil {

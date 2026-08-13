@@ -270,7 +270,7 @@ func TestMention_AmbiguousGroupAndFollowed(t *testing.T) {
 	alice.
 		Follow("📣 New post").
 		FollowInput("📣 Anyone", "!bob post").
-		Contains(gmi.Line{Type: gmi.Link, Text: "bob", URL: "/users/outbox/" + group.ID[8:]})
+		Contains(gmi.Line{Type: gmi.Link, Text: "bob", URL: "/users/outbox/" + ap.Slug(group.ID)})
 }
 
 func TestMention_AmbiguousGroupAndGroup(t *testing.T) {

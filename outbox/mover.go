@@ -18,9 +18,9 @@ package outbox
 
 import (
 	"context"
-	"crypto/ed25519"
 	"database/sql"
 	"fmt"
+	"github.com/dimkr/tootik/proof"
 	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
@@ -81,6 +81,7 @@ func (m *Mover) Run(ctx context.Context) error {
 	rows, err := dbx.QueryCollectIgnore[struct {
 		Actor                     ap.Actor
 		Ed25519PrivKey            []byte
+		MLDSA44Seed               []byte
 		OldID, NewID, OldFollowID string
 		OnlyRemove                bool
 	}](
@@ -91,7 +92,7 @@ func (m *Mover) Run(ctx context.Context) error {
 			return true
 		},
 		`
-			select json(persons.actor), persons.ed25519privkey, old.id, new.id, follows.id, new.id = follows.follower or exists (select 1 from follows where follower = persons.id and followed = new.id) from
+			select json(persons.actor), persons.ed25519privkey, persons.mldsa44seed, old.id, new.id, follows.id, new.id = follows.follower or exists (select 1 from follows where follower = persons.id and followed = new.id) from
 			persons old
 			join
 			persons new
@@ -116,18 +117,16 @@ func (m *Mover) Run(ctx context.Context) error {
 	}
 
 	for _, row := range rows {
-		key := httpsig.Key{ID: row.Actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(row.Ed25519PrivKey)}
-
 		if row.OnlyRemove {
 			slog.Info("Removing follow of moved actor", "follow", row.OldFollowID, "old", row.OldID, "new", row.NewID)
 		} else {
 			slog.Info("Moving follow", "follow", row.OldFollowID, "old", row.OldID, "new", row.NewID)
-			if err := m.Inbox.Follow(ctx, &row.Actor, key, row.NewID); err != nil {
+			if err := m.Inbox.Follow(ctx, &row.Actor, proof.SigningSeed(&row.Actor, row.Ed25519PrivKey, row.MLDSA44Seed), row.NewID); err != nil {
 				slog.Warn("Failed to follow new actor", "follow", row.OldFollowID, "old", row.OldID, "new", row.NewID, "error", err)
 				continue
 			}
 		}
-		if err := m.Inbox.Unfollow(ctx, &row.Actor, key, row.OldID, row.OldFollowID); err != nil {
+		if err := m.Inbox.Unfollow(ctx, &row.Actor, proof.SigningSeed(&row.Actor, row.Ed25519PrivKey, row.MLDSA44Seed), row.OldID, row.OldFollowID); err != nil {
 			slog.Warn("Failed to unfollow old actor", "follow", row.OldFollowID, "old", row.OldID, "new", row.NewID, "error", err)
 		}
 	}

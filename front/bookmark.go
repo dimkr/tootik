@@ -29,7 +29,7 @@ func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	postID := "https://" + args[1]
+	arg := args[1]
 
 	tx, err := h.DB.BeginTx(r.Context, nil)
 	if err != nil {
@@ -39,13 +39,13 @@ func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
 	}
 	defer tx.Rollback()
 
-	var exists int
+	var postID sql.NullString
 	if err := tx.QueryRowContext(
 		r.Context,
-		`select exists (
-			select 1 from notes
+		`select (
+			select notes.id from notes
 			where
-				notes.id = $1 and
+				(notes.id = 'https://' || $1 or notes.slug = $1) and
 				notes.deleted = 0 and
 				(
 					notes.author = $2 or
@@ -57,14 +57,14 @@ func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
 				)
 				
 		)`,
-		postID,
+		arg,
 		r.User.ID,
-	).Scan(&exists); err != nil {
-		r.Log.Warn("Failed to check if bookmarked post exists", "post", postID, "error", err)
+	).Scan(&postID); err != nil {
+		r.Log.Warn("Failed to check if bookmarked post exists", "post", arg, "error", err)
 		w.Error()
 		return
-	} else if exists == 0 {
-		r.Log.Info("Post was not found", "post", postID)
+	} else if !postID.Valid {
+		r.Log.Info("Post was not found", "post", arg)
 		w.Status(40, "Post not found")
 		return
 	}
@@ -80,7 +80,7 @@ func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
 	}
 
 	if count >= h.Config.MaxBookmarksPerUser {
-		r.Log.Warn("User has reached bookmarks limit", "post", postID)
+		r.Log.Warn("User has reached bookmarks limit", "post", postID.String)
 		w.Status(40, "Reached bookmarks limit")
 		return
 	}
@@ -94,7 +94,7 @@ func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
 		}
 	}
 
-	if _, err := tx.ExecContext(r.Context, `insert into bookmarks(note, by) values(?, ?)`, postID, r.User.ID); err != nil {
+	if _, err := tx.ExecContext(r.Context, `insert into bookmarks(note, by) values(?, ?)`, postID.String, r.User.ID); err != nil {
 		r.Log.Warn("Failed to insert bookmark", "error", err)
 		w.Error()
 		return
@@ -106,5 +106,5 @@ func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.Redirectf("/users/view/" + args[1])
+	w.Redirectf("/users/view/" + arg)
 }

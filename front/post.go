@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/dimkr/tootik/proof"
 	"regexp"
 	"strings"
 	"time"
@@ -383,9 +384,9 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 
 		note.Updated = now
 
-		err = h.Inbox.UpdateNote(r.Context, r.User, r.Keys[1], &note)
+		err = h.Inbox.UpdateNote(r.Context, r.User, proof.SigningKey(r.User.ID, r.Keys), &note)
 	} else {
-		err = h.Inbox.Create(r.Context, h.Config, &note, r.User, r.Keys[1])
+		err = h.Inbox.Create(r.Context, h.Config, &note, r.User, proof.SigningKey(r.User.ID, r.Keys))
 	}
 	if err != nil {
 		r.Log.Error("Failed to insert post", "error", err)
@@ -398,8 +399,8 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 	}
 
 	if r.URL.Scheme == "titan" {
-		w.Redirectf("gemini://%s/users/view/%s", h.Domain, strings.TrimPrefix(postID, "https://"))
+		w.Redirectf("gemini://%s/users/view/%s", h.Domain, idLink(postID))
 	} else {
-		w.Redirectf("/users/view/%s", strings.TrimPrefix(postID, "https://"))
+		w.Redirectf("/users/view/%s", idLink(postID))
 	}
 }

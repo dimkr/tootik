@@ -18,13 +18,12 @@ package outbox
 
 import (
 	"context"
-	"crypto/ed25519"
 	"database/sql"
+	"github.com/dimkr/tootik/proof"
 	"log/slog"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/dbx"
-	"github.com/dimkr/tootik/httpsig"
 )
 
 const batchSize = 512
@@ -38,12 +37,13 @@ func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 	rows, err := dbx.QueryCollect[struct {
 		Sharer         ap.Actor
 		Ed25519PrivKey []byte
+		MLDSA44Seed    []byte
 		Share          ap.Activity
 	}](
 		ctx,
 		d.DB,
 		`
-		select json(persons.actor), persons.ed25519privkey, json(outbox.activity) from persons
+		select json(persons.actor), persons.ed25519privkey, persons.mldsa44seed, json(outbox.activity) from persons
 		join shares on shares.by = persons.id
 		join outbox on outbox.activity->>'$.actor' = shares.by and outbox.activity->>'$.object' = shares.note
 		where
@@ -64,10 +64,7 @@ func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 		if err := d.Inbox.Undo(
 			ctx,
 			&row.Sharer,
-			httpsig.Key{
-				ID:         row.Sharer.AssertionMethod[0].ID,
-				PrivateKey: ed25519.NewKeyFromSeed(row.Ed25519PrivKey),
-			},
+			proof.SigningSeed(&row.Sharer, row.Ed25519PrivKey, row.MLDSA44Seed),
 			&row.Share,
 		); err != nil {
 			return false, err
@@ -88,12 +85,13 @@ func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 	rows, err := dbx.QueryCollect[struct {
 		Author         ap.Actor
 		Ed25519PrivKey []byte
+		MLDSA44Seed    []byte
 		Note           ap.Object
 	}](
 		ctx,
 		d.DB,
 		`
-		select json(persons.actor), persons.ed25519privkey, json(notes.object) from persons
+		select json(persons.actor), persons.ed25519privkey, persons.mldsa44seed, json(notes.object) from persons
 		join notes on notes.author = persons.id
 		where
 			persons.ttl is not null and
@@ -114,10 +112,7 @@ func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 		if err := d.Inbox.Delete(
 			ctx,
 			&row.Author,
-			httpsig.Key{
-				ID:         row.Author.AssertionMethod[0].ID,
-				PrivateKey: ed25519.NewKeyFromSeed(row.Ed25519PrivKey),
-			},
+			proof.SigningSeed(&row.Author, row.Ed25519PrivKey, row.MLDSA44Seed),
 			&row.Note,
 		); err != nil {
 			return false, err

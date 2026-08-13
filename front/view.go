@@ -31,8 +31,6 @@ import (
 )
 
 func (h *Handler) view(w text.Writer, r *Request, args ...string) {
-	postID := "https://" + args[1]
-
 	offset, err := getOffset(r.URL)
 	if err != nil {
 		r.Log.Info("Failed to parse query", "error", err)
@@ -40,34 +38,38 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	r.Log.Info("Viewing post", "post", postID)
+	arg := args[1]
+
+	r.Log.Info("Viewing post", "post", arg)
 
 	var note ap.Object
 	var author ap.Actor
+	var authorSlug string
 	var group sql.Null[ap.Actor]
+	var groupSlug sql.NullString
 
 	if r.User == nil {
 		err = h.DB.QueryRowContext(
 			r.Context,
 			`
-			select json(notes.object), json(persons.actor), json(groups.actor) from notes
+			select json(notes.object), persons.slug, json(persons.actor), groups.slug, json(groups.actor) from notes
 			join persons on persons.id = notes.author
-			left join (select id, actor from persons where actor->>'$.type' = 'Group') groups on exists (select 1 from shares where shares.by = groups.id and shares.note = $1)
+			left join (select slug, id, actor from persons where actor->>'$.type' = 'Group') groups on exists (select 1 from shares where shares.by = groups.id and shares.note = notes.id)
 			where
-				notes.id = $1 and
+				(notes.id = 'https://' || $1 or notes.slug = $1) and
 				notes.public = 1
 			`,
-			postID,
-		).Scan(&note, &author, &group)
+			arg,
+		).Scan(&note, &authorSlug, &author, &groupSlug, &group)
 	} else {
 		err = h.DB.QueryRowContext(
 			r.Context,
 			`
-			select json(notes.object), json(persons.actor), json(groups.actor) from notes
+			select json(notes.object), persons.slug, json(persons.actor), groups.slug, json(groups.actor) from notes
 			join persons on persons.id = notes.author
-			left join (select id, actor from persons where actor->>'$.type' = 'Group') groups on exists (select 1 from shares where shares.by = groups.id and shares.note = $1)
+			left join (select slug, id, actor from persons where actor->>'$.type' = 'Group') groups on exists (select 1 from shares where shares.by = groups.id and shares.note = notes.id)
 			where
-				notes.id = $1 and
+				(notes.id = 'https://' || $1 or notes.slug = $1) and
 				(
 					notes.public = 1 or
 					notes.author = $2 or
@@ -90,19 +92,21 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 					)
 				)
 			`,
-			postID,
+			arg,
 			r.User.ID,
-		).Scan(&note, &author, &group)
+		).Scan(&note, &authorSlug, &author, &groupSlug, &group)
 	}
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.Info("Post was not found", "post", postID)
+		r.Log.Info("Post was not found", "post", arg)
 		w.Status(40, "Post not found")
 		return
 	} else if err != nil {
-		r.Log.Info("Failed to find post", "post", postID, "error", err)
+		r.Log.Info("Failed to find post", "post", arg, "error", err)
 		w.Error()
 		return
 	}
+
+	r.Log.Info("Viewing post", "post", note.ID)
 
 	w.OK()
 
@@ -115,6 +119,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			w.Subtitle("Context")
 
 			if rows, err := dbx.QueryCollect[struct {
+				Slug   string
 				Note   ap.Object
 				Author ap.Actor
 				Depth  int
@@ -122,25 +127,25 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				r.Context,
 				h.DB,
 				`
-				select json(note), json(author), max_depth from
+				select slug, json(note), json(author), max_depth from
 				(
-					with recursive thread(id, note, author, depth) as (
-						select notes.id, notes.object as note, persons.actor as author, 1 as depth
+					with recursive thread(id, slug, note, author, depth) as (
+						select notes.id, notes.slug, notes.object as note, persons.actor as author, 1 as depth
 						from notes
 						join persons on persons.id = notes.author
 						where notes.id = ?
 						union all
-						select notes.id, notes.object as note, persons.actor as author, 0 as depth
+						select notes.id, notes.slug, notes.object as note, persons.actor as author, 0 as depth
 						from notes
 						join persons on persons.id = notes.author
 						where notes.object->>'$.context' = ? and notes.object->>'$.inReplyTo' is null
 						union all
-						select notes.id, notes.object as note, persons.actor as author, t.depth + 1
+						select notes.id, notes.slug, notes.object as note, persons.actor as author, t.depth + 1
 						from thread t
 						join notes on notes.id = t.note->>'$.inReplyTo'
 						join persons on persons.id = notes.author
 					)
-					select note, author, max(depth) as max_depth from thread group by id order by note->'$.inReplyTo' is null desc, max_depth limit ?
+					select slug, note, author, max(depth) as max_depth from thread group by slug, id order by note->'$.inReplyTo' is null desc, max_depth limit ?
 				)
 				order by max_depth desc
 				`,
@@ -162,9 +167,9 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						w.Empty()
 
 						if r.User == nil {
-							w.Link("/view/"+strings.TrimPrefix(rows[i].Note.InReplyTo, "https://"), "[1 reply]")
+							w.Link("/view/"+idLink(rows[i].Note.InReplyTo), "[1 reply]")
 						} else {
-							w.Link("/users/view/"+strings.TrimPrefix(rows[i].Note.InReplyTo, "https://"), "[1 reply]")
+							w.Link("/users/view/"+idLink(rows[i].Note.InReplyTo), "[1 reply]")
 						}
 
 						w.Empty()
@@ -172,9 +177,9 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						w.Empty()
 
 						if r.User == nil {
-							w.Linkf("/view/"+strings.TrimPrefix(rows[i].Note.InReplyTo, "https://"), "[%d replies]", rows[0].Depth-rows[i].Depth-1)
+							w.Linkf("/view/"+idLink(rows[i].Note.InReplyTo), "[%d replies]", rows[0].Depth-rows[i].Depth-1)
 						} else {
-							w.Linkf("/users/view/"+strings.TrimPrefix(rows[i].Note.InReplyTo, "https://"), "[%d replies]", rows[0].Depth-rows[i].Depth-1)
+							w.Linkf("/users/view/"+idLink(rows[i].Note.InReplyTo), "[%d replies]", rows[0].Depth-rows[i].Depth-1)
 						}
 
 						w.Empty()
@@ -184,9 +189,9 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 					}
 
 					if r.User == nil {
-						w.Linkf("/view/"+strings.TrimPrefix(rows[i].Note.ID, "https://"), "%s %s", rows[i].Note.Published.Time.Format(time.DateOnly), rows[i].Author.PreferredUsername)
+						w.Linkf("/view/"+link(rows[i].Note.ID, rows[i].Slug), "%s %s", rows[i].Note.Published.Time.Format(time.DateOnly), rows[i].Author.PreferredUsername)
 					} else {
-						w.Linkf("/users/view/"+strings.TrimPrefix(rows[i].Note.ID, "https://"), "%s %s", rows[i].Note.Published.Time.Format(time.DateOnly), rows[i].Author.PreferredUsername)
+						w.Linkf("/users/view/"+link(rows[i].Note.ID, rows[i].Slug), "%s %s", rows[i].Note.Published.Time.Format(time.DateOnly), rows[i].Author.PreferredUsername)
 					}
 
 					contentLines, _ := h.getCompactNoteContent(&rows[i].Note)
@@ -198,17 +203,17 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						w.Empty()
 
 						if r.User == nil {
-							w.Linkf("/view/"+strings.TrimPrefix(note.InReplyTo, "https://"), "[%d replies]", rows[0].Depth-1)
+							w.Linkf("/view/"+idLink(note.InReplyTo), "[%d replies]", rows[0].Depth-1)
 						} else {
-							w.Linkf("/users/view/"+strings.TrimPrefix(note.InReplyTo, "https://"), "[%d replies]", rows[0].Depth-1)
+							w.Linkf("/users/view/"+idLink(note.InReplyTo), "[%d replies]", rows[0].Depth-1)
 						}
 					} else if len(rows) == 1 && rows[0].Note.InReplyTo == "" && rows[0].Depth == 2 {
 						w.Empty()
 
 						if r.User == nil {
-							w.Link("/view/"+strings.TrimPrefix(note.InReplyTo, "https://"), "[1 reply]")
+							w.Link("/view/"+idLink(note.InReplyTo), "[1 reply]")
 						} else {
-							w.Link("/users/view/"+strings.TrimPrefix(note.InReplyTo, "https://"), "[1 reply]")
+							w.Link("/users/view/"+idLink(note.InReplyTo), "[1 reply]")
 						}
 					} else if rows[i].Depth == 0 {
 						w.Empty()
@@ -238,43 +243,43 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			}
 
 			if r.User == nil {
-				links.Store("/outbox/"+strings.TrimPrefix(mentionID, "https://"), mentionUserName)
+				links.Store("/outbox/"+idLink(mentionID), mentionUserName)
 			} else {
-				links.Store("/users/outbox/"+strings.TrimPrefix(mentionID, "https://"), mentionUserName)
+				links.Store("/users/outbox/"+idLink(mentionID), mentionUserName)
 			}
 		}
 
 		if r.User == nil && group.Valid {
-			links.Store("/outbox/"+strings.TrimPrefix(group.V.ID, "https://"), "🔄 "+group.V.PreferredUsername)
+			links.Store("/outbox/"+link(group.V.ID, groupSlug.String), "🔄 "+group.V.PreferredUsername)
 		} else if group.Valid {
-			links.Store("/users/outbox/"+strings.TrimPrefix(group.V.ID, "https://"), "🔄️ "+group.V.PreferredUsername)
+			links.Store("/users/outbox/"+link(group.V.ID, groupSlug.String), "🔄️ "+group.V.PreferredUsername)
 		} else if note.IsPublic() {
 			var rows *sql.Rows
 			var err error
 			if r.User == nil {
 				rows, err = h.DB.QueryContext(
 					r.Context,
-					`select id, username from
+					`select slug, id, username from
 					(
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 1 as rank from shares
+						select persons.slug, persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 1 as rank from shares
 						join notes on notes.id = shares.note
 						join persons on persons.id = shares.by
 						where shares.note = $1 and persons.actor->>'$.type' = 'Group'
 						union all
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 2 as rank from shares
+						select persons.slug, persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 2 as rank from shares
 						join notes on notes.id = shares.note
 						join persons on persons.id = shares.by
 						where shares.note = $1
 						union all
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 3 as rank from shares
+						select persons.slug, persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 3 as rank from shares
 						join persons on persons.id = shares.by
 						where shares.note = $1 and persons.host = $2
 						union all
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 4 as rank from shares
+						select persons.slug, persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 4 as rank from shares
 						join persons on persons.id = shares.by
 						where shares.note = $1 and persons.host != $2
 					)
-					group by id
+					group by slug, id
 					order by min(rank), inserted limit $3`,
 					note.ID,
 					h.Domain,
@@ -283,32 +288,32 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			} else {
 				rows, err = h.DB.QueryContext(
 					r.Context,
-					`select id, username from
+					`select slug, id, username from
 					(
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 1 as rank from shares
+						select persons.slug, persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 1 as rank from shares
 						join notes on notes.id = shares.note
 						join persons on persons.id = shares.by
 						where shares.note = $1 and persons.actor->>'$.type' = 'Group'
 						union all
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 2 as rank from shares
+						select persons.slug, persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 2 as rank from shares
 						join notes on notes.id = shares.note
 						join persons on persons.id = shares.by
 						where shares.note = $1
 						union all
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 3 as rank from shares
+						select persons.slug, persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 3 as rank from shares
 						join follows on follows.followed = shares.by
 						join persons on persons.id = follows.followed
 						where shares.note = $1 and follows.follower = $2 and follows.accepted = 1
 						union all
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 4 as rank from shares
+						select persons.slug, persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 4 as rank from shares
 						join persons on persons.id = shares.by
 						where shares.note = $1 and persons.host = $3
 						union all
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 5 as rank from shares
+						select persons.slug, persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 5 as rank from shares
 						join persons on persons.id = shares.by
 						where shares.note = $1 and persons.host != $3
 					)
-					group by id
+					group by slug, id
 					order by min(rank), inserted limit $4`,
 					note.ID,
 					r.User.ID,
@@ -320,6 +325,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				r.Log.Warn("Failed to query sharers", "error", err)
 			} else if err == nil {
 				if rows, err := dbx.CollectRows[struct {
+					SharerSlug           string
 					SharerID, SharerName string
 				}](
 					rows,
@@ -332,7 +338,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 					r.Log.Warn("Failed to query sharers", "error", err)
 				} else {
 					for _, row := range rows {
-						links.Store("/users/outbox/"+strings.TrimPrefix(row.SharerID, "https://"), "🔄 "+row.SharerName)
+						links.Store("/users/outbox/"+link(row.SharerID, row.SharerSlug), "🔄 "+row.SharerName)
 					}
 				}
 				rows.Close()
@@ -340,6 +346,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		}
 
 		if quotes, err := dbx.QueryCollectIgnore[struct {
+			QuoteSlug       string
 			QuoteID, Quoter string
 		}](
 			r.Context,
@@ -349,7 +356,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				return true
 			},
 			`
-			select notes.id, persons.actor->>'$.preferredUsername' from
+			select notes.slug, notes.id, persons.actor->>'$.preferredUsername' from
 			notes join persons on persons.id = notes.author
 			where notes.object->>'$.quote' = ?
 			order by notes.inserted desc
@@ -362,9 +369,9 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		} else {
 			for _, row := range quotes {
 				if r.User == nil {
-					links.Store("/view/"+strings.TrimPrefix(row.QuoteID, "https://"), "♻️ "+row.Quoter)
+					links.Store("/view/"+link(row.QuoteID, row.QuoteSlug), "♻️ "+row.Quoter)
 				} else {
-					links.Store("/users/view/"+strings.TrimPrefix(row.QuoteID, "https://"), "♻️ "+row.Quoter)
+					links.Store("/users/view/"+link(row.QuoteID, row.QuoteSlug), "♻️ "+row.Quoter)
 				}
 			}
 		}
@@ -386,9 +393,9 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		}
 
 		if r.User == nil {
-			w.Link("/outbox/"+strings.TrimPrefix(author.ID, "https://"), author.PreferredUsername)
+			w.Link("/outbox/"+link(author.ID, authorSlug), author.PreferredUsername)
 		} else {
-			w.Link("/users/outbox/"+strings.TrimPrefix(author.ID, "https://"), author.PreferredUsername)
+			w.Link("/users/outbox/"+link(author.ID, authorSlug), author.PreferredUsername)
 		}
 
 		for link, alt := range links.All() {
@@ -418,11 +425,11 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		}
 
 		if r.User != nil && ap.Canonical(note.AttributedTo) == ap.Canonical(r.User.ID) && note.Type != ap.Question && note.Name == "" { // polls and votes cannot be edited
-			w.Link("/users/edit/"+strings.TrimPrefix(note.ID, "https://"), "🩹 Edit")
-			w.Link(fmt.Sprintf("titan://%s/users/upload/edit/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload edited post")
+			w.Link("/users/edit/"+arg, "🩹 Edit")
+			w.Link(fmt.Sprintf("titan://%s/users/upload/edit/%s", h.Domain, arg), "Upload edited post")
 		}
 		if r.User != nil && ap.Canonical(note.AttributedTo) == ap.Canonical(r.User.ID) {
-			w.Link("/users/delete/"+strings.TrimPrefix(note.ID, "https://"), "💣 Delete")
+			w.Link("/users/delete/"+arg, "💣 Delete")
 		}
 		if r.User != nil && note.Type == ap.Question && note.Closed == (ap.Time{}) && (note.EndTime == (ap.Time{}) || time.Now().Before(note.EndTime.Time)) {
 			options := note.OneOf
@@ -430,7 +437,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				options = note.AnyOf
 			}
 			for _, option := range options {
-				w.Linkf(fmt.Sprintf("/users/reply/%s?%s", strings.TrimPrefix(note.ID, "https://"), url.PathEscape(option.Name)), "📮 Vote %s", option.Name)
+				w.Linkf(fmt.Sprintf("/users/reply/%s?%s", arg, url.PathEscape(option.Name)), "📮 Vote %s", option.Name)
 			}
 		}
 
@@ -439,9 +446,9 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from shares where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&shared); err != nil {
 				r.Log.Warn("Failed to check if post is shared", "id", note.ID, "error", err)
 			} else if shared == 0 {
-				w.Link("/users/share/"+strings.TrimPrefix(note.ID, "https://"), "🔁 Share")
+				w.Link("/users/share/"+arg, "🔁 Share")
 			} else {
-				w.Link("/users/unshare/"+strings.TrimPrefix(note.ID, "https://"), "🔄️ Unshare")
+				w.Link("/users/unshare/"+arg, "🔄️ Unshare")
 			}
 		}
 
@@ -450,20 +457,20 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from bookmarks where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&bookmarked); err != nil {
 				r.Log.Warn("Failed to check if post is bookmarked", "id", note.ID, "error", err)
 			} else if bookmarked == 0 {
-				w.Link("/users/bookmark/"+strings.TrimPrefix(note.ID, "https://"), "🔖 Bookmark")
+				w.Link("/users/bookmark/"+arg, "🔖 Bookmark")
 			} else {
-				w.Link("/users/unbookmark/"+strings.TrimPrefix(note.ID, "https://"), "🔖 Unbookmark")
+				w.Link("/users/unbookmark/"+arg, "🔖 Unbookmark")
 			}
 		}
 
 		if r.User != nil {
 			if note.CanQuote() {
-				w.Link("/users/quote/"+strings.TrimPrefix(note.ID, "https://"), "♻️ Quote")
-				w.Link(fmt.Sprintf("titan://%s/users/upload/quote/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload quote")
+				w.Link("/users/quote/"+arg, "♻️ Quote")
+				w.Link(fmt.Sprintf("titan://%s/users/upload/quote/%s", h.Domain, arg), "Upload quote")
 			}
 
-			w.Link("/users/reply/"+strings.TrimPrefix(note.ID, "https://"), "💬 Reply")
-			w.Link(fmt.Sprintf("titan://%s/users/upload/reply/%s", h.Domain, strings.TrimPrefix(note.ID, "https://")), "Upload reply")
+			w.Link("/users/reply/"+arg, "💬 Reply")
+			w.Link(fmt.Sprintf("titan://%s/users/upload/reply/%s", h.Domain, arg), "Upload reply")
 		}
 
 		if note.Type == ap.Question && offset == 0 {
@@ -498,25 +505,26 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			w.Subtitle("Quote")
 
 			var quote ap.Object
+			var quoteSlug string
 			var quoteAuthor string
 			if err := h.DB.QueryRowContext(
 				r.Context,
 				`
-				select json(notes.object), persons.actor->>'$.preferredUsername' from notes
+				select notes.slug, json(notes.object), persons.actor->>'$.preferredUsername' from notes
 				join persons on persons.id = notes.author
 				where notes.id = ?
 				`,
 				note.Quote,
-			).Scan(&quote, &quoteAuthor); errors.Is(err, sql.ErrNoRows) {
+			).Scan(&quoteSlug, &quote, &quoteAuthor); errors.Is(err, sql.ErrNoRows) {
 				w.Text("[Missing]")
 			} else if err != nil {
 				r.Log.Warn("Failed to scan quote", "error", err)
 				w.Text("[Error]")
 			} else {
 				if r.User == nil {
-					w.Linkf("/view/"+strings.TrimPrefix(quote.ID, "https://"), "%s %s", quote.Published.Time.Format(time.DateOnly), quoteAuthor)
+					w.Linkf("/view/"+link(quote.ID, quoteSlug), "%s %s", quote.Published.Time.Format(time.DateOnly), quoteAuthor)
 				} else {
-					w.Linkf("/users/view/"+strings.TrimPrefix(quote.ID, "https://"), "%s %s", quote.Published.Time.Format(time.DateOnly), quoteAuthor)
+					w.Linkf("/users/view/"+link(quote.ID, quoteSlug), "%s %s", quote.Published.Time.Format(time.DateOnly), quoteAuthor)
 				}
 
 				quoteLines, _ := h.getCompactNoteContent(&quote)
@@ -541,14 +549,14 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		replies, err = h.DB.QueryContext(
 			r.Context,
 			`
-			select json(replies.object), json(persons.actor), null as sharer, replies.inserted, replies.nreplies, replies.nquotes, replies.nshares, null from notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
+			select replies.slug, json(replies.object), json(persons.actor), null as sharer, replies.inserted, replies.nreplies, replies.nquotes, replies.nshares, null from notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
 			left join persons on persons.id = replies.author
 			where
 				notes.id = $1 and
 				replies.public = 1
 			order by replies.inserted desc limit $2 offset $3
 			`,
-			postID,
+			note.ID,
 			h.Config.RepliesPerPage,
 			offset,
 		)
@@ -556,7 +564,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		replies, err = h.DB.QueryContext(
 			r.Context,
 			`
-			select json(replies.object), json(persons.actor), null as sharer, replies.inserted, replies.nreplies, replies.nquotes, replies.nshares, null from
+			select replies.slug, json(replies.object), json(persons.actor), null as sharer, replies.inserted, replies.nreplies, replies.nquotes, replies.nshares, null from
 			notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
 			left join persons on persons.id = replies.author
 			where
@@ -583,7 +591,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				)
 			order by replies.inserted desc limit $3 offset $4
 			`,
-			postID,
+			note.ID,
 			r.User.ID,
 			h.Config.RepliesPerPage,
 			offset,

@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ limitations under the License.
 package front
 
 import (
+	"github.com/dimkr/tootik/proof"
 	"net/url"
 	"strings"
 	"time"
@@ -87,11 +88,11 @@ func (h *Handler) move(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := h.Inbox.Move(r.Context, r.User, r.Keys[1], actor.ID); err != nil {
+	if err := h.Inbox.Move(r.Context, r.User, proof.SigningKey(r.User.ID, r.Keys), actor.ID); err != nil {
 		r.Log.Error("Failed to move user", "error", err)
 		w.Error()
 		return
 	}
 
-	w.Redirect("/users/outbox/" + strings.TrimPrefix(actor.ID, "https://"))
+	w.Redirect("/users/outbox/" + idLink(actor.ID))
 }

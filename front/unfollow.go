@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package front
 import (
 	"database/sql"
 	"errors"
+	"github.com/dimkr/tootik/proof"
 
 	"github.com/dimkr/tootik/front/text"
 )
@@ -29,24 +30,24 @@ func (h *Handler) unfollow(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	followed := "https://" + args[1]
+	arg := args[1]
 
-	var followID string
-	if err := h.DB.QueryRowContext(r.Context, `select follows.id from persons join follows on persons.id = follows.followed where persons.id = ? and follows.follower = ?`, followed, r.User.ID).Scan(&followID); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.Warn("Cannot undo a non-existing follow", "followed", followed, "error", err)
+	var followed, followID string
+	if err := h.DB.QueryRowContext(r.Context, `select persons.id, follows.id from persons join follows on persons.id = follows.followed where (persons.id = 'https://' || $1 or persons.slug = $1) and follows.follower = $2`, arg, r.User.ID).Scan(&followed, &followID); err != nil && errors.Is(err, sql.ErrNoRows) {
+		r.Log.Warn("Cannot undo a non-existing follow", "followed", arg, "error", err)
 		w.Status(40, "No such follow")
 		return
 	} else if err != nil {
-		r.Log.Warn("Failed to find followed user", "followed", followed, "error", err)
+		r.Log.Warn("Failed to find followed user", "followed", arg, "error", err)
 		w.Error()
 		return
 	}
 
-	if err := h.Inbox.Unfollow(r.Context, r.User, r.Keys[1], followed, followID); err != nil {
+	if err := h.Inbox.Unfollow(r.Context, r.User, proof.SigningKey(r.User.ID, r.Keys), followed, followID); err != nil {
 		r.Log.Warn("Failed undo follow", "followed", followed, "error", err)
 		w.Error()
 		return
 	}
 
-	w.Redirect("/users/outbox/" + args[1])
+	w.Redirect("/users/outbox/" + arg)
 }

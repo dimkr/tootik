@@ -17,7 +17,6 @@ limitations under the License.
 package front
 
 import (
-	"strings"
 	"time"
 
 	"github.com/dimkr/tootik/dbx"
@@ -26,6 +25,7 @@ import (
 
 func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
 	rows, err := dbx.QueryCollectIgnore[struct {
+		Slug         string
 		ID, Username string
 		Last         int64
 	}](
@@ -36,8 +36,8 @@ func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
 			return true
 		},
 		`
-		select u.id, u.username, max(u.inserted) from (
-			select persons.id, persons.actor->>'preferredUsername' as username, shares.inserted from shares
+		select u.slug, u.id, u.username, max(u.inserted) from (
+			select persons.slug, persons.id, persons.actor->>'preferredUsername' as username, shares.inserted from shares
 			join persons
 			on
 				persons.id = shares.by
@@ -45,7 +45,7 @@ func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
 				persons.host = $1 and
 				persons.actor->>'$.type' = 'Group'
 			union all
-			select persons.id, persons.actor->>'preferredUsername' as username, notes.inserted from notes
+			select persons.slug, persons.id, persons.actor->>'preferredUsername' as username, notes.inserted from notes
 			join persons
 			on
 				persons.id = notes.author
@@ -54,7 +54,7 @@ func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
 				persons.actor->>'$.type' = 'Group'
 		) u
 		group by
-			u.id
+			u.slug
 		order by
 			max(u.inserted) desc
 		`,
@@ -76,9 +76,9 @@ func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
 
 	for _, row := range rows {
 		if r.User == nil {
-			w.Linkf("/outbox/"+strings.TrimPrefix(row.ID, "https://"), "%s %s", time.Unix(row.Last, 0).Format(time.DateOnly), row.Username)
+			w.Linkf("/outbox/"+link(row.ID, row.Slug), "%s %s", time.Unix(row.Last, 0).Format(time.DateOnly), row.Username)
 		} else {
-			w.Linkf("/users/outbox/"+strings.TrimPrefix(row.ID, "https://"), "%s %s", time.Unix(row.Last, 0).Format(time.DateOnly), row.Username)
+			w.Linkf("/users/outbox/"+link(row.ID, row.Slug), "%s %s", time.Unix(row.Last, 0).Format(time.DateOnly), row.Username)
 		}
 	}
 }

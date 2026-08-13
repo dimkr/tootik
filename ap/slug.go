@@ -1,5 +1,5 @@
 /*
-Copyright 2024 - 2026 Dima Krasner
+Copyright 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,17 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package front
+package ap
 
 import (
-	"github.com/dimkr/tootik/front/text"
+	"crypto/sha256"
+	"encoding/base64"
 )
 
-func me(w text.Writer, r *Request, args ...string) {
-	if r.User == nil {
-		w.Redirect("/users")
-		return
-	}
-
-	w.Redirect("/users/outbox/" + idLink(r.User.ID))
+func Slug(id string) string {
+	sum := sha256.Sum256([]byte(id))
+	return base64.RawURLEncoding.EncodeToString(sum[:9])
 }

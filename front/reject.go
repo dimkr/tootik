@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +20,8 @@ import (
 	"database/sql"
 	"errors"
 
+	"github.com/dimkr/tootik/proof"
+
 	"github.com/dimkr/tootik/front/text"
 )
 
@@ -29,33 +31,33 @@ func (h *Handler) reject(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	follower := "https://" + args[1]
+	arg := args[1]
 
 	tx, err := h.DB.BeginTx(r.Context, nil)
 	if err != nil {
-		r.Log.Warn("Failed to reject follow request", "follower", follower, "error", err)
+		r.Log.Warn("Failed to reject follow request", "follower", arg, "error", err)
 		w.Error()
 		return
 	}
 	defer tx.Rollback()
 
-	var followID string
+	var follower, followID string
 	if err := tx.QueryRowContext(
 		r.Context,
-		`SELECT id FROM follows WHERE follower = ? AND followed = ?`,
-		follower,
+		`SELECT follows.follower, follows.id FROM follows JOIN persons ON persons.id = follows.follower WHERE (persons.id = 'https://' || $1 OR persons.slug = $1) AND follows.followed = $2`,
+		arg,
 		r.User.ID,
-	).Scan(&followID); errors.Is(err, sql.ErrNoRows) {
-		r.Log.Warn("Failed to fetch follow request to reject", "follower", follower)
+	).Scan(&follower, &followID); errors.Is(err, sql.ErrNoRows) {
+		r.Log.Warn("Failed to fetch follow request to reject", "follower", arg)
 		w.Status(40, "No such follow request")
 		return
 	} else if err != nil {
-		r.Log.Warn("Failed to reject follow request", "follower", follower, "error", err)
+		r.Log.Warn("Failed to reject follow request", "follower", arg, "error", err)
 		w.Error()
 		return
 	}
 
-	if err := h.Inbox.Reject(r.Context, r.User, r.Keys[1], follower, followID, tx); err != nil {
+	if err := h.Inbox.Reject(r.Context, r.User, proof.SigningKey(r.User.ID, r.Keys), follower, followID, tx); err != nil {
 		r.Log.Warn("Failed to reject follow request", "follower", follower, "error", err)
 		w.Error()
 		return

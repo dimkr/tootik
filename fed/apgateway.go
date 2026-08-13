@@ -316,12 +316,13 @@ func (l *Listener) handleApGatewayContext(w http.ResponseWriter, r *http.Request
 	}
 
 	var postID string
-	var ed25519PrivKey []byte
+	var author ap.Actor
+	var ed25519PrivKey, mldsa44Seed []byte
 	if err := l.DB.QueryRowContext(
 		r.Context(),
-		`select notes.id, notes.author, persons.ed25519privkey from notes join persons on persons.id = notes.author where notes.object->>'$.context' = ? and notes.object->>'$.inReplyTo' is null and persons.ed25519privkey is not null`,
+		`select notes.id, notes.author, json(persons.actor), persons.ed25519privkey, persons.mldsa44seed from notes join persons on persons.id = notes.author where notes.object->>'$.context' = ? and notes.object->>'$.inReplyTo' is null and persons.ed25519privkey is not null`,
 		contextID,
-	).Scan(&postID, &collection.AttributedTo, &ed25519PrivKey); errors.Is(err, sql.ErrNoRows) {
+	).Scan(&postID, &collection.AttributedTo, &author, &ed25519PrivKey, &mldsa44Seed); errors.Is(err, sql.ErrNoRows) {
 		slog.Warn("Context does not exist", "id", contextID)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -368,10 +369,7 @@ func (l *Listener) handleApGatewayContext(w http.ResponseWriter, r *http.Request
 
 	var err error
 	collection.Proof, err = proof.Create(
-		httpsig.Key{
-			ID:         collection.AttributedTo + "#ed25519-key",
-			PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey),
-		},
+		proof.SigningSeed(&author, ed25519PrivKey, mldsa44Seed),
 		collection,
 	)
 	if err != nil {
