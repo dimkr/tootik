@@ -83,7 +83,7 @@ func NewResolver(blockedDomains *BlockList, domain string, cfg *cfg.Config, clie
 }
 
 // ResolveID retrieves an actor object by its ID.
-func (r *Resolver) ResolveID(ctx context.Context, keys [2]httpsig.Key, id string, flags ap.ResolverFlag) (*ap.Actor, error) {
+func (r *Resolver) ResolveID(ctx context.Context, keys [3]httpsig.Key, id string, flags ap.ResolverFlag) (*ap.Actor, error) {
 	if id == "" {
 		return nil, errors.New("empty ID")
 	}
@@ -109,7 +109,7 @@ func (r *Resolver) ResolveID(ctx context.Context, keys [2]httpsig.Key, id string
 }
 
 // Resolve retrieves an actor object by host and name.
-func (r *Resolver) Resolve(ctx context.Context, keys [2]httpsig.Key, host, name string, flags ap.ResolverFlag) (*ap.Actor, error) {
+func (r *Resolver) Resolve(ctx context.Context, keys [3]httpsig.Key, host, name string, flags ap.ResolverFlag) (*ap.Actor, error) {
 	if actor, err := r.validate(func() (*ap.Actor, *ap.Actor, error) { return r.tryResolve(ctx, keys, host, name, flags) }); err != nil {
 		return nil, err
 	} else if actor.Suspended {
@@ -202,7 +202,7 @@ func (r *Resolver) handleFetchFailure(ctx context.Context, fetched string, cache
 	return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", fetched, err)
 }
 
-func (r *Resolver) tryResolve(ctx context.Context, keys [2]httpsig.Key, host, name string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
+func (r *Resolver) tryResolve(ctx context.Context, keys [3]httpsig.Key, host, name string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
 	slog.Debug("Resolving actor", "host", host, "name", name)
 
 	if r.BlockedDomains != nil && r.BlockedDomains.Contains(host) {
@@ -351,7 +351,7 @@ func (r *Resolver) tryResolve(ctx context.Context, keys [2]httpsig.Key, host, na
 	return nil, cachedActor, fmt.Errorf("no profile link in %s response", finger)
 }
 
-func (r *Resolver) tryResolveID(ctx context.Context, keys [2]httpsig.Key, u *url.URL, id string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
+func (r *Resolver) tryResolveID(ctx context.Context, keys [3]httpsig.Key, u *url.URL, id string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
 	slog.Debug("Resolving actor", "id", id)
 
 	if r.BlockedDomains != nil && r.BlockedDomains.Contains(u.Host) {
@@ -444,7 +444,7 @@ func discoverCapabilities(implements []ap.Implement) ap.Capability {
 	return capabilities
 }
 
-func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, profile string, cachedActor *ap.Actor, sinceLastUpdate time.Duration) (*ap.Actor, *ap.Actor, error) {
+func (r *Resolver) fetchActor(ctx context.Context, keys [3]httpsig.Key, host, profile string, cachedActor *ap.Actor, sinceLastUpdate time.Duration) (*ap.Actor, *ap.Actor, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, profile, nil)
 	if err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to send request to %s: %w", profile, err)
@@ -545,7 +545,7 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [2]httpsig.Key, host, pr
 	}
 
 	if m := ap.GatewayURLRegex.FindStringSubmatch(actor.ID); m != nil {
-		publicKey, err := data.DecodeEd25519PublicKey(m[1])
+		publicKey, err := data.DecodePublicKey(m[1])
 		if err != nil {
 			return nil, cachedActor, fmt.Errorf("failed to parse key %s for %s to verify proof: %w", m[1], actor.ID, err)
 		}

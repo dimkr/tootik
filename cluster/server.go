@@ -48,7 +48,7 @@ type Server struct {
 	Config       *cfg.Config
 	DB           *sql.DB
 	Resolver     *fed.Resolver
-	AppActorKeys [2]httpsig.Key
+	AppActorKeys [3]httpsig.Key
 	Frontend     gemini.Listener
 	Cache        *sync.Map
 	Backend      http.Handler

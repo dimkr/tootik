@@ -25,6 +25,7 @@ import (
 	"log/slog"
 	"net/url"
 
+	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text/gmi"
 	"github.com/dimkr/tootik/httpsig"
@@ -39,10 +40,10 @@ func (h *Handler) Shell(ctx context.Context, user, domain string) error {
 	}
 
 	var actor ap.Actor
-	var rsaPrivKeyDer, ed25519PrivKey []byte
+	var rsaPrivKeyDer, ed25519PrivKey, mldsa44Seed []byte
 	if err := h.DB.QueryRowContext(
 		ctx,
-		`select json(actor), rsaprivkey, ed25519privkey from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null`,
+		`select json(actor), rsaprivkey, ed25519privkey, mldsa44seed from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null`,
 		user,
 	).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey); err != nil {
 		panic(err)
@@ -52,6 +53,8 @@ func (h *Handler) Shell(ctx context.Context, user, domain string) error {
 	if err != nil {
 		panic(err)
 	}
+
+	_, mldsa44Priv := mldsa44.NewKeyFromSeed((*[32]byte)(mldsa44Seed))
 
 	var buf bytes.Buffer
 
@@ -65,9 +68,10 @@ func (h *Handler) Shell(ctx context.Context, user, domain string) error {
 				URL:     u,
 				Log:     slog.Default(),
 				User:    &actor,
-				Keys: [2]httpsig.Key{
+				Keys: [3]httpsig.Key{
 					{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
 					{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)},
+					{ID: actor.AssertionMethod[1].ID, PrivateKey: mldsa44Priv},
 				},
 			},
 			w,

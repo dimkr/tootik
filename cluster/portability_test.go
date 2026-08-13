@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text/gmi"
@@ -280,6 +281,94 @@ func TestCluster_ClientSideSigningInboxHappyFlow(t *testing.T) {
 	}
 
 	create.Proof, err = proof.Create(httpsig.Key{ID: actorID + "#ed25519-key", PrivateKey: priv}, create)
+	if err != nil {
+		t.Fatalf("Failed to generate proof: %v", err)
+	}
+
+	j, err := json.Marshal(create)
+	if err != nil {
+		t.Fatalf("Failed to marshal activity: %v", err)
+	}
+
+	r, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://c.localdomain/inbox", bytes.NewReader(j))
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	var w responseWriter
+	cluster["c.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusAccepted {
+		t.Fatalf("Failed to process activity: %d", w.StatusCode)
+	}
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hi"})
+
+	cluster.Settle(t)
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
+}
+
+func TestCluster_MLDSA44ClientSideSigningInboxHappyFlow(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
+
+	pub, priv, err := mldsa44.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+	registerPortable := "/users/register?" + data.EncodeMLDSA44PrivateKey(priv)
+
+	did := "did:key:" + data.EncodeMLDSA44Publickey(pub)
+
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["c.localdomain"].Handle(carolKeypair, registerPortable).OK()
+
+	alice.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "c.localdomain").
+		OK()
+
+	carol.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "a.localdomain").
+		OK()
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	cluster.Settle(t)
+
+	actorID := "https://a.localdomain/.well-known/apgateway/" + did + "/actor"
+
+	to := ap.Audience{}
+	to.Add(ap.Public)
+
+	create := &ap.Activity{
+		Type:      ap.Create,
+		ID:        actorID + "/create/1",
+		Actor:     actorID,
+		To:        to,
+		CC:        to,
+		Published: ap.Time{Time: time.Now()},
+		Object: &ap.Object{
+			Type:         ap.Note,
+			ID:           actorID + "/note/1",
+			Content:      "hi",
+			AttributedTo: actorID,
+			To:           to,
+			CC:           to,
+		},
+	}
+
+	create.Proof, err = proof.Create(httpsig.Key{ID: actorID + "#ml-dsa-44-key", PrivateKey: priv}, create)
 	if err != nil {
 		t.Fatalf("Failed to generate proof: %v", err)
 	}

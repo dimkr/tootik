@@ -19,7 +19,6 @@ package fed
 import (
 	"context"
 	"crypto"
-	"crypto/ed25519"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
@@ -37,7 +36,7 @@ import (
 
 var errNoKeyInKeyID = errors.New("key origin does not contain a key")
 
-func getKeyByID(actor *ap.Actor, keyID string) (ed25519.PublicKey, error) {
+func getKeyByID(actor *ap.Actor, keyID string) (crypto.PublicKey, error) {
 	for _, key := range actor.AssertionMethod {
 		if key.ID != keyID {
 			continue
@@ -51,7 +50,7 @@ func getKeyByID(actor *ap.Actor, keyID string) (ed25519.PublicKey, error) {
 			continue
 		}
 
-		raw, err := data.DecodeEd25519PublicKey(key.PublicKeyMultibase)
+		raw, err := data.DecodePublicKey(key.PublicKeyMultibase)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse %s: %w", key.ID, err)
 		}
@@ -91,7 +90,7 @@ func (l *Listener) verifyEd25519RequestSignatureUsingKeyID(sig *httpsig.Signatur
 		return "", errors.New("key origin is not portable")
 	}
 
-	raw, err := data.DecodeEd25519PublicKey(m[1])
+	raw, err := data.DecodePublicKey(m[1])
 	if err != nil {
 		return "", fmt.Errorf("failed to parse %s: %w", sig.KeyID, err)
 	}
@@ -113,7 +112,7 @@ func (l *Listener) verifyRequestUsingKeyID(r *http.Request, body []byte) (*https
 	return sig, key, err
 }
 
-func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.ResolverFlag, keys [2]httpsig.Key) (*httpsig.Signature, *ap.Actor, error) {
+func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.ResolverFlag, keys [3]httpsig.Key) (*httpsig.Signature, *ap.Actor, error) {
 	sig, err := l.extractRequestSignature(r, body)
 	if err != nil {
 		return nil, nil, err
@@ -168,14 +167,14 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 	return sig, actor, nil
 }
 
-func (l *Listener) verifyProof(ctx context.Context, activity *ap.Activity, raw []byte, flags ap.ResolverFlag, keys [2]httpsig.Key) (*ap.Actor, error) {
+func (l *Listener) verifyProof(ctx context.Context, activity *ap.Activity, raw []byte, flags ap.ResolverFlag, keys [3]httpsig.Key) (*ap.Actor, error) {
 	if m := ap.KeyRegex.FindStringSubmatch(activity.Proof.VerificationMethod); m != nil {
 		if m2 := ap.GatewayURLRegex.FindStringSubmatch(activity.Actor); m2 != nil {
 			if m2[1] != m[1] {
 				return nil, fmt.Errorf("key %s does not belong to %s", m[1], activity.Actor)
 			}
 
-			publicKey, err := data.DecodeEd25519PublicKey(m[1])
+			publicKey, err := data.DecodePublicKey(m[1])
 			if err != nil {
 				return nil, fmt.Errorf("failed to decode key %s to verify proof: %w", activity.Proof.VerificationMethod, err)
 			}

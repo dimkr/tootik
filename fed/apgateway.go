@@ -30,6 +30,7 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/data"
@@ -43,8 +44,8 @@ var apGatewayPathRegex = regexp.MustCompile(`\/.well-known\/apgateway\/(did:key:
 
 func (l *Listener) handleApGatewayInboxPost(w http.ResponseWriter, r *http.Request, did string) {
 	var actor ap.Actor
-	var rsaPrivKeyDer, ed25519PrivKey []byte
-	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519privkey from persons where cid = 'ap://' || ? || '/actor' and ed25519privkey is not null`, did).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey); errors.Is(err, sql.ErrNoRows) {
+	var rsaPrivKeyDer, ed25519PrivKey, mldsa44Seed []byte
+	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519privkey, mldsa44seed from persons where cid = 'ap://' || ? || '/actor' and ed25519privkey is not null`, did).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey, &mldsa44Seed); errors.Is(err, sql.ErrNoRows) {
 		slog.Debug("Receiving user does not exist", "did", did)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -61,9 +62,12 @@ func (l *Listener) handleApGatewayInboxPost(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	l.doHandleInbox(w, r, [2]httpsig.Key{
+	_, mldsa44Priv := mldsa44.NewKeyFromSeed((*[mldsa44.SeedSize]byte)(mldsa44Seed))
+
+	l.doHandleInbox(w, r, [3]httpsig.Key{
 		{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
 		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)},
+		{ID: actor.AssertionMethod[1].ID, PrivateKey: mldsa44Priv},
 	})
 }
 
@@ -115,7 +119,7 @@ func (l *Listener) handleApGatewayOutboxPost(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	publicKey, err := data.DecodeEd25519PublicKey(expectedPublicKey)
+	publicKey, err := data.DecodePublicKey(expectedPublicKey)
 	if err != nil {
 		slog.Warn("Failed to decode key to verify proof", "activity", activity.ID, "error", err)
 		w.WriteHeader(http.StatusForbidden)

@@ -1,5 +1,5 @@
 /*
-Copyright 2024 - 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ const (
 
 // Resolver retrieves [Actor], [Object] and [Activity] objects.
 type Resolver interface {
-	ResolveID(ctx context.Context, keys [2]httpsig.Key, id string, flags ResolverFlag) (*Actor, error)
-	Resolve(ctx context.Context, keys [2]httpsig.Key, host, name string, flags ResolverFlag) (*Actor, error)
-	Get(ctx context.Context, keys [2]httpsig.Key, url string) (*http.Response, error)
+	ResolveID(ctx context.Context, keys [3]httpsig.Key, id string, flags ResolverFlag) (*Actor, error)
+	Resolve(ctx context.Context, keys [3]httpsig.Key, host, name string, flags ResolverFlag) (*Actor, error)
+	Get(ctx context.Context, keys [3]httpsig.Key, url string) (*http.Response, error)
 }

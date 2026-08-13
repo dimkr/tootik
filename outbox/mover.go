@@ -32,7 +32,7 @@ type Mover struct {
 	Domain   string
 	DB       *sql.DB
 	Resolver ap.Resolver
-	Keys     [2]httpsig.Key
+	Keys     [3]httpsig.Key
 	Inbox    ap.Inbox
 }
 

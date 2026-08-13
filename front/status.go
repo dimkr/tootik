@@ -95,25 +95,28 @@ func (h *Handler) getActiveUsersGraph(r *Request) string {
 }
 
 func (h *Handler) getInstanceCapabilitiesGraph(r *Request) string {
-	keys := make([]string, 6)
-	values := make([]int64, 6)
+	keys := make([]string, 7)
+	values := make([]int64, 7)
 	return h.getGraph(
 		r,
 		keys,
 		values,
 		`
-		select 'RFC9421 with Ed25519', (select count(*) from servers where capabilities & $1 > 0)
+		select 'RFC9421 with ML-DSA-44', (select count(*) from servers where capabilities & $1 > 0)
 		union all
-		select 'RFC9421 with RSA but without Ed25519', (select count(*) from servers where capabilities & ($1 | $2) = $2)
+		select 'RFC9421 with Ed25519', (select count(*) from servers where capabilities & $2 > 0)
 		union all
-		select 'RFC9421 without draft-cavage-http-signatures', (select count(*) from servers where capabilities & $3 = 0 and capabilities & ($1 | $2) > 0)
+		select 'RFC9421 with RSA but without Ed25519 or ML-DSA-44', (select count(*) from servers where capabilities & ($1 | $2 | $3) = $3)
 		union all
-		select 'draft-cavage-http-signatures without RFC9421', (select count(*) from servers where capabilities & $3 > 0 and capabilities & ($1 | $2) = 0)
+		select 'RFC9421 without draft-cavage-http-signatures', (select count(*) from servers where capabilities & $4 = 0 and capabilities & ($1 | $2 | $3) > 0)
 		union all
-		select 'draft-cavage-http-signatures', (select count(*) from servers where capabilities & $3 > 0)
+		select 'draft-cavage-http-signatures without RFC9421', (select count(*) from servers where capabilities & $4 > 0 and capabilities & ($1 | $2 | $3) = 0)
+		union all
+		select 'draft-cavage-http-signatures', (select count(*) from servers where capabilities & $4 > 0)
 		union all
 		select 'Total', (select count(*) from servers)
 		`,
+		ap.RFC9421MLDSA44Signatures,
 		ap.RFC9421Ed25519Signatures,
 		ap.RFC9421RSASignatures,
 		ap.CavageDraftSignatures,

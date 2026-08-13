@@ -30,6 +30,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/data"
@@ -68,7 +69,7 @@ func (l *Listener) getActivityOrigin(activity *ap.Activity, sender *ap.Actor) (s
 	return activityOrigin, senderOrigin, senderHost, nil
 }
 
-func (l *Listener) fetchObject(ctx context.Context, id string, keys [2]httpsig.Key) (bool, []byte, error) {
+func (l *Listener) fetchObject(ctx context.Context, id string, keys [3]httpsig.Key) (bool, []byte, error) {
 	resp, err := l.Resolver.Get(ctx, keys, id)
 	if err != nil {
 		if resp != nil && (resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone) {
@@ -119,7 +120,7 @@ func (l *Listener) fetchObject(ctx context.Context, id string, keys [2]httpsig.K
 		return true, nil, fmt.Errorf("key %s does not belong to %s", m[1], origin)
 	}
 
-	publicKey, err := data.DecodeEd25519PublicKey(m[1])
+	publicKey, err := data.DecodePublicKey(m[1])
 	if err != nil {
 		return true, nil, fmt.Errorf("failed to verify proof using %s: %w", withProof.Proof.VerificationMethod, err)
 	}
@@ -139,8 +140,8 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 	receiver := r.PathValue("username")
 
 	var actor ap.Actor
-	var rsaPrivKeyDer, ed25519PrivKey []byte
-	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519privkey from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null`, receiver).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey); errors.Is(err, sql.ErrNoRows) {
+	var rsaPrivKeyDer, ed25519PrivKey, mldsa44Seed []byte
+	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519privkey, mldsa44seed from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null`, receiver).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey, &mldsa44Seed); errors.Is(err, sql.ErrNoRows) {
 		slog.Debug("Receiving user does not exist", "receiver", receiver)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -157,13 +158,16 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	l.doHandleInbox(w, r, [2]httpsig.Key{
+	_, mldsa44Priv := mldsa44.NewKeyFromSeed((*[mldsa44.SeedSize]byte)(mldsa44Seed))
+
+	l.doHandleInbox(w, r, [3]httpsig.Key{
 		{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
 		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)},
+		{ID: actor.AssertionMethod[1].ID, PrivateKey: mldsa44Priv},
 	})
 }
 
-func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2]httpsig.Key) {
+func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [3]httpsig.Key) {
 	if r.ContentLength > l.Config.MaxRequestBodySize {
 		slog.Warn("Ignoring big request", "size", r.ContentLength)
 		w.WriteHeader(http.StatusRequestEntityTooLarge)
@@ -443,6 +447,8 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 			capabilities = ap.RFC9421RSASignatures
 		case "ed25519":
 			capabilities = ap.RFC9421Ed25519Signatures
+		case "ml-dsa-44":
+			capabilities = ap.RFC9421MLDSA44Signatures
 		}
 	}
 

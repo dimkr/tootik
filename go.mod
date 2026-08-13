@@ -4,6 +4,7 @@ go 1.26.5
 
 require (
 	github.com/btcsuite/btcutil v1.0.2
+	github.com/cloudflare/circl v1.6.5
 	github.com/creack/pty v1.1.24
 	github.com/dimkr/slopline v0.0.0-20260327144222-f21b275f569f
 	github.com/fsnotify/fsnotify v1.10.1

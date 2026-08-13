@@ -32,6 +32,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/danger"
@@ -54,7 +55,7 @@ type deliveryJob struct {
 
 type deliveryTask struct {
 	Job     deliveryJob
-	Keys    [2]httpsig.Key
+	Keys    [3]httpsig.Key
 	Request *http.Request
 	Inbox   string
 }
@@ -91,11 +92,11 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	slog.Debug("Polling delivery queue")
 
 	rows, err := dbx.QueryCollectCountIgnore[struct {
-		DeliveryAttempts              int
-		Activity                      ap.Activity
-		RawActivity                   string
-		Actor                         ap.Actor
-		RsaPrivKeyDer, Ed25519PrivKey []byte
+		DeliveryAttempts                           int
+		Activity                                   ap.Activity
+		RawActivity                                string
+		Actor                                      ap.Actor
+		RsaPrivKeyDer, Ed25519PrivKey, MLDSA44Seed []byte
 	}](
 		ctx,
 		q.DB,
@@ -104,7 +105,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			slog.Error("Failed to fetch post to deliver", "error", err)
 			return true
 		},
-		`select outbox.attempts, json(outbox.activity) as x, json(outbox.activity) as y, json(persons.actor), persons.rsaprivkey, persons.ed25519privkey from
+		`select outbox.attempts, json(outbox.activity) as x, json(outbox.activity) as y, json(persons.actor), persons.rsaprivkey, persons.ed25519privkey, persons.mldsa44seed from
 		outbox
 		join persons
 		on
@@ -175,9 +176,12 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			continue
 		}
 
-		keys := [2]httpsig.Key{
+		_, mldsa44Priv := mldsa44.NewKeyFromSeed((*[32]byte)(row.MLDSA44Seed))
+
+		keys := [3]httpsig.Key{
 			{ID: row.Actor.PublicKey.ID, PrivateKey: rsaPrivKey},
 			{ID: row.Actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(row.Ed25519PrivKey)},
+			{ID: row.Actor.AssertionMethod[1].ID, PrivateKey: mldsa44Priv},
 		}
 
 		if _, err := q.DB.ExecContext(
@@ -318,7 +322,7 @@ func (q *Queue) consume(ctx context.Context, requests <-chan *deliveryTask, even
 func (q *Queue) queueTask(
 	ctx context.Context,
 	job deliveryJob,
-	keys [2]httpsig.Key,
+	keys [3]httpsig.Key,
 	inbox, contentLength string,
 	followers *partialFollowers,
 	tasks []chan *deliveryTask,
@@ -361,7 +365,7 @@ func (q *Queue) queueTask(
 func (q *Queue) queueTasks(
 	ctx context.Context,
 	job deliveryJob,
-	keys [2]httpsig.Key,
+	keys [3]httpsig.Key,
 	followers *partialFollowers,
 	tasks []chan *deliveryTask,
 	events chan<- deliveryEvent,

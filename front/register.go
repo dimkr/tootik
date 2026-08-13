@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,8 +20,10 @@ import (
 	"crypto/ed25519"
 	"crypto/tls"
 	"database/sql"
+	"reflect"
 	"time"
 
+	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
@@ -116,16 +118,24 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 		}
 
 	default:
-		key, err := data.DecodeEd25519PrivateKey(r.URL.RawQuery)
+		key, err := data.DecodePrivateKey(r.URL.RawQuery)
 		if err != nil {
 			r.Log.Warn("Failed to decode Ed25519 private key", "name", userName, "error", err)
 			w.Statusf(40, "Invalid key: %s", err.Error())
 			return
 		}
 
-		if _, _, err := user.CreatePortableWithKey(r.Context, h.Domain, h.DB, h.Config, userName, ap.Person, clientCert, key, key.Public().(ed25519.PublicKey)); err != nil {
-			r.Log.Warn("Failed to create new portable user", "name", userName, "error", err)
-			w.Status(40, "Failed to create new user")
+		switch v := key.(type) {
+		case ed25519.PrivateKey, *mldsa44.PrivateKey:
+			if _, _, err := user.CreatePortableWithKey(r.Context, h.Domain, h.DB, h.Config, userName, ap.Person, clientCert, v); err != nil {
+				r.Log.Warn("Failed to create new portable user", "name", userName, "error", err)
+				w.Status(40, "Failed to create new user")
+				return
+			}
+
+		default:
+			r.Log.Warn("Key type is unsupported", "name", userName, "type", reflect.TypeOf(key).String())
+			w.Status(40, "Invalid key type")
 			return
 		}
 	}
