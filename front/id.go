@@ -23,7 +23,7 @@ import (
 )
 
 func idLink(id string) string {
-	if !ap.IsPortable(id) {
+	if len(id) < 64 {
 		return strings.TrimPrefix(id, "https://")
 	}
 
