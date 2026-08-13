@@ -456,7 +456,7 @@ func (c *Config) FillDefaults() {
 	}
 
 	if c.MLDSA44Threshold <= 0 || c.MLDSA44Threshold > 1 {
-		c.MLDSA44Threshold = 0.01
+		c.MLDSA44Threshold = 0.998
 	}
 
 	if c.MaxGateways <= 0 {
