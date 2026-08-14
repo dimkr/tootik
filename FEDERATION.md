@@ -245,7 +245,7 @@ The response points to a `https://` gateway that returns the actor object:
 }
 ```
 
-Portable actors have both Ed25519 and RSA keys, allowing them to interact with actors on ActivityPub servers that don't support Ed25519 signatures.
+Portable actors have, RSA, Ed25519 and ML-DSA-44 keys, allowing them to interact with actors on a wide range of ActivityPub servers.
 
 In addition, portable actors carry an [FEP-8b32](https://codeberg.org/fediverse/fep/src/branch/main/fep/8b32/fep-8b32.md) integrity proof, allowing other servers to securely determine which servers were "approved" by the owner of `ap://did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor`.
 
@@ -253,11 +253,11 @@ Moreover, all objects and activities owned by a portable actor contain an integr
 
 ## Delivery
 
-When tootik receives a `POST` request to `inbox` from a portable actor, it requires a valid [FEP-8b32](https://codeberg.org/fediverse/fep/src/branch/main/fep/8b32/fep-8b32.md) integrity proof generated using the actor's Ed25519 key and ability to fetch the actor, if not cached.
+When tootik receives a `POST` request to `inbox` from a portable actor, it requires a valid [FEP-8b32](https://codeberg.org/fediverse/fep/src/branch/main/fep/8b32/fep-8b32.md) integrity proof generated using the private key that matches the DID, and ability to fetch the actor, if not cached.
 
-tootik validates the integrity proof using the Ed25519 public key extracted from the key ID, and doesn't need to fetch the actor first.
+tootik validates the integrity proof using the public key extracted from the key ID, and doesn't need to fetch the actor first.
 
-tootik's `inbox` doesn't validate HTTP signatures and simply ignores them when the sender is a portable actor. Other servers might do the same, therefore automatic detection of RFC9421 and Ed25519 support on other servers ignores `200 OK` or `202 Accepted` responses from `/.well-known/apgateway`.
+tootik's `inbox` doesn't validate HTTP signatures and simply ignores them when the sender is a portable actor. Other servers might do the same, therefore automatic detection of RFC9421 and Ed25519 or ML-DSA-44 support on other servers ignores `200 OK` or `202 Accepted` responses from `/.well-known/apgateway`.
 
 tootik forwards posts by actors that share the same DID with a local actor, and replies in threads started by such actors.
 
@@ -278,4 +278,4 @@ When tootik forwards activities, it assumes that other servers use the same URL 
 * tootik does not support `ap://` identifiers and location hints.
 * tootik assumes that activity and object IDs don't change: for example, it assumes that `Update` activities for portable posts preserve the `id` field of the original object. This matches the expectation of servers that don't support data portability and simplifies the implementation.
 * tootik provides limited support for fetching of objects (like posts) and activities from `/.well-known/apgateway`: replication of data across all actors with the same canonical ID is primarily achieved using forwarding.
-* The RSA key under `publicKey` is generated during registration, so different actors owned by the same DID will use different RSA keys when they talk to servers that don't support Ed25519 signatures. Therefore, servers that cache only one RSA key for two actors with the same canonical ID (which shouldn't exist) might fail to validate some signatures.
+* The RSA key under `publicKey` is generated during registration, so different actors owned by the same DID will use different RSA keys when they talk to servers that don't support Ed25519 and ML-DSA-44 signatures. Therefore, servers that cache only one RSA key for two actors with the same canonical ID (which shouldn't exist) might fail to validate some signatures.
