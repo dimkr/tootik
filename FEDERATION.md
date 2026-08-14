@@ -31,7 +31,7 @@ tootik's UI treats `Group` actors differently: `/outbox/$group` hides replies an
 tootik implements [draft-cavage-http-signatures](https://datatracker.ietf.org/doc/html/draft-cavage-http-signatures) but only partially:
 * It ignores query
 * It always uses `rsa-sha256` and puts `algorithm="rsa-sha256"` in outgoing requests
-* It `algorithm` is specified in an incoming request, it must be `rsa-sha256` or `hs2019`
+* If `algorithm` is specified in an incoming request, it must be `rsa-sha256` or `hs2019`
 * It validates `Host`, `Date` (see `MaxRequestAge`) and `Digest`
 * Validation ensures that key size is between 2048 and 8192
 * Incoming `POST` requests must have at least `headers="(request-target) host date digest"`
@@ -47,13 +47,16 @@ In addition, tootik partially implements [RFC9421](https://datatracker.ietf.org/
 * All other incoming requests must have at least `("@method" "@target-uri")`
 * If query is not empty, `@query` must be signed
 
-tootik's actors have a traditional RSA key under `publicKey`, plus an Ed25519 key and a post-quantum ML-DSA-44 key under `assertionMethod`, as described in [FEP-521a](https://codeberg.org/fediverse/fep/src/branch/main/fep/521a/fep-521a.md).
+tootik's actors have a traditional RSA key under `publicKey` and two keys under `assertionMethod` (see [FEP-521a](https://codeberg.org/fediverse/fep/src/branch/main/fep/521a/fep-521a.md)): Ed25519 and ML-DSA-44.
 
 By default, tootik uses `draft-cavage-http-signatures` when it signs outgoing requests. It starts using RFC9421 (with Ed25519 or ML-DSA-44, if possible) when talking to a particular server once these capabilities are 'discovered' in one of several ways:
 * When at least one actor on the server advertises support for these capabilities using [FEP-844e](https://codeberg.org/fediverse/fep/src/branch/main/fep/844e/fep-844e.md); tootik assumes this information is true although it's perfectly possible for a server to be behind a reverse proxy that drops the `Signature-Input` header
 * It remembers which servers responded with `200 OK` or `202 Accepted` to a `POST` request signed with RFC9421, Ed25519 or ML-DSA-44
-* When it accepts a RFC9421-signed (with or without Ed25519) request from another server, it assumes this server also supports incoming requests signed like this
-* It does **not** implement ['double-knocking'](https://swicg.github.io/activitypub-http-signature/#how-to-upgrade-supported-versions) to detect RFC9421 support, because it's uncommon and this mechanism is very likely to double the number of outgoing requests; instead, tootik randomly (see `RFC9421Threshold`, `Ed25519Threshold` and `MLDSA44Threshold`) tries RFC9421, Ed25519 and ML-DSA-44 in `POST` requests to servers that still haven't advertised or demonstrated support, to prevent deadlock if these servers are waiting too, and randomly refuses `draft-cavage-http-signatures` signatures (see `CavageDraftFailureThreshold`) in `POST` requests to encourage other servers to retry with RFC9421
+* When it accepts a RFC9421-signed (with or without Ed25519 or ML-DSA-44) request from another server, it assumes this server also supports incoming requests signed like this
+
+tootik does **not** implement ['double-knocking'](https://swicg.github.io/activitypub-http-signature/#how-to-upgrade-supported-versions) to detect RFC9421 support, because it's uncommon and this mechanism is very likely to double the number of outgoing requests. Instead, it breaks the deadlock from both ends:
+* It occasionally (see `RFC9421Threshold`, `Ed25519Threshold` and `MLDSA44Threshold`) signs outgoing `POST` requests with RFC9421, Ed25519 or ML-DSA-44, to prevent deadlock if another server is waiting instead of advertising or demonstrating support
+* It occasionally (see `CavageDraftFailureThreshold`) rejects incoming, `draft-cavage-http-signatures`-signed `POST` requests with `401 Unauthorized`, to encourage other servers to retry with RFC9421
 
 ## Collections
 
@@ -151,7 +154,7 @@ By default, tootik omits user and post counters unless `FillNodeInfoUsage` is ch
 
 # Data Portability
 
-tootik partially supports [FEP-ef61](https://codeberg.org/fediverse/fep/src/branch/main/fep/ef61/fep-ef61.md) portable actors, activities and objects, and extends it by supporting DIDs constructed using base64url-encoded ML-DSA-44 keys.
+tootik partially supports [FEP-ef61](https://codeberg.org/fediverse/fep/src/branch/main/fep/ef61/fep-ef61.md) portable actors, activities and objects.
 
 If
 * `alice@a.localdomain` is `https://a.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor`
@@ -171,11 +174,11 @@ Support for data portability comes into play in 5 main areas:
 
 Since v0.21.0, tootik no longer offers choice between 'traditional' and portable actors: all newly registered users are portable actors.
 
-All portable actors have both Ed25519 and ML-DSA-44 keys.
+All portable actors have both Ed25519 and ML-DSA-44 keys. By default, tootik generates both, but it allows the user to supply a base58-encoded Ed25519 or base64url-encoded ML-DSA-44 private key during registration. This key determines the DID, while the other key is generated. Like the user's `preferredUsername`, this key must be unique per tootik instance.
 
-tootik allows the user to supply a base58-encoded Ed25519 or base64url-encoded ML-DSA-44 private key during registration, instead of using a randomly generated `did:key:z6Mk...` DID. The key, like the user's `preferredUsername`, must be unique per tootik instance. Users created by providing a ML-DSA-44 key use [`mldsa44-jcs-2024`](https://www.w3.org/TR/vc-di-quantum-resistant-1.0/#cryptosuite-mldsa44-jcs-2024) integrity proofs, while others use `eddsa-jcs-2022`.
+Note that use of ML-DSA-44 DIDs may hinder interoperability, as it produces `did:key:ukC...` DIDs (forbidden by [FEP-ef61](https://codeberg.org/fediverse/fep/src/branch/main/fep/ef61/fep-ef61.md) at the time of writing), [`mldsa44-jcs-2024`](https://www.w3.org/TR/vc-di-quantum-resistant-1.0/#cryptosuite-mldsa44-jcs-2024) integrity proofs and large objects other servers may reject.
 
-No matter if the key was generated by tootik or provided by the user, the user can recover it through the settings page.
+No matter what key was used to derive the DID, the user can recover it through the settings page.
 
 tootik does not support the [FEP-ae97](https://codeberg.org/fediverse/fep/src/branch/main/fep/ae97/fep-ae97.md) registration flow.
 
