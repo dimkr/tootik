@@ -45,7 +45,7 @@ func EncodeEd25519PublicKey(key ed25519.PublicKey) string {
 
 // EncodeMLDSA44PrivateKey encodes a ML-DSA-44 private key.
 func EncodeMLDSA44PrivateKey(key *mldsa44.PrivateKey) string {
-	return "u" + base64.RawURLEncoding.EncodeToString(append([]byte{0x13, 0x1a}, key.Seed()...))
+	return "u" + base64.RawURLEncoding.EncodeToString(append([]byte{0x9a, 0x26}, key.Seed()...))
 }
 
 // EncodeMLDSA44Publickey encodes a ML-DSA-44 public key.
@@ -77,7 +77,7 @@ func DecodePrivateKey(key string) (PrivateKey, error) {
 
 	if len(rawKey) == 2+ed25519.SeedSize && rawKey[0] == 0x80 && rawKey[1] == 0x26 {
 		return ed25519.NewKeyFromSeed(rawKey[2:]), nil
-	} else if len(rawKey) == 2+mldsa44.SeedSize && rawKey[0] == 0x13 && rawKey[1] == 0x1a {
+	} else if len(rawKey) == 2+mldsa44.SeedSize && rawKey[0] == 0x9a && rawKey[1] == 0x26 {
 		_, priv := mldsa44.NewKeyFromSeed((*[mldsa44.SeedSize]byte)(rawKey[2:]))
 		return priv, nil
 	} else if len(rawKey) >= 2 {
