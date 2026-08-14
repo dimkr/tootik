@@ -22,18 +22,28 @@ import (
 	"regexp"
 )
 
-// MLDSA44Prefix is the prefix of base64url-encoded ML-DSA-44 public keys.
-const MLDSA44Prefix = "ukC"
+const (
+	ed25519PubBase58 = `z6Mk[a-km-zA-HJ-NP-Z1-9]{44}`
+	ed25519PubBase64 = `u7Q[A-Za-z0-9_-]{44}`
+
+	mldsa44PubBase58 = `z4sd[a-km-zA-HJ-NP-Z1-9]{1000}[a-km-zA-HJ-NP-Z1-9]{792}`
+
+	// MLDSA44PubBase64 matches a base64url-encoded ML-DSA-44 public key.
+	MLDSA44PubBase64 = `ukC[A-Za-z0-9_-]{1000}[A-Za-z0-9_-]{750}`
+
+	// PortableActorPubPattern matches public keys in portable actor did:key DIDs.
+	PortableActorPubPattern = ed25519PubBase58 + `|` + MLDSA44PubBase64
+)
 
 var (
-	// KeyRegex matches a Multibase-encoded Ed25519 or ML-DSA-44 public key.
-	KeyRegex = regexp.MustCompile(`\b(z(?:6Mk|4sd)[a-km-zA-HJ-NP-Z1-9]+|u(?:7Q|kC)[A-Za-z0-9_-]+)`)
+	// KeyRegex matches any Multibase-encoded public key.
+	KeyRegex = regexp.MustCompile(`\b(` + PortableActorPubPattern + `|` + ed25519PubBase64 + `|` + mldsa44PubBase58 + `)(?:[\/#?]|$)`)
 
 	// apURLRegex matches an ap:// URL.
-	apURLRegex = regexp.MustCompile(`^ap:\/\/did:key:(z6Mk[a-km-zA-HJ-NP-Z1-9]+|ukC[A-Za-z0-9_-]+)([\/#?].*)?`)
+	apURLRegex = regexp.MustCompile(`^ap:\/\/did:key:(` + PortableActorPubPattern + `)([\/#?].*|$)`)
 
 	// GatewayURLRegex matches an https:// gateway URL.
-	GatewayURLRegex = regexp.MustCompile(`^https:\/\/[a-z0-9-]+(?:\.[a-z0-9-]+)+\/\.well-known\/apgateway\/did:key:(z6Mk[a-km-zA-HJ-NP-Z1-9]+|ukC[A-Za-z0-9_-]+)([\/#?].*)?`)
+	GatewayURLRegex = regexp.MustCompile(`^https:\/\/[a-z0-9-]+(?:\.[a-z0-9-]+)+\/\.well-known\/apgateway\/did:key:(` + PortableActorPubPattern + `)([\/#?].*|$)`)
 )
 
 // IsPortable determines whether or not an ActivityPub ID is portable.

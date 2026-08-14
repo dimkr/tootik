@@ -124,7 +124,7 @@ func insertActor(
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT OR IGNORE INTO keys (id, actor) VALUES ($1, $2), ($1, $3), ($1, $4)`,
+		`INSERT OR IGNORE INTO keys (actor, id) VALUES ($1, $2), ($1, $3), ($1, $4)`,
 		actor.ID,
 		actor.PublicKey.ID,
 		actor.AssertionMethod[0].ID,
@@ -215,6 +215,9 @@ func CreatePortableWithKey(
 		mldsa44PubMultibase = data.EncodeMLDSA44Publickey(mldsa44Pub)
 		ed25519PubMultibase = data.EncodeEd25519PublicKey(ed25519Pub)
 		didKeyMultibase = mldsa44PubMultibase
+
+	default:
+		return nil, [3]httpsig.Key{}, fmt.Errorf("unsupported key type: %T", priv)
 	}
 
 	id := fmt.Sprintf("https://%s/.well-known/apgateway/did:key:%s/actor", domain, didKeyMultibase)

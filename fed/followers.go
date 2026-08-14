@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dimkr/tootik/proof"
 	"io"
 	"log/slog"
 	"net/http"
@@ -37,6 +36,7 @@ import (
 	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/proof"
 )
 
 type partialFollowers map[string]map[string]string

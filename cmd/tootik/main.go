@@ -24,7 +24,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/dimkr/tootik/proof"
 	"log/slog"
 	"net/http"
 	"os"
@@ -50,6 +49,7 @@ import (
 	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/migrations"
 	"github.com/dimkr/tootik/outbox"
+	"github.com/dimkr/tootik/proof"
 	"github.com/dimkr/tootik/sqlite"
 )
 
@@ -290,7 +290,7 @@ func main() {
 		var ed25519Seed, mldsa44Seed []byte
 		if err := tx.QueryRowContext(
 			ctx,
-			`select select json(actor), ed25519seed from persons where ed25519seed is not null and actor->>'$.preferredUsername' = ?`,
+			`select json(actor), ed25519seed, mldsa44seed from persons where ed25519seed is not null and actor->>'$.preferredUsername' = ?`,
 			userName,
 		).Scan(&actor, &ed25519Seed, &mldsa44Seed); err != nil {
 			panic(err)

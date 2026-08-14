@@ -120,14 +120,14 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 	default:
 		key, err := data.DecodePrivateKey(r.URL.RawQuery)
 		if err != nil {
-			r.Log.Warn("Failed to decode Ed25519 private key", "name", userName, "error", err)
+			r.Log.Warn("Failed to decode private key", "name", userName, "error", err)
 			w.Statusf(40, "Invalid key: %s", err.Error())
 			return
 		}
 
-		switch v := key.(type) {
+		switch key.(type) {
 		case ed25519.PrivateKey, *mldsa44.PrivateKey:
-			if _, _, err := user.CreatePortableWithKey(r.Context, h.Domain, h.DB, h.Config, userName, ap.Person, clientCert, v); err != nil {
+			if _, _, err := user.CreatePortableWithKey(r.Context, h.Domain, h.DB, h.Config, userName, ap.Person, clientCert, key); err != nil {
 				r.Log.Warn("Failed to create new portable user", "name", userName, "error", err)
 				w.Status(40, "Failed to create new user")
 				return
