@@ -43,7 +43,7 @@ var (
 	apURLRegex = regexp.MustCompile(`^ap:\/\/did:key:(` + PortableActorPubPattern + `)([\/#?].*|$)`)
 
 	// GatewayURLRegex matches an https:// gateway URL.
-	GatewayURLRegex = regexp.MustCompile(`^https:\/\/[a-z0-9-]+(?:\.[a-z0-9-]+)+\/\.well-known\/apgateway\/did:key:(` + ed25519PubBase58 + `|` + MLDSA44PubBase64 + `)([\/#?].*|$)`)
+	GatewayURLRegex = regexp.MustCompile(`^https:\/\/[a-z0-9-]+(?:\.[a-z0-9-]+)+\/\.well-known\/apgateway\/did:key:(` + PortableActorPubPattern + `)([\/#?].*|$)`)
 )
 
 // IsPortable determines whether or not an ActivityPub ID is portable.
