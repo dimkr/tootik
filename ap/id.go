@@ -31,16 +31,16 @@ const (
 	// MLDSA44PubBase64 matches a base64url-encoded ML-DSA-44 public key.
 	MLDSA44PubBase64 = `ukC[A-Za-z0-9_-]{1000}[A-Za-z0-9_-]{750}`
 
-	// DIDKeyPattern matches a base58-encoded Ed25519 or base64url-encoded ML-DSA-44 public key.
-	DIDKeyPattern = ed25519PubBase58 + `|` + MLDSA44PubBase64
+	// PortableActorPubPattern matches public keys in portable actor did:key DIDs.
+	PortableActorPubPattern = ed25519PubBase58 + `|` + MLDSA44PubBase64
 )
 
 var (
-	// KeyRegex matches a Multibase-encoded Ed25519 or ML-DSA-44 public key.
-	KeyRegex = regexp.MustCompile(`\b(` + DIDKeyPattern + `|` + ed25519PubBase64 + `|` + mldsa44PubBase58 + `)(?:[\/#?]|$)`)
+	// KeyRegex matches any Multibase-encoded public key.
+	KeyRegex = regexp.MustCompile(`\b(` + PortableActorPubPattern + `|` + ed25519PubBase64 + `|` + mldsa44PubBase58 + `)(?:[\/#?]|$)`)
 
 	// apURLRegex matches an ap:// URL.
-	apURLRegex = regexp.MustCompile(`^ap:\/\/did:key:(` + DIDKeyPattern + `)([\/#?].*|$)`)
+	apURLRegex = regexp.MustCompile(`^ap:\/\/did:key:(` + PortableActorPubPattern + `)([\/#?].*|$)`)
 
 	// GatewayURLRegex matches an https:// gateway URL.
 	GatewayURLRegex = regexp.MustCompile(`^https:\/\/[a-z0-9-]+(?:\.[a-z0-9-]+)+\/\.well-known\/apgateway\/did:key:(` + ed25519PubBase58 + `|` + MLDSA44PubBase64 + `)([\/#?].*|$)`)
