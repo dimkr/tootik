@@ -40,7 +40,7 @@ import (
 	"github.com/dimkr/tootik/proof"
 )
 
-var apGatewayPathRegex = regexp.MustCompile(`\/.well-known\/apgateway\/(did:key:(?:z6Mk[a-km-zA-HJ-NP-Z1-9]+|ukC[A-Za-z0-9_-]+))(\/actor(?:\/[^\/]+)?)(\/.+)?`)
+var apGatewayPathRegex = regexp.MustCompile(`\/.well-known\/apgateway\/(did:key:(?:` + ap.DIDKeyPattern + `))(\/actor(?:\/[^\/]+)?)(\/.+)?`)
 
 func (l *Listener) handleApGatewayInboxPost(w http.ResponseWriter, r *http.Request, did string) {
 	var actor ap.Actor
