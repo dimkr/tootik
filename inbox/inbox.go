@@ -24,7 +24,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/dimkr/tootik/proof"
 	"log/slog"
 	"net/url"
 	"time"
@@ -33,6 +32,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/inbox/note"
+	"github.com/dimkr/tootik/proof"
 )
 
 type Inbox struct {
@@ -162,7 +162,7 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 				return fmt.Errorf("failed to delete %s: %w", deleted, err)
 			}
 
-			if _, err := tx.ExecContext(ctx, `delete from notesfts where slug = (select slug from notes where id = ?)`, deleted); err != nil {
+			if _, err := tx.ExecContext(ctx, `delete from notesfts where rowid = (select pk from notes where id = ?)`, deleted); err != nil {
 				return fmt.Errorf("cannot delete %s: %w", deleted, err)
 			}
 			if _, err := tx.ExecContext(ctx, `update notes set object = jsonb_set(jsonb_remove(object, '$.name', '$.summary', '$.tag', '$.attachment', '$.votersCount', '$.oneOf', '$.anyOf'), '$.content', '[deleted]'), deleted = 1 where id = ?`, deleted); err != nil {
@@ -421,7 +421,7 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 		if post.Content != oldPost.Content {
 			if _, err := tx.ExecContext(
 				ctx,
-				`update notesfts set content = ? where slug = (select slug from notes where id = ?)`,
+				`update notesfts set content = ? where rowid = (select pk from notes where id = ?)`,
 				note.Flatten(post),
 				post.ID,
 			); err != nil {

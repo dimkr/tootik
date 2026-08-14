@@ -63,24 +63,23 @@ func Insert(ctx context.Context, tx *sql.Tx, note *ap.Object) error {
 		public = 1
 	}
 
-	slug := ap.Slug(note.ID)
-
-	if _, err := tx.ExecContext(
+	var pk int64
+	if err := tx.QueryRowContext(
 		ctx,
-		`INSERT INTO notes (slug, id, author, object, public) VALUES (?, ?, ?, JSONB(?), ?)`,
-		slug,
+		`INSERT INTO notes (slug, id, author, object, public) VALUES (?, ?, ?, JSONB(?), ?) RETURNING pk`,
+		ap.Slug(note.ID),
 		note.ID,
 		note.AttributedTo,
 		&note,
 		public,
-	); err != nil {
+	).Scan(&pk); err != nil {
 		return fmt.Errorf("failed to insert note %s: %w", note.ID, err)
 	}
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO notesfts (slug, content) VALUES(?,?)`,
-		slug,
+		`INSERT INTO notesfts (rowid, content) VALUES(?,?)`,
+		pk,
 		Flatten(note),
 	); err != nil {
 		return fmt.Errorf("failed to insert note %s: %w", note.ID, err)

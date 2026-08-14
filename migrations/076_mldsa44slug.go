@@ -3,54 +3,185 @@ package migrations
 import (
 	"context"
 	"database/sql"
-	"strings"
+	"fmt"
 
 	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/inbox/note"
 )
 
-func insertSlugs(ctx context.Context, tx *sql.Tx, query string) error {
-	if _, err := tx.ExecContext(ctx, `DELETE FROM slugs`); err != nil {
+func insertSlugs(ctx context.Context, tx *sql.Tx, table string) error {
+	if _, err := tx.ExecContext(ctx, `DROP TABLE IF EXISTS slugs`); err != nil {
 		return err
 	}
 
-	rows, err := tx.QueryContext(ctx, query)
-	if err != nil {
+	if _, err := tx.ExecContext(ctx, `CREATE TEMP TABLE slugs(src INTEGER PRIMARY KEY, slug TEXT NOT NULL)`); err != nil {
 		return err
 	}
 
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			rows.Close()
+	type row struct {
+		src int64
+		id  string
+	}
+	batch := make([]row, 0, 10000)
+	query := fmt.Sprintf(`SELECT rowid, id FROM %s WHERE rowid > ? ORDER BY rowid LIMIT %d`, table, cap(batch))
+
+	last := int64(0)
+	for {
+		rows, err := tx.QueryContext(ctx, query, last)
+		if err != nil {
 			return err
 		}
 
-		ids = append(ids, id)
-	}
-	rows.Close()
+		batch = batch[:0]
+		for rows.Next() {
+			var r row
+			if err := rows.Scan(&r.src, &r.id); err != nil {
+				rows.Close()
+				return err
+			}
 
-	if err := rows.Err(); err != nil {
-		return err
-	}
+			batch = append(batch, r)
+		}
 
-	for _, id := range ids {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO slugs(id, slug) VALUES(?,?)`, id, ap.Slug(id)); err != nil {
+		rows.Close()
+
+		if err := rows.Err(); err != nil {
 			return err
 		}
+
+		if len(batch) == 0 {
+			return nil
+		}
+
+		for _, r := range batch {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO slugs(src, slug) VALUES(?,?)`, r.src, ap.Slug(r.id)); err != nil {
+				return err
+			}
+		}
+
+		last = batch[len(batch)-1].src
+	}
+}
+
+func rebuildNotesFts(ctx context.Context, tx *sql.Tx) error {
+	type row struct {
+		pk      int64
+		content string
+	}
+	batch := make([]row, 0, 1000)
+	query := fmt.Sprintf(`SELECT pk, JSON(object) FROM notes WHERE deleted = 0 AND pk > ? ORDER BY pk LIMIT %d`, cap(batch))
+
+	last := int64(0)
+	for {
+		rows, err := tx.QueryContext(ctx, query, last)
+		if err != nil {
+			return err
+		}
+
+		batch = batch[:0]
+		for rows.Next() {
+			var pk int64
+			var post ap.Object
+			if err := rows.Scan(&pk, &post); err != nil {
+				rows.Close()
+				return err
+			}
+
+			batch = append(batch, row{pk, note.Flatten(&post)})
+		}
+
+		rows.Close()
+
+		if err := rows.Err(); err != nil {
+			return err
+		}
+
+		if len(batch) == 0 {
+			break
+		}
+
+		for _, r := range batch {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO notesfts(rowid, content) VALUES(?,?)`, r.pk, r.content); err != nil {
+				return err
+			}
+		}
+
+		last = batch[len(batch)-1].pk
 	}
 
-	return nil
+	_, err := tx.ExecContext(ctx, `INSERT INTO notesfts(notesfts) VALUES('optimize')`)
+	return err
+}
+
+func addMLDSA44Keys(ctx context.Context, tx *sql.Tx) error {
+	type local struct {
+		pk    int64
+		actor ap.Actor
+	}
+	batch := make([]local, 0, 1000)
+	query := fmt.Sprintf(`SELECT pk, JSON(actor) FROM persons WHERE ed25519seed IS NOT NULL AND mldsa44seed IS NULL LIMIT %d`, cap(batch))
+
+	for {
+		rows, err := tx.QueryContext(ctx, query)
+		if err != nil {
+			return err
+		}
+
+		batch = batch[:0]
+		for rows.Next() {
+			var l local
+			if err := rows.Scan(&l.pk, &l.actor); err != nil {
+				rows.Close()
+				return err
+			}
+
+			batch = append(batch, l)
+		}
+
+		rows.Close()
+
+		if err := rows.Err(); err != nil {
+			return err
+		}
+
+		if len(batch) == 0 {
+			return nil
+		}
+
+		for _, l := range batch {
+			if len(l.actor.AssertionMethod) == 0 {
+				return fmt.Errorf("local actor %s has no assertion method", l.actor.ID)
+			}
+
+			mldsa44Pub, mldsa44Priv, err := mldsa44.GenerateKey(nil)
+			if err != nil {
+				return err
+			}
+
+			keyID := l.actor.ID + "#ml-dsa-44-key"
+
+			l.actor.AssertionMethod = append(l.actor.AssertionMethod, ap.AssertionMethod{
+				ID:                 keyID,
+				Type:               "Multikey",
+				Controller:         l.actor.ID,
+				PublicKeyMultibase: data.EncodeMLDSA44Publickey(mldsa44Pub),
+			})
+
+			if _, err := tx.ExecContext(ctx, `UPDATE persons SET actor = JSONB(?), mldsa44seed = ? WHERE pk = ?`, &l.actor, mldsa44Priv.Seed(), l.pk); err != nil {
+				return err
+			}
+
+			if _, err := tx.ExecContext(ctx, `INSERT INTO keys(id, actor) VALUES(?,?)`, keyID, l.actor.ID); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 func mldsa44slug(ctx context.Context, domain string, tx *sql.Tx) error {
-	if _, err := tx.ExecContext(ctx, `CREATE TEMP TABLE slugs(id TEXT NOT NULL PRIMARY KEY, slug TEXT NOT NULL)`); err != nil {
-		return err
-	}
-
-	if err := insertSlugs(ctx, tx, `select id from notes`); err != nil {
+	if err := insertSlugs(ctx, tx, `notes`); err != nil {
 		return err
 	}
 
@@ -58,14 +189,14 @@ func mldsa44slug(ctx context.Context, domain string, tx *sql.Tx) error {
 		`DROP TRIGGER nshares_insert`,
 		`DROP TRIGGER nshares_delete`,
 
-		`CREATE TABLE nnotes(slug TEXT NOT NULL PRIMARY KEY, id TEXT NOT NULL UNIQUE, author TEXT NOT NULL, object JSONB NOT NULL, public INTEGER NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()), updated INTEGER DEFAULT 0, host TEXT AS (substr(substr(author, 9), 0, instr(substr(author, 9), '/'))), to0 TEXT AS (object->>'$.to[0]'), to1 TEXT AS (object->>'$.to[1]'), to2 TEXT AS (object->>'$.to[2]'), cc0 TEXT AS (object->>'$.cc[0]'), cc1 TEXT AS (object->>'$.cc[1]'), cc2 TEXT AS (object->>'$.cc[2]'), deleted INTEGER NOT NULL DEFAULT 0, nreplies INTEGER DEFAULT 0, nquotes INTEGER DEFAULT 0, nshares INTEGER DEFAULT 0, pulse INTEGER DEFAULT 0, cid TEXT NOT NULL UNIQUE AS (CASE WHEN id LIKE 'https://%' AND (id LIKE '%/.well-known/apgateway/did:key:z6Mk%' OR id LIKE '%/.well-known/apgateway/did:key:ukC%') THEN 'ap://' || SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22, CASE WHEN INSTR(SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22), '?') > 0 THEN INSTR(SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22), '?') - 1 ELSE LENGTH(id) END) WHEN id LIKE 'https://%' THEN id ELSE NULL END))`,
-		`INSERT INTO nnotes(slug, id, author, object, public, inserted, updated, deleted, nreplies, nquotes, nshares, pulse) SELECT slugs.slug, notes.id, author, object, public, inserted, updated, deleted, nreplies, nquotes, nshares, pulse FROM notes JOIN slugs ON slugs.id = notes.id`,
-		`CREATE VIRTUAL TABLE nnotesfts USING fts5(slug UNINDEXED, content, tokenize = "unicode61 tokenchars '#@'")`,
-		`INSERT INTO nnotesfts(slug, content) SELECT slugs.slug, notesfts.content FROM notesfts JOIN notes ON notes.rowid = notesfts.rowid JOIN slugs ON slugs.id = notes.id`,
-		`DROP TABLE notesfts`,
-		`ALTER TABLE nnotesfts RENAME TO notesfts`,
+		`CREATE TABLE nnotes(pk INTEGER PRIMARY KEY, slug TEXT NOT NULL, id TEXT NOT NULL, author TEXT NOT NULL, object JSONB NOT NULL, public INTEGER NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()), updated INTEGER DEFAULT 0, host TEXT AS (substr(substr(author, 9), 0, instr(substr(author, 9), '/'))), to0 TEXT AS (object->>'$.to[0]'), to1 TEXT AS (object->>'$.to[1]'), to2 TEXT AS (object->>'$.to[2]'), cc0 TEXT AS (object->>'$.cc[0]'), cc1 TEXT AS (object->>'$.cc[1]'), cc2 TEXT AS (object->>'$.cc[2]'), deleted INTEGER NOT NULL DEFAULT 0, nreplies INTEGER DEFAULT 0, nquotes INTEGER DEFAULT 0, nshares INTEGER DEFAULT 0, pulse INTEGER DEFAULT 0, cid TEXT NOT NULL AS (CASE WHEN id LIKE 'https://%' AND (id LIKE '%/.well-known/apgateway/did:key:z6Mk%' OR id LIKE '%/.well-known/apgateway/did:key:ukC%') THEN 'ap://' || SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22, CASE WHEN INSTR(SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22), '?') > 0 THEN INSTR(SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22), '?') - 1 ELSE LENGTH(id) END) WHEN id LIKE 'https://%' THEN id ELSE NULL END))`,
+		`INSERT INTO nnotes(slug, id, author, object, public, inserted, updated, deleted, nreplies, nquotes, nshares, pulse) SELECT slugs.slug, notes.id, author, object, public, inserted, updated, deleted, nreplies, nquotes, nshares, pulse FROM notes JOIN slugs ON slugs.src = notes.rowid`,
 		`DROP TABLE notes`,
 		`ALTER TABLE nnotes RENAME TO notes`,
+
+		`CREATE UNIQUE INDEX notesid ON notes(id)`,
+		`CREATE UNIQUE INDEX notescid ON notes(cid)`,
+		`CREATE UNIQUE INDEX notesslug ON notes(slug)`,
 
 		`CREATE INDEX notesinserted ON notes(inserted)`,
 		`CREATE INDEX notespublicauthor ON notes(public, author)`,
@@ -173,78 +304,47 @@ func mldsa44slug(ctx context.Context, domain string, tx *sql.Tx) error {
 		BEGIN
 			DELETE FROM hashtags WHERE note = old.id;
 		END`,
+
+		`DROP TABLE notesfts`,
+		`CREATE VIRTUAL TABLE notesfts USING fts5(content, tokenize = "unicode61 tokenchars '#@'", content='', contentless_delete=1)`,
 	} {
 		if _, err := tx.ExecContext(ctx, stmt); err != nil {
 			return err
 		}
 	}
 
-	if err := insertSlugs(ctx, tx, `select id from persons`); err != nil {
+	if err := rebuildNotesFts(ctx, tx); err != nil {
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `CREATE TABLE npersons(slug TEXT NOT NULL PRIMARY KEY, id TEXT NOT NULL UNIQUE, actor JSONB NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()), updated INTEGER DEFAULT (UNIXEPOCH()), host TEXT AS (substr(substr(id, 9), 0, instr(substr(id, 9), '/'))), fetched INTEGER, ttl INTEGER, rsaprivkey BLOB, ed25519seed BLOB, mldsa44seed BLOB, cid TEXT NOT NULL AS (CASE WHEN id LIKE 'https://%' AND (id LIKE '%/.well-known/apgateway/did:key:z6Mk%' OR id LIKE '%/.well-known/apgateway/did:key:ukC%') THEN 'ap://' || SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22, CASE WHEN INSTR(SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22), '?') > 0 THEN INSTR(SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22), '?') - 1 ELSE LENGTH(id) END) WHEN id LIKE 'https://%' THEN id ELSE NULL END))`); err != nil {
-		return err
-	}
-
-	if _, err := tx.ExecContext(ctx, `INSERT INTO npersons(slug, id, actor, inserted, updated, fetched, ttl, rsaprivkey, ed25519seed) SELECT slugs.slug, persons.id, actor, inserted, updated, fetched, ttl, rsaprivkey, ed25519privkey FROM persons JOIN slugs ON slugs.id = persons.id`); err != nil {
-		return err
-	}
-
-	rows, err := tx.QueryContext(ctx, `SELECT id, JSON(actor) FROM npersons WHERE ed25519seed IS NOT NULL`)
-	if err != nil {
-		return err
-	}
-
-	defer rows.Close()
-
-	for rows.Next() {
-		var id string
-		var actor ap.Actor
-		if err := rows.Scan(&id, &actor); err != nil {
-			return err
-		}
-
-		if len(actor.AssertionMethod) == 0 {
-			continue
-		}
-
-		last := actor.AssertionMethod[len(actor.AssertionMethod)-1]
-
-		prefix, ok := strings.CutSuffix(last.ID, "#ed25519-key")
-		if !ok {
-			continue
-		}
-
-		mldsa44Pub, mldsa44Priv, err := mldsa44.GenerateKey(nil)
-		if err != nil {
-			return err
-		}
-
-		actor.AssertionMethod = append(actor.AssertionMethod, ap.AssertionMethod{
-			ID:                 prefix + "#ml-dsa-44-key",
-			Type:               "Multikey",
-			Controller:         last.Controller,
-			PublicKeyMultibase: data.EncodeMLDSA44Publickey(mldsa44Pub),
-		})
-
-		if _, err := tx.ExecContext(ctx, `UPDATE npersons SET actor = JSONB(?), mldsa44seed = ? WHERE id = ?`, &actor, mldsa44Priv.Seed(), id); err != nil {
-			return err
-		}
-	}
-
-	if err := rows.Err(); err != nil {
+	if err := insertSlugs(ctx, tx, `persons`); err != nil {
 		return err
 	}
 
 	for _, stmt := range []string{
+		`CREATE TABLE npersons(pk INTEGER PRIMARY KEY, slug TEXT NOT NULL, id TEXT NOT NULL, actor JSONB NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()), updated INTEGER DEFAULT (UNIXEPOCH()), host TEXT AS (substr(substr(id, 9), 0, instr(substr(id, 9), '/'))), fetched INTEGER, ttl INTEGER, rsaprivkey BLOB, ed25519seed BLOB, mldsa44seed BLOB, cid TEXT NOT NULL AS (CASE WHEN id LIKE 'https://%' AND (id LIKE '%/.well-known/apgateway/did:key:z6Mk%' OR id LIKE '%/.well-known/apgateway/did:key:ukC%') THEN 'ap://' || SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22, CASE WHEN INSTR(SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22), '?') > 0 THEN INSTR(SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22), '?') - 1 ELSE LENGTH(id) END) WHEN id LIKE 'https://%' THEN id ELSE NULL END))`,
+		`INSERT INTO npersons(slug, id, actor, inserted, updated, fetched, ttl, rsaprivkey, ed25519seed) SELECT slugs.slug, persons.id, actor, inserted, updated, fetched, ttl, rsaprivkey, ed25519privkey FROM persons JOIN slugs ON slugs.src = persons.rowid`,
 		`DROP TABLE persons`,
 		`ALTER TABLE npersons RENAME TO persons`,
+
+		`CREATE UNIQUE INDEX personsslug ON persons(slug)`,
+		`CREATE UNIQUE INDEX personsid ON persons(id)`,
 		`CREATE INDEX personstypeid ON persons(actor->>'$.type', id)`,
 		`CREATE INDEX personsmovedto ON persons(actor->>'$.movedTo') WHERE actor->>'$.movedTo' IS NOT NULL`,
 		`CREATE UNIQUE INDEX personspreferredusernamehosttype ON persons(actor->>'$.preferredUsername', host, actor->>'$.type')`,
 		`CREATE INDEX personscid ON persons(cid)`,
 		`CREATE UNIQUE INDEX personscidlocal ON persons(cid) WHERE ed25519seed IS NOT NULL`,
+	} {
+		if _, err := tx.ExecContext(ctx, stmt); err != nil {
+			return err
+		}
+	}
+
+	if err := addMLDSA44Keys(ctx, tx); err != nil {
+		return err
+	}
+
+	for _, stmt := range []string{
 		`DROP INDEX outboxcidsender`,
 		`ALTER TABLE outbox DROP COLUMN cid`,
 		`ALTER TABLE outbox ADD COLUMN cid TEXT NOT NULL AS (CASE WHEN activity->>'$.id' LIKE 'https://%' AND (activity->>'$.id' LIKE '%/.well-known/apgateway/did:key:z6Mk%' OR activity->>'$.id' LIKE '%/.well-known/apgateway/did:key:ukC%') THEN 'ap://' || SUBSTR(activity->>'$.id', 9 + INSTR(SUBSTR(activity->>'$.id', 9), '/') + 22, CASE WHEN INSTR(SUBSTR(activity->>'$.id', 9 + INSTR(SUBSTR(activity->>'$.id', 9), '/') + 22), '?') > 0 THEN INSTR(SUBSTR(activity->>'$.id', 9 + INSTR(SUBSTR(activity->>'$.id', 9), '/') + 22), '?') - 1 ELSE LENGTH(activity->>'$.id') END) WHEN activity->>'$.id' LIKE 'https://%' THEN activity->>'$.id' ELSE NULL END)`,
@@ -255,6 +355,6 @@ func mldsa44slug(ctx context.Context, domain string, tx *sql.Tx) error {
 		}
 	}
 
-	_, err = tx.ExecContext(ctx, `DROP TABLE slugs`)
+	_, err := tx.ExecContext(ctx, `DROP TABLE slugs`)
 	return err
 }
