@@ -28,8 +28,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/dimkr/tootik/proof"
-
 	"github.com/google/uuid"
 
 	"os/signal"
@@ -51,6 +49,7 @@ import (
 	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/migrations"
 	"github.com/dimkr/tootik/outbox"
+	"github.com/dimkr/tootik/proof"
 	"github.com/dimkr/tootik/sqlite"
 )
 
