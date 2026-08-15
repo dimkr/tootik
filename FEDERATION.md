@@ -31,7 +31,7 @@ tootik's UI treats `Group` actors differently: `/outbox/$group` hides replies an
 tootik implements [draft-cavage-http-signatures](https://datatracker.ietf.org/doc/html/draft-cavage-http-signatures) but only partially:
 * It ignores query
 * It always uses `rsa-sha256` and puts `algorithm="rsa-sha256"` in outgoing requests
-* It `algorithm` is specified in an incoming request, it must be `rsa-sha256` or `hs2019`
+* If `algorithm` is specified in an incoming request, it must be `rsa-sha256` or `hs2019`
 * It validates `Host`, `Date` (see `MaxRequestAge`) and `Digest`
 * Validation ensures that key size is between 2048 and 8192
 * Incoming `POST` requests must have at least `headers="(request-target) host date digest"`
