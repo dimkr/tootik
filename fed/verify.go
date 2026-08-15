@@ -68,6 +68,10 @@ func (l *Listener) extractRequestSignature(r *http.Request, body []byte) (*https
 		return nil, fmt.Errorf("failed to extract signature: %w", err)
 	}
 
+	if r.Method == http.MethodPost && (sig.Alg == "rsa-sha256" || sig.Alg == "hs2019") && rand.Float32() > l.Config.CavageDraftFailureThreshold {
+		return nil, errors.New("randomly refusing draft-cavage-http-signatures to encourage use of RFC9421")
+	}
+
 	return sig, err
 }
 
