@@ -76,7 +76,7 @@ func (l *Listener) extractRequestSignature(r *http.Request, body []byte) (*https
 }
 
 func (l *Listener) verifyEd25519RequestSignatureUsingKeyID(sig *httpsig.Signature) (string, error) {
-	if sig.Alg != "ed25519" {
+	if sig.Alg != "ed25519" && sig.Alg != "ml-dsa-44" {
 		return "", errNoKeyInKeyID
 	}
 

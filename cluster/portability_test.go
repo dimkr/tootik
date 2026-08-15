@@ -1170,6 +1170,109 @@ func TestCluster_InboxFetchHappyFlow(t *testing.T) {
 	}
 }
 
+func TestCluster_MLDSA44InboxFetchHappyFlow(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
+	defer cluster.Stop()
+
+	pub, priv, err := mldsa44.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+	registerPortable := "/users/register?" + data.EncodeMLDSA44PrivateKey(priv)
+
+	did := "did:key:" + data.EncodeMLDSA44Publickey(pub)
+
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+
+	alice.
+		FollowInput("🔭 View profile", "bob@b.localdomain").
+		Follow("⚡ Follow bob").
+		OK()
+	cluster.Settle(t)
+
+	bob.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "hello").
+		OK()
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	cluster.Settle(t)
+
+	r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://a.localdomain/.well-known/apgateway/"+did+"/actor/inbox", nil)
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	if err := httpsig.SignRFC9421(
+		r,
+		nil,
+		httpsig.Key{
+			ID:         "https://a.localdomain/.well-known/apgateway/" + did + "/actor#ml-dsa-44-key",
+			PrivateKey: priv,
+		},
+		time.Now(),
+		time.Now().Add(time.Minute*5),
+		httpsig.RFC9421DigestSHA256,
+		"ml-dsa-44",
+		nil,
+	); err != nil {
+		t.Fatalf("Failed to sign HTTP request: %v", err)
+	}
+
+	w := responseWriter{
+		Headers: http.Header{},
+	}
+	cluster["a.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to fetch inbox: %d", w.StatusCode)
+	}
+
+	var inbox ap.Collection
+	if err := json.NewDecoder(&w.Body).Decode(&inbox); err != nil {
+		t.Fatalf("Failed to decode inbox: %v", err)
+	}
+
+	r, err = http.NewRequestWithContext(t.Context(), http.MethodGet, inbox.First.(string), nil)
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	if err := httpsig.SignRFC9421(
+		r,
+		nil,
+		httpsig.Key{
+			ID:         "https://a.localdomain/.well-known/apgateway/" + did + "/actor#ml-dsa-44-key",
+			PrivateKey: priv,
+		},
+		time.Now(),
+		time.Now().Add(time.Minute*5),
+		httpsig.RFC9421DigestSHA256,
+		"ml-dsa-44",
+		nil,
+	); err != nil {
+		t.Fatalf("Failed to sign HTTP request: %v", err)
+	}
+
+	w = responseWriter{
+		Headers: http.Header{},
+	}
+	cluster["a.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to fetch inbox page: %d", w.StatusCode)
+	}
+
+	var page struct {
+		OrderedItems []ap.Activity `json:"orderedItems"`
+	}
+	if err := json.NewDecoder(&w.Body).Decode(&page); err != nil {
+		t.Fatalf("Failed to decode inbox page: %v", err)
+	}
+}
+
 func TestCluster_InboxFetchInvalidSignature(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
 	defer cluster.Stop()
