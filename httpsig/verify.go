@@ -30,6 +30,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/danger"
 )
 
@@ -266,6 +267,15 @@ func (s *Signature) Verify(key crypto.PublicKey) error {
 
 		if !ed25519.Verify(v, danger.Bytes(s.s), s.signature) {
 			return errors.New("invalid ed25519 signature")
+		}
+
+	case *mldsa44.PublicKey:
+		if s.Alg != "" && s.Alg != "ml-dsa-44" {
+			return errors.New("alg is not ML-DSA-44: " + s.Alg)
+		}
+
+		if !mldsa44.Verify(v, danger.Bytes(s.s), nil, s.signature) {
+			return errors.New("invalid ML-DSA-44 signature")
 		}
 
 	default:

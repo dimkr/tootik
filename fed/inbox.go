@@ -443,6 +443,8 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [2
 			capabilities = ap.RFC9421RSASignatures
 		case "ed25519":
 			capabilities = ap.RFC9421Ed25519Signatures
+		case "ml-dsa-44":
+			capabilities = ap.RFC9421MLDSA44Signatures
 		}
 	}
 

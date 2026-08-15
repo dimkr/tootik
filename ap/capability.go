@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,4 +28,7 @@ const (
 
 	// RFC9421Ed25519Signatures is support for RFC9421 HTTP signatures, with Ed25119 keys.
 	RFC9421Ed25519Signatures
+
+	// RFC9421MLDSA44Signatures is support for RFC9421 HTTP signatures, with ML-DSA-44 keys.
+	RFC9421MLDSA44Signatures
 )

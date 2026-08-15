@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/data"
 )
@@ -211,6 +212,10 @@ func SignRFC9421(
 	case ed25519.PrivateKey:
 		sig = ed25519.Sign(v, danger.Bytes(s))
 
+	case *mldsa44.PrivateKey:
+		sig = make([]byte, mldsa44.SignatureSize)
+		err = mldsa44.SignTo(v, danger.Bytes(s), nil, true, sig)
+
 	default:
 		return errors.New("invalid private key")
 	}
@@ -345,7 +350,7 @@ func rfc9421Extract(
 		return nil, errors.New("invalid signature input: " + input)
 	}
 
-	if alg != "" && alg != "rsa-v1_5-sha256" && alg != "ed25519" {
+	if alg != "" && alg != "rsa-v1_5-sha256" && alg != "ed25519" && alg != "ml-dsa-44" {
 		return nil, errors.New("unsupported alg: " + alg)
 	}
 

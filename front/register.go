@@ -115,7 +115,7 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 		}
 
 	default:
-		key, err := data.DecodeEd25519PrivateKey(r.URL.RawQuery)
+		key, err := data.DecodePrivateKey(r.URL.RawQuery)
 		if err != nil {
 			r.Log.Warn("Failed to decode Ed25519 private key", "name", userName, "error", err)
 			w.Statusf(40, "Invalid key: %s", err.Error())

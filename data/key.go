@@ -24,6 +24,7 @@ import (
 	"fmt"
 
 	"github.com/btcsuite/btcutil/base58"
+	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 )
 
 type PrivateKey interface {
@@ -37,8 +38,23 @@ func EncodeEd25519PrivateKey(key ed25519.PrivateKey) string {
 	return "z" + base58.Encode(append([]byte{0x80, 0x26}, key.Seed()...))
 }
 
-// DecodeEd25519PrivateKey decodes an Ed25519 private key encoded by [EncodeEd25519PrivateKey].
-func DecodeEd25519PrivateKey(key string) (PrivateKey, error) {
+// EncodeEd25519PublicKey encodes an Ed25519 public key.
+func EncodeEd25519PublicKey(key ed25519.PublicKey) string {
+	return "z" + base58.Encode(append([]byte{0xed, 0x01}, key...))
+}
+
+// EncodeMLDSA44PrivateKey encodes a ML-DSA-44 private key.
+func EncodeMLDSA44PrivateKey(key *mldsa44.PrivateKey) string {
+	return "u" + base64.RawURLEncoding.EncodeToString(append([]byte{0x9a, 0x26}, key.Seed()...))
+}
+
+// EncodeMLDSA44Publickey encodes a ML-DSA-44 public key.
+func EncodeMLDSA44Publickey(key *mldsa44.PublicKey) string {
+	return "u" + base64.RawURLEncoding.EncodeToString(append([]byte{0x90, 0x24}, key.Bytes()...))
+}
+
+// DecodePrivateKey decodes an Ed25519 private key encoded by [EncodeEd25519PrivateKey] or [EncodeMLDSA44PrivateKey].
+func DecodePrivateKey(key string) (PrivateKey, error) {
 	if len(key) == 0 {
 		return nil, errors.New("empty key")
 	}
@@ -61,6 +77,9 @@ func DecodeEd25519PrivateKey(key string) (PrivateKey, error) {
 
 	if len(rawKey) == 2+ed25519.SeedSize && rawKey[0] == 0x80 && rawKey[1] == 0x26 {
 		return ed25519.NewKeyFromSeed(rawKey[2:]), nil
+	} else if len(rawKey) == 2+mldsa44.SeedSize && rawKey[0] == 0x9a && rawKey[1] == 0x26 {
+		_, priv := mldsa44.NewKeyFromSeed((*[mldsa44.SeedSize]byte)(rawKey[2:]))
+		return priv, nil
 	} else if len(rawKey) >= 2 {
 		return nil, fmt.Errorf("invalid key prefix: %02x%02x", rawKey[0], rawKey[1])
 	} else {
@@ -68,12 +87,7 @@ func DecodeEd25519PrivateKey(key string) (PrivateKey, error) {
 	}
 }
 
-// EncodeEd25519PublicKey encodes an Ed25519 public key.
-func EncodeEd25519PublicKey(key ed25519.PublicKey) string {
-	return "z" + base58.Encode(append([]byte{0xed, 0x01}, key...))
-}
-
-// DecodePublicKey decodes a public key encoded by [EncodeEd25519PublicKey].
+// DecodePublicKey decodes a public key encoded by [EncodeEd25519PublicKey] or [EncodeMLDSA44Publickey].
 func DecodePublicKey(key string) (crypto.PublicKey, error) {
 	if len(key) == 0 {
 		return nil, errors.New("key is empty")
@@ -97,6 +111,9 @@ func DecodePublicKey(key string) (crypto.PublicKey, error) {
 
 	if len(rawKey) == 2+ed25519.PublicKeySize && rawKey[0] == 0xed && rawKey[1] == 0x01 {
 		return ed25519.PublicKey(rawKey[2:]), nil
+	} else if len(rawKey) == 2+mldsa44.PublicKeySize && rawKey[0] == 0x90 && rawKey[1] == 0x24 {
+		pub := &mldsa44.PublicKey{}
+		return pub, pub.UnmarshalBinary(rawKey[2:])
 	} else if len(rawKey) >= 2 {
 		return nil, fmt.Errorf("invalid prefix: %02x%02x", rawKey[0], rawKey[1])
 	} else {
