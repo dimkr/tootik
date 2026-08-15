@@ -31,7 +31,6 @@ import (
 	"time"
 
 	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
-
 	"github.com/dimkr/tootik/danger"
 )
 
