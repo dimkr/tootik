@@ -17,10 +17,8 @@ limitations under the License.
 package front
 
 import (
-	"crypto/ed25519"
 	"crypto/tls"
 	"database/sql"
-	"reflect"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
@@ -124,17 +122,9 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 			return
 		}
 
-		switch key.(type) {
-		case ed25519.PrivateKey:
-			if _, _, err := user.CreatePortableWithKey(r.Context, h.Domain, h.DB, h.Config, userName, ap.Person, clientCert, key); err != nil {
-				r.Log.Warn("Failed to create new portable user", "name", userName, "error", err)
-				w.Status(40, "Failed to create new user")
-				return
-			}
-
-		default:
-			r.Log.Warn("Key type is unsupported", "name", userName, "type", reflect.TypeOf(key).String())
-			w.Status(40, "Invalid key type")
+		if _, _, err := user.CreatePortableWithKey(r.Context, h.Domain, h.DB, h.Config, userName, ap.Person, clientCert, key); err != nil {
+			r.Log.Warn("Failed to create new portable user", "name", userName, "error", err)
+			w.Status(40, "Failed to create new user")
 			return
 		}
 	}
