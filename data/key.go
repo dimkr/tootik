@@ -48,12 +48,12 @@ func EncodeMLDSA44PrivateKey(key *mldsa44.PrivateKey) string {
 	return "u" + base64.RawURLEncoding.EncodeToString(append([]byte{0x9a, 0x26}, key.Seed()...))
 }
 
-// EncodeMLDSA44Publickey encodes a ML-DSA-44 public key.
-func EncodeMLDSA44Publickey(key *mldsa44.PublicKey) string {
+// EncodeMLDSA44PublicKey encodes a ML-DSA-44 public key.
+func EncodeMLDSA44PublicKey(key *mldsa44.PublicKey) string {
 	return "u" + base64.RawURLEncoding.EncodeToString(append([]byte{0x90, 0x24}, key.Bytes()...))
 }
 
-// DecodePrivateKey decodes a public key encoded by [EncodeEd25519PrivateKey] or [EncodeMLDSA44PrivateKey].
+// DecodePrivateKey decodes a private key encoded by [EncodeEd25519PrivateKey] or [EncodeMLDSA44PrivateKey].
 func DecodePrivateKey(key string) (PrivateKey, error) {
 	if len(key) == 0 {
 		return nil, errors.New("empty key")

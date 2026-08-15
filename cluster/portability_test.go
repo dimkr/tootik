@@ -323,7 +323,7 @@ func TestCluster_MLDSA44ClientSideSigningInboxHappyFlow(t *testing.T) {
 	}
 	registerPortable := "/users/register?" + data.EncodeMLDSA44PrivateKey(priv)
 
-	did := "did:key:" + data.EncodeMLDSA44Publickey(pub)
+	did := "did:key:" + data.EncodeMLDSA44PublicKey(pub)
 
 	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -1181,7 +1181,7 @@ func TestCluster_MLDSA44InboxFetchHappyFlow(t *testing.T) {
 	}
 	registerPortable := "/users/register?" + data.EncodeMLDSA44PrivateKey(priv)
 
-	did := "did:key:" + data.EncodeMLDSA44Publickey(pub)
+	did := "did:key:" + data.EncodeMLDSA44PublicKey(pub)
 
 	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -1615,7 +1615,7 @@ func TestCluster_MLDSA44OutboxImport(t *testing.T) {
 	}
 	registerPortable := "/users/register?" + data.EncodeMLDSA44PrivateKey(priv)
 
-	did := "did:key:" + data.EncodeMLDSA44Publickey(pub)
+	did := "did:key:" + data.EncodeMLDSA44PublicKey(pub)
 
 	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
 	bob := cluster["b.localdomain"].Handle(bobKeypair, registerPortable).OK()
@@ -1894,7 +1894,7 @@ func TestCluster_MLDSA44ClientSideSigningFollowersHappyFlow(t *testing.T) {
 	defer cluster.Stop()
 
 	alicePub, alicePriv, err := mldsa44.GenerateKey(nil)
-	aliceDID := "did:key:" + data.EncodeMLDSA44Publickey(alicePub)
+	aliceDID := "did:key:" + data.EncodeMLDSA44PublicKey(alicePub)
 	alice := cluster["a.localdomain"].Handle(aliceKeypair, "/users/register?"+data.EncodeMLDSA44PrivateKey(alicePriv)).OK()
 
 	bobPub, bobPriv, err := ed25519.GenerateKey(nil)

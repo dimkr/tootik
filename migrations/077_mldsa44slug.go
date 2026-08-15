@@ -166,7 +166,7 @@ func addMLDSA44Keys(ctx context.Context, tx *sql.Tx) error {
 				ID:                 keyID,
 				Type:               "Multikey",
 				Controller:         l.actor.ID,
-				PublicKeyMultibase: data.EncodeMLDSA44Publickey(mldsa44Pub),
+				PublicKeyMultibase: data.EncodeMLDSA44PublicKey(mldsa44Pub),
 			})
 
 			if _, err := tx.ExecContext(ctx, `UPDATE persons SET actor = JSONB(?), mldsa44seed = ? WHERE pk = ?`, &l.actor, mldsa44Priv.Seed(), l.pk); err != nil {

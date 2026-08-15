@@ -55,7 +55,7 @@ func Test_MLDSA44(t *testing.T) {
 		t.Fatal("Private keys are different")
 	}
 
-	decodedPub, err := DecodePublicKey(EncodeMLDSA44Publickey(pub))
+	decodedPub, err := DecodePublicKey(EncodeMLDSA44PublicKey(pub))
 	if err != nil {
 		t.Fatalf("Failed to decode public key: %v", err)
 	}

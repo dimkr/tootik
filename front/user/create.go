@@ -200,7 +200,7 @@ func CreatePortableWithKey(
 		ed25519Pub = v.Public().(ed25519.PublicKey)
 
 		ed25519PubMultibase = data.EncodeEd25519PublicKey(ed25519Pub)
-		mldsa44PubMultibase = data.EncodeMLDSA44Publickey(mldsa44Pub)
+		mldsa44PubMultibase = data.EncodeMLDSA44PublicKey(mldsa44Pub)
 		didKeyMultibase = ed25519PubMultibase
 
 	case *mldsa44.PrivateKey:
@@ -212,7 +212,7 @@ func CreatePortableWithKey(
 		mldsa44Priv = v
 		mldsa44Pub = v.Public().(*mldsa44.PublicKey)
 
-		mldsa44PubMultibase = data.EncodeMLDSA44Publickey(mldsa44Pub)
+		mldsa44PubMultibase = data.EncodeMLDSA44PublicKey(mldsa44Pub)
 		ed25519PubMultibase = data.EncodeEd25519PublicKey(ed25519Pub)
 		didKeyMultibase = mldsa44PubMultibase
 
@@ -348,7 +348,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config, nam
 				ID:                 fmt.Sprintf("https://%s/user/%s#ml-dsa-44-key", domain, name),
 				Type:               "Multikey",
 				Controller:         id,
-				PublicKeyMultibase: data.EncodeMLDSA44Publickey(mldsa44Pub),
+				PublicKeyMultibase: data.EncodeMLDSA44PublicKey(mldsa44Pub),
 			},
 		},
 		ManuallyApprovesFollowers: false,
