@@ -134,6 +134,7 @@ type Config struct {
 
 	RFC9421Threshold float32
 	Ed25519Threshold float32
+	MLDSA44Threshold float32
 
 	DisableIntegrityProofs bool
 	MaxGateways            int
@@ -452,6 +453,10 @@ func (c *Config) FillDefaults() {
 
 	if c.Ed25519Threshold <= 0 || c.Ed25519Threshold > 1 {
 		c.Ed25519Threshold = 0.98
+	}
+
+	if c.MLDSA44Threshold <= 0 || c.MLDSA44Threshold > 1 {
+		c.MLDSA44Threshold = 0.998
 	}
 
 	if c.MaxGateways <= 0 {

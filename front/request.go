@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -44,5 +44,5 @@ type Request struct {
 	User *ap.Actor
 
 	// Keys optionally specifies the signing keys associated with User.
-	Keys [2]httpsig.Key
+	Keys [3]httpsig.Key
 }

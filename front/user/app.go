@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/httpsig"
@@ -31,30 +32,34 @@ import (
 
 // CreateApplicationActor creates the special "actor" user.
 // This user is used to sign outgoing requests not initiated by a particular user.
-func CreateApplicationActor(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config) (*ap.Actor, [2]httpsig.Key, error) {
+func CreateApplicationActor(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config) (*ap.Actor, [3]httpsig.Key, error) {
 	var actor ap.Actor
-	var rsaPrivKeyDer, ed25519Seed []byte
+	var rsaPrivKeyDer, ed25519Seed, mldsa44Seed []byte
 	if err := db.QueryRowContext(
 		ctx,
-		`select json(actor), rsaprivkey, ed25519seed from persons where actor->>'$.preferredUsername' = 'actor' and host = ?`,
+		`select json(actor), rsaprivkey, ed25519seed, mldsa44seed from persons where actor->>'$.preferredUsername' = 'actor' and host = ?`,
 		domain,
 	).Scan(
 		&actor,
 		&rsaPrivKeyDer,
 		&ed25519Seed,
+		&mldsa44Seed,
 	); errors.Is(err, sql.ErrNoRows) {
 		return CreatePortable(ctx, domain, db, cfg, "actor", ap.Application, nil)
 	} else if err != nil {
-		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to fetch application actor: %w", err)
+		return nil, [3]httpsig.Key{}, fmt.Errorf("failed to fetch application actor: %w", err)
 	}
 
 	rsaPrivKey, err := x509.ParsePKCS1PrivateKey(rsaPrivKeyDer)
 	if err != nil {
-		return nil, [2]httpsig.Key{}, err
+		return nil, [3]httpsig.Key{}, err
 	}
 
-	return &actor, [2]httpsig.Key{
+	_, mldsa44Priv := mldsa44.NewKeyFromSeed((*[mldsa44.SeedSize]byte)(mldsa44Seed))
+
+	return &actor, [3]httpsig.Key{
 		{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
 		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519Seed)},
+		{ID: actor.AssertionMethod[1].ID, PrivateKey: mldsa44Priv},
 	}, err
 }

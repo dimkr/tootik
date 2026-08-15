@@ -40,20 +40,20 @@ tootik implements [draft-cavage-http-signatures](https://datatracker.ietf.org/do
 * All other outgoing requests have `headers="(request-target) host date"`
 
 In addition, tootik partially implements [RFC9421](https://datatracker.ietf.org/doc/rfc9421/):
-* It supports `rsa-v1_5-sha256` and `ed25519` signatures and [`ml-dsa-44`](https://c2sp.org/httpsig-pq@v1.0.0) signatures
+* It supports `rsa-v1_5-sha256`, `ed25519` and [`ml-dsa-44`](https://c2sp.org/httpsig-pq@v1.0.0) signatures
 * If `alg` is specified, tootik validates the signature only if the key type matches `alg`
 * It obeys `expires` if specified, but also validates `created` using `MaxRequestAge`
 * Incoming `POST` requests must have at least `("@method" "@target-uri" "content-type" "content-digest")`
 * All other incoming requests must have at least `("@method" "@target-uri")`
 * If query is not empty, `@query` must be signed
 
-tootik's actors have a traditional RSA key under `publicKey` and an Ed25519 key under `assertionMethod`, as described in [FEP-521a](https://codeberg.org/fediverse/fep/src/branch/main/fep/521a/fep-521a.md).
+tootik's actors have a traditional RSA key under `publicKey` and two keys under `assertionMethod` (see [FEP-521a](https://codeberg.org/fediverse/fep/src/branch/main/fep/521a/fep-521a.md)): Ed25519 and ML-DSA-44.
 
-By default, tootik uses `draft-cavage-http-signatures` when it signs outgoing requests. It starts using RFC9421 (with Ed25519, if possible) when talking to a particular server once these capabilities are 'discovered' in one of several ways:
+By default, tootik uses `draft-cavage-http-signatures` when it signs outgoing requests. It starts using RFC9421 (with Ed25519 or ML-DSA-44, if possible) when talking to a particular server once these capabilities are 'discovered' in one of several ways:
 * When at least one actor on the server advertises support for these capabilities using [FEP-844e](https://codeberg.org/fediverse/fep/src/branch/main/fep/844e/fep-844e.md); tootik assumes this information is true although it's perfectly possible for a server to be behind a reverse proxy that drops the `Signature-Input` header
-* It remembers which servers responded with `200 OK` or `202 Accepted` to a `POST` request signed with RFC9421, with or without Ed25519
-* When it accepts a RFC9421-signed (with or without Ed25519) request from another server, it assumes this server also supports incoming requests signed like this
-* It does **not** implement ['double-knocking'](https://swicg.github.io/activitypub-http-signature/#how-to-upgrade-supported-versions) to detect RFC9421 support, because it's uncommon and this mechanism is very likely to double the number of outgoing requests; instead, tootik randomly (see `RFC9421Threshold` and `Ed25519Threshold`) tries RFC9421 and Ed25519 in `POST` requests to servers that still haven't advertised or demonstrated support, to prevent deadlock if these servers are waiting too
+* It remembers which servers responded with `200 OK` or `202 Accepted` to a `POST` request signed with RFC9421, Ed25519 or ML-DSA-44
+* When it accepts a RFC9421-signed (with or without Ed25519 or ML-DSA-44) request from another server, it assumes this server also supports incoming requests signed like this
+* It does **not** implement ['double-knocking'](https://swicg.github.io/activitypub-http-signature/#how-to-upgrade-supported-versions) to detect RFC9421 support, because it's uncommon and this mechanism is very likely to double the number of outgoing requests; instead, tootik randomly (see `RFC9421Threshold`, `Ed25519Threshold` and `MLDSA44Threshold`) tries RFC9421, Ed25519 or ML-DSA-44 in `POST` requests to servers that still haven't advertised or demonstrated support, to prevent deadlock if these servers are waiting too
 
 ## Collections
 
@@ -204,21 +204,27 @@ The response points to a `https://` gateway that returns the actor object:
         "https://w3id.org/security/data-integrity/v1",
         "https://w3id.org/security/v1"
     ],
-    "id": "https://a.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor",
+    "id": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkm8WZrNcWpbqjJWZC3zs18P4f8cWyqaEoBmhiv5wvMUFL/actor",
     "type": "Person",
     "preferredUsername": "alice",
-    "inbox": "https://a.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor/inbox",
-    "outbox": "https://a.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor/outbox",
-    "followers": "https://a.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor/followers",
+    "inbox": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkm8WZrNcWpbqjJWZC3zs18P4f8cWyqaEoBmhiv5wvMUFL/actor/inbox",
+    "outbox": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkm8WZrNcWpbqjJWZC3zs18P4f8cWyqaEoBmhiv5wvMUFL/actor/outbox",
+    "followers": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkm8WZrNcWpbqjJWZC3zs18P4f8cWyqaEoBmhiv5wvMUFL/actor/followers",
     "gateways": [
         "https://a.localdomain"
     ],
     "assertionMethod": [
         {
-            "controller": "https://a.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor",
-            "id": "https://a.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor#ed25519-key",
-            "publicKeyMultibase": "z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8",
-            "type": "Multikey"
+            "id": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkm8WZrNcWpbqjJWZC3zs18P4f8cWyqaEoBmhiv5wvMUFL/actor#ed25519-key",
+            "type": "Multikey",
+            "controller": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkm8WZrNcWpbqjJWZC3zs18P4f8cWyqaEoBmhiv5wvMUFL/actor",
+            "publicKeyMultibase": "z6Mkm8WZrNcWpbqjJWZC3zs18P4f8cWyqaEoBmhiv5wvMUFL"
+        },
+        {
+            "id": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkm8WZrNcWpbqjJWZC3zs18P4f8cWyqaEoBmhiv5wvMUFL/actor#ml-dsa-44-key",
+            "type": "Multikey",
+            "controller": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkm8WZrNcWpbqjJWZC3zs18P4f8cWyqaEoBmhiv5wvMUFL/actor",
+            "publicKeyMultibase": "ukCTMgzJ6Q7ojrIZbQfdXuomL9roZk1gS21Jv068UEOZyxLmi6-c7EKOrvbo4GUumwTmeKXuYVJkrFP5EHbWTsadlvrAP62Ba0EoUUAGSfyz9v22CuN5oZXdTXJwqGgC_k1A4Z0hM0Pd_DU01nHJVT0X0MeoaecVBRa2NXzn3JQ00YlJbcZ1H8U15Ofhs93VRFc-j9Bi7WWYz_Bnrij1kq7-AhLRt9uMfpp30U-4O-n33P9385gpsp1EKBxGfJr--3-wqjbJ4dfXfIfS47eOFJXKHTR6s63YcP61-Dgp38_BRbVNxfVzzfCKLCr2MzoQR6MP-rAgPYgRzAbqfplsWDZFpjYpsnc0slXRd8rq6vSr7IJ1VVsUwpfNc6Bw378rlk5a51ksXlomZu8dEXi_ehvLiIZ3q4L5Vg42LUwX5fQPhCzyQa-teXJIkVn_XFSlg7a93plgS5LTjnvKLZMF3ALjbGQjQdWpq1WI2OMVgmgtNgpU8wuveqD48D0LTBoqkPENW8dgUcO61-1h6CE-ducX9jRlgw8LZuko2sObNMlroc2R86B1jD5y7DB4NtQKD1JlSwM1_mA3Ly0mIYX1NNj5KRzQC7r9bTkTbczaDuwShO_L15YoSmN5sayQP_jTXnSxG0VokSoeypAJdsPapUJCPa72U2t6ldDlHJi8bFtdoshDJXyU-X5V-ajjqs199MClvdvuwMVFeF4G8j4YaR-P4RCoD00Q3BMFWLkQf1nKxRhUIW1l5RU7aVEr8oaD1VwvFf_H7s7yvO-l5KGDGjswsaagjCmtN9xfI7Jqq5-hPDR1rTPtDGThZmu8vlCdGGNXT3_mvtaqkYeFM2vgE9GE8-N72PSMDpwYl70MAfg_GhbkbaftM0AZy6e0gNi6hXp6kv3y-8lz1AuZvVWvhXsQ5Hqo6O4zUA_Clecf4ZPrF8H8a1gRvIDurlaql1ieR0kjc_NFR3JKbuxFHpyh21Bd9ZJ33UsYjxY7A8pqNTSq5TBNXqotq3V4260lT0MQIBkYxFVPgq1pJ3xTZ2aUPVUH8XaXBYrfNeAmb16ae2FYn38P1Fx_tjIT258F5wIlNzwq6J4ZEkUmKKfPj1r2PF5WmoW-dvHB6uF7-VjK3q2h3GqzFEvKRiG8JMRtrIvwM-ZJfdsPFoq4PES0FrdWFWGeA_9N0bATEdkJxRcpPpwQAjJBAx8q16M4dOEM0RVTnmV8f78Fm9zkTGyD7AtPCItRKHbr9zh4uFy3H9UkTqvLj0Kwdzk7d7TLyFkKuhuC06Sk-1iqHnGYoNF_JNJiF34RBc1hMl5VzKUj_qYeGvFoR-4ubX3iDWM_cUU0YYlE3PqNXQCVcs8gsbWyPqphEGMu0T7qeIZVTSQFGhMZ-k6iOG4-877zenaXiYYZ8ZHoWGhHyDY4gREcBXa35RldWmXMwJXEUmlQpRZ7phxmKn7rFhIxbr7_YCw2sJwKUFpMwHsaSAL-R54KMrggbB3KjXed-6iSUZJ7VHImG2eJTGjYcDKWmMK_03jbr6JRmuZm0gBgnHCg7XBeDDUapqt6xYWAqr0YU_qgOcBb_JeykUea4rCrywjoLY-DD4KUFNxL51G8yBOZNihnIO3nN8OZz0r4JEwZd36jeefLnwYXPuioL2lr1dcwgK9-zca7T247WlVJjEnJKyW71lo9V7CAW0kzV2ESYK-tI9KzMHFwIb9fIpyXZv6RyvkadkkPHDc7Wp0g1oeuYl70vD8UXrDDOuQX0"
         }
     ],
     "proof": {
@@ -227,23 +233,30 @@ The response points to a `https://` gateway that returns the actor object:
             "https://w3id.org/security/data-integrity/v1",
             "https://w3id.org/security/v1"
         ],
-        "created": "2025-10-04T14:19:20Z",
-        "cryptosuite": "eddsa-jcs-2022",
-        "proofPurpose": "assertionMethod",
-        "proofValue": "z3ijraF3GjA6Rb7aY3q75KAnwm5ZEdVGsn64dRaYtkNxPhne88EcrzgtP1C1pE6CfKCtCpy338hvcttBmiudGUsbi",
+        "created": "2026-08-15T06:51:20Z",
         "type": "DataIntegrityProof",
-        "verificationMethod": "did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8#z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8"
+        "cryptosuite": "eddsa-jcs-2022",
+        "verificationMethod": "did:key:z6Mkm8WZrNcWpbqjJWZC3zs18P4f8cWyqaEoBmhiv5wvMUFL#z6Mkm8WZrNcWpbqjJWZC3zs18P4f8cWyqaEoBmhiv5wvMUFL",
+        "proofPurpose": "assertionMethod",
+        "proofValue": "z5mwa8x2YcS6nGcBzjLPFKt4WcrbeBTyS29dooo891ommoVu4kyMCBAqceAH3PVKhUff2bgxsLCAgnKxAZGpGLUAn"
     },
     "publicKey": {
-        "id": "https://a.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor#main-key",
-        "owner": "https://a.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor",
-        "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAs28wI+POzhRamoFp5IaK\n2zWeFtOsQYDiSuE3t9uQeqntRTNHRY4KUUYiQlvuZTxhxjLN15GpcDiRgnaR0I54\nTaPbTUHGSQkjnjvKJaZn1PltRXBlsgvibUtQHlNvGa33UMjKdFa8+IJNYJBXeoxi\nf+HKcBAMGd5hfz7xjLIaRv5usm+MHDa9tF+YDojczy2JRrxlTHq8UCrSnwp+8GxX\nleox3//Qa5S3ZMdGxk16FxJYUjd3cdC/bIkXo8UwTUm4HKi5rzoszQjnt9monYcg\nx0ldHWoYkdF386MR07irm3wvEnf9FAcolA8oMtWOWkRhyTinZWRKBuXbfpqvitdl\ndQIDAQAB\n-----END PUBLIC KEY-----\n"
+        "id": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkm8WZrNcWpbqjJWZC3zs18P4f8cWyqaEoBmhiv5wvMUFL/actor#main-key",
+        "owner": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkm8WZrNcWpbqjJWZC3zs18P4f8cWyqaEoBmhiv5wvMUFL/actor",
+        "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwgUdOpi0cPPCC7XYHQ+a\ngSEmMDdLArtp/tgEdNfk5gu742UWdI8+9uQqGEikjOlG+w7TSJl8ta8Foa6lQA9U\nf3O1gqHFev/jtZbArhdRSjWQuVv1nhY/WWiBP9mqIqWj4LLNoVAHXOeLZgpXDMCo\n87zbremTa+3CRCe/jGvNIzE+rC30ZerJG2o6Id2aogy/hIKP77AijZuor3/YVflR\nneXOtMloJbkY4rxKEOJZuB4iMuaExwFFReMsAif2lc8uG7j4S2kLuuqh9om7uHEW\nkhE0/6JXSXhfsqJtxVBQdaf94OdvkccHGiMUvSMPskIr0eIWhe3ioHydLlSZmV4Q\n0wIDAQAB\n-----END PUBLIC KEY-----\n"
     },
+    "icon": [
+        {
+            "type": "Image",
+            "mediaType": "image/gif",
+            "url": "https://a.localdomain/.well-known/apgateway/did:key:z6Mkm8WZrNcWpbqjJWZC3zs18P4f8cWyqaEoBmhiv5wvMUFL/actor/icon.gif"
+        }
+    ],
     "manuallyApprovesFollowers": false
 }
 ```
 
-Portable actors have both Ed25519 and RSA keys, allowing them to interact with actors on ActivityPub servers that don't support Ed25519 signatures.
+Portable actors have RSA, Ed25519 and ML-DSA-44 keys, allowing them to interact with actors on ActivityPub servers that don't support Ed25519 signatures.
 
 In addition, portable actors carry an [FEP-8b32](https://codeberg.org/fediverse/fep/src/branch/main/fep/8b32/fep-8b32.md) integrity proof, allowing other servers to securely determine which servers were "approved" by the owner of `ap://did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor`.
 
@@ -251,11 +264,11 @@ Moreover, all objects and activities owned by a portable actor contain an integr
 
 ## Delivery
 
-When tootik receives a `POST` request to `inbox` from a portable actor, it requires a valid [FEP-8b32](https://codeberg.org/fediverse/fep/src/branch/main/fep/8b32/fep-8b32.md) integrity proof generated using the actor's Ed25519 key and ability to fetch the actor, if not cached.
+When tootik receives a `POST` request to `inbox` from a portable actor, it requires a valid [FEP-8b32](https://codeberg.org/fediverse/fep/src/branch/main/fep/8b32/fep-8b32.md) integrity proof generated using the private key that matches the DID, and ability to fetch the actor, if not cached.
 
-tootik validates the integrity proof using the Ed25519 public key extracted from the key ID, and doesn't need to fetch the actor first.
+tootik validates the integrity proof using the public key extracted from the key ID, and doesn't need to fetch the actor first.
 
-tootik's `inbox` doesn't validate HTTP signatures and simply ignores them when the sender is a portable actor. Other servers might do the same, therefore automatic detection of RFC9421 and Ed25519 support on other servers ignores `200 OK` or `202 Accepted` responses from `/.well-known/apgateway`.
+tootik's `inbox` doesn't validate HTTP signatures and simply ignores them when the sender is a portable actor. Other servers might do the same, therefore automatic detection of RFC9421 and Ed25519 or ML-DSA-44 support on other servers ignores `200 OK` or `202 Accepted` responses from `/.well-known/apgateway`.
 
 tootik forwards posts by actors that share the same DID with a local actor, and replies in threads started by such actors.
 
@@ -276,4 +289,4 @@ When tootik forwards activities, it assumes that other servers use the same URL 
 * tootik does not support `ap://` identifiers and location hints.
 * tootik assumes that activity and object IDs don't change: for example, it assumes that `Update` activities for portable posts preserve the `id` field of the original object. This matches the expectation of servers that don't support data portability and simplifies the implementation.
 * tootik provides limited support for fetching of objects (like posts) and activities from `/.well-known/apgateway`: replication of data across all actors with the same canonical ID is primarily achieved using forwarding.
-* The RSA key under `publicKey` is generated during registration, so different actors owned by the same DID will use different RSA keys when they talk to servers that don't support Ed25519 signatures. Therefore, servers that cache only one RSA key for two actors with the same canonical ID (which shouldn't exist) might fail to validate some signatures.
+* The RSA key under `publicKey` is generated during registration, so different actors owned by the same DID will use different RSA keys when they talk to servers that don't support Ed25519 and ML-DSA-44 signatures. Therefore, servers that cache only one RSA key for two actors with the same canonical ID (which shouldn't exist) might fail to validate some signatures.

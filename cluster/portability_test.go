@@ -190,6 +190,7 @@ func TestCluster_ForwardedLegacyReply(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
 	defer cluster.Stop()
 
+	cluster["b.localdomain"].Config.MLDSA44Threshold = 1
 	cluster["b.localdomain"].Config.RFC9421Threshold = 1
 	cluster["b.localdomain"].Config.Ed25519Threshold = 1
 	cluster["b.localdomain"].Config.DisableIntegrityProofs = true

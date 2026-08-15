@@ -46,7 +46,7 @@ type Syncer struct {
 	Config   *cfg.Config
 	DB       *sql.DB
 	Resolver *Resolver
-	Keys     [2]httpsig.Key
+	Keys     [3]httpsig.Key
 	Inbox    ap.Inbox
 }
 
@@ -241,7 +241,7 @@ func (l *Listener) saveFollowersDigest(ctx context.Context, sender *ap.Actor, he
 	return nil
 }
 
-func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, resolver *Resolver, keys [2]httpsig.Key) error {
+func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Config, db *sql.DB, resolver *Resolver, keys [3]httpsig.Key) error {
 	if digest, err := digestFollowers(ctx, db, d.Followed, domain); err != nil {
 		return err
 	} else if digest == d.Digest {
