@@ -23,7 +23,7 @@ func proofs(ctx context.Context, domain string, tx *sql.Tx) error {
 				return err
 			}
 
-			ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
+			ed25519PrivKey, err := data.DecodePrivateKey(ed25519PrivKeyMultibase)
 			if err != nil {
 				return err
 			}
@@ -56,7 +56,7 @@ func proofs(ctx context.Context, domain string, tx *sql.Tx) error {
 				return err
 			}
 
-			ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
+			ed25519PrivKey, err := data.DecodePrivateKey(ed25519PrivKeyMultibase)
 			if err != nil {
 				return err
 			}
@@ -89,7 +89,7 @@ func proofs(ctx context.Context, domain string, tx *sql.Tx) error {
 				return err
 			}
 
-			ed25519PrivKey, err := data.DecodeEd25519PrivateKey(ed25519PrivKeyMultibase)
+			ed25519PrivKey, err := data.DecodePrivateKey(ed25519PrivKeyMultibase)
 			if err != nil {
 				return err
 			}
