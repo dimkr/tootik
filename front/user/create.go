@@ -149,7 +149,7 @@ func CreatePortable(
 	actorType ap.ActorType,
 	cert *x509.Certificate,
 ) (*ap.Actor, [2]httpsig.Key, error) {
-	pub, priv, err := ed25519.GenerateKey(nil)
+	_, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate Ed25519 key for %s: %w", name, err)
 	}
@@ -163,7 +163,6 @@ func CreatePortable(
 		actorType,
 		cert,
 		priv,
-		pub,
 	)
 }
 
@@ -176,10 +175,16 @@ func CreatePortableWithKey(
 	name string,
 	actorType ap.ActorType,
 	cert *x509.Certificate,
-	ed25519Priv ed25519.PrivateKey,
-	ed25519Pub ed25519.PublicKey,
+	priv data.PrivateKey,
 ) (*ap.Actor, [2]httpsig.Key, error) {
+	ed25519Priv, ok := priv.(ed25519.PrivateKey)
+	if !ok {
+		return nil, [2]httpsig.Key{}, fmt.Errorf("unsupported key type: %T", priv)
+	}
+	ed25519Pub := ed25519Priv.Public().(ed25519.PublicKey)
+
 	rsaPriv, rsaPubPem, err := generateRSAKey()
+
 	if err != nil {
 		return nil, [2]httpsig.Key{}, fmt.Errorf("failed to generate RSA key pair: %w", err)
 	}

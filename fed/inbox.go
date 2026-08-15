@@ -119,7 +119,7 @@ func (l *Listener) fetchObject(ctx context.Context, id string, keys [2]httpsig.K
 		return true, nil, fmt.Errorf("key %s does not belong to %s", m[1], origin)
 	}
 
-	publicKey, err := data.DecodeEd25519PublicKey(m[1])
+	publicKey, err := data.DecodePublicKey(m[1])
 	if err != nil {
 		return true, nil, fmt.Errorf("failed to verify proof using %s: %w", withProof.Proof.VerificationMethod, err)
 	}

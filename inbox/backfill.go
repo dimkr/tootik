@@ -215,7 +215,7 @@ func (q *Queue) fetchPost(ctx context.Context, id string) (*ap.Object, error) {
 			return nil, fmt.Errorf("key %s does not belong to %s", m[1], origin)
 		}
 
-		publicKey, err := data.DecodeEd25519PublicKey(m[1])
+		publicKey, err := data.DecodePublicKey(m[1])
 		if err != nil {
 			return nil, fmt.Errorf("failed to verify proof using %s: %w", post.Proof.VerificationMethod, err)
 		}
@@ -394,7 +394,7 @@ func (q *Queue) fetchContext(ctx context.Context, post *ap.Object) error {
 			return fmt.Errorf("key %s does not belong to %s", m[1], contextOrigin)
 		}
 
-		publicKey, err := data.DecodeEd25519PublicKey(m[1])
+		publicKey, err := data.DecodePublicKey(m[1])
 		if err != nil {
 			return fmt.Errorf("failed to verify proof using %s: %w", collection.Proof.VerificationMethod, err)
 		}
