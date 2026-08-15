@@ -20,7 +20,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
@@ -52,15 +51,15 @@ func writeMetadataField(field ap.Attachment, w text.Writer) {
 }
 
 func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
-	actorID := "https://" + args[1]
+	arg := args[1]
 
 	var actor ap.Actor
-	if err := h.DB.QueryRowContext(r.Context, `select json(actor) from persons where id = ?`, actorID).Scan(&actor); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.Info("Person was not found", "actor", actorID)
+	if err := h.DB.QueryRowContext(r.Context, `select json(actor) from persons where id = 'https://' || $1 or slug = $1`, arg).Scan(&actor); err != nil && errors.Is(err, sql.ErrNoRows) {
+		r.Log.Info("Person was not found", "actor", arg)
 		w.Status(40, "User not found")
 		return
 	} else if err != nil {
-		r.Log.Warn("Failed to find person by ID", "actor", actorID, "error", err)
+		r.Log.Warn("Failed to find person by ID", "actor", arg, "error", err)
 		w.Error()
 		return
 	}
@@ -72,7 +71,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	r.Log.Info("Viewing outbox", "actor", actorID, "offset", offset)
+	r.Log.Info("Viewing outbox", "actor", actor.ID, "offset", offset)
 
 	var rows *sql.Rows
 	if actor.Type == ap.Group && r.User == nil {
@@ -94,7 +93,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 			) page
 			join persons authors on authors.id = page.author
 			order by page.pulse / 86400 desc, page.nreplies desc, page.pulse desc`,
-			actorID,
+			actor.ID,
 			h.Config.PostsPerPage,
 			offset,
 		)
@@ -129,7 +128,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 			) page
 			join persons authors on authors.id = page.author
 			order by page.pulse / 86400 desc, page.nreplies desc, page.pulse desc`,
-			actorID,
+			actor.ID,
 			r.User.ID,
 			h.Config.PostsPerPage,
 			offset,
@@ -154,11 +153,11 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 			left join persons parent_authors on parent_authors.id = parent_notes.author
 			group by u.id
 			order by max(u.inserted) desc limit $2 offset $3`,
-			actorID,
+			actor.ID,
 			h.Config.PostsPerPage,
 			offset,
 		)
-	} else if r.User.ID == actorID {
+	} else if r.User.ID == actor.ID {
 		// users can see all their posts
 		rows, err = h.DB.QueryContext(
 			r.Context,
@@ -177,7 +176,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 			left join persons parent_authors on parent_authors.id = parent_notes.author
 			group by u.id
 			order by max(u.inserted) desc limit $2 offset $3`,
-			actorID,
+			actor.ID,
 			h.Config.PostsPerPage,
 			offset,
 		)
@@ -222,14 +221,14 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 			left join notes parent_notes on parent_notes.id = page.object->>'$.inReplyTo'
 			left join persons parent_authors on parent_authors.id = parent_notes.author
 			order by page.inserted desc`,
-			actorID,
+			actor.ID,
 			r.User.ID,
 			h.Config.PostsPerPage,
 			offset,
 		)
 	}
 	if err != nil {
-		r.Log.Warn("Failed to fetch posts", "actor", actorID, "error", err)
+		r.Log.Warn("Failed to fetch posts", "actor", actor.ID, "error", err)
 		w.Error()
 		return
 	}
@@ -266,7 +265,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 	}
 
 	if offset == 0 && actor.MovedTo != "" {
-		w.Linkf("/users/outbox/"+strings.TrimPrefix(actor.MovedTo, "https://"), "Moved to %s", actor.MovedTo)
+		w.Linkf("/users/outbox/"+idLink(actor.MovedTo), "Moved to %s", actor.MovedTo)
 	}
 
 	if offset == 0 {
@@ -324,21 +323,21 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		w.Linkf(fmt.Sprintf("%s?%d", r.URL.Path, offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
 	}
 
-	if r.User != nil && actorID != r.User.ID {
+	if r.User != nil && actor.ID != r.User.ID {
 		w.Empty()
 		w.Subtitle("Actions")
 
 		var accepted sql.NullInt32
-		if err := h.DB.QueryRowContext(r.Context, `select accepted from follows where follower = ? and followed = ?`, r.User.ID, actorID).Scan(&accepted); actor.ManuallyApprovesFollowers && errors.Is(err, sql.ErrNoRows) {
-			w.Linkf("/users/follow/"+strings.TrimPrefix(actorID, "https://"), "⚡ Follow %s (requires approval)", actor.PreferredUsername)
+		if err := h.DB.QueryRowContext(r.Context, `select accepted from follows where follower = ? and followed = ?`, r.User.ID, actor.ID).Scan(&accepted); actor.ManuallyApprovesFollowers && errors.Is(err, sql.ErrNoRows) {
+			w.Linkf("/users/follow/"+idLink(actor.ID), "⚡ Follow %s (requires approval)", actor.PreferredUsername)
 		} else if errors.Is(err, sql.ErrNoRows) {
-			w.Linkf("/users/follow/"+strings.TrimPrefix(actorID, "https://"), "⚡ Follow %s", actor.PreferredUsername)
+			w.Linkf("/users/follow/"+idLink(actor.ID), "⚡ Follow %s", actor.PreferredUsername)
 		} else if err != nil {
-			r.Log.Warn("Failed to check if user is followed", "actor", actorID, "error", err)
+			r.Log.Warn("Failed to check if user is followed", "actor", actor.ID, "error", err)
 		} else if accepted.Valid && accepted.Int32 == 0 {
-			w.Linkf("/users/unfollow/"+strings.TrimPrefix(actorID, "https://"), "🔌 Unfollow %s (rejected)", actor.PreferredUsername)
+			w.Linkf("/users/unfollow/"+idLink(actor.ID), "🔌 Unfollow %s (rejected)", actor.PreferredUsername)
 		} else {
-			w.Linkf("/users/unfollow/"+strings.TrimPrefix(actorID, "https://"), "🔌 Unfollow %s", actor.PreferredUsername)
+			w.Linkf("/users/unfollow/"+idLink(actor.ID), "🔌 Unfollow %s", actor.PreferredUsername)
 		}
 	}
 }

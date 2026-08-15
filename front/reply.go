@@ -30,7 +30,7 @@ func (h *Handler) replyOrQuote(w text.Writer, r *Request, args []string, quote b
 		return
 	}
 
-	postID := "https://" + args[1]
+	arg := args[1]
 
 	var note ap.Object
 	if err := h.DB.QueryRowContext(
@@ -39,7 +39,7 @@ func (h *Handler) replyOrQuote(w text.Writer, r *Request, args []string, quote b
 		select json(notes.object) from notes
 		join persons on persons.id = notes.author
 		where
-			notes.id = $1 and
+			(notes.id = 'https://' || $1 or notes.slug = $1) and
 			notes.deleted = 0 and
 			(
 				notes.public = 1 or
@@ -63,14 +63,14 @@ func (h *Handler) replyOrQuote(w text.Writer, r *Request, args []string, quote b
 				)
 			)
 		`,
-		postID,
+		arg,
 		r.User.ID,
 	).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
-		r.Log.Warn("Post does not exist", "post", postID)
+		r.Log.Warn("Post does not exist", "post", arg)
 		w.Status(40, "Post not found")
 		return
 	} else if err != nil {
-		r.Log.Warn("Failed to find post by ID", "post", postID, "error", err)
+		r.Log.Warn("Failed to find post by ID", "post", arg, "error", err)
 		w.Error()
 		return
 	}
@@ -82,12 +82,12 @@ func (h *Handler) replyOrQuote(w text.Writer, r *Request, args []string, quote b
 		r.Log.Info("Quoting post", "post", note.ID)
 
 		if !note.CanQuote() {
-			r.Log.Warn("Post cannot be quoted", "post", postID)
+			r.Log.Warn("Post cannot be quoted", "post", note.ID)
 			w.Status(40, "Post cannot be quoted")
 			return
 		}
 
-		note.Quote = postID
+		note.Quote = note.ID
 
 		to.Add(note.AttributedTo)
 		cc.Add(r.User.Followers)

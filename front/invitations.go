@@ -21,7 +21,6 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
@@ -82,7 +81,7 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 
 		if row.Actor.Valid {
 			w.Text("Used: " + time.Unix(row.ActorInserted.Int64, 0).Format(time.DateOnly))
-			w.Link("/users/outbox/"+strings.TrimPrefix(row.Actor.V.ID, "https://"), "Used by: "+row.Actor.V.PreferredUsername)
+			w.Link("/users/outbox/"+idLink(row.Actor.V.ID), "Used by: "+row.Actor.V.PreferredUsername)
 		} else {
 			if expires := inserted.Add(h.Config.InvitationTimeout); now.After(expires) {
 				w.Text("Expired: " + expires.Format(time.DateOnly))

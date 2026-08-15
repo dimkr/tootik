@@ -17,7 +17,6 @@ limitations under the License.
 package front
 
 import (
-	"strings"
 	"time"
 
 	"github.com/dimkr/tootik/dbx"
@@ -76,9 +75,9 @@ func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
 
 	for _, row := range rows {
 		if r.User == nil {
-			w.Linkf("/outbox/"+strings.TrimPrefix(row.ID, "https://"), "%s %s", time.Unix(row.Last, 0).Format(time.DateOnly), row.Username)
+			w.Linkf("/outbox/"+idLink(row.ID), "%s %s", time.Unix(row.Last, 0).Format(time.DateOnly), row.Username)
 		} else {
-			w.Linkf("/users/outbox/"+strings.TrimPrefix(row.ID, "https://"), "%s %s", time.Unix(row.Last, 0).Format(time.DateOnly), row.Username)
+			w.Linkf("/users/outbox/"+idLink(row.ID), "%s %s", time.Unix(row.Last, 0).Format(time.DateOnly), row.Username)
 		}
 	}
 }
