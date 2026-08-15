@@ -53,10 +53,7 @@ By default, tootik uses `draft-cavage-http-signatures` when it signs outgoing re
 * When at least one actor on the server advertises support for these capabilities using [FEP-844e](https://codeberg.org/fediverse/fep/src/branch/main/fep/844e/fep-844e.md); tootik assumes this information is true although it's perfectly possible for a server to be behind a reverse proxy that drops the `Signature-Input` header
 * It remembers which servers responded with `200 OK` or `202 Accepted` to a `POST` request signed with RFC9421, Ed25519 or ML-DSA-44
 * When it accepts a RFC9421-signed (with or without Ed25519 or ML-DSA-44) request from another server, it assumes this server also supports incoming requests signed like this
-
-tootik does **not** implement ['double-knocking'](https://swicg.github.io/activitypub-http-signature/#how-to-upgrade-supported-versions) to detect RFC9421 support, because it's uncommon and this mechanism is very likely to double the number of outgoing requests. Instead, it breaks the deadlock from both ends:
-* It occasionally (see `RFC9421Threshold`, `Ed25519Threshold` and `MLDSA44Threshold`) signs outgoing `POST` requests with RFC9421, Ed25519 or ML-DSA-44, to prevent deadlock if another server is waiting instead of advertising or demonstrating support
-* It occasionally (see `CavageDraftFailureThreshold`) rejects incoming, `draft-cavage-http-signatures`-signed `POST` requests with `401 Unauthorized`, to encourage other servers to retry with RFC9421
+* It does **not** implement ['double-knocking'](https://swicg.github.io/activitypub-http-signature/#how-to-upgrade-supported-versions) to detect RFC9421 support, because it's uncommon and this mechanism is very likely to double the number of outgoing requests; instead, tootik randomly (see `RFC9421Threshold`, `Ed25519Threshold` and `MLDSA44Threshold`) tries RFC9421, Ed25519 or ML-DSA-44 in `POST` requests to servers that still haven't advertised or demonstrated support, to prevent deadlock if these servers are waiting too
 
 ## Collections
 
