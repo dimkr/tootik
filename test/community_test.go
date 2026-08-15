@@ -41,7 +41,8 @@ func TestCommunity_NewThread(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -103,7 +104,8 @@ func TestCommunity_NewThreadNotFollowing(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -162,7 +164,8 @@ func TestCommunity_NewThreadNotPublic(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -224,7 +227,8 @@ func TestCommunity_ReplyInThread(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -316,7 +320,8 @@ func TestCommunity_ReplyInThreadAuthorNotFollowing(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -379,7 +384,8 @@ func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -412,7 +418,8 @@ func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
 	assert.NoError(tx.Commit())
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/erin"),
 		"https://127.0.0.1/user/erin",
 		`{"type":"Person","preferredUsername":"erin"}`,
 	)
@@ -475,7 +482,8 @@ func TestCommunity_DuplicateReplyInThread(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -578,7 +586,8 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
@@ -702,7 +711,8 @@ func TestCommunity_UnknownEditedReplyInThread(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)

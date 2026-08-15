@@ -62,7 +62,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 				select json(notes.object), json(authors.actor), json(groups.actor), notes.inserted, notes.nreplies, notes.nquotes, notes.nshares, json(parent_authors.actor) from
 				(select rowid, rank from notesfts where content match $1 order by rank limit $2) top
 				join notes on
-					notes.rowid = top.rowid
+					notes.pk = top.rowid
 				join persons authors on
 					authors.id = notes.author and coalesce(authors.actor->>'$.discoverable', 1)
 				left join notes parent_notes on
@@ -94,7 +94,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 					select notes.id, notes.object, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares, top.rank, 2 as aud from
 					top
 					join notes on
-						notes.rowid = top.rowid
+						notes.pk = top.rowid
 					where
 						notes.public = 1
 					union all
@@ -114,7 +114,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 						)
 					join
 					top on
-						top.rowid = notes.rowid
+						top.rowid = notes.pk
 					where
 						follows.follower = $3 and
 						follows.accepted = 1
@@ -122,7 +122,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 					select notes.id, notes.object, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares, top.rank, 0 as aud from
 					top
 					join notes on
-						notes.rowid = top.rowid
+						notes.pk = top.rowid
 					where
 						(
 							$3 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or

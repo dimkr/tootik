@@ -134,7 +134,7 @@ func TestCluster_Gateways(t *testing.T) {
 
 	bob.
 		Follow("⚡️ Follows").
-		Contains(gmi.Line{Type: gmi.Link, Text: "🚴 alice (alice@a.localdomain)", URL: "/users/outbox/a.localdomain/.well-known/apgateway/" + did + "/actor"})
+		Contains(gmi.Line{Type: gmi.Link, Text: "🚴 alice (alice@a.localdomain)", URL: "/users/outbox/" + ap.Slug("https://a.localdomain/.well-known/apgateway/"+did+"/actor")})
 
 	post := alice.
 		Follow("📣 New post").

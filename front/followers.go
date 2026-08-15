@@ -19,7 +19,6 @@ package front
 import (
 	"database/sql"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
@@ -98,7 +97,7 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 				w.Empty()
 			}
 
-			param := strings.TrimPrefix(row.Follower.ID, "https://")
+			param := idLink(row.Follower.ID)
 
 			w.Linkf(
 				"/users/outbox/"+param,

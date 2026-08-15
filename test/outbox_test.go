@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package test
 import (
 	"context"
 	"fmt"
+	"github.com/dimkr/tootik/ap"
 	"strings"
 	"testing"
 
@@ -217,14 +218,16 @@ func TestOutbox_PublicPostInGroup(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://other.localdomain/group/people"),
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
@@ -253,14 +256,16 @@ func TestOutbox_PublicPostInGroupUnauthenticatedUser(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://other.localdomain/group/people"),
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
@@ -288,14 +293,16 @@ func TestOutbox_PublicPostInGroupAudienceSetByUser(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://other.localdomain/group/people"),
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
@@ -337,14 +344,16 @@ func TestOutbox_PublicPostInGroupAudienceSetByGroup(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://other.localdomain/group/people"),
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
@@ -386,14 +395,16 @@ func TestOutbox_PublicPostInGroupDeletedByUser(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://other.localdomain/group/people"),
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
@@ -435,21 +446,24 @@ func TestOutbox_PublicPostInGroupDeletedByAnotherUser(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/erin"),
 		"https://127.0.0.1/user/erin",
 		`{"id":"https://127.0.0.1/user/erin","type":"Person","preferredUsername":"erin","followers":"https://127.0.0.1/followers/erin"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://other.localdomain/group/people"),
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
@@ -491,14 +505,16 @@ func TestOutbox_PublicPostInGroupDeletedByGroup(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://other.localdomain/group/people"),
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
@@ -540,21 +556,24 @@ func TestOutbox_PublicPostInGroupForwardedDelete(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/erin"),
 		"https://127.0.0.1/user/erin",
 		`{"type":"Person","preferredUsername":"erin","followers":"https://127.0.0.1/followers/erin"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://other.localdomain/group/people"),
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
@@ -596,14 +615,16 @@ func TestOutbox_PublicPostInGroupEditedByUser(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://other.localdomain/group/people"),
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
@@ -645,14 +666,16 @@ func TestOutbox_PostToFollowersInGroup(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://other.localdomain/group/people"),
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
@@ -686,14 +709,16 @@ func TestOutbox_PostToFollowersInGroupNotFollowingGroup(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://other.localdomain/group/people"),
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
@@ -727,14 +752,16 @@ func TestOutbox_PostToFollowersInGroupNotAccepted(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://other.localdomain/group/people"),
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
@@ -765,14 +792,16 @@ func TestOutbox_PostToFollowersInGroupFollowingAuthor(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://other.localdomain/group/people"),
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
@@ -806,14 +835,16 @@ func TestOutbox_PostToFollowersInGroupUnauthenticatedUser(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://other.localdomain/group/people"),
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
@@ -847,14 +878,16 @@ func TestOutbox_DMInGroupNotFollowingGroup(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://other.localdomain/group/people"),
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)
@@ -888,14 +921,16 @@ func TestOutbox_DMInGroupAnotherUser(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://other.localdomain/group/people"),
 		"https://other.localdomain/group/people",
 		`{"id":"https://other.localdomain/group/people","type":"Group","preferredUsername":"people"}`,
 	)

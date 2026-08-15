@@ -1,5 +1,5 @@
 /*
-Copyright 2024 - 2026 Dima Krasner
+Copyright 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,14 +17,15 @@ limitations under the License.
 package front
 
 import (
-	"github.com/dimkr/tootik/front/text"
+	"strings"
+
+	"github.com/dimkr/tootik/ap"
 )
 
-func me(w text.Writer, r *Request, args ...string) {
-	if r.User == nil {
-		w.Redirect("/users")
-		return
+func idLink(id string) string {
+	if len(id) < 80 {
+		return strings.TrimPrefix(id, "https://")
 	}
 
-	w.Redirect("/users/outbox/" + idLink(r.User.ID))
+	return ap.Slug(id)
 }

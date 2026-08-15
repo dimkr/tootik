@@ -19,6 +19,7 @@ package test
 import (
 	"context"
 	"fmt"
+	"github.com/dimkr/tootik/ap"
 	"net/http"
 	"strings"
 	"testing"
@@ -36,7 +37,8 @@ func TestMove_FederatedToFederated(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://::1/user/dan"}`,
 	)
@@ -55,7 +57,8 @@ func TestMove_FederatedToFederated(t *testing.T) {
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://::1/user/dan"),
 		"https://::1/user/dan",
 		`{"id":"https://::1/user/dan","type":"Person","preferredUsername":"dan","alsoKnownAs":"https://127.0.0.1/user/dan"}`,
 	)
@@ -84,14 +87,16 @@ func TestMove_FederatedToFederatedTwoAccounts(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://::1/user/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://::1/user/dan"),
 		"https://::1/user/dan",
 		`{"id":"https://::1/user/dan","type":"Person","preferredUsername":"dan","alsoKnownAs":["https://::1/user/dan","https://127.0.0.1/user/dan"]}`,
 	)
@@ -132,14 +137,16 @@ func TestMove_FederatedToFederatedNotLinked(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://::1/user/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://::1/user/dan"),
 		"https://::1/user/dan",
 		`{"id":"https://::1/user/dan","type":"Person","preferredUsername":"dan"}`,
 	)
@@ -180,7 +187,8 @@ func TestMove_FederatedToLocal(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://localhost.localdomain:8443/user/bob"}`,
 	)
@@ -221,7 +229,8 @@ func TestMove_FederatedToLocalLinked(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://localhost.localdomain:8443/user/bob"}`,
 	)
@@ -265,14 +274,16 @@ func TestMove_FollowingBoth(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","movedTo":"https://::1/user/dan"}`,
 	)
 	assert.NoError(err)
 
 	_, err = server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://::1/user/dan"),
 		"https://::1/user/dan",
 		`{"id":"https://::1/user/dan","type":"Person","preferredUsername":"dan","alsoKnownAs":"https://127.0.0.1/user/dan"}`,
 	)
@@ -411,7 +422,8 @@ func TestMove_LocalToFederated(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/alice"),
 		"https://127.0.0.1/user/alice",
 		`{"id":"https://127.0.0.1/user/alice","type":"Person","preferredUsername":"alice","alsoKnownAs":["https://localhost.localdomain:8443/user/alice"]}`,
 	)
@@ -459,7 +471,8 @@ func TestMove_LocalToFederatedNoSourceToTargetAlias(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/alice"),
 		"https://127.0.0.1/user/alice",
 		`{"id":"https://127.0.0.1/user/alice","type":"Person","preferredUsername":"alice","alsoKnownAs":["https://localhost.localdomain:8443/user/alice"]}`,
 	)
@@ -487,7 +500,8 @@ func TestMove_LocalToFederatedNoTargetToSourceAlias(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/alice"),
 		"https://127.0.0.1/user/alice",
 		`{"id":"https://127.0.0.1/user/alice","type":"Person","preferredUsername":"alice","alsoKnownAs":[]}`,
 	)
@@ -520,7 +534,8 @@ func TestMove_LocalToFederatedAlreadyMoved(t *testing.T) {
 	assert := assert.New(t)
 
 	_, err := server.db.Exec(
-		`insert into persons (id, actor) values (?, jsonb(?))`,
+		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+		ap.Slug("https://127.0.0.1/user/alice"),
 		"https://127.0.0.1/user/alice",
 		`{"id":"https://127.0.0.1/user/alice","type":"Person","preferredUsername":"alice","alsoKnownAs":["https://localhost.localdomain:8443/user/alice"]}`,
 	)

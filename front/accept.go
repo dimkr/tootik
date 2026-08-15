@@ -29,24 +29,24 @@ func (h *Handler) accept(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	follower := "https://" + args[1]
+	arg := args[1]
 
 	tx, err := h.DB.BeginTx(r.Context, nil)
 	if err != nil {
-		r.Log.Warn("Failed to accept follow request", "follower", follower, "error", err)
+		r.Log.Warn("Failed to accept follow request", "follower", arg, "error", err)
 		w.Error()
 		return
 	}
 	defer tx.Rollback()
 
-	var followID string
+	var follower, followID string
 	if err := tx.QueryRowContext(
 		r.Context,
-		`SELECT id FROM follows WHERE followed = ? AND follower = ? AND accepted IS NULL`,
+		`SELECT follows.follower, follows.id FROM follows JOIN persons ON persons.id = follows.follower WHERE follows.followed = $1 AND (persons.id = 'https://' || $2 OR persons.slug = $2) AND follows.accepted IS NULL`,
 		r.User.ID,
-		follower,
-	).Scan(&followID); errors.Is(err, sql.ErrNoRows) {
-		r.Log.Warn("Failed to fetch follow request to approve", "follower", follower)
+		arg,
+	).Scan(&follower, &followID); errors.Is(err, sql.ErrNoRows) {
+		r.Log.Warn("Failed to fetch follow request to approve", "follower", arg)
 		w.Status(40, "No such follow request")
 		return
 	} else if err != nil {

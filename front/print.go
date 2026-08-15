@@ -310,9 +310,9 @@ func (h *Handler) printCompactNote(
 	}
 
 	if r.User == nil {
-		w.Link("/view/"+strings.TrimPrefix(note.ID, "https://"), title.String())
+		w.Link("/view/"+idLink(note.ID), title.String())
 	} else {
-		w.Link("/users/view/"+strings.TrimPrefix(note.ID, "https://"), title.String())
+		w.Link("/users/view/"+idLink(note.ID), title.String())
 	}
 
 	for _, line := range contentLines {

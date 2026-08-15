@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,17 +29,17 @@ func (h *Handler) follow(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	followed := "https://" + args[1]
+	arg := args[1]
 
-	var exists int
-	if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from persons where id = ?)`, followed).Scan(&exists); err != nil {
-		r.Log.Warn("Failed to check if user exists", "followed", followed, "error", err)
+	var followed string
+	if err := h.DB.QueryRowContext(r.Context, `select id from persons where id = 'https://' || $1 or slug = $1`, arg).Scan(&followed); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		r.Log.Warn("Failed to check if user exists", "followed", arg, "error", err)
 		w.Error()
 		return
 	}
 
-	if exists == 0 {
-		r.Log.Warn("Cannot follow a non-existing user", "followed", followed)
+	if followed == "" {
+		r.Log.Warn("Cannot follow a non-existing user", "followed", arg)
 		w.Status(40, "No such user")
 		return
 	}
@@ -75,5 +75,5 @@ func (h *Handler) follow(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.Redirectf("/users/outbox/" + args[1])
+	w.Redirectf("/users/outbox/" + arg)
 }

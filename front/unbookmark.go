@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,13 +24,13 @@ func (h *Handler) unbookmark(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	postID := "https://" + args[1]
+	arg := args[1]
 
-	if _, err := h.DB.ExecContext(r.Context, `delete from bookmarks where note = ? and by = ?`, postID, r.User.ID); err != nil {
-		r.Log.Warn("Failed to delete bookmark", "post", postID, "error", err)
+	if _, err := h.DB.ExecContext(r.Context, `delete from bookmarks where note in (select id from notes where id = 'https://' || $1 or slug = $1) and by = $2`, arg, r.User.ID); err != nil {
+		r.Log.Warn("Failed to delete bookmark", "post", arg, "error", err)
 		w.Error()
 		return
 	}
 
-	w.Redirectf("/users/view/" + args[1])
+	w.Redirectf("/users/view/" + arg)
 }
