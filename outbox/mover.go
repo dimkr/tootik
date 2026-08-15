@@ -80,7 +80,7 @@ func (m *Mover) Run(ctx context.Context) error {
 
 	rows, err := dbx.QueryCollectIgnore[struct {
 		Actor                     ap.Actor
-		Ed25519PrivKey            []byte
+		Ed25519Seed               []byte
 		OldID, NewID, OldFollowID string
 		OnlyRemove                bool
 	}](
@@ -91,7 +91,7 @@ func (m *Mover) Run(ctx context.Context) error {
 			return true
 		},
 		`
-			select json(persons.actor), persons.ed25519privkey, old.id, new.id, follows.id, new.id = follows.follower or exists (select 1 from follows where follower = persons.id and followed = new.id) from
+			select json(persons.actor), persons.ed25519seed, old.id, new.id, follows.id, new.id = follows.follower or exists (select 1 from follows where follower = persons.id and followed = new.id) from
 			persons old
 			join
 			persons new
@@ -116,7 +116,7 @@ func (m *Mover) Run(ctx context.Context) error {
 	}
 
 	for _, row := range rows {
-		key := httpsig.Key{ID: row.Actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(row.Ed25519PrivKey)}
+		key := httpsig.Key{ID: row.Actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(row.Ed25519Seed)}
 
 		if row.OnlyRemove {
 			slog.Info("Removing follow of moved actor", "follow", row.OldFollowID, "old", row.OldID, "new", row.NewID)

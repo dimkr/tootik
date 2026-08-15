@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -33,15 +33,15 @@ import (
 // This user is used to sign outgoing requests not initiated by a particular user.
 func CreateApplicationActor(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config) (*ap.Actor, [2]httpsig.Key, error) {
 	var actor ap.Actor
-	var rsaPrivKeyDer, ed25519PrivKey []byte
+	var rsaPrivKeyDer, ed25519Seed []byte
 	if err := db.QueryRowContext(
 		ctx,
-		`select json(actor), rsaprivkey, ed25519privkey from persons where actor->>'$.preferredUsername' = 'actor' and host = ?`,
+		`select json(actor), rsaprivkey, ed25519seed from persons where actor->>'$.preferredUsername' = 'actor' and host = ?`,
 		domain,
 	).Scan(
 		&actor,
 		&rsaPrivKeyDer,
-		&ed25519PrivKey,
+		&ed25519Seed,
 	); errors.Is(err, sql.ErrNoRows) {
 		return CreatePortable(ctx, domain, db, cfg, "actor", ap.Application, nil)
 	} else if err != nil {
@@ -55,6 +55,6 @@ func CreateApplicationActor(ctx context.Context, domain string, db *sql.DB, cfg 
 
 	return &actor, [2]httpsig.Key{
 		{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
-		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)},
+		{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519Seed)},
 	}, err
 }

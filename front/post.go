@@ -136,7 +136,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 								parents.object->>'$.attributedTo' = persons.id
 								or exists (select 1 from json_each(parents.object->'$.to') where value = persons.id)
 								or exists (select 1 from json_each(parents.object->'$.cc') where value = persons.id)
-						) or ed25519privkey is not null
+						) or ed25519seed is not null
 						or id in (select followed from follows where follower = $4 and accepted = 1)
 					)
 				limit 2
@@ -176,7 +176,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 								parents.object->>'$.attributedTo' = persons.id
 								or exists (select 1 from json_each(parents.object->'$.to') where value = persons.id)
 								or exists (select 1 from json_each(parents.object->'$.cc') where value = persons.id)
-						) or ed25519privkey is not null
+						) or ed25519seed is not null
 						or id in (select followed from follows where follower = $5 and accepted = 1)
 					)
 				limit 2
@@ -197,7 +197,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 					actor->>'$.preferredUsername' = $1
 					and ((actor->>'$.type' = 'Group') is $2)
 					and (
-						ed25519privkey is not null
+						ed25519seed is not null
 						or id in (select followed from follows where follower = $3 and accepted = 1)
 					)
 				limit 2

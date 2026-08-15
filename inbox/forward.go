@@ -31,13 +31,13 @@ import (
 
 func (inbox *Inbox) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity, firstPostID string) (bool, error) {
 	var group ap.Actor
-	var ed25519PrivKey []byte
+	var ed25519Seed []byte
 	if err := tx.QueryRowContext(
 		ctx,
 		`
-			select json(actor), ed25519privkey from
+			select json(actor), ed25519seed from
 			(
-				select persons.actor, ed25519privkey, 1 as rank
+				select persons.actor, ed25519seed, 1 as rank
 				from persons
 				join notes
 				on
@@ -47,7 +47,7 @@ func (inbox *Inbox) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Obj
 					persons.host = $2 and
 					persons.actor->>'$.type' = 'Group'
 				union all
-				select persons.actor, ed25519privkey, 2 as rank
+				select persons.actor, ed25519seed, 2 as rank
 				from persons
 				join notes
 				on
@@ -58,7 +58,7 @@ func (inbox *Inbox) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Obj
 					persons.host = $2 and
 					persons.actor->>'$.type' = 'Group'
 				union all
-				select persons.actor, ed25519privkey, 3 as rank
+				select persons.actor, ed25519seed, 3 as rank
 				from persons
 				join notes
 				on
@@ -74,7 +74,7 @@ func (inbox *Inbox) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Obj
 		`,
 		firstPostID,
 		inbox.Domain,
-	).Scan(&group, &ed25519PrivKey); err != nil && errors.Is(err, sql.ErrNoRows) {
+	).Scan(&group, &ed25519Seed); err != nil && errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	} else if err != nil {
 		return false, err
@@ -106,7 +106,7 @@ func (inbox *Inbox) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Obj
 	}
 
 	// if this is a new post and we're passing the Create activity to followers, also share the post
-	if err := inbox.Announce(ctx, tx, &group, httpsig.Key{ID: group.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)}, note); err != nil {
+	if err := inbox.Announce(ctx, tx, &group, httpsig.Key{ID: group.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519Seed)}, note); err != nil {
 		return true, err
 	}
 
@@ -163,7 +163,7 @@ func (inbox *Inbox) forwardActivity(ctx context.Context, tx *sql.Tx, note *ap.Ob
 		return nil
 	}
 
-	if err := tx.QueryRowContext(ctx, `select id from persons where cid = ? and ed25519privkey is not null`, ap.Canonical(threadStarterID)).Scan(&threadStarterID); errors.Is(err, sql.ErrNoRows) {
+	if err := tx.QueryRowContext(ctx, `select id from persons where cid = ? and ed25519seed is not null`, ap.Canonical(threadStarterID)).Scan(&threadStarterID); errors.Is(err, sql.ErrNoRows) {
 		slog.Debug("Thread starter is federated", "activity", activity.ID, "note", note.ID)
 		return nil
 	} else if err != nil {
