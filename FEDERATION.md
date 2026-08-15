@@ -264,9 +264,9 @@ Moreover, all objects and activities owned by a portable actor contain an integr
 
 ## Delivery
 
-When tootik receives a `POST` request to `inbox` from a portable actor, it requires a valid [FEP-8b32](https://codeberg.org/fediverse/fep/src/branch/main/fep/8b32/fep-8b32.md) integrity proof generated using the private key that matches the DID, and ability to fetch the actor, if not cached.
+When tootik receives a `POST` request to `inbox` from a portable actor, it requires a valid [FEP-8b32](https://codeberg.org/fediverse/fep/src/branch/main/fep/8b32/fep-8b32.md) integrity proof generated using the actor's Ed25519 key and ability to fetch the actor, if not cached.
 
-tootik validates the integrity proof using the public key extracted from the key ID, and doesn't need to fetch the actor first.
+tootik validates the integrity proof using the Ed25519 public key extracted from the key ID, and doesn't need to fetch the actor first.
 
 tootik's `inbox` doesn't validate HTTP signatures and simply ignores them when the sender is a portable actor. Other servers might do the same, therefore automatic detection of RFC9421 and Ed25519 or ML-DSA-44 support on other servers ignores `200 OK` or `202 Accepted` responses from `/.well-known/apgateway`.
 
