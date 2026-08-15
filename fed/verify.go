@@ -112,7 +112,7 @@ func (l *Listener) verifyRequestUsingKeyID(r *http.Request, body []byte) (*https
 	return sig, key, err
 }
 
-func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.ResolverFlag, keys [2]httpsig.Key) (*httpsig.Signature, *ap.Actor, error) {
+func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.ResolverFlag, keys [3]httpsig.Key) (*httpsig.Signature, *ap.Actor, error) {
 	sig, err := l.extractRequestSignature(r, body)
 	if err != nil {
 		return nil, nil, err
@@ -167,7 +167,7 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 	return sig, actor, nil
 }
 
-func (l *Listener) verifyProof(ctx context.Context, activity *ap.Activity, raw []byte, flags ap.ResolverFlag, keys [2]httpsig.Key) (*ap.Actor, error) {
+func (l *Listener) verifyProof(ctx context.Context, activity *ap.Activity, raw []byte, flags ap.ResolverFlag, keys [3]httpsig.Key) (*ap.Actor, error) {
 	if m := ap.KeyRegex.FindStringSubmatch(activity.Proof.VerificationMethod); m != nil {
 		if m2 := ap.GatewayURLRegex.FindStringSubmatch(activity.Actor); m2 != nil {
 			if m2[1] != m[1] {
