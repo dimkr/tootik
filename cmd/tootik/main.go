@@ -246,19 +246,19 @@ func main() {
 		defer tx.Rollback()
 
 		var actor ap.Actor
-		var ed25519PrivKey []byte
+		var ed25519Seed []byte
 		if err := tx.QueryRowContext(
 			ctx,
-			`select json(actor), ed25519privkey from persons where ed25519privkey is not null and actor->>'$.preferredUsername' = ?`,
+			`select json(actor), ed25519seed from persons where ed25519seed is not null and actor->>'$.preferredUsername' = ?`,
 			flag.Arg(1),
-		).Scan(&actor, &ed25519PrivKey); err != nil {
+		).Scan(&actor, &ed25519Seed); err != nil {
 			panic(err)
 		}
 
 		actor.Summary = tplain.ToHTML(string(summary), nil)
 		actor.Updated.Time = time.Now()
 
-		if err := localInbox.UpdateActorTx(ctx, tx, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)}); err != nil {
+		if err := localInbox.UpdateActorTx(ctx, tx, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519Seed)}); err != nil {
 			panic(err)
 		}
 
@@ -288,12 +288,12 @@ func main() {
 		userName := flag.Arg(1)
 
 		var actor ap.Actor
-		var ed25519PrivKey []byte
+		var ed25519Seed []byte
 		if err := tx.QueryRowContext(
 			ctx,
-			`select select json(actor), ed25519privkey from persons where ed25519privkey is not null and actor->>'$.preferredUsername' = ?`,
+			`select select json(actor), ed25519seed from persons where ed25519seed is not null and actor->>'$.preferredUsername' = ?`,
 			userName,
-		).Scan(&actor, &ed25519PrivKey); err != nil {
+		).Scan(&actor, &ed25519Seed); err != nil {
 			panic(err)
 		}
 
@@ -312,7 +312,7 @@ func main() {
 		})
 		actor.Updated.Time = now
 
-		if err := localInbox.UpdateActorTx(ctx, tx, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)}); err != nil {
+		if err := localInbox.UpdateActorTx(ctx, tx, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519Seed)}); err != nil {
 			panic(err)
 		}
 

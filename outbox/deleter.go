@@ -36,14 +36,14 @@ type Deleter struct {
 
 func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 	rows, err := dbx.QueryCollect[struct {
-		Sharer         ap.Actor
-		Ed25519PrivKey []byte
-		Share          ap.Activity
+		Sharer      ap.Actor
+		Ed25519Seed []byte
+		Share       ap.Activity
 	}](
 		ctx,
 		d.DB,
 		`
-		select json(persons.actor), persons.ed25519privkey, json(outbox.activity) from persons
+		select json(persons.actor), persons.ed25519seed, json(outbox.activity) from persons
 		join shares on shares.by = persons.id
 		join outbox on outbox.activity->>'$.actor' = shares.by and outbox.activity->>'$.object' = shares.note
 		where
@@ -66,7 +66,7 @@ func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 			&row.Sharer,
 			httpsig.Key{
 				ID:         row.Sharer.AssertionMethod[0].ID,
-				PrivateKey: ed25519.NewKeyFromSeed(row.Ed25519PrivKey),
+				PrivateKey: ed25519.NewKeyFromSeed(row.Ed25519Seed),
 			},
 			&row.Share,
 		); err != nil {
@@ -86,14 +86,14 @@ func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 
 func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 	rows, err := dbx.QueryCollect[struct {
-		Author         ap.Actor
-		Ed25519PrivKey []byte
-		Note           ap.Object
+		Author      ap.Actor
+		Ed25519Seed []byte
+		Note        ap.Object
 	}](
 		ctx,
 		d.DB,
 		`
-		select json(persons.actor), persons.ed25519privkey, json(notes.object) from persons
+		select json(persons.actor), persons.ed25519seed, json(notes.object) from persons
 		join notes on notes.author = persons.id
 		where
 			persons.ttl is not null and
@@ -116,7 +116,7 @@ func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 			&row.Author,
 			httpsig.Key{
 				ID:         row.Author.AssertionMethod[0].ID,
-				PrivateKey: ed25519.NewKeyFromSeed(row.Ed25519PrivKey),
+				PrivateKey: ed25519.NewKeyFromSeed(row.Ed25519Seed),
 			},
 			&row.Note,
 		); err != nil {

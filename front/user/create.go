@@ -86,7 +86,7 @@ func insertActor(
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT OR IGNORE INTO persons (id, actor, rsaprivkey, ed25519privkey) VALUES (?, JSONB(?), ?, ?)`,
+		`INSERT OR IGNORE INTO persons (id, actor, rsaprivkey, ed25519seed) VALUES (?, JSONB(?), ?, ?)`,
 		actor.ID,
 		actor,
 		x509.MarshalPKCS1PrivateKey(rsaPriv),

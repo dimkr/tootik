@@ -53,13 +53,13 @@ func (q *Queue) fetchCachedPost(ctx context.Context, id string) (*ap.Object, err
 						or exists (
 								select 1 from persons where
 										persons.id = notes.author
-										and persons.ed25519privkey is not null
+										and persons.ed25519seed is not null
 						)
 						or (
 								not exists (
 										select 1 from persons where
 												persons.id = notes.author
-												and persons.ed25519privkey is not null
+												and persons.ed25519seed is not null
 								) and (
 										max(inserted, updated) > $2
 										or exists (

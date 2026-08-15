@@ -39,12 +39,12 @@ func (h *Handler) Shell(ctx context.Context, user, domain string) error {
 	}
 
 	var actor ap.Actor
-	var rsaPrivKeyDer, ed25519PrivKey []byte
+	var rsaPrivKeyDer, ed25519Seed []byte
 	if err := h.DB.QueryRowContext(
 		ctx,
-		`select json(actor), rsaprivkey, ed25519privkey from persons where actor->>'$.preferredUsername' = ? and ed25519privkey is not null`,
+		`select json(actor), rsaprivkey, ed25519seed from persons where actor->>'$.preferredUsername' = ? and ed25519seed is not null`,
 		user,
-	).Scan(&actor, &rsaPrivKeyDer, &ed25519PrivKey); err != nil {
+	).Scan(&actor, &rsaPrivKeyDer, &ed25519Seed); err != nil {
 		panic(err)
 	}
 
@@ -67,7 +67,7 @@ func (h *Handler) Shell(ctx context.Context, user, domain string) error {
 				User:    &actor,
 				Keys: [2]httpsig.Key{
 					{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},
-					{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)},
+					{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519Seed)},
 				},
 			},
 			w,

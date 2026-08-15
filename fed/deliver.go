@@ -91,11 +91,11 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 	slog.Debug("Polling delivery queue")
 
 	rows, err := dbx.QueryCollectCountIgnore[struct {
-		DeliveryAttempts              int
-		Activity                      ap.Activity
-		RawActivity                   string
-		Actor                         ap.Actor
-		RsaPrivKeyDer, Ed25519PrivKey []byte
+		DeliveryAttempts           int
+		Activity                   ap.Activity
+		RawActivity                string
+		Actor                      ap.Actor
+		RsaPrivKeyDer, Ed25519Seed []byte
 	}](
 		ctx,
 		q.DB,
@@ -104,7 +104,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			slog.Error("Failed to fetch post to deliver", "error", err)
 			return true
 		},
-		`select outbox.attempts, json(outbox.activity) as x, json(outbox.activity) as y, json(persons.actor), persons.rsaprivkey, persons.ed25519privkey from
+		`select outbox.attempts, json(outbox.activity) as x, json(outbox.activity) as y, json(persons.actor), persons.rsaprivkey, persons.ed25519seed from
 		outbox
 		join persons
 		on
@@ -177,7 +177,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 		keys := [2]httpsig.Key{
 			{ID: row.Actor.PublicKey.ID, PrivateKey: rsaPrivKey},
-			{ID: row.Actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(row.Ed25519PrivKey)},
+			{ID: row.Actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(row.Ed25519Seed)},
 		}
 
 		if _, err := q.DB.ExecContext(
@@ -404,7 +404,7 @@ func (q *Queue) queueTasks(
 				slog.Warn("Skipped an inbox", "activity", job.Activity.ID, "error", err)
 				return true
 			},
-			`select distinct coalesce(persons.actor->>'$.endpoints.sharedInbox', persons.actor->>'$.inbox') as inbox from persons join follows on follows.follower = persons.id where follows.followed = ? and follows.accepted = 1 and follows.follower not like ? and persons.ed25519privkey is null order by persons.actor->>'$.endpoints.sharedInbox' is not null desc, inbox`,
+			`select distinct coalesce(persons.actor->>'$.endpoints.sharedInbox', persons.actor->>'$.inbox') as inbox from persons join follows on follows.follower = persons.id where follows.followed = ? and follows.accepted = 1 and follows.follower not like ? and persons.ed25519seed is null order by persons.actor->>'$.endpoints.sharedInbox' is not null desc, inbox`,
 			job.Sender.ID,
 			fmt.Sprintf("https://%s/%%", activityID.Host),
 		)

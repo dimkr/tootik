@@ -180,11 +180,11 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 			return errors.New("received an invalid follow request")
 		}
 
-		var ed25519PrivKey []byte
+		var ed25519Seed []byte
 		var followed ap.Actor
-		if err := tx.QueryRowContext(ctx, `select ed25519privkey, json(actor) from persons where cid = ? order by ed25519privkey is not null desc limit 1`, ap.Canonical(followedID)).Scan(&ed25519PrivKey, &followed); errors.Is(err, sql.ErrNoRows) {
+		if err := tx.QueryRowContext(ctx, `select ed25519seed, json(actor) from persons where cid = ? order by ed25519seed is not null desc limit 1`, ap.Canonical(followedID)).Scan(&ed25519Seed, &followed); errors.Is(err, sql.ErrNoRows) {
 			var localFollowerID string
-			if err := tx.QueryRowContext(ctx, `select id from persons where cid = ? and ed25519privkey is not null`, ap.Canonical(activity.Actor)).Scan(&localFollowerID); errors.Is(err, sql.ErrNoRows) {
+			if err := tx.QueryRowContext(ctx, `select id from persons where cid = ? and ed25519seed is not null`, ap.Canonical(activity.Actor)).Scan(&localFollowerID); errors.Is(err, sql.ErrNoRows) {
 				return fmt.Errorf("received an invalid follow request for %s by %s", followedID, activity.Actor)
 			} else if err != nil {
 				return fmt.Errorf("failed to validate follow request for %s by %s: %w", followedID, activity.Actor, err)
@@ -204,7 +204,7 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 			return fmt.Errorf("failed to fetch %s: %w", followed.ID, err)
 		}
 
-		if ed25519PrivKey == nil || followed.ManuallyApprovesFollowers {
+		if ed25519Seed == nil || followed.ManuallyApprovesFollowers {
 			slog.Info("Not approving follow request", "activity", activity, "follower", activity.Actor, "followed", followed.ID)
 
 			if _, err := tx.ExecContext(
@@ -217,7 +217,7 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 			); err != nil {
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
-		} else if ed25519PrivKey != nil && !followed.ManuallyApprovesFollowers {
+		} else if ed25519Seed != nil && !followed.ManuallyApprovesFollowers {
 			slog.Info("Approving follow request", "activity", activity, "follower", activity.Actor, "followed", followed.ID)
 
 			if _, err := tx.ExecContext(
@@ -231,7 +231,7 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
 
-			if err := inbox.AcceptFollow(ctx, &followed, httpsig.Key{ID: followed.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey)}, activity.Actor, activity.ID, tx); err != nil {
+			if err := inbox.AcceptFollow(ctx, &followed, httpsig.Key{ID: followed.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519Seed)}, activity.Actor, activity.ID, tx); err != nil {
 				return fmt.Errorf("failed to accept %s: %w", activity.ID, err)
 			}
 		} else {
@@ -444,16 +444,16 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 		}
 
 		var actor ap.Actor
-		var ed25519PrivKey []byte
+		var ed25519Seed []byte
 		if err := tx.QueryRowContext(
 			ctx,
 			`
-			select ed25519privkey, json(actor) from notes
+			select ed25519seed, json(actor) from notes
 			join persons on persons.id = notes.author
-			where notes.id = ? and notes.public = 1 and notes.deleted = 0 and persons.ed25519privkey is not null
+			where notes.id = ? and notes.public = 1 and notes.deleted = 0 and persons.ed25519seed is not null
 			`,
 			postID,
-		).Scan(&ed25519PrivKey, &actor); errors.Is(err, sql.ErrNoRows) {
+		).Scan(&ed25519Seed, &actor); errors.Is(err, sql.ErrNoRows) {
 			slog.Debug("Received invalid quote request", "activity", activity)
 			return nil
 		} else if err != nil {
@@ -465,7 +465,7 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 			&actor,
 			httpsig.Key{
 				ID:         actor.AssertionMethod[0].ID,
-				PrivateKey: ed25519.NewKeyFromSeed(ed25519PrivKey),
+				PrivateKey: ed25519.NewKeyFromSeed(ed25519Seed),
 			},
 			activity,
 			tx,
