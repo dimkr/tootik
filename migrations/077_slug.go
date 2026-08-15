@@ -122,7 +122,7 @@ func slug(ctx context.Context, domain string, tx *sql.Tx) error {
 		`DROP TRIGGER nshares_insert`,
 		`DROP TRIGGER nshares_delete`,
 
-		`CREATE TABLE nnotes(pk INTEGER PRIMARY KEY, slug TEXT NOT NULL, id TEXT NOT NULL, author TEXT NOT NULL, object JSONB NOT NULL, public INTEGER NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()), updated INTEGER DEFAULT 0, host TEXT AS (substr(substr(author, 9), 0, instr(substr(author, 9), '/'))), to0 TEXT AS (object->>'$.to[0]'), to1 TEXT AS (object->>'$.to[1]'), to2 TEXT AS (object->>'$.to[2]'), cc0 TEXT AS (object->>'$.cc[0]'), cc1 TEXT AS (object->>'$.cc[1]'), cc2 TEXT AS (object->>'$.cc[2]'), deleted INTEGER NOT NULL DEFAULT 0, nreplies INTEGER DEFAULT 0, nquotes INTEGER DEFAULT 0, nshares INTEGER DEFAULT 0, pulse INTEGER DEFAULT 0, cid TEXT NOT NULL AS (CASE WHEN id LIKE 'https://%' AND (id LIKE '%/.well-known/apgateway/did:key:z6Mk%' OR id LIKE '%/.well-known/apgateway/did:key:ukC%') THEN 'ap://' || SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22, CASE WHEN INSTR(SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22), '?') > 0 THEN INSTR(SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22), '?') - 1 ELSE LENGTH(id) END) WHEN id LIKE 'https://%' THEN id ELSE NULL END))`,
+		`CREATE TABLE nnotes(pk INTEGER PRIMARY KEY, slug TEXT NOT NULL, id TEXT NOT NULL, author TEXT NOT NULL, object JSONB NOT NULL, public INTEGER NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()), updated INTEGER DEFAULT 0, host TEXT AS (substr(substr(author, 9), 0, instr(substr(author, 9), '/'))), to0 TEXT AS (object->>'$.to[0]'), to1 TEXT AS (object->>'$.to[1]'), to2 TEXT AS (object->>'$.to[2]'), cc0 TEXT AS (object->>'$.cc[0]'), cc1 TEXT AS (object->>'$.cc[1]'), cc2 TEXT AS (object->>'$.cc[2]'), deleted INTEGER NOT NULL DEFAULT 0, nreplies INTEGER DEFAULT 0, nquotes INTEGER DEFAULT 0, nshares INTEGER DEFAULT 0, pulse INTEGER DEFAULT 0, cid TEXT NOT NULL AS (CASE WHEN id LIKE 'https://%' AND id LIKE '%/.well-known/apgateway/did:key:z6Mk%' THEN 'ap://' || SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22, CASE WHEN INSTR(SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22), '?') > 0 THEN INSTR(SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22), '?') - 1 ELSE LENGTH(id) END) WHEN id LIKE 'https://%' THEN id ELSE NULL END))`,
 		`INSERT INTO nnotes(slug, id, author, object, public, inserted, updated, deleted, nreplies, nquotes, nshares, pulse) SELECT slugs.slug, notes.id, author, object, public, inserted, updated, deleted, nreplies, nquotes, nshares, pulse FROM notes JOIN slugs ON slugs.src = notes.rowid`,
 		`DROP TABLE notes`,
 		`ALTER TABLE nnotes RENAME TO notes`,
@@ -255,7 +255,7 @@ func slug(ctx context.Context, domain string, tx *sql.Tx) error {
 	}
 
 	for _, stmt := range []string{
-		`CREATE TABLE npersons(pk INTEGER PRIMARY KEY, slug TEXT NOT NULL, id TEXT NOT NULL, actor JSONB NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()), updated INTEGER DEFAULT (UNIXEPOCH()), host TEXT AS (substr(substr(id, 9), 0, instr(substr(id, 9), '/'))), fetched INTEGER, ttl INTEGER, rsaprivkey BLOB, ed25519seed BLOB, cid TEXT NOT NULL AS (CASE WHEN id LIKE 'https://%' AND (id LIKE '%/.well-known/apgateway/did:key:z6Mk%' OR id LIKE '%/.well-known/apgateway/did:key:ukC%') THEN 'ap://' || SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22, CASE WHEN INSTR(SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22), '?') > 0 THEN INSTR(SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22), '?') - 1 ELSE LENGTH(id) END) WHEN id LIKE 'https://%' THEN id ELSE NULL END))`,
+		`CREATE TABLE npersons(pk INTEGER PRIMARY KEY, slug TEXT NOT NULL, id TEXT NOT NULL, actor JSONB NOT NULL, inserted INTEGER DEFAULT (UNIXEPOCH()), updated INTEGER DEFAULT (UNIXEPOCH()), host TEXT AS (substr(substr(id, 9), 0, instr(substr(id, 9), '/'))), fetched INTEGER, ttl INTEGER, rsaprivkey BLOB, ed25519seed BLOB, cid TEXT NOT NULL AS (CASE WHEN id LIKE 'https://%' AND id LIKE '%/.well-known/apgateway/did:key:z6Mk%' THEN 'ap://' || SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22, CASE WHEN INSTR(SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22), '?') > 0 THEN INSTR(SUBSTR(id, 9 + INSTR(SUBSTR(id, 9), '/') + 22), '?') - 1 ELSE LENGTH(id) END) WHEN id LIKE 'https://%' THEN id ELSE NULL END))`,
 		`INSERT INTO npersons(slug, id, actor, inserted, updated, fetched, ttl, rsaprivkey, ed25519seed) SELECT slugs.slug, persons.id, actor, inserted, updated, fetched, ttl, rsaprivkey, ed25519seed FROM persons JOIN slugs ON slugs.src = persons.rowid`,
 		`DROP TABLE persons`,
 		`ALTER TABLE npersons RENAME TO persons`,
@@ -267,10 +267,6 @@ func slug(ctx context.Context, domain string, tx *sql.Tx) error {
 		`CREATE UNIQUE INDEX personspreferredusernamehosttype ON persons(actor->>'$.preferredUsername', host, actor->>'$.type')`,
 		`CREATE INDEX personscid ON persons(cid)`,
 		`CREATE UNIQUE INDEX personscidlocal ON persons(cid) WHERE ed25519seed IS NOT NULL`,
-		`DROP INDEX outboxcidsender`,
-		`ALTER TABLE outbox DROP COLUMN cid`,
-		`ALTER TABLE outbox ADD COLUMN cid TEXT NOT NULL AS (CASE WHEN activity->>'$.id' LIKE 'https://%' AND (activity->>'$.id' LIKE '%/.well-known/apgateway/did:key:z6Mk%' OR activity->>'$.id' LIKE '%/.well-known/apgateway/did:key:ukC%') THEN 'ap://' || SUBSTR(activity->>'$.id', 9 + INSTR(SUBSTR(activity->>'$.id', 9), '/') + 22, CASE WHEN INSTR(SUBSTR(activity->>'$.id', 9 + INSTR(SUBSTR(activity->>'$.id', 9), '/') + 22), '?') > 0 THEN INSTR(SUBSTR(activity->>'$.id', 9 + INSTR(SUBSTR(activity->>'$.id', 9), '/') + 22), '?') - 1 ELSE LENGTH(activity->>'$.id') END) WHEN activity->>'$.id' LIKE 'https://%' THEN activity->>'$.id' ELSE NULL END)`,
-		`CREATE INDEX outboxcidsender ON outbox(cid, sender)`,
 	} {
 		if _, err := tx.ExecContext(ctx, stmt); err != nil {
 			return err
