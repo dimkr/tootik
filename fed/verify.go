@@ -19,7 +19,6 @@ package fed
 import (
 	"context"
 	"crypto"
-	"crypto/ed25519"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
@@ -37,7 +36,7 @@ import (
 
 var errNoKeyInKeyID = errors.New("key origin does not contain a key")
 
-func getKeyByID(actor *ap.Actor, keyID string) (ed25519.PublicKey, error) {
+func getKeyByID(actor *ap.Actor, keyID string) (crypto.PublicKey, error) {
 	for _, key := range actor.AssertionMethod {
 		if key.ID != keyID {
 			continue
@@ -51,7 +50,7 @@ func getKeyByID(actor *ap.Actor, keyID string) (ed25519.PublicKey, error) {
 			continue
 		}
 
-		raw, err := data.DecodeEd25519PublicKey(key.PublicKeyMultibase)
+		raw, err := data.DecodePublicKey(key.PublicKeyMultibase)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse %s: %w", key.ID, err)
 		}
@@ -91,7 +90,7 @@ func (l *Listener) verifyEd25519RequestSignatureUsingKeyID(sig *httpsig.Signatur
 		return "", errors.New("key origin is not portable")
 	}
 
-	raw, err := data.DecodeEd25519PublicKey(m[1])
+	raw, err := data.DecodePublicKey(m[1])
 	if err != nil {
 		return "", fmt.Errorf("failed to parse %s: %w", sig.KeyID, err)
 	}
@@ -175,7 +174,7 @@ func (l *Listener) verifyProof(ctx context.Context, activity *ap.Activity, raw [
 				return nil, fmt.Errorf("key %s does not belong to %s", m[1], activity.Actor)
 			}
 
-			publicKey, err := data.DecodeEd25519PublicKey(m[1])
+			publicKey, err := data.DecodePublicKey(m[1])
 			if err != nil {
 				return nil, fmt.Errorf("failed to decode key %s to verify proof: %w", activity.Proof.VerificationMethod, err)
 			}

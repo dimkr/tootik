@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,22 +18,23 @@ package data
 
 import (
 	"bytes"
+	"crypto/ed25519"
 	"testing"
 )
 
 // https://codeberg.org/fediverse/fep/src/commit/480415584237eb19cb7373b6a25faa6fa6e3a200/fep/521b/fep-521b.md
 func Test_FEP521b(t *testing.T) {
-	a, err := DecodeEd25519PublicKey("u7QGwDY2Tjn93PVFWWq02piP1NE9_XRlg-c8-jhJiDqKBDw")
+	a, err := DecodePublicKey("u7QGwDY2Tjn93PVFWWq02piP1NE9_XRlg-c8-jhJiDqKBDw")
 	if err != nil {
 		t.Fatalf("Failed to decode base64-encoded key: %v", err)
 	}
 
-	b, err := DecodeEd25519PublicKey("z6MkrJVnaZkeFzdQyMZu1cgjg7k1pZZ6pvBQ7XJPt4swbTQ2")
+	b, err := DecodePublicKey("z6MkrJVnaZkeFzdQyMZu1cgjg7k1pZZ6pvBQ7XJPt4swbTQ2")
 	if err != nil {
 		t.Fatalf("Failed to decode base58-encoded key: %v", err)
 	}
 
-	if !bytes.Equal(a, b) {
+	if !bytes.Equal(a.(ed25519.PublicKey), b.(ed25519.PublicKey)) {
 		t.Fatal("Keys are different")
 	}
 }

@@ -39,7 +39,7 @@ import (
 	"github.com/dimkr/tootik/proof"
 )
 
-var apGatewayPathRegex = regexp.MustCompile(`\/.well-known\/apgateway\/(did:key:z6Mk[a-km-zA-HJ-NP-Z1-9]+)(\/actor(?:\/[^\/]+)?)(\/.+)?`)
+var apGatewayPathRegex = regexp.MustCompile(`\/.well-known\/apgateway\/(did:key:(?:` + ap.PortableActorPubPattern + `))(\/actor(?:\/[^\/]+)?)(\/.+)?`)
 
 func (l *Listener) handleApGatewayInboxPost(w http.ResponseWriter, r *http.Request, did string) {
 	var actor ap.Actor
@@ -115,7 +115,7 @@ func (l *Listener) handleApGatewayOutboxPost(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	publicKey, err := data.DecodeEd25519PublicKey(expectedPublicKey)
+	publicKey, err := data.DecodePublicKey(expectedPublicKey)
 	if err != nil {
 		slog.Warn("Failed to decode key to verify proof", "activity", activity.ID, "error", err)
 		w.WriteHeader(http.StatusForbidden)

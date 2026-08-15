@@ -43,7 +43,7 @@ func normalizeJSON(v any) ([]byte, error) {
 	return jcs.Transform(j)
 }
 
-// Create creates an eddsa-jcs-2022 integrity proof for a JSON object.
+// Create creates an integrity proof for a JSON object.
 func Create(key httpsig.Key, doc any) (ap.Proof, error) {
 	switch v := doc.(type) {
 	case *ap.Activity:
@@ -77,11 +77,6 @@ func Create(key httpsig.Key, doc any) (ap.Proof, error) {
 }
 
 func create(key httpsig.Key, now time.Time, doc, context any) (ap.Proof, error) {
-	edKey, ok := key.PrivateKey.(ed25519.PrivateKey)
-	if !ok {
-		return ap.Proof{}, fmt.Errorf("wrong key type: %T", key.PrivateKey)
-	}
-
 	created := now.UTC().Format(time.RFC3339)
 
 	keyID := key.ID
@@ -92,10 +87,17 @@ func create(key httpsig.Key, now time.Time, doc, context any) (ap.Proof, error) 
 	proof := ap.Proof{
 		Context:            context,
 		Type:               "DataIntegrityProof",
-		CryptoSuite:        "eddsa-jcs-2022",
 		Created:            created,
 		Purpose:            "assertionMethod",
 		VerificationMethod: keyID,
+	}
+
+	switch key.PrivateKey.(type) {
+	case ed25519.PrivateKey:
+		proof.CryptoSuite = "eddsa-jcs-2022"
+
+	default:
+		return ap.Proof{}, fmt.Errorf("wrong key type: %T", key.PrivateKey)
 	}
 
 	cfg, err := normalizeJSON(proof)
@@ -111,11 +113,15 @@ func create(key httpsig.Key, now time.Time, doc, context any) (ap.Proof, error) 
 	cfgHash := sha256.Sum256(cfg)
 	docHash := sha256.Sum256(data)
 
-	proof.Value = "z" + base58.Encode(ed25519.Sign(edKey, append(cfgHash[:], docHash[:]...)))
+	switch v := key.PrivateKey.(type) {
+	case ed25519.PrivateKey:
+		proof.Value = "z" + base58.Encode(ed25519.Sign(v, append(cfgHash[:], docHash[:]...)))
+	}
+
 	return proof, nil
 }
 
-// Add adds an eddsa-jcs-2022 integrity proof to a JSON object.
+// Add adds an integrity proof to a JSON object.
 func Add(key httpsig.Key, now time.Time, raw []byte) ([]byte, error) {
 	var m map[string]any
 	if err := json.Unmarshal(raw, &m); err != nil {
@@ -133,24 +139,15 @@ func Add(key httpsig.Key, now time.Time, raw []byte) ([]byte, error) {
 
 // Verify verifies an integrity proof.
 func Verify(key crypto.PublicKey, proof ap.Proof, context any, raw []byte) error {
-	edKey, ok := key.(ed25519.PublicKey)
-	if !ok {
-		return fmt.Errorf("wrong key type: %T", key)
-	}
-
 	if proof.Type != "DataIntegrityProof" {
 		return errors.New("invalid type: " + proof.Type)
-	}
-
-	if proof.CryptoSuite != "eddsa-jcs-2022" {
-		return errors.New("invalid cryptosuite: " + proof.CryptoSuite)
 	}
 
 	if proof.Purpose != "assertionMethod" {
 		return errors.New("invalid purpose: " + proof.Purpose)
 	}
 
-	if len(proof.Value) <= 1 || proof.Value[0] != 'z' {
+	if len(proof.Value) <= 1 {
 		return errors.New("invalid value: " + proof.Value)
 	}
 
@@ -176,8 +173,14 @@ func Verify(key crypto.PublicKey, proof ap.Proof, context any, raw []byte) error
 	options := proof
 	options.Value = ""
 
-	if options.Context == nil {
-		options.Context = context
+	switch proof.CryptoSuite {
+	case "eddsa-jcs-2022":
+		if options.Context == nil {
+			options.Context = context
+		}
+
+	default:
+		return fmt.Errorf("invalid cryptosuite: %s/%T", proof.CryptoSuite, key)
 	}
 
 	cfg, err := normalizeJSON(options)
@@ -187,8 +190,20 @@ func Verify(key crypto.PublicKey, proof ap.Proof, context any, raw []byte) error
 
 	cfgHash := sha256.Sum256(cfg)
 
-	if !ed25519.Verify(edKey, append(cfgHash[:], docHash[:]...), base58.Decode(proof.Value[1:])) {
-		return errors.New("proof verification failed")
+	switch proof.CryptoSuite {
+	case "eddsa-jcs-2022":
+		if proof.Value[0] != 'z' {
+			return errors.New("invalid value: " + proof.Value)
+		}
+
+		edKey, ok := key.(ed25519.PublicKey)
+		if !ok {
+			return fmt.Errorf("wrong key type: %T", key)
+		}
+
+		if !ed25519.Verify(edKey, append(cfgHash[:], docHash[:]...), base58.Decode(proof.Value[1:])) {
+			return errors.New("proof verification failed")
+		}
 	}
 
 	return nil
