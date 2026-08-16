@@ -70,10 +70,10 @@ func (s *sender) send(keys [3]httpsig.Key, req *http.Request, body []byte) (*htt
 	if capabilities&ap.RFC9421MLDSA44Signatures == 0 && req.Method == http.MethodPost && rand.Float32() > s.Config.MLDSA44Threshold {
 		slog.Debug("Randomly enabling RFC9421 with ML-DSA-44", "server", req.URL.Host)
 		capabilities = ap.RFC9421MLDSA44Signatures
-	} else if capabilities&ap.RFC9421Ed25519Signatures == 0 && req.Method == http.MethodPost && rand.Float32() > s.Config.Ed25519Threshold {
+	} else if capabilities&(ap.RFC9421MLDSA44Signatures|ap.RFC9421Ed25519Signatures) == 0 && req.Method == http.MethodPost && rand.Float32() > s.Config.Ed25519Threshold {
 		slog.Debug("Randomly enabling RFC9421 with Ed25519", "server", req.URL.Host)
 		capabilities = ap.RFC9421Ed25519Signatures
-	} else if capabilities&ap.RFC9421RSASignatures == 0 && req.Method == http.MethodPost && rand.Float32() > s.Config.RFC9421Threshold {
+	} else if capabilities&(ap.RFC9421MLDSA44Signatures|ap.RFC9421Ed25519Signatures|ap.RFC9421RSASignatures) == 0 && req.Method == http.MethodPost && rand.Float32() > s.Config.RFC9421Threshold {
 		slog.Debug("Randomly enabling RFC9421 with RSA", "server", req.URL.Host)
 		capabilities = ap.RFC9421RSASignatures
 	}
