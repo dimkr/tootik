@@ -104,8 +104,6 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	r.Log.Info("Viewing post", "post", note.ID)
-
 	w.OK()
 
 	if offset > 0 {
