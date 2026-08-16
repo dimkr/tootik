@@ -35,7 +35,7 @@ const (
 
 var (
 	// KeyRegex matches any Multibase-encoded public key.
-	KeyRegex = regexp.MustCompile(`\b(` + PortableActorPubPattern + `|` + ed25519PubBase64 + `|` + mldsa44PubBase58 + mldsa44PubBase64 + `)(?:[\/#?]|$)`)
+	KeyRegex = regexp.MustCompile(`\b(` + PortableActorPubPattern + `|` + ed25519PubBase64 + `|` + mldsa44PubBase58 + `|` + mldsa44PubBase64 + `)(?:[\/#?]|$)`)
 
 	// apURLRegex matches an ap:// URL.
 	apURLRegex = regexp.MustCompile(`^ap:\/\/did:key:(` + PortableActorPubPattern + `)([\/#?].*|$)`)
