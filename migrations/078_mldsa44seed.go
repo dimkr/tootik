@@ -2,21 +2,25 @@ package migrations
 
 import (
 	"context"
+	"crypto/ed25519"
 	"database/sql"
 	"fmt"
 
 	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/proof"
 )
 
 func addMLDSA44Keys(ctx context.Context, tx *sql.Tx) error {
 	type local struct {
-		pk    int64
-		actor ap.Actor
+		pk          int64
+		actor       ap.Actor
+		ed25519Seed []byte
 	}
 	batch := make([]local, 0, 1000)
-	query := fmt.Sprintf(`SELECT pk, JSON(actor) FROM persons WHERE ed25519seed IS NOT NULL AND mldsa44seed IS NULL LIMIT %d`, cap(batch))
+	query := fmt.Sprintf(`SELECT pk, JSON(actor), ed25519seed FROM persons WHERE ed25519seed IS NOT NULL AND mldsa44seed IS NULL LIMIT %d`, cap(batch))
 
 	for {
 		rows, err := tx.QueryContext(ctx, query)
@@ -27,7 +31,7 @@ func addMLDSA44Keys(ctx context.Context, tx *sql.Tx) error {
 		batch = batch[:0]
 		for rows.Next() {
 			var l local
-			if err := rows.Scan(&l.pk, &l.actor); err != nil {
+			if err := rows.Scan(&l.pk, &l.actor, &l.ed25519Seed); err != nil {
 				rows.Close()
 				return err
 			}
@@ -63,6 +67,17 @@ func addMLDSA44Keys(ctx context.Context, tx *sql.Tx) error {
 				Controller:         l.actor.ID,
 				PublicKeyMultibase: data.EncodeMLDSA44PublicKey(mldsa44Pub),
 			})
+
+			l.actor.Proof, err = proof.Create(
+				httpsig.Key{
+					ID:         l.actor.AssertionMethod[0].ID,
+					PrivateKey: ed25519.NewKeyFromSeed(l.ed25519Seed),
+				},
+				&l.actor,
+			)
+			if err != nil {
+				return err
+			}
 
 			if _, err := tx.ExecContext(ctx, `UPDATE persons SET actor = JSONB(?), mldsa44seed = ? WHERE pk = ?`, &l.actor, mldsa44Priv.Seed(), l.pk); err != nil {
 				return err
