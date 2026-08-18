@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package front
 
 import (
 	"fmt"
+	"github.com/dimkr/tootik/proof"
 	"time"
 	"unicode/utf8"
 
@@ -94,7 +95,7 @@ func (h *Handler) doSetBio(w text.Writer, r *Request, readInput func(text.Writer
 	r.User.Summary = plain.ToHTML(bio, nil)
 	r.User.Updated.Time = now
 
-	if err := h.Inbox.UpdateActor(r.Context, r.User, r.Keys[1]); err != nil {
+	if err := h.Inbox.UpdateActor(r.Context, r.User, proof.SigningKey(r.User.ID, r.Keys)); err != nil {
 		r.Log.Error("Failed to update bio", "error", err)
 		w.Error()
 		return

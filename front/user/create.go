@@ -75,7 +75,7 @@ func insertActor(
 ) error {
 	if !cfg.DisableIntegrityProofs {
 		var err error
-		if actor.Proof, err = proof.Create(keys[1], actor); err != nil {
+		if actor.Proof, err = proof.Create(proof.SigningKey(actor.ID, keys), actor); err != nil {
 			return err
 		}
 	}

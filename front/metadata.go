@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ limitations under the License.
 package front
 
 import (
+	"github.com/dimkr/tootik/proof"
 	"html"
 	"net/url"
 	"regexp"
@@ -126,7 +127,7 @@ func (h *Handler) metadataAdd(w text.Writer, r *Request, args ...string) {
 	r.User.Attachment = append(r.User.Attachment, attachment)
 	r.User.Updated.Time = now
 
-	if err := h.Inbox.UpdateActor(r.Context, r.User, r.Keys[1]); err != nil {
+	if err := h.Inbox.UpdateActor(r.Context, r.User, proof.SigningKey(r.User.ID, r.Keys)); err != nil {
 		r.Log.Error("Failed to add metadata field", "name", attachment.Name, "error", err)
 		w.Error()
 		return
@@ -171,7 +172,7 @@ found:
 	r.User.Attachment = slices.Delete(r.User.Attachment, id, id+1)
 	r.User.Updated.Time = time.Now()
 
-	if err := h.Inbox.UpdateActor(r.Context, r.User, r.Keys[1]); err != nil {
+	if err := h.Inbox.UpdateActor(r.Context, r.User, proof.SigningKey(r.User.ID, r.Keys)); err != nil {
 		r.Log.Error("Failed to remove metadata field", "key", key, "id", id, "error", err)
 		w.Error()
 		return

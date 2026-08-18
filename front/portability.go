@@ -27,6 +27,7 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/proof"
 )
 
 var gatewayRegex = regexp.MustCompile(`[a-z0-9-]+(?:\.[a-z0-9-]+)+`)
@@ -138,7 +139,7 @@ func (h *Handler) gatewayAdd(w text.Writer, r *Request, args ...string) {
 	r.User.Gateways = append(r.User.Gateways, "https://"+gw)
 	r.User.Updated.Time = now
 
-	if err := h.Inbox.UpdateActor(r.Context, r.User, r.Keys[1]); err != nil {
+	if err := h.Inbox.UpdateActor(r.Context, r.User, proof.SigningKey(r.User.ID, r.Keys)); err != nil {
 		r.Log.Error("Failed to add gateway", "gateway", gw, "error", err)
 		w.Error()
 		return
@@ -195,7 +196,7 @@ found:
 	r.User.Gateways = slices.Delete(r.User.Gateways, id, id+1)
 	r.User.Updated.Time = time.Now()
 
-	if err := h.Inbox.UpdateActor(r.Context, r.User, r.Keys[1]); err != nil {
+	if err := h.Inbox.UpdateActor(r.Context, r.User, proof.SigningKey(r.User.ID, r.Keys)); err != nil {
 		r.Log.Error("Failed to remove gateway", "gateway", gw, "id", id, "error", err)
 		w.Error()
 		return

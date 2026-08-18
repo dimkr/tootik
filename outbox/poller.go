@@ -18,10 +18,11 @@ package outbox
 
 import (
 	"context"
-	"crypto/ed25519"
 	"database/sql"
 	"log/slog"
 	"time"
+
+	"github.com/dimkr/tootik/proof"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/dbx"
@@ -36,13 +37,14 @@ type Poller struct {
 
 func (p *Poller) Run(ctx context.Context) error {
 	rows, err := dbx.QueryCollectIgnore[struct {
-		PollID         string
-		Option         sql.NullString
-		OptionCount    int64
-		VotersCount    int64
-		Object         ap.Object
-		Actor          ap.Actor
-		ED25519PrivKey []byte
+		PollID      string
+		Option      sql.NullString
+		OptionCount int64
+		VotersCount int64
+		Object      ap.Object
+		Actor       ap.Actor
+		ED25519Seed []byte
+		MLDSA44Seed []byte
 	}](
 		ctx,
 		p.DB,
@@ -52,7 +54,7 @@ func (p *Poller) Run(ctx context.Context) error {
 		},
 		`
 		with polls as (
-			select notes.id, notes.object, persons.actor as author, persons.ed25519seed
+			select notes.id, notes.object, persons.actor as author, persons.ed25519seed, persons.mldsa44seed
 			from notes
 			join persons on persons.id = notes.author
 			where
@@ -69,7 +71,8 @@ func (p *Poller) Run(ctx context.Context) error {
 			coalesce(voter_counts.count, 0),
 			json(polls.object),
 			json(polls.author),
-			polls.ed25519seed
+			polls.ed25519seed,
+			polls.mldsa44seed
 		from polls
 		join json_each(polls.object->'$.anyOf') as anyof
 		left join (
@@ -99,7 +102,7 @@ func (p *Poller) Run(ctx context.Context) error {
 		ap.Object
 
 		Author             ap.Actor
-		Key                ed25519.PrivateKey
+		Key                httpsig.Key
 		CurrentVotersCount int64
 		CurrentVotes       map[string]int64
 	}
@@ -111,7 +114,7 @@ func (p *Poller) Run(ctx context.Context) error {
 			info = &poll{
 				Object:             row.Object,
 				Author:             row.Actor,
-				Key:                ed25519.NewKeyFromSeed(row.ED25519PrivKey),
+				Key:                proof.SigningSeed(&row.Actor, row.ED25519Seed, row.MLDSA44Seed),
 				CurrentVotersCount: row.VotersCount,
 				CurrentVotes:       make(map[string]int64, len(row.Object.AnyOf)),
 			}
@@ -156,10 +159,7 @@ func (p *Poller) Run(ctx context.Context) error {
 		if err := p.Inbox.UpdateNote(
 			ctx,
 			&poll.Author,
-			httpsig.Key{
-				ID:         poll.Author.AssertionMethod[0].ID,
-				PrivateKey: poll.Key,
-			},
+			poll.Key,
 			&poll.Object,
 		); err != nil {
 			slog.Warn("Failed to update poll results", "poll", poll.ID, "error", err)

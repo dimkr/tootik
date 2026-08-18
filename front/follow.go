@@ -19,6 +19,7 @@ package front
 import (
 	"database/sql"
 	"errors"
+	"github.com/dimkr/tootik/proof"
 
 	"github.com/dimkr/tootik/front/text"
 )
@@ -69,7 +70,7 @@ func (h *Handler) follow(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := h.Inbox.Follow(r.Context, r.User, r.Keys[1], followed); err != nil {
+	if err := h.Inbox.Follow(r.Context, r.User, proof.SigningKey(r.User.ID, r.Keys), followed); err != nil {
 		r.Log.Warn("Failed to follow user", "followed", followed, "error", err)
 		w.Error()
 		return

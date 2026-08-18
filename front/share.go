@@ -19,6 +19,7 @@ package front
 import (
 	"database/sql"
 	"errors"
+	"github.com/dimkr/tootik/proof"
 	"time"
 
 	"github.com/dimkr/tootik/ap"
@@ -79,7 +80,7 @@ func (h *Handler) share(w text.Writer, r *Request, args ...string) {
 	}
 	defer tx.Rollback()
 
-	if err := h.Inbox.Announce(r.Context, tx, r.User, r.Keys[1], &note); err != nil {
+	if err := h.Inbox.Announce(r.Context, tx, r.User, proof.SigningKey(r.User.ID, r.Keys), &note); err != nil {
 		r.Log.Warn("Failed to share post", "post", note.ID, "error", err)
 		w.Error()
 		return

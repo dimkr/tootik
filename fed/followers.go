@@ -18,7 +18,6 @@ package fed
 
 import (
 	"context"
-	"crypto/ed25519"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
@@ -37,6 +36,7 @@ import (
 	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/proof"
 )
 
 type partialFollowers map[string]map[string]string
@@ -315,8 +315,8 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 		slog.Info("Found unknown remote follow", "followed", d.Followed, "follower", follower)
 
 		var actor ap.Actor
-		var ed25519Seed []byte
-		if err := db.QueryRowContext(ctx, `SELECT JSON(persons.actor), persons.ed25519seed FROM persons WHERE id = ? AND persons.ed25519seed IS NOT NULL`, follower).Scan(&actor, &ed25519Seed); errors.Is(err, sql.ErrNoRows) {
+		var ed25519Seed, mldsa44Seed []byte
+		if err := db.QueryRowContext(ctx, `SELECT JSON(persons.actor), persons.ed25519seed, persons.mldsa44seed FROM persons WHERE id = ? AND persons.ed25519seed IS NOT NULL`, follower).Scan(&actor, &ed25519Seed, &mldsa44Seed); errors.Is(err, sql.ErrNoRows) {
 			slog.Info("Follower does not exist", "followed", d.Followed, "follower", follower)
 			continue
 		} else if err != nil {
@@ -337,7 +337,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 			continue
 		}
 
-		if err := d.Inbox.Unfollow(ctx, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519Seed)}, d.Followed, followID); err != nil {
+		if err := d.Inbox.Unfollow(ctx, &actor, proof.SigningSeed(&actor, ed25519Seed, mldsa44Seed), d.Followed, followID); err != nil {
 			slog.Warn("Failed to remove remote follow", "followed", d.Followed, "follower", follower, "error", err)
 		}
 	}

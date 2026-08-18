@@ -18,7 +18,6 @@ package main
 
 import (
 	"context"
-	"crypto/ed25519"
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
@@ -46,11 +45,11 @@ import (
 	"github.com/dimkr/tootik/front/gemini"
 	tplain "github.com/dimkr/tootik/front/text/plain"
 	"github.com/dimkr/tootik/front/user"
-	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/icon"
 	"github.com/dimkr/tootik/inbox"
 	"github.com/dimkr/tootik/migrations"
 	"github.com/dimkr/tootik/outbox"
+	"github.com/dimkr/tootik/proof"
 	"github.com/dimkr/tootik/sqlite"
 )
 
@@ -246,19 +245,19 @@ func main() {
 		defer tx.Rollback()
 
 		var actor ap.Actor
-		var ed25519Seed []byte
+		var ed25519Seed, mldsa44Seed []byte
 		if err := tx.QueryRowContext(
 			ctx,
-			`select json(actor), ed25519seed from persons where ed25519seed is not null and actor->>'$.preferredUsername' = ?`,
+			`select json(actor), ed25519seed, mldsa44seed from persons where ed25519seed is not null and actor->>'$.preferredUsername' = ?`,
 			flag.Arg(1),
-		).Scan(&actor, &ed25519Seed); err != nil {
+		).Scan(&actor, &ed25519Seed, &mldsa44Seed); err != nil {
 			panic(err)
 		}
 
 		actor.Summary = tplain.ToHTML(string(summary), nil)
 		actor.Updated.Time = time.Now()
 
-		if err := localInbox.UpdateActorTx(ctx, tx, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519Seed)}); err != nil {
+		if err := localInbox.UpdateActorTx(ctx, tx, &actor, proof.SigningSeed(&actor, ed25519Seed, mldsa44Seed)); err != nil {
 			panic(err)
 		}
 
@@ -288,12 +287,12 @@ func main() {
 		userName := flag.Arg(1)
 
 		var actor ap.Actor
-		var ed25519Seed []byte
+		var ed25519Seed, mldsa44Seed []byte
 		if err := tx.QueryRowContext(
 			ctx,
-			`select json(actor), ed25519seed from persons where ed25519seed is not null and actor->>'$.preferredUsername' = ?`,
+			`select json(actor), ed25519seed, mldsa44seed from persons where ed25519seed is not null and actor->>'$.preferredUsername' = ?`,
 			userName,
-		).Scan(&actor, &ed25519Seed); err != nil {
+		).Scan(&actor, &ed25519Seed, &mldsa44Seed); err != nil {
 			panic(err)
 		}
 
@@ -312,7 +311,7 @@ func main() {
 		})
 		actor.Updated.Time = now
 
-		if err := localInbox.UpdateActorTx(ctx, tx, &actor, httpsig.Key{ID: actor.AssertionMethod[0].ID, PrivateKey: ed25519.NewKeyFromSeed(ed25519Seed)}); err != nil {
+		if err := localInbox.UpdateActorTx(ctx, tx, &actor, proof.SigningSeed(&actor, ed25519Seed, mldsa44Seed)); err != nil {
 			panic(err)
 		}
 
