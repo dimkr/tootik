@@ -19,6 +19,7 @@ package front
 import (
 	"database/sql"
 	"errors"
+	"github.com/dimkr/tootik/proof"
 
 	"github.com/dimkr/tootik/front/text"
 )
@@ -42,7 +43,7 @@ func (h *Handler) unfollow(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := h.Inbox.Unfollow(r.Context, r.User, r.Keys[1], followed, followID); err != nil {
+	if err := h.Inbox.Unfollow(r.Context, r.User, proof.SigningKey(r.User.ID, r.Keys), followed, followID); err != nil {
 		r.Log.Warn("Failed undo follow", "followed", followed, "error", err)
 		w.Error()
 		return

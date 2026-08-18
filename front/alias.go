@@ -17,6 +17,7 @@ limitations under the License.
 package front
 
 import (
+	"github.com/dimkr/tootik/proof"
 	"net/url"
 	"strings"
 	"time"
@@ -72,7 +73,7 @@ func (h *Handler) alias(w text.Writer, r *Request, args ...string) {
 	r.User.AlsoKnownAs.Add(actor.ID)
 	r.User.Updated.Time = now
 
-	if err := h.Inbox.UpdateActor(r.Context, r.User, r.Keys[1]); err != nil {
+	if err := h.Inbox.UpdateActor(r.Context, r.User, proof.SigningKey(r.User.ID, r.Keys)); err != nil {
 		r.Log.Error("Failed to update alias", "error", err)
 		w.Error()
 		return

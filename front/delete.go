@@ -19,6 +19,7 @@ package front
 import (
 	"database/sql"
 	"errors"
+	"github.com/dimkr/tootik/proof"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
@@ -43,7 +44,7 @@ func (h *Handler) delete(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := h.Inbox.Delete(r.Context, r.User, r.Keys[1], &note); err != nil {
+	if err := h.Inbox.Delete(r.Context, r.User, proof.SigningKey(r.User.ID, r.Keys), &note); err != nil {
 		r.Log.Error("Failed to delete post", "note", note.ID, "error", err)
 		w.Error()
 		return

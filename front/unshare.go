@@ -19,6 +19,7 @@ package front
 import (
 	"database/sql"
 	"errors"
+	"github.com/dimkr/tootik/proof"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text"
@@ -43,7 +44,7 @@ func (h *Handler) unshare(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if err := h.Inbox.Undo(r.Context, r.User, r.Keys[1], &share); err != nil {
+	if err := h.Inbox.Undo(r.Context, r.User, proof.SigningKey(r.User.ID, r.Keys), &share); err != nil {
 		r.Log.Warn("Failed to unshare post", "post", arg, "error", err)
 		w.Error()
 		return

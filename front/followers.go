@@ -18,6 +18,7 @@ package front
 
 import (
 	"database/sql"
+	"github.com/dimkr/tootik/proof"
 	"net/url"
 	"time"
 
@@ -51,7 +52,7 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 			return
 		}
 
-		if err := h.Inbox.UpdateActor(r.Context, r.User, r.Keys[1]); err != nil {
+		if err := h.Inbox.UpdateActor(r.Context, r.User, proof.SigningKey(r.User.ID, r.Keys)); err != nil {
 			r.Log.Warn("Failed to toggle manual approval", "error", err)
 			w.Error()
 			return
