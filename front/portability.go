@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
@@ -43,14 +44,26 @@ func (h *Handler) portability(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
+	var algo, priv string
+	switch v := proof.SigningKey(r.User.ID, r.Keys).PrivateKey.(type) {
+	case ed25519.PrivateKey:
+		algo, priv = "Ed25519", data.EncodeEd25519PrivateKey(v)
+	case *mldsa44.PrivateKey:
+		algo, priv = "ML-DSA-44", data.EncodeMLDSA44PrivateKey(v)
+	default:
+		r.Log.Warn("Account has no exportable private key", "user", r.User.ID)
+		w.Error()
+		return
+	}
+
 	w.OK()
 	w.Title("🚲 Data Portability")
 
 	w.Subtitle("Private Key")
-	w.Text("To register this account on another server, use this Ed25519 private key:")
+	w.Textf("To register this account on another server, use this %s private key:", algo)
 	w.Empty()
 	if r.URL.RawQuery == "show" {
-		w.Text(data.EncodeEd25519PrivateKey(r.Keys[1].PrivateKey.(ed25519.PrivateKey)))
+		w.Text(priv)
 	} else {
 		w.Text("********")
 		w.Link("/users/portability?show", "Show")

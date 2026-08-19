@@ -67,7 +67,7 @@ This makes tootik lightweight, private and accessible:
   * With support for manual approval of follow requests
   * With support for [Mastodon's follower synchronization mechanism](https://docs.joinmastodon.org/spec/activitypub/#follower-synchronization-mechanism), aka [FEP-8fcf](https://codeberg.org/fediverse/fep/src/branch/main/fep/8fcf/fep-8fcf.md)
 * [FEP-ef61](https://codeberg.org/fediverse/fep/src/branch/main/fep/ef61/fep-ef61.md) portable accounts
-  * Accounts on different servers use one Ed25519 keypair
+  * Accounts on different servers use one Ed25519 or ML-DSA-44 keypair
   * User activity is replicated across all servers
 * Multi-choice polls
 * [Lemmy](https://join-lemmy.org/)-style communities
