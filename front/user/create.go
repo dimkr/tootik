@@ -174,11 +174,6 @@ func CreatePortableWithKey(
 	cert *x509.Certificate,
 	priv data.PrivateKey,
 ) (*ap.Actor, [3]httpsig.Key, error) {
-	rsaPriv, rsaPubPem, err := generateRSAKey()
-	if err != nil {
-		return nil, [3]httpsig.Key{}, fmt.Errorf("failed to generate RSA key pair: %w", err)
-	}
-
 	var (
 		ed25519Priv ed25519.PrivateKey
 		ed25519Pub  ed25519.PublicKey
@@ -218,6 +213,11 @@ func CreatePortableWithKey(
 
 	default:
 		return nil, [3]httpsig.Key{}, fmt.Errorf("unsupported key type: %T", priv)
+	}
+
+	rsaPriv, rsaPubPem, err := generateRSAKey()
+	if err != nil {
+		return nil, [3]httpsig.Key{}, fmt.Errorf("failed to generate RSA key pair: %w", err)
 	}
 
 	id := fmt.Sprintf("https://%s/.well-known/apgateway/did:key:%s/actor", domain, didKeyMultibase)
