@@ -20,7 +20,8 @@ import (
 	"crypto/ed25519"
 	"regexp"
 
-	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
+	"crypto/mldsa"
+
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/httpsig"
 )
@@ -39,10 +40,11 @@ func SigningKey(id string, keys [3]httpsig.Key) httpsig.Key {
 // SigningSeed the key that should be used to create proofs on behalf of actor.
 func SigningSeed(actor *ap.Actor, ed25519Seed, mldsa44Seed []byte) httpsig.Key {
 	if mldsa44DIDRegex.MatchString(actor.ID) {
-		_, priv := mldsa44.NewKeyFromSeed((*[mldsa44.SeedSize]byte)(mldsa44Seed))
-		return httpsig.Key{
-			ID:         actor.AssertionMethod[1].ID,
-			PrivateKey: priv,
+		if priv, err := mldsa.NewPrivateKey(mldsa.MLDSA44(), mldsa44Seed); err == nil {
+			return httpsig.Key{
+				ID:         actor.AssertionMethod[1].ID,
+				PrivateKey: priv,
+			}
 		}
 	}
 

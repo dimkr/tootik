@@ -19,6 +19,7 @@ package fed
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"crypto/x509"
 	"database/sql"
 	"errors"
@@ -32,7 +33,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/danger"
@@ -176,7 +176,11 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			continue
 		}
 
-		_, mldsa44Priv := mldsa44.NewKeyFromSeed((*[mldsa44.SeedSize]byte)(row.MLDSA44Seed))
+		mldsa44Priv, err := mldsa.NewPrivateKey(mldsa.MLDSA44(), row.MLDSA44Seed)
+		if err != nil {
+			slog.Error("Failed to parse ML-DSA-44 private key", "error", err)
+			continue
+		}
 
 		keys := [3]httpsig.Key{
 			{ID: row.Actor.PublicKey.ID, PrivateKey: rsaPrivKey},

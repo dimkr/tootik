@@ -19,6 +19,7 @@ package cluster
 import (
 	"bytes"
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"encoding/json"
 	"net/http"
 	"slices"
@@ -26,7 +27,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text/gmi"
@@ -317,13 +317,13 @@ func TestCluster_MLDSA44ClientSideSigningInboxHappyFlow(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
 	defer cluster.Stop()
 
-	pub, priv, err := mldsa44.GenerateKey(nil)
+	priv, err := mldsa.GenerateKey(mldsa.MLDSA44())
 	if err != nil {
 		t.Fatalf("Failed to generate key: %v", err)
 	}
 	registerPortable := "/users/register?" + data.EncodeMLDSA44PrivateKey(priv)
 
-	did := "did:key:" + data.EncodeMLDSA44PublicKey(pub)
+	did := "did:key:" + data.EncodeMLDSA44PublicKey(priv.PublicKey())
 
 	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -1175,12 +1175,13 @@ func TestCluster_MLDSA44InboxFetchHappyFlow(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
 	defer cluster.Stop()
 
-	pub, priv, err := mldsa44.GenerateKey(nil)
+	priv, err := mldsa.GenerateKey(mldsa.MLDSA44())
 	if err != nil {
 		t.Fatalf("Failed to generate key: %v", err)
 	}
 	registerPortable := "/users/register?" + data.EncodeMLDSA44PrivateKey(priv)
 
+	pub := priv.PublicKey()
 	did := "did:key:" + data.EncodeMLDSA44PublicKey(pub)
 
 	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
@@ -1609,12 +1610,13 @@ func TestCluster_MLDSA44OutboxImport(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
 	defer cluster.Stop()
 
-	pub, priv, err := mldsa44.GenerateKey(nil)
+	priv, err := mldsa.GenerateKey(mldsa.MLDSA44())
 	if err != nil {
 		t.Fatalf("Failed to generate key: %v", err)
 	}
 	registerPortable := "/users/register?" + data.EncodeMLDSA44PrivateKey(priv)
 
+	pub := priv.PublicKey()
 	did := "did:key:" + data.EncodeMLDSA44PublicKey(pub)
 
 	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
@@ -1893,7 +1895,8 @@ func TestCluster_MLDSA44ClientSideSigningFollowersHappyFlow(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
 	defer cluster.Stop()
 
-	alicePub, alicePriv, err := mldsa44.GenerateKey(nil)
+	alicePriv, err := mldsa.GenerateKey(mldsa.MLDSA44())
+	alicePub := alicePriv.PublicKey()
 	aliceDID := "did:key:" + data.EncodeMLDSA44PublicKey(alicePub)
 	alice := cluster["a.localdomain"].Handle(aliceKeypair, "/users/register?"+data.EncodeMLDSA44PrivateKey(alicePriv)).OK()
 

@@ -18,13 +18,13 @@ package front
 
 import (
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"net/url"
 	"regexp"
 	"slices"
 	"strings"
 	"time"
 
-	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
@@ -48,7 +48,7 @@ func (h *Handler) portability(w text.Writer, r *Request, args ...string) {
 	switch v := proof.SigningKey(r.User.ID, r.Keys).PrivateKey.(type) {
 	case ed25519.PrivateKey:
 		algo, priv = "Ed25519", data.EncodeEd25519PrivateKey(v)
-	case *mldsa44.PrivateKey:
+	case *mldsa.PrivateKey:
 		algo, priv = "ML-DSA-44", data.EncodeMLDSA44PrivateKey(v)
 	default:
 		r.Log.Warn("Account has no exportable private key", "user", r.User.ID)

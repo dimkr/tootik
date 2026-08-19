@@ -3,10 +3,10 @@ package migrations
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"database/sql"
 	"fmt"
 
-	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/httpsig"
@@ -54,7 +54,7 @@ func addMLDSA44Keys(ctx context.Context, tx *sql.Tx) error {
 				return fmt.Errorf("local actor %s has no assertion method", l.actor.ID)
 			}
 
-			mldsa44Pub, mldsa44Priv, err := mldsa44.GenerateKey(nil)
+			mldsa44Priv, err := mldsa.GenerateKey(mldsa.MLDSA44())
 			if err != nil {
 				return err
 			}
@@ -65,7 +65,7 @@ func addMLDSA44Keys(ctx context.Context, tx *sql.Tx) error {
 				ID:                 keyID,
 				Type:               "Multikey",
 				Controller:         l.actor.ID,
-				PublicKeyMultibase: data.EncodeMLDSA44PublicKey(mldsa44Pub),
+				PublicKeyMultibase: data.EncodeMLDSA44PublicKey(mldsa44Priv.PublicKey()),
 			})
 
 			l.actor.Proof, err = proof.Create(
@@ -79,7 +79,7 @@ func addMLDSA44Keys(ctx context.Context, tx *sql.Tx) error {
 				return err
 			}
 
-			if _, err := tx.ExecContext(ctx, `UPDATE persons SET actor = JSONB(?), mldsa44seed = ? WHERE pk = ?`, &l.actor, mldsa44Priv.Seed(), l.pk); err != nil {
+			if _, err := tx.ExecContext(ctx, `UPDATE persons SET actor = JSONB(?), mldsa44seed = ? WHERE pk = ?`, &l.actor, mldsa44Priv.Bytes(), l.pk); err != nil {
 				return err
 			}
 

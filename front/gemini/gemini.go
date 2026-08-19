@@ -22,6 +22,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	"crypto/mldsa"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
@@ -40,7 +41,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/danger"
@@ -103,7 +103,10 @@ func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn, cfg *cfg.Con
 		return nil, [3]httpsig.Key{}, fmt.Errorf("failed to parse RSA private key for %s: %w", certHash, err)
 	}
 
-	_, mldsa44Priv := mldsa44.NewKeyFromSeed((*[mldsa44.SeedSize]byte)(mldsa44Seed))
+	mldsa44Priv, err := mldsa.NewPrivateKey(mldsa.MLDSA44(), mldsa44Seed)
+	if err != nil {
+		return nil, [3]httpsig.Key{}, fmt.Errorf("failed to parse ML-DSA-44 private key for %s: %w", certHash, err)
+	}
 
 	slog.Debug("Found existing user", "hash", certHash, "user", actor.ID)
 	return &actor, [3]httpsig.Key{

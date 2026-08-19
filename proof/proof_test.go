@@ -18,13 +18,13 @@ package proof
 
 import (
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"encoding/base64"
 	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/btcsuite/btcutil/base58"
-	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/httpsig"
 )
@@ -93,8 +93,8 @@ func TestProof_VerifyMLDSA(t *testing.T) {
 		t.Fatalf("Failed to decode public key: %v", err)
 	}
 
-	var pub mldsa44.PublicKey
-	if err := pub.UnmarshalBinary(pubBytes[2:]); err != nil {
+	pub, err := mldsa.NewPublicKey(mldsa.MLDSA44(), pubBytes[2:])
+	if err != nil {
 		t.Fatalf("Failed to decode key: %v", err)
 	}
 

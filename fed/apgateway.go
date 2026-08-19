@@ -18,6 +18,7 @@ package fed
 
 import (
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"crypto/x509"
 	"database/sql"
 	"encoding/json"
@@ -30,7 +31,6 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/data"
@@ -62,7 +62,12 @@ func (l *Listener) handleApGatewayInboxPost(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	_, mldsa44Priv := mldsa44.NewKeyFromSeed((*[mldsa44.SeedSize]byte)(mldsa44Seed))
+	mldsa44Priv, err := mldsa.NewPrivateKey(mldsa.MLDSA44(), mldsa44Seed)
+	if err != nil {
+		slog.Warn("Failed to parse ML-DSA-44 private key", "actor", actor.ID, "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 	l.doHandleInbox(w, r, [3]httpsig.Key{
 		{ID: actor.PublicKey.ID, PrivateKey: rsaPrivKey},

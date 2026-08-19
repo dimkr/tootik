@@ -24,6 +24,7 @@ package proof
 import (
 	"crypto"
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -32,7 +33,6 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcutil/base58"
-	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/gowebpki/jcs"
@@ -100,7 +100,7 @@ func create(key httpsig.Key, now time.Time, doc, context any) (ap.Proof, error) 
 	case ed25519.PrivateKey:
 		proof.CryptoSuite = "eddsa-jcs-2022"
 
-	case *mldsa44.PrivateKey:
+	case *mldsa.PrivateKey:
 		proof.CryptoSuite = "mldsa44-jcs-2024"
 
 	default:
@@ -124,9 +124,9 @@ func create(key httpsig.Key, now time.Time, doc, context any) (ap.Proof, error) 
 	case ed25519.PrivateKey:
 		proof.Value = "z" + base58.Encode(ed25519.Sign(v, append(cfgHash[:], docHash[:]...)))
 
-	case *mldsa44.PrivateKey:
-		sig := make([]byte, mldsa44.SignatureSize)
-		if err := mldsa44.SignTo(v, append(cfgHash[:], docHash[:]...), nil, true, sig); err != nil {
+	case *mldsa.PrivateKey:
+		sig, err := v.Sign(nil, append(cfgHash[:], docHash[:]...), nil)
+		if err != nil {
 			return ap.Proof{}, err
 		}
 
@@ -228,7 +228,7 @@ func Verify(key crypto.PublicKey, proof ap.Proof, context any, raw []byte) error
 			return errors.New("invalid value: " + proof.Value)
 		}
 
-		mlKey, ok := key.(*mldsa44.PublicKey)
+		mlKey, ok := key.(*mldsa.PublicKey)
 		if !ok {
 			return fmt.Errorf("wrong key type: %T", key)
 		}
@@ -238,8 +238,8 @@ func Verify(key crypto.PublicKey, proof ap.Proof, context any, raw []byte) error
 			return fmt.Errorf("failed to decode proof: %w", err)
 		}
 
-		if !mldsa44.Verify(mlKey, append(cfgHash[:], docHash[:]...), nil, sig) {
-			return errors.New("proof verification failed")
+		if err := mldsa.Verify(mlKey, append(cfgHash[:], docHash[:]...), sig, nil); err != nil {
+			return fmt.Errorf("proof verification failed: %w", err)
 		}
 	}
 

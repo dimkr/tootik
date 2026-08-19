@@ -19,12 +19,12 @@ package data
 import (
 	"crypto"
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"encoding/base64"
 	"errors"
 	"fmt"
 
 	"github.com/btcsuite/btcutil/base58"
-	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 )
 
 type PrivateKey interface {
@@ -44,12 +44,12 @@ func EncodeEd25519PublicKey(key ed25519.PublicKey) string {
 }
 
 // EncodeMLDSA44PrivateKey encodes a ML-DSA-44 private key.
-func EncodeMLDSA44PrivateKey(key *mldsa44.PrivateKey) string {
-	return "u" + base64.RawURLEncoding.EncodeToString(append([]byte{0x9a, 0x26}, key.Seed()...))
+func EncodeMLDSA44PrivateKey(key *mldsa.PrivateKey) string {
+	return "u" + base64.RawURLEncoding.EncodeToString(append([]byte{0x9a, 0x26}, key.Bytes()...))
 }
 
 // EncodeMLDSA44PublicKey encodes a ML-DSA-44 public key.
-func EncodeMLDSA44PublicKey(key *mldsa44.PublicKey) string {
+func EncodeMLDSA44PublicKey(key *mldsa.PublicKey) string {
 	return "u" + base64.RawURLEncoding.EncodeToString(append([]byte{0x90, 0x24}, key.Bytes()...))
 }
 
@@ -77,9 +77,8 @@ func DecodePrivateKey(key string) (PrivateKey, error) {
 
 	if len(rawKey) == 2+ed25519.SeedSize && rawKey[0] == 0x80 && rawKey[1] == 0x26 {
 		return ed25519.NewKeyFromSeed(rawKey[2:]), nil
-	} else if len(rawKey) == 2+mldsa44.SeedSize && rawKey[0] == 0x9a && rawKey[1] == 0x26 {
-		_, priv := mldsa44.NewKeyFromSeed((*[mldsa44.SeedSize]byte)(rawKey[2:]))
-		return priv, nil
+	} else if len(rawKey) == 2+mldsa.PrivateKeySize && rawKey[0] == 0x9a && rawKey[1] == 0x26 {
+		return mldsa.NewPrivateKey(mldsa.MLDSA44(), rawKey[2:])
 	} else if len(rawKey) >= 2 {
 		return nil, fmt.Errorf("invalid key prefix: %02x%02x", rawKey[0], rawKey[1])
 	} else {
@@ -111,9 +110,8 @@ func DecodePublicKey(key string) (crypto.PublicKey, error) {
 
 	if len(rawKey) == 2+ed25519.PublicKeySize && rawKey[0] == 0xed && rawKey[1] == 0x01 {
 		return ed25519.PublicKey(rawKey[2:]), nil
-	} else if len(rawKey) == 2+mldsa44.PublicKeySize && rawKey[0] == 0x90 && rawKey[1] == 0x24 {
-		pub := &mldsa44.PublicKey{}
-		return pub, pub.UnmarshalBinary(rawKey[2:])
+	} else if len(rawKey) == 2+mldsa.MLDSA44PublicKeySize && rawKey[0] == 0x90 && rawKey[1] == 0x24 {
+		return mldsa.NewPublicKey(mldsa.MLDSA44(), rawKey[2:])
 	} else if len(rawKey) >= 2 {
 		return nil, fmt.Errorf("invalid prefix: %02x%02x", rawKey[0], rawKey[1])
 	} else {

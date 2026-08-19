@@ -118,5 +118,5 @@ func TestSign_SignFailure(t *testing.T) {
 	req.Header.Set("Content-Type", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	now := time.Now()
-	assert.Error(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: &rsa.PrivateKey{PublicKey: rsa.PublicKey{N: big.NewInt(1)}}}, now))
+	assert.Error(t, Sign(req, body, Key{ID: "http://localhost/key/nobody", PrivateKey: &rsa.PrivateKey{N: big.NewInt(1)}}, now))
 }

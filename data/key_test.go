@@ -19,9 +19,8 @@ package data
 import (
 	"bytes"
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"testing"
-
-	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 )
 
 // https://codeberg.org/fediverse/fep/src/commit/480415584237eb19cb7373b6a25faa6fa6e3a200/fep/521b/fep-521b.md
@@ -42,7 +41,7 @@ func Test_FEP521b(t *testing.T) {
 }
 
 func Test_MLDSA44(t *testing.T) {
-	pub, priv, err := mldsa44.GenerateKey(nil)
+	priv, err := mldsa.GenerateKey(mldsa.MLDSA44())
 	if err != nil {
 		t.Fatalf("Failed to generate: %v", err)
 	}
@@ -51,15 +50,17 @@ func Test_MLDSA44(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to decode private key: %v", err)
 	}
-	if !decodedPriv.(*mldsa44.PrivateKey).Equal(priv) {
+	if !decodedPriv.(*mldsa.PrivateKey).Equal(priv) {
 		t.Fatal("Private keys are different")
 	}
+
+	pub := priv.PublicKey()
 
 	decodedPub, err := DecodePublicKey(EncodeMLDSA44PublicKey(pub))
 	if err != nil {
 		t.Fatalf("Failed to decode public key: %v", err)
 	}
-	if !decodedPub.(*mldsa44.PublicKey).Equal(pub) {
+	if !decodedPub.(*mldsa.PublicKey).Equal(pub) {
 		t.Fatal("Keys are different")
 	}
 }

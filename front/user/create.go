@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
@@ -28,7 +29,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/data"
@@ -67,7 +67,7 @@ func insertActor(
 	actor *ap.Actor,
 	rsaPriv *rsa.PrivateKey,
 	ed25519Priv ed25519.PrivateKey,
-	mldsa44Priv *mldsa44.PrivateKey,
+	mldsa44Priv *mldsa.PrivateKey,
 	keys [3]httpsig.Key,
 	cert *x509.Certificate,
 	db *sql.DB,
@@ -94,7 +94,7 @@ func insertActor(
 		actor,
 		x509.MarshalPKCS1PrivateKey(rsaPriv),
 		ed25519Priv.Seed(),
-		mldsa44Priv.Seed(),
+		mldsa44Priv.Bytes(),
 	); err != nil {
 		return err
 	}
@@ -180,15 +180,14 @@ func CreatePortableWithKey(
 		ed25519Priv ed25519.PrivateKey
 		ed25519Pub  ed25519.PublicKey
 
-		mldsa44Priv *mldsa44.PrivateKey
-		mldsa44Pub  *mldsa44.PublicKey
+		mldsa44Priv *mldsa.PrivateKey
 
 		ed25519PubMultibase, mldsa44PubMultibase, didKeyMultibase string
 	)
 
 	switch v := priv.(type) {
 	case ed25519.PrivateKey:
-		mldsa44Pub, mldsa44Priv, err = mldsa44.GenerateKey(nil)
+		mldsa44Priv, err = mldsa.GenerateKey(mldsa.MLDSA44())
 		if err != nil {
 			return nil, [3]httpsig.Key{}, fmt.Errorf("failed to generate ML-DSA-44 key pair: %w", err)
 		}
@@ -197,19 +196,18 @@ func CreatePortableWithKey(
 		ed25519Pub = v.Public().(ed25519.PublicKey)
 
 		ed25519PubMultibase = data.EncodeEd25519PublicKey(ed25519Pub)
-		mldsa44PubMultibase = data.EncodeMLDSA44PublicKey(mldsa44Pub)
+		mldsa44PubMultibase = data.EncodeMLDSA44PublicKey(mldsa44Priv.PublicKey())
 		didKeyMultibase = ed25519PubMultibase
 
-	case *mldsa44.PrivateKey:
+	case *mldsa.PrivateKey:
 		ed25519Pub, ed25519Priv, err = ed25519.GenerateKey(nil)
 		if err != nil {
 			return nil, [3]httpsig.Key{}, fmt.Errorf("failed to generate Ed25519 key pair: %w", err)
 		}
 
 		mldsa44Priv = v
-		mldsa44Pub = v.Public().(*mldsa44.PublicKey)
 
-		mldsa44PubMultibase = data.EncodeMLDSA44PublicKey(mldsa44Pub)
+		mldsa44PubMultibase = data.EncodeMLDSA44PublicKey(mldsa44Priv.PublicKey())
 		ed25519PubMultibase = data.EncodeEd25519PublicKey(ed25519Pub)
 		didKeyMultibase = mldsa44PubMultibase
 
@@ -306,7 +304,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config, nam
 		return nil, [3]httpsig.Key{}, fmt.Errorf("failed to generate Ed25519 key pair: %w", err)
 	}
 
-	mldsa44Pub, mldsa44Priv, err := mldsa44.GenerateKey(nil)
+	mldsa44Priv, err := mldsa.GenerateKey(mldsa.MLDSA44())
 	if err != nil {
 		return nil, [3]httpsig.Key{}, fmt.Errorf("failed to generate ML-DSA-44 key pair: %w", err)
 	}
@@ -350,7 +348,7 @@ func Create(ctx context.Context, domain string, db *sql.DB, cfg *cfg.Config, nam
 				ID:                 fmt.Sprintf("https://%s/user/%s#ml-dsa-44-key", domain, name),
 				Type:               "Multikey",
 				Controller:         id,
-				PublicKeyMultibase: data.EncodeMLDSA44PublicKey(mldsa44Pub),
+				PublicKeyMultibase: data.EncodeMLDSA44PublicKey(mldsa44Priv.PublicKey()),
 			},
 		},
 		ManuallyApprovesFollowers: false,

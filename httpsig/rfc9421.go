@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/sha512"
@@ -33,7 +34,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/data"
 )
@@ -212,9 +212,8 @@ func SignRFC9421(
 	case ed25519.PrivateKey:
 		sig = ed25519.Sign(v, danger.Bytes(s))
 
-	case *mldsa44.PrivateKey:
-		sig = make([]byte, mldsa44.SignatureSize)
-		err = mldsa44.SignTo(v, danger.Bytes(s), nil, true, sig)
+	case *mldsa.PrivateKey:
+		sig, err = v.Sign(nil, danger.Bytes(s), nil)
 
 	default:
 		return errors.New("invalid private key")
