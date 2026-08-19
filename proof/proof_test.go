@@ -98,7 +98,7 @@ func TestProof_VerifyMLDSA(t *testing.T) {
 		t.Fatalf("Failed to decode key: %v", err)
 	}
 
-	if err := Verify(&pub, a.Proof, a.Context, raw); err != nil {
+	if err := Verify(pub, a.Proof, a.Context, raw); err != nil {
 		t.Fatalf("Failed to verify proof: %v", err)
 	}
 }

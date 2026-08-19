@@ -741,7 +741,7 @@ func TestRFC9421_MLDSA44(t *testing.T) {
 		t.Fatalf("Failed to extract: %v", err)
 	}
 
-	if err := sig.Verify(&pub); err != nil {
+	if err := sig.Verify(pub); err != nil {
 		t.Fatalf("Failed to verify: %v", err)
 	}
 }
