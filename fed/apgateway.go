@@ -150,7 +150,7 @@ func (l *Listener) handleApGatewayOutboxPost(w http.ResponseWriter, r *http.Requ
 }
 
 func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Request, did string) {
-	if _, key, err := l.verifyRequestUsingKeyID(r, nil); err != nil {
+	if key, err := l.verifyRequestUsingKeyID(r, nil); err != nil {
 		slog.Warn("Failed to verify inbox request", "did", did, "error", err)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -392,7 +392,7 @@ func (l *Listener) handleApGatewayContext(w http.ResponseWriter, r *http.Request
 }
 
 func (l *Listener) handleApGatewayOutboxGet(w http.ResponseWriter, r *http.Request, did string) {
-	if _, key, err := l.verifyRequestUsingKeyID(r, nil); err != nil {
+	if key, err := l.verifyRequestUsingKeyID(r, nil); err != nil {
 		slog.Warn("Failed to verify outbox request", "did", did, "error", err)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -592,7 +592,7 @@ func (l *Listener) fetchSenderFollowers(
 	r *http.Request,
 	did string,
 ) (bool, *ap.Actor, string, *sql.Rows) {
-	_, key, err := l.verifyRequestUsingKeyID(r, nil)
+	key, err := l.verifyRequestUsingKeyID(r, nil)
 	if err != nil {
 		slog.Warn("Failed to verify followers request", "did", did, "error", err)
 		w.WriteHeader(http.StatusNotFound)

@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text/gmi"
@@ -281,6 +282,94 @@ func TestCluster_ClientSideSigningInboxHappyFlow(t *testing.T) {
 	}
 
 	create.Proof, err = proof.Create(httpsig.Key{ID: actorID + "#ed25519-key", PrivateKey: priv}, create)
+	if err != nil {
+		t.Fatalf("Failed to generate proof: %v", err)
+	}
+
+	j, err := json.Marshal(create)
+	if err != nil {
+		t.Fatalf("Failed to marshal activity: %v", err)
+	}
+
+	r, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://c.localdomain/inbox", bytes.NewReader(j))
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	var w responseWriter
+	cluster["c.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusAccepted {
+		t.Fatalf("Failed to process activity: %d", w.StatusCode)
+	}
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hi"})
+
+	cluster.Settle(t)
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
+}
+
+func TestCluster_MLDSA44ClientSideSigningInboxHappyFlow(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
+
+	pub, priv, err := mldsa44.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+	registerPortable := "/users/register?" + data.EncodeMLDSA44PrivateKey(priv)
+
+	did := "did:key:" + data.EncodeMLDSA44PublicKey(pub)
+
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+	carol := cluster["c.localdomain"].Handle(carolKeypair, registerPortable).OK()
+
+	alice.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "c.localdomain").
+		OK()
+
+	carol.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "a.localdomain").
+		OK()
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	cluster.Settle(t)
+
+	actorID := "https://a.localdomain/.well-known/apgateway/" + did + "/actor"
+
+	to := ap.Audience{}
+	to.Add(ap.Public)
+
+	create := &ap.Activity{
+		Type:      ap.Create,
+		ID:        actorID + "/create/1",
+		Actor:     actorID,
+		To:        to,
+		CC:        to,
+		Published: ap.Time{Time: time.Now()},
+		Object: &ap.Object{
+			Type:         ap.Note,
+			ID:           actorID + "/note/1",
+			Content:      "hi",
+			AttributedTo: actorID,
+			To:           to,
+			CC:           to,
+		},
+	}
+
+	create.Proof, err = proof.Create(httpsig.Key{ID: actorID + "#ml-dsa-44-key", PrivateKey: priv}, create)
 	if err != nil {
 		t.Fatalf("Failed to generate proof: %v", err)
 	}
@@ -1082,6 +1171,109 @@ func TestCluster_InboxFetchHappyFlow(t *testing.T) {
 	}
 }
 
+func TestCluster_MLDSA44InboxFetchHappyFlow(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
+	defer cluster.Stop()
+
+	pub, priv, err := mldsa44.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+	registerPortable := "/users/register?" + data.EncodeMLDSA44PrivateKey(priv)
+
+	did := "did:key:" + data.EncodeMLDSA44PublicKey(pub)
+
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
+	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
+
+	alice.
+		FollowInput("🔭 View profile", "bob@b.localdomain").
+		Follow("⚡ Follow bob").
+		OK()
+	cluster.Settle(t)
+
+	bob.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "hello").
+		OK()
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	cluster.Settle(t)
+
+	r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://a.localdomain/.well-known/apgateway/"+did+"/actor/inbox", nil)
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	if err := httpsig.SignRFC9421(
+		r,
+		nil,
+		httpsig.Key{
+			ID:         "https://a.localdomain/.well-known/apgateway/" + did + "/actor#ml-dsa-44-key",
+			PrivateKey: priv,
+		},
+		time.Now(),
+		time.Now().Add(time.Minute*5),
+		httpsig.RFC9421DigestSHA256,
+		"ml-dsa-44",
+		nil,
+	); err != nil {
+		t.Fatalf("Failed to sign HTTP request: %v", err)
+	}
+
+	w := responseWriter{
+		Headers: http.Header{},
+	}
+	cluster["a.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to fetch inbox: %d", w.StatusCode)
+	}
+
+	var inbox ap.Collection
+	if err := json.NewDecoder(&w.Body).Decode(&inbox); err != nil {
+		t.Fatalf("Failed to decode inbox: %v", err)
+	}
+
+	r, err = http.NewRequestWithContext(t.Context(), http.MethodGet, inbox.First.(string), nil)
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	if err := httpsig.SignRFC9421(
+		r,
+		nil,
+		httpsig.Key{
+			ID:         "https://a.localdomain/.well-known/apgateway/" + did + "/actor#ml-dsa-44-key",
+			PrivateKey: priv,
+		},
+		time.Now(),
+		time.Now().Add(time.Minute*5),
+		httpsig.RFC9421DigestSHA256,
+		"ml-dsa-44",
+		nil,
+	); err != nil {
+		t.Fatalf("Failed to sign HTTP request: %v", err)
+	}
+
+	w = responseWriter{
+		Headers: http.Header{},
+	}
+	cluster["a.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to fetch inbox page: %d", w.StatusCode)
+	}
+
+	var page struct {
+		OrderedItems []ap.Activity `json:"orderedItems"`
+	}
+	if err := json.NewDecoder(&w.Body).Decode(&page); err != nil {
+		t.Fatalf("Failed to decode inbox page: %v", err)
+	}
+}
+
 func TestCluster_InboxFetchInvalidSignature(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
 	defer cluster.Stop()
@@ -1413,6 +1605,136 @@ func TestCluster_OutboxImport(t *testing.T) {
 		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
 }
 
+func TestCluster_MLDSA44OutboxImport(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
+	defer cluster.Stop()
+
+	pub, priv, err := mldsa44.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+	registerPortable := "/users/register?" + data.EncodeMLDSA44PrivateKey(priv)
+
+	did := "did:key:" + data.EncodeMLDSA44PublicKey(pub)
+
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
+	bob := cluster["b.localdomain"].Handle(bobKeypair, registerPortable).OK()
+	carol := cluster["a.localdomain"].Register(carolKeypair).OK()
+
+	alice.
+		FollowInput("🔭 View profile", "carol@a.localdomain").
+		Follow("⚡ Follow carol").
+		OK()
+	cluster.Settle(t)
+
+	alice.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "hello").
+		OK()
+	carol.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "hi").
+		OK()
+	cluster.Settle(t)
+
+	alice.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hello"})
+
+	r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://a.localdomain/.well-known/apgateway/"+did+"/actor/outbox", nil)
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	if err := httpsig.SignRFC9421(
+		r,
+		nil,
+		httpsig.Key{
+			ID:         "https://a.localdomain/.well-known/apgateway/" + did + "/actor#ml-dsa-44-key",
+			PrivateKey: priv,
+		},
+		time.Now(),
+		time.Now().Add(time.Minute*5),
+		httpsig.RFC9421DigestSHA256,
+		"ml-dsa-44",
+		nil,
+	); err != nil {
+		t.Fatalf("Failed to sign HTTP request: %v", err)
+	}
+
+	w := responseWriter{
+		Headers: http.Header{},
+	}
+	cluster["a.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to fetch inbox: %d", w.StatusCode)
+	}
+
+	var inbox ap.Collection
+	if err := json.NewDecoder(&w.Body).Decode(&inbox); err != nil {
+		t.Fatalf("Failed to decode inbox: %v", err)
+	}
+
+	r, err = http.NewRequestWithContext(t.Context(), http.MethodGet, inbox.First.(string), nil)
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	if err := httpsig.SignRFC9421(
+		r,
+		nil,
+		httpsig.Key{
+			ID:         "https://a.localdomain/.well-known/apgateway/" + did + "/actor#ml-dsa-44-key",
+			PrivateKey: priv,
+		},
+		time.Now(),
+		time.Now().Add(time.Minute*5),
+		httpsig.RFC9421DigestSHA256,
+		"ml-dsa-44",
+		nil,
+	); err != nil {
+		t.Fatalf("Failed to sign HTTP request: %v", err)
+	}
+
+	w = responseWriter{
+		Headers: http.Header{},
+	}
+	cluster["a.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to fetch inbox page: %d", w.StatusCode)
+	}
+
+	var page struct {
+		OrderedItems []json.RawMessage `json:"orderedItems"`
+	}
+	if err := json.NewDecoder(&w.Body).Decode(&page); err != nil {
+		t.Fatalf("Failed to decode inbox page: %v", err)
+	}
+
+	for _, item := range page.OrderedItems {
+		r, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://b.localdomain/.well-known/apgateway/"+did+"/actor/outbox", bytes.NewReader([]byte(item)))
+		if err != nil {
+			t.Fatalf("Failed to create HTTP request: %v", err)
+		}
+
+		var w responseWriter
+		cluster["b.localdomain"].Backend.ServeHTTP(&w, r)
+		if w.StatusCode != http.StatusAccepted {
+			t.Fatalf("Failed to import activity: %d", w.StatusCode)
+		}
+	}
+
+	cluster.Settle(t)
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
+}
+
 func TestCluster_ClientSideSigningFollowersHappyFlow(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
 	defer cluster.Stop()
@@ -1445,6 +1767,160 @@ func TestCluster_ClientSideSigningFollowersHappyFlow(t *testing.T) {
 		time.Now().Add(time.Minute*5),
 		httpsig.RFC9421DigestSHA256,
 		"ed25519",
+		nil,
+	); err != nil {
+		t.Fatalf("Failed to sign HTTP request: %v", err)
+	}
+
+	w := responseWriter{
+		Headers: http.Header{},
+	}
+	cluster["a.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to process activity: %d", w.StatusCode)
+	}
+
+	var followers struct {
+		OrderedItems []string `json:"orderedItems"`
+	}
+	if err := json.NewDecoder(&w.Body).Decode(&followers); err != nil {
+		t.Fatalf("Failed to decode followers: %v", err)
+	}
+
+	if followers.OrderedItems == nil || len(followers.OrderedItems) > 0 {
+		t.Fatalf("Unexpected list of followers: %v", followers.OrderedItems)
+	}
+
+	alice.
+		Follow("🐕 Followers").
+		Follow("🔒 Approve new follow requests manually").
+		OK()
+
+	carol.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice (requires approval)").
+		OK()
+	cluster.Settle(t)
+
+	alice.
+		Follow("🐕 Followers").
+		Follow("🟢 Accept")
+	cluster.Settle(t)
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice (requires approval)").
+		OK()
+	cluster.Settle(t)
+
+	w = responseWriter{
+		Headers: http.Header{},
+	}
+	cluster["a.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to process activity: %d", w.StatusCode)
+	}
+
+	if err := json.NewDecoder(&w.Body).Decode(&followers); err != nil {
+		t.Fatalf("Failed to decode followers: %v", err)
+	}
+
+	if !slices.Equal(
+		followers.OrderedItems,
+		[]string{
+			"https://c.localdomain/.well-known/apgateway/" + carolDID + "/actor",
+		},
+	) {
+		t.Fatalf("Unexpected list of followers: %v", followers.OrderedItems)
+	}
+
+	alice.
+		Follow("🐕 Followers").
+		Follow("🟢 Accept")
+	cluster.Settle(t)
+
+	w = responseWriter{
+		Headers: http.Header{},
+	}
+	cluster["a.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to process activity: %d", w.StatusCode)
+	}
+
+	if err := json.NewDecoder(&w.Body).Decode(&followers); err != nil {
+		t.Fatalf("Failed to decode followers: %v", err)
+	}
+
+	if !slices.Equal(
+		followers.OrderedItems,
+		[]string{
+			"https://b.localdomain/.well-known/apgateway/" + bobDID + "/actor",
+			"https://c.localdomain/.well-known/apgateway/" + carolDID + "/actor",
+		},
+	) {
+		t.Fatalf("Unexpected list of followers: %v", followers.OrderedItems)
+	}
+
+	carol.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("🔌 Unfollow alice").
+		OK()
+	cluster.Settle(t)
+
+	w = responseWriter{
+		Headers: http.Header{},
+	}
+	cluster["a.localdomain"].Backend.ServeHTTP(&w, r)
+	if w.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to process activity: %d", w.StatusCode)
+	}
+
+	if err := json.NewDecoder(&w.Body).Decode(&followers); err != nil {
+		t.Fatalf("Failed to decode followers: %v", err)
+	}
+
+	if !slices.Equal(
+		followers.OrderedItems,
+		[]string{
+			"https://b.localdomain/.well-known/apgateway/" + bobDID + "/actor",
+		},
+	) {
+		t.Fatalf("Unexpected list of followers: %v", followers.OrderedItems)
+	}
+}
+
+func TestCluster_MLDSA44ClientSideSigningFollowersHappyFlow(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
+
+	alicePub, alicePriv, err := mldsa44.GenerateKey(nil)
+	aliceDID := "did:key:" + data.EncodeMLDSA44PublicKey(alicePub)
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, "/users/register?"+data.EncodeMLDSA44PrivateKey(alicePriv)).OK()
+
+	bobPub, bobPriv, err := ed25519.GenerateKey(nil)
+	bobDID := "did:key:" + data.EncodeEd25519PublicKey(bobPub)
+	bob := cluster["b.localdomain"].Handle(bobKeypair, "/users/register?"+data.EncodeEd25519PrivateKey(bobPriv)).OK()
+
+	carolPub, carolPriv, err := ed25519.GenerateKey(nil)
+	carolDID := "did:key:" + data.EncodeEd25519PublicKey(carolPub)
+	carol := cluster["c.localdomain"].Handle(carolKeypair, "/users/register?"+data.EncodeEd25519PrivateKey(carolPriv)).OK()
+
+	r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://a.localdomain/.well-known/apgateway/"+aliceDID+"/actor/followers", nil)
+	if err != nil {
+		t.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	if err := httpsig.SignRFC9421(
+		r,
+		nil,
+		httpsig.Key{
+			ID:         "https://a.localdomain/.well-known/apgateway/" + aliceDID + "/actor#ml-dsa-44-key",
+			PrivateKey: alicePriv,
+		},
+		time.Now(),
+		time.Now().Add(time.Minute*5),
+		httpsig.RFC9421DigestSHA256,
+		"ml-dsa-44",
 		nil,
 	); err != nil {
 		t.Fatalf("Failed to sign HTTP request: %v", err)

@@ -19,6 +19,7 @@ package fed
 import (
 	"context"
 	"crypto"
+	"crypto/ed25519"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
@@ -27,6 +28,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/data"
@@ -70,8 +72,14 @@ func (l *Listener) extractRequestSignature(r *http.Request, body []byte) (*https
 	return sig, err
 }
 
-func (l *Listener) verifyEd25519RequestSignatureUsingKeyID(sig *httpsig.Signature) (string, error) {
-	if sig.Alg != "ed25519" {
+func (l *Listener) verifyRequestSignatureUsingKeyID(sig *httpsig.Signature) (string, error) {
+	keyOrigin, err := ap.Origin(sig.KeyID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get origin of %s: %w", sig.KeyID, err)
+	}
+
+	suffix, ok := strings.CutPrefix(keyOrigin, "did:key:")
+	if !ok {
 		return "", errNoKeyInKeyID
 	}
 
@@ -80,19 +88,28 @@ func (l *Listener) verifyEd25519RequestSignatureUsingKeyID(sig *httpsig.Signatur
 		return "", errNoKeyInKeyID
 	}
 
-	keyOrigin, err := ap.Origin(sig.KeyID)
-	if err != nil {
-		return "", fmt.Errorf("failed to get origin of %s: %w", sig.KeyID, err)
-	}
-
-	suffix, ok := strings.CutPrefix(keyOrigin, "did:key:")
-	if !ok || suffix != m[1] {
-		return "", errors.New("key origin is not portable")
+	if suffix != m[1] {
+		return "", errNoKeyInKeyID
 	}
 
 	raw, err := data.DecodePublicKey(m[1])
 	if err != nil {
 		return "", fmt.Errorf("failed to parse %s: %w", sig.KeyID, err)
+	}
+
+	switch raw.(type) {
+	case ed25519.PublicKey:
+		if sig.Alg != "" && sig.Alg != "ed25519" {
+			return "", errNoKeyInKeyID
+		}
+
+	case *mldsa44.PublicKey:
+		if sig.Alg != "" && sig.Alg != "ml-dsa-44" {
+			return "", errNoKeyInKeyID
+		}
+
+	default:
+		return "", errNoKeyInKeyID
 	}
 
 	if err := sig.Verify(raw); err != nil {
@@ -102,14 +119,14 @@ func (l *Listener) verifyEd25519RequestSignatureUsingKeyID(sig *httpsig.Signatur
 	return m[1], nil
 }
 
-func (l *Listener) verifyRequestUsingKeyID(r *http.Request, body []byte) (*httpsig.Signature, string, error) {
+func (l *Listener) verifyRequestUsingKeyID(r *http.Request, body []byte) (string, error) {
 	sig, err := l.extractRequestSignature(r, body)
 	if err != nil {
-		return nil, "", err
+		return "", err
 	}
 
-	key, err := l.verifyEd25519RequestSignatureUsingKeyID(sig)
-	return sig, key, err
+	key, err := l.verifyRequestSignatureUsingKeyID(sig)
+	return key, err
 }
 
 func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.ResolverFlag, keys [3]httpsig.Key) (*httpsig.Signature, *ap.Actor, error) {
@@ -118,7 +135,7 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 		return nil, nil, err
 	}
 
-	if _, err := l.verifyEd25519RequestSignatureUsingKeyID(sig); err != nil && !errors.Is(err, errNoKeyInKeyID) {
+	if _, err := l.verifyRequestSignatureUsingKeyID(sig); err != nil && !errors.Is(err, errNoKeyInKeyID) {
 		return nil, nil, err
 	} else if err == nil {
 		actor, err := l.Resolver.ResolveID(r.Context(), keys, sig.KeyID, flags)
