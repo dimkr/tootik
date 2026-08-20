@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto"
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
@@ -28,7 +29,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/data"
@@ -103,7 +103,7 @@ func (l *Listener) verifyRequestSignatureUsingKeyID(sig *httpsig.Signature) (str
 			return "", errNoKeyInKeyID
 		}
 
-	case *mldsa44.PublicKey:
+	case *mldsa.PublicKey:
 		if sig.Alg != "" && sig.Alg != "ml-dsa-44" {
 			return "", errNoKeyInKeyID
 		}

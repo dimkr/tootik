@@ -20,12 +20,12 @@ import (
 	"bytes"
 	"context"
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"crypto/x509"
 	"fmt"
 	"log/slog"
 	"net/url"
 
-	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/front/text/gmi"
 	"github.com/dimkr/tootik/httpsig"
@@ -54,7 +54,10 @@ func (h *Handler) Shell(ctx context.Context, user, domain string) error {
 		panic(err)
 	}
 
-	_, mldsa44Priv := mldsa44.NewKeyFromSeed((*[mldsa44.SeedSize]byte)(mldsa44Seed))
+	mldsa44Priv, err := mldsa.NewPrivateKey(mldsa.MLDSA44(), mldsa44Seed)
+	if err != nil {
+		panic(err)
+	}
 
 	var buf bytes.Buffer
 

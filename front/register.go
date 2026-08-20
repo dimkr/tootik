@@ -18,12 +18,12 @@ package front
 
 import (
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"crypto/tls"
 	"database/sql"
 	"reflect"
 	"time"
 
-	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/front/text"
@@ -126,7 +126,7 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 		}
 
 		switch key.(type) {
-		case ed25519.PrivateKey, *mldsa44.PrivateKey:
+		case ed25519.PrivateKey, *mldsa.PrivateKey:
 			if _, _, err := user.CreatePortableWithKey(r.Context, h.Domain, h.DB, h.Config, userName, ap.Person, clientCert, key); err != nil {
 				r.Log.Warn("Failed to create new portable user", "name", userName, "error", err)
 				w.Status(40, "Failed to create new user")

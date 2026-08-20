@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,9 +25,10 @@ import (
 func TestBlockList_NotBlockedDomain(t *testing.T) {
 	assert := assert.New(t)
 
-	blockList := BlockList{}
-	blockList.domains = map[string]struct{}{
-		"0.0.0.0.com": {},
+	blockList := BlockList{
+		domains: map[string]struct{}{
+			"0.0.0.0.com": {},
+		},
 	}
 
 	assert.False(blockList.Contains("127.0.0.1.com"))
@@ -36,9 +37,10 @@ func TestBlockList_NotBlockedDomain(t *testing.T) {
 func TestBlockList_BlockedDomain(t *testing.T) {
 	assert := assert.New(t)
 
-	blockList := BlockList{}
-	blockList.domains = map[string]struct{}{
-		"0.0.0.0.com": {},
+	blockList := BlockList{
+		domains: map[string]struct{}{
+			"0.0.0.0.com": {},
+		},
 	}
 
 	assert.True(blockList.Contains("0.0.0.0.com"))
@@ -47,9 +49,10 @@ func TestBlockList_BlockedDomain(t *testing.T) {
 func TestBlockList_BlockedSubdomain(t *testing.T) {
 	assert := assert.New(t)
 
-	blockList := BlockList{}
-	blockList.domains = map[string]struct{}{
-		"social.0.0.0.0.com": {},
+	blockList := BlockList{
+		domains: map[string]struct{}{
+			"social.0.0.0.0.com": {},
+		},
 	}
 
 	assert.True(blockList.Contains("social.0.0.0.0.com"))
@@ -58,9 +61,10 @@ func TestBlockList_BlockedSubdomain(t *testing.T) {
 func TestBlockList_NotBlockedSubdomain(t *testing.T) {
 	assert := assert.New(t)
 
-	blockList := BlockList{}
-	blockList.domains = map[string]struct{}{
-		"social.0.0.0.0.com": {},
+	blockList := BlockList{
+		domains: map[string]struct{}{
+			"social.0.0.0.0.com": {},
+		},
 	}
 
 	assert.False(blockList.Contains("blog.0.0.0.0.com"))
@@ -69,9 +73,10 @@ func TestBlockList_NotBlockedSubdomain(t *testing.T) {
 func TestBlockList_BlockedSubdomainByDomain(t *testing.T) {
 	assert := assert.New(t)
 
-	blockList := BlockList{}
-	blockList.domains = map[string]struct{}{
-		"0.0.0.0.com": {},
+	blockList := BlockList{
+		domains: map[string]struct{}{
+			"0.0.0.0.com": {},
+		},
 	}
 
 	assert.True(blockList.Contains("social.0.0.0.0.com"))
@@ -80,9 +85,10 @@ func TestBlockList_BlockedSubdomainByDomain(t *testing.T) {
 func TestBlockList_BlockedSubdomainByDomainEndsWithDot(t *testing.T) {
 	assert := assert.New(t)
 
-	blockList := BlockList{}
-	blockList.domains = map[string]struct{}{
-		"0.0.0.0.com": {},
+	blockList := BlockList{
+		domains: map[string]struct{}{
+			"0.0.0.0.com": {},
+		},
 	}
 
 	assert.True(blockList.Contains("social.0.0.0.0.com."))

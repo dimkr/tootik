@@ -65,12 +65,10 @@ var (
 // NewResolver returns a new [Resolver].
 func NewResolver(blockedDomains *BlockList, domain string, cfg *cfg.Config, client Client, db *sql.DB) *Resolver {
 	r := Resolver{
-		sender: sender{
-			Domain: domain,
-			Config: cfg,
-			client: client,
-			DB:     db,
-		},
+		Domain:         domain,
+		Config:         cfg,
+		client:         client,
+		DB:             db,
 		BlockedDomains: blockedDomains,
 		db:             db,
 		locks:          make([]lock.Lock, cfg.MaxResolverRequests),

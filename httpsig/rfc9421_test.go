@@ -17,6 +17,7 @@ limitations under the License.
 package httpsig
 
 import (
+	"crypto/mldsa"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
@@ -26,8 +27,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 )
 
 // B.1.4.  Example Ed25519 Test Key
@@ -231,7 +230,7 @@ func TestRFC9421_Sign(t *testing.T) {
 		},
 		{
 			Name:       "SmallKey",
-			Key:        Key{ID: "test-key-rsa", PrivateKey: &rsa.PrivateKey{PublicKey: rsa.PublicKey{N: big.NewInt(512)}}},
+			Key:        Key{ID: "test-key-rsa", PrivateKey: &rsa.PrivateKey{N: big.NewInt(512)}},
 			Method:     http.MethodPost,
 			URL:        "http://origin.host.internal.example/foo",
 			Body:       `{"hello": "world"}`,
@@ -723,8 +722,8 @@ func TestRFC9421_MLDSA44(t *testing.T) {
 		t.Fatalf("Failed to decode public key: %v", err)
 	}
 
-	var pub mldsa44.PublicKey
-	if err := pub.UnmarshalBinary(rawPub[:]); err != nil {
+	pub, err := mldsa.NewPublicKey(mldsa.MLDSA44(), rawPub[:])
+	if err != nil {
 		t.Fatalf("Failed to parse public key: %v", err)
 	}
 
@@ -742,7 +741,7 @@ func TestRFC9421_MLDSA44(t *testing.T) {
 		t.Fatalf("Failed to extract: %v", err)
 	}
 
-	if err := sig.Verify(&pub); err != nil {
+	if err := sig.Verify(pub); err != nil {
 		t.Fatalf("Failed to verify: %v", err)
 	}
 }
