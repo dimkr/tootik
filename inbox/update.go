@@ -29,18 +29,13 @@ import (
 )
 
 func (inbox *Inbox) updateNote(ctx context.Context, actor *ap.Actor, key httpsig.Key, note *ap.Object) error {
-	updateID, err := inbox.NewID(note.AttributedTo, "update")
-	if err != nil {
-		return err
-	}
-
 	update := &ap.Activity{
 		Context: []string{
 			"https://www.w3.org/ns/activitystreams",
 			"https://w3id.org/security/data-integrity/v1",
 			"https://w3id.org/security/v1",
 		},
-		ID:     updateID,
+		ID:     inbox.NewID(note.AttributedTo, "update"),
 		Type:   ap.Update,
 		Actor:  note.AttributedTo,
 		Object: note,
@@ -51,6 +46,7 @@ func (inbox *Inbox) updateNote(ctx context.Context, actor *ap.Actor, key httpsig
 	if inbox.Config.DisableIntegrityProofs {
 		note.Proof = ap.Proof{}
 	} else {
+		var err error
 		if note.Proof, err = proof.Create(key, note); err != nil {
 			return err
 		}
@@ -107,11 +103,6 @@ func (inbox *Inbox) UpdateNote(ctx context.Context, actor *ap.Actor, key httpsig
 }
 
 func (inbox *Inbox) updateActor(ctx context.Context, tx *sql.Tx, actor *ap.Actor, key httpsig.Key) error {
-	updateID, err := inbox.NewID(actor.ID, "update")
-	if err != nil {
-		return err
-	}
-
 	to := ap.Audience{}
 	to.Add(ap.Public)
 
@@ -121,7 +112,7 @@ func (inbox *Inbox) updateActor(ctx context.Context, tx *sql.Tx, actor *ap.Actor
 			"https://w3id.org/security/data-integrity/v1",
 			"https://w3id.org/security/v1",
 		},
-		ID:     updateID,
+		ID:     inbox.NewID(actor.ID, "update"),
 		Type:   ap.Update,
 		Actor:  actor.ID,
 		Object: actor.ID,
@@ -131,6 +122,7 @@ func (inbox *Inbox) updateActor(ctx context.Context, tx *sql.Tx, actor *ap.Actor
 	if inbox.Config.DisableIntegrityProofs {
 		actor.Proof = ap.Proof{}
 	} else {
+		var err error
 		if actor.Proof, err = proof.Create(key, actor); err != nil {
 			return err
 		}
@@ -140,7 +132,7 @@ func (inbox *Inbox) updateActor(ctx context.Context, tx *sql.Tx, actor *ap.Actor
 		}
 	}
 
-	if _, err = tx.ExecContext(
+	if _, err := tx.ExecContext(
 		ctx,
 		`UPDATE persons SET actor = JSONB(?) WHERE id = ?`,
 		actor,
@@ -149,7 +141,7 @@ func (inbox *Inbox) updateActor(ctx context.Context, tx *sql.Tx, actor *ap.Actor
 		return err
 	}
 
-	_, err = tx.ExecContext(
+	_, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
 		update,

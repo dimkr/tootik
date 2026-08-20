@@ -85,13 +85,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 
 	var postID string
 	if oldNote == nil {
-		var err error
-		postID, err = h.Inbox.NewID(r.User.ID, "post")
-		if err != nil {
-			r.Log.Error("Failed to generate post ID", "error", err)
-			w.Error()
-			return
-		}
+		postID = h.Inbox.NewID(r.User.ID, "post")
 	} else {
 		postID = oldNote.ID
 	}
@@ -361,14 +355,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 	}
 
 	if ap.IsPortable(note.ID) && inReplyTo == nil && note.IsPublic() {
-		contextID, err := h.Inbox.NewID(r.User.ID, "context")
-		if err != nil {
-			r.Log.Error("Failed to generate context ID", "error", err)
-			w.Error()
-			return
-		}
-
-		note.BackfillContext = contextID
+		note.BackfillContext = h.Inbox.NewID(r.User.ID, "context")
 	} else if inReplyTo != nil {
 		note.BackfillContext = inReplyTo.BackfillContext
 	}

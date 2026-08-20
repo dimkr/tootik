@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Dima Krasner
+Copyright 2025, 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,21 +18,18 @@ package inbox
 
 import (
 	"fmt"
+	"uuid"
 
 	"github.com/dimkr/tootik/ap"
-	"github.com/google/uuid"
 )
 
 // NewID generates a pseudo-random ID.
-func (inbox *Inbox) NewID(actorID, prefix string) (string, error) {
-	u, err := uuid.NewV7()
-	if err != nil {
-		return "", fmt.Errorf("failed to generate %s ID: %w", prefix, err)
-	}
+func (inbox *Inbox) NewID(actorID, prefix string) string {
+	u := uuid.NewV7()
 
 	if m := ap.GatewayURLRegex.FindStringSubmatch(actorID); m != nil {
-		return fmt.Sprintf("https://%s/.well-known/apgateway/did:key:%s/actor/%s/%s", inbox.Domain, m[1], prefix, u.String()), nil
+		return fmt.Sprintf("https://%s/.well-known/apgateway/did:key:%s/actor/%s/%s", inbox.Domain, m[1], prefix, u.String())
 	}
 
-	return fmt.Sprintf("https://%s/%s/%s", inbox.Domain, prefix, u.String()), nil
+	return fmt.Sprintf("https://%s/%s/%s", inbox.Domain, prefix, u.String())
 }

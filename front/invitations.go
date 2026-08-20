@@ -22,11 +22,11 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+	"uuid"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/front/text"
-	"github.com/google/uuid"
 )
 
 func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
@@ -115,14 +115,8 @@ func (h *Handler) generateInvitation(w text.Writer, r *Request, args ...string) 
 
 	code := r.URL.RawQuery
 	if code == "" {
-		if u, err := uuid.NewRandom(); err != nil {
-			r.Log.Warn("Failed to generate invitation code", "error", err)
-			w.Error()
-			return
-		} else {
-			code = u.String()
-		}
-	} else if err := uuid.Validate(r.URL.RawQuery); err != nil {
+		code = uuid.NewV4().String()
+	} else if _, err := uuid.Parse(r.URL.RawQuery); err != nil {
 		r.Log.Warn("Invitation code is invalid", "code", r.URL.RawQuery, "error", err)
 		w.Status(40, "Invalid invitation code")
 		return

@@ -29,11 +29,6 @@ import (
 )
 
 func (inbox *Inbox) reject(ctx context.Context, followed *ap.Actor, key httpsig.Key, follower, followID string, tx *sql.Tx) error {
-	id, err := inbox.NewID(followed.ID, "reject")
-	if err != nil {
-		return err
-	}
-
 	recipients := ap.Audience{}
 	recipients.Add(follower)
 
@@ -44,7 +39,7 @@ func (inbox *Inbox) reject(ctx context.Context, followed *ap.Actor, key httpsig.
 			"https://w3id.org/security/v1",
 		},
 		Type:  ap.Reject,
-		ID:    id,
+		ID:    inbox.NewID(followed.ID, "reject"),
 		Actor: followed.ID,
 		To:    recipients,
 		Object: &ap.Activity{
@@ -56,6 +51,7 @@ func (inbox *Inbox) reject(ctx context.Context, followed *ap.Actor, key httpsig.
 	}
 
 	if !inbox.Config.DisableIntegrityProofs {
+		var err error
 		if reject.Proof, err = proof.Create(key, reject); err != nil {
 			return err
 		}

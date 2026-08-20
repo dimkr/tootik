@@ -36,11 +36,6 @@ func (inbox *Inbox) accept(
 	result string,
 	tx *sql.Tx,
 ) (*ap.Activity, string, error) {
-	id, err := inbox.NewID(actor.ID, "accept")
-	if err != nil {
-		return nil, "", err
-	}
-
 	recipients := ap.Audience{}
 	recipients.Add(request.Actor)
 
@@ -51,7 +46,7 @@ func (inbox *Inbox) accept(
 			"https://w3id.org/security/v1",
 		},
 		Type:   ap.Accept,
-		ID:     id,
+		ID:     inbox.NewID(actor.ID, "accept"),
 		Actor:  actor.ID,
 		To:     recipients,
 		Object: request,
@@ -59,6 +54,7 @@ func (inbox *Inbox) accept(
 	}
 
 	if !inbox.Config.DisableIntegrityProofs {
+		var err error
 		if accept.Proof, err = proof.Create(key, accept); err != nil {
 			return nil, "", err
 		}
@@ -137,11 +133,6 @@ func (inbox *Inbox) acceptRequest(
 		return fmt.Errorf("invalid instrument type: %T", request.Instrument)
 	}
 
-	stampID, err := inbox.NewID(actor.ID, "stamp")
-	if err != nil {
-		return err
-	}
-
 	if _, _, err := inbox.accept(
 		ctx,
 		actor,
@@ -153,7 +144,7 @@ func (inbox *Inbox) acceptRequest(
 			Object:     request.Object,
 			Instrument: instrumentID,
 		},
-		stampID,
+		inbox.NewID(actor.ID, "stamp"),
 		tx,
 	); err != nil {
 		return fmt.Errorf("failed to accept %s from %s by %s: %w", request.ID, request.Actor, actor.ID, err)

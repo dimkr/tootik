@@ -28,8 +28,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/google/uuid"
-
 	"os/signal"
 	"sync"
 	"syscall"
@@ -102,8 +100,6 @@ func main() {
 	if !((cmd == "" && flag.NArg() == 0) || (cmd == "shell" && flag.NArg() <= 2) || (cmd == "add-community" && flag.NArg() == 2 && flag.Arg(1) != "") || ((cmd == "set-bio" || cmd == "set-avatar") && flag.NArg() == 3 && flag.Arg(1) != "" && flag.Arg(2) != "")) {
 		flag.Usage()
 	}
-
-	uuid.EnableRandPool()
 
 	var cfg cfg.Config
 

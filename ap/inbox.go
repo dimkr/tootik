@@ -26,7 +26,7 @@ import (
 
 // Inbox creates and processes activities.
 type Inbox interface {
-	NewID(actorID, prefix string) (string, error)
+	NewID(actorID, prefix string) string
 	AcceptFollow(ctx context.Context, followed *Actor, key httpsig.Key, follower, followID string, tx *sql.Tx) error
 	Announce(ctx context.Context, tx *sql.Tx, actor *Actor, key httpsig.Key, note *Object) error
 	Create(ctx context.Context, cfg *cfg.Config, post *Object, author *Actor, key httpsig.Key) error
