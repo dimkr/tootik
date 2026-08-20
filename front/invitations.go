@@ -22,7 +22,6 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
-
 	"uuid"
 
 	"github.com/dimkr/tootik/ap"

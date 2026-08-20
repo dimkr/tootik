@@ -18,7 +18,6 @@ package inbox
 
 import (
 	"fmt"
-
 	"uuid"
 
 	"github.com/dimkr/tootik/ap"
