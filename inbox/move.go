@@ -30,18 +30,13 @@ func (inbox *Inbox) move(ctx context.Context, from *ap.Actor, key httpsig.Key, t
 	aud := ap.Audience{}
 	aud.Add(from.Followers)
 
-	id, err := inbox.NewID(from.ID, "move")
-	if err != nil {
-		return err
-	}
-
 	move := &ap.Activity{
 		Context: []string{
 			"https://www.w3.org/ns/activitystreams",
 			"https://w3id.org/security/data-integrity/v1",
 			"https://w3id.org/security/v1",
 		},
-		ID:     id,
+		ID:     inbox.NewID(from.ID, "move"),
 		Actor:  from.ID,
 		Type:   ap.Move,
 		Object: from.ID,
@@ -50,6 +45,7 @@ func (inbox *Inbox) move(ctx context.Context, from *ap.Actor, key httpsig.Key, t
 	}
 
 	if !inbox.Config.DisableIntegrityProofs {
+		var err error
 		if move.Proof, err = proof.Create(key, move); err != nil {
 			return err
 		}

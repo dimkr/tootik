@@ -35,11 +35,6 @@ const maxDeliveryQueueSize = 128
 var ErrDeliveryQueueFull = errors.New("delivery queue is full")
 
 func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, post *ap.Object, author *ap.Actor, key httpsig.Key) error {
-	id, err := inbox.NewID(author.ID, "create")
-	if err != nil {
-		return err
-	}
-
 	var queueSize int
 	if err := inbox.DB.QueryRowContext(ctx, `select count(distinct cid) from outbox where sent = 0 and attempts < ?`, cfg.MaxDeliveryAttempts).Scan(&queueSize); err != nil {
 		return fmt.Errorf("failed to query delivery queue size: %w", err)
@@ -56,7 +51,7 @@ func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, post *ap.Object
 			"https://w3id.org/security/v1",
 		},
 		Type:   ap.Create,
-		ID:     id,
+		ID:     inbox.NewID(author.ID, "create"),
 		Actor:  author.ID,
 		Object: post,
 		To:     post.To,
@@ -64,6 +59,7 @@ func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, post *ap.Object
 	}
 
 	if !inbox.Config.DisableIntegrityProofs {
+		var err error
 		if post.Proof, err = proof.Create(key, post); err != nil {
 			return err
 		}

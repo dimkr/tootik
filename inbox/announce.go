@@ -29,11 +29,6 @@ import (
 )
 
 func (inbox *Inbox) announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, key httpsig.Key, note *ap.Object) error {
-	announceID, err := inbox.NewID(actor.ID, "announce")
-	if err != nil {
-		return err
-	}
-
 	to := ap.Audience{}
 	to.Add(ap.Public)
 
@@ -47,7 +42,7 @@ func (inbox *Inbox) announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, k
 			"https://w3id.org/security/data-integrity/v1",
 			"https://w3id.org/security/v1",
 		},
-		ID:        announceID,
+		ID:        inbox.NewID(actor.ID, "announce"),
 		Type:      ap.Announce,
 		Actor:     actor.ID,
 		Published: ap.Time{Time: time.Now()},
@@ -57,6 +52,7 @@ func (inbox *Inbox) announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, k
 	}
 
 	if !inbox.Config.DisableIntegrityProofs {
+		var err error
 		if announce.Proof, err = proof.Create(key, announce); err != nil {
 			return err
 		}

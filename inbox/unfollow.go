@@ -33,11 +33,6 @@ func (inbox *Inbox) unfollow(ctx context.Context, follower *ap.Actor, key httpsi
 		return fmt.Errorf("%s cannot unfollow %s", follower.ID, followed)
 	}
 
-	undoID, err := inbox.NewID(follower.ID, "undo")
-	if err != nil {
-		return err
-	}
-
 	to := ap.Audience{}
 	to.Add(followed)
 
@@ -47,7 +42,7 @@ func (inbox *Inbox) unfollow(ctx context.Context, follower *ap.Actor, key httpsi
 			"https://w3id.org/security/data-integrity/v1",
 			"https://w3id.org/security/v1",
 		},
-		ID:    undoID,
+		ID:    inbox.NewID(follower.ID, "undo"),
 		Type:  ap.Undo,
 		Actor: follower.ID,
 		Object: &ap.Activity{
@@ -60,6 +55,7 @@ func (inbox *Inbox) unfollow(ctx context.Context, follower *ap.Actor, key httpsi
 	}
 
 	if !inbox.Config.DisableIntegrityProofs {
+		var err error
 		if unfollow.Proof, err = proof.Create(key, unfollow); err != nil {
 			return err
 		}

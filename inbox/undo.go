@@ -29,11 +29,6 @@ import (
 )
 
 func (inbox *Inbox) undo(ctx context.Context, actor *ap.Actor, key httpsig.Key, activity *ap.Activity) error {
-	id, err := inbox.NewID(actor.ID, "undo")
-	if err != nil {
-		return err
-	}
-
 	to := activity.To
 	to.Add(ap.Public)
 
@@ -43,7 +38,7 @@ func (inbox *Inbox) undo(ctx context.Context, actor *ap.Actor, key httpsig.Key, 
 			"https://w3id.org/security/data-integrity/v1",
 			"https://w3id.org/security/v1",
 		},
-		ID:     id,
+		ID:     inbox.NewID(actor.ID, "undo"),
 		Type:   ap.Undo,
 		Actor:  actor.ID,
 		To:     to,
@@ -52,6 +47,7 @@ func (inbox *Inbox) undo(ctx context.Context, actor *ap.Actor, key httpsig.Key, 
 	}
 
 	if !inbox.Config.DisableIntegrityProofs {
+		var err error
 		if undo.Proof, err = proof.Create(key, undo); err != nil {
 			return err
 		}

@@ -33,11 +33,6 @@ func (inbox *Inbox) follow(ctx context.Context, follower *ap.Actor, key httpsig.
 		return fmt.Errorf("%s cannot follow %s", follower.ID, followed)
 	}
 
-	followID, err := inbox.NewID(follower.ID, "follow")
-	if err != nil {
-		return err
-	}
-
 	to := ap.Audience{}
 	to.Add(followed)
 
@@ -47,7 +42,7 @@ func (inbox *Inbox) follow(ctx context.Context, follower *ap.Actor, key httpsig.
 			"https://w3id.org/security/data-integrity/v1",
 			"https://w3id.org/security/v1",
 		},
-		ID:     followID,
+		ID:     inbox.NewID(follower.ID, "follow"),
 		Type:   ap.Follow,
 		Actor:  follower.ID,
 		Object: followed,
@@ -55,6 +50,7 @@ func (inbox *Inbox) follow(ctx context.Context, follower *ap.Actor, key httpsig.
 	}
 
 	if !inbox.Config.DisableIntegrityProofs {
+		var err error
 		if follow.Proof, err = proof.Create(key, follow); err != nil {
 			return err
 		}
