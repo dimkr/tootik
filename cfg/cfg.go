@@ -450,7 +450,7 @@ func (c *Config) FillDefaults() {
 	}
 
 	if c.CavageDraftFailureThreshold <= 0 || c.CavageDraftFailureThreshold > 1 {
-		c.CavageDraftFailureThreshold = 0.995
+		c.CavageDraftFailureThreshold = 0.95
 	}
 
 	if c.RFC9421Threshold <= 0 || c.RFC9421Threshold > 1 {
