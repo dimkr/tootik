@@ -87,7 +87,7 @@ func (l *Listener) extractRequestSignature(r *http.Request, body []byte) (*https
 	}
 
 	if caps&(ap.RFC9421RSASignatures|ap.RFC9421Ed25519Signatures|ap.RFC9421MLDSA44Signatures) == 0 {
-		return nil, errors.New("randomly refusing draft-cavage-http-signatures, try RFC9421")
+		return nil, errors.New("randomly rejecting draft-cavage-http-signatures, try RFC9421")
 	}
 
 	return sig, nil
