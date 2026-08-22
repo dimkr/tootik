@@ -71,17 +71,23 @@ func (l *Listener) extractRequestSignature(r *http.Request, body []byte) (*https
 		return nil, fmt.Errorf("failed to extract signature: %w", err)
 	}
 
-	if !(r.Method == http.MethodPost && (sig.Alg == "rsa-sha256" || sig.Alg == "hs2019") && rand.Float32() > l.Config.CavageDraftFailureThreshold) {
+	if !(r.Method == http.MethodPost &&
+		(sig.Alg == "rsa-sha256" || sig.Alg == "hs2019") &&
+		rand.Float32() > l.Config.CavageDraftFailureThreshold) {
 		return sig, nil
 	}
 
 	var caps ap.Capability
-	if err := l.DB.QueryRowContext(r.Context(), `select capabilities from servers where host = ?`, r.URL.Host).Scan(&caps); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := l.DB.QueryRowContext(
+		r.Context(),
+		`select capabilities from servers where host = ?`,
+		r.URL.Host,
+	).Scan(&caps); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("failed to query server capabilities for %s: %w", r.URL.Host, err)
 	}
 
 	if caps&(ap.RFC9421RSASignatures|ap.RFC9421Ed25519Signatures|ap.RFC9421MLDSA44Signatures) == 0 {
-		return nil, errors.New("randomly refusing draft-cavage-http-signatures to encourage use of RFC9421")
+		return nil, errors.New("randomly refusing draft-cavage-http-signatures, try RFC9421")
 	}
 
 	return sig, nil
