@@ -55,6 +55,8 @@ By default, tootik uses `draft-cavage-http-signatures` when it signs outgoing re
 * When it accepts a RFC9421-signed (with or without Ed25519 or ML-DSA-44) request from another server, it assumes this server also supports incoming requests signed like this
 * It does **not** implement ['double-knocking'](https://swicg.github.io/activitypub-http-signature/#how-to-upgrade-supported-versions) to detect RFC9421 support, because it's uncommon and this mechanism is very likely to double the number of outgoing requests; instead, tootik randomly (see `RFC9421Threshold`, `Ed25519Threshold` and `MLDSA44Threshold`) tries RFC9421, Ed25519 or ML-DSA-44 in `POST` requests to servers that still haven't advertised or demonstrated support, to prevent deadlock if these servers are waiting too
 
+In addition, tootik occasionally (see `CavageDraftFailureThreshold`) rejects incoming, `draft-cavage-http-signatures`-signed `POST` requests with `401 Unauthorized`, to encourage other servers to retry with RFC9421.
+
 ## Collections
 
 tootik sets the `inbox`, `outbox` and `followers` attributes on users.
