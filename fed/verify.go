@@ -22,6 +22,7 @@ import (
 	"crypto/ed25519"
 	"crypto/mldsa"
 	"crypto/x509"
+	"database/sql"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -75,8 +76,8 @@ func (l *Listener) extractRequestSignature(r *http.Request, body []byte) (*https
 	}
 
 	var caps ap.Capability
-	if err := s.DB.QueryRowContext(req.Context(), `select capabilities from servers where host = ?`, r.URL.Host).Scan(&caps); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("failed to query server capabilities for %s: %w", req.URL.Host, err)
+	if err := l.DB.QueryRowContext(r.Context(), `select capabilities from servers where host = ?`, r.URL.Host).Scan(&caps); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("failed to query server capabilities for %s: %w", r.URL.Host, err)
 	}
 
 	if caps&(ap.RFC9421RSASignatures|ap.RFC9421Ed25519Signatures|ap.RFC9421MLDSA44Signatures) == 0 {
