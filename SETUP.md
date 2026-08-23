@@ -212,6 +212,7 @@ tootik -domain $domain -db /tootik-data/db.sqlite3 shell alice
    * If tootik runs on `example.com` with `-addr 127.0.0.1:8080 -plain` with a reverse proxy on port 8443, pass `-domain example.com:8443`
 * Forward requests from the reverse proxy to tootik.
    * Preserve the `Signature` and `Signature-Input` headers when forwarding POST requests to `/inbox/$user`, otherwise tootik cannot validate incoming requests
+   * Raise the buffer size if needed: `ml-dsa-44`-signed requests can carry ~8K of headers
    * Preserve the `Collection-Synchronization` header when forwarding POST requests to `/inbox/$user` if you want follower synchronization to work (recommended)
 
 ## Troubleshooting
