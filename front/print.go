@@ -177,10 +177,14 @@ func (h *Handler) getNoteContent(note *ap.Object, compact bool) ([]string, data.
 	} else {
 		noteBody := note.Content
 
-		if note.Sensitive && note.Summary != "" {
+		if note.Sensitive && note.Summary != "" && note.Content != "" {
 			noteBody = fmt.Sprintf("[%s]<br>%s", note.Summary, note.Content)
-		} else if note.Sensitive {
+		} else if note.Sensitive && note.Content != "" {
 			noteBody = "[Content warning]<br>" + note.Content
+		} else if note.Sensitive && note.Summary != "" && note.Name != "" {
+			noteBody = fmt.Sprintf("[%s]<br>%s", note.Summary, note.Name)
+		} else if note.Sensitive && note.Name != "" {
+			noteBody = "[Content warning]<br>" + note.Name
 		} else if note.Name != "" && note.Content != "" {
 			noteBody = fmt.Sprintf("%s<br>%s", note.Name, note.Content)
 		} else if note.Name != "" {
