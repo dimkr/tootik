@@ -436,6 +436,8 @@ func discoverCapabilities(implements []ap.Implement) ap.Capability {
 			capabilities |= ap.RFC9421RSASignatures
 		case "https://datatracker.ietf.org/doc/html/rfc9421#name-eddsa-using-curve-edwards25":
 			capabilities |= ap.RFC9421Ed25519Signatures
+		case "https://c2sp.org/httpsig-pq@v1.0.0#ml-dsa-44":
+			capabilities |= ap.RFC9421MLDSA44Signatures
 		}
 	}
 
