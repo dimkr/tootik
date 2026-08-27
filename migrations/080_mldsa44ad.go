@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"database/sql"
+	"errors"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/httpsig"
