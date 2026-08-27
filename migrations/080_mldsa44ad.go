@@ -16,7 +16,9 @@ func mldsa44ad(ctx context.Context, domain string, tx *sql.Tx) error {
 	if err := tx.QueryRowContext(
 		ctx,
 		`SELECT JSON(actor), ed25519seed FROM persons WHERE ed25519seed IS NOT NULL AND actor->>'$.preferredUsername' = 'actor'`,
-	).Scan(&actor, &ed25519Seed); err != nil {
+	).Scan(&actor, &ed25519Seed); errors.Is(err, sql.ErrNoRows) {
+		return nil
+	} else if err != nil {
 		return err
 	}
 
