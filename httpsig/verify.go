@@ -49,11 +49,11 @@ const (
 var (
 	signatureAttrRegex = regexp.MustCompile(`\b([^"=]+)="([^"]+)"`)
 
-	defaultRequiredComponents          = []string{"@target-uri"}
-	defaultRequiredComponentsWithQuery = []string{"@target-uri", "@query"}
+	defaultRequiredComponents          = []string{"@method", "@target-uri"}
+	defaultRequiredComponentsWithQuery = []string{"@method", "@target-uri", "@query"}
 
-	requiredPostComponents          = []string{"@target-uri", "content-digest"}
-	requiredPostComponentsWithQuery = []string{"@target-uri", "@query", "content-digest"}
+	requiredPostComponents          = []string{"@method", "@target-uri", "content-digest"}
+	requiredPostComponentsWithQuery = []string{"@method", "@target-uri", "@query", "content-digest"}
 
 	rsaAlgorithms = map[string]struct{}{
 		"":                {},
