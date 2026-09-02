@@ -72,6 +72,8 @@ func buildSignatureBase(r *http.Request, params string, components []string) (st
 				clone.Scheme = "https"
 			}
 
+			clone.Fragment = ""
+
 			b.WriteString(`"@target-uri": `)
 			b.WriteString(clone.String())
 
