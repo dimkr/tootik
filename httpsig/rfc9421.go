@@ -77,7 +77,7 @@ func buildSignatureBase(r *http.Request, params string, components []string) (st
 
 		case "@request-target":
 			b.WriteString(`"@request-target": `)
-			b.WriteString(r.URL.Path)
+			b.WriteString(r.URL.EscapedPath())
 
 			if r.URL.RawQuery != "" {
 				b.WriteByte('?')
@@ -86,11 +86,16 @@ func buildSignatureBase(r *http.Request, params string, components []string) (st
 
 		case "@path":
 			b.WriteString(`"@path": `)
-			b.WriteString(r.URL.Path)
+			b.WriteString(r.URL.EscapedPath())
 
 		case "@authority":
+			authority := r.URL.Host
+			if authority == "" {
+				authority = r.Host
+			}
+
 			b.WriteString(`"@authority": `)
-			b.WriteString(r.URL.Host)
+			b.WriteString(authority)
 
 		case "@query":
 			b.WriteString(`"@query": ?`)
