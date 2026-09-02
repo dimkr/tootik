@@ -91,8 +91,13 @@ func buildSignatureBase(r *http.Request, params string, components []string) (st
 			b.WriteString(r.URL.EscapedPath())
 
 		case "@authority":
+			authority := r.URL.Host
+			if authority == "" {
+				authority = r.Host
+			}
+
 			b.WriteString(`"@authority": `)
-			b.WriteString(r.URL.Host)
+			b.WriteString(authority)
 
 		case "@query":
 			b.WriteString(`"@query": ?`)
