@@ -9,7 +9,7 @@ require (
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gowebpki/jcs v1.0.1
 	github.com/mattn/go-runewidth v0.0.29
-	github.com/mattn/go-sqlite3 v1.14.50
+	github.com/mattn/go-sqlite3 v1.14.52
 	github.com/ncruces/go-sqlite3 v0.35.4
 	github.com/stretchr/testify v1.12.1
 	golang.org/x/crypto v0.56.0
