@@ -7,7 +7,7 @@ require (
 	github.com/creack/pty v1.1.24
 	github.com/dimkr/slopline v0.0.0-20260327144222-f21b275f569f
 	github.com/fsnotify/fsnotify v1.10.1
-	github.com/gowebpki/jcs v1.0.1
+	github.com/gowebpki/jcs v1.0.2
 	github.com/mattn/go-runewidth v0.0.30
 	github.com/mattn/go-sqlite3 v1.14.52
 	github.com/ncruces/go-sqlite3 v0.35.5
