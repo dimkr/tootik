@@ -66,10 +66,10 @@ github.com/mattn/go-sqlite3 v1.14.52 h1:wVbm2Qnf4OXkqhBTSPuCRZDRnxfbVrrmiCEroVdo
 github.com/mattn/go-sqlite3 v1.14.52/go.mod h1:6JTjA44L93a0QCyJef5YvlPoKXntQPjzWv5gtm9sB6w=
 github.com/mrmarble/termsvg v0.10.0 h1:E5q83+yHkj0irFkkhIjT7WVAgsq03YAiJ2XYylNcSig=
 github.com/mrmarble/termsvg v0.10.0/go.mod h1:LxIze0KGT8bf2l1qwJ9AC4/tWe4yO0UJ9ESZuubtnyM=
-github.com/ncruces/go-sqlite3 v0.35.5 h1:fEXwTNa2UpmvDeuvla9dmryx83ibw6BNqV1UQgpWFV0=
-github.com/ncruces/go-sqlite3 v0.35.5/go.mod h1:tTbtWBtzqI1Nq/70YGA+iAXbeX/AEj3cOyIJnmBkcrg=
-github.com/ncruces/go-sqlite3-wasm/v6 v6.2.35304 h1:jmYAkmKh9vFD5GeRURV5ujMs00jYV+Us35cG6mOcYx0=
-github.com/ncruces/go-sqlite3-wasm/v6 v6.2.35304/go.mod h1:7jR6s8eAQOlU/21q/qWR2tQSQpkjV2NO0KH9vlIejiE=
+github.com/ncruces/go-sqlite3 v0.35.6 h1:0JGlMne89YzKNP2CJBuiH21EEzSQNuB7pfvCbKBn0Jg=
+github.com/ncruces/go-sqlite3 v0.35.6/go.mod h1:6MfWBOFbHJVSJxmTCIUKCJdLl4TKkgO895RHerlDVo8=
+github.com/ncruces/go-sqlite3-wasm/v6 v6.3.35304 h1:dBSZlcEFdtBMvNRg34y50mConBPO/petSddSwGQVlSI=
+github.com/ncruces/go-sqlite3-wasm/v6 v6.3.35304/go.mod h1:YvoJzbJpX6phd3BGdtiXu2NuD5RX6G8zsUdzt47GgOY=
 github.com/ncruces/go-strftime v1.0.0 h1:HMFp8mLCTPp341M/ZnA4qaf7ZlsbTc+miZjCLOFAw7w=
 github.com/ncruces/go-strftime v1.0.0/go.mod h1:Fwc5htZGVVkseilnfgOVb9mKy6w1naJmn9CehxcKcls=
 github.com/ncruces/julianday v1.0.0 h1:fH0OKwa7NWvniGQtxdJRxAgkBMolni2BjDHaWTxqt7M=
