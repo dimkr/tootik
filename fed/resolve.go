@@ -28,6 +28,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -35,6 +36,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/data"
+	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/lock"
 	"github.com/dimkr/tootik/proof"
@@ -86,16 +88,16 @@ func (r *Resolver) ResolveID(ctx context.Context, keys [3]httpsig.Key, id string
 		return nil, errors.New("empty ID")
 	}
 
-	u, err := url.Parse(id)
+	parsed, err := ap.ParseID(id)
 	if err != nil {
 		return nil, fmt.Errorf("cannot resolve %s: %w", id, err)
 	}
 
-	if u.Scheme != "https" {
+	if parsed.Kind != ap.PortableID && parsed.Scheme != "https" {
 		return nil, ErrInvalidScheme
 	}
 
-	if actor, err := r.validate(func() (*ap.Actor, *ap.Actor, error) { return r.tryResolveID(ctx, keys, u, id, flags) }); err != nil {
+	if actor, err := r.validate(func() (*ap.Actor, *ap.Actor, error) { return r.tryResolveID(ctx, keys, parsed, id, flags) }); err != nil {
 		return nil, err
 	} else if actor.Suspended {
 		return nil, ErrSuspendedActor
@@ -177,7 +179,7 @@ func (r *Resolver) handleFetchFailure(ctx context.Context, fetched string, cache
 	if resp != nil && (resp.StatusCode == http.StatusGone || resp.StatusCode == http.StatusNotFound) {
 		if cachedActor != nil {
 			slog.Warn("Actor is gone, deleting associated objects", "id", cachedActor.ID)
-			deleteActor(ctx, r.db, cachedActor.ID)
+			deleteActor(ctx, r.db, cachedActor.CompatibleID())
 		}
 		return nil, nil, fmt.Errorf("failed to fetch %s: %w", fetched, ErrActorGone)
 	}
@@ -189,7 +191,7 @@ func (r *Resolver) handleFetchFailure(ctx context.Context, fetched string, cache
 				if dnsError, ok := errors.AsType[*net.DNSError](opError.Err); ok && dnsError.IsNotFound {
 					if cachedActor != nil {
 						slog.Warn("Server is probably gone, deleting associated objects", "id", cachedActor.ID)
-						deleteActor(ctx, r.db, cachedActor.ID)
+						deleteActor(ctx, r.db, cachedActor.CompatibleID())
 					}
 					return nil, nil, fmt.Errorf("failed to fetch %s: %w", fetched, err)
 				}
@@ -263,7 +265,7 @@ func (r *Resolver) tryResolve(ctx context.Context, keys [3]httpsig.Key, host, na
 	}
 
 	if cachedActor != nil {
-		altLockID := crc32.ChecksumIEEE(danger.Bytes(cachedActor.ID)) % uint32(len(r.locks))
+		altLockID := crc32.ChecksumIEEE(danger.Bytes(ap.Canonical(cachedActor.ID))) % uint32(len(r.locks))
 		if altLockID != lockID {
 			lock := r.locks[altLockID]
 			if err := lock.Lock(ctx); err != nil {
@@ -275,7 +277,7 @@ func (r *Resolver) tryResolve(ctx context.Context, keys [3]httpsig.Key, host, na
 		if _, err := r.db.ExecContext(
 			ctx,
 			`UPDATE persons SET fetched = UNIXEPOCH() WHERE id = ?`,
-			cachedActor.ID,
+			cachedActor.CompatibleID(),
 		); err != nil {
 			return nil, cachedActor, fmt.Errorf("failed to update last fetch time for %s: %w", cachedActor.ID, err)
 		}
@@ -339,28 +341,143 @@ func (r *Resolver) tryResolve(ctx context.Context, keys [3]httpsig.Key, host, na
 			continue
 		}
 
-		if cachedActor != nil && id != cachedActor.ID {
+		if cachedActor != nil && !ap.SameID(id, cachedActor.ID) {
 			return nil, cachedActor, fmt.Errorf("%s does not match %s", id, cachedActor.ID)
 		}
 
-		return r.fetchActor(ctx, keys, host, id, cachedActor, sinceLastUpdate)
+		if parsed, err := ap.ParseID(id); err == nil && parsed.Kind == ap.PortableID {
+			return r.fetchPortableActor(ctx, keys, parsed, cachedActor, sinceLastUpdate)
+		}
+
+		return r.fetchActor(ctx, keys, host, id, id, cachedActor, sinceLastUpdate)
 	}
 
 	return nil, cachedActor, fmt.Errorf("no profile link in %s response", finger)
 }
 
-func (r *Resolver) tryResolveID(ctx context.Context, keys [3]httpsig.Key, u *url.URL, id string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
+// candidateGateways returns the gateways that may serve a portable actor, in order of preference.
+func (r *Resolver) candidateGateways(ctx context.Context, parsed ap.ID, cachedActor *ap.Actor) []string {
+	gateways := make([]string, 0, r.Config.MaxGateways)
+	seen := make(map[string]struct{}, r.Config.MaxGateways)
+
+	add := func(gw string) {
+		if len(gateways) == r.Config.MaxGateways {
+			return
+		}
+
+		host, ok := strings.CutPrefix(gw, "https://")
+		if !ok || host == "" || host == r.Domain || strings.ContainsAny(host, "/?#@") {
+			return
+		}
+
+		if r.BlockedDomains != nil && r.BlockedDomains.Contains(host) {
+			slog.Debug("Skipping blocked gateway", "id", parsed.Canonical, "gateway", gw)
+			return
+		}
+
+		if _, dup := seen[host]; dup {
+			return
+		}
+
+		seen[host] = struct{}{}
+		gateways = append(gateways, gw)
+	}
+
+	for _, gw := range parsed.Gateways {
+		add(gw)
+	}
+
+	if cachedActor != nil {
+		for _, gw := range cachedActor.Gateways {
+			add(gw)
+		}
+	}
+
+	if len(gateways) == r.Config.MaxGateways {
+		return gateways
+	}
+
+	if err := dbx.QueryScan(
+		ctx,
+		func(gw string) {
+			add(gw)
+		},
+		func(err error) bool {
+			slog.Warn("Failed to scan gateway", "id", parsed.Canonical, "error", err)
+			return true
+		},
+		r.db,
+		`select actor->>'$.gateways[0]' from persons where cid >= $1 and cid < $2 and actor->>'$.gateways[0]' is not null limit $3`,
+		"ap://"+parsed.Origin+"/",
+		"ap://"+parsed.Origin+"0",
+		r.Config.MaxGateways,
+	); err != nil {
+		slog.Warn("Failed to fetch gateways", "id", parsed.Canonical, "error", err)
+	}
+
+	return gateways
+}
+
+// fetchPortableActor fetches an actor with an ap:// ID from its gateways.
+func (r *Resolver) fetchPortableActor(ctx context.Context, keys [3]httpsig.Key, parsed ap.ID, cachedActor *ap.Actor, sinceLastUpdate time.Duration) (*ap.Actor, *ap.Actor, error) {
+	gateways := r.candidateGateways(ctx, parsed, cachedActor)
+	if len(gateways) == 0 {
+		return nil, cachedActor, fmt.Errorf("cannot resolve %s: no gateways", parsed.Canonical)
+	}
+
+	errs := make([]error, 0, len(gateways))
+	for _, gw := range gateways {
+		actor, _, err := r.fetchActor(ctx, keys, gw[len("https://"):], ap.Gateway(gw, parsed.Canonical), parsed.Canonical, cachedActor, sinceLastUpdate)
+		if err == nil {
+			return actor, cachedActor, nil
+		}
+
+		slog.Warn("Failed to fetch actor from gateway", "id", parsed.Canonical, "gateway", gw, "error", err)
+		errs = append(errs, fmt.Errorf("%s: %w", gw, err))
+	}
+
+	return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", parsed.Canonical, errors.Join(errs...))
+}
+
+// Get fetches an object. If the ID is an ap:// URI, the object is fetched from its gateways.
+func (r *Resolver) Get(ctx context.Context, keys [3]httpsig.Key, id string) (*http.Response, error) {
+	parsed, err := ap.ParseID(id)
+	if err != nil || parsed.Kind != ap.PortableID {
+		return r.sender.Get(ctx, keys, id)
+	}
+
+	gateways := r.candidateGateways(ctx, parsed, nil)
+	if len(gateways) == 0 {
+		return nil, fmt.Errorf("cannot fetch %s: no gateways", parsed.Canonical)
+	}
+
+	var resp *http.Response
+	errs := make([]error, 0, len(gateways))
+	for _, gw := range gateways {
+		resp, err = r.sender.Get(ctx, keys, ap.Gateway(gw, parsed.Canonical))
+		if err == nil {
+			return resp, nil
+		}
+
+		slog.Warn("Failed to fetch object from gateway", "id", parsed.Canonical, "gateway", gw, "error", err)
+		errs = append(errs, fmt.Errorf("%s: %w", gw, err))
+	}
+
+	return resp, fmt.Errorf("failed to fetch %s: %w", parsed.Canonical, errors.Join(errs...))
+}
+
+func (r *Resolver) tryResolveID(ctx context.Context, keys [3]httpsig.Key, parsed ap.ID, id string, flags ap.ResolverFlag) (*ap.Actor, *ap.Actor, error) {
 	slog.Debug("Resolving actor", "id", id)
 
-	if r.BlockedDomains != nil && r.BlockedDomains.Contains(u.Host) {
+	if parsed.Kind != ap.PortableID && r.BlockedDomains != nil && r.BlockedDomains.Contains(parsed.Host) {
 		return nil, nil, ErrBlockedDomain
 	}
 
-	isLocal := u.Host == r.Domain
+	isLocal := parsed.Kind != ap.PortableID && parsed.Host == r.Domain
 
 	var lockID uint32
 	if !isLocal && flags&ap.Offline == 0 {
-		lockID = crc32.ChecksumIEEE(danger.Bytes(id)) % uint32(len(r.locks))
+		lockID = crc32.ChecksumIEEE(danger.Bytes(parsed.Canonical)) % uint32(len(r.locks))
 		lock := r.locks[lockID]
 		if err := lock.Lock(ctx); err != nil {
 			return nil, nil, err
@@ -374,10 +491,28 @@ func (r *Resolver) tryResolveID(ctx context.Context, keys [3]httpsig.Key, u *url
 	var updated, inserted int64
 	var fetched sql.NullInt64
 	var sinceLastUpdate time.Duration
-	if err := r.db.QueryRowContext(ctx, `select json(actor), updated, fetched, inserted from persons where id = $1 or id in (select actor from keys where id = $1)`, id).Scan(&tmp, &updated, &fetched, &inserted); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	var hasKeys bool
+	var err error
+	actorCID, _, _ := strings.Cut(parsed.Canonical, "#")
+	switch parsed.Kind {
+	case ap.URLID:
+		err = r.db.QueryRowContext(ctx, `select json(actor), updated, fetched, inserted, ed25519seed is not null from persons where id = $1 or id in (select actor from keys where id = $1)`, id).Scan(&tmp, &updated, &fetched, &inserted, &hasKeys)
+
+	case ap.GatewayID:
+		// a local actor can share its DID with a remote one, but it's identified by its own URL
+		err = r.db.QueryRowContext(ctx, `select json(actor), updated, fetched, inserted, ed25519seed is not null from persons where id = $1 or id in (select actor from keys where id = $1) or (cid = $2 and ed25519seed is null) order by id = $1 desc, updated desc limit 1`, id, actorCID).Scan(&tmp, &updated, &fetched, &inserted, &hasKeys)
+
+	default:
+		err = r.db.QueryRowContext(ctx, `select json(actor), updated, fetched, inserted, ed25519seed is not null from persons where cid = $1 or id in (select actor from keys where id = $2) order by ed25519seed is not null desc, updated desc limit 1`, actorCID, id).Scan(&tmp, &updated, &fetched, &inserted, &hasKeys)
+	}
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, fmt.Errorf("failed to fetch %s cache: %w", id, err)
 	} else if err == nil {
 		cachedActor = &tmp
+
+		if hasKeys {
+			isLocal = true
+		}
 
 		// fall back to insertion time if we don't have registration time
 		if cachedActor.Published == (ap.Time{}) {
@@ -401,30 +536,44 @@ func (r *Resolver) tryResolveID(ctx context.Context, keys [3]httpsig.Key, u *url
 		return nil, nil, fmt.Errorf("cannot resolve %s: %w", id, ErrActorNotCached)
 	}
 
-	if cachedActor != nil {
-		if cachedActor.ID != id {
-			altLockID := crc32.ChecksumIEEE(danger.Bytes(cachedActor.ID)) % uint32(len(r.locks))
-			if altLockID != lockID {
-				lock := r.locks[altLockID]
-				if err := lock.Lock(ctx); err != nil {
-					return nil, nil, err
-				}
-				defer lock.Unlock()
-			}
+	if cachedActor == nil {
+		if parsed.Kind == ap.PortableID {
+			return r.fetchPortableActor(ctx, keys, parsed, nil, sinceLastUpdate)
 		}
 
-		if _, err := r.db.ExecContext(
-			ctx,
-			`UPDATE persons SET fetched = UNIXEPOCH() WHERE id = ?`,
-			cachedActor.ID,
-		); err != nil {
-			return nil, cachedActor, fmt.Errorf("failed to update last fetch time for %s: %w", cachedActor.ID, err)
-		}
-
-		return r.fetchActor(ctx, keys, u.Host, cachedActor.ID, cachedActor, sinceLastUpdate)
+		return r.fetchActor(ctx, keys, parsed.Host, id, id, nil, sinceLastUpdate)
 	}
 
-	return r.fetchActor(ctx, keys, u.Host, id, nil, sinceLastUpdate)
+	if cachedCanonical := ap.Canonical(cachedActor.ID); cachedCanonical != parsed.Canonical {
+		altLockID := crc32.ChecksumIEEE(danger.Bytes(cachedCanonical)) % uint32(len(r.locks))
+		if altLockID != lockID {
+			lock := r.locks[altLockID]
+			if err := lock.Lock(ctx); err != nil {
+				return nil, nil, err
+			}
+			defer lock.Unlock()
+		}
+	}
+
+	if _, err := r.db.ExecContext(
+		ctx,
+		`UPDATE persons SET fetched = UNIXEPOCH() WHERE id = ?`,
+		cachedActor.CompatibleID(),
+	); err != nil {
+		return nil, cachedActor, fmt.Errorf("failed to update last fetch time for %s: %w", cachedActor.ID, err)
+	}
+
+	cachedID, err := ap.ParseID(cachedActor.ID)
+	if err != nil {
+		return nil, cachedActor, fmt.Errorf("failed to parse %s: %w", cachedActor.ID, err)
+	}
+
+	if cachedID.Kind == ap.PortableID {
+		cachedID.Gateways = slices.Concat(parsed.Gateways, cachedID.Gateways)
+		return r.fetchPortableActor(ctx, keys, cachedID, cachedActor, sinceLastUpdate)
+	}
+
+	return r.fetchActor(ctx, keys, cachedID.Host, cachedActor.ID, cachedActor.ID, cachedActor, sinceLastUpdate)
 }
 
 func discoverCapabilities(implements []ap.Implement) ap.Capability {
@@ -444,7 +593,11 @@ func discoverCapabilities(implements []ap.Implement) ap.Capability {
 	return capabilities
 }
 
-func (r *Resolver) fetchActor(ctx context.Context, keys [3]httpsig.Key, host, profile string, cachedActor *ap.Actor, sinceLastUpdate time.Duration) (*ap.Actor, *ap.Actor, error) {
+func (r *Resolver) fetchActor(ctx context.Context, keys [3]httpsig.Key, host, profile, requested string, cachedActor *ap.Actor, sinceLastUpdate time.Duration) (*ap.Actor, *ap.Actor, error) {
+	if _, err := ap.ValidateID(profile); err != nil {
+		return nil, cachedActor, fmt.Errorf("cannot resolve %s: %w: %w", profile, ErrInvalidID, err)
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, profile, nil)
 	if err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to send request to %s: %w", profile, err)
@@ -454,14 +607,13 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [3]httpsig.Key, host, pr
 		return nil, cachedActor, fmt.Errorf("actor link host is %s: %w", req.Host, ErrInvalidHost)
 	}
 
-	if !data.IsIDValid(req.URL) {
-		return nil, cachedActor, fmt.Errorf("cannot resolve %s: %w", profile, ErrInvalidID)
-	}
-
 	req.Header.Add("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
 
 	resp, err := r.send(keys, req, nil)
-	if err != nil {
+	if err != nil && profile != requested {
+		// one gateway of a portable actor can fail while others still serve the actor
+		return nil, cachedActor, fmt.Errorf("failed to fetch %s: %w", profile, err)
+	} else if err != nil {
 		return r.handleFetchFailure(ctx, profile, cachedActor, sinceLastUpdate, resp, err)
 	}
 	defer resp.Body.Close()
@@ -486,41 +638,74 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [3]httpsig.Key, host, pr
 		return nil, cachedActor, fmt.Errorf("failed to unmarshal %s: %w", profile, err)
 	}
 
-	if actor.ID != profile && actor.PublicKey.ID != profile {
+	if !ap.SameID(actor.ID, requested) && !ap.SameID(actor.PublicKey.ID, requested) {
 		found := false
 
 		for _, key := range actor.AssertionMethod {
-			if key.ID == profile {
+			if ap.SameID(key.ID, requested) {
 				found = true
 				break
 			}
 		}
 
 		if !found {
-			return nil, cachedActor, fmt.Errorf("%s does not match %s", actor.ID, profile)
+			return nil, cachedActor, fmt.Errorf("%s does not match %s", actor.ID, requested)
 		}
 	}
 
-	if u, err := url.Parse(actor.Inbox); err != nil {
-		return nil, cachedActor, fmt.Errorf("failed to parse inbox %s: %w", actor.Inbox, err)
-	} else if u.Host != req.Host {
-		return nil, cachedActor, fmt.Errorf("inbox %s origin is not %s", actor.Inbox, req.Host)
+	actorID, err := ap.ValidateID(actor.ID)
+	if err != nil {
+		return nil, cachedActor, fmt.Errorf("cannot resolve %s: %w: %w", actor.ID, ErrInvalidID, err)
+	}
+	actorOrigin := actorID.Origin
+
+	if actorID.Kind == ap.PortableID {
+		if len(actor.Gateways) == 0 {
+			return nil, cachedActor, fmt.Errorf("%s has no gateways", actor.ID)
+		}
+
+		for _, gw := range actor.Gateways {
+			if u, err := url.Parse(gw); err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.Path != "" || u.RawQuery != "" || u.Fragment != "" {
+				return nil, cachedActor, fmt.Errorf("%s has an invalid gateway: %s", actor.ID, gw)
+			}
+		}
+
+		if actor.Gateways[0] == "https://"+r.Domain {
+			return nil, cachedActor, fmt.Errorf("%s claims to be hosted on %s: %w", actor.ID, r.Domain, ErrInvalidHost)
+		}
 	}
 
-	if sharedInbox, ok := actor.Endpoints["sharedInbox"]; ok {
-		if u, err := url.Parse(sharedInbox); err != nil {
-			return nil, cachedActor, fmt.Errorf("failed to parse shared inbox %s: %w", sharedInbox, err)
-		} else if u.Host != req.Host {
-			return nil, cachedActor, fmt.Errorf("shared inbox %s origin is not %s", sharedInbox, req.Host)
+	if actorID.Kind == ap.URLID {
+		if inbox, err := ap.ParseID(actor.Inbox); err != nil {
+			return nil, cachedActor, fmt.Errorf("failed to parse inbox %s: %w", actor.Inbox, err)
+		} else if inbox.Host != req.Host {
+			return nil, cachedActor, fmt.Errorf("inbox %s origin is not %s", actor.Inbox, req.Host)
+		}
+
+		if sharedInbox, ok := actor.Endpoints["sharedInbox"]; ok {
+			if parsed, err := ap.ParseID(sharedInbox); err != nil {
+				return nil, cachedActor, fmt.Errorf("failed to parse shared inbox %s: %w", sharedInbox, err)
+			} else if parsed.Host != req.Host {
+				return nil, cachedActor, fmt.Errorf("shared inbox %s origin is not %s", sharedInbox, req.Host)
+			}
+		}
+	} else {
+		if inboxOrigin, err := ap.Origin(actor.Inbox); err != nil {
+			return nil, cachedActor, fmt.Errorf("failed to parse inbox %s: %w", actor.Inbox, err)
+		} else if inboxOrigin != actorOrigin {
+			return nil, cachedActor, fmt.Errorf("inbox %s origin is not %s", actor.Inbox, actorOrigin)
+		}
+
+		if sharedInbox, ok := actor.Endpoints["sharedInbox"]; ok {
+			if sharedInboxOrigin, err := ap.Origin(sharedInbox); err != nil {
+				return nil, cachedActor, fmt.Errorf("failed to parse shared inbox %s: %w", sharedInbox, err)
+			} else if sharedInboxOrigin != actorOrigin {
+				return nil, cachedActor, fmt.Errorf("shared inbox %s origin is not %s", sharedInbox, actorOrigin)
+			}
 		}
 	}
 
 	keyIDs := make(map[string]struct{}, 2)
-
-	actorOrigin, err := ap.Origin(actor.ID)
-	if err != nil {
-		return nil, cachedActor, fmt.Errorf("failed to get %s origin: %w", actor.ID, err)
-	}
 
 	if keyOrigin, err := ap.Origin(actor.PublicKey.ID); err != nil {
 		slog.Debug("Failed to parse public key ID", "actor", actor.ID, "key", actor.PublicKey.ID, "error", err)
@@ -544,10 +729,10 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [3]httpsig.Key, host, pr
 		}
 	}
 
-	if m := ap.GatewayURLRegex.FindStringSubmatch(actor.ID); m != nil {
-		publicKey, err := data.DecodePublicKey(m[1])
+	if actorID.Kind != ap.URLID {
+		publicKey, err := data.DecodePublicKey(actorOrigin[len("did:key:"):])
 		if err != nil {
-			return nil, cachedActor, fmt.Errorf("failed to parse key %s for %s to verify proof: %w", m[1], actor.ID, err)
+			return nil, cachedActor, fmt.Errorf("failed to parse key %s for %s to verify proof: %w", actorOrigin, actor.ID, err)
 		}
 
 		if err := proof.Verify(publicKey, actor.Proof, actor.Context, body); err != nil {
@@ -568,8 +753,8 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [3]httpsig.Key, host, pr
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO persons(slug, id, actor, fetched) VALUES ($1, $2, JSONB($3), UNIXEPOCH()) ON CONFLICT(id) DO UPDATE SET actor = JSONB($3), updated = UNIXEPOCH()`,
-		ap.Slug(actor.ID),
-		actor.ID,
+		ap.Slug(actor.CompatibleID()),
+		actor.CompatibleID(),
 		bodyString,
 	); err != nil {
 		return nil, cachedActor, fmt.Errorf("failed to cache %s: %w", actor.ID, err)
@@ -580,7 +765,7 @@ func (r *Resolver) fetchActor(ctx context.Context, keys [3]httpsig.Key, host, pr
 			ctx,
 			`INSERT OR IGNORE INTO keys (id, actor) VALUES (?, ?)`,
 			keyID,
-			actor.ID,
+			actor.CompatibleID(),
 		); err != nil {
 			return nil, cachedActor, fmt.Errorf("failed to associate %s with %s: %w", keyID, actor.ID, err)
 		}

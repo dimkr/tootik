@@ -29,7 +29,7 @@ import (
 )
 
 func (inbox *Inbox) unfollow(ctx context.Context, follower *ap.Actor, key httpsig.Key, followed, followID string) error {
-	if ap.Canonical(followed) == ap.Canonical(follower.ID) {
+	if ap.SameID(followed, follower.ID) {
 		return fmt.Errorf("%s cannot unfollow %s", follower.ID, followed)
 	}
 
@@ -44,7 +44,7 @@ func (inbox *Inbox) unfollow(ctx context.Context, follower *ap.Actor, key httpsi
 		},
 		ID:    inbox.NewID(follower.ID, "undo"),
 		Type:  ap.Undo,
-		Actor: follower.ID,
+		Actor: follower.IDWithGateways(),
 		Object: &ap.Activity{
 			ID:     followID,
 			Type:   ap.Follow,
@@ -85,7 +85,7 @@ func (inbox *Inbox) unfollow(ctx context.Context, follower *ap.Actor, key httpsi
 		ctx,
 		`INSERT INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
 		s,
-		follower.ID,
+		follower.CompatibleID(),
 		time.Now().UnixNano(),
 	); err != nil {
 		return err

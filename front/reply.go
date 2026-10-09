@@ -39,14 +39,14 @@ func (h *Handler) replyOrQuote(w text.Writer, r *Request, args []string, quote b
 		select json(notes.object) from notes
 		join persons on persons.id = notes.author
 		where
-			(notes.id = 'https://' || $1 or notes.slug = $1) and
+			(notes.cid = $1 or notes.slug = $1) and
 			notes.deleted = 0 and
 			(
 				notes.public = 1 or
 				notes.author = $2 or
-				$2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-				(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $2)) or
-				(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $2)) or
+				(select actor->>'$.id' from persons where persons.id = $2) in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+				(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = (select actor->>'$.id' from persons where persons.id = $2))) or
+				(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = (select actor->>'$.id' from persons where persons.id = $2))) or
 				exists (
 					select 1 from (
 						select persons.id, persons.actor->>'$.followers' as followers, persons.actor->>'$.type' as type from persons
@@ -63,8 +63,8 @@ func (h *Handler) replyOrQuote(w text.Writer, r *Request, args []string, quote b
 				)
 			)
 		`,
-		arg,
-		r.User.ID,
+		linkParam(arg),
+		r.User.CompatibleID(),
 	).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Post does not exist", "post", arg)
 		w.Status(40, "Post not found")
@@ -99,7 +99,7 @@ func (h *Handler) replyOrQuote(w text.Writer, r *Request, args []string, quote b
 
 	r.Log.Info("Replying to post", "post", note.ID)
 
-	if note.AttributedTo == r.User.ID {
+	if ap.SameID(note.AttributedTo, r.User.ID) {
 		to = note.To
 		cc = note.CC
 	} else if note.To.Contains(ap.Public) {

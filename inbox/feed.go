@@ -76,7 +76,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 			join
 			notes
 			on
-				notes.object->>'$.inReplyTo' = myposts.id
+				notes.inreplytocid = myposts.cid
 			where
 				notes.author != myposts.author and
 				myposts.author >= 'https://' || $1 || '/' and

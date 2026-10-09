@@ -45,20 +45,20 @@ func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
 		`select (
 			select notes.id from notes
 			where
-				(notes.id = 'https://' || $1 or notes.slug = $1) and
+				(notes.cid = $1 or notes.slug = $1) and
 				notes.deleted = 0 and
 				(
 					notes.author = $2 or
 					notes.public = 1 or
-					exists (select 1 from json_each(notes.object->'$.to') where exists (select 1 from follows join persons on persons.id = follows.followed where follows.follower = $2 and follows.followed = notes.author and follows.accepted = 1 and (notes.author = value or persons.actor->>'$.followers' = value))) or
-					exists (select 1 from json_each(notes.object->'$.cc') where exists (select 1 from follows join persons on persons.id = follows.followed where follows.follower = $2 and follows.followed = notes.author and follows.accepted = 1 and (notes.author = value or persons.actor->>'$.followers' = value))) or
-					exists (select 1 from json_each(notes.object->'$.to') where value = $2) or
-					exists (select 1 from json_each(notes.object->'$.cc') where value = $2)
+					exists (select 1 from json_each(notes.object->'$.to') where exists (select 1 from follows join persons on persons.id = follows.followed where follows.follower = $2 and follows.followed = notes.author and follows.accepted = 1 and (persons.actor->>'$.id' = value or persons.actor->>'$.followers' = value))) or
+					exists (select 1 from json_each(notes.object->'$.cc') where exists (select 1 from follows join persons on persons.id = follows.followed where follows.follower = $2 and follows.followed = notes.author and follows.accepted = 1 and (persons.actor->>'$.id' = value or persons.actor->>'$.followers' = value))) or
+					exists (select 1 from json_each(notes.object->'$.to') where value = (select actor->>'$.id' from persons where persons.id = $2)) or
+					exists (select 1 from json_each(notes.object->'$.cc') where value = (select actor->>'$.id' from persons where persons.id = $2))
 				)
 				
 		)`,
-		arg,
-		r.User.ID,
+		linkParam(arg),
+		r.User.CompatibleID(),
 	).Scan(&postID); err != nil {
 		r.Log.Warn("Failed to check if bookmarked post exists", "post", arg, "error", err)
 		w.Error()
@@ -73,7 +73,7 @@ func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
 
 	var count int
 	var last sql.NullInt64
-	if err := tx.QueryRowContext(r.Context, `select count(*), max(inserted) from bookmarks where by = ?`, r.User.ID).Scan(&count, &last); err != nil {
+	if err := tx.QueryRowContext(r.Context, `select count(*), max(inserted) from bookmarks where by = ?`, r.User.CompatibleID()).Scan(&count, &last); err != nil {
 		r.Log.Warn("Failed to check if bookmark needs to be throttled", "error", err)
 		w.Error()
 		return
@@ -94,7 +94,7 @@ func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
 		}
 	}
 
-	if _, err := tx.ExecContext(r.Context, `insert into bookmarks(note, by) values(?, ?)`, postID.String, r.User.ID); err != nil {
+	if _, err := tx.ExecContext(r.Context, `insert into bookmarks(note, by) values(?, ?)`, postID.String, r.User.CompatibleID()); err != nil {
 		r.Log.Warn("Failed to insert bookmark", "error", err)
 		w.Error()
 		return

@@ -37,7 +37,7 @@ func (inbox *Inbox) move(ctx context.Context, from *ap.Actor, key httpsig.Key, t
 			"https://w3id.org/security/v1",
 		},
 		ID:     inbox.NewID(from.ID, "move"),
-		Actor:  from.ID,
+		Actor:  from.IDWithGateways(),
 		Type:   ap.Move,
 		Object: from.ID,
 		Target: to,
@@ -69,7 +69,7 @@ func (inbox *Inbox) move(ctx context.Context, from *ap.Actor, key httpsig.Key, t
 		ctx,
 		`insert into outbox (activity, sender, inserted) values (jsonb(?), ?, ?)`,
 		move,
-		from.ID,
+		from.CompatibleID(),
 		now.UnixNano(),
 	); err != nil {
 		return err

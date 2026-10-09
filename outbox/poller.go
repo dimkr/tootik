@@ -54,7 +54,7 @@ func (p *Poller) Run(ctx context.Context) error {
 		},
 		`
 		with polls as (
-			select notes.id, notes.object, persons.actor as author, persons.ed25519seed, persons.mldsa44seed
+			select notes.id, notes.cid, notes.object, persons.actor as author, persons.ed25519seed, persons.mldsa44seed
 			from notes
 			join persons on persons.id = notes.author
 			where
@@ -78,7 +78,7 @@ func (p *Poller) Run(ctx context.Context) error {
 		left join (
 			select polls.id as poll, votes.object->>'$.name' as name, count(distinct voters.cid) as count
 			from notes votes
-			join polls on votes.object->>'$.inReplyTo' = polls.id
+			join polls on votes.inreplytocid = polls.cid
 			join persons voters on voters.id = votes.author
 			where votes.deleted = 0
 			group by poll, name
@@ -86,7 +86,7 @@ func (p *Poller) Run(ctx context.Context) error {
 		left join (
 			select polls.id as poll, count(distinct voters.cid) as count
 			from notes votes
-			join polls on votes.object->>'$.inReplyTo' = polls.id
+			join polls on votes.inreplytocid = polls.cid
 			join persons voters on voters.id = votes.author
 			where votes.deleted = 0
 			group by poll

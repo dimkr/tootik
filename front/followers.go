@@ -79,7 +79,7 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 		where follows.followed = $1 and (accepted is null or accepted = 1)
 		order by follows.insertednano desc
 		`,
-		r.User.ID,
+		r.User.CompatibleID(),
 	)
 	if err != nil {
 		r.Log.Warn("Failed to list followers", "error", err)
@@ -98,7 +98,7 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 				w.Empty()
 			}
 
-			param := idLink(row.Follower.ID)
+			param := idLink(row.Follower.CompatibleID())
 
 			w.Linkf(
 				"/users/outbox/"+param,

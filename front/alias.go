@@ -79,5 +79,5 @@ func (h *Handler) alias(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.Redirect("/users/outbox/" + idLink(actor.ID))
+	w.Redirect("/users/outbox/" + idLink(actor.CompatibleID()))
 }

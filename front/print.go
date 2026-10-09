@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -111,11 +110,11 @@ func getTextAndLinks(s string, maxRunes, maxLines int) ([]string, data.OrderedMa
 }
 
 func (h *Handler) getDisplayName(id, preferredUsername, name string, t ap.ActorType) string {
-	origin, err := ap.Origin(id)
+	parsed, err := ap.ParseID(id)
 	if err != nil {
-		slog.Warn("Failed to get origin of actor", "id", id, "error", err)
-		origin = ""
+		slog.Warn("Failed to parse user ID", "id", id, "error", err)
 	}
+	origin := parsed.Origin
 
 	emoji := "👽"
 	if t == ap.Group {
@@ -139,19 +138,24 @@ func (h *Handler) getDisplayName(id, preferredUsername, name string, t ap.ActorT
 		displayName = displayName[:match[0]] + displayName[match[1]:]
 	}
 
-	u, err := url.Parse(id)
 	if err != nil {
-		slog.Warn("Failed to parse user ID", "id", id, "error", err)
 		return fmt.Sprintf("%s %s", emoji, displayName)
 	}
 
-	return fmt.Sprintf("%s %s (%s@%s)", emoji, displayName, preferredUsername, u.Host)
+	host := parsed.Host
+	if key, ok := strings.CutPrefix(origin, "did:key:"); ok && host == "" && len(key) > 12 {
+		host = key[:12] + "…"
+	} else if ok && host == "" {
+		host = key
+	}
+
+	return fmt.Sprintf("%s %s (%s@%s)", emoji, displayName, preferredUsername, host)
 }
 
 func (h *Handler) getActorDisplayName(actor *ap.Actor) string {
 	userName, _ := plain.FromHTML(actor.PreferredUsername)
 	name, _ := plain.FromHTML(actor.Name)
-	return h.getDisplayName(actor.ID, userName, name, actor.Type)
+	return h.getDisplayName(actor.CompatibleID(), userName, name, actor.Type)
 }
 
 func (h *Handler) getCompactNoteContent(note *ap.Object) ([]string, data.OrderedMap[string, string]) {

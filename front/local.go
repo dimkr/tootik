@@ -55,7 +55,7 @@ func (h *Handler) local(w text.Writer, r *Request, args ...string) {
 					join persons authors on
 						authors.id = page.author
 					left join notes parent_notes on
-						parent_notes.id = notes.object->>'$.inReplyTo'
+						parent_notes.cid = notes.inreplytocid
 					left join persons parent_authors on
 						parent_authors.id = parent_notes.author
 					left join persons sharers on

@@ -37,7 +37,7 @@ func (inbox *Inbox) updateNote(ctx context.Context, actor *ap.Actor, key httpsig
 		},
 		ID:     inbox.NewID(note.AttributedTo, "update"),
 		Type:   ap.Update,
-		Actor:  note.AttributedTo,
+		Actor:  actor.IDWithGateways(),
 		Object: note,
 		To:     note.To,
 		CC:     note.CC,
@@ -71,7 +71,7 @@ func (inbox *Inbox) updateNote(ctx context.Context, actor *ap.Actor, key httpsig
 		ctx,
 		`INSERT INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
 		s,
-		note.AttributedTo,
+		actor.CompatibleID(),
 		time.Now().UnixNano(),
 	); err != nil {
 		return err
@@ -114,7 +114,7 @@ func (inbox *Inbox) updateActor(ctx context.Context, tx *sql.Tx, actor *ap.Actor
 		},
 		ID:     inbox.NewID(actor.ID, "update"),
 		Type:   ap.Update,
-		Actor:  actor.ID,
+		Actor:  actor.IDWithGateways(),
 		Object: actor.ID,
 		To:     to,
 	}
@@ -136,7 +136,7 @@ func (inbox *Inbox) updateActor(ctx context.Context, tx *sql.Tx, actor *ap.Actor
 		ctx,
 		`UPDATE persons SET actor = JSONB(?) WHERE id = ?`,
 		actor,
-		actor.ID,
+		actor.CompatibleID(),
 	); err != nil {
 		return err
 	}
@@ -145,7 +145,7 @@ func (inbox *Inbox) updateActor(ctx context.Context, tx *sql.Tx, actor *ap.Actor
 		ctx,
 		`INSERT INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
 		update,
-		actor.ID,
+		actor.CompatibleID(),
 		time.Now().UnixNano(),
 	)
 	return err

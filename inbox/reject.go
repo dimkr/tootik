@@ -40,7 +40,7 @@ func (inbox *Inbox) reject(ctx context.Context, followed *ap.Actor, key httpsig.
 		},
 		Type:  ap.Reject,
 		ID:    inbox.NewID(followed.ID, "reject"),
-		Actor: followed.ID,
+		Actor: followed.IDWithGateways(),
 		To:    recipients,
 		Object: &ap.Activity{
 			Actor:  follower,
@@ -66,7 +66,7 @@ func (inbox *Inbox) reject(ctx context.Context, followed *ap.Actor, key httpsig.
 		ctx,
 		`INSERT INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
 		s,
-		followed.ID,
+		followed.CompatibleID(),
 		time.Now().UnixNano(),
 	); err != nil {
 		return err

@@ -26,7 +26,7 @@ func (h *Handler) unbookmark(w text.Writer, r *Request, args ...string) {
 
 	arg := args[1]
 
-	if _, err := h.DB.ExecContext(r.Context, `delete from bookmarks where note in (select id from notes where id = 'https://' || $1 or slug = $1) and by = $2`, arg, r.User.ID); err != nil {
+	if _, err := h.DB.ExecContext(r.Context, `delete from bookmarks where note in (select id from notes where cid = $1 or slug = $1) and by = $2`, linkParam(arg), r.User.CompatibleID()); err != nil {
 		r.Log.Warn("Failed to delete bookmark", "post", arg, "error", err)
 		w.Error()
 		return

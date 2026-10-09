@@ -34,7 +34,7 @@ func (h *Handler) unshare(w text.Writer, r *Request, args ...string) {
 	arg := args[1]
 
 	var share ap.Activity
-	if err := h.DB.QueryRowContext(r.Context, `select json(activity) from outbox where activity->>'$.actor' = $1 and sender = $1 and activity->>'$.type' = 'Announce' and activity->>'$.object' in (select id from notes where id = 'https://' || $2 or slug = $2)`, r.User.ID, arg).Scan(&share); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := h.DB.QueryRowContext(r.Context, `select json(activity) from outbox where actorcid = (select cid from persons where persons.id = $1) and sender = $1 and activity->>'$.type' = 'Announce' and activity->>'$.object' in (select object->>'$.id' from notes where cid = $2 or slug = $2)`, r.User.CompatibleID(), linkParam(arg)).Scan(&share); err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Attempted to unshare non-existing share", "post", arg, "error", err)
 		w.Error()
 		return

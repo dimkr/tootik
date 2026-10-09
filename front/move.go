@@ -76,13 +76,13 @@ func (h *Handler) move(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if !r.User.AlsoKnownAs.Contains(actor.ID) {
+	if !containsID(r.User.AlsoKnownAs, actor.ID) {
 		r.Log.Warn("Move source is not an alias for target", "target", target)
 		w.Statusf(40, "%s is not an alias for %s", r.User.ID, actor.ID)
 		return
 	}
 
-	if !actor.AlsoKnownAs.Contains(r.User.ID) {
+	if !containsID(actor.AlsoKnownAs, r.User.ID) {
 		r.Log.Warn("Move target is not an alias for source", "target", target)
 		w.Statusf(40, "%s is not an alias for %s", actor.ID, r.User.ID)
 		return
@@ -94,5 +94,5 @@ func (h *Handler) move(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.Redirect("/users/outbox/" + idLink(actor.ID))
+	w.Redirect("/users/outbox/" + idLink(actor.CompatibleID()))
 }

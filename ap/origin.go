@@ -143,7 +143,7 @@ func validateOrigin(domain string, activity *Activity, origin string, depth uint
 				return err
 			} else if objectOrigin != origin {
 				return fmt.Errorf("invalid object host: %s", objectOrigin)
-			} else if obj.AttributedTo != "" && obj.AttributedTo != activity.Actor {
+			} else if obj.AttributedTo != "" && !SameID(obj.AttributedTo, activity.Actor) {
 				authorOrigin, err := Origin(obj.AttributedTo)
 				if err != nil {
 					return err
@@ -191,7 +191,7 @@ func validateOrigin(domain string, activity *Activity, origin string, depth uint
 				return err
 			} else if instrumentOrigin != origin {
 				return fmt.Errorf("invalid object host: %s", instrumentOrigin)
-			} else if inst.AttributedTo != activity.Actor {
+			} else if !SameID(inst.AttributedTo, activity.Actor) {
 				return fmt.Errorf("invalid object author: %s", inst.AttributedTo)
 			}
 		} else {

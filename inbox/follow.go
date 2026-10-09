@@ -29,7 +29,7 @@ import (
 )
 
 func (inbox *Inbox) follow(ctx context.Context, follower *ap.Actor, key httpsig.Key, followed string) error {
-	if followed == follower.ID {
+	if ap.SameID(followed, follower.ID) {
 		return fmt.Errorf("%s cannot follow %s", follower.ID, followed)
 	}
 
@@ -44,7 +44,7 @@ func (inbox *Inbox) follow(ctx context.Context, follower *ap.Actor, key httpsig.
 		},
 		ID:     inbox.NewID(follower.ID, "follow"),
 		Type:   ap.Follow,
-		Actor:  follower.ID,
+		Actor:  follower.IDWithGateways(),
 		Object: followed,
 		To:     to,
 	}
@@ -71,7 +71,7 @@ func (inbox *Inbox) follow(ctx context.Context, follower *ap.Actor, key httpsig.
 		ctx,
 		`INSERT INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
 		s,
-		follower.ID,
+		follower.CompatibleID(),
 		time.Now().UnixNano(),
 	); err != nil {
 		return err

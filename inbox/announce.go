@@ -44,7 +44,7 @@ func (inbox *Inbox) announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, k
 		},
 		ID:        inbox.NewID(actor.ID, "announce"),
 		Type:      ap.Announce,
-		Actor:     actor.ID,
+		Actor:     actor.IDWithGateways(),
 		Published: ap.Time{Time: time.Now()},
 		To:        to,
 		CC:        cc,
@@ -67,7 +67,7 @@ func (inbox *Inbox) announce(ctx context.Context, tx *sql.Tx, actor *ap.Actor, k
 		ctx,
 		`INSERT INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
 		s,
-		actor.ID,
+		actor.CompatibleID(),
 		time.Now().UnixNano(),
 	); err != nil {
 		return err

@@ -27,7 +27,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"regexp"
 	"strconv"
 
@@ -37,6 +36,7 @@ import (
 	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/icon"
+	"github.com/dimkr/tootik/inbox/note"
 	"github.com/dimkr/tootik/proof"
 )
 
@@ -139,11 +139,19 @@ func (l *Listener) handleApGatewayOutboxPost(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	sender, err := note.CompatibleID(r.Context(), l.DB, activity.Actor)
+	if err != nil {
+		slog.Warn("Failed to determine sender", "activity", activity.ID, "error", err)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+		return
+	}
+
 	if _, err = l.DB.ExecContext(
 		r.Context(),
 		`INSERT OR IGNORE INTO inbox (path, sender, raw) VALUES (?, ?, ?)`,
 		r.URL.Path,
-		activity.Actor,
+		sender,
 		danger.String(rawActivity),
 	); err != nil {
 		slog.Error("Failed to insert activity", "activity", activity.ID, "error", err)
@@ -316,7 +324,6 @@ func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Reques
 func (l *Listener) handleApGatewayContext(w http.ResponseWriter, r *http.Request, contextID string) {
 	collection := &ap.Collection{
 		Context: "https://www.w3.org/ns/activitystreams",
-		ID:      contextID,
 		Type:    ap.UnorderedCollection,
 	}
 
@@ -325,9 +332,9 @@ func (l *Listener) handleApGatewayContext(w http.ResponseWriter, r *http.Request
 	var ed25519Seed, mldsa44Seed []byte
 	if err := l.DB.QueryRowContext(
 		r.Context(),
-		`select notes.id, notes.author, json(persons.actor), persons.ed25519seed, persons.mldsa44seed from notes join persons on persons.id = notes.author where notes.object->>'$.context' = ? and notes.object->>'$.inReplyTo' is null and persons.ed25519seed is not null`,
-		contextID,
-	).Scan(&postID, &collection.AttributedTo, &author, &ed25519Seed, &mldsa44Seed); errors.Is(err, sql.ErrNoRows) {
+		`select notes.object->>'$.context', notes.object->>'$.id', notes.object->>'$.attributedTo', json(persons.actor), persons.ed25519seed, persons.mldsa44seed from notes join persons on persons.id = notes.author where notes.contextcid = ? and notes.object->>'$.inReplyTo' is null and persons.ed25519seed is not null`,
+		ap.Canonical(contextID),
+	).Scan(&collection.ID, &postID, &collection.AttributedTo, &author, &ed25519Seed, &mldsa44Seed); errors.Is(err, sql.ErrNoRows) {
 		slog.Warn("Context does not exist", "id", contextID)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -349,17 +356,17 @@ func (l *Listener) handleApGatewayContext(w http.ResponseWriter, r *http.Request
 		},
 		l.DB,
 		`
-		with recursive thread(id, inserted, depth) as (
-			select notes.id, notes.inserted, 1 as depth from notes
-			where notes.object->>'$.inReplyTo' = ?
+		with recursive thread(id, cid, inserted, depth) as (
+			select notes.object->>'$.id', notes.cid, notes.inserted, 1 as depth from notes
+			where notes.inreplytocid = ?
 			union all
-			select notes.id, notes.inserted, t.depth + 1 from thread t
-			join notes on notes.object->>'$.inReplyTo' = t.id
+			select notes.object->>'$.id', notes.cid, notes.inserted, t.depth + 1 from thread t
+			join notes on notes.inreplytocid = t.cid
 			where notes.public = 1
 		)
 		select id from thread order by inserted, depth
 		`,
-		postID,
+		ap.Canonical(postID),
 	); err != nil {
 		slog.Warn("Failed to fetch context", "id", contextID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -368,7 +375,7 @@ func (l *Listener) handleApGatewayContext(w http.ResponseWriter, r *http.Request
 
 	collection.First = &ap.CollectionPage{
 		Type:   ap.UnorderedCollectionPage,
-		PartOf: contextID,
+		PartOf: collection.ID,
 		Items:  items,
 	}
 
@@ -438,7 +445,7 @@ func (l *Listener) handleApGatewayOutboxGet(w http.ResponseWriter, r *http.Reque
 			r.Context(),
 			`
 			select json(activity), inserted from outbox
-			where activity->>'$.actor' in (select id from persons where cid = ?) and inserted <= $2
+			where actorcid = ? and inserted <= $2
 			order by inserted desc
 			limit $3
 			`,
@@ -491,7 +498,7 @@ func (l *Listener) handleApGatewayOutboxGet(w http.ResponseWriter, r *http.Reque
 			r.Context(),
 			`
 			select max(inserted) from outbox
-			where activity->>'$.actor' in (select id from persons where cid = ?) and inserted < $2
+			where actorcid = ? and inserted < $2
 			`,
 			actorCID,
 			earliest,
@@ -524,7 +531,7 @@ func (l *Listener) handleApGatewayOutboxGet(w http.ResponseWriter, r *http.Reque
 		r.Context(),
 		`
 		select max(inserted), count(*) from outbox
-		where activity->>'$.actor' in (select id from persons where cid = ?)
+		where actorcid = ?
 		`,
 		actorCID,
 	).Scan(&latest, &count); err != nil {
@@ -569,7 +576,7 @@ func (l *Listener) fetchFollowersByHost(
 		return false, nil, "", nil
 	}
 
-	u, err := url.Parse(sender.ID)
+	u, err := ap.ParseID(sender.CompatibleID())
 	if err != nil {
 		slog.Warn("Failed to extract sender host", "did", did, "sender", sender.ID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -578,7 +585,7 @@ func (l *Listener) fetchFollowersByHost(
 
 	rows, err := l.DB.QueryContext(
 		r.Context(),
-		`SELECT follower FROM follows WHERE followed = 'https://' || ? || '/.well-known/apgateway/' || ? || '/actor' AND follower LIKE 'https://' || ? || '/%' AND accepted = 1 ORDER BY insertednano DESC, follower`,
+		`SELECT COALESCE(persons.actor->>'$.id', follows.follower) FROM follows LEFT JOIN persons ON persons.id = follows.follower WHERE follows.followed = 'https://' || ? || '/.well-known/apgateway/' || ? || '/actor' AND follows.follower LIKE 'https://' || ? || '/%' AND follows.accepted = 1 ORDER BY follows.insertednano DESC, follows.follower`,
 		l.Domain,
 		did,
 		u.Host,
@@ -627,7 +634,7 @@ func (l *Listener) fetchSenderFollowers(
 
 	rows, err := l.DB.QueryContext(
 		r.Context(),
-		`SELECT follower FROM follows WHERE followed = 'https://' || ? || '/.well-known/apgateway/' || ? || '/actor' AND accepted = 1 ORDER BY insertednano DESC, follower`,
+		`SELECT COALESCE(persons.actor->>'$.id', follows.follower) FROM follows LEFT JOIN persons ON persons.id = follows.follower WHERE follows.followed = 'https://' || ? || '/.well-known/apgateway/' || ? || '/actor' AND follows.accepted = 1 ORDER BY follows.insertednano DESC, follows.follower`,
 		l.Domain,
 		did,
 	)
@@ -637,7 +644,7 @@ func (l *Listener) fetchSenderFollowers(
 		return false, nil, "", nil
 	}
 
-	return true, &actor, fmt.Sprintf("https://%s/.well-known/apgateway/%s/actor/followers", l.Domain, did), rows
+	return true, &actor, actor.Followers, rows
 }
 
 func (l *Listener) doHandleApGatewayFollowers(
@@ -712,7 +719,7 @@ func (l *Listener) handleAPGatewayGetObject(w http.ResponseWriter, r *http.Reque
 			where notes.cid = $1 and notes.deleted = 0 and notes.public = 1 and persons.ed25519seed is not null
 			union all
 			select json(outbox.activity) as raw from outbox
-			join persons on outbox.activity->>'$.actor' = persons.id
+			join persons on persons.cid = outbox.actorcid
 			where outbox.cid = $1 and (exists (select 1 from json_each(outbox.activity->'$.cc') where value = $2) or exists (select 1 from json_each(outbox.activity->'$.to') where value = $2)) and persons.ed25519seed is not null
 		)
 		limit 1

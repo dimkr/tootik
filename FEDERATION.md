@@ -151,14 +151,24 @@ By default, tootik omits user and post counters unless `FillNodeInfoUsage` is ch
 
 # Data Portability
 
-tootik partially supports [FEP-ef61](https://codeberg.org/fediverse/fep/src/branch/main/fep/ef61/fep-ef61.md) portable actors, activities and objects.
+tootik supports [FEP-ef61](https://codeberg.org/fediverse/fep/src/branch/main/fep/ef61/fep-ef61.md) portable actors, activities and objects, with both "compatible" `https://` identifiers and canonical `ap://` (or `ap+ef61://`) identifiers.
+
+## Identifiers
 
 If
 * `alice@a.localdomain` is `https://a.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor`
 * `bob@b.localdomain` is `https://b.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor`
-* and `carol@c.localdomain` is `https://c.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor`
+* and `carol@c.localdomain` is `ap://did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor`
 
-then tootik canonicalizes all three to `ap://did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor` and in some cases, allows one of them to operate on objects and activities "owned" by another. However, tootik is still primarily based on the 'classical mechanics' of `https://` URLs as IDs, and most "actor x is allowed to operate on object/activity y" checks are done using a strict `==` check.
+then tootik canonicalizes all three to `ap://did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor`: it replaces `ap+ef61` with `ap`, decodes a percent-encoded authority and removes the query, including `@gateway` location hints. Two IDs are equal if their canonical forms are equal, and the origin of a portable ID is its DID. Therefore, an object may mix both kinds of identifiers: for example, a post with a compatible `id` can be attributed to an actor with an `ap://` ID, as long as both share the same DID.
+
+Cross-gateway equality is safe because tootik requires a valid [FEP-8b32](https://codeberg.org/fediverse/fep/src/branch/main/fep/8b32/fep-8b32.md) integrity proof generated using the DID key, before it accepts any portable actor, activity or object.
+
+tootik stores portable objects using their compatible `https://` IDs and uses the canonical IDs for lookups and comparisons: an `ap://` ID is stored as a URL of the first gateway in the `gateways` property of the actor that owns it.
+
+To resolve an `ap://` actor, tootik tries the gateways specified using `@gateway` location hints (`ap://did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor?@gateway=https%3A%2F%2Fa.localdomain`), then the `gateways` of the cached actor and then the first gateway of other cached actors with the same DID. It sends a `GET` request to `/.well-known/apgateway` on each gateway, until one returns an actor with the requested canonical ID and a valid integrity proof. Objects with `ap://` IDs are fetched the same way.
+
+By default, local portable actors use compatible `https://` IDs. If `CanonicalIDs` is `true`, new portable actors and new objects and activities created by portable actors use `ap://` IDs. Existing actors keep their IDs, so they may own objects with `ap://` IDs.
 
 Support for data portability comes into play in 5 main areas:
 * Registration
@@ -197,7 +207,7 @@ The response points to a `https://` gateway that returns the actor object:
 		]
 	}
 
-... and the actor object uses "compatible" `https://` URLs:
+... and the actor object uses "compatible" `https://` URLs, unless `CanonicalIDs` is `true`:
 
 ```
 {
@@ -337,19 +347,22 @@ tootik forwards posts by actors that share the same DID with a local actor, and 
 
 ## Following
 
-Processing of `Follow`, `Undo`, `Accept` and `Reject` activities follows the 'traditional' semantics based on actor IDs: if tootik on `b.localdomain` receives a `Follow` activity for `alice@a.localdomain`, it ignores this activity because `alice@a.localdomain` is not a local actor.
+Processing of `Follow`, `Undo`, `Accept` and `Reject` activities follows the 'traditional' semantics based on actor IDs: if tootik on `b.localdomain` receives a `Follow` activity for `alice@a.localdomain`, it ignores this activity because `alice@a.localdomain` is not a local actor. However, the follower and the followed actor are compared using their canonical IDs.
 
-tootik performs [FEP-8fcf](https://codeberg.org/fediverse/fep/src/branch/main/fep/8fcf/fep-8fcf.md) followers synchronization for portable actors, assuming that other servers track follower<>followed relationships using actor IDs and not using their canonical IDs.
+tootik performs [FEP-8fcf](https://codeberg.org/fediverse/fep/src/branch/main/fep/8fcf/fep-8fcf.md) followers synchronization for portable actors, assuming that other servers track follower<>followed relationships using actor IDs and not using their canonical IDs. When it compares its list of followers with a list received from another server, it compares canonical IDs.
 
 ## Replication
 
 tootik forwards activites by a portable actor to all actors that share the same canonical ID, according to `gateways`.
 
+When tootik delivers an activity to an `inbox` with an `ap://` ID, it sends it to the first gateway listed under `gateways`.
+
 When tootik forwards activities, it assumes that other servers use the same URL format: for example, if the `inbox` property of `alice@a.localdomain` is `https://a.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor/inbox` and it forwards an activity to `bob@b.localdomain`, it sends a `POST` request to `https://b.localdomain/.well-known/apgateway/did:key:z6MksgCbQa3BZxBayRRkF1hcP7zt6TZGvZF2rR1k3AY7zFL8/actor/inbox`.
 
 ## Limitations
 
-* tootik does not support `ap://` identifiers and location hints.
+* Only `did:key` DIDs are supported.
+* tootik compares the recipients of a post (`to` and `cc`) with actor IDs as strings: if a post is addressed to an `ap://` actor with location hints, the actor might not see it.
 * tootik assumes that activity and object IDs don't change: for example, it assumes that `Update` activities for portable posts preserve the `id` field of the original object. This matches the expectation of servers that don't support data portability and simplifies the implementation.
 * tootik provides limited support for fetching of objects (like posts) and activities from `/.well-known/apgateway`: replication of data across all actors with the same canonical ID is primarily achieved using forwarding.
 * The RSA key under `publicKey` is generated during registration, so different actors owned by the same DID will use different RSA keys when they talk to servers that don't support Ed25519 and ML-DSA-44 signatures. Therefore, servers that cache only one RSA key for two actors with the same canonical ID (which shouldn't exist) might fail to validate some signatures.

@@ -76,3 +76,22 @@ func (a *Actor) Scan(src any) error {
 func (a *Actor) Value() (driver.Value, error) {
 	return danger.MarshalJSON(a)
 }
+
+// IDWithGateways returns the ID of the actor: if it's an ap:// URI, @gateway location hints are added.
+func (a *Actor) IDWithGateways() string {
+	return WithGateways(a.ID, a.Gateways)
+}
+
+// CompatibleID returns the ID of the actor in compatible form: if the ID is an ap:// URI, it's converted to a URL of
+// the first gateway.
+func (a *Actor) CompatibleID() string {
+	if len(a.Gateways) == 0 {
+		return a.ID
+	}
+
+	if parsed, err := ParseID(a.ID); err != nil || parsed.Kind != PortableID {
+		return a.ID
+	}
+
+	return Gateway(a.Gateways[0], a.ID)
+}

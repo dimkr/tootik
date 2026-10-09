@@ -47,7 +47,7 @@ func (q *Queue) fetchCachedPost(ctx context.Context, id string) (*ap.Object, err
 		`
 		select json(object) from notes
 		where
-				id = $1
+				cid = $1
 				and (
 						deleted = 1
 						or exists (
@@ -65,14 +65,14 @@ func (q *Queue) fetchCachedPost(ctx context.Context, id string) (*ap.Object, err
 										or exists (
 												select 1 from history where
 														(activity->>'$.type' = 'Create' or activity->>'$.type' = 'Update')
-														and coalesce(activity->>'$.actor.id', activity->>'$.actor') = notes.author
-														and activity->>'$.object.id' = $1
+														and coalesce(activity->>'$.actor.id', activity->>'$.actor') = notes.object->>'$.attributedTo'
+														and activity->>'$.object.id' = notes.object->>'$.id'
 										)
 								)
 						)
 				)
 		`,
-		id,
+		ap.Canonical(id),
 		time.Now().Add(-q.Config.BackfillInterval).Unix(),
 	).Scan(&post)
 }
@@ -94,16 +94,16 @@ func (q *Queue) backfill(ctx context.Context, activity *ap.Activity) error {
 	if err := q.DB.QueryRowContext(
 		ctx,
 		`
-		select id from
+		select object->>'$.id' from
 		(
-			with recursive thread(id, object, depth) as (
-				select id, object, 0 as depth
+			with recursive thread(id, object, inreplytocid, depth) as (
+				select id, object, inreplytocid, 0 as depth
 				from notes
-				where id = ?
+				where cid = ?
 				union all
-				select notes.id, notes.object, t.depth + 1
+				select notes.id, notes.object, notes.inreplytocid, t.depth + 1
 				from thread t
-				join notes on notes.id = t.object->>'$.inReplyTo'
+				join notes on notes.cid = t.inreplytocid
 			)
 			select id, object, depth from thread order by depth desc
 			limit 1
@@ -111,7 +111,7 @@ func (q *Queue) backfill(ctx context.Context, activity *ap.Activity) error {
 		where object->>'$.inReplyTo' is null
 		limit 1
 		`,
-		post.ID,
+		ap.Canonical(post.ID),
 	).Scan(&headID); err == nil {
 		if _, err := q.fetchCachedPost(ctx, headID); errors.Is(err, sql.ErrNoRows) {
 			_, contextErr = q.fetchPost(ctx, headID)
@@ -190,7 +190,7 @@ func (q *Queue) fetchPost(ctx context.Context, id string) (*ap.Object, error) {
 		return nil, err
 	}
 
-	if post.ID != id {
+	if !ap.SameID(post.ID, id) {
 		return nil, fmt.Errorf("%s is not %s", post.ID, id)
 	}
 
@@ -305,7 +305,7 @@ func (q *Queue) fetchContext(ctx context.Context, post *ap.Object) error {
 	}
 
 	var exists int
-	if err := q.DB.QueryRowContext(ctx, `select exists (select 1 from notes where id = ?)`, post.InReplyTo).Scan(&exists); err != nil {
+	if err := q.DB.QueryRowContext(ctx, `select exists (select 1 from notes where cid = ?)`, ap.Canonical(post.InReplyTo)).Scan(&exists); err != nil {
 		return err
 	} else if exists == 1 {
 		return nil
@@ -339,7 +339,7 @@ func (q *Queue) fetchContext(ctx context.Context, post *ap.Object) error {
 		return err
 	}
 
-	if collection.ID != post.BackfillContext {
+	if !ap.SameID(collection.ID, post.BackfillContext) {
 		return fmt.Errorf("%s is not %s", collection.ID, post.BackfillContext)
 	}
 
@@ -371,7 +371,7 @@ func (q *Queue) fetchContext(ctx context.Context, post *ap.Object) error {
 		return errors.New("non-string in " + post.BackfillContext)
 	}
 
-	if s == post.ID {
+	if ap.SameID(s, post.ID) {
 		return nil
 	}
 
@@ -427,16 +427,16 @@ func (q *Queue) fetchContext(ctx context.Context, post *ap.Object) error {
 			first = s
 		}
 
-		if s == post.InReplyTo {
+		if ap.SameID(s, post.InReplyTo) {
 			parentIndex = i
 			continue
 		}
 
-		if s != post.ID {
+		if !ap.SameID(s, post.ID) {
 			continue
 		}
 
-		if !(parentIndex >= 0 && i > parentIndex && first != "" && first != post.ID && first != post.InReplyTo) {
+		if !(parentIndex >= 0 && i > parentIndex && first != "" && !ap.SameID(first, post.ID) && !ap.SameID(first, post.InReplyTo)) {
 			return nil
 		}
 

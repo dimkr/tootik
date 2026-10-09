@@ -84,8 +84,8 @@ func create(key httpsig.Key, now time.Time, doc, context any) (ap.Proof, error) 
 	created := now.UTC().Format(time.RFC3339)
 
 	keyID := key.ID
-	if m := ap.GatewayURLRegex.FindStringSubmatch(keyID); m != nil {
-		keyID = fmt.Sprintf("did:key:%s#%s", m[1], m[1])
+	if parsed, err := ap.ParseID(keyID); err == nil && parsed.Kind != ap.URLID {
+		keyID = fmt.Sprintf("%s#%s", parsed.Origin, parsed.Origin[len("did:key:"):])
 	}
 
 	proof := ap.Proof{

@@ -40,7 +40,7 @@ var errNoKeyInKeyID = errors.New("key origin does not contain a key")
 
 func getKeyByID(actor *ap.Actor, keyID string) (crypto.PublicKey, error) {
 	for _, key := range actor.AssertionMethod {
-		if key.ID != keyID {
+		if !ap.SameID(key.ID, keyID) {
 			continue
 		}
 
@@ -48,7 +48,7 @@ func getKeyByID(actor *ap.Actor, keyID string) (crypto.PublicKey, error) {
 			continue
 		}
 
-		if key.Controller != actor.ID {
+		if !ap.SameID(key.Controller, actor.ID) {
 			continue
 		}
 
@@ -152,7 +152,7 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 	}
 
 	var publicKey crypto.PublicKey
-	if actor.PublicKey.ID == sig.KeyID {
+	if ap.SameID(actor.PublicKey.ID, sig.KeyID) {
 		publicKeyPem, _ := pem.Decode(danger.Bytes(actor.PublicKey.PublicKeyPem))
 		if publicKeyPem == nil {
 			return nil, nil, fmt.Errorf("failed to decode %s", sig.KeyID)
@@ -186,8 +186,8 @@ func (l *Listener) verifyRequest(r *http.Request, body []byte, flags ap.Resolver
 
 func (l *Listener) verifyProof(ctx context.Context, activity *ap.Activity, raw []byte, flags ap.ResolverFlag, keys [3]httpsig.Key) (*ap.Actor, error) {
 	if m := ap.KeyRegex.FindStringSubmatch(activity.Proof.VerificationMethod); m != nil {
-		if m2 := ap.GatewayURLRegex.FindStringSubmatch(activity.Actor); m2 != nil {
-			if m2[1] != m[1] {
+		if actorOrigin, err := ap.Origin(activity.Actor); err == nil && strings.HasPrefix(actorOrigin, "did:key:") {
+			if actorOrigin[len("did:key:"):] != m[1] {
 				return nil, fmt.Errorf("key %s does not belong to %s", m[1], activity.Actor)
 			}
 
@@ -209,7 +209,7 @@ func (l *Listener) verifyProof(ctx context.Context, activity *ap.Activity, raw [
 		return nil, fmt.Errorf("failed to get key %s to verify proof: %w", activity.Proof.VerificationMethod, err)
 	}
 
-	if actor.ID != activity.Actor {
+	if !ap.SameID(actor.ID, activity.Actor) {
 		return nil, fmt.Errorf("key %s belongs to %s, not %s", activity.Proof.VerificationMethod, actor.ID, activity.Actor)
 	}
 

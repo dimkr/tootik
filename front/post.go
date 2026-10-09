@@ -49,7 +49,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 
 	if oldNote == nil {
 		var today, last sql.NullInt64
-		if err := h.DB.QueryRowContext(r.Context, `select count(*), max(inserted) from outbox where activity->>'$.actor' = $1 and sender = $1 and activity->>'$.type' = 'Create' and inserted > $2`, r.User.ID, now.Add(-24*time.Hour).UnixNano()).Scan(&today, &last); err != nil {
+		if err := h.DB.QueryRowContext(r.Context, `select count(*), max(inserted) from outbox where actorcid = (select cid from persons where persons.id = $1) and sender = $1 and activity->>'$.type' = 'Create' and inserted > $2`, r.User.CompatibleID(), now.Add(-24*time.Hour).UnixNano()).Scan(&today, &last); err != nil {
 			r.Log.Warn("Failed to check if new post needs to be throttled", "error", err)
 			w.Error()
 			return
@@ -101,36 +101,42 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 			continue
 		}
 
-		var actorID string
+		var mentioned struct {
+			ID      string
+			Gateway sql.NullString
+		}
 		var err error
 		if mention[3] == "" && inReplyTo != nil {
-			actorID, err = dbx.QueryScanRow[string](
+			mentioned, err = dbx.QueryScanRow[struct {
+				ID      string
+				Gateway sql.NullString
+			}](
 				r.Context,
 				h.DB,
 				`
-				select id from persons where
+				select actor->>'$.id', actor->>'$.gateways[0]' from persons where
 					actor->>'$.preferredUsername' = $1
 					and ((actor->>'$.type' = 'Group') is $2)
 					and (
 						exists (
 							select 1 from (
-								with recursive thread(id, object) as (
-									select notes.id, notes.object from notes
-									where notes.id = $3
+								with recursive thread(id, cid, object) as (
+									select notes.id, notes.cid, notes.object from notes
+									where notes.cid = $3
 									union all
-									select notes.id, notes.object from thread t
-									join notes on notes.object->>'$.inReplyTo' = t.id
+									select notes.id, notes.cid, notes.object from thread t
+									join notes on notes.inreplytocid = t.cid
 									where (
 										notes.public = 1
-										or exists (select 1 from json_each(notes.object->'$.to') where value = $4 or value = $5)
-										or exists (select 1 from json_each(notes.object->'$.cc') where value = $4 or value = $5)
+										or exists (select 1 from json_each(notes.object->'$.to') where value = (select actor->>'$.id' from persons where persons.id = $4) or value = $5)
+										or exists (select 1 from json_each(notes.object->'$.cc') where value = (select actor->>'$.id' from persons where persons.id = $4) or value = $5)
 									)
 								)
 								select id, object from thread
 							) parents where
-								parents.object->>'$.attributedTo' = persons.id
-								or exists (select 1 from json_each(parents.object->'$.to') where value = persons.id)
-								or exists (select 1 from json_each(parents.object->'$.cc') where value = persons.id)
+								parents.object->>'$.attributedTo' = persons.actor->>'$.id'
+								or exists (select 1 from json_each(parents.object->'$.to') where value = persons.actor->>'$.id')
+								or exists (select 1 from json_each(parents.object->'$.cc') where value = persons.actor->>'$.id')
 						) or ed25519seed is not null
 						or id in (select followed from follows where follower = $4 and accepted = 1)
 					)
@@ -138,39 +144,42 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 				`,
 				mention[2],
 				mention[1] == "!",
-				inReplyTo.ID,
-				r.User.ID,
+				ap.Canonical(inReplyTo.ID),
+				r.User.CompatibleID(),
 				r.User.Followers,
 			)
 		} else if mention[3] != "" && inReplyTo != nil {
-			actorID, err = dbx.QueryScanRow[string](
+			mentioned, err = dbx.QueryScanRow[struct {
+				ID      string
+				Gateway sql.NullString
+			}](
 				r.Context,
 				h.DB,
 				`
-				select id from persons where
+				select actor->>'$.id', actor->>'$.gateways[0]' from persons where
 					actor->>'$.preferredUsername' = $1
 					and host = $2
 					and ((actor->>'$.type' = 'Group') is $3)
 					and (
 						exists (
 							select 1 from (
-								with recursive thread(id, object) as (
-									select notes.id, notes.object from notes
-									where notes.id = $4
+								with recursive thread(id, cid, object) as (
+									select notes.id, notes.cid, notes.object from notes
+									where notes.cid = $4
 									union all
-									select notes.id, notes.object from thread t
-									join notes on notes.object->>'$.inReplyTo' = t.id
+									select notes.id, notes.cid, notes.object from thread t
+									join notes on notes.inreplytocid = t.cid
 									where (
 										notes.public = 1
-										or exists (select 1 from json_each(notes.object->'$.to') where value = $5 or value = $6)
-										or exists (select 1 from json_each(notes.object->'$.cc') where value = $5 or value = $6)
+										or exists (select 1 from json_each(notes.object->'$.to') where value = (select actor->>'$.id' from persons where persons.id = $5) or value = $6)
+										or exists (select 1 from json_each(notes.object->'$.cc') where value = (select actor->>'$.id' from persons where persons.id = $5) or value = $6)
 									)
 								)
 								select id, object from thread
 							) parents where
-								parents.object->>'$.attributedTo' = persons.id
-								or exists (select 1 from json_each(parents.object->'$.to') where value = persons.id)
-								or exists (select 1 from json_each(parents.object->'$.cc') where value = persons.id)
+								parents.object->>'$.attributedTo' = persons.actor->>'$.id'
+								or exists (select 1 from json_each(parents.object->'$.to') where value = persons.actor->>'$.id')
+								or exists (select 1 from json_each(parents.object->'$.cc') where value = persons.actor->>'$.id')
 						) or ed25519seed is not null
 						or id in (select followed from follows where follower = $5 and accepted = 1)
 					)
@@ -179,16 +188,19 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 				mention[2],
 				mention[3],
 				mention[1] == "!",
-				inReplyTo.ID,
-				r.User.ID,
+				ap.Canonical(inReplyTo.ID),
+				r.User.CompatibleID(),
 				r.User.Followers,
 			)
 		} else if mention[3] == "" {
-			actorID, err = dbx.QueryScanRow[string](
+			mentioned, err = dbx.QueryScanRow[struct {
+				ID      string
+				Gateway sql.NullString
+			}](
 				r.Context,
 				h.DB,
 				`
-				select id from persons where
+				select actor->>'$.id', actor->>'$.gateways[0]' from persons where
 					actor->>'$.preferredUsername' = $1
 					and ((actor->>'$.type' = 'Group') is $2)
 					and (
@@ -199,14 +211,17 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 				`,
 				mention[2],
 				mention[1] == "!",
-				r.User.ID,
+				r.User.CompatibleID(),
 			)
 		} else {
-			actorID, err = dbx.QueryScanRow[string](
+			mentioned, err = dbx.QueryScanRow[struct {
+				ID      string
+				Gateway sql.NullString
+			}](
 				r.Context,
 				h.DB,
 				`
-				select id from persons where
+				select actor->>'$.id', actor->>'$.gateways[0]' from persons where
 					actor->>'$.preferredUsername' = $1
 					and host = $2
 					and (
@@ -218,7 +233,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 				mention[2],
 				mention[3],
 				mention[1] == "!",
-				r.User.ID,
+				r.User.CompatibleID(),
 			)
 		}
 
@@ -234,6 +249,11 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 			r.Log.Warn("Failed to resolve mention", "mention", mention[0], "error", err)
 			w.Error()
 			return
+		}
+
+		actorID := mentioned.ID
+		if mentioned.Gateway.Valid {
+			actorID = ap.WithGateways(actorID, []string{mentioned.Gateway.String})
 		}
 
 		r.Log.Info("Adding mention", "name", mention[0], "actor", actorID)
@@ -297,7 +317,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 
 	if !anyRecipient {
 		for actorID := range note.To.Keys() {
-			if actorID != r.User.ID {
+			if !ap.SameID(actorID, r.User.ID) {
 				anyRecipient = true
 				break
 			}
@@ -305,7 +325,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 	}
 	if !anyRecipient {
 		for actorID := range note.CC.Keys() {
-			if actorID != r.User.ID {
+			if !ap.SameID(actorID, r.User.ID) {
 				anyRecipient = true
 				break
 			}

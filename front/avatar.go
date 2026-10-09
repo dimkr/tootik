@@ -131,7 +131,7 @@ func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
 			{
 				Type:      ap.Image,
 				MediaType: icon.MediaType,
-				URL:       fmt.Sprintf("%s/icon%s?%d", r.User.ID, icon.FileNameExtension, now.UnixNano()),
+				URL:       fmt.Sprintf("%s/icon%s?%d", r.User.CompatibleID(), icon.FileNameExtension, now.UnixNano()),
 			},
 		}
 	} else {

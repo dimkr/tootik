@@ -50,11 +50,14 @@ func writeMetadataField(field ap.Attachment, w text.Writer) {
 	}
 }
 
+// actorCopies selects all rows of the actor with ID $1 and the same canonical ID.
+const actorCopies = `(select copies.id from persons copies join persons actor on actor.id = $1 where copies.cid = actor.cid and copies.actor->>'$.id' = actor.actor->>'$.id')`
+
 func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 	arg := args[1]
 
 	var actor ap.Actor
-	if err := h.DB.QueryRowContext(r.Context, `select json(actor) from persons where id = 'https://' || $1 or slug = $1`, arg).Scan(&actor); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := h.DB.QueryRowContext(r.Context, `select json(actor) from persons where cid = $1 or slug = $1 or id = $2 order by id = $2 desc, ed25519seed is not null desc, updated desc limit 1`, linkParam(arg), "https://"+arg).Scan(&actor); err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Info("Person was not found", "actor", arg)
 		w.Status(40, "User not found")
 		return
@@ -82,10 +85,10 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 				select u.id, u.object, u.author, max(u.inserted) as inserted, max(u.nreplies) as nreplies, max(u.nquotes) as nquotes, max(u.nshares) as nshares, max(u.pulse) as pulse from (
 					select notes.id, notes.object, notes.author, shares.inserted, notes.nreplies, notes.nquotes, notes.nshares, notes.pulse from shares
 					join notes on notes.id = shares.note
-					where shares.by = $1 and notes.public = 1 and notes.object->>'$.inReplyTo' is null
+					where shares.by in `+actorCopies+` and notes.public = 1 and notes.object->>'$.inReplyTo' is null
 					union all
 					select notes.id, notes.object, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares, notes.pulse from notes
-					where notes.author = $1 and notes.public = 1 and notes.object->>'$.inReplyTo' is null
+					where notes.author in `+actorCopies+` and notes.public = 1 and notes.object->>'$.inReplyTo' is null
 				) u
 				group by u.id
 				order by max(pulse) / 86400 desc, nreplies desc, pulse desc
@@ -93,7 +96,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 			) page
 			join persons authors on authors.id = page.author
 			order by page.pulse / 86400 desc, page.nreplies desc, page.pulse desc`,
-			actor.ID,
+			actor.CompatibleID(),
 			h.Config.PostsPerPage,
 			offset,
 		)
@@ -106,7 +109,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 					select notes.id, notes.object, notes.author, shares.inserted, notes.nreplies, notes.nquotes, notes.nshares, notes.pulse from shares
 					join notes on notes.id = shares.note
 					where
-						shares.by = $1 and
+						shares.by in `+actorCopies+` and
 						(
 							notes.public = 1 or
 							exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
@@ -115,7 +118,7 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 					union all
 					select notes.id, notes.object, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares, notes.pulse from notes
 					where
-						notes.author = $1 and
+						notes.author in `+actorCopies+` and
 						(
 							notes.public = 1 or
 							exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
@@ -128,8 +131,8 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 			) page
 			join persons authors on authors.id = page.author
 			order by page.pulse / 86400 desc, page.nreplies desc, page.pulse desc`,
-			actor.ID,
-			r.User.ID,
+			actor.CompatibleID(),
+			r.User.CompatibleID(),
 			h.Config.PostsPerPage,
 			offset,
 		)
@@ -138,45 +141,45 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		rows, err = h.DB.QueryContext(
 			r.Context,
 			`select json(u.object), json(u.actor), json(u.sharer), max(u.inserted), u.nreplies, u.nquotes, u.nshares, json(parent_authors.actor) from (
-				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer, notes.nreplies, notes.nquotes, notes.nshares from notes
+				select notes.id, persons.actor, notes.object, notes.inreplytocid, notes.inserted, null as sharer, notes.nreplies, notes.nquotes, notes.nshares from notes
 				join persons on persons.id = $1
-				where notes.author = $1 and notes.public = 1
+				where notes.author in `+actorCopies+` and notes.public = 1
 				union all
-				select notes.id, authors.actor, notes.object, shares.inserted, sharers.actor as by, notes.nreplies, notes.nquotes, notes.nshares from
+				select notes.id, authors.actor, notes.object, notes.inreplytocid, shares.inserted, sharers.actor as by, notes.nreplies, notes.nquotes, notes.nshares from
 				shares
 				join notes on notes.id = shares.note
 				join persons authors on authors.id = notes.author
 				join persons sharers on sharers.id = $1
-				where shares.by = $1 and notes.public = 1
+				where shares.by in `+actorCopies+` and notes.public = 1
 			) u
-			left join notes parent_notes on parent_notes.id = u.object->>'$.inReplyTo'
+			left join notes parent_notes on parent_notes.cid = u.inreplytocid
 			left join persons parent_authors on parent_authors.id = parent_notes.author
 			group by u.id
 			order by max(u.inserted) desc limit $2 offset $3`,
-			actor.ID,
+			actor.CompatibleID(),
 			h.Config.PostsPerPage,
 			offset,
 		)
-	} else if r.User.ID == actor.ID {
+	} else if ap.SameID(r.User.ID, actor.ID) {
 		// users can see all their posts
 		rows, err = h.DB.QueryContext(
 			r.Context,
 			`select json(u.object), json(u.actor), json(u.sharer), max(u.inserted), u.nreplies, u.nquotes, u.nshares, json(parent_authors.actor) from (
-				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer, notes.nreplies, notes.nquotes, notes.nshares from notes
+				select notes.id, persons.actor, notes.object, notes.inreplytocid, notes.inserted, null as sharer, notes.nreplies, notes.nquotes, notes.nshares from notes
 				join persons on persons.id = notes.author
-				where notes.author = $1
+				where notes.author in `+actorCopies+`
 				union all
-				select notes.id, authors.actor, notes.object, shares.inserted, sharers.actor as by, notes.nreplies, notes.nquotes, notes.nshares from shares
+				select notes.id, authors.actor, notes.object, notes.inreplytocid, shares.inserted, sharers.actor as by, notes.nreplies, notes.nquotes, notes.nshares from shares
 				join notes on notes.id = shares.note
 				join persons authors on authors.id = notes.author
 				join persons sharers on sharers.id = $1
-				where shares.by = $1
+				where shares.by in `+actorCopies+`
 			) u
-			left join notes parent_notes on parent_notes.id = u.object->>'$.inReplyTo'
+			left join notes parent_notes on parent_notes.cid = u.inreplytocid
 			left join persons parent_authors on parent_authors.id = parent_notes.author
 			group by u.id
 			order by max(u.inserted) desc limit $2 offset $3`,
-			actor.ID,
+			actor.CompatibleID(),
 			h.Config.PostsPerPage,
 			offset,
 		)
@@ -185,22 +188,22 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		rows, err = h.DB.QueryContext(
 			r.Context,
 			`select json(page.object), json(authors.actor), json(sharers.actor), page.inserted, page.nreplies, page.nquotes, page.nshares, json(parent_authors.actor) from (
-				select u.id, u.object, u.author, u.sharer_id, max(u.nreplies) as nreplies, max(u.nquotes) as nquotes, max(u.nshares) as nshares, max(u.inserted) as inserted from (
-					select notes.id, notes.author, notes.object, notes.inserted, null as sharer_id, notes.nreplies, notes.nquotes, notes.nshares from notes
-					where notes.author = $1 and notes.public = 1
+				select u.id, u.object, u.inreplytocid, u.author, u.sharer_id, max(u.nreplies) as nreplies, max(u.nquotes) as nquotes, max(u.nshares) as nshares, max(u.inserted) as inserted from (
+					select notes.id, notes.author, notes.object, notes.inreplytocid, notes.inserted, null as sharer_id, notes.nreplies, notes.nquotes, notes.nshares from notes
+					where notes.author in `+actorCopies+` and notes.public = 1
 					union
-					select notes.id, notes.author, notes.object, notes.inserted, null as sharer_id, notes.nreplies, notes.nquotes, notes.nshares from notes
+					select notes.id, notes.author, notes.object, notes.inreplytocid, notes.inserted, null as sharer_id, notes.nreplies, notes.nquotes, notes.nshares from notes
 					where
-						notes.author = $1 and (
-							$2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $2)) or
-							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $2))
+						notes.author in `+actorCopies+` and (
+							(select actor->>'$.id' from persons where persons.id = $2) in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = (select actor->>'$.id' from persons where persons.id = $2))) or
+							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = (select actor->>'$.id' from persons where persons.id = $2)))
 						)
 					union
-					select notes.id, notes.author, notes.object, notes.inserted, null as sharer_id, notes.nreplies, notes.nquotes, notes.nshares from notes
+					select notes.id, notes.author, notes.object, notes.inreplytocid, notes.inserted, null as sharer_id, notes.nreplies, notes.nquotes, notes.nshares from notes
 					where
 						notes.public = 0 and
-						notes.author = $1 and
+						notes.author in `+actorCopies+` and
 						exists (select 1 from persons where persons.id = $1 and (
 							persons.actor->>'$.followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
 							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers')) or
@@ -208,21 +211,21 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 						)) and
 						exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
 					union all
-					select notes.id, notes.author, notes.object, shares.inserted, $1 as sharer_id, notes.nreplies, notes.nquotes, notes.nshares from
+					select notes.id, notes.author, notes.object, notes.inreplytocid, shares.inserted, $1 as sharer_id, notes.nreplies, notes.nquotes, notes.nshares from
 					shares
 					join notes on notes.id = shares.note
-					where shares.by = $1 and notes.public = 1
+					where shares.by in `+actorCopies+` and notes.public = 1
 				) u
 				group by u.id
 				order by max(u.inserted) desc limit $3 offset $4
 			) page
 			join persons authors on authors.id = page.author
 			left join persons sharers on sharers.id = page.sharer_id
-			left join notes parent_notes on parent_notes.id = page.object->>'$.inReplyTo'
+			left join notes parent_notes on parent_notes.cid = page.inreplytocid
 			left join persons parent_authors on parent_authors.id = parent_notes.author
 			order by page.inserted desc`,
-			actor.ID,
-			r.User.ID,
+			actor.CompatibleID(),
+			r.User.CompatibleID(),
 			h.Config.PostsPerPage,
 			offset,
 		)
@@ -323,21 +326,21 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		w.Linkf(fmt.Sprintf("%s?%d", r.URL.Path, offset+h.Config.PostsPerPage), "Next page (%d-%d)", offset+h.Config.PostsPerPage, offset+2*h.Config.PostsPerPage)
 	}
 
-	if r.User != nil && actor.ID != r.User.ID {
+	if r.User != nil && !ap.SameID(actor.ID, r.User.ID) {
 		w.Empty()
 		w.Subtitle("Actions")
 
 		var accepted sql.NullInt32
-		if err := h.DB.QueryRowContext(r.Context, `select accepted from follows where follower = ? and followed = ?`, r.User.ID, actor.ID).Scan(&accepted); actor.ManuallyApprovesFollowers && errors.Is(err, sql.ErrNoRows) {
-			w.Linkf("/users/follow/"+idLink(actor.ID), "⚡ Follow %s (requires approval)", actor.PreferredUsername)
+		if err := h.DB.QueryRowContext(r.Context, `select accepted from follows where follower = ? and followed = ?`, r.User.CompatibleID(), actor.CompatibleID()).Scan(&accepted); actor.ManuallyApprovesFollowers && errors.Is(err, sql.ErrNoRows) {
+			w.Linkf("/users/follow/"+idLink(actor.CompatibleID()), "⚡ Follow %s (requires approval)", actor.PreferredUsername)
 		} else if errors.Is(err, sql.ErrNoRows) {
-			w.Linkf("/users/follow/"+idLink(actor.ID), "⚡ Follow %s", actor.PreferredUsername)
+			w.Linkf("/users/follow/"+idLink(actor.CompatibleID()), "⚡ Follow %s", actor.PreferredUsername)
 		} else if err != nil {
 			r.Log.Warn("Failed to check if user is followed", "actor", actor.ID, "error", err)
 		} else if accepted.Valid && accepted.Int32 == 0 {
-			w.Linkf("/users/unfollow/"+idLink(actor.ID), "🔌 Unfollow %s (rejected)", actor.PreferredUsername)
+			w.Linkf("/users/unfollow/"+idLink(actor.CompatibleID()), "🔌 Unfollow %s (rejected)", actor.PreferredUsername)
 		} else {
-			w.Linkf("/users/unfollow/"+idLink(actor.ID), "🔌 Unfollow %s", actor.PreferredUsername)
+			w.Linkf("/users/unfollow/"+idLink(actor.CompatibleID()), "🔌 Unfollow %s", actor.PreferredUsername)
 		}
 	}
 }

@@ -27,7 +27,6 @@ import (
 	"hash/crc32"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -193,7 +192,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			`update outbox set last = unixepoch(), attempts = ? where cid = ? and sender = ?`,
 			row.DeliveryAttempts+1,
 			ap.Canonical(row.Activity.ID),
-			row.Actor.ID,
+			row.Actor.CompatibleID(),
 		); err != nil {
 			slog.Error("Failed to save last delivery attempt time", "id", row.Activity.ID, "attempts", row.DeliveryAttempts, "error", err)
 			continue
@@ -243,7 +242,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			ctx,
 			`update outbox set sent = 1 where cid = ? and sender = ?`,
 			ap.Canonical(job.Activity.ID),
-			job.Sender.ID,
+			job.Sender.CompatibleID(),
 		); err != nil {
 			slog.Error("Failed to mark delivery as completed", "id", job.Activity.ID, "error", err)
 		} else {
@@ -366,6 +365,22 @@ func (q *Queue) queueTask(
 	}
 }
 
+// inboxURL returns the URL of an inbox: if the inbox is an ap:// URI, it's converted to a URL of the first gateway that
+// isn't local.
+func (q *Queue) inboxURL(inbox string, gateways []string) string {
+	if parsed, err := ap.ParseID(inbox); err != nil || parsed.Kind != ap.PortableID {
+		return inbox
+	}
+
+	for _, gw := range gateways {
+		if gw != "https://"+q.Domain {
+			return ap.Gateway(gw, inbox)
+		}
+	}
+
+	return inbox
+}
+
 func (q *Queue) queueTasks(
 	ctx context.Context,
 	job deliveryJob,
@@ -374,7 +389,7 @@ func (q *Queue) queueTasks(
 	tasks []chan *deliveryTask,
 	events chan<- deliveryEvent,
 ) error {
-	activityID, err := url.Parse(job.Activity.ID)
+	activityID, err := ap.ParseID(job.Activity.ID)
 	if err != nil {
 		return err
 	}
@@ -405,26 +420,39 @@ func (q *Queue) queueTasks(
 
 	// list the actor's federated followers if we're forwarding an activity by another actor, or if addressed by actor
 	if wideDelivery {
-		inboxes, err := dbx.QueryCollectIgnore[string](
+		excludedFollowers := ""
+		if activityID.Host != "" {
+			excludedFollowers = fmt.Sprintf("https://%s/%%", activityID.Host)
+		}
+
+		inboxes, err := dbx.QueryCollectIgnore[struct {
+			Inbox   string
+			Gateway sql.NullString
+		}](
 			ctx,
 			q.DB,
 			func(err error) bool {
 				slog.Warn("Skipped an inbox", "activity", job.Activity.ID, "error", err)
 				return true
 			},
-			`select distinct coalesce(persons.actor->>'$.endpoints.sharedInbox', persons.actor->>'$.inbox') as inbox from persons join follows on follows.follower = persons.id where follows.followed = ? and follows.accepted = 1 and follows.follower not like ? and persons.ed25519seed is null order by persons.actor->>'$.endpoints.sharedInbox' is not null desc, inbox`,
-			job.Sender.ID,
-			fmt.Sprintf("https://%s/%%", activityID.Host),
+			`select distinct coalesce(persons.actor->>'$.endpoints.sharedInbox', persons.actor->>'$.inbox') as inbox, persons.actor->>'$.gateways[0]' from persons join follows on follows.follower = persons.id where follows.followed = ? and follows.accepted = 1 and follows.follower not like ? and persons.ed25519seed is null order by persons.actor->>'$.endpoints.sharedInbox' is not null desc, inbox`,
+			job.Sender.CompatibleID(),
+			excludedFollowers,
 		)
 		if err != nil {
 			slog.Warn("Failed to list followers", "activity", job.Activity.ID, "error", err)
 		} else {
-			for _, inbox := range inboxes {
+			for _, row := range inboxes {
+				var gateways []string
+				if row.Gateway.Valid {
+					gateways = []string{row.Gateway.String}
+				}
+
 				q.queueTask(
 					ctx,
 					job,
 					keys,
-					inbox,
+					q.inboxURL(row.Inbox, gateways),
 					contentLength,
 					followers,
 					tasks,
@@ -441,7 +469,7 @@ func (q *Queue) queueTasks(
 
 	// assume that all other federated recipients are actors and not collections
 	for actorID := range recipients.Keys() {
-		if ap.Canonical(actorID) == author || actorID == ap.Public || actorID == job.Sender.Followers {
+		if ap.Canonical(actorID) == author || actorID == ap.Public || ap.SameID(actorID, job.Sender.Followers) {
 			slog.Debug("Skipping recipient", "to", actorID, "activity", job.Activity.ID)
 			continue
 		}
@@ -468,7 +496,7 @@ func (q *Queue) queueTasks(
 			ctx,
 			job,
 			keys,
-			inbox,
+			q.inboxURL(inbox, to.Gateways),
 			contentLength,
 			followers,
 			tasks,

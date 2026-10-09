@@ -33,7 +33,7 @@ func (h *Handler) unfollow(w text.Writer, r *Request, args ...string) {
 	arg := args[1]
 
 	var followed, followID string
-	if err := h.DB.QueryRowContext(r.Context, `select persons.id, follows.id from persons join follows on persons.id = follows.followed where (persons.id = 'https://' || $1 or persons.slug = $1) and follows.follower = $2`, arg, r.User.ID).Scan(&followed, &followID); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := h.DB.QueryRowContext(r.Context, `select persons.id, follows.id from persons join follows on persons.id = follows.followed where (persons.cid = $1 or persons.slug = $1) and follows.follower = $2`, linkParam(arg), r.User.CompatibleID()).Scan(&followed, &followID); err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Cannot undo a non-existing follow", "followed", arg, "error", err)
 		w.Status(40, "No such follow")
 		return

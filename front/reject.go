@@ -44,9 +44,9 @@ func (h *Handler) reject(w text.Writer, r *Request, args ...string) {
 	var follower, followID string
 	if err := tx.QueryRowContext(
 		r.Context,
-		`SELECT follows.follower, follows.id FROM follows JOIN persons ON persons.id = follows.follower WHERE (persons.id = 'https://' || $1 OR persons.slug = $1) AND follows.followed = $2`,
-		arg,
-		r.User.ID,
+		`SELECT persons.actor->>'$.id', follows.id FROM follows JOIN persons ON persons.id = follows.follower WHERE (persons.cid = $1 OR persons.slug = $1) AND follows.followed = $2`,
+		linkParam(arg),
+		r.User.CompatibleID(),
 	).Scan(&follower, &followID); errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Failed to fetch follow request to reject", "follower", arg)
 		w.Status(40, "No such follow request")

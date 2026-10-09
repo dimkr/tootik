@@ -52,12 +52,12 @@ func (h *Handler) mentions(w text.Writer, r *Request, args ...string) {
 				left join persons sharers on
 					sharers.id = page.sharer
 				left join notes parent_notes on
-					parent_notes.id = notes.object->>'$.inReplyTo'
+					parent_notes.cid = notes.inreplytocid
 				left join persons parent_authors on
 					parent_authors.id = parent_notes.author
 				order by page.inserted desc
 				`,
-				r.User.ID,
+				r.User.CompatibleID(),
 				h.Config.PostsPerPage,
 				offset,
 			)

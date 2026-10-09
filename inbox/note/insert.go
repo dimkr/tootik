@@ -20,6 +20,7 @@ package note
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -56,6 +57,39 @@ func Flatten(note *ap.Object) string {
 	return b.String()
 }
 
+type querier interface {
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
+// CompatibleID returns an ID in compatible form: if it's an ap:// URI, it's converted to a URL of the first gateway of
+// a cached actor with the same origin, or to a URL of the first location hint.
+func CompatibleID(ctx context.Context, db querier, id string) (string, error) {
+	parsed, err := ap.ParseID(id)
+	if err != nil {
+		return "", err
+	}
+
+	if parsed.Kind != ap.PortableID {
+		return id, nil
+	}
+
+	var gw string
+	if err := db.QueryRowContext(
+		ctx,
+		`select actor->>'$.gateways[0]' from persons where cid >= $1 and cid < $2 and actor->>'$.gateways[0]' is not null order by ed25519seed is not null desc, updated desc limit 1`,
+		"ap://"+parsed.Origin+"/",
+		"ap://"+parsed.Origin+"0",
+	).Scan(&gw); errors.Is(err, sql.ErrNoRows) && len(parsed.Gateways) > 0 {
+		gw = parsed.Gateways[0]
+	} else if errors.Is(err, sql.ErrNoRows) {
+		return "", fmt.Errorf("no gateway for %s", id)
+	} else if err != nil {
+		return "", fmt.Errorf("failed to find gateway for %s: %w", id, err)
+	}
+
+	return ap.Gateway(gw, parsed.Canonical), nil
+}
+
 // Insert inserts a post.
 func Insert(ctx context.Context, tx *sql.Tx, note *ap.Object) error {
 	public := 0
@@ -63,13 +97,29 @@ func Insert(ctx context.Context, tx *sql.Tx, note *ap.Object) error {
 		public = 1
 	}
 
+	id, err := CompatibleID(ctx, tx, note.ID)
+	if err != nil {
+		return fmt.Errorf("failed to insert note %s: %w", note.ID, err)
+	}
+
+	author, err := CompatibleID(ctx, tx, note.AttributedTo)
+	if err != nil {
+		return fmt.Errorf("failed to insert note %s: %w", note.ID, err)
+	}
+
+	// posts with ap:// IDs are linked using their canonical IDs
+	slug := ap.Slug(id)
+	if parsed, err := ap.ParseID(note.ID); err == nil && parsed.Kind == ap.PortableID {
+		slug = ap.Slug(parsed.Canonical)
+	}
+
 	var pk int64
 	if err := tx.QueryRowContext(
 		ctx,
 		`INSERT INTO notes (slug, id, author, object, public) VALUES (?, ?, ?, JSONB(?), ?) RETURNING pk`,
-		ap.Slug(note.ID),
-		note.ID,
-		note.AttributedTo,
+		slug,
+		id,
+		author,
 		&note,
 		public,
 	).Scan(&pk); err != nil {

@@ -33,7 +33,7 @@ func (h *Handler) hashtag(w text.Writer, r *Request, args ...string) {
 			return h.DB.QueryContext(
 				r.Context,
 				`select json(page.object), json(persons.actor), null, page.inserted, page.nreplies, page.nquotes, page.nshares, json(parent_authors.actor) from (
-					select notes.id, notes.object, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares from
+					select notes.id, notes.object, notes.inreplytocid, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares from
 					notes
 					join hashtags on
 						notes.id = hashtags.note
@@ -47,7 +47,7 @@ func (h *Handler) hashtag(w text.Writer, r *Request, args ...string) {
 				join persons on
 					page.author = persons.id
 				left join notes parent_notes on
-					parent_notes.id = page.object->>'$.inReplyTo'
+					parent_notes.cid = page.inreplytocid
 				left join persons parent_authors on
 					parent_authors.id = parent_notes.author
 				order by

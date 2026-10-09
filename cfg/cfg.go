@@ -138,6 +138,7 @@ type Config struct {
 
 	DisableIntegrityProofs bool
 	MaxGateways            int
+	CanonicalIDs           bool
 
 	InboxPageSize  int
 	OutboxPageSize int

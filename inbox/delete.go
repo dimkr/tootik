@@ -37,7 +37,7 @@ func (inbox *Inbox) delete(ctx context.Context, actor *ap.Actor, key httpsig.Key
 		},
 		ID:    note.ID + "#delete",
 		Type:  ap.Delete,
-		Actor: note.AttributedTo,
+		Actor: actor.IDWithGateways(),
 		Object: &ap.Object{
 			Type: note.Type,
 			ID:   note.ID,
@@ -77,7 +77,7 @@ func (inbox *Inbox) delete(ctx context.Context, actor *ap.Actor, key httpsig.Key
 		ctx,
 		`INSERT INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
 		s,
-		note.AttributedTo,
+		actor.CompatibleID(),
 		time.Now().UnixNano(),
 	); err != nil {
 		return err

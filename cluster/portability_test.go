@@ -187,6 +187,165 @@ func TestCluster_Gateways(t *testing.T) {
 		NotContains(gmi.Line{Type: gmi.Quote, Text: "yo"})
 }
 
+func TestCluster_ReplyForwardingCanonicalIDs(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
+
+	cluster["a.localdomain"].Config.CanonicalIDs = true
+	cluster["b.localdomain"].Config.CanonicalIDs = true
+
+	alice := cluster["a.localdomain"].RegisterPortable(aliceKeypair).OK()
+	bob := cluster["b.localdomain"].RegisterPortable(bobKeypair).OK()
+	carol := cluster["c.localdomain"].RegisterPortable(carolKeypair).OK()
+
+	alice.
+		FollowInput("🔭 View profile", "bob@b.localdomain").
+		Follow("⚡ Follow bob").
+		OK()
+	carol.
+		FollowInput("🔭 View profile", "bob@b.localdomain").
+		Follow("⚡ Follow bob").
+		OK()
+	cluster.Settle(t)
+
+	post := bob.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "hello").
+		OK()
+	cluster.Settle(t)
+
+	reply := alice.GotoInput(post.Links["💬 Reply"], "hi").
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
+	cluster.Settle(t)
+
+	bob = bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
+	alice.
+		Follow("😈 My profile").
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
+	carol = carol.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
+
+	reply.FollowInput("🩹 Edit", "hola").OK()
+	cluster.Settle(t)
+
+	bob.
+		Refresh().
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
+	alice.
+		Follow("😈 My profile").
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
+	carol.
+		Refresh().
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
+
+	reply.Follow("💣 Delete").OK()
+	cluster.Settle(t)
+
+	bob.
+		Refresh().
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
+	alice.
+		Follow("😈 My profile").
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
+	carol.
+		Refresh().
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "hola"})
+}
+
+func TestCluster_GatewaysCanonicalIDs(t *testing.T) {
+	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
+	defer cluster.Stop()
+
+	cluster["a.localdomain"].Config.CanonicalIDs = true
+	cluster["c.localdomain"].Config.CanonicalIDs = true
+
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+	registerPortable := "/users/register?" + data.EncodeEd25519PrivateKey(priv)
+
+	did := "did:key:" + data.EncodeEd25519PublicKey(pub)
+
+	alice := cluster["a.localdomain"].Handle(aliceKeypair, registerPortable).OK()
+	bob := cluster["b.localdomain"].RegisterPortable(bobKeypair).OK()
+	carol := cluster["c.localdomain"].Handle(carolKeypair, registerPortable).OK()
+
+	alice.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "c.localdomain").
+		OK()
+
+	carol.
+		Follow("⚙️ Settings").
+		Follow("🚲 Data portability").
+		FollowInput("➕ Add", "a.localdomain").
+		OK()
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Follow("⚡ Follow alice").
+		OK()
+	cluster.Settle(t)
+
+	bob.
+		Follow("⚡️ Follows").
+		Contains(gmi.Line{Type: gmi.Link, Text: "🚴 alice (alice@a.localdomain)", URL: "/users/outbox/" + ap.Slug("https://a.localdomain/.well-known/apgateway/"+did+"/actor")})
+
+	post := alice.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "hi").
+		OK()
+	carol.
+		Follow("📣 New post").
+		FollowInput("📣 Anyone", "hello").
+		OK()
+	cluster.Settle(t)
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hi"})
+
+	bob.
+		FollowInput("🔭 View profile", "carol@c.localdomain").
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hello"})
+
+	bob.GotoInput(post.Links["💬 Reply"], "hola").
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
+	cluster.Settle(t)
+
+	alice.
+		Goto(post.Path).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
+
+	carol.
+		Goto(post.Path).
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
+
+	carol.
+		FollowInput("🔭 View profile", "bob@b.localdomain").
+		Contains(gmi.Line{Type: gmi.Quote, Text: "hola"})
+
+	carol.GotoInput(post.Links["🩹 Edit"], "yo").
+		Contains(gmi.Line{Type: gmi.Quote, Text: "yo"})
+	cluster.Settle(t)
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		Contains(gmi.Line{Type: gmi.Quote, Text: "yo"})
+
+	carol.Goto(post.Links["💣 Delete"])
+	cluster.Settle(t)
+
+	bob.
+		FollowInput("🔭 View profile", "alice@a.localdomain").
+		NotContains(gmi.Line{Type: gmi.Quote, Text: "yo"})
+}
+
 func TestCluster_ForwardedLegacyReply(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
 	defer cluster.Stop()

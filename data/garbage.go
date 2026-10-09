@@ -63,7 +63,7 @@ func (gc *GarbageCollector) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to remove old shares: %w", err)
 	}
 
-	if _, err := gc.DB.ExecContext(ctx, `delete from outbox where inserted < ? and host != ?`, now.Add(-gc.Config.DeliveryTTL).UnixNano(), gc.Domain); err != nil {
+	if _, err := gc.DB.ExecContext(ctx, `delete from outbox where inserted < ? and host != ? and not exists (select 1 from persons where persons.cid = 'ap://' || outbox.host || '/actor' and persons.ed25519seed is not null)`, now.Add(-gc.Config.DeliveryTTL).UnixNano(), gc.Domain); err != nil {
 		return fmt.Errorf("failed to remove old posts: %w", err)
 	}
 

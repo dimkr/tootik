@@ -89,8 +89,8 @@ func insertActor(
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT OR IGNORE INTO persons (slug, id, actor, rsaprivkey, ed25519seed, mldsa44seed) VALUES (?, ?, JSONB(?), ?, ?, ?)`,
-		ap.Slug(actor.ID),
-		actor.ID,
+		ap.Slug(actor.CompatibleID()),
+		actor.CompatibleID(),
 		actor,
 		x509.MarshalPKCS1PrivateKey(rsaPriv),
 		ed25519Priv.Seed(),
@@ -115,7 +115,7 @@ func insertActor(
 		if _, err := tx.ExecContext(
 			ctx,
 			`UPDATE invites SET invited = ? WHERE certhash = ? AND invited IS NULL`,
-			actor.ID,
+			actor.CompatibleID(),
 			certHash,
 		); err != nil {
 			return err
@@ -125,7 +125,7 @@ func insertActor(
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT OR IGNORE INTO keys (actor, id) VALUES ($1, $2), ($1, $3), ($1, $4)`,
-		actor.ID,
+		actor.CompatibleID(),
 		actor.PublicKey.ID,
 		actor.AssertionMethod[0].ID,
 		actor.AssertionMethod[1].ID,
@@ -220,7 +220,12 @@ func CreatePortableWithKey(
 		return nil, [3]httpsig.Key{}, fmt.Errorf("failed to generate RSA key pair: %w", err)
 	}
 
-	id := fmt.Sprintf("https://%s/.well-known/apgateway/did:key:%s/actor", domain, didKeyMultibase)
+	compatibleID := fmt.Sprintf("https://%s/.well-known/apgateway/did:key:%s/actor", domain, didKeyMultibase)
+	id := compatibleID
+	if cfg.CanonicalIDs {
+		id = fmt.Sprintf("ap://did:key:%s/actor", didKeyMultibase)
+	}
+
 	actor := ap.Actor{
 		Context: []string{
 			"https://www.w3.org/ns/activitystreams",
@@ -234,7 +239,7 @@ func CreatePortableWithKey(
 			{
 				Type:      ap.Image,
 				MediaType: icon.MediaType,
-				URL:       fmt.Sprintf("%s/icon%s", id, icon.FileNameExtension),
+				URL:       fmt.Sprintf("%s/icon%s", compatibleID, icon.FileNameExtension),
 			},
 		},
 		Inbox:     id + "/inbox",

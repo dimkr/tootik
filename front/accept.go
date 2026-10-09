@@ -43,9 +43,9 @@ func (h *Handler) accept(w text.Writer, r *Request, args ...string) {
 	var follower, followID string
 	if err := tx.QueryRowContext(
 		r.Context,
-		`SELECT follows.follower, follows.id FROM follows JOIN persons ON persons.id = follows.follower WHERE follows.followed = $1 AND (persons.id = 'https://' || $2 OR persons.slug = $2) AND follows.accepted IS NULL`,
-		r.User.ID,
-		arg,
+		`SELECT persons.actor->>'$.id', follows.id FROM follows JOIN persons ON persons.id = follows.follower WHERE follows.followed = $1 AND (persons.cid = $2 OR persons.slug = $2) AND follows.accepted IS NULL`,
+		r.User.CompatibleID(),
+		linkParam(arg),
 	).Scan(&follower, &followID); errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Failed to fetch follow request to approve", "follower", arg)
 		w.Status(40, "No such follow request")

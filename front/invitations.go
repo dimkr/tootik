@@ -54,7 +54,7 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 		WHERE invites.inviter = $1
 		ORDER BY invites.inserted DESC, persons.actor->>'$.id' DESC
 		`,
-		r.User.ID,
+		r.User.CompatibleID(),
 	)
 	if err != nil {
 		r.Log.Warn("Failed to fetch invites", "error", err)
@@ -81,7 +81,7 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 
 		if row.Actor.Valid {
 			w.Text("Used: " + time.Unix(row.ActorInserted.Int64, 0).Format(time.DateOnly))
-			w.Link("/users/outbox/"+idLink(row.Actor.V.ID), "Used by: "+row.Actor.V.PreferredUsername)
+			w.Link("/users/outbox/"+idLink(row.Actor.V.CompatibleID()), "Used by: "+row.Actor.V.PreferredUsername)
 		} else {
 			if expires := inserted.Add(h.Config.InvitationTimeout); now.After(expires) {
 				w.Text("Expired: " + expires.Format(time.DateOnly))
@@ -138,7 +138,7 @@ func (h *Handler) generateInvitation(w text.Writer, r *Request, args ...string) 
 		FROM invites
 		WHERE inviter = $1 AND certhash IS NULL
 		`,
-		r.User.ID,
+		r.User.CompatibleID(),
 	).Scan(&count); err != nil {
 		r.Log.Warn("Failed to count invites", "error", err)
 		w.Error()
@@ -158,7 +158,7 @@ func (h *Handler) generateInvitation(w text.Writer, r *Request, args ...string) 
 		VALUES ($1, $2)
 		`,
 		code,
-		r.User.ID,
+		r.User.CompatibleID(),
 	); err != nil {
 		r.Log.Warn("Failed to insert invitation", "error", err)
 		w.Error()
@@ -194,7 +194,7 @@ func (h *Handler) revokeInvitation(w text.Writer, r *Request, args ...string) {
 		WHERE code = $1 AND inviter = $2 AND invited IS NULL
 		`,
 		r.URL.RawQuery,
-		r.User.ID,
+		r.User.CompatibleID(),
 	); err != nil {
 		r.Log.Warn("Failed to revoke invitation", "error", err)
 		w.Error()

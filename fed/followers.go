@@ -71,7 +71,7 @@ func fetchFollowers(ctx context.Context, db *sql.DB, followed, host string) (ap.
 			return false
 		},
 		db,
-		`SELECT follower FROM follows WHERE followed = $1 AND follower >= 'https://' || $2 || '/' AND follower < 'https://' || $2 || '0' AND accepted = 1`,
+		`SELECT COALESCE(persons.actor->>'$.id', follows.follower) FROM follows LEFT JOIN persons ON persons.id = follows.follower WHERE follows.followed = $1 AND follows.follower >= 'https://' || $2 || '/' AND follows.follower < 'https://' || $2 || '0' AND follows.accepted = 1`,
 		followed,
 		host,
 	); err != nil {
@@ -96,7 +96,7 @@ func digestFollowers(ctx context.Context, db *sql.DB, followed, host string) (st
 			return false
 		},
 		db,
-		`SELECT follower FROM follows WHERE followed = $1 AND follower >= 'https://' || $2 || '/' AND follower < 'https://' || $2 || '0' AND accepted = 1`,
+		`SELECT COALESCE(persons.actor->>'$.id', follows.follower) FROM follows LEFT JOIN persons ON persons.id = follows.follower WHERE follows.followed = $1 AND follows.follower >= 'https://' || $2 || '/' AND follows.follower < 'https://' || $2 || '0' AND follows.accepted = 1`,
 		followed,
 		host,
 	); err != nil {
@@ -117,14 +117,14 @@ func (f partialFollowers) Digest(ctx context.Context, db *sql.DB, domain string,
 		f[actor.ID] = byActor
 	}
 
-	digest, err := digestFollowers(ctx, db, actor.ID, host)
+	digest, err := digestFollowers(ctx, db, actor.CompatibleID(), host)
 	if err != nil {
 		return "", err
 	}
 
 	var header string
-	if m := ap.GatewayURLRegex.FindStringSubmatch(actor.ID); m != nil {
-		header = fmt.Sprintf(`collectionId="%s", url="https://%s/.well-known/apgateway/did:key:%s/actor/followers_synchronization", digest="%s"`, actor.Followers, domain, m[1], digest)
+	if parsed, err := ap.ParseID(actor.ID); err == nil && parsed.Kind != ap.URLID {
+		header = fmt.Sprintf(`collectionId="%s", url="https://%s/.well-known/apgateway/%s/actor/followers_synchronization", digest="%s"`, actor.Followers, domain, parsed.Origin, digest)
 	} else {
 		header = fmt.Sprintf(`collectionId="%s", url="https://%s/followers_synchronization/%s", digest="%s"`, actor.Followers, domain, actor.PreferredUsername, digest)
 	}
@@ -142,7 +142,7 @@ func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := url.Parse(sender.ID)
+	u, err := ap.ParseID(sender.CompatibleID())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -159,7 +159,7 @@ func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 			return false
 		},
 		l.DB,
-		`SELECT follower FROM follows WHERE followed = 'https://' || ? || '/user/' || ? AND follower LIKE 'https://' || ? || '/%' AND accepted = 1`,
+		`SELECT COALESCE(persons.actor->>'$.id', follows.follower) FROM follows LEFT JOIN persons ON persons.id = follows.follower WHERE follows.followed = 'https://' || ? || '/user/' || ? AND follows.follower LIKE 'https://' || ? || '/%' AND follows.accepted = 1`,
 		l.Domain,
 		name,
 		u.Host,
@@ -214,24 +214,23 @@ func (l *Listener) saveFollowersDigest(ctx context.Context, sender *ap.Actor, he
 		return errors.New("invalid digest length")
 	}
 
-	u, err := url.Parse(sender.ID)
+	senderID, err := ap.ParseID(sender.CompatibleID())
 	if err != nil {
 		return fmt.Errorf("invalid actor ID: %w", err)
 	}
-	host := u.Host
 
-	u, err = url.Parse(partial)
+	u, err := url.Parse(partial)
 	if err != nil {
 		return fmt.Errorf("invalid partial followers collection: %w", err)
 	}
-	if u.Host != host {
+	if u.Host != senderID.Host {
 		return errors.New("partial collection host does not match actor")
 	}
 
 	if _, err := l.DB.ExecContext(
 		ctx,
 		`INSERT INTO follows_sync(actor, url, digest) VALUES($1, $2, $3) ON CONFLICT(actor) DO UPDATE SET url = $2, digest = $3, changed = CASE WHEN digest = $3 THEN changed ELSE UNIXEPOCH() END`,
-		sender.ID,
+		sender.CompatibleID(),
 		partial,
 		digest,
 	); err != nil {
@@ -284,8 +283,16 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 		return err
 	}
 
+	remoteFollowers := make(map[string]struct{}, len(remote.OrderedItems.OrderedMap))
+	for follower := range remote.OrderedItems.Keys() {
+		remoteFollowers[ap.Canonical(follower)] = struct{}{}
+	}
+
+	localFollowers := make(map[string]struct{}, len(local.OrderedMap))
 	for follower := range local.Keys() {
-		if remote.OrderedItems.Contains(follower) {
+		localFollowers[ap.Canonical(follower)] = struct{}{}
+
+		if _, ok := remoteFollowers[ap.Canonical(follower)]; ok {
 			continue
 		}
 
@@ -293,8 +300,8 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 
 		if _, err := db.ExecContext(
 			ctx,
-			`UPDATE follows SET accepted = NULL WHERE follower = ? AND followed = ?`,
-			follower,
+			`UPDATE follows SET accepted = NULL WHERE follower IN (SELECT id FROM persons WHERE cid = ? AND ed25519seed IS NOT NULL) AND followed = ?`,
+			ap.Canonical(follower),
 			d.Followed,
 		); err != nil {
 			slog.Warn("Failed to remove local follow", "followed", d.Followed, "follower", follower, "error", err)
@@ -304,11 +311,11 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 	prefix := fmt.Sprintf("https://%s/", domain)
 
 	for follower := range remote.OrderedItems.Keys() {
-		if local.Contains(follower) {
+		if _, ok := localFollowers[ap.Canonical(follower)]; ok {
 			continue
 		}
 
-		if !strings.HasPrefix(follower, prefix) {
+		if !strings.HasPrefix(follower, prefix) && !ap.IsPortable(follower) {
 			continue
 		}
 
@@ -316,7 +323,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 
 		var actor ap.Actor
 		var ed25519Seed, mldsa44Seed []byte
-		if err := db.QueryRowContext(ctx, `SELECT JSON(persons.actor), persons.ed25519seed, persons.mldsa44seed FROM persons WHERE id = ? AND persons.ed25519seed IS NOT NULL`, follower).Scan(&actor, &ed25519Seed, &mldsa44Seed); errors.Is(err, sql.ErrNoRows) {
+		if err := db.QueryRowContext(ctx, `SELECT JSON(persons.actor), persons.ed25519seed, persons.mldsa44seed FROM persons WHERE cid = ? AND persons.ed25519seed IS NOT NULL`, ap.Canonical(follower)).Scan(&actor, &ed25519Seed, &mldsa44Seed); errors.Is(err, sql.ErrNoRows) {
 			slog.Info("Follower does not exist", "followed", d.Followed, "follower", follower)
 			continue
 		} else if err != nil {
@@ -325,7 +332,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 		}
 
 		var followID string
-		if err := db.QueryRowContext(ctx, `SELECT id FROM follows WHERE follower = ? AND followed = ?`, follower, d.Followed).Scan(&followID); err != nil && errors.Is(err, sql.ErrNoRows) {
+		if err := db.QueryRowContext(ctx, `SELECT id FROM follows WHERE follower = ? AND followed = ?`, actor.CompatibleID(), d.Followed).Scan(&followID); err != nil && errors.Is(err, sql.ErrNoRows) {
 			followID = d.Inbox.NewID(actor.ID, "follow")
 			slog.Warn("Using fake follow ID to remove unknown remote follow", "followed", d.Followed, "follower", follower, "id", followID)
 		} else if err != nil {

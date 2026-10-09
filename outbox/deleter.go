@@ -45,7 +45,8 @@ func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 		`
 		select json(persons.actor), persons.ed25519seed, persons.mldsa44seed, json(outbox.activity) from persons
 		join shares on shares.by = persons.id
-		join outbox on outbox.activity->>'$.actor' = shares.by and outbox.activity->>'$.object' = shares.note
+		join notes on notes.id = shares.note
+		join outbox on outbox.actorcid = persons.cid and outbox.activity->>'$.object' = notes.object->>'$.id'
 		where
 			persons.ttl is not null and
 			shares.inserted <= unixepoch() - (persons.ttl * 24 * 60 * 60) and

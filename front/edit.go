@@ -35,7 +35,7 @@ func (h *Handler) doEdit(w text.Writer, r *Request, args []string, readInput inp
 	arg := args[1]
 
 	var note ap.Object
-	if err := h.DB.QueryRowContext(r.Context, `select json(object) from notes where (id = 'https://' || $1 or slug = $1) and deleted = 0 and author in (select id from persons where cid = $2)`, arg, ap.Canonical(r.User.ID)).Scan(&note); errors.Is(err, sql.ErrNoRows) {
+	if err := h.DB.QueryRowContext(r.Context, `select json(object) from notes where (cid = $1 or slug = $1) and deleted = 0 and author in (select id from persons where cid = $2)`, linkParam(arg), ap.Canonical(r.User.ID)).Scan(&note); errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Attempted to edit non-existing post", "post", arg, "error", err)
 		w.Error()
 		return
@@ -52,7 +52,7 @@ func (h *Handler) doEdit(w text.Writer, r *Request, args []string, readInput inp
 	}
 
 	var edits int
-	if err := h.DB.QueryRowContext(r.Context, `select count(*) from outbox where activity->>'$.object.id' = ? and sender = ? and (activity->>'$.type' = 'Update' or activity->>'$.type' = 'Create')`, note.ID, r.User.ID).Scan(&edits); err != nil {
+	if err := h.DB.QueryRowContext(r.Context, `select count(*) from outbox where activity->>'$.object.id' = ? and sender = ? and (activity->>'$.type' = 'Update' or activity->>'$.type' = 'Create')`, note.ID, r.User.CompatibleID()).Scan(&edits); err != nil {
 		r.Log.Warn("Failed to count post edits", "post", note.ID, "error", err)
 		w.Error()
 		return

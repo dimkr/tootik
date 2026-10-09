@@ -71,5 +71,5 @@ func (h *Handler) resolve(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.Redirect("/users/outbox/" + idLink(person.ID))
+	w.Redirect("/users/outbox/" + idLink(person.CompatibleID()))
 }

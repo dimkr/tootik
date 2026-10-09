@@ -47,7 +47,7 @@ func (inbox *Inbox) accept(
 		},
 		Type:   ap.Accept,
 		ID:     inbox.NewID(actor.ID, "accept"),
-		Actor:  actor.ID,
+		Actor:  actor.IDWithGateways(),
 		To:     recipients,
 		Object: request,
 		Result: result,
@@ -69,7 +69,7 @@ func (inbox *Inbox) accept(
 		ctx,
 		`INSERT INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
 		s,
-		actor.ID,
+		actor.CompatibleID(),
 		time.Now().UnixNano(),
 	); err != nil {
 		return nil, "", err

@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
+	notes "github.com/dimkr/tootik/inbox/note"
 )
 
 func (inbox *Inbox) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Object, activity *ap.Activity, rawActivity, firstPostID string) (bool, error) {
@@ -40,7 +41,7 @@ func (inbox *Inbox) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Obj
 				from persons
 				join notes
 				on
-					notes.object->>'$.audience' = persons.id
+					notes.audiencecid = persons.cid
 				where
 					notes.id = $1 and
 					persons.host = $2 and
@@ -79,8 +80,13 @@ func (inbox *Inbox) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Obj
 		return false, err
 	}
 
+	author, err := notes.CompatibleID(ctx, tx, note.AttributedTo)
+	if err != nil {
+		return true, err
+	}
+
 	var following int
-	if err := tx.QueryRowContext(ctx, `select exists (select 1 from follows where follower = ? and followed = ? and accepted = 1)`, note.AttributedTo, group.ID).Scan(&following); err != nil {
+	if err := tx.QueryRowContext(ctx, `select exists (select 1 from follows where follower = ? and followed = ? and accepted = 1)`, author, group.CompatibleID()).Scan(&following); err != nil {
 		return true, err
 	}
 
@@ -94,7 +100,7 @@ func (inbox *Inbox) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Obj
 		ctx,
 		`insert into outbox(activity, sender, inserted) values(jsonb(?), ?, ?)`,
 		rawActivity,
-		group.ID,
+		group.CompatibleID(),
 		time.Now().UnixNano(),
 	); err != nil {
 		return true, err
@@ -111,9 +117,9 @@ func (inbox *Inbox) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Obj
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`update notes set object = jsonb_set(object, '$.audience', $1) where id = $2`,
+		`update notes set object = jsonb_set(object, '$.audience', $1) where cid = $2`,
 		group.ID,
-		note.ID,
+		ap.Canonical(note.ID),
 	); err != nil {
 		return true, err
 	}
@@ -138,7 +144,7 @@ func (inbox *Inbox) forwardActivity(ctx context.Context, tx *sql.Tx, note *ap.Ob
 	var threadStarterID string
 
 	var depth int
-	if err := tx.QueryRowContext(ctx, `with recursive thread(id, author, parent, depth) as (select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, 1 as depth from notes where id = $1 union all select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent where t.depth <= $2) select id, author, depth from thread order by depth desc limit 1`, note.ID, inbox.Config.MaxForwardingDepth+1).Scan(&firstPostID, &threadStarterID, &depth); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := tx.QueryRowContext(ctx, `with recursive thread(id, author, parent, depth) as (select notes.id, notes.author, notes.inreplytocid as parent, 1 as depth from notes where cid = $1 union all select notes.id, notes.author, notes.inreplytocid as parent, t.depth + 1 from thread t join notes on notes.cid = t.parent where t.depth <= $2) select id, author, depth from thread order by depth desc limit 1`, ap.Canonical(note.ID), inbox.Config.MaxForwardingDepth+1).Scan(&firstPostID, &threadStarterID, &depth); err != nil && errors.Is(err, sql.ErrNoRows) {
 		slog.Info("Failed to find thread for post", "activity", activity.ID, "note", note.ID)
 		return nil
 	} else if err != nil {

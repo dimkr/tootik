@@ -70,7 +70,7 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 			follows.insertednano desc,
 			follows.followed
 		`,
-		r.User.ID,
+		r.User.CompatibleID(),
 	)
 	if err != nil {
 		r.Log.Warn("Failed to list followed users", "error", err)
@@ -95,17 +95,17 @@ func (h *Handler) follows(w text.Writer, r *Request, args ...string) {
 			displayName := h.getActorDisplayName(&row.Actor)
 
 			if !row.Accepted.Valid && row.Last.Valid {
-				w.Linkf("/users/outbox/"+idLink(row.Actor.ID), "%s %s - pending approval", time.Unix(row.Last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
+				w.Linkf("/users/outbox/"+idLink(row.Actor.CompatibleID()), "%s %s - pending approval", time.Unix(row.Last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
 			} else if !row.Accepted.Valid {
-				w.Linkf("/users/outbox/"+idLink(row.Actor.ID), "%s - pending approval", displayName)
+				w.Linkf("/users/outbox/"+idLink(row.Actor.CompatibleID()), "%s - pending approval", displayName)
 			} else if row.Last.Valid && row.Accepted.Int32 == 1 {
-				w.Linkf("/users/outbox/"+idLink(row.Actor.ID), "%s %s", time.Unix(row.Last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
+				w.Linkf("/users/outbox/"+idLink(row.Actor.CompatibleID()), "%s %s", time.Unix(row.Last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
 			} else if row.Accepted.Int32 == 1 {
-				w.Link("/users/outbox/"+idLink(row.Actor.ID), displayName)
+				w.Link("/users/outbox/"+idLink(row.Actor.CompatibleID()), displayName)
 			} else if row.Last.Valid {
-				w.Linkf("/users/outbox/"+idLink(row.Actor.ID), "%s %s - rejected", time.Unix(row.Last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
+				w.Linkf("/users/outbox/"+idLink(row.Actor.CompatibleID()), "%s %s - rejected", time.Unix(row.Last.Int64*(60*60*24), 0).Format(time.DateOnly), displayName)
 			} else {
-				w.Linkf("/users/outbox/"+idLink(row.Actor.ID), "%s - rejected", displayName)
+				w.Linkf("/users/outbox/"+idLink(row.Actor.CompatibleID()), "%s - rejected", displayName)
 			}
 
 		}

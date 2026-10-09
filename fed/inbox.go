@@ -427,7 +427,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [3
 		r.Context(),
 		`INSERT OR IGNORE INTO inbox (path, sender, activity, raw) VALUES (?, ?, JSONB(?), ?)`,
 		r.URL.Path,
-		sender.ID,
+		sender.CompatibleID(),
 		queued,
 		danger.String(rawActivity),
 	); err != nil {
@@ -457,7 +457,7 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [3
 		}
 	}
 
-	if capabilities > 0 {
+	if capabilities > 0 && senderHost != "" {
 		if _, err = l.DB.ExecContext(
 			r.Context(),
 			`INSERT INTO servers (host, capabilities) VALUES ($1, $2) ON CONFLICT(host) DO UPDATE SET capabilities = capabilities | $2, updated = UNIXEPOCH() WHERE capabilities | $2 != capabilities`,

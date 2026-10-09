@@ -34,7 +34,7 @@ func (h *Handler) delete(w text.Writer, r *Request, args ...string) {
 	arg := args[1]
 
 	var note ap.Object
-	if err := h.DB.QueryRowContext(r.Context, `select json(object) from notes where (id = 'https://' || $1 or slug = $1) and deleted = 0 and author in (select id from persons where cid = $2)`, arg, ap.Canonical(r.User.ID)).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := h.DB.QueryRowContext(r.Context, `select json(object) from notes where (cid = $1 or slug = $1) and deleted = 0 and author in (select id from persons where cid = $2)`, linkParam(arg), ap.Canonical(r.User.ID)).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Attempted to delete a non-existing post", "post", arg, "error", err)
 		w.Error()
 		return

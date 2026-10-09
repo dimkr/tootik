@@ -54,10 +54,10 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			join persons on persons.id = notes.author
 			left join (select id, actor from persons where actor->>'$.type' = 'Group') groups on exists (select 1 from shares where shares.by = groups.id and shares.note = notes.id)
 			where
-				(notes.id = 'https://' || $1 or notes.slug = $1) and
+				(notes.cid = $1 or notes.slug = $1) and
 				notes.public = 1
 			`,
-			arg,
+			linkParam(arg),
 		).Scan(&note, &author, &group)
 	} else {
 		err = h.DB.QueryRowContext(
@@ -67,13 +67,13 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			join persons on persons.id = notes.author
 			left join (select id, actor from persons where actor->>'$.type' = 'Group') groups on exists (select 1 from shares where shares.by = groups.id and shares.note = notes.id)
 			where
-				(notes.id = 'https://' || $1 or notes.slug = $1) and
+				(notes.cid = $1 or notes.slug = $1) and
 				(
 					notes.public = 1 or
 					notes.author = $2 or
-					$2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $2)) or
-					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $2)) or
+					(select actor->>'$.id' from persons where persons.id = $2) in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = (select actor->>'$.id' from persons where persons.id = $2))) or
+					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = (select actor->>'$.id' from persons where persons.id = $2))) or
 					exists (
 						select 1 from (
 							select persons.id, persons.actor->>'$.followers' as followers, persons.actor->>'$.type' as type from persons
@@ -90,8 +90,8 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 					)
 				)
 			`,
-			arg,
-			r.User.ID,
+			linkParam(arg),
+			r.User.CompatibleID(),
 		).Scan(&note, &author, &group)
 	}
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
@@ -124,28 +124,28 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				`
 				select json(note), json(author), max_depth from
 				(
-					with recursive thread(id, note, author, depth) as (
-						select notes.id, notes.object as note, persons.actor as author, 1 as depth
+					with recursive thread(id, note, inreplytocid, author, depth) as (
+						select notes.id, notes.object as note, notes.inreplytocid, persons.actor as author, 1 as depth
 						from notes
 						join persons on persons.id = notes.author
-						where notes.id = ?
+						where notes.cid = ?
 						union all
-						select notes.id, notes.object as note, persons.actor as author, 0 as depth
+						select notes.id, notes.object as note, notes.inreplytocid, persons.actor as author, 0 as depth
 						from notes
 						join persons on persons.id = notes.author
-						where notes.object->>'$.context' = ? and notes.object->>'$.inReplyTo' is null
+						where notes.contextcid = ? and notes.object->>'$.inReplyTo' is null
 						union all
-						select notes.id, notes.object as note, persons.actor as author, t.depth + 1
+						select notes.id, notes.object as note, notes.inreplytocid, persons.actor as author, t.depth + 1
 						from thread t
-						join notes on notes.id = t.note->>'$.inReplyTo'
+						join notes on notes.cid = t.inreplytocid
 						join persons on persons.id = notes.author
 					)
 					select note, author, max(depth) as max_depth from thread group by id order by note->'$.inReplyTo' is null desc, max_depth limit ?
 				)
 				order by max_depth desc
 				`,
-				note.InReplyTo,
-				note.BackfillContext,
+				ap.Canonical(note.InReplyTo),
+				ap.Canonical(note.BackfillContext),
 				h.Config.PostContextDepth,
 			); err != nil {
 				r.Log.Info("Failed to fetch context", "error", err)
@@ -245,9 +245,9 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		}
 
 		if r.User == nil && group.Valid {
-			links.Store("/outbox/"+idLink(group.V.ID), "🔄 "+group.V.PreferredUsername)
+			links.Store("/outbox/"+idLink(group.V.CompatibleID()), "🔄 "+group.V.PreferredUsername)
 		} else if group.Valid {
-			links.Store("/users/outbox/"+idLink(group.V.ID), "🔄️ "+group.V.PreferredUsername)
+			links.Store("/users/outbox/"+idLink(group.V.CompatibleID()), "🔄️ "+group.V.PreferredUsername)
 		} else if note.IsPublic() {
 			var rows *sql.Rows
 			var err error
@@ -259,24 +259,24 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 1 as rank from shares
 						join notes on notes.id = shares.note
 						join persons on persons.id = shares.by
-						where shares.note = $1 and persons.actor->>'$.type' = 'Group'
+						where shares.note = (select id from notes where cid = $1) and persons.actor->>'$.type' = 'Group'
 						union all
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 2 as rank from shares
 						join notes on notes.id = shares.note
 						join persons on persons.id = shares.by
-						where shares.note = $1
+						where shares.note = (select id from notes where cid = $1)
 						union all
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 3 as rank from shares
 						join persons on persons.id = shares.by
-						where shares.note = $1 and persons.host = $2
+						where shares.note = (select id from notes where cid = $1) and persons.host = $2
 						union all
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 4 as rank from shares
 						join persons on persons.id = shares.by
-						where shares.note = $1 and persons.host != $2
+						where shares.note = (select id from notes where cid = $1) and persons.host != $2
 					)
 					group by id
 					order by min(rank), inserted limit $3`,
-					note.ID,
+					ap.Canonical(note.ID),
 					h.Domain,
 					h.Config.SharesPerPost,
 				)
@@ -288,30 +288,30 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 1 as rank from shares
 						join notes on notes.id = shares.note
 						join persons on persons.id = shares.by
-						where shares.note = $1 and persons.actor->>'$.type' = 'Group'
+						where shares.note = (select id from notes where cid = $1) and persons.actor->>'$.type' = 'Group'
 						union all
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 2 as rank from shares
 						join notes on notes.id = shares.note
 						join persons on persons.id = shares.by
-						where shares.note = $1
+						where shares.note = (select id from notes where cid = $1)
 						union all
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 3 as rank from shares
 						join follows on follows.followed = shares.by
 						join persons on persons.id = follows.followed
-						where shares.note = $1 and follows.follower = $2 and follows.accepted = 1
+						where shares.note = (select id from notes where cid = $1) and follows.follower = $2 and follows.accepted = 1
 						union all
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 4 as rank from shares
 						join persons on persons.id = shares.by
-						where shares.note = $1 and persons.host = $3
+						where shares.note = (select id from notes where cid = $1) and persons.host = $3
 						union all
 						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 5 as rank from shares
 						join persons on persons.id = shares.by
-						where shares.note = $1 and persons.host != $3
+						where shares.note = (select id from notes where cid = $1) and persons.host != $3
 					)
 					group by id
 					order by min(rank), inserted limit $4`,
-					note.ID,
-					r.User.ID,
+					ap.Canonical(note.ID),
+					r.User.CompatibleID(),
 					h.Domain,
 					h.Config.SharesPerPost,
 				)
@@ -351,11 +351,11 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			`
 			select notes.id, persons.actor->>'$.preferredUsername' from
 			notes join persons on persons.id = notes.author
-			where notes.object->>'$.quote' = ?
+			where notes.quotecid = ?
 			order by notes.inserted desc
 			limit ?
 			`,
-			note.ID,
+			ap.Canonical(note.ID),
 			h.Config.QuotesPerPost,
 		); err != nil {
 			r.Log.Warn("Failed to query quotes", "error", err)
@@ -386,9 +386,9 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		}
 
 		if r.User == nil {
-			w.Link("/outbox/"+idLink(author.ID), author.PreferredUsername)
+			w.Link("/outbox/"+idLink(author.CompatibleID()), author.PreferredUsername)
 		} else {
-			w.Link("/users/outbox/"+idLink(author.ID), author.PreferredUsername)
+			w.Link("/users/outbox/"+idLink(author.CompatibleID()), author.PreferredUsername)
 		}
 
 		for link, alt := range links.All() {
@@ -405,7 +405,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 
 		for tag := range hashtags.Values() {
 			var exists int
-			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from hashtags where hashtag = ? and note != ?)`, tag, note.ID).Scan(&exists); err != nil {
+			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from hashtags where hashtag = ? and note != (select id from notes where cid = ?))`, tag, ap.Canonical(note.ID)).Scan(&exists); err != nil {
 				r.Log.Warn("Failed to check if hashtag is used by other posts", "note", note.ID, "hashtag", tag)
 				continue
 			}
@@ -436,7 +436,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 
 		if r.User != nil && note.IsPublic() && ap.Canonical(note.AttributedTo) != ap.Canonical(r.User.ID) {
 			var shared int
-			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from shares where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&shared); err != nil {
+			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from shares where note = (select id from notes where cid = ?) and by = ?)`, ap.Canonical(note.ID), r.User.CompatibleID()).Scan(&shared); err != nil {
 				r.Log.Warn("Failed to check if post is shared", "id", note.ID, "error", err)
 			} else if shared == 0 {
 				w.Link("/users/share/"+arg, "🔁 Share")
@@ -447,7 +447,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 
 		if r.User != nil {
 			var bookmarked int
-			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from bookmarks where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&bookmarked); err != nil {
+			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from bookmarks where note = (select id from notes where cid = ?) and by = ?)`, ap.Canonical(note.ID), r.User.CompatibleID()).Scan(&bookmarked); err != nil {
 				r.Log.Warn("Failed to check if post is bookmarked", "id", note.ID, "error", err)
 			} else if bookmarked == 0 {
 				w.Link("/users/bookmark/"+arg, "🔖 Bookmark")
@@ -504,9 +504,9 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				`
 				select json(notes.object), persons.actor->>'$.preferredUsername' from notes
 				join persons on persons.id = notes.author
-				where notes.id = ?
+				where notes.cid = ?
 				`,
-				note.Quote,
+				ap.Canonical(note.Quote),
 			).Scan(&quote, &quoteAuthor); errors.Is(err, sql.ErrNoRows) {
 				w.Text("[Missing]")
 			} else if err != nil {
@@ -541,14 +541,14 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		replies, err = h.DB.QueryContext(
 			r.Context,
 			`
-			select json(replies.object), json(persons.actor), null as sharer, replies.inserted, replies.nreplies, replies.nquotes, replies.nshares, null from notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
+			select json(replies.object), json(persons.actor), null as sharer, replies.inserted, replies.nreplies, replies.nquotes, replies.nshares, null from notes join notes replies on replies.inreplytocid = notes.cid
 			left join persons on persons.id = replies.author
 			where
-				notes.id = $1 and
+				notes.cid = $1 and
 				replies.public = 1
 			order by replies.inserted desc limit $2 offset $3
 			`,
-			note.ID,
+			ap.Canonical(note.ID),
 			h.Config.RepliesPerPage,
 			offset,
 		)
@@ -557,16 +557,16 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			r.Context,
 			`
 			select json(replies.object), json(persons.actor), null as sharer, replies.inserted, replies.nreplies, replies.nquotes, replies.nshares, null from
-			notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
+			notes join notes replies on replies.inreplytocid = notes.cid
 			left join persons on persons.id = replies.author
 			where
-				notes.id = $1 and
+				notes.cid = $1 and
 				(
 					replies.public = 1 or
 					replies.author = $2 or
-					$2 in (replies.cc0, replies.to0, replies.cc1, replies.to1, replies.cc2, replies.to2) or
-					(replies.to2 is not null and exists (select 1 from json_each(replies.object->'$.to') where value = $2)) or
-					(replies.cc2 is not null and exists (select 1 from json_each(replies.object->'$.cc') where value = $2)) or
+					(select actor->>'$.id' from persons where persons.id = $2) in (replies.cc0, replies.to0, replies.cc1, replies.to1, replies.cc2, replies.to2) or
+					(replies.to2 is not null and exists (select 1 from json_each(replies.object->'$.to') where value = (select actor->>'$.id' from persons where persons.id = $2))) or
+					(replies.cc2 is not null and exists (select 1 from json_each(replies.object->'$.cc') where value = (select actor->>'$.id' from persons where persons.id = $2))) or
 					exists (
 						select 1 from persons
 						join follows on follows.followed = persons.id
@@ -583,8 +583,8 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				)
 			order by replies.inserted desc limit $3 offset $4
 			`,
-			note.ID,
-			r.User.ID,
+			ap.Canonical(note.ID),
+			r.User.CompatibleID(),
 			h.Config.RepliesPerPage,
 			offset,
 		)

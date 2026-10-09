@@ -66,7 +66,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 				join persons authors on
 					authors.id = notes.author and coalesce(authors.actor->>'$.discoverable', 1)
 				left join notes parent_notes on
-					parent_notes.id = notes.object->>'$.inReplyTo'
+					parent_notes.cid = notes.inreplytocid
 				left join persons parent_authors on
 					parent_authors.id = parent_notes.author
 				left join persons groups on
@@ -91,14 +91,14 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 				)
 				select json(u.object), json(authors.actor), json(groups.actor), u.inserted, u.nreplies, u.nquotes, u.nshares, json(parent_authors.actor) from
 				(
-					select notes.id, notes.object, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares, top.rank, 2 as aud from
+					select notes.id, notes.object, notes.inreplytocid, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares, top.rank, 2 as aud from
 					top
 					join notes on
 						notes.pk = top.rowid
 					where
 						notes.public = 1
 					union all
-					select notes.id, notes.object, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares, top.rank, 1 as aud from
+					select notes.id, notes.object, notes.inreplytocid, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares, top.rank, 1 as aud from
 					follows
 					join
 					persons
@@ -119,21 +119,21 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 						follows.follower = $3 and
 						follows.accepted = 1
 					union all
-					select notes.id, notes.object, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares, top.rank, 0 as aud from
+					select notes.id, notes.object, notes.inreplytocid, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares, top.rank, 0 as aud from
 					top
 					join notes on
 						notes.pk = top.rowid
 					where
 						(
-							$3 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $3)) or
-							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $3))
+							(select actor->>'$.id' from persons where persons.id = $3) in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = (select actor->>'$.id' from persons where persons.id = $3))) or
+							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = (select actor->>'$.id' from persons where persons.id = $3)))
 						)
 				) u
 				join persons authors on
 					authors.id = u.author and coalesce(authors.actor->>'$.discoverable', 1)
 				left join notes parent_notes on
-					parent_notes.id = u.object->>'$.inReplyTo'
+					parent_notes.cid = u.inreplytocid
 				left join persons parent_authors on
 					parent_authors.id = parent_notes.author
 				left join persons groups on
@@ -149,7 +149,7 @@ func (h *Handler) fts(w text.Writer, r *Request, args ...string) {
 			`,
 			query,
 			h.Config.MaxFTSResults,
-			r.User.ID,
+			r.User.CompatibleID(),
 			h.Config.PostsPerPage,
 			offset,
 		)

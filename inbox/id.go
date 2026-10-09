@@ -27,8 +27,10 @@ import (
 func (inbox *Inbox) NewID(actorID, prefix string) string {
 	u := uuid.NewV7()
 
-	if m := ap.GatewayURLRegex.FindStringSubmatch(actorID); m != nil {
-		return fmt.Sprintf("https://%s/.well-known/apgateway/did:key:%s/actor/%s/%s", inbox.Domain, m[1], prefix, u.String())
+	if parsed, err := ap.ParseID(actorID); err == nil && parsed.Kind != ap.URLID && inbox.Config.CanonicalIDs {
+		return fmt.Sprintf("ap://%s/actor/%s/%s", parsed.Origin, prefix, u.String())
+	} else if err == nil && parsed.Kind != ap.URLID {
+		return fmt.Sprintf("https://%s/.well-known/apgateway/%s/actor/%s/%s", inbox.Domain, parsed.Origin, prefix, u.String())
 	}
 
 	return fmt.Sprintf("https://%s/%s/%s", inbox.Domain, prefix, u.String())

@@ -26,5 +26,5 @@ func me(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	w.Redirect("/users/outbox/" + idLink(r.User.ID))
+	w.Redirect("/users/outbox/" + idLink(r.User.CompatibleID()))
 }

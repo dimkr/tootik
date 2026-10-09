@@ -27,6 +27,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/httpsig"
+	"github.com/dimkr/tootik/inbox/note"
 	"github.com/dimkr/tootik/proof"
 )
 
@@ -52,7 +53,7 @@ func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, post *ap.Object
 		},
 		Type:   ap.Create,
 		ID:     inbox.NewID(author.ID, "create"),
-		Actor:  author.ID,
+		Actor:  author.IDWithGateways(),
 		Object: post,
 		To:     post.To,
 		CC:     post.CC,
@@ -84,7 +85,7 @@ func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, post *ap.Object
 		ctx,
 		`insert into outbox (activity, sender, inserted) values (jsonb(?),?,?)`,
 		s,
-		author.ID,
+		author.CompatibleID(),
 		time.Now().UnixNano(),
 	); err != nil {
 		return err
@@ -103,7 +104,12 @@ func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, post *ap.Object
 		return err
 	}
 
-	if _, err = tx.ExecContext(ctx, `insert into feed(follower, note, author, inserted) values($1, $2, $1, unixepoch())`, author.ID, post.ID); err != nil {
+	noteID, err := note.CompatibleID(ctx, tx, post.ID)
+	if err != nil {
+		return err
+	}
+
+	if _, err = tx.ExecContext(ctx, `insert into feed(follower, note, author, inserted) values($1, $2, $1, unixepoch())`, author.CompatibleID(), noteID); err != nil {
 		return err
 	}
 
