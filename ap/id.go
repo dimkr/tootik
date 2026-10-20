@@ -39,24 +39,17 @@ var (
 	// KeyRegex matches any Multibase-encoded public key.
 	KeyRegex = regexp.MustCompile(`\b(` + PortableActorPubPattern + `|` + ed25519PubBase64 + `|` + mldsa44PubBase58 + `)(?:[\/#?]|$)`)
 
-	// apURLRegex matches an ap:// URL.
-	apURLRegex = regexp.MustCompile(`^ap:\/\/did:key:(` + PortableActorPubPattern + `)([\/#?].*|$)`)
-
 	// GatewayURLRegex matches an https:// gateway URL.
 	GatewayURLRegex = regexp.MustCompile(`^https:\/\/[a-z0-9-]+(?:\.[a-z0-9-]+)+\/\.well-known\/apgateway\/did:key:(` + PortableActorPubPattern + `)([\/#?].*|$)`)
 )
 
 // IsPortable determines whether or not an ActivityPub ID is portable.
 func IsPortable(id string) bool {
-	return apURLRegex.MatchString(id) || GatewayURLRegex.MatchString(id)
+	return GatewayURLRegex.MatchString(id)
 }
 
 // Canonical returns an ID in canonical form: if portable, it's converted to an ap:// URL.
 func Canonical(id string) string {
-	if apURLRegex.MatchString(id) {
-		return id
-	}
-
 	if m := GatewayURLRegex.FindStringSubmatch(id); m != nil {
 		return "ap://did:key:" + m[1] + m[2]
 	}
@@ -66,10 +59,6 @@ func Canonical(id string) string {
 
 // Gateway returns a https:// gateway URL for a portable ActivityPub ID.
 func Gateway(gw, id string) string {
-	if m := apURLRegex.FindStringSubmatch(id); m != nil {
-		return fmt.Sprintf("%s/.well-known/apgateway/did:key:%s%s", gw, m[1], m[2])
-	}
-
 	if m := GatewayURLRegex.FindStringSubmatch(id); m != nil {
 		return fmt.Sprintf("%s/.well-known/apgateway/did:key:%s%s", gw, m[1], m[2])
 	}
@@ -82,10 +71,6 @@ func Origins(id string) (string, string, error) {
 	u, err := url.Parse(id)
 	if err != nil {
 		return "", "", err
-	}
-
-	if m := apURLRegex.FindStringSubmatch(id); m != nil {
-		return "did:key:" + m[1], u.Host, nil
 	}
 
 	if m := GatewayURLRegex.FindStringSubmatch(id); m != nil {
