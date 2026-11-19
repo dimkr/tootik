@@ -30,9 +30,12 @@ import (
 	"syscall"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/dimkr/tootik/migrations"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/moby/moby/client"
 	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
@@ -54,23 +57,30 @@ const (
 
 	readyMessage = "tootik: primary and replica are ready"
 
+	// networkPrefix is followed by the testcontainers session ID in the name of the network shared by every container.
+	networkPrefix = "tootik-"
+
+	// postgresAlias is the host name of the primary and the replica in the shared network.
+	postgresAlias = "postgres"
+
 	// startPostgres runs the primary and a streaming replica of it in one container, then makes every commit wait
 	// until the replica applies it. The replica uses a replication slot, so the primary keeps WAL the replica hasn't
-	// received yet. The container exits when either server exits.
+	// received yet. Only the replica is a synchronous standby, so commits don't wait for logical subscribers. The
+	// container exits when either server exits.
 	startPostgres = `set -e
 
-docker-entrypoint.sh postgres -c fsync=off -c full_page_writes=off -c max_connections=1000 &
+docker-entrypoint.sh postgres -c fsync=off -c full_page_writes=off -c max_connections=1000 -c wal_level=logical -c max_wal_senders=1000 -c max_replication_slots=1000 &
 
 until pg_isready -q -h 127.0.0.1 -p 5432 -U postgres; do sleep 0.1; done
 
 gosu postgres pg_basebackup -h /var/run/postgresql -p 5432 -U postgres -D /var/lib/postgresql/replica -R -X stream -C -S replica
 chmod 700 /var/lib/postgresql/replica
-gosu postgres postgres -D /var/lib/postgresql/replica -p 5433 -c max_connections=1000 -c hot_standby_feedback=on &
+gosu postgres postgres -D /var/lib/postgresql/replica -p 5433 -c max_connections=1000 -c max_wal_senders=1000 -c hot_standby_feedback=on -c cluster_name=replica &
 
 until pg_isready -q -h 127.0.0.1 -p 5433 -U postgres; do sleep 0.1; done
 
 psql -v ON_ERROR_STOP=1 -h /var/run/postgresql -p 5432 -U postgres \
-	-c "ALTER SYSTEM SET synchronous_standby_names = '*'" \
+	-c "ALTER SYSTEM SET synchronous_standby_names = 'replica'" \
 	-c "ALTER SYSTEM SET synchronous_commit = 'remote_apply'" \
 	-c "SELECT pg_reload_conf()"
 
@@ -99,6 +109,8 @@ type Database struct {
 
 	// DBW is a connection pool to the primary.
 	DBW *sql.DB
+
+	name string
 }
 
 var seq atomic.Uint64
@@ -166,6 +178,28 @@ func containerAddr(ctx context.Context, c *testcontainers.DockerContainer, port 
 	return net.JoinHostPort(host, mapped.Port()), nil
 }
 
+// ensureNetwork creates the Docker network shared by every container of this `go test` invocation, unless another
+// test binary already created it.
+func ensureNetwork(ctx context.Context, name string) error {
+	cli, err := testcontainers.NewDockerClientWithOpts(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to connect to Docker: %w", err)
+	}
+	defer cli.Close()
+
+	if _, err := cli.NetworkInspect(ctx, name, client.NetworkInspectOptions{}); err == nil {
+		return nil
+	} else if !cerrdefs.IsNotFound(err) {
+		return fmt.Errorf("failed to inspect network %s: %w", name, err)
+	}
+
+	if _, err := cli.NetworkCreate(ctx, name, client.NetworkCreateOptions{Driver: "bridge", Labels: testcontainers.GenericLabels()}); err != nil {
+		return fmt.Errorf("failed to create network %s: %w", name, err)
+	}
+
+	return nil
+}
+
 // startContainer starts the container that runs the primary and the replica, or joins the one another test binary of
 // this `go test` invocation already started, and returns the addresses of both.
 func startContainer(ctx context.Context, sessionID string) (string, string, error) {
@@ -173,6 +207,7 @@ func startContainer(ctx context.Context, sessionID string) (string, string, erro
 		ctx,
 		postgresImage,
 		testcontainers.WithReuseByName("tootik-pg-"+sessionID),
+		network.WithNetworkName([]string{postgresAlias}, networkPrefix+sessionID),
 		testcontainers.WithExposedPorts(primaryPort, replicaPort),
 		testcontainers.WithEnv(map[string]string{
 			"POSTGRES_USER":     "postgres",
@@ -253,6 +288,10 @@ func setup(ctx context.Context) error {
 		return err
 	}
 
+	if err := ensureNetwork(ctx, networkPrefix+sessionID); err != nil {
+		return errors.Join(err, unlockFile(lock))
+	}
+
 	primaryAddr, replicaAddr, err := startContainer(ctx, sessionID)
 	if err != nil {
 		return errors.Join(err, unlockFile(lock))
@@ -326,5 +365,5 @@ func NewDatabase(t T) *Database {
 		}
 	})
 
-	return &Database{DB: db, DBW: dbw}
+	return &Database{DB: db, DBW: dbw, name: dbName}
 }

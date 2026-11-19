@@ -48,7 +48,24 @@ jobs:
           name: tootik-${{ inputs.version }}-${{ matrix.goarch }}
           path: tootik-${{ matrix.goarch }}
           retention-days: 1
+  pg-lake:
+    permissions: {}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v6
+      - id: cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/pg-lake.tar
+          key: pg-lake-${{ runner.arch }}-${{ hashFiles('test/deps/build-pg-lake.sh') }}
+          lookup-only: true
+      - if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          ./test/deps/build-pg-lake.sh
+          docker save -o "$RUNNER_TEMP/pg-lake.tar" `docker images --format '{{.Repository}}:{{.Tag}}' tootik-pg-lake`
   test:
+    needs: pg-lake
     permissions: {}
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -57,6 +74,12 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
+      - uses: actions/cache/restore@v6
+        with:
+          path: ${{ runner.temp }}/pg-lake.tar
+          key: pg-lake-${{ runner.arch }}-${{ hashFiles('test/deps/build-pg-lake.sh') }}
+          fail-on-cache-miss: true
+      - run: docker load -i "$RUNNER_TEMP/pg-lake.tar"
       - run: |
           go generate ./migrations
           go test ./... -failfast -vet off -race

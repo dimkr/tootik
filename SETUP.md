@@ -38,14 +38,14 @@ If you already have a HTTPS certificate that you wish to use, place the certific
 curl -L https://github.com/gardenfence/blocklist/raw/main/gardenfence-mastodon.csv > /tootik-cfg/gardenfence-mastodon.csv
 ```
 
-5. Install PostgreSQL, create a database named `tootik` owned by a role named `tootik`, then create an unprivileged user, download tootik and run it:
+5. Install PostgreSQL, create a database named `tootik` owned by a role named `tootik`, set up [pg_lake](#pg_lake), then create an unprivileged user, download tootik and run it:
 
 ```
 useradd -mr tootik
 chown -R tootik:tootik /tootik-cfg
 curl -L https://github.com/dimkr/tootik/releases/latest/download/tootik-$(case `uname -m` in x86_64) echo amd64;; aarch64) echo arm64;; i686) echo 386;; armv7l) echo arm;; esac) -o /usr/local/bin/tootik
 chmod 755 /usr/local/bin/tootik
-tootik -domain $domain -blocklist /tootik-cfg/gardenfence-mastodon.csv -db postgres:///tootik?host=/run/postgresql
+tootik -domain $domain -blocklist /tootik-cfg/gardenfence-mastodon.csv -db postgres:///tootik?host=/run/postgresql -lake postgres://localhost:5433/tootik
 ```
 
 To enable more verbose logging, add `-loglevel -4`.
@@ -102,7 +102,7 @@ Description=tootik
 After=network.target
 
 [Service]
-ExecStart=tootik -domain $domain -blocklist /tootik-cfg/gardenfence-mastodon.csv -db postgres:///tootik?host=/run/postgresql -cfg /tootik-cfg/cfg.json
+ExecStart=tootik -domain $domain -blocklist /tootik-cfg/gardenfence-mastodon.csv -db postgres:///tootik?host=/run/postgresql -lake postgres://localhost:5433/tootik -cfg /tootik-cfg/cfg.json
 User=tootik
 Group=tootik
 AmbientCapabilities=CAP_NET_BIND_SERVICE
@@ -202,6 +202,41 @@ To run an interactive shell on behalf of a user named `alice`:
 ```
 tootik -domain $domain -db postgres:///tootik?host=/run/postgresql shell alice
 ```
+
+## pg_lake
+
+tootik computes the statistics shown in the status page from [Iceberg](https://iceberg.apache.org/) tables, through a separate PostgreSQL server with [pg_lake](https://github.com/Snowflake-Labs/pg_lake). This server holds a logical replica of the columns these statistics need, and stores the Iceberg tables in S3-compatible storage, like [RustFS](https://rustfs.com/).
+
+1. Allow logical replication from the primary, and let the role pg_lake connects as use it:
+
+```
+psql -c "ALTER SYSTEM SET wal_level = logical" -c "ALTER ROLE tootik REPLICATION"
+systemctl restart postgresql
+```
+
+2. Run RustFS and create a bucket:
+
+```
+docker run -d --name rustfs --restart always -p 127.0.0.1:9000:9000 -v rustfs:/data -e RUSTFS_ACCESS_KEY=$access_key -e RUSTFS_SECRET_KEY=$secret_key -e RUSTFS_CONSOLE_ENABLE=false rustfs/rustfs:1.0.6
+docker exec rustfs rc alias set local http://127.0.0.1:9000 $access_key $secret_key
+docker exec rustfs rc bucket create local/tootik
+```
+
+3. Build pg_lake and pgduck_server, as described in the [pg_lake documentation](https://github.com/Snowflake-Labs/pg_lake/blob/main/docs/building-from-source.md), and run PostgreSQL on port 5433 with `shared_preload_libraries = 'pg_extension_base'`. Start pgduck_server with an `--init_file_path` that lets it access RustFS:
+
+```
+CREATE SECRET rustfs (TYPE s3, SCOPE 's3://tootik', USE_SSL false, KEY_ID '...', SECRET '...', URL_STYLE 'path', ENDPOINT 'localhost:9000', REGION 'us-east-1');
+```
+
+4. Create a database named `tootik` on the pg_lake server, owned by a superuser role that tootik connects as, and tell pg_lake where to store Iceberg tables:
+
+```
+psql -p 5433 -c "CREATE DATABASE tootik" -c "ALTER DATABASE tootik SET pg_lake_iceberg.default_location_prefix = 's3://tootik/iceberg'"
+```
+
+On startup, tootik creates the tables it needs in this database, and subscribes to the primary: by default, pg_lake connects to the primary using the `-db` DSN, and `-lakepublisher` overrides it. The subscription and its replication slot on the primary are named after the pg_lake database.
+
+Every export rewrites the Iceberg tables. pg_lake deletes the replaced files once they are older than `pg_lake_engine.orphaned_file_retention_period` (10 days by default): lower it to use less storage.
 
 ## Running behind a reverse proxy
 

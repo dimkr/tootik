@@ -44,6 +44,7 @@ import (
 	"github.com/dimkr/tootik/front/user"
 	"github.com/dimkr/tootik/icon"
 	"github.com/dimkr/tootik/inbox"
+	"github.com/dimkr/tootik/lake"
 	"github.com/dimkr/tootik/migrations"
 	"github.com/dimkr/tootik/outbox"
 	"github.com/dimkr/tootik/proof"
@@ -56,6 +57,8 @@ const (
 	followMoveInterval        = time.Hour * 6
 	followSyncInterval        = time.Hour * 6
 	deleterInterval           = time.Hour * 12
+	lakeExportInterval        = time.Hour / 2
+	statusUpdateInterval      = time.Hour / 2
 )
 
 var (
@@ -63,6 +66,8 @@ var (
 	logLevel      = flag.Int("loglevel", int(slog.LevelInfo), "Logging verbosity")
 	dbDSN         = flag.String("db", "postgres://localhost/tootik", "Primary database DSN")
 	replicaDSN    = flag.String("replica", "", "Read replica DSN (the primary if empty)")
+	lakeDSN       = flag.String("lake", "", "pg_lake database DSN (required to run tootik)")
+	lakePublisher = flag.String("lakepublisher", "", "Connection string pg_lake uses to subscribe to the primary (-db if empty)")
 	gemCert       = flag.String("gemcert", "", "Gemini TLS certificate")
 	gemKey        = flag.String("gemkey", "", "Gemini TLS private key")
 	gemAddr       = flag.String("gemaddr", ":1965", "Gemini listening address")
@@ -97,7 +102,7 @@ func main() {
 	}
 
 	cmd := flag.Arg(0)
-	if !((cmd == "" && flag.NArg() == 0) || (cmd == "shell" && flag.NArg() <= 2) || (cmd == "add-community" && flag.NArg() == 2 && flag.Arg(1) != "") || ((cmd == "set-bio" || cmd == "set-avatar") && flag.NArg() == 3 && flag.Arg(1) != "" && flag.Arg(2) != "")) {
+	if !((cmd == "" && flag.NArg() == 0 && (*lakeDSN != "" || *dumpCfg)) || (cmd == "shell" && flag.NArg() <= 2) || (cmd == "add-community" && flag.NArg() == 2 && flag.Arg(1) != "") || ((cmd == "set-bio" || cmd == "set-avatar") && flag.NArg() == 3 && flag.Arg(1) != "" && flag.Arg(2) != "")) {
 		flag.Usage()
 	}
 
@@ -325,6 +330,21 @@ func main() {
 		return
 	}
 
+	lakeDB, err := sql.Open("pgx", *lakeDSN)
+	if err != nil {
+		panic(err)
+	}
+	defer lakeDB.Close()
+
+	publisher := *lakePublisher
+	if publisher == "" {
+		publisher = *dbDSN
+	}
+
+	if err := lake.Setup(ctx, lakeDB, publisher); err != nil {
+		panic(err)
+	}
+
 	handler, err := front.NewHandler(*domain, &cfg, resolver, db, dbw, localInbox)
 	if err != nil {
 		panic(err)
@@ -463,6 +483,23 @@ func main() {
 			&outbox.Deleter{
 				DBW:   dbw,
 				Inbox: localInbox,
+			},
+		},
+		{
+			"export",
+			lakeExportInterval,
+			&lake.Exporter{
+				Domain: *domain,
+				Lake:   lakeDB,
+			},
+		},
+		{
+			"status",
+			statusUpdateInterval,
+			&lake.StatusUpdater{
+				Domain: *domain,
+				Lake:   lakeDB,
+				DBW:    dbw,
 			},
 		},
 		{

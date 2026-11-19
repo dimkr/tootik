@@ -223,7 +223,17 @@ func TestFollow_Mutual(t *testing.T) {
 	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users = server.Handle("/users", server.Bob)
-	assert.Contains(users, "Hello world")
+	assert.NotContains(users, "Hello world")
+
+	server.cfg.PostThrottleUnit = 0
+	say := server.Handle("/users/say?Hello%20Bob", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
+
+	users = server.Handle("/users", server.Bob)
+	assert.Contains(users, "Hello Bob")
+	assert.NotContains(users, "Hello world")
 }
 
 func TestFollow_AlreadyFollowing(t *testing.T) {

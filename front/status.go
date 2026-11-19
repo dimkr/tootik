@@ -18,166 +18,73 @@ package front
 
 import (
 	"database/sql"
+	"errors"
 	"time"
 
-	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/dbx"
 	"github.com/dimkr/tootik/front/graph"
 	"github.com/dimkr/tootik/front/text"
+	"github.com/dimkr/tootik/lake"
 )
 
-func (h *Handler) getGraph(r *Request, keys []string, values []int64, query string, args ...any) string {
-	i := 0
+func (h *Handler) getGraph(r *Request, name string, size int) string {
+	keys := make([]string, size)
+	values := make([]int64, size)
+
 	if err := dbx.QueryScan(
 		r.Context,
 		func(row struct {
-			Key   string
-			Value int64
+			Position int
+			Label    string
+			Value    int64
 		}) {
-			keys[i] = row.Key
-			values[i] = row.Value
-			i++
+			if row.Position < size {
+				keys[row.Position] = row.Label
+				values[row.Position] = row.Value
+			}
 		},
 		func(err error) bool {
 			return false
 		},
 		h.DB,
-		query,
-		args...,
+		`select position, label, value from statusgraphs where graph = $1 order by position`,
+		name,
 	); err != nil {
-		r.Log.Warn("Failed to query data points", "error", err)
+		r.Log.Warn("Failed to query data points", "graph", name, "error", err)
 		return ""
 	}
 
 	return graph.Bars(keys, values)
 }
 
-func (h *Handler) getDailyPostsGraph(r *Request) string {
-	keys := make([]string, 24)
-	values := make([]int64, 24)
-	return h.getGraph(r, keys, values, `select to_char(hour at time zone 'UTC', 'YYYY-MM-DD HH24:MI'), count(*) from (select date_trunc('hour', inserted, 'UTC') as hour from notes where inserted > now() - interval '1 day' and inserted < date_trunc('hour', now(), 'UTC')) hours group by hour order by hour`)
-}
-
-func (h *Handler) getWeeklyPostsGraph(r *Request) string {
-	keys := make([]string, 7)
-	values := make([]int64, 7)
-	return h.getGraph(r, keys, values, `select to_char(day at time zone 'UTC', 'YYYY-MM-DD'), count(*) from (select date_trunc('day', inserted, 'UTC') as day from notes where inserted > now() - interval '7 days' and inserted < date_trunc('day', now(), 'UTC')) days group by day order by day`)
-}
-
-func (h *Handler) getWeeklyFailedDeliveriesGraph(r *Request) string {
-	keys := make([]string, 7)
-	values := make([]int64, 7)
-	return h.getGraph(r, keys, values, `select to_char(day at time zone 'UTC', 'YYYY-MM-DD HH24:MI'), count(*) from (select date_trunc('day', inserted, 'UTC') as day from outbox where not sent and inserted > now() - interval '7 days' and inserted < date_trunc('day', now(), 'UTC')) days group by day order by day`)
-}
-
-func (h *Handler) getUsersGraph(r *Request) string {
-	keys := make([]string, 24)
-	values := make([]int64, 24)
-	return h.getGraph(r, keys, values, `select to_char(hour at time zone 'UTC', 'YYYY-MM-DD HH24:MI'), count(*) from (select date_trunc('hour', inserted, 'UTC') as hour from persons where inserted > now() - interval '1 day' and inserted < date_trunc('hour', now(), 'UTC')) hours group by hour order by hour`)
-}
-
-func (h *Handler) getKnownInstancesGraph(r *Request) string {
-	keys := make([]string, 7)
-	values := make([]int64, 7)
-	return h.getGraph(r, keys, values, `select to_char(days.day at time zone 'UTC', 'YYYY-MM-DD'), count(*) from (select host, min(date_trunc('day', inserted, 'UTC')) as day from persons group by host) hosts join (select distinct date_trunc('day', inserted, 'UTC') as day from persons where inserted > now() - interval '7 days' and inserted < date_trunc('day', now(), 'UTC')) days on hosts.day < days.day group by days.day order by days.day`)
-}
-
-func (h *Handler) getActiveInstancesGraph(r *Request) string {
-	keys := make([]string, 10)
-	values := make([]int64, 10)
-	return h.getGraph(r, keys, values, `select host, (cast(round(avg(posts)) as int)) as daily from (select host, day, count(*) as posts from (select host, date_trunc('day', inserted, 'UTC') as day from notes where inserted > now() - interval '7 days') days group by host, day) posts group by host order by daily desc limit 10`)
-}
-
-func (h *Handler) getActiveUsersGraph(r *Request) string {
-	keys := make([]string, 7)
-	values := make([]int64, 7)
-	return h.getGraph(r, keys, values, `select to_char(day at time zone 'UTC', 'YYYY-MM-DD'), count(distinct author) from (select date_trunc('day', notes.inserted, 'UTC') as day, persons.id as author from notes join persons on persons.id = notes.author where notes.inserted > now() - interval '7 days' and notes.inserted < date_trunc('day', now(), 'UTC')) days group by day order by day`)
-}
-
-func (h *Handler) getInstanceCapabilitiesGraph(r *Request) string {
-	keys := make([]string, 7)
-	values := make([]int64, 7)
-	return h.getGraph(
-		r,
-		keys,
-		values,
-		`
-		select 'RFC9421 with ML-DSA-44', (select count(*) from servers where capabilities & $1 > 0)
-		union all
-		select 'RFC9421 with Ed25519', (select count(*) from servers where capabilities & $2 > 0)
-		union all
-		select 'RFC9421 with RSA but without Ed25519 or ML-DSA-44', (select count(*) from servers where capabilities & ($1 | $2 | $3) = $3)
-		union all
-		select 'RFC9421 without draft-cavage-http-signatures', (select count(*) from servers where capabilities & $4 = 0 and capabilities & ($1 | $2 | $3) > 0)
-		union all
-		select 'draft-cavage-http-signatures without RFC9421', (select count(*) from servers where capabilities & $4 > 0 and capabilities & ($1 | $2 | $3) = 0)
-		union all
-		select 'draft-cavage-http-signatures', (select count(*) from servers where capabilities & $4 > 0)
-		union all
-		select 'Total', (select count(*) from servers)
-		`,
-		ap.RFC9421MLDSA44Signatures,
-		ap.RFC9421Ed25519Signatures,
-		ap.RFC9421RSASignatures,
-		ap.CavageDraftSignatures,
-	)
-}
-
 func (h *Handler) status(w text.Writer, r *Request, args ...string) {
 	var usersCount, postsCount, postsToday, federatedPostsCount, federatedPostsToday int64
-	var lastPost, lastFederatedPost, lastRegister, lastFederatedUser sql.NullTime
+	var lastPost, lastFederatedPost, lastRegister, lastFederatedUser, exported sql.NullTime
+	var exportDuration sql.NullFloat64
+	var exportedRows sql.NullInt64
 	var outboxSize, inboxSize int
 
-	if err := h.DB.QueryRowContext(r.Context, `select count(*) from persons where host = $1`, h.Domain).Scan(&usersCount); err != nil {
-		r.Log.Info("Failed to get users count", "error", err)
-		w.Error()
-		return
-	}
-
-	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where host = $1`, h.Domain).Scan(&postsCount); err != nil {
-		r.Log.Info("Failed to get posts count", "error", err)
-		w.Error()
-		return
-	}
-
-	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where host = $1 and inserted >= now() - interval '1 day'`, h.Domain).Scan(&postsToday); err != nil {
-		r.Log.Info("Failed to get daily posts count", "error", err)
-		w.Error()
-		return
-	}
-
-	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where host != $1`, h.Domain).Scan(&federatedPostsCount); err != nil {
-		r.Log.Info("Failed to get federated posts count", "error", err)
-		w.Error()
-		return
-	}
-
-	if err := h.DB.QueryRowContext(r.Context, `select count(*) from notes where host != $1 and inserted >= now() - interval '1 day'`, h.Domain).Scan(&federatedPostsToday); err != nil {
-		r.Log.Info("Failed to get daily federated posts count", "error", err)
-		w.Error()
-		return
-	}
-
-	if err := h.DB.QueryRowContext(r.Context, `select max(inserted) from notes where host = $1`, h.Domain).Scan(&lastPost); err != nil {
-		r.Log.Info("Failed to get last post time", "error", err)
-		w.Error()
-		return
-	}
-
-	if err := h.DB.QueryRowContext(r.Context, `select max(inserted) from notes where host != $1`, h.Domain).Scan(&lastFederatedPost); err != nil {
-		r.Log.Info("Failed to get last federated post time", "error", err)
-		w.Error()
-		return
-	}
-
-	if err := h.DB.QueryRowContext(r.Context, `select max(inserted) from persons where host = $1`, h.Domain).Scan(&lastRegister); err != nil {
-		r.Log.Info("Failed to get last post time", "error", err)
-		w.Error()
-		return
-	}
-
-	if err := h.DB.QueryRowContext(r.Context, `select greatest(max(inserted), max(updated)) from persons where host != $1`, h.Domain).Scan(&lastFederatedUser); err != nil {
-		r.Log.Info("Failed to get last post time", "error", err)
+	computed := true
+	if err := h.DB.QueryRowContext(
+		r.Context,
+		`select users, posts, poststoday, federatedposts, federatedpoststoday, lastpost, lastfederatedpost, lastregister, lastfederateduser, exported, extract(epoch from exportduration)::float8, exportedrows from status`,
+	).Scan(
+		&usersCount,
+		&postsCount,
+		&postsToday,
+		&federatedPostsCount,
+		&federatedPostsToday,
+		&lastPost,
+		&lastFederatedPost,
+		&lastRegister,
+		&lastFederatedUser,
+		&exported,
+		&exportDuration,
+		&exportedRows,
+	); errors.Is(err, sql.ErrNoRows) {
+		computed = false
+	} else if err != nil {
+		r.Log.Info("Failed to get statistics", "error", err)
 		w.Error()
 		return
 	}
@@ -194,14 +101,17 @@ func (h *Handler) status(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	dailyPostsGraph := h.getDailyPostsGraph(r)
-	weeklyPostsGraph := h.getWeeklyPostsGraph(r)
-	weeklyFailedDeliveriesGraph := h.getWeeklyFailedDeliveriesGraph(r)
-	usersGraph := h.getUsersGraph(r)
-	activeUsersGraph := h.getActiveUsersGraph(r)
-	knownInstancesGraph := h.getKnownInstancesGraph(r)
-	activeInstancesGraph := h.getActiveInstancesGraph(r)
-	instanceCapabilitiesGraph := h.getInstanceCapabilitiesGraph(r)
+	var dailyPostsGraph, weeklyPostsGraph, weeklyFailedDeliveriesGraph, usersGraph, activeUsersGraph, knownInstancesGraph, activeInstancesGraph, instanceCapabilitiesGraph string
+	if computed {
+		dailyPostsGraph = h.getGraph(r, lake.GraphDailyPosts, 24)
+		weeklyPostsGraph = h.getGraph(r, lake.GraphWeeklyPosts, 7)
+		weeklyFailedDeliveriesGraph = h.getGraph(r, lake.GraphWeeklyFailedDeliveries, 7)
+		usersGraph = h.getGraph(r, lake.GraphUsers, 24)
+		activeUsersGraph = h.getGraph(r, lake.GraphActiveUsers, 7)
+		knownInstancesGraph = h.getGraph(r, lake.GraphKnownInstances, 7)
+		activeInstancesGraph = h.getGraph(r, lake.GraphActiveInstances, 10)
+		instanceCapabilitiesGraph = h.getGraph(r, lake.GraphInstanceCapabilities, 7)
+	}
 
 	w.OK()
 
@@ -256,22 +166,31 @@ func (h *Handler) status(w text.Writer, r *Request, args ...string) {
 	}
 
 	w.Subtitle("Other Statistics")
-	if lastPost.Valid {
-		w.Itemf("Latest local post: %s", lastPost.Time.Format(time.UnixDate))
-	}
-	if lastFederatedPost.Valid {
-		w.Itemf("Latest federated post: %s", lastFederatedPost.Time.Format(time.UnixDate))
-	}
-	w.Itemf("Local posts today: %d", postsToday)
-	w.Itemf("Federated posts today: %d", federatedPostsToday)
-	w.Itemf("Local users: %d", usersCount)
-	w.Itemf("Local posts: %d", postsCount)
-	w.Itemf("Federated posts: %d", federatedPostsCount)
-	if lastRegister.Valid {
-		w.Itemf("Newest user: %s", lastRegister.Time.Format(time.UnixDate))
-	}
-	if lastFederatedUser.Valid {
-		w.Itemf("Latest federated user update: %s", lastFederatedUser.Time.Format(time.UnixDate))
+	if computed {
+		if lastPost.Valid {
+			w.Itemf("Latest local post: %s", lastPost.Time.Format(time.UnixDate))
+		}
+		if lastFederatedPost.Valid {
+			w.Itemf("Latest federated post: %s", lastFederatedPost.Time.Format(time.UnixDate))
+		}
+		w.Itemf("Local posts today: %d", postsToday)
+		w.Itemf("Federated posts today: %d", federatedPostsToday)
+		w.Itemf("Local users: %d", usersCount)
+		w.Itemf("Local posts: %d", postsCount)
+		w.Itemf("Federated posts: %d", federatedPostsCount)
+		if lastRegister.Valid {
+			w.Itemf("Newest user: %s", lastRegister.Time.Format(time.UnixDate))
+		}
+		if lastFederatedUser.Valid {
+			w.Itemf("Latest federated user update: %s", lastFederatedUser.Time.Format(time.UnixDate))
+		}
+		if exported.Valid && exportDuration.Valid && exportedRows.Valid {
+			w.Itemf("Latest Iceberg export: %s", exported.Time.Format(time.UnixDate))
+			w.Itemf("Latest Iceberg export duration: %s", (time.Duration(exportDuration.Float64 * float64(time.Second))).Round(time.Millisecond))
+			w.Itemf("Latest Iceberg export rows: %d", exportedRows.Int64)
+		}
+	} else {
+		w.Item("Statistics are not available yet")
 	}
 	w.Itemf("Incoming activities queue size: %d", inboxSize)
 	w.Itemf("Outgoing activities queue size: %d", outboxSize)

@@ -41,6 +41,7 @@ const domain = "localhost.localdomain:8443"
 type server struct {
 	t            *testing.T
 	cfg          *cfg.Config
+	database     *deps.Database
 	dbw          *sql.DB
 	resolver     *fed.Resolver
 	handler      front.Handler
@@ -107,6 +108,7 @@ func newTestServer(t *testing.T) *server {
 	return &server{
 		t:            t,
 		cfg:          &cfg,
+		database:     db,
 		dbw:          db.DBW,
 		resolver:     resolver,
 		handler:      handler,

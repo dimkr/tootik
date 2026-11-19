@@ -95,7 +95,7 @@ The demo runs PostgreSQL in Docker containers.
 
 ## Database Drivers
 
-tootik stores its data in PostgreSQL through [pgx](https://github.com/jackc/pgx). Tests start a PostgreSQL primary and a streaming read replica in Docker, using [Testcontainers](https://golang.testcontainers.org/).
+tootik stores its data in PostgreSQL through [pgx](https://github.com/jackc/pgx). Tests start a PostgreSQL primary and a streaming read replica in Docker, using [Testcontainers](https://golang.testcontainers.org/). Tests of the status page also start a [pg_lake](https://github.com/Snowflake-Labs/pg_lake) server and [RustFS](https://rustfs.com/); `test/deps/build-pg-lake.sh` builds the pg_lake image they need.
 
 tootik-client stores its client certificates in a local SQLite database, using [`modernc.org/sqlite`](https://gitlab.com/cznic/sqlite).
 
