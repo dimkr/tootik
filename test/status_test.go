@@ -83,7 +83,7 @@ func countRows(t *testing.T, db *sql.DB, query string, args ...any) int64 {
 func updateStatus(t *testing.T, server *server, lakeDB *sql.DB) {
 	t.Helper()
 
-	if err := (&lake.Exporter{Domain: domain, Lake: lakeDB}).Run(t.Context()); err != nil {
+	if err := (&lake.Exporter{Lake: lakeDB}).Run(t.Context()); err != nil {
 		t.Fatalf("Failed to export: %v", err)
 	}
 
@@ -139,7 +139,7 @@ func TestStatus_WithPosts(t *testing.T) {
 	assert.Contains(lines, fmt.Sprintf("* Local posts: %d", posts))
 	assert.Contains(lines, fmt.Sprintf("* Local posts today: %d", postsToday))
 	assert.Contains(lines, "* Federated posts: 0")
-	assert.Contains(lines, fmt.Sprintf("* Latest Iceberg export rows: %d", exportedRows))
+	assert.Contains(lines, fmt.Sprintf("* Latest Iceberg export changed rows: %d", exportedRows))
 	assert.Condition(func() bool {
 		for _, line := range lines {
 			if strings.HasPrefix(line, "* Latest Iceberg export: ") {
@@ -179,4 +179,168 @@ func TestStatus_KeepsResultsOnEmptyLake(t *testing.T) {
 	lines := strings.Split(status, "\n")
 	assert.Contains(lines, fmt.Sprintf("* Local users: %d", users))
 	assert.Contains(lines, fmt.Sprintf("* Local posts: %d", posts))
+}
+
+// publishedRows returns the columns of persons, notes, outbox and servers that the primary publishes to pg_lake, by
+// table and key.
+func publishedRows(t *testing.T, server *server) map[string]string {
+	t.Helper()
+
+	published := map[string]string{}
+
+	for _, query := range []string{
+		`select 'persons:' || pk, row(id, host, inserted, updated)::text from persons`,
+		`select 'notes:' || pk, row(author, host, inserted)::text from notes`,
+		`select 'outbox:' || pk, row(inserted, sent)::text from outbox`,
+		`select 'servers:' || host, row(capabilities)::text from servers`,
+	} {
+		rows, err := server.dbw.QueryContext(t.Context(), query)
+		if err != nil {
+			t.Fatalf("Failed to run %s: %v", query, err)
+		}
+
+		for rows.Next() {
+			var key, row string
+			if err := rows.Scan(&key, &row); err != nil {
+				rows.Close()
+				t.Fatalf("Failed to scan %s: %v", query, err)
+			}
+			published[key] = row
+		}
+
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			t.Fatalf("Failed to run %s: %v", query, err)
+		}
+
+		rows.Close()
+	}
+
+	return published
+}
+
+// countChangedKeys returns the number of keys that were added, removed or changed between two results of
+// publishedRows.
+func countChangedKeys(before, after map[string]string) int {
+	changed := 0
+
+	for key, row := range after {
+		if prev, ok := before[key]; !ok || prev != row {
+			changed++
+		}
+	}
+
+	for key := range before {
+		if _, ok := after[key]; !ok {
+			changed++
+		}
+	}
+
+	return changed
+}
+
+// waitForReplica waits until a query that returns one text value returns the same value on the primary and on the
+// pg_lake replica.
+func waitForReplica(t *testing.T, server *server, lakeDB *sql.DB, query string, args ...any) {
+	t.Helper()
+
+	ticker := time.NewTicker(lakeRetryInterval)
+	defer ticker.Stop()
+
+	for {
+		var primary, replica string
+		if err := server.dbw.QueryRowContext(t.Context(), query, args...).Scan(&primary); err != nil {
+			t.Fatalf("Failed to run %s on the primary: %v", query, err)
+		}
+
+		if err := lakeDB.QueryRowContext(t.Context(), query, args...).Scan(&replica); err != nil {
+			t.Fatalf("Failed to run %s on pg_lake: %v", query, err)
+		}
+
+		if primary == replica {
+			return
+		}
+
+		select {
+		case <-t.Context().Done():
+			t.Fatalf("Failed to wait for pg_lake: %v", t.Context().Err())
+
+		case <-ticker.C:
+		}
+	}
+}
+
+func TestStatus_IncrementalExport(t *testing.T) {
+	server := newTestServer(t)
+
+	assert := assert.New(t)
+
+	lakeDB := deps.NewLake(t, server.database)
+
+	say := server.Handle("/users/say?Hello%20world", server.Alice)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+
+	waitForLake(t, server, lakeDB)
+
+	for _, table := range []struct{ Name, Key string }{{"persons", "pk"}, {"notes", "pk"}, {"outbox", "pk"}, {"servers", "host"}} {
+		t.Logf(
+			"%s: %d logged keys, %d replicated rows",
+			table.Name,
+			countRows(t, lakeDB, fmt.Sprintf(`select count(distinct %s) from lake.%s_changes`, table.Key, table.Name)),
+			countRows(t, lakeDB, `select count(*) from public.`+table.Name),
+		)
+	}
+
+	first := publishedRows(t, server)
+	updateStatus(t, server, lakeDB)
+
+	lines := strings.Split(server.Handle("/status", server.Alice), "\n")
+	assert.Contains(lines, fmt.Sprintf("* Local posts: %d", countRows(t, server.dbw, `select count(*) from notes where host = $1`, domain)))
+	assert.Contains(lines, fmt.Sprintf("* Latest Iceberg export changed rows: %d", countChangedKeys(nil, first)))
+
+	res, err := server.dbw.ExecContext(t.Context(), `delete from notes where author = $1`, server.Alice.ID)
+	if err != nil {
+		t.Fatalf("Failed to delete posts: %v", err)
+	}
+
+	deleted, err := res.RowsAffected()
+	if err != nil {
+		t.Fatalf("Failed to count deleted posts: %v", err)
+	}
+	assert.EqualValues(1, deleted)
+
+	say = server.Handle("/users/say?Hello%20from%20Bob", server.Bob)
+	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
+
+	waitForLake(t, server, lakeDB)
+	second := publishedRows(t, server)
+	updateStatus(t, server, lakeDB)
+
+	assert.Equal(countRows(t, server.dbw, `select count(*) from notes where host = $1`, domain), countRows(t, server.dbw, `select posts from status`))
+	assert.EqualValues(countChangedKeys(first, second), countRows(t, server.dbw, `select exportedrows from status`))
+	assert.Equal(countRows(t, server.dbw, `select count(*) from notes`), countRows(t, lakeDB, `select count(*) from lake.notes`))
+
+	if _, err := server.dbw.ExecContext(t.Context(), `update notes set nreplies = nreplies + 1`); err != nil {
+		t.Fatalf("Failed to update replies count: %v", err)
+	}
+
+	if _, err := server.dbw.ExecContext(t.Context(), `update persons set updated = now() where id = $1`, server.Alice.ID); err != nil {
+		t.Fatalf("Failed to update user: %v", err)
+	}
+
+	waitForReplica(t, server, lakeDB, `select updated::text from persons where id = $1`, server.Alice.ID)
+	third := publishedRows(t, server)
+	updateStatus(t, server, lakeDB)
+
+	assert.EqualValues(countChangedKeys(second, third), countRows(t, server.dbw, `select exportedrows from status`))
+
+	var updated, exported time.Time
+	if err := server.dbw.QueryRowContext(t.Context(), `select updated from persons where id = $1`, server.Alice.ID).Scan(&updated); err != nil {
+		t.Fatalf("Failed to get user: %v", err)
+	}
+
+	if err := lakeDB.QueryRowContext(t.Context(), `select updated from lake.persons where id = $1`, server.Alice.ID).Scan(&exported); err != nil {
+		t.Fatalf("Failed to get exported user: %v", err)
+	}
+	assert.True(updated.Equal(exported), "exported %s instead of %s", exported, updated)
 }

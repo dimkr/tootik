@@ -489,8 +489,7 @@ func main() {
 			"export",
 			lakeExportInterval,
 			&lake.Exporter{
-				Domain: *domain,
-				Lake:   lakeDB,
+				Lake: lakeDB,
 			},
 		},
 		{

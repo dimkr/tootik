@@ -24,15 +24,48 @@ import (
 	"time"
 )
 
-// Exporter replaces the contents of the Iceberg tables with the replicated rows.
+// Exporter applies the changes recorded in the change logs of the replicated tables to the Iceberg tables.
 type Exporter struct {
-	Domain string
-	Lake   *sql.DB
+	Lake *sql.DB
 }
 
-// Run exports all replicated rows in one transaction, unless the replica is incomplete.
+// exportChanges consumes the change log of a table, replaces the Iceberg rows of every logged key with the current
+// replicated row, if any, and returns the number of distinct keys.
+func exportChanges(ctx context.Context, tx *sql.Tx, table replicatedTable) (int64, error) {
+	if _, err := tx.ExecContext(ctx, fmt.Sprintf(`CREATE TEMP TABLE %s_batch(%s %s PRIMARY KEY) ON COMMIT DROP`, table.Name, table.Key, table.KeyType)); err != nil {
+		return 0, fmt.Errorf("failed to create batch table for %s: %w", table.Name, err)
+	}
+
+	res, err := tx.ExecContext(ctx, fmt.Sprintf(`WITH consumed AS (DELETE FROM lake.%[1]s_changes RETURNING %[2]s) INSERT INTO %[1]s_batch SELECT DISTINCT %[2]s FROM consumed`, table.Name, table.Key))
+	if err != nil {
+		return 0, fmt.Errorf("failed to consume changes to %s: %w", table.Name, err)
+	}
+
+	keys, err := res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to count changes to %s: %w", table.Name, err)
+	}
+
+	if keys == 0 {
+		return 0, nil
+	}
+
+	if _, err := tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM lake.%[1]s WHERE %[2]s IN (SELECT %[2]s FROM %[1]s_batch)`, table.Name, table.Key)); err != nil {
+		return 0, fmt.Errorf("failed to delete changed rows of %s: %w", table.Name, err)
+	}
+
+	if _, err := tx.ExecContext(ctx, fmt.Sprintf(`INSERT INTO lake.%[1]s(%[2]s, %[3]s) SELECT %[2]s, %[3]s FROM public.%[1]s WHERE %[2]s IN (SELECT %[2]s FROM %[1]s_batch)`, table.Name, table.Key, table.Columns)); err != nil {
+		return 0, fmt.Errorf("failed to insert changed rows of %s: %w", table.Name, err)
+	}
+
+	return keys, nil
+}
+
+// Run applies all logged changes in one transaction, unless the initial synchronization of the replica is incomplete.
 //
-// The transaction is REPEATABLE READ, so all tables are exported from the same snapshot of the replica.
+// The transaction is REPEATABLE READ, so all tables are exported from the same snapshot of the replica, and changes
+// logged after the snapshot are left for the next run. The number of distinct keys applied is recorded in
+// lake.exports.
 func (e *Exporter) Run(ctx context.Context) error {
 	started := time.Now()
 
@@ -52,44 +85,13 @@ func (e *Exporter) Run(ctx context.Context) error {
 		return nil
 	}
 
-	var users int64
-	if err := tx.QueryRowContext(ctx, `select count(*) from public.persons where host = $1`, e.Domain).Scan(&users); err != nil {
-		return fmt.Errorf("failed to count local users: %w", err)
-	}
-
-	if users == 0 {
-		slog.Warn("Skipping export of replica without local users")
-		return nil
-	}
-
-	for _, query := range []string{
-		`delete from lake.persons`,
-		`delete from lake.notes`,
-		`delete from lake.outbox`,
-		`delete from lake.servers`,
-	} {
-		if _, err := tx.ExecContext(ctx, query); err != nil {
-			return fmt.Errorf("failed to run %s: %w", query, err)
-		}
-	}
-
 	var rows int64
-	for _, query := range []string{
-		`insert into lake.persons(id, host, inserted, updated) select id, host, inserted, updated from public.persons`,
-		`insert into lake.notes(author, host, inserted) select author, host, inserted from public.notes`,
-		`insert into lake.outbox(inserted, sent) select inserted, sent from public.outbox`,
-		`insert into lake.servers(capabilities) select capabilities from public.servers`,
-	} {
-		res, err := tx.ExecContext(ctx, query)
+	for _, table := range replicatedTables {
+		keys, err := exportChanges(ctx, tx, table)
 		if err != nil {
-			return fmt.Errorf("failed to run %s: %w", query, err)
+			return err
 		}
-
-		n, err := res.RowsAffected()
-		if err != nil {
-			return fmt.Errorf("failed to count rows inserted by %s: %w", query, err)
-		}
-		rows += n
+		rows += keys
 	}
 
 	if _, err := tx.ExecContext(ctx, `delete from lake.exports`); err != nil {

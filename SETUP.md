@@ -236,7 +236,7 @@ psql -p 5433 -c "CREATE DATABASE tootik" -c "ALTER DATABASE tootik SET pg_lake_i
 
 On startup, tootik creates the tables it needs in this database, and subscribes to the primary: by default, pg_lake connects to the primary using the `-db` DSN, and `-lakepublisher` overrides it. The subscription and its replication slot on the primary are named after the pg_lake database.
 
-Every export rewrites the Iceberg tables. pg_lake deletes the replaced files once they are older than `pg_lake_engine.orphaned_file_retention_period` (10 days by default): lower it to use less storage.
+Triggers on the replicated tables log the key of every inserted, updated or deleted row, and every export replaces the Iceberg rows of the logged keys only. Deletes and compaction replace Iceberg data files, and pg_lake deletes the replaced files once they are older than `pg_lake_engine.orphaned_file_retention_period` (10 days by default): lower it to use less storage.
 
 ## Running behind a reverse proxy
 

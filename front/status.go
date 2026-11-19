@@ -187,7 +187,7 @@ func (h *Handler) status(w text.Writer, r *Request, args ...string) {
 		if exported.Valid && exportDuration.Valid && exportedRows.Valid {
 			w.Itemf("Latest Iceberg export: %s", exported.Time.Format(time.UnixDate))
 			w.Itemf("Latest Iceberg export duration: %s", (time.Duration(exportDuration.Float64 * float64(time.Second))).Round(time.Millisecond))
-			w.Itemf("Latest Iceberg export rows: %d", exportedRows.Int64)
+			w.Itemf("Latest Iceberg export changed rows: %d", exportedRows.Int64)
 		}
 	} else {
 		w.Item("Statistics are not available yet")
