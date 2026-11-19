@@ -34,7 +34,13 @@ import (
 	"syscall"
 
 	"github.com/dimkr/tootik/shell"
-	"github.com/dimkr/tootik/sqlite"
+	_ "modernc.org/sqlite"
+)
+
+const (
+	driverName = "sqlite"
+
+	sqliteOptions = "_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(5000)&_txlock=immediate"
 )
 
 func run(ctx context.Context, db *sql.DB, user, host string, port int, path, input string) error {
@@ -145,7 +151,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	db, err := sql.Open(sqlite.DriverName, fmt.Sprintf("%s?%s", *dbPath, sqlite.DefaultOptions))
+	db, err := sql.Open(driverName, fmt.Sprintf("%s?%s", *dbPath, sqliteOptions))
 	if err != nil {
 		slog.Error("Failed to open database", "error", err)
 		os.Exit(1)

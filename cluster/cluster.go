@@ -71,19 +71,12 @@ func (c Cluster) Settle(t T) {
 	for _, d := range domains {
 		server := c[d]
 
-		if err := (inbox.FeedUpdater{Domain: d, Config: server.Config, DB: server.DB}).Run(t.Context()); err != nil {
+		if err := (inbox.FeedUpdater{Domain: d, Config: server.Config, DBW: server.DBW}).Run(t.Context()); err != nil {
 			server.Test.Fatalf("Failed to update feeds on %s: %v", d, err)
 		}
 	}
 
 	for _, server := range c {
 		server.Cache.Clear()
-	}
-}
-
-// Stop stops all servers in the cluster.
-func (c Cluster) Stop() {
-	for _, s := range c {
-		s.Stop()
 	}
 }

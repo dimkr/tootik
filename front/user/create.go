@@ -88,7 +88,7 @@ func insertActor(
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT OR IGNORE INTO persons (slug, id, actor, rsaprivkey, ed25519seed, mldsa44seed) VALUES (?, ?, JSONB(?), ?, ?, ?)`,
+		`INSERT INTO persons (slug, id, actor, rsaprivkey, ed25519seed, mldsa44seed) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING`,
 		ap.Slug(actor.ID),
 		actor.ID,
 		actor,
@@ -104,17 +104,17 @@ func insertActor(
 
 		if _, err := tx.ExecContext(
 			ctx,
-			`INSERT OR IGNORE INTO certificates (user, hash, approved, expires) VALUES($1, $2, (SELECT NOT EXISTS (SELECT 1 FROM certificates WHERE user = $1)), $3)`,
+			`INSERT INTO certificates ("user", hash, approved, expires) VALUES($1, $2, (SELECT NOT EXISTS (SELECT 1 FROM certificates WHERE "user" = $1)), $3) ON CONFLICT DO NOTHING`,
 			actor.PreferredUsername,
 			certHash,
-			cert.NotAfter.Unix(),
+			cert.NotAfter,
 		); err != nil {
 			return err
 		}
 
 		if _, err := tx.ExecContext(
 			ctx,
-			`UPDATE invites SET invited = ? WHERE certhash = ? AND invited IS NULL`,
+			`UPDATE invites SET invited = $1 WHERE certhash = $2 AND invited IS NULL`,
 			actor.ID,
 			certHash,
 		); err != nil {
@@ -124,7 +124,7 @@ func insertActor(
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT OR IGNORE INTO keys (actor, id) VALUES ($1, $2), ($1, $3), ($1, $4)`,
+		`INSERT INTO keys (actor, id) VALUES ($1, $2), ($1, $3), ($1, $4) ON CONFLICT DO NOTHING`,
 		actor.ID,
 		actor.PublicKey.ID,
 		actor.AssertionMethod[0].ID,

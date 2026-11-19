@@ -43,6 +43,7 @@ type Listener struct {
 	Domain       string
 	Config       *cfg.Config
 	DB           *sql.DB
+	DBW          *sql.DB
 	Resolver     *Resolver
 	AppActor     *ap.Actor
 	AppActorKeys [3]httpsig.Key
@@ -56,6 +57,10 @@ type Listener struct {
 const certReloadDelay = time.Second * 5
 
 func (l *Listener) newHandler() (*http.ServeMux, error) {
+	if l.DB == nil {
+		l.DB = l.DBW
+	}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /robots.txt", robots)
 	mux.HandleFunc("GET /.well-known/webfinger", l.handleWebFinger)
@@ -128,7 +133,7 @@ func (l *Listener) tlsConfig() (*tls.Config, error) {
 
 		config = (&autocert.Manager{
 			Prompt:     autocert.AcceptTOS,
-			Cache:      data.Cache[Listener]{DB: l.DB},
+			Cache:      data.Cache[Listener]{DBW: l.DBW},
 			HostPolicy: autocert.HostWhitelist(host),
 		}).TLSConfig()
 	}

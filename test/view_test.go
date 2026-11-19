@@ -17,18 +17,17 @@ limitations under the License.
 package test
 
 import (
-	"context"
 	"fmt"
-	"github.com/dimkr/tootik/ap"
 	"strings"
 	"testing"
+
+	"github.com/dimkr/tootik/ap"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestView_NoReplies(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -42,8 +41,7 @@ func TestView_NoReplies(t *testing.T) {
 }
 
 func TestView_OneReply(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -61,8 +59,7 @@ func TestView_OneReply(t *testing.T) {
 }
 
 func TestView_TwoReplies(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -84,8 +81,7 @@ func TestView_TwoReplies(t *testing.T) {
 }
 
 func TestView_TwoRepliesBigOffset(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -107,8 +103,7 @@ func TestView_TwoRepliesBigOffset(t *testing.T) {
 }
 
 func TestView_TwoRepliesBigOffsetUnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -130,8 +125,7 @@ func TestView_TwoRepliesBigOffsetUnauthenticatedUser(t *testing.T) {
 }
 
 func TestView_TwoRepliesUnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -153,8 +147,7 @@ func TestView_TwoRepliesUnauthenticatedUser(t *testing.T) {
 }
 
 func TestView_OneReplyPostDeleted(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -180,8 +173,7 @@ func TestView_OneReplyPostDeleted(t *testing.T) {
 }
 
 func TestView_OneReplyPostNotDeleted(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -204,8 +196,7 @@ func TestView_OneReplyPostNotDeleted(t *testing.T) {
 }
 
 func TestView_OneReplyPostNotDeletedUnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -228,8 +219,7 @@ func TestView_OneReplyPostNotDeletedUnauthenticatedUser(t *testing.T) {
 }
 
 func TestView_OneReplyPostDeletedUnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -255,8 +245,7 @@ func TestView_OneReplyPostDeletedUnauthenticatedUser(t *testing.T) {
 }
 
 func TestView_OneReplyReplyDeleted(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -282,8 +271,7 @@ func TestView_OneReplyReplyDeleted(t *testing.T) {
 }
 
 func TestView_NoSuchPost(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -292,8 +280,7 @@ func TestView_NoSuchPost(t *testing.T) {
 }
 
 func TestView_InvalidOffset(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -302,13 +289,12 @@ func TestView_InvalidOffset(t *testing.T) {
 }
 
 func TestView_Update(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err := server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
@@ -317,14 +303,14 @@ func TestView_Update(t *testing.T) {
 
 	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/1","type":"Announce","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://127.0.0.1/followers/people"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		create,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -335,14 +321,14 @@ func TestView_Update(t *testing.T) {
 
 	update := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/update/1","type":"Update","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"bye","updated":"2099-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		update,
 	)
 	assert.NoError(err)
 
-	n, err = server.queue.ProcessBatch(context.Background())
+	n, err = server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -353,13 +339,12 @@ func TestView_Update(t *testing.T) {
 }
 
 func TestView_OldUpdate(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err := server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
@@ -368,14 +353,14 @@ func TestView_OldUpdate(t *testing.T) {
 
 	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/1","type":"Announce","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://127.0.0.1/followers/people"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		create,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -386,14 +371,14 @@ func TestView_OldUpdate(t *testing.T) {
 
 	update := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/update/1","type":"Update","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"bye","updated":"2020-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		update,
 	)
 	assert.NoError(err)
 
-	n, err = server.queue.ProcessBatch(context.Background())
+	n, err = server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -404,8 +389,7 @@ func TestView_OldUpdate(t *testing.T) {
 }
 
 func TestView_PostToFollowers(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -422,8 +406,7 @@ func TestView_PostToFollowers(t *testing.T) {
 }
 
 func TestView_PostToFollowersPostBeforeFollow(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -440,8 +423,7 @@ func TestView_PostToFollowersPostBeforeFollow(t *testing.T) {
 }
 
 func TestView_PostToFollowersUnfollow(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -464,8 +446,7 @@ func TestView_PostToFollowersUnfollow(t *testing.T) {
 }
 
 func TestView_PostToFollowersNotFollowing(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -479,8 +460,7 @@ func TestView_PostToFollowersNotFollowing(t *testing.T) {
 }
 
 func TestView_PostToFollowersWithReply(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -504,21 +484,20 @@ func TestView_PostToFollowersWithReply(t *testing.T) {
 }
 
 func TestView_PostInGroupPublicAndGroupFollowed(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err := server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/group/people"),
 		"https://127.0.0.1/group/people",
 		`{"id":"https://127.0.0.1/group/people","type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
-	_, err = server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err = server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
@@ -527,21 +506,21 @@ func TestView_PostInGroupPublicAndGroupFollowed(t *testing.T) {
 
 	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/1","type":"Announce","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people","https://www.w3.org/ns/activitystreams#Public"],"audience":"https://127.0.0.1/group/people","tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people","https://www.w3.org/ns/activitystreams#Public"]},"to":["https://127.0.0.1/followers/people"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		create,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
 	follow := server.Handle("/users/follow/127.0.0.1/group/people", server.Alice)
 	assert.Equal("30 /users/outbox/127.0.0.1/group/people\r\n", follow)
 
-	_, err = server.db.Exec(`update follows set accepted = 1`)
+	_, err = server.dbw.Exec(`update follows set accepted = true`)
 	assert.NoError(err)
 
 	view := server.Handle("/users/view/127.0.0.1/note/1", server.Alice)
@@ -549,21 +528,20 @@ func TestView_PostInGroupPublicAndGroupFollowed(t *testing.T) {
 }
 
 func TestView_PostInGroupNotPublicAndGroupFollowed(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err := server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/group/people"),
 		"https://127.0.0.1/group/people",
 		`{"id":"https://127.0.0.1/group/people","type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
-	_, err = server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err = server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
@@ -572,21 +550,21 @@ func TestView_PostInGroupNotPublicAndGroupFollowed(t *testing.T) {
 
 	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/1","type":"Announce","actor":"https://127.0.0.1/group/people","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"audience":"https://127.0.0.1/group/people","tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]},"to":["https://127.0.0.1/followers/people"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/group/people",
 		create,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
 	follow := server.Handle("/users/follow/127.0.0.1/group/people", server.Alice)
 	assert.Equal("30 /users/outbox/127.0.0.1/group/people\r\n", follow)
 
-	_, err = server.db.Exec(`update follows set accepted = 1`)
+	_, err = server.dbw.Exec(`update follows set accepted = true`)
 	assert.NoError(err)
 
 	view := server.Handle("/users/view/127.0.0.1/note/1", server.Alice)
@@ -594,21 +572,20 @@ func TestView_PostInGroupNotPublicAndGroupFollowed(t *testing.T) {
 }
 
 func TestView_PostInGroupNotPublicAndGroupFollowedButNotAccepted(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err := server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/group/people"),
 		"https://127.0.0.1/group/people",
 		`{"id":"https://127.0.0.1/group/people","type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
-	_, err = server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err = server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
@@ -617,14 +594,14 @@ func TestView_PostInGroupNotPublicAndGroupFollowedButNotAccepted(t *testing.T) {
 
 	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/1","type":"Announce","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"audience":"https://127.0.0.1/group/people","tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]},"to":["https://127.0.0.1/followers/people"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		create,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -636,21 +613,20 @@ func TestView_PostInGroupNotPublicAndGroupFollowedButNotAccepted(t *testing.T) {
 }
 
 func TestView_PostInGroupNotPublicAndAuthorFollowed(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err := server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/group/people"),
 		"https://127.0.0.1/group/people",
 		`{"id":"https://127.0.0.1/group/people","type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
-	_, err = server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err = server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
@@ -659,21 +635,21 @@ func TestView_PostInGroupNotPublicAndAuthorFollowed(t *testing.T) {
 
 	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/1","type":"Announce","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"audience":"https://127.0.0.1/group/people","tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]},"to":["https://127.0.0.1/followers/people"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		create,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
 	follow := server.Handle("/users/follow/127.0.0.1/user/dan", server.Alice)
 	assert.Equal("30 /users/outbox/127.0.0.1/user/dan\r\n", follow)
 
-	_, err = server.db.Exec(`update follows set accepted = 1`)
+	_, err = server.dbw.Exec(`update follows set accepted = true`)
 	assert.NoError(err)
 
 	view := server.Handle("/users/view/127.0.0.1/note/1", server.Alice)
@@ -681,21 +657,20 @@ func TestView_PostInGroupNotPublicAndAuthorFollowed(t *testing.T) {
 }
 
 func TestView_PostInGroupNotPublicAndAuthorFollowedButNotAccepted(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err := server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/group/people"),
 		"https://127.0.0.1/group/people",
 		`{"id":"https://127.0.0.1/group/people","type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
-	_, err = server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err = server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
@@ -704,14 +679,14 @@ func TestView_PostInGroupNotPublicAndAuthorFollowedButNotAccepted(t *testing.T) 
 
 	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/1","type":"Announce","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"audience":"https://127.0.0.1/group/people","tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]},"to":["https://127.0.0.1/followers/people"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		create,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -723,29 +698,28 @@ func TestView_PostInGroupNotPublicAndAuthorFollowedButNotAccepted(t *testing.T) 
 }
 
 func TestView_PostInGroupNotPublicAndGroupFollowedWithReply(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err := server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/group/people"),
 		"https://127.0.0.1/group/people",
 		`{"id":"https://127.0.0.1/group/people","type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
-	_, err = server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err = server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
-	_, err = server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err = server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/erin"),
 		"https://127.0.0.1/user/erin",
 		`{"type":"Person","preferredUsername":"erin","followers":"https://127.0.0.1/followers/erin"}`,
@@ -754,8 +728,8 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithReply(t *testing.T) {
 
 	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/1","type":"Announce","actor":"https://127.0.0.1/group/people","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"audience":"https://127.0.0.1/group/people","tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]},"to":["https://127.0.0.1/followers/people"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/group/people",
 		create,
 	)
@@ -763,21 +737,21 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithReply(t *testing.T) {
 
 	create = `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/2","type":"Announce","actor":"https://127.0.0.1/group/people","object":{"id":"https://127.0.0.1/create/2","type":"Create","actor":"https://127.0.0.1/user/erin","object":{"id":"https://127.0.0.1/note/2","type":"Note","attributedTo":"https://127.0.0.1/user/erin","inReplyTo":"https://127.0.0.1/note/1","content":"hello dan","to":["https://127.0.0.1/user/dan","https://127.0.0.1/followers/erin"],"cc":["https://127.0.0.1/group/people"],"audience":"https://127.0.0.1/group/people"},"to":["https://127.0.0.1/user/dan","https://127.0.0.1/followers/erin"],"cc":["https://127.0.0.1/group/people"]},"to":["https://127.0.0.1/followers/people"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/group/people",
 		create,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(2, n)
 
 	follow := server.Handle("/users/follow/127.0.0.1/group/people", server.Alice)
 	assert.Equal("30 /users/outbox/127.0.0.1/group/people\r\n", follow)
 
-	_, err = server.db.Exec(`update follows set accepted = 1`)
+	_, err = server.dbw.Exec(`update follows set accepted = true`)
 	assert.NoError(err)
 
 	view := server.Handle("/users/view/127.0.0.1/note/1", server.Alice)
@@ -786,29 +760,28 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithReply(t *testing.T) {
 }
 
 func TestView_PostInGroupNotPublicAndGroupFollowedWithPrivateReply(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err := server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/group/people"),
 		"https://127.0.0.1/group/people",
 		`{"id":"https://127.0.0.1/group/people","type":"Group","preferredUsername":"people"}`,
 	)
 	assert.NoError(err)
 
-	_, err = server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err = server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
-	_, err = server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err = server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/erin"),
 		"https://127.0.0.1/user/erin",
 		`{"type":"Person","preferredUsername":"erin","followers":"https://127.0.0.1/followers/erin"}`,
@@ -817,8 +790,8 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithPrivateReply(t *testing.T)
 
 	create := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/1","type":"Announce","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"hello @people","to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"],"audience":"https://127.0.0.1/group/people","tag":[{"type":"Mention","name":"@people","href":"https://127.0.0.1/group/people"}]},"to":["https://127.0.0.1/followers/dan"],"cc":["https://127.0.0.1/group/people"]},"to":["https://127.0.0.1/followers/people"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/group/people",
 		create,
 	)
@@ -826,21 +799,21 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithPrivateReply(t *testing.T)
 
 	create = `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/2","type":"Announce","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/create/2","type":"Create","actor":"https://127.0.0.1/user/erin","object":{"id":"https://127.0.0.1/note/2","type":"Note","attributedTo":"https://127.0.0.1/user/erin","inReplyTo":"https://127.0.0.1/note/1","content":"hello dan","to":["https://127.0.0.1/user/dan","https://127.0.0.1/followers/erin"]},"to":["https://127.0.0.1/user/dan","https://127.0.0.1/followers/erin"]},"to":["https://127.0.0.1/followers/people"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		create,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(2, n)
 
 	follow := server.Handle("/users/follow/127.0.0.1/group/people", server.Alice)
 	assert.Equal("30 /users/outbox/127.0.0.1/group/people\r\n", follow)
 
-	_, err = server.db.Exec(`update follows set accepted = 1`)
+	_, err = server.dbw.Exec(`update follows set accepted = true`)
 	assert.NoError(err)
 
 	view := server.Handle("/users/view/127.0.0.1/note/1", server.Alice)

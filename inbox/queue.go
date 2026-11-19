@@ -32,7 +32,7 @@ import (
 type Queue struct {
 	Domain   string
 	Config   *cfg.Config
-	DB       *sql.DB
+	DBW      *sql.DB
 	Inbox    ap.Inbox
 	Resolver ap.Resolver
 	Keys     [3]httpsig.Key
@@ -60,7 +60,13 @@ func (q *Queue) processActivityWithTimeout(parent context.Context, item batchIte
 		slog.Warn("Failed to resolve actor", "activity", item.Activity, "error", err)
 	}
 
-	tx, err := q.DB.BeginTx(ctx, nil)
+	if followed, ok := item.Activity.Object.(string); ok && item.Activity.Type == ap.Follow && followed != "" {
+		if _, err := q.Resolver.ResolveID(ctx, q.Keys, followed, 0); err != nil {
+			slog.Warn("Failed to resolve followed actor", "activity", item.Activity, "error", err)
+		}
+	}
+
+	tx, err := q.DBW.BeginTx(ctx, nil)
 	if err != nil {
 		slog.Warn("Failed to start transaction", "activity", item.Activity, "error", err)
 		return
@@ -85,13 +91,13 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 
 	batch, err := dbx.QueryCollectCountIgnore[batchItem](
 		ctx,
-		q.DB,
+		q.DBW,
 		q.Config.ActivitiesBatchSize,
 		func(err error) bool {
 			slog.Error("Failed to scan activity", "error", err)
 			return true
 		},
-		`select inbox.id, inbox.path, json(persons.actor), coalesce(json(inbox.activity), inbox.raw), inbox.raw, inbox.raw->>'$.type' = 'Announce' as shared from (select * from inbox order by id limit -1 offset case when (select count(*) from (select 1 from inbox limit $1)) >= $1 then $1/10 else 0 end) inbox left join persons on persons.id = inbox.sender order by inbox.id limit $2`,
+		`select inbox.id, inbox.path, persons.actor, coalesce(inbox.activity, inbox.raw::jsonb), inbox.raw, inbox.raw::jsonb->>'type' = 'Announce' as shared from (select * from inbox order by id offset case when (select count(*) from (select 1 from inbox limit $1)) >= $1 then $1/10 else 0 end) inbox left join persons on persons.id = inbox.sender order by inbox.id limit $2`,
 		q.Config.MaxActivitiesQueueSize,
 		q.Config.ActivitiesBatchSize,
 	)
@@ -109,7 +115,7 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		q.processActivityWithTimeout(ctx, item)
 	}
 
-	if _, err := q.DB.ExecContext(ctx, `delete from inbox where id <= ?`, maxID); err != nil {
+	if _, err := q.DBW.ExecContext(ctx, `delete from inbox where id <= $1`, maxID); err != nil {
 		return 0, fmt.Errorf("failed to delete processed activities: %w", err)
 	}
 

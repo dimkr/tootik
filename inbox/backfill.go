@@ -35,7 +35,7 @@ import (
 
 func (q *Queue) fetchCachedPost(ctx context.Context, id string) (*ap.Object, error) {
 	var post ap.Object
-	return &post, q.DB.QueryRowContext(
+	return &post, q.DBW.QueryRowContext(
 		ctx,
 		/*
 			we want to use the post we have and avoid fetching if
@@ -45,11 +45,11 @@ func (q *Queue) fetchCachedPost(ctx context.Context, id string) (*ap.Object, err
 			   will be federated to us because we've received at least one activity
 		*/
 		`
-		select json(object) from notes
+		select object from notes
 		where
 				id = $1
 				and (
-						deleted = 1
+						deleted
 						or exists (
 								select 1 from persons where
 										persons.id = notes.author
@@ -61,19 +61,19 @@ func (q *Queue) fetchCachedPost(ctx context.Context, id string) (*ap.Object, err
 												persons.id = notes.author
 												and persons.ed25519seed is not null
 								) and (
-										max(inserted, updated) > $2
+										greatest(inserted, updated) > $2
 										or exists (
 												select 1 from history where
-														(activity->>'$.type' = 'Create' or activity->>'$.type' = 'Update')
-														and coalesce(activity->>'$.actor.id', activity->>'$.actor') = notes.author
-														and activity->>'$.object.id' = $1
+														(activity->>'type' = 'Create' or activity->>'type' = 'Update')
+														and coalesce(activity->'actor'->>'id', activity->>'actor') = notes.author
+														and activity->'object'->>'id' = $1
 										)
 								)
 						)
 				)
 		`,
 		id,
-		time.Now().Add(-q.Config.BackfillInterval).Unix(),
+		time.Now().Add(-q.Config.BackfillInterval),
 	).Scan(&post)
 }
 
@@ -91,7 +91,7 @@ func (q *Queue) backfill(ctx context.Context, activity *ap.Activity) error {
 
 	var contextErr error
 	var headID string
-	if err := q.DB.QueryRowContext(
+	if err := q.DBW.QueryRowContext(
 		ctx,
 		`
 		select id from
@@ -99,16 +99,16 @@ func (q *Queue) backfill(ctx context.Context, activity *ap.Activity) error {
 			with recursive thread(id, object, depth) as (
 				select id, object, 0 as depth
 				from notes
-				where id = ?
+				where id = $1
 				union all
 				select notes.id, notes.object, t.depth + 1
 				from thread t
-				join notes on notes.id = t.object->>'$.inReplyTo'
+				join notes on notes.id = t.object->>'inReplyTo'
 			)
 			select id, object, depth from thread order by depth desc
 			limit 1
 		)
-		where object->>'$.inReplyTo' is null
+		where object->>'inReplyTo' is null
 		limit 1
 		`,
 		post.ID,
@@ -135,7 +135,7 @@ func (q *Queue) fetchPost(ctx context.Context, id string) (*ap.Object, error) {
 	if err != nil && resp != nil && (resp.StatusCode == http.StatusGone || resp.StatusCode == http.StatusNotFound) {
 		slog.Info("Deleting backfilled post", "id", id)
 
-		tx, err := q.DB.BeginTx(ctx, nil)
+		tx, err := q.DBW.BeginTx(ctx, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -230,7 +230,7 @@ func (q *Queue) fetchPost(ctx context.Context, id string) (*ap.Object, error) {
 		return nil, err
 	}
 
-	tx, err := q.DB.BeginTx(ctx, nil)
+	tx, err := q.DBW.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -304,10 +304,10 @@ func (q *Queue) fetchContext(ctx context.Context, post *ap.Object) error {
 		return fmt.Errorf("failed to determine origin of %s: %w", post.BackfillContext, err)
 	}
 
-	var exists int
-	if err := q.DB.QueryRowContext(ctx, `select exists (select 1 from notes where id = ?)`, post.InReplyTo).Scan(&exists); err != nil {
+	var exists bool
+	if err := q.DBW.QueryRowContext(ctx, `select exists (select 1 from notes where id = $1)`, post.InReplyTo).Scan(&exists); err != nil {
 		return err
-	} else if exists == 1 {
+	} else if exists {
 		return nil
 	}
 

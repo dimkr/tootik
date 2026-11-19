@@ -61,7 +61,7 @@ func (inbox *Inbox) follow(ctx context.Context, follower *ap.Actor, key httpsig.
 		return err
 	}
 
-	tx, err := inbox.DB.BeginTx(ctx, nil)
+	tx, err := inbox.DBW.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -69,10 +69,10 @@ func (inbox *Inbox) follow(ctx context.Context, follower *ap.Actor, key httpsig.
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
+		`INSERT INTO outbox (activity, sender, inserted) VALUES ($1, $2, $3)`,
 		s,
 		follower.ID,
-		time.Now().UnixNano(),
+		time.Now(),
 	); err != nil {
 		return err
 	}

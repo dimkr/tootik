@@ -38,7 +38,7 @@ import (
 type Inbox struct {
 	Domain string
 	Config *cfg.Config
-	DB     *sql.DB
+	DBW    *sql.DB
 }
 
 var ErrActivityTooNested = errors.New("exceeded activity depth limit")
@@ -59,18 +59,18 @@ func (inbox *Inbox) processCreateActivity(ctx context.Context, tx *sql.Tx, sende
 	}
 
 	var audience sql.NullString
-	if err := tx.QueryRowContext(ctx, `select object->>'$.audience' from notes where id = ?`, post.ID).Scan(&audience); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := tx.QueryRowContext(ctx, `select object->>'audience' from notes where id = $1`, post.ID).Scan(&audience); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("failed to check if %s is a duplicate: %w", post.ID, err)
 	} else if err == nil {
 		if sender.ID == post.Audience && !audience.Valid {
-			if _, err := tx.ExecContext(ctx, `update notes set object = jsonb_set(jsonb_remove(object, '$.proof', '$.signature'), '$.audience', ?) where id = ? and object->>'$.audience' is null`, post.Audience, post.ID); err != nil {
+			if _, err := tx.ExecContext(ctx, `update notes set object = jsonb_set(object - 'proof' - 'signature', '{audience}', to_jsonb($1::text)) where id = $2 and object->>'audience' is null`, post.Audience, post.ID); err != nil {
 				return fmt.Errorf("failed to set %s audience to %s: %w", post.ID, audience.String, err)
 			}
 
 			if shared {
 				if _, err := tx.ExecContext(
 					ctx,
-					`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
+					`INSERT INTO shares (note, "by", activity) VALUES($1,$2,$3) ON CONFLICT DO NOTHING`,
 					post.ID,
 					sender.ID,
 					activity.ID,
@@ -81,7 +81,7 @@ func (inbox *Inbox) processCreateActivity(ctx context.Context, tx *sql.Tx, sende
 		} else if shared {
 			if _, err := tx.ExecContext(
 				ctx,
-				`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
+				`INSERT INTO shares (note, "by", activity) VALUES($1,$2,$3) ON CONFLICT DO NOTHING`,
 				post.ID,
 				sender.ID,
 				activity.ID,
@@ -106,7 +106,7 @@ func (inbox *Inbox) processCreateActivity(ctx context.Context, tx *sql.Tx, sende
 	if shared {
 		if _, err := tx.ExecContext(
 			ctx,
-			`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
+			`INSERT INTO shares (note, "by", activity) VALUES($1,$2,$3) ON CONFLICT DO NOTHING`,
 			post.ID,
 			sender.ID,
 			activity.ID,
@@ -146,12 +146,12 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 		slog.Info("Received delete request", "activity", activity, "deleted", deleted)
 
 		if deleted == activity.Actor {
-			if _, err := tx.ExecContext(ctx, `delete from persons where id = ?`, deleted); err != nil {
+			if _, err := tx.ExecContext(ctx, `update persons set actor = actor - array['name', 'summary', 'icon', 'image', 'attachment'] where id = $1`, deleted); err != nil {
 				return fmt.Errorf("failed to delete person %s: %w", deleted, err)
 			}
 		} else {
 			var note ap.Object
-			if err := tx.QueryRowContext(ctx, `select json(object) from notes where id = ? and deleted = 0`, deleted).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
+			if err := tx.QueryRowContext(ctx, `select object from notes where id = $1 and not deleted`, deleted).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
 				slog.Debug("Received delete request for non-existing post", "activity", activity, "deleted", deleted)
 				return nil
 			} else if err != nil {
@@ -162,15 +162,19 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 				return fmt.Errorf("failed to delete %s: %w", deleted, err)
 			}
 
-			if _, err := tx.ExecContext(ctx, `delete from notesfts where rowid = (select pk from notes where id = ?)`, deleted); err != nil {
+			if _, err := tx.ExecContext(ctx, `delete from notesfts where rowid = (select pk from notes where id = $1)`, deleted); err != nil {
 				return fmt.Errorf("cannot delete %s: %w", deleted, err)
 			}
-			if _, err := tx.ExecContext(ctx, `update notes set object = jsonb_set(jsonb_remove(object, '$.name', '$.summary', '$.tag', '$.attachment', '$.votersCount', '$.oneOf', '$.anyOf'), '$.content', '[deleted]'), deleted = 1 where id = ?`, deleted); err != nil {
+			if _, err := tx.ExecContext(ctx, `update notes set object = jsonb_set(object - array['name', 'summary', 'tag', 'attachment', 'votersCount', 'oneOf', 'anyOf'], '{content}', '"[deleted]"'), deleted = true where id = $1`, deleted); err != nil {
 				return fmt.Errorf("cannot delete %s: %w", deleted, err)
 			}
 		}
 
 	case ap.Follow:
+		if sender.ID != activity.Actor {
+			return fmt.Errorf("received an invalid follow request by %s from %s", activity.Actor, sender.ID)
+		}
+
 		followedID, ok := activity.Object.(string)
 		if !ok {
 			return errors.New("received a request to follow a non-link object")
@@ -181,51 +185,53 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 
 		var ed25519Seed, mldsa44Seed []byte
 		var followed ap.Actor
-		if err := tx.QueryRowContext(ctx, `select ed25519seed, mldsa44seed, json(actor) from persons where cid = ? order by ed25519seed is not null desc limit 1`, ap.Canonical(followedID)).Scan(&ed25519Seed, &mldsa44Seed, &followed); errors.Is(err, sql.ErrNoRows) {
+		if err := tx.QueryRowContext(ctx, `select ed25519seed, mldsa44seed, actor from persons where cid = $1 order by ed25519seed is not null desc limit 1`, ap.Canonical(followedID)).Scan(&ed25519Seed, &mldsa44Seed, &followed); errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("received a follow request for unknown %s by %s", followedID, activity.Actor)
+		} else if err != nil {
+			return fmt.Errorf("failed to fetch %s: %w", followedID, err)
+		}
+
+		if ed25519Seed == nil {
 			var localFollowerID string
-			if err := tx.QueryRowContext(ctx, `select id from persons where cid = ? and ed25519seed is not null`, ap.Canonical(activity.Actor)).Scan(&localFollowerID); errors.Is(err, sql.ErrNoRows) {
-				return fmt.Errorf("received an invalid follow request for %s by %s", followedID, activity.Actor)
+			if err := tx.QueryRowContext(ctx, `select id from persons where cid = $1 and ed25519seed is not null`, ap.Canonical(activity.Actor)).Scan(&localFollowerID); errors.Is(err, sql.ErrNoRows) {
+				return fmt.Errorf("received an invalid follow request for %s by %s", followed.ID, activity.Actor)
 			} else if err != nil {
-				return fmt.Errorf("failed to validate follow request for %s by %s: %w", followedID, activity.Actor, err)
-			} else if _, err := tx.ExecContext(
+				return fmt.Errorf("failed to validate follow request for %s by %s: %w", followed.ID, activity.Actor, err)
+			}
+
+			if _, err := tx.ExecContext(
 				ctx,
-				`INSERT INTO follows (id, follower, followed, insertednano) VALUES($1, $2, $3, $4) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = NULL, insertednano = $4`,
+				`INSERT INTO follows (id, follower, followed, inserted) VALUES($1, $2, $3, $4) ON CONFLICT((md5(follower)), (md5(followed))) DO UPDATE SET id = $1, accepted = NULL, inserted = $4`,
 				activity.ID,
 				localFollowerID,
-				followedID,
-				time.Now().UnixNano(),
+				followed.ID,
+				time.Now(),
 			); err != nil {
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
-
-			return nil
-		} else if err != nil {
-			return fmt.Errorf("failed to fetch %s: %w", followed.ID, err)
-		}
-
-		if ed25519Seed == nil || followed.ManuallyApprovesFollowers {
+		} else if followed.ManuallyApprovesFollowers {
 			slog.Info("Not approving follow request", "activity", activity, "follower", activity.Actor, "followed", followed.ID)
 
 			if _, err := tx.ExecContext(
 				ctx,
-				`INSERT INTO follows (id, follower, followed, insertednano) VALUES($1, $2, $3, $4) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = NULL, insertednano = $4`,
+				`INSERT INTO follows (id, follower, followed, inserted) VALUES($1, $2, $3, $4) ON CONFLICT((md5(follower)), (md5(followed))) DO UPDATE SET id = $1, accepted = NULL, inserted = $4`,
 				activity.ID,
 				activity.Actor,
 				followed.ID,
-				time.Now().UnixNano(),
+				time.Now(),
 			); err != nil {
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
-		} else if ed25519Seed != nil && !followed.ManuallyApprovesFollowers {
+		} else {
 			slog.Info("Approving follow request", "activity", activity, "follower", activity.Actor, "followed", followed.ID)
 
 			if _, err := tx.ExecContext(
 				ctx,
-				`INSERT INTO follows (id, follower, followed, accepted, insertednano) VALUES($1, $2, $3, 1, $4) ON CONFLICT(follower, followed) DO UPDATE SET id = $1, accepted = 1, insertednano = $4`,
+				`INSERT INTO follows (id, follower, followed, accepted, inserted) VALUES($1, $2, $3, true, $4) ON CONFLICT((md5(follower)), (md5(followed))) DO UPDATE SET id = $1, accepted = true, inserted = $4`,
 				activity.ID,
 				activity.Actor,
 				followed.ID,
-				time.Now().UnixNano(),
+				time.Now(),
 			); err != nil {
 				return fmt.Errorf("failed to insert follow %s: %w", activity.ID, err)
 			}
@@ -233,8 +239,6 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 			if err := inbox.AcceptFollow(ctx, &followed, proof.SigningSeed(&followed, ed25519Seed, mldsa44Seed), activity.Actor, activity.ID, tx); err != nil {
 				return fmt.Errorf("failed to accept %s: %w", activity.ID, err)
 			}
-		} else {
-			return fmt.Errorf("received an invalid follow request for %s by %s", followed.ID, activity.Actor)
 		}
 
 	case ap.Accept:
@@ -255,7 +259,7 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 		if _, err := tx.ExecContext(
 			ctx,
 			`
-			UPDATE follows SET accepted = 1 WHERE id = ? AND followed = ?
+			UPDATE follows SET accepted = true WHERE id = $1 AND followed = $2
 			`,
 			followID,
 			sender.ID,
@@ -279,7 +283,7 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 
 		slog.Info("Follow is rejected", "activity", activity, "follow", followID)
 
-		if res, err := tx.ExecContext(ctx, `update follows set accepted = 0 where id = ? and followed = ? and (accepted is null or accepted = 1)`, followID, sender.ID); err != nil {
+		if res, err := tx.ExecContext(ctx, `update follows set accepted = false where id = $1 and followed = $2 and (accepted is null or accepted)`, followID, sender.ID); err != nil {
 			return fmt.Errorf("failed to reject follow %s: %w", followID, err)
 		} else if n, err := res.RowsAffected(); err != nil {
 			return fmt.Errorf("failed to reject follow %s: %w", followID, err)
@@ -300,7 +304,7 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 			}
 			if _, err := tx.ExecContext(
 				ctx,
-				`delete from shares where note = ? and by = ?`,
+				`delete from shares where note = $1 and "by" = $2`,
 				noteID,
 				activity.Actor,
 			); err != nil {
@@ -334,7 +338,7 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 			return errors.New("received an undo request with empty ID")
 		}
 
-		if _, err := tx.ExecContext(ctx, `delete from follows where follower = ? and followed = ?`, follower, followed); err != nil {
+		if _, err := tx.ExecContext(ctx, `delete from follows where follower = $1 and followed = $2`, follower, followed); err != nil {
 			return fmt.Errorf("failed to remove follow of %s by %s: %w", followed, follower, err)
 		}
 
@@ -354,7 +358,7 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 			if postID, ok := activity.Object.(string); ok && postID != "" {
 				if _, err := tx.ExecContext(
 					ctx,
-					`INSERT OR IGNORE INTO shares (note, by, activity) VALUES(?,?,?)`,
+					`INSERT INTO shares (note, "by", activity) VALUES($1,$2,$3) ON CONFLICT DO NOTHING`,
 					postID,
 					sender.ID,
 					activity.ID,
@@ -382,8 +386,8 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 		}
 
 		var oldPost ap.Object
-		var lastChange int64
-		if err := tx.QueryRowContext(ctx, `select max(inserted, updated), json(object) from notes where id = ? and author in (select id from persons where cid = ?)`, post.ID, ap.Canonical(post.AttributedTo)).Scan(&lastChange, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
+		var lastChange time.Time
+		if err := tx.QueryRowContext(ctx, `select greatest(inserted, updated), object from notes where id = $1 and author in (select id from persons where cid = $2)`, post.ID, ap.Canonical(post.AttributedTo)).Scan(&lastChange, &oldPost); err != nil && errors.Is(err, sql.ErrNoRows) {
 			slog.Debug("Received Update for non-existing post", "activity", activity)
 			return inbox.processCreateActivity(ctx, tx, sender, activity, rawActivity, post, shared)
 		} else if err != nil {
@@ -392,14 +396,12 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 
 		// if specified, prefer post publication or editing time to insertion or last update time
 		if oldPost.Updated != (ap.Time{}) {
-			lastChange = oldPost.Updated.UnixNano()
+			lastChange = oldPost.Updated.Time
 		} else if oldPost.Published != (ap.Time{}) {
-			lastChange = oldPost.Published.UnixNano()
-		} else {
-			lastChange *= 1000000000
+			lastChange = oldPost.Published.Time
 		}
 
-		if (post.Type == ap.Question && post.Updated != (ap.Time{}) && lastChange >= post.Updated.UnixNano()) || (post.Type != ap.Question && (post.Updated == (ap.Time{}) || lastChange >= post.Updated.UnixNano())) {
+		if (post.Type == ap.Question && post.Updated != (ap.Time{}) && !lastChange.Before(post.Updated.Time)) || (post.Type != ap.Question && (post.Updated == (ap.Time{}) || !lastChange.Before(post.Updated.Time))) {
 			slog.Debug("Received old update request for new post", "activity", activity)
 			return nil
 		}
@@ -411,7 +413,7 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 
 		if _, err := tx.ExecContext(
 			ctx,
-			`update notes set object = jsonb(?), updated = unixepoch() where id = ?`,
+			`update notes set object = $1, updated = now() where id = $2`,
 			post,
 			post.ID,
 		); err != nil {
@@ -421,7 +423,7 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 		if post.Content != oldPost.Content {
 			if _, err := tx.ExecContext(
 				ctx,
-				`update notesfts set content = ? where rowid = (select pk from notes where id = ?)`,
+				`update notesfts set content = to_tsvector('simple', $1) where rowid = (select pk from notes where id = $2)`,
 				note.Flatten(post),
 				post.ID,
 			); err != nil {
@@ -447,9 +449,9 @@ func (inbox *Inbox) processActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 		if err := tx.QueryRowContext(
 			ctx,
 			`
-			select ed25519seed, mldsa44seed, json(actor) from notes
+			select ed25519seed, mldsa44seed, actor from notes
 			join persons on persons.id = notes.author
-			where notes.id = ? and notes.public = 1 and notes.deleted = 0 and persons.ed25519seed is not null
+			where notes.id = $1 and notes.public and not notes.deleted and persons.ed25519seed is not null
 			`,
 			postID,
 		).Scan(&ed25519Seed, &mldsa44Seed, &actor); errors.Is(err, sql.ErrNoRows) {
@@ -492,7 +494,7 @@ func (inbox *Inbox) ProcessActivity(ctx context.Context, tx *sql.Tx, path sql.Nu
 	}
 
 	if rawActivity != "" {
-		if _, err := tx.ExecContext(ctx, `insert or ignore into history (path, public, activity, inserted) values (?, ?, jsonb($3), ?)`, path, activity.IsPublic(), rawActivity, time.Now().UnixNano()); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO history (path, public, activity, inserted) values ($1, $2, $3, $4) ON CONFLICT DO NOTHING`, path, activity.IsPublic(), rawActivity, time.Now()); err != nil {
 			return err
 		}
 	}

@@ -58,7 +58,7 @@ func (inbox *Inbox) delete(ctx context.Context, actor *ap.Actor, key httpsig.Key
 		return err
 	}
 
-	tx, err := inbox.DB.BeginTx(ctx, nil)
+	tx, err := inbox.DBW.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ func (inbox *Inbox) delete(ctx context.Context, actor *ap.Actor, key httpsig.Key
 	// mark this post as sent so recipients who haven't received it yet don't receive it
 	if _, err := tx.ExecContext(
 		ctx,
-		`UPDATE outbox SET sent = 1 WHERE activity->>'$.object.id' = ? AND activity->>'$.type' = 'Create'`,
+		`UPDATE outbox SET sent = true WHERE activity->'object'->>'id' = $1 AND activity->>'type' = 'Create'`,
 		note.ID,
 	); err != nil {
 		return err
@@ -75,10 +75,10 @@ func (inbox *Inbox) delete(ctx context.Context, actor *ap.Actor, key httpsig.Key
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
+		`INSERT INTO outbox (activity, sender, inserted) VALUES ($1, $2, $3)`,
 		s,
 		note.AttributedTo,
-		time.Now().UnixNano(),
+		time.Now(),
 	); err != nil {
 		return err
 	}

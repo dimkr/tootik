@@ -17,10 +17,10 @@ limitations under the License.
 package test
 
 import (
-	"context"
 	"fmt"
-	"github.com/dimkr/tootik/ap"
 	"strings"
+
+	"github.com/dimkr/tootik/ap"
 
 	"github.com/dimkr/tootik/inbox"
 	"github.com/stretchr/testify/assert"
@@ -29,32 +29,29 @@ import (
 )
 
 func TestUsers_NoPosts(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
 }
 
 func TestUsers_UnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", nil)
 	assert.Equal("30 /oops\r\n", users)
 }
 
 func TestUsers_DM(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -64,15 +61,14 @@ func TestUsers_DM(t *testing.T) {
 	dm := server.Handle("/users/dm?Hello%20%40alice", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello @alice")
 }
 
 func TestUsers_DMNotFollowing(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -85,15 +81,14 @@ func TestUsers_DMNotFollowing(t *testing.T) {
 	unfollow := server.Handle("/users/unfollow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), unfollow)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.NotContains(users, "Hello @alice")
 }
 
 func TestUsers_PostToFollowers(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -103,30 +98,28 @@ func TestUsers_PostToFollowers(t *testing.T) {
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello world")
 }
 
 func TestUsers_PostToFollowersNotFollowing(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.NotContains(users, "Hello world")
 }
 
 func TestUsers_PublicPost(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -136,43 +129,41 @@ func TestUsers_PublicPost(t *testing.T) {
 	say := server.Handle("/users/say?Hello%20world", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello world")
 }
 
 func TestUsers_PublicPostNotFollowing(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20world", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.NotContains(users, "Hello world")
 }
 
 func TestUsers_PublicPostShared(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err := server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
-	_, err = server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err = server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/erin"),
 		"https://127.0.0.1/user/erin",
 		`{"id":"https://127.0.0.1/user/erin","type":"Person","preferredUsername":"erin","followers":"https://127.0.0.1/followers/erin"}`,
@@ -182,42 +173,41 @@ func TestUsers_PublicPostShared(t *testing.T) {
 	follow := server.Handle("/users/follow/127.0.0.1/user/erin", server.Alice)
 	assert.Equal("30 /users/outbox/127.0.0.1/user/erin\r\n", follow)
 
-	_, err = server.db.Exec(`update follows set accepted = 1`)
+	_, err = server.dbw.Exec(`update follows set accepted = true`)
 	assert.NoError(err)
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/erin",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/1","type":"Announce","actor":"https://127.0.0.1/user/erin","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/erin"]}`,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello world")
 }
 
 func TestUsers_PublicPostSharedNotFollowing(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err := server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"id":"https://127.0.0.1/user/dan","type":"Person","preferredUsername":"dan","followers":"https://127.0.0.1/followers/dan"}`,
 	)
 	assert.NoError(err)
 
-	_, err = server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err = server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/erin"),
 		"https://127.0.0.1/user/erin",
 		`{"id":"https://127.0.0.1/user/erin","type":"Person","preferredUsername":"erin","followers":"https://127.0.0.1/followers/erin"}`,
@@ -227,24 +217,24 @@ func TestUsers_PublicPostSharedNotFollowing(t *testing.T) {
 	follow := server.Handle("/users/follow/127.0.0.1/user/erin", server.Alice)
 	assert.Equal("30 /users/outbox/127.0.0.1/user/erin\r\n", follow)
 
-	_, err = server.db.Exec(`update follows set accepted = 1`)
+	_, err = server.dbw.Exec(`update follows set accepted = true`)
 	assert.NoError(err)
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/erin",
 		`{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/announce/1","type":"Announce","actor":"https://127.0.0.1/user/erin","object":{"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/note/1","type":"Note","attributedTo":"https://127.0.0.1/user/dan","content":"Hello world","to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/dan"]},"to":["https://www.w3.org/ns/activitystreams#Public"],"cc":["https://127.0.0.1/followers/erin"]}`,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
 	unfollow := server.Handle("/users/unfollow/127.0.0.1/user/erin", server.Alice)
 	assert.Equal("30 /users/outbox/127.0.0.1/user/erin\r\n", unfollow)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.NotContains(users, "Hello world")

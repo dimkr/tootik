@@ -24,7 +24,6 @@ import (
 
 func TestCluster_Context(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].RegisterPortable(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].RegisterPortable(bobKeypair).OK()

@@ -36,8 +36,14 @@ type Handler struct {
 	Domain   string
 	Config   *cfg.Config
 	Resolver ap.Resolver
-	DB       *sql.DB
-	Inbox    ap.Inbox
+
+	// DB is a connection pool to the read replica.
+	DB *sql.DB
+
+	// DBW is a connection pool to the primary.
+	DBW *sql.DB
+
+	Inbox ap.Inbox
 }
 
 var (
@@ -59,7 +65,7 @@ func NewHandler(
 	domain string,
 	cfg *cfg.Config,
 	resolver ap.Resolver,
-	db *sql.DB,
+	db, dbw *sql.DB,
 	inbox ap.Inbox,
 ) (Handler, error) {
 	return NewHandlerWithCache(
@@ -67,6 +73,7 @@ func NewHandler(
 		cfg,
 		resolver,
 		db,
+		dbw,
 		inbox,
 		&sync.Map{},
 	)
@@ -77,16 +84,21 @@ func NewHandlerWithCache(
 	domain string,
 	cfg *cfg.Config,
 	resolver ap.Resolver,
-	db *sql.DB,
+	db, dbw *sql.DB,
 	inbox ap.Inbox,
 	cache *sync.Map,
 ) (Handler, error) {
+	if db == nil {
+		db = dbw
+	}
+
 	h := Handler{
 		handlers: map[*regexp.Regexp]func(text.Writer, *Request, ...string){},
 		Domain:   domain,
 		Config:   cfg,
 		Resolver: resolver,
 		DB:       db,
+		DBW:      dbw,
 		Inbox:    inbox,
 	}
 

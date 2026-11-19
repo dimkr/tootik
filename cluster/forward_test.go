@@ -24,7 +24,6 @@ import (
 
 func TestCluster_ReplyForwardingWithIntegrityProofs(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -89,7 +88,6 @@ func TestCluster_ReplyForwardingWithIntegrityProofs(t *testing.T) {
 
 func TestCluster_ReplyForwardingWithoutIntegrityProofs(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	// a.localdomain don't attach proofs to outgoing activities and c.localdomain should fetch forwarded activities
 	cluster["a.localdomain"].Config.DisableIntegrityProofs = true

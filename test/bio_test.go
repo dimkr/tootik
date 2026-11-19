@@ -25,8 +25,7 @@ import (
 )
 
 func TestBio_Throttled(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -35,8 +34,7 @@ func TestBio_Throttled(t *testing.T) {
 }
 
 func TestBio_HappyFlow(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -50,8 +48,7 @@ func TestBio_HappyFlow(t *testing.T) {
 }
 
 func TestBio_TooLong(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -62,8 +59,7 @@ func TestBio_TooLong(t *testing.T) {
 }
 
 func TestBio_MultiLine(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -78,8 +74,7 @@ func TestBio_MultiLine(t *testing.T) {
 }
 
 func TestBio_MultiLineWithLink(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

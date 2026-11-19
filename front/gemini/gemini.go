@@ -54,7 +54,7 @@ import (
 type Listener struct {
 	Domain   string
 	Config   *cfg.Config
-	DB       *sql.DB
+	DBW      *sql.DB
 	Handler  front.Handler
 	Addr     string
 	CertPath string
@@ -78,13 +78,13 @@ func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn, cfg *cfg.Con
 
 	var rsaPrivKeyDer, ed25519Seed, mldsa44Seed []byte
 	var actor ap.Actor
-	var approved int
-	if err := gl.DB.QueryRowContext(ctx, `select json(persons.actor), persons.rsaprivkey, persons.ed25519seed, persons.mldsa44seed, certificates.approved from certificates join persons on persons.actor->>'$.preferredUsername' = certificates.user where persons.host = ? and certificates.hash = ? and certificates.expires > unixepoch()`, gl.Domain, certHash).Scan(&actor, &rsaPrivKeyDer, &ed25519Seed, &mldsa44Seed, &approved); err != nil && errors.Is(err, sql.ErrNoRows) {
+	var approved bool
+	if err := gl.DBW.QueryRowContext(ctx, `select persons.actor, persons.rsaprivkey, persons.ed25519seed, persons.mldsa44seed, certificates.approved from certificates join persons on persons.actor->>'preferredUsername' = certificates.user where persons.host = $1 and certificates.hash = $2 and certificates.expires > now()`, gl.Domain, certHash).Scan(&actor, &rsaPrivKeyDer, &ed25519Seed, &mldsa44Seed, &approved); err != nil && errors.Is(err, sql.ErrNoRows) {
 		if cfg.RequireInvitation {
-			var accepted int
-			if err := gl.DB.QueryRowContext(ctx, `select exists (select 1 from invites where certhash = ?)`, certHash).Scan(&accepted); err != nil {
+			var accepted bool
+			if err := gl.DBW.QueryRowContext(ctx, `select exists (select 1 from invites where certhash = $1)`, certHash).Scan(&accepted); err != nil {
 				return nil, [3]httpsig.Key{}, err
-			} else if accepted == 0 {
+			} else if !accepted {
 				return nil, [3]httpsig.Key{}, front.ErrNotInvited
 			}
 		}
@@ -94,7 +94,7 @@ func (gl *Listener) getUser(ctx context.Context, tlsConn *tls.Conn, cfg *cfg.Con
 		return nil, [3]httpsig.Key{}, fmt.Errorf("failed to fetch user for %s: %w", certHash, err)
 	}
 
-	if approved == 0 {
+	if !approved {
 		return nil, [3]httpsig.Key{}, fmt.Errorf("failed to fetch user for %s: %w", certHash, front.ErrNotApproved)
 	}
 
@@ -248,13 +248,13 @@ func (gl *Listener) getCertificate(ctx context.Context) (tls.Certificate, error)
 		return tls.X509KeyPair(certPEM, keyPEM)
 	}
 
-	tx, err := gl.DB.BeginTx(ctx, nil)
+	tx, err := gl.DBW.BeginTx(ctx, nil)
 	if err != nil {
 		return tls.Certificate{}, err
 	}
 	defer tx.Rollback()
 
-	cache := data.Cache[Listener]{DB: tx}
+	cache := data.Cache[Listener]{DBW: tx}
 
 	var priv *ecdsa.PrivateKey
 

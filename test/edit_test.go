@@ -17,7 +17,6 @@ limitations under the License.
 package test
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -29,15 +28,14 @@ import (
 )
 
 func TestEdit_Throttling(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
@@ -55,7 +53,7 @@ func TestEdit_Throttling(t *testing.T) {
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello world")
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users = server.Handle("/users", server.Alice)
 	assert.NotContains(users, "No posts.")
@@ -63,15 +61,14 @@ func TestEdit_Throttling(t *testing.T) {
 }
 
 func TestEdit_HappyFlow(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
@@ -82,7 +79,7 @@ func TestEdit_HappyFlow(t *testing.T) {
 
 	id := whisper[15 : len(whisper)-2]
 
-	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = jsonb_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.dbw.Exec("update notes set inserted = inserted - interval '1 hour', object = jsonb_set(object, '{published}', to_jsonb($1::text)) where id = 'https://' || $2", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?Hello%%20followers", id), server.Bob)
@@ -92,7 +89,7 @@ func TestEdit_HappyFlow(t *testing.T) {
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello followers")
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users = server.Handle("/users", server.Alice)
 	assert.NotContains(users, "No posts.")
@@ -111,15 +108,14 @@ func TestEdit_HappyFlow(t *testing.T) {
 }
 
 func TestEdit_EmptyContent(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
@@ -130,7 +126,7 @@ func TestEdit_EmptyContent(t *testing.T) {
 
 	id := whisper[15 : len(whisper)-2]
 
-	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = jsonb_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.dbw.Exec("update notes set inserted = inserted - interval '1 hour', object = jsonb_set(object, '{published}', to_jsonb($1::text)) where id = 'https://' || $2", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?", id), server.Bob)
@@ -140,7 +136,7 @@ func TestEdit_EmptyContent(t *testing.T) {
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello world")
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users = server.Handle("/users", server.Alice)
 	assert.NotContains(users, "No posts.")
@@ -148,15 +144,14 @@ func TestEdit_EmptyContent(t *testing.T) {
 }
 
 func TestEdit_LongContent(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
@@ -167,7 +162,7 @@ func TestEdit_LongContent(t *testing.T) {
 
 	id := whisper[15 : len(whisper)-2]
 
-	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = jsonb_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.dbw.Exec("update notes set inserted = inserted - interval '1 hour', object = jsonb_set(object, '{published}', to_jsonb($1::text)) where id = 'https://' || $2", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", id), server.Bob)
@@ -177,7 +172,7 @@ func TestEdit_LongContent(t *testing.T) {
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello world")
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users = server.Handle("/users", server.Alice)
 	assert.NotContains(users, "No posts.")
@@ -185,15 +180,14 @@ func TestEdit_LongContent(t *testing.T) {
 }
 
 func TestEdit_InvalidEscapeSequence(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
@@ -204,7 +198,7 @@ func TestEdit_InvalidEscapeSequence(t *testing.T) {
 
 	id := whisper[15 : len(whisper)-2]
 
-	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = jsonb_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.dbw.Exec("update notes set inserted = inserted - interval '1 hour', object = jsonb_set(object, '{published}', to_jsonb($1::text)) where id = 'https://' || $2", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?Hello%%zzworld", id), server.Bob)
@@ -214,7 +208,7 @@ func TestEdit_InvalidEscapeSequence(t *testing.T) {
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello world")
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users = server.Handle("/users", server.Alice)
 	assert.NotContains(users, "No posts.")
@@ -222,15 +216,14 @@ func TestEdit_InvalidEscapeSequence(t *testing.T) {
 }
 
 func TestEdit_NoSuchPost(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
@@ -246,7 +239,7 @@ func TestEdit_NoSuchPost(t *testing.T) {
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello world")
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users = server.Handle("/users", server.Alice)
 	assert.NotContains(users, "No posts.")
@@ -254,15 +247,14 @@ func TestEdit_NoSuchPost(t *testing.T) {
 }
 
 func TestEdit_UnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
@@ -280,7 +272,7 @@ func TestEdit_UnauthenticatedUser(t *testing.T) {
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello world")
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users = server.Handle("/users", server.Alice)
 	assert.NotContains(users, "No posts.")
@@ -288,8 +280,7 @@ func TestEdit_UnauthenticatedUser(t *testing.T) {
 }
 
 func TestEdit_AddHashtag(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -304,7 +295,7 @@ func TestEdit_AddHashtag(t *testing.T) {
 
 	id := say[15 : len(say)-2]
 
-	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = jsonb_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.dbw.Exec("update notes set inserted = inserted - interval '1 hour', object = jsonb_set(object, '{published}', to_jsonb($1::text)) where id = 'https://' || $2", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?%%23Hello%%20%%23world", id), server.Alice)
@@ -318,8 +309,7 @@ func TestEdit_AddHashtag(t *testing.T) {
 }
 
 func TestEdit_RemoveHashtag(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -334,7 +324,7 @@ func TestEdit_RemoveHashtag(t *testing.T) {
 
 	id := say[15 : len(say)-2]
 
-	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = jsonb_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.dbw.Exec("update notes set inserted = inserted - interval '1 hour', object = jsonb_set(object, '{published}', to_jsonb($1::text)) where id = 'https://' || $2", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?%%23Hello%%20world", id), server.Alice)
@@ -348,8 +338,7 @@ func TestEdit_RemoveHashtag(t *testing.T) {
 }
 
 func TestEdit_KeepHashtags(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -364,7 +353,7 @@ func TestEdit_KeepHashtags(t *testing.T) {
 
 	id := say[15 : len(say)-2]
 
-	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = jsonb_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.dbw.Exec("update notes set inserted = inserted - interval '1 hour', object = jsonb_set(object, '{published}', to_jsonb($1::text)) where id = 'https://' || $2", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?%%23Hello%%20%%20%%23world", id), server.Alice)
@@ -378,12 +367,11 @@ func TestEdit_KeepHashtags(t *testing.T) {
 }
 
 func TestEdit_AddMention(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	lines := strings.Split(server.Handle("/users", server.Alice), "\n")
 	assert.Contains(lines, "No posts.")
@@ -399,7 +387,7 @@ func TestEdit_AddMention(t *testing.T) {
 	assert.NotContains(lines, "> Hello @alice")
 	assert.NotContains(lines, fmt.Sprintf("=> /users/outbox/%s alice", strings.TrimPrefix(server.Alice.ID, "https://")))
 
-	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = jsonb_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.dbw.Exec("update notes set inserted = inserted - interval '1 hour', object = jsonb_set(object, '{published}', to_jsonb($1::text)) where id = 'https://' || $2", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?Hello%%20%%40alice", id), server.Bob)
@@ -412,12 +400,11 @@ func TestEdit_AddMention(t *testing.T) {
 }
 
 func TestEdit_RemoveMention(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	lines := strings.Split(server.Handle("/users", server.Alice), "\n")
 	assert.Contains(lines, "No posts.")
@@ -433,7 +420,7 @@ func TestEdit_RemoveMention(t *testing.T) {
 	assert.Contains(lines, "> Hello @alice")
 	assert.Contains(lines, fmt.Sprintf("=> /users/outbox/%s alice", strings.TrimPrefix(server.Alice.ID, "https://")))
 
-	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = jsonb_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.dbw.Exec("update notes set inserted = inserted - interval '1 hour', object = jsonb_set(object, '{published}', to_jsonb($1::text)) where id = 'https://' || $2", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?Hello%%20world", id), server.Bob)
@@ -446,12 +433,11 @@ func TestEdit_RemoveMention(t *testing.T) {
 }
 
 func TestEdit_KeepMention(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	lines := strings.Split(server.Handle("/users", server.Alice), "\n")
 	assert.Contains(lines, "No posts.")
@@ -467,7 +453,7 @@ func TestEdit_KeepMention(t *testing.T) {
 	assert.Contains(lines, "> Hello @alice")
 	assert.Contains(lines, fmt.Sprintf("=> /users/outbox/%s alice", strings.TrimPrefix(server.Alice.ID, "https://")))
 
-	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = jsonb_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.dbw.Exec("update notes set inserted = inserted - interval '1 hour', object = jsonb_set(object, '{published}', to_jsonb($1::text)) where id = 'https://' || $2", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?Hello%%20%%20%%40alice", id), server.Bob)
@@ -480,8 +466,7 @@ func TestEdit_KeepMention(t *testing.T) {
 }
 
 func TestEdit_PollAddOption(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -495,10 +480,10 @@ func TestEdit_PollAddOption(t *testing.T) {
 
 	poller := outbox.Poller{
 		Domain: domain,
-		DB:     server.db,
+		DBW:    server.dbw,
 		Inbox:  server.inbox,
 	}
-	assert.NoError(poller.Run(context.Background()))
+	assert.NoError(poller.Run(t.Context()))
 
 	view := server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
@@ -509,7 +494,7 @@ func TestEdit_PollAddOption(t *testing.T) {
 	assert.NotContains(strings.Split(view, "\n"), "0          I couldn't care less")
 	assert.NotContains(strings.Split(view, "\n"), "1 ████████ I couldn't care less")
 
-	_, err := server.db.Exec("update notes set object = jsonb_set(object, '$.updated', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.dbw.Exec("update notes set object = jsonb_set(object, '{updated}', to_jsonb($1::text)) where id = 'https://' || $2", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?%%5bPOLL%%20So%%2c%%20polls%%20on%%20Station%%20are%%20pretty%%20cool%%2c%%20right%%3f%%5d%%20Nope%%20%%7c%%20Hell%%20yeah%%21%%20%%7c%%20I%%20couldn%%27t%%20care%%20less", id), server.Alice)
@@ -518,7 +503,7 @@ func TestEdit_PollAddOption(t *testing.T) {
 	reply = server.Handle(fmt.Sprintf("/users/reply/%s?I%%20couldn%%27t%%20care%%20less", say[15:len(say)-2]), server.Carol)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
-	assert.NoError(poller.Run(context.Background()))
+	assert.NoError(poller.Run(t.Context()))
 
 	view = server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
@@ -531,8 +516,7 @@ func TestEdit_PollAddOption(t *testing.T) {
 }
 
 func TestEdit_RemoveQuestion(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -546,10 +530,10 @@ func TestEdit_RemoveQuestion(t *testing.T) {
 
 	poller := outbox.Poller{
 		Domain: domain,
-		DB:     server.db,
+		DBW:    server.dbw,
 		Inbox:  server.inbox,
 	}
-	assert.NoError(poller.Run(context.Background()))
+	assert.NoError(poller.Run(t.Context()))
 
 	view := server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
@@ -560,13 +544,13 @@ func TestEdit_RemoveQuestion(t *testing.T) {
 	assert.NotContains(strings.Split(view, "\n"), "0          I couldn't care less")
 	assert.NotContains(strings.Split(view, "\n"), "1 ████████ I couldn't care less")
 
-	_, err := server.db.Exec("update notes set object = jsonb_set(object, '$.updated', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.dbw.Exec("update notes set object = jsonb_set(object, '{updated}', to_jsonb($1::text)) where id = 'https://' || $2", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?This%%20is%%20not%%20a%%20poll", id), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/view/%s\r\n", id), edit)
 
-	assert.NoError(poller.Run(context.Background()))
+	assert.NoError(poller.Run(t.Context()))
 
 	view = server.Handle("/users/view/"+id, server.Bob)
 	assert.Contains(view, "This is not a poll")

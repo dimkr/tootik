@@ -23,8 +23,7 @@ import (
 )
 
 func TestSearch_Happyflow(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -33,8 +32,7 @@ func TestSearch_Happyflow(t *testing.T) {
 }
 
 func TestSearch_LeadingHash(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -43,8 +41,7 @@ func TestSearch_LeadingHash(t *testing.T) {
 }
 
 func TestSearch_LeadingHashUnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -53,8 +50,7 @@ func TestSearch_LeadingHashUnauthenticatedUser(t *testing.T) {
 }
 
 func TestSearch_NoInput(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -63,8 +59,7 @@ func TestSearch_NoInput(t *testing.T) {
 }
 
 func TestSearch_EmptyInput(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -73,8 +68,7 @@ func TestSearch_EmptyInput(t *testing.T) {
 }
 
 func TestSearch_InvalidEscapeSequence(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -83,8 +77,7 @@ func TestSearch_InvalidEscapeSequence(t *testing.T) {
 }
 
 func TestSearch_UnathenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

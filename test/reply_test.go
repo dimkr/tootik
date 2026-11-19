@@ -17,7 +17,6 @@ limitations under the License.
 package test
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -27,8 +26,7 @@ import (
 )
 
 func TestReply_AuthorNotFollowed(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -48,7 +46,7 @@ func TestReply_AuthorNotFollowed(t *testing.T) {
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Bob)
 	assert.Contains(users, "Welcome Bob")
@@ -59,8 +57,7 @@ func TestReply_AuthorNotFollowed(t *testing.T) {
 }
 
 func TestReply_AuthorFollowed(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -83,7 +80,7 @@ func TestReply_AuthorFollowed(t *testing.T) {
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Bob)
 	assert.Contains(users, "Welcome Bob")
@@ -94,8 +91,7 @@ func TestReply_AuthorFollowed(t *testing.T) {
 }
 
 func TestReply_PostToFollowers(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -118,7 +114,7 @@ func TestReply_PostToFollowers(t *testing.T) {
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Bob)
 	assert.Contains(users, "Welcome Bob")
@@ -129,8 +125,7 @@ func TestReply_PostToFollowers(t *testing.T) {
 }
 
 func TestReply_PostToFollowersNotFollowing(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -149,7 +144,7 @@ func TestReply_PostToFollowersNotFollowing(t *testing.T) {
 	view = server.Handle("/users/view/"+id, server.Alice)
 	assert.Equal("40 Post not found\r\n", view)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Bob)
 	assert.NotContains(users, "Welcome Bob")
@@ -160,8 +155,7 @@ func TestReply_PostToFollowersNotFollowing(t *testing.T) {
 }
 
 func TestReply_PostToFollowersUnfollowedBeforeReply(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -187,7 +181,7 @@ func TestReply_PostToFollowersUnfollowedBeforeReply(t *testing.T) {
 	assert.NotContains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Bob)
 	assert.NotContains(users, "Welcome Bob")
@@ -198,8 +192,7 @@ func TestReply_PostToFollowersUnfollowedBeforeReply(t *testing.T) {
 }
 
 func TestReply_PostToFollowersUnfollowedAfterReply(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -224,7 +217,7 @@ func TestReply_PostToFollowersUnfollowedAfterReply(t *testing.T) {
 	view = server.Handle("/users/view/"+id, server.Alice)
 	assert.Equal("40 Post not found\r\n", view)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Bob)
 	assert.Contains(users, "Welcome Bob")
@@ -235,8 +228,7 @@ func TestReply_PostToFollowersUnfollowedAfterReply(t *testing.T) {
 }
 
 func TestReply_SelfReply(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -252,7 +244,7 @@ func TestReply_SelfReply(t *testing.T) {
 	assert.Contains(view, "Hello world")
 	assert.NotContains(view, "Welcome Bob")
 
-	_, err := server.db.Exec("update outbox set inserted = inserted - (3600 * 1000000000) where activity->>'$.type' = 'Create'")
+	_, err := server.dbw.Exec("update outbox set inserted = inserted - interval '1 hour' where activity->>'type' = 'Create'")
 	assert.NoError(err)
 
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Welcome%%20me", id), server.Bob)
@@ -262,7 +254,7 @@ func TestReply_SelfReply(t *testing.T) {
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome me")
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Bob)
 	assert.Contains(users, "Welcome me")
@@ -273,8 +265,7 @@ func TestReply_SelfReply(t *testing.T) {
 }
 
 func TestReply_ReplyToPublicPostByFollowedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -297,7 +288,7 @@ func TestReply_ReplyToPublicPostByFollowedUser(t *testing.T) {
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello world")
@@ -309,8 +300,7 @@ func TestReply_ReplyToPublicPostByFollowedUser(t *testing.T) {
 }
 
 func TestReply_ReplyToPublicPostByNotFollowedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -330,7 +320,7 @@ func TestReply_ReplyToPublicPostByNotFollowedUser(t *testing.T) {
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.NotContains(users, "Hello world")
@@ -342,8 +332,7 @@ func TestReply_ReplyToPublicPostByNotFollowedUser(t *testing.T) {
 }
 
 func TestReply_DM(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -353,7 +342,7 @@ func TestReply_DM(t *testing.T) {
 	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
@@ -371,7 +360,7 @@ func TestReply_DM(t *testing.T) {
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hello%%20Bob", id), server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users = server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
@@ -383,8 +372,7 @@ func TestReply_DM(t *testing.T) {
 }
 
 func TestReply_DMUnfollowed(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -394,7 +382,7 @@ func TestReply_DMUnfollowed(t *testing.T) {
 	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
@@ -415,7 +403,7 @@ func TestReply_DMUnfollowed(t *testing.T) {
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hello%%20Bob", id), server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users = server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
@@ -427,8 +415,7 @@ func TestReply_DMUnfollowed(t *testing.T) {
 }
 
 func TestReply_DMUnfollowedBeforeFeedUpdate(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -457,7 +444,7 @@ func TestReply_DMUnfollowedBeforeFeedUpdate(t *testing.T) {
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hello%%20Bob", id), server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, reply)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users = server.Handle("/users", server.Alice)
 	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
@@ -469,8 +456,7 @@ func TestReply_DMUnfollowedBeforeFeedUpdate(t *testing.T) {
 }
 
 func TestReply_DMToAnotherUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -480,7 +466,7 @@ func TestReply_DMToAnotherUser(t *testing.T) {
 	dm := server.Handle("/users/dm?Hello%20%40alice%40localhost.localdomain%3a8443", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, dm)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
@@ -498,7 +484,7 @@ func TestReply_DMToAnotherUser(t *testing.T) {
 	reply := server.Handle(fmt.Sprintf("/users/reply/%s?Hello%%20Bob", id), server.Carol)
 	assert.Equal("40 Post not found\r\n", reply)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users = server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello @alice@localhost.localdomain:8443")
@@ -510,8 +496,7 @@ func TestReply_DMToAnotherUser(t *testing.T) {
 }
 
 func TestReply_NoSuchPost(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

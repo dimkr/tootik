@@ -51,7 +51,7 @@ func (inbox *Inbox) move(ctx context.Context, from *ap.Actor, key httpsig.Key, t
 		}
 	}
 
-	tx, err := inbox.DB.BeginTx(ctx, nil)
+	tx, err := inbox.DBW.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
@@ -67,10 +67,10 @@ func (inbox *Inbox) move(ctx context.Context, from *ap.Actor, key httpsig.Key, t
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`insert into outbox (activity, sender, inserted) values (jsonb(?), ?, ?)`,
+		`insert into outbox (activity, sender, inserted) values ($1, $2, $3)`,
 		move,
 		from.ID,
-		now.UnixNano(),
+		now,
 	); err != nil {
 		return err
 	}

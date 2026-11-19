@@ -48,8 +48,9 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 	now := ap.Time{Time: time.Now()}
 
 	if oldNote == nil {
-		var today, last sql.NullInt64
-		if err := h.DB.QueryRowContext(r.Context, `select count(*), max(inserted) from outbox where activity->>'$.actor' = $1 and sender = $1 and activity->>'$.type' = 'Create' and inserted > $2`, r.User.ID, now.Add(-24*time.Hour).UnixNano()).Scan(&today, &last); err != nil {
+		var today sql.NullInt64
+		var last sql.NullTime
+		if err := h.DBW.QueryRowContext(r.Context, `select count(*), max(inserted) from outbox where activity->>'actor' = $1 and sender = $1 and activity->>'type' = 'Create' and inserted > $2`, r.User.ID, now.Add(-24*time.Hour)).Scan(&today, &last); err != nil {
 			r.Log.Warn("Failed to check if new post needs to be throttled", "error", err)
 			w.Error()
 			return
@@ -62,7 +63,7 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 		}
 
 		if today.Valid && last.Valid {
-			t := time.Unix(0, last.Int64)
+			t := last.Time
 			can := t.Add(max(1, time.Duration(today.Int64/h.Config.PostThrottleFactor)) * h.Config.PostThrottleUnit)
 			until := time.Until(can)
 			if until > 0 {
@@ -106,11 +107,11 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 		if mention[3] == "" && inReplyTo != nil {
 			actorID, err = dbx.QueryScanRow[string](
 				r.Context,
-				h.DB,
+				h.DBW,
 				`
 				select id from persons where
-					actor->>'$.preferredUsername' = $1
-					and ((actor->>'$.type' = 'Group') is $2)
+					actor->>'preferredUsername' = $1
+					and ((actor->>'type' = 'Group') is not distinct from $2)
 					and (
 						exists (
 							select 1 from (
@@ -119,20 +120,20 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 									where notes.id = $3
 									union all
 									select notes.id, notes.object from thread t
-									join notes on notes.object->>'$.inReplyTo' = t.id
+									join notes on notes.object->>'inReplyTo' = t.id
 									where (
-										notes.public = 1
-										or exists (select 1 from json_each(notes.object->'$.to') where value = $4 or value = $5)
-										or exists (select 1 from json_each(notes.object->'$.cc') where value = $4 or value = $5)
+										notes.public
+										or notes.object->'to' ?| array[$4, $5]
+										or notes.object->'cc' ?| array[$4, $5]
 									)
 								)
 								select id, object from thread
 							) parents where
-								parents.object->>'$.attributedTo' = persons.id
-								or exists (select 1 from json_each(parents.object->'$.to') where value = persons.id)
-								or exists (select 1 from json_each(parents.object->'$.cc') where value = persons.id)
+								parents.object->>'attributedTo' = persons.id
+								or parents.object->'to' ? persons.id
+								or parents.object->'cc' ? persons.id
 						) or ed25519seed is not null
-						or id in (select followed from follows where follower = $4 and accepted = 1)
+						or id in (select followed from follows where follower = $4 and accepted)
 					)
 				limit 2
 				`,
@@ -145,12 +146,12 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 		} else if mention[3] != "" && inReplyTo != nil {
 			actorID, err = dbx.QueryScanRow[string](
 				r.Context,
-				h.DB,
+				h.DBW,
 				`
 				select id from persons where
-					actor->>'$.preferredUsername' = $1
+					actor->>'preferredUsername' = $1
 					and host = $2
-					and ((actor->>'$.type' = 'Group') is $3)
+					and ((actor->>'type' = 'Group') is not distinct from $3)
 					and (
 						exists (
 							select 1 from (
@@ -159,20 +160,20 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 									where notes.id = $4
 									union all
 									select notes.id, notes.object from thread t
-									join notes on notes.object->>'$.inReplyTo' = t.id
+									join notes on notes.object->>'inReplyTo' = t.id
 									where (
-										notes.public = 1
-										or exists (select 1 from json_each(notes.object->'$.to') where value = $5 or value = $6)
-										or exists (select 1 from json_each(notes.object->'$.cc') where value = $5 or value = $6)
+										notes.public
+										or notes.object->'to' ?| array[$5, $6]
+										or notes.object->'cc' ?| array[$5, $6]
 									)
 								)
 								select id, object from thread
 							) parents where
-								parents.object->>'$.attributedTo' = persons.id
-								or exists (select 1 from json_each(parents.object->'$.to') where value = persons.id)
-								or exists (select 1 from json_each(parents.object->'$.cc') where value = persons.id)
+								parents.object->>'attributedTo' = persons.id
+								or parents.object->'to' ? persons.id
+								or parents.object->'cc' ? persons.id
 						) or ed25519seed is not null
-						or id in (select followed from follows where follower = $5 and accepted = 1)
+						or id in (select followed from follows where follower = $5 and accepted)
 					)
 				limit 2
 				`,
@@ -186,14 +187,14 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 		} else if mention[3] == "" {
 			actorID, err = dbx.QueryScanRow[string](
 				r.Context,
-				h.DB,
+				h.DBW,
 				`
 				select id from persons where
-					actor->>'$.preferredUsername' = $1
-					and ((actor->>'$.type' = 'Group') is $2)
+					actor->>'preferredUsername' = $1
+					and ((actor->>'type' = 'Group') is not distinct from $2)
 					and (
 						ed25519seed is not null
-						or id in (select followed from follows where follower = $3 and accepted = 1)
+						or id in (select followed from follows where follower = $3 and accepted)
 					)
 				limit 2
 				`,
@@ -204,14 +205,14 @@ func (h *Handler) post(w text.Writer, r *Request, oldNote *ap.Object, inReplyTo 
 		} else {
 			actorID, err = dbx.QueryScanRow[string](
 				r.Context,
-				h.DB,
+				h.DBW,
 				`
 				select id from persons where
-					actor->>'$.preferredUsername' = $1
+					actor->>'preferredUsername' = $1
 					and host = $2
 					and (
-						((actor->>'$.type' = 'Group') is $3)
-						or id in (select followed from follows where follower = $4 and accepted = 1)
+						((actor->>'type' = 'Group') is not distinct from $3)
+						or id in (select followed from follows where follower = $4 and accepted)
 					)
 				limit 2
 				`,

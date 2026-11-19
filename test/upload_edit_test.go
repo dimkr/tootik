@@ -17,7 +17,6 @@ limitations under the License.
 package test
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -28,15 +27,14 @@ import (
 )
 
 func TestUploadEdit_HappyFlow(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
@@ -47,13 +45,13 @@ func TestUploadEdit_HappyFlow(t *testing.T) {
 
 	id := whisper[15 : len(whisper)-2]
 
-	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = jsonb_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.dbw.Exec("update notes set inserted = inserted - interval '1 hour', object = jsonb_set(object, '{published}', to_jsonb($1::text)) where id = 'https://' || $2", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	edit := server.Upload(fmt.Sprintf("/users/upload/edit/%s;mime=text/plain;size=15", id), server.Bob, []byte("Hello followers"))
 	assert.Equal(fmt.Sprintf("30 gemini://%s/users/view/%s\r\n", domain, id), edit)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users = server.Handle("/users", server.Alice)
 	assert.NotContains(users, "No posts.")
@@ -62,7 +60,7 @@ func TestUploadEdit_HappyFlow(t *testing.T) {
 	edit = server.Upload(fmt.Sprintf("/users/upload/edit/%s;mime=text/plain;size=16", id), server.Bob, []byte("Hello, followers"))
 	assert.Regexp(`^40 Please wait for \S+\r\n$`, edit)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users = server.Handle("/users", server.Alice)
 	assert.NotContains(users, "No posts.")
@@ -70,15 +68,14 @@ func TestUploadEdit_HappyFlow(t *testing.T) {
 }
 
 func TestUploadEdit_Empty(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
@@ -89,7 +86,7 @@ func TestUploadEdit_Empty(t *testing.T) {
 
 	id := whisper[15 : len(whisper)-2]
 
-	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = jsonb_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.dbw.Exec("update notes set inserted = inserted - interval '1 hour', object = jsonb_set(object, '{published}', to_jsonb($1::text)) where id = 'https://' || $2", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	edit := server.Upload(fmt.Sprintf("/users/upload/edit/%s;mime=text/plain;size=0", id), server.Bob, []byte("Hello followers"))
@@ -97,15 +94,14 @@ func TestUploadEdit_Empty(t *testing.T) {
 }
 
 func TestUploadEdit_SizeLimit(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
@@ -116,7 +112,7 @@ func TestUploadEdit_SizeLimit(t *testing.T) {
 
 	id := whisper[15 : len(whisper)-2]
 
-	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = jsonb_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.dbw.Exec("update notes set inserted = inserted - interval '1 hour', object = jsonb_set(object, '{published}', to_jsonb($1::text)) where id = 'https://' || $2", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	server.cfg.MaxPostsLength = 14
@@ -126,15 +122,14 @@ func TestUploadEdit_SizeLimit(t *testing.T) {
 }
 
 func TestUploadEdit_InvalidSize(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
@@ -145,7 +140,7 @@ func TestUploadEdit_InvalidSize(t *testing.T) {
 
 	id := whisper[15 : len(whisper)-2]
 
-	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = jsonb_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.dbw.Exec("update notes set inserted = inserted - interval '1 hour', object = jsonb_set(object, '{published}', to_jsonb($1::text)) where id = 'https://' || $2", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	edit := server.Upload(fmt.Sprintf("/users/upload/edit/%s;mime=text/plain;size=abc", id), server.Bob, []byte("Hello followers"))
@@ -153,15 +148,14 @@ func TestUploadEdit_InvalidSize(t *testing.T) {
 }
 
 func TestUploadEdit_InvalidType(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
@@ -172,7 +166,7 @@ func TestUploadEdit_InvalidType(t *testing.T) {
 
 	id := whisper[15 : len(whisper)-2]
 
-	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = jsonb_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.dbw.Exec("update notes set inserted = inserted - interval '1 hour', object = jsonb_set(object, '{published}', to_jsonb($1::text)) where id = 'https://' || $2", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	edit := server.Upload(fmt.Sprintf("/users/upload/edit/%s;mime=text/gemini;size=15", id), server.Bob, []byte("Hello followers"))
@@ -180,15 +174,14 @@ func TestUploadEdit_InvalidType(t *testing.T) {
 }
 
 func TestUploadEdit_NoSize(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
@@ -199,7 +192,7 @@ func TestUploadEdit_NoSize(t *testing.T) {
 
 	id := whisper[15 : len(whisper)-2]
 
-	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = jsonb_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.dbw.Exec("update notes set inserted = inserted - interval '1 hour', object = jsonb_set(object, '{published}', to_jsonb($1::text)) where id = 'https://' || $2", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	edit := server.Upload(fmt.Sprintf("/users/upload/edit/%s;mime=text/plain;siz=15", id), server.Bob, []byte("Hello followers"))
@@ -207,15 +200,14 @@ func TestUploadEdit_NoSize(t *testing.T) {
 }
 
 func TestUploadEdit_NoType(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
@@ -226,7 +218,7 @@ func TestUploadEdit_NoType(t *testing.T) {
 
 	id := whisper[15 : len(whisper)-2]
 
-	_, err := server.db.Exec("update notes set inserted = inserted - 3600, object = jsonb_set(object, '$.published', ?) where id = 'https://' || ?", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
+	_, err := server.dbw.Exec("update notes set inserted = inserted - interval '1 hour', object = jsonb_set(object, '{published}', to_jsonb($1::text)) where id = 'https://' || $2", time.Now().Add(-time.Hour).Format(time.RFC3339Nano), id)
 	assert.NoError(err)
 
 	edit := server.Upload(fmt.Sprintf("/users/upload/edit/%s;mim=text/plain;size=15", id), server.Bob, []byte("Hello followers"))

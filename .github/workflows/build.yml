@@ -52,27 +52,14 @@ jobs:
     permissions: {}
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    strategy:
-      matrix:
-        include:
-          - flags: "-tags sqlite_mattn,fts5"
-            race: true
-          - flags: "-tags sqlite_modernc"
-            race: false
-          - flags: "-tags sqlite_ncruces"
-            race: false
     steps:
       - uses: actions/checkout@v6
-      - run: echo "${{ matrix.flags }}" > flags
       - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
-          cache-dependency-path: |
-            go.sum
-            flags
       - run: |
           go generate ./migrations
-          go test ./... -failfast -vet off ${{ matrix.flags }} ${{ matrix.race && '-race' || '' }}
+          go test ./... -failfast -vet off -race
   demo:
     permissions: {}
     runs-on: ubuntu-latest

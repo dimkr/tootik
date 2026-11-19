@@ -25,8 +25,7 @@ import (
 )
 
 func TestWhisper_HappyFlow(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -47,8 +46,7 @@ func TestWhisper_HappyFlow(t *testing.T) {
 }
 
 func TestWhisper_FollowAfterPost(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -72,8 +70,7 @@ func TestWhisper_FollowAfterPost(t *testing.T) {
 }
 
 func TestWhisper_Throttling(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

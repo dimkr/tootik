@@ -17,7 +17,6 @@ limitations under the License.
 package test
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -27,8 +26,7 @@ import (
 )
 
 func TestUploadReply_PostToFollowers(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -51,7 +49,7 @@ func TestUploadReply_PostToFollowers(t *testing.T) {
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Bob)
 	assert.Contains(users, "Welcome Bob")
@@ -62,8 +60,7 @@ func TestUploadReply_PostToFollowers(t *testing.T) {
 }
 
 func TestUploadReply_NoMimeType(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -86,7 +83,7 @@ func TestUploadReply_NoMimeType(t *testing.T) {
 	assert.Contains(view, "Hello world")
 	assert.Contains(view, "Welcome Bob")
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Bob)
 	assert.Contains(users, "Welcome Bob")

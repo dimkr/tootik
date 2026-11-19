@@ -17,7 +17,6 @@ limitations under the License.
 package test
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -28,27 +27,25 @@ import (
 )
 
 func TestFollows_NoFollows(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	follows := server.Handle("/users/follows", server.Alice)
 	assert.Contains(follows, "No followed users.")
 }
 
 func TestFollows_TwoInactive(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	follows := strings.Split(server.Handle("/users/follows", server.Alice), "\n")
 	assert.Contains(follows, "=> /users/outbox/localhost.localdomain:8443/user/bob 😈 bob (bob@localhost.localdomain:8443)")
@@ -57,7 +54,7 @@ func TestFollows_TwoInactive(t *testing.T) {
 	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Carol.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Carol.ID, "https://")), follow)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	follows = strings.Split(server.Handle("/users/follows", server.Alice), "\n")
 	assert.Contains(follows, "=> /users/outbox/localhost.localdomain:8443/user/bob 😈 bob (bob@localhost.localdomain:8443)")
@@ -65,8 +62,7 @@ func TestFollows_TwoInactive(t *testing.T) {
 }
 
 func TestFollows_OneActiveOneInactive(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -76,7 +72,7 @@ func TestFollows_OneActiveOneInactive(t *testing.T) {
 	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Carol.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Carol.ID, "https://")), follow)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	follows := server.Handle("/users/follows", server.Alice)
 	assert.Contains(follows, "=> /users/outbox/localhost.localdomain:8443/user/bob 😈 bob (bob@localhost.localdomain:8443)")
@@ -85,7 +81,7 @@ func TestFollows_OneActiveOneInactive(t *testing.T) {
 	whisper := server.Handle("/users/whisper?Hello%20world", server.Bob)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, whisper)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	follows = server.Handle("/users/follows", server.Alice)
 	assert.Contains(follows, fmt.Sprintf("=> /users/outbox/localhost.localdomain:8443/user/bob %s 😈 bob (bob@localhost.localdomain:8443)", time.Now().Format(time.DateOnly)))
@@ -93,12 +89,11 @@ func TestFollows_OneActiveOneInactive(t *testing.T) {
 }
 
 func TestFollows_UnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	follows := server.Handle("/users/follows", nil)
 	assert.Equal("30 /users\r\n", follows)

@@ -24,7 +24,6 @@ import (
 
 func TestCluster_PostToFollowers_Approved(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["a.localdomain"].Register(bobKeypair).OK()
@@ -94,7 +93,6 @@ func TestCluster_PostToFollowers_Approved(t *testing.T) {
 
 func TestCluster_PostToFollowers_Rejected(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["a.localdomain"].Register(bobKeypair).OK()
@@ -165,7 +163,6 @@ func TestCluster_PostToFollowers_Rejected(t *testing.T) {
 
 func TestCluster_PostToFollowers_DisabledThenAccepted(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["a.localdomain"].Register(bobKeypair).OK()
@@ -236,7 +233,6 @@ func TestCluster_PostToFollowers_DisabledThenAccepted(t *testing.T) {
 
 func TestCluster_PostToFollowers_ApprovedLocally(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["a.localdomain"].Register(bobKeypair).OK()
@@ -302,7 +298,6 @@ func TestCluster_PostToFollowers_ApprovedLocally(t *testing.T) {
 
 func TestCluster_PostToFollowers_RejectedLocally(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["a.localdomain"].Register(bobKeypair).OK()
@@ -367,7 +362,6 @@ func TestCluster_PostToFollowers_RejectedLocally(t *testing.T) {
 
 func TestCluster_PostToFollowers_AcceptTwice(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -398,7 +392,6 @@ func TestCluster_PostToFollowers_AcceptTwice(t *testing.T) {
 
 func TestCluster_PostToFollowers_RejectTwice(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -429,7 +422,6 @@ func TestCluster_PostToFollowers_RejectTwice(t *testing.T) {
 
 func TestCluster_PostToFollowers_AcceptThenReject(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -460,7 +452,6 @@ func TestCluster_PostToFollowers_AcceptThenReject(t *testing.T) {
 
 func TestCluster_PostToFollowers_RejectThenAccept(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()

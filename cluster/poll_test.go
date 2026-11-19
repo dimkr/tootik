@@ -25,7 +25,6 @@ import (
 
 func TestCluster_Poll(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -58,7 +57,7 @@ func TestCluster_Poll(t *testing.T) {
 
 	poller := outbox.Poller{
 		Domain: "b.localdomain",
-		DB:     cluster["b.localdomain"].DB,
+		DBW:    cluster["b.localdomain"].DBW,
 		Inbox:  cluster["b.localdomain"].Inbox,
 	}
 	if err := poller.Run(t.Context()); err != nil {
@@ -144,7 +143,6 @@ func TestCluster_Poll(t *testing.T) {
 
 func TestCluster_PollVotersCount(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -179,7 +177,7 @@ func TestCluster_PollVotersCount(t *testing.T) {
 
 	poller := outbox.Poller{
 		Domain: "b.localdomain",
-		DB:     cluster["b.localdomain"].DB,
+		DBW:    cluster["b.localdomain"].DBW,
 		Inbox:  cluster["b.localdomain"].Inbox,
 	}
 	if err := poller.Run(t.Context()); err != nil {

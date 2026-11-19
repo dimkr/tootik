@@ -26,7 +26,6 @@ import (
 
 func TestDeleter_OldData(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -84,7 +83,7 @@ func TestDeleter_OldData(t *testing.T) {
 		Contains(gmi.Line{Type: gmi.Quote, Text: "hi 1"}).
 		Contains(gmi.Line{Type: gmi.Quote, Text: "hi 2"})
 
-	if res, err := cluster["b.localdomain"].DB.ExecContext(t.Context(), `update notes set inserted = inserted - (24 * 60 * 60 * 31) where object->>'$.content' = '<p>hello 1</p>'`); err != nil {
+	if res, err := cluster["b.localdomain"].DBW.ExecContext(t.Context(), `update notes set inserted = inserted - interval '31 days' where object->>'content' = '<p>hello 1</p>'`); err != nil {
 		t.Fatalf("Failed to set post #1 insertion time: %v", err)
 	} else if n, err := res.RowsAffected(); err != nil {
 		t.Fatalf("Failed to set post #1 insertion time: %v", err)
@@ -92,7 +91,7 @@ func TestDeleter_OldData(t *testing.T) {
 		t.Fatal("Failed to set post #1 insertion time: no rows affected")
 	}
 
-	if res, err := cluster["b.localdomain"].DB.ExecContext(t.Context(), `update notes set inserted = inserted - (24 * 60 * 60 * 30) where object->>'$.content' = '<p>hello 2</p>'`); err != nil {
+	if res, err := cluster["b.localdomain"].DBW.ExecContext(t.Context(), `update notes set inserted = inserted - interval '30 days' where object->>'content' = '<p>hello 2</p>'`); err != nil {
 		t.Fatalf("Failed to set post #2 insertion time: %v", err)
 	} else if n, err := res.RowsAffected(); err != nil {
 		t.Fatalf("Failed to set post #2 insertion time: %v", err)
@@ -100,7 +99,7 @@ func TestDeleter_OldData(t *testing.T) {
 		t.Fatal("Failed to set post #2 insertion time: no rows affected")
 	}
 
-	if res, err := cluster["b.localdomain"].DB.ExecContext(t.Context(), `update notes set inserted = inserted - (24 * 60 * 60 * 29) where object->>'$.content' = '<p>hello 3</p>'`); err != nil {
+	if res, err := cluster["b.localdomain"].DBW.ExecContext(t.Context(), `update notes set inserted = inserted - interval '29 days' where object->>'content' = '<p>hello 3</p>'`); err != nil {
 		t.Fatalf("Failed to set post #3 insertion time: %v", err)
 	} else if n, err := res.RowsAffected(); err != nil {
 		t.Fatalf("Failed to set post #3 insertion time: %v", err)
@@ -108,7 +107,7 @@ func TestDeleter_OldData(t *testing.T) {
 		t.Fatal("Failed to set post #3 insertion time: no rows affected")
 	}
 
-	if res, err := cluster["b.localdomain"].DB.ExecContext(t.Context(), `update shares set inserted = inserted - (24 * 60 * 60 * 30) where exists (select 1 from notes where notes.id = shares.note and notes.object->>'$.content' = '<p>hi 2</p>')`); err != nil {
+	if res, err := cluster["b.localdomain"].DBW.ExecContext(t.Context(), `update shares set inserted = inserted - interval '30 days' where exists (select 1 from notes where notes.id = shares.note and notes.object->>'content' = '<p>hi 2</p>')`); err != nil {
 		t.Fatalf("Failed to set share #1 insertion time: %v", err)
 	} else if n, err := res.RowsAffected(); err != nil {
 		t.Fatalf("Failed to set post #1 insertion time: %v", err)
@@ -117,7 +116,7 @@ func TestDeleter_OldData(t *testing.T) {
 	}
 
 	deleter := outbox.Deleter{
-		DB:    cluster["b.localdomain"].DB,
+		DBW:   cluster["b.localdomain"].DBW,
 		Inbox: cluster["b.localdomain"].Inbox,
 	}
 
@@ -165,7 +164,6 @@ func TestDeleter_OldData(t *testing.T) {
 
 func TestDeleter_Disabled(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -230,7 +228,7 @@ func TestDeleter_Disabled(t *testing.T) {
 		Contains(gmi.Line{Type: gmi.Quote, Text: "hi 1"}).
 		Contains(gmi.Line{Type: gmi.Quote, Text: "hi 2"})
 
-	if res, err := cluster["b.localdomain"].DB.ExecContext(t.Context(), `update notes set inserted = inserted - (24 * 60 * 60 * 31) where object->>'$.content' = '<p>hello 1</p>'`); err != nil {
+	if res, err := cluster["b.localdomain"].DBW.ExecContext(t.Context(), `update notes set inserted = inserted - interval '31 days' where object->>'content' = '<p>hello 1</p>'`); err != nil {
 		t.Fatalf("Failed to set post #1 insertion time: %v", err)
 	} else if n, err := res.RowsAffected(); err != nil {
 		t.Fatalf("Failed to set post #1 insertion time: %v", err)
@@ -238,7 +236,7 @@ func TestDeleter_Disabled(t *testing.T) {
 		t.Fatal("Failed to set post #1 insertion time: no rows affected")
 	}
 
-	if res, err := cluster["b.localdomain"].DB.ExecContext(t.Context(), `update notes set inserted = inserted - (24 * 60 * 60 * 30) where object->>'$.content' = '<p>hello 2</p>'`); err != nil {
+	if res, err := cluster["b.localdomain"].DBW.ExecContext(t.Context(), `update notes set inserted = inserted - interval '30 days' where object->>'content' = '<p>hello 2</p>'`); err != nil {
 		t.Fatalf("Failed to set post #2 insertion time: %v", err)
 	} else if n, err := res.RowsAffected(); err != nil {
 		t.Fatalf("Failed to set post #2 insertion time: %v", err)
@@ -246,7 +244,7 @@ func TestDeleter_Disabled(t *testing.T) {
 		t.Fatal("Failed to set post #2 insertion time: no rows affected")
 	}
 
-	if res, err := cluster["b.localdomain"].DB.ExecContext(t.Context(), `update notes set inserted = inserted - (24 * 60 * 60 * 29) where object->>'$.content' = '<p>hello 3</p>'`); err != nil {
+	if res, err := cluster["b.localdomain"].DBW.ExecContext(t.Context(), `update notes set inserted = inserted - interval '29 days' where object->>'content' = '<p>hello 3</p>'`); err != nil {
 		t.Fatalf("Failed to set post #3 insertion time: %v", err)
 	} else if n, err := res.RowsAffected(); err != nil {
 		t.Fatalf("Failed to set post #3 insertion time: %v", err)
@@ -254,7 +252,7 @@ func TestDeleter_Disabled(t *testing.T) {
 		t.Fatal("Failed to set post #3 insertion time: no rows affected")
 	}
 
-	if res, err := cluster["b.localdomain"].DB.ExecContext(t.Context(), `update shares set inserted = inserted - (24 * 60 * 60 * 30) where exists (select 1 from notes where notes.id = shares.note and notes.object->>'$.content' = '<p>hi 2</p>')`); err != nil {
+	if res, err := cluster["b.localdomain"].DBW.ExecContext(t.Context(), `update shares set inserted = inserted - interval '30 days' where exists (select 1 from notes where notes.id = shares.note and notes.object->>'content' = '<p>hi 2</p>')`); err != nil {
 		t.Fatalf("Failed to set share #1 insertion time: %v", err)
 	} else if n, err := res.RowsAffected(); err != nil {
 		t.Fatalf("Failed to set post #1 insertion time: %v", err)
@@ -270,7 +268,7 @@ func TestDeleter_Disabled(t *testing.T) {
 		Contains(gmi.Line{Type: gmi.Text, Text: "Current setting: old posts are not deleted automatically."})
 
 	deleter := outbox.Deleter{
-		DB:    cluster["b.localdomain"].DB,
+		DBW:   cluster["b.localdomain"].DBW,
 		Inbox: cluster["b.localdomain"].Inbox,
 	}
 

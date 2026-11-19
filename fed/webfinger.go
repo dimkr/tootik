@@ -118,7 +118,7 @@ func (l *Listener) handleWebFinger(w http.ResponseWriter, r *http.Request) {
 			return false
 		},
 		l.DB,
-		`select id, actor->>'$.type' from persons where actor->>'$.preferredUsername' = ? and host = ?`,
+		`select id, actor->>'type' from persons where actor->>'preferredUsername' = $1 and host = $2`,
 		username,
 		l.Domain,
 	); err != nil {

@@ -40,7 +40,7 @@ func (l *Listener) handlePost(w http.ResponseWriter, r *http.Request) {
 	slog.Info("Fetching post", "post", postID)
 
 	var note string
-	if err := l.DB.QueryRowContext(r.Context(), `select json(object) from notes where id = ? and public = 1 and deleted = 0`, postID).Scan(&note); errors.Is(err, sql.ErrNoRows) {
+	if err := l.DB.QueryRowContext(r.Context(), `select object from notes where id = $1 and public and not deleted`, postID).Scan(&note); errors.Is(err, sql.ErrNoRows) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {

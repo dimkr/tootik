@@ -25,8 +25,7 @@ import (
 )
 
 func TestShare_PublicPost(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -46,8 +45,7 @@ func TestShare_PublicPost(t *testing.T) {
 }
 
 func TestShare_Throttling(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -69,8 +67,7 @@ func TestShare_Throttling(t *testing.T) {
 }
 
 func TestShare_UnshareThrottling(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -87,8 +84,7 @@ func TestShare_UnshareThrottling(t *testing.T) {
 }
 
 func TestShare_PostToFollowers(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -102,8 +98,7 @@ func TestShare_PostToFollowers(t *testing.T) {
 }
 
 func TestShare_Twice(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -126,8 +121,7 @@ func TestShare_Twice(t *testing.T) {
 }
 
 func TestShare_Unshare(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -145,7 +139,7 @@ func TestShare_Unshare(t *testing.T) {
 	outbox = strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
 	assert.Contains(outbox, "> Hello world")
 
-	_, err := server.db.Exec(`update outbox set inserted = inserted - (3600 * 1000000000) where activity->>'$.type' = 'Announce'`)
+	_, err := server.dbw.Exec(`update outbox set inserted = inserted - interval '1 hour' where activity->>'type' = 'Announce'`)
 	assert.NoError(err)
 
 	unshare := server.Handle("/users/unshare/"+id, server.Bob)
@@ -156,8 +150,7 @@ func TestShare_Unshare(t *testing.T) {
 }
 
 func TestShare_ShareAfterUnshare(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -175,7 +168,7 @@ func TestShare_ShareAfterUnshare(t *testing.T) {
 	outbox = strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
 	assert.Contains(outbox, "> Hello world")
 
-	_, err := server.db.Exec(`update outbox set inserted = inserted - (3600 * 1000000000) where activity->>'$.type' = 'Announce'`)
+	_, err := server.dbw.Exec(`update outbox set inserted = inserted - interval '1 hour' where activity->>'type' = 'Announce'`)
 	assert.NoError(err)
 
 	unshare := server.Handle("/users/unshare/"+id, server.Bob)
@@ -184,7 +177,7 @@ func TestShare_ShareAfterUnshare(t *testing.T) {
 	outbox = strings.Split(server.Handle("/users/outbox/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Carol), "\n")
 	assert.NotContains(outbox, "> Hello world")
 
-	_, err = server.db.Exec(`update outbox set inserted = inserted - (3600 * 1000000000) where activity->>'$.type' = 'Undo'`)
+	_, err = server.dbw.Exec(`update outbox set inserted = inserted - interval '1 hour' where activity->>'type' = 'Undo'`)
 	assert.NoError(err)
 
 	share = server.Handle("/users/share/"+id, server.Bob)

@@ -24,7 +24,6 @@ import (
 
 func TestCluster_BackfillMissingParent(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -89,7 +88,6 @@ func TestCluster_BackfillMissingParent(t *testing.T) {
 
 func TestCluster_BackfillDeletedParentSameServer(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].RegisterPortable(aliceKeypair).OK()
 	bob := cluster["a.localdomain"].RegisterPortable(bobKeypair).OK()
@@ -133,7 +131,6 @@ func TestCluster_BackfillDeletedParentSameServer(t *testing.T) {
 
 func TestCluster_BackfillDeletedParentDifferentServer(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].RegisterPortable(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].RegisterPortable(bobKeypair).OK()

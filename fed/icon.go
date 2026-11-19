@@ -39,7 +39,7 @@ func (l *Listener) doHandleIcon(w http.ResponseWriter, r *http.Request, cid stri
 	slog.Info("Looking up cached icon", "cid", cid)
 
 	var cache []byte
-	if err := l.DB.QueryRowContext(r.Context(), `select buf from icons where cid = ?`, cid).Scan(&cache); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := l.DBW.QueryRowContext(r.Context(), `select buf from icons where cid = $1`, cid).Scan(&cache); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		slog.Warn("Failed to get cached icon", "cid", cid, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -59,7 +59,7 @@ func (l *Listener) doHandleIcon(w http.ResponseWriter, r *http.Request, cid stri
 		return
 	}
 
-	if _, err := l.DB.ExecContext(r.Context(), `insert into icons(cid, buf) values($1, $2) on conflict(cid) do update set buf = $2`, cid, buf); err != nil {
+	if _, err := l.DBW.ExecContext(r.Context(), `insert into icons(cid, buf) values($1, $2) on conflict(cid) do update set buf = $2`, cid, buf); err != nil {
 		slog.Warn("Failed to cache icon", "cid", cid, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return

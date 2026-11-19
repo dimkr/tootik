@@ -141,7 +141,7 @@ func (l *Listener) handleInbox(w http.ResponseWriter, r *http.Request) {
 
 	var actor ap.Actor
 	var rsaPrivKeyDer, ed25519Seed, mldsa44Seed []byte
-	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519seed, mldsa44seed from persons where actor->>'$.preferredUsername' = ? and ed25519seed is not null`, receiver).Scan(&actor, &rsaPrivKeyDer, &ed25519Seed, &mldsa44Seed); errors.Is(err, sql.ErrNoRows) {
+	if err := l.DBW.QueryRowContext(r.Context(), `select actor, rsaprivkey, ed25519seed, mldsa44seed from persons where actor->>'preferredUsername' = $1 and ed25519seed is not null`, receiver).Scan(&actor, &rsaPrivKeyDer, &ed25519Seed, &mldsa44Seed); errors.Is(err, sql.ErrNoRows) {
 		slog.Debug("Receiving user does not exist", "receiver", receiver)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -423,9 +423,9 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [3
 		queued = nil
 	}
 
-	if _, err = l.DB.ExecContext(
+	if _, err = l.DBW.ExecContext(
 		r.Context(),
-		`INSERT OR IGNORE INTO inbox (path, sender, activity, raw) VALUES (?, ?, JSONB(?), ?)`,
+		`INSERT INTO inbox (path, sender, activity, raw) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
 		r.URL.Path,
 		sender.ID,
 		queued,
@@ -458,9 +458,9 @@ func (l *Listener) doHandleInbox(w http.ResponseWriter, r *http.Request, keys [3
 	}
 
 	if capabilities > 0 {
-		if _, err = l.DB.ExecContext(
+		if _, err = l.DBW.ExecContext(
 			r.Context(),
-			`INSERT INTO servers (host, capabilities) VALUES ($1, $2) ON CONFLICT(host) DO UPDATE SET capabilities = capabilities | $2, updated = UNIXEPOCH() WHERE capabilities | $2 != capabilities`,
+			`INSERT INTO servers (host, capabilities) VALUES ($1, $2) ON CONFLICT(host) DO UPDATE SET capabilities = servers.capabilities | $2, updated = now() WHERE servers.capabilities | $2 != servers.capabilities`,
 			senderHost,
 			capabilities,
 		); err != nil {

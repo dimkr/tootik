@@ -24,7 +24,6 @@ import (
 
 func TestCluster_PublicPost(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["a.localdomain"].Register(bobKeypair).OK()
@@ -73,7 +72,6 @@ func TestCluster_PublicPost(t *testing.T) {
 
 func TestCluster_PostToFollowers(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["a.localdomain"].Register(bobKeypair).OK()
@@ -118,7 +116,6 @@ func TestCluster_PostToFollowers(t *testing.T) {
 
 func TestCluster_DM(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["a.localdomain"].Register(bobKeypair).OK()

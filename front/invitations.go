@@ -36,23 +36,23 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 	}
 
 	rows, err := dbx.QueryCollectIgnore[struct {
-		Code              string
-		InviteInsertedSec int64
-		Actor             sql.Null[ap.Actor]
-		ActorInserted     sql.NullInt64
+		Code           string
+		InviteInserted time.Time
+		Actor          sql.Null[ap.Actor]
+		ActorInserted  sql.NullTime
 	}](
 		r.Context,
-		h.DB,
+		h.DBW,
 		func(err error) bool {
 			r.Log.Warn("Failed to scan invitation", "error", err)
 			return true
 		},
 		`
-		SELECT invites.code, invites.inserted, JSON(persons.actor), persons.inserted
+		SELECT invites.code, invites.inserted, persons.actor, persons.inserted
 		FROM invites
 		LEFT JOIN persons ON persons.id = invites.invited
 		WHERE invites.inviter = $1
-		ORDER BY invites.inserted DESC, persons.actor->>'$.id' DESC
+		ORDER BY invites.inserted DESC, persons.actor->>'id' DESC NULLS LAST
 		`,
 		r.User.ID,
 	)
@@ -70,7 +70,7 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 	now := time.Now()
 
 	for i, row := range rows {
-		inserted := time.Unix(row.InviteInsertedSec, 0)
+		inserted := row.InviteInserted
 
 		if i > 0 {
 			w.Empty()
@@ -80,7 +80,7 @@ func (h *Handler) invitations(w text.Writer, r *Request, args ...string) {
 		w.Text("Generated: " + inserted.Format(time.DateOnly))
 
 		if row.Actor.Valid {
-			w.Text("Used: " + time.Unix(row.ActorInserted.Int64, 0).Format(time.DateOnly))
+			w.Text("Used: " + row.ActorInserted.Time.Format(time.DateOnly))
 			w.Link("/users/outbox/"+idLink(row.Actor.V.ID), "Used by: "+row.Actor.V.PreferredUsername)
 		} else {
 			if expires := inserted.Add(h.Config.InvitationTimeout); now.After(expires) {
@@ -122,7 +122,7 @@ func (h *Handler) generateInvitation(w text.Writer, r *Request, args ...string) 
 		return
 	}
 
-	tx, err := h.DB.BeginTx(r.Context, nil)
+	tx, err := h.DBW.BeginTx(r.Context, nil)
 	if err != nil {
 		r.Log.Warn("Cannot generate invitation", "error", err)
 		w.Error()
@@ -187,7 +187,7 @@ func (h *Handler) revokeInvitation(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	if res, err := h.DB.ExecContext(
+	if res, err := h.DBW.ExecContext(
 		r.Context,
 		`
 		DELETE FROM invites
@@ -235,7 +235,7 @@ func (h *Handler) acceptInvitation(w text.Writer, r *Request, args ...string) {
 
 	certHash := fmt.Sprintf("%X", sha256.Sum256(state.PeerCertificates[0].Raw))
 
-	if res, err := h.DB.ExecContext(
+	if res, err := h.DBW.ExecContext(
 		r.Context,
 		`
 		UPDATE invites
@@ -244,7 +244,7 @@ func (h *Handler) acceptInvitation(w text.Writer, r *Request, args ...string) {
 		`,
 		certHash,
 		r.URL.RawQuery,
-		time.Now().Add(-h.Config.InvitationTimeout).Unix(),
+		time.Now().Add(-h.Config.InvitationTimeout),
 	); err != nil {
 		r.Log.Warn("Failed to accept invitation", "error", err)
 		w.Error()

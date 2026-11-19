@@ -54,7 +54,19 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 	arg := args[1]
 
 	var actor ap.Actor
-	if err := h.DB.QueryRowContext(r.Context, `select json(actor) from persons where id = 'https://' || $1 or slug = $1`, arg).Scan(&actor); err != nil && errors.Is(err, sql.ErrNoRows) {
+	lookup := func(db *sql.DB) error {
+		actor = ap.Actor{}
+		return db.QueryRowContext(r.Context, `select actor from persons where id = 'https://' || $1 or slug = $1`, arg).Scan(&actor)
+	}
+
+	db := h.DB
+	err := lookup(db)
+	if r.User != nil && (errors.Is(err, sql.ErrNoRows) || (err == nil && actor.ID == r.User.ID)) {
+		// the user's own profile and posts are read from the primary, so they're visible immediately after a change
+		db = h.DBW
+		err = lookup(db)
+	}
+	if err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Info("Person was not found", "actor", arg)
 		w.Status(40, "User not found")
 		return
@@ -76,58 +88,58 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 	var rows *sql.Rows
 	if actor.Type == ap.Group && r.User == nil {
 		// unauthenticated users can only see public posts in a group
-		rows, err = h.DB.QueryContext(
+		rows, err = db.QueryContext(
 			r.Context,
-			`select json(page.object), json(authors.actor), null, page.inserted, page.nreplies, page.nquotes, page.nshares, null from (
+			`select page.object, authors.actor, null, page.inserted, page.nreplies, page.nquotes, page.nshares, null from (
 				select u.id, u.object, u.author, max(u.inserted) as inserted, max(u.nreplies) as nreplies, max(u.nquotes) as nquotes, max(u.nshares) as nshares, max(u.pulse) as pulse from (
 					select notes.id, notes.object, notes.author, shares.inserted, notes.nreplies, notes.nquotes, notes.nshares, notes.pulse from shares
 					join notes on notes.id = shares.note
-					where shares.by = $1 and notes.public = 1 and notes.object->>'$.inReplyTo' is null
+					where shares.by = $1 and notes.public and notes.object->>'inReplyTo' is null
 					union all
 					select notes.id, notes.object, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares, notes.pulse from notes
-					where notes.author = $1 and notes.public = 1 and notes.object->>'$.inReplyTo' is null
+					where notes.author = $1 and notes.public and notes.object->>'inReplyTo' is null
 				) u
-				group by u.id
-				order by max(pulse) / 86400 desc, nreplies desc, pulse desc
+				group by u.id, u.object, u.author
+				order by date_trunc('day', max(pulse), 'UTC') desc, nreplies desc, pulse desc
 				limit $2 offset $3
 			) page
 			join persons authors on authors.id = page.author
-			order by page.pulse / 86400 desc, page.nreplies desc, page.pulse desc`,
+			order by date_trunc('day', page.pulse, 'UTC') desc, page.nreplies desc, page.pulse desc`,
 			actor.ID,
 			h.Config.PostsPerPage,
 			offset,
 		)
 	} else if actor.Type == ap.Group && r.User != nil {
 		// users can see public posts in a group and non-public posts if they follow the group
-		rows, err = h.DB.QueryContext(
+		rows, err = db.QueryContext(
 			r.Context,
-			`select json(page.object), json(authors.actor), null, page.inserted, page.nreplies, page.nquotes, page.nshares, null from (
-				select u.id, u.object, u.author, u.inserted, max(u.nreplies) as nreplies, max(u.nquotes) as nquotes, max(u.nshares) as nshares, max(u.pulse) as pulse from (
+			`select page.object, authors.actor, null, page.inserted, page.nreplies, page.nquotes, page.nshares, null from (
+				select u.id, u.object, u.author, max(u.inserted) as inserted, max(u.nreplies) as nreplies, max(u.nquotes) as nquotes, max(u.nshares) as nshares, max(u.pulse) as pulse from (
 					select notes.id, notes.object, notes.author, shares.inserted, notes.nreplies, notes.nquotes, notes.nshares, notes.pulse from shares
 					join notes on notes.id = shares.note
 					where
 						shares.by = $1 and
 						(
-							notes.public = 1 or
-							exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
+							notes.public or
+							exists (select 1 from follows where follower = $2 and followed = $1 and accepted)
 						) and
-						notes.object->>'$.inReplyTo' is null
+						notes.object->>'inReplyTo' is null
 					union all
 					select notes.id, notes.object, notes.author, notes.inserted, notes.nreplies, notes.nquotes, notes.nshares, notes.pulse from notes
 					where
 						notes.author = $1 and
 						(
-							notes.public = 1 or
-							exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
+							notes.public or
+							exists (select 1 from follows where follower = $2 and followed = $1 and accepted)
 						) and
-						notes.object->>'$.inReplyTo' is null
+						notes.object->>'inReplyTo' is null
 				) u
-				group by u.id
-				order by max(pulse) / 86400 desc, nreplies desc, pulse desc
+				group by u.id, u.object, u.author
+				order by date_trunc('day', max(pulse), 'UTC') desc, nreplies desc, pulse desc
 				limit $3 offset $4
 			) page
 			join persons authors on authors.id = page.author
-			order by page.pulse / 86400 desc, page.nreplies desc, page.pulse desc`,
+			order by date_trunc('day', page.pulse, 'UTC') desc, page.nreplies desc, page.pulse desc`,
 			actor.ID,
 			r.User.ID,
 			h.Config.PostsPerPage,
@@ -135,33 +147,36 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		)
 	} else if r.User == nil {
 		// unauthenticated users can only see public posts
-		rows, err = h.DB.QueryContext(
+		rows, err = db.QueryContext(
 			r.Context,
-			`select json(u.object), json(u.actor), json(u.sharer), max(u.inserted), u.nreplies, u.nquotes, u.nshares, json(parent_authors.actor) from (
+			`select u.object, u.actor, u.sharer, u.inserted, u.nreplies, u.nquotes, u.nshares, parent_authors.actor from (
+				select distinct on (id) * from (
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer, notes.nreplies, notes.nquotes, notes.nshares from notes
 				join persons on persons.id = $1
-				where notes.author = $1 and notes.public = 1
+				where notes.author = $1 and notes.public
 				union all
 				select notes.id, authors.actor, notes.object, shares.inserted, sharers.actor as by, notes.nreplies, notes.nquotes, notes.nshares from
 				shares
 				join notes on notes.id = shares.note
 				join persons authors on authors.id = notes.author
 				join persons sharers on sharers.id = $1
-				where shares.by = $1 and notes.public = 1
+				where shares.by = $1 and notes.public
+				) candidates
+				order by id, inserted desc
 			) u
-			left join notes parent_notes on parent_notes.id = u.object->>'$.inReplyTo'
+			left join notes parent_notes on parent_notes.id = u.object->>'inReplyTo'
 			left join persons parent_authors on parent_authors.id = parent_notes.author
-			group by u.id
-			order by max(u.inserted) desc limit $2 offset $3`,
+			order by u.inserted desc limit $2 offset $3`,
 			actor.ID,
 			h.Config.PostsPerPage,
 			offset,
 		)
 	} else if r.User.ID == actor.ID {
 		// users can see all their posts
-		rows, err = h.DB.QueryContext(
+		rows, err = db.QueryContext(
 			r.Context,
-			`select json(u.object), json(u.actor), json(u.sharer), max(u.inserted), u.nreplies, u.nquotes, u.nshares, json(parent_authors.actor) from (
+			`select u.object, u.actor, u.sharer, u.inserted, u.nreplies, u.nquotes, u.nshares, parent_authors.actor from (
+				select distinct on (id) * from (
 				select notes.id, persons.actor, notes.object, notes.inserted, null as sharer, notes.nreplies, notes.nquotes, notes.nshares from notes
 				join persons on persons.id = notes.author
 				where notes.author = $1
@@ -171,54 +186,57 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 				join persons authors on authors.id = notes.author
 				join persons sharers on sharers.id = $1
 				where shares.by = $1
+				) candidates
+				order by id, inserted desc
 			) u
-			left join notes parent_notes on parent_notes.id = u.object->>'$.inReplyTo'
+			left join notes parent_notes on parent_notes.id = u.object->>'inReplyTo'
 			left join persons parent_authors on parent_authors.id = parent_notes.author
-			group by u.id
-			order by max(u.inserted) desc limit $2 offset $3`,
+			order by u.inserted desc limit $2 offset $3`,
 			actor.ID,
 			h.Config.PostsPerPage,
 			offset,
 		)
 	} else {
 		// users can see only public posts by others, posts to followers if following, and DMs
-		rows, err = h.DB.QueryContext(
+		rows, err = db.QueryContext(
 			r.Context,
-			`select json(page.object), json(authors.actor), json(sharers.actor), page.inserted, page.nreplies, page.nquotes, page.nshares, json(parent_authors.actor) from (
-				select u.id, u.object, u.author, u.sharer_id, max(u.nreplies) as nreplies, max(u.nquotes) as nquotes, max(u.nshares) as nshares, max(u.inserted) as inserted from (
+			`select page.object, authors.actor, sharers.actor, page.inserted, page.nreplies, page.nquotes, page.nshares, parent_authors.actor from (
+				select * from (
+				select distinct on (u.id) u.id, u.object, u.author, u.sharer_id, u.nreplies, u.nquotes, u.nshares, u.inserted from (
 					select notes.id, notes.author, notes.object, notes.inserted, null as sharer_id, notes.nreplies, notes.nquotes, notes.nshares from notes
-					where notes.author = $1 and notes.public = 1
+					where notes.author = $1 and notes.public
 					union
 					select notes.id, notes.author, notes.object, notes.inserted, null as sharer_id, notes.nreplies, notes.nquotes, notes.nshares from notes
 					where
 						notes.author = $1 and (
 							$2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $2)) or
-							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $2))
+							(notes.to2 is not null and notes.object->'to' ? $2) or
+							(notes.cc2 is not null and notes.object->'cc' ? $2)
 						)
 					union
 					select notes.id, notes.author, notes.object, notes.inserted, null as sharer_id, notes.nreplies, notes.nquotes, notes.nshares from notes
 					where
-						notes.public = 0 and
+						not notes.public and
 						notes.author = $1 and
 						exists (select 1 from persons where persons.id = $1 and (
-							persons.actor->>'$.followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers')) or
-							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers'))
+							persons.actor->>'followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+							(notes.to2 is not null and notes.object->'to' ? (persons.actor->>'followers')) or
+							(notes.cc2 is not null and notes.object->'cc' ? (persons.actor->>'followers'))
 						)) and
-						exists (select 1 from follows where follower = $2 and followed = $1 and accepted = 1)
+						exists (select 1 from follows where follower = $2 and followed = $1 and accepted)
 					union all
 					select notes.id, notes.author, notes.object, shares.inserted, $1 as sharer_id, notes.nreplies, notes.nquotes, notes.nshares from
 					shares
 					join notes on notes.id = shares.note
-					where shares.by = $1 and notes.public = 1
+					where shares.by = $1 and notes.public
 				) u
-				group by u.id
-				order by max(u.inserted) desc limit $3 offset $4
+				order by u.id, u.inserted desc
+				) latest
+				order by inserted desc limit $3 offset $4
 			) page
 			join persons authors on authors.id = page.author
 			left join persons sharers on sharers.id = page.sharer_id
-			left join notes parent_notes on parent_notes.id = page.object->>'$.inReplyTo'
+			left join notes parent_notes on parent_notes.id = page.object->>'inReplyTo'
 			left join persons parent_authors on parent_authors.id = parent_notes.author
 			order by page.inserted desc`,
 			actor.ID,
@@ -327,14 +345,14 @@ func (h *Handler) userOutbox(w text.Writer, r *Request, args ...string) {
 		w.Empty()
 		w.Subtitle("Actions")
 
-		var accepted sql.NullInt32
-		if err := h.DB.QueryRowContext(r.Context, `select accepted from follows where follower = ? and followed = ?`, r.User.ID, actor.ID).Scan(&accepted); actor.ManuallyApprovesFollowers && errors.Is(err, sql.ErrNoRows) {
+		var accepted sql.NullBool
+		if err := h.DBW.QueryRowContext(r.Context, `select accepted from follows where follower = $1 and followed = $2`, r.User.ID, actor.ID).Scan(&accepted); actor.ManuallyApprovesFollowers && errors.Is(err, sql.ErrNoRows) {
 			w.Linkf("/users/follow/"+idLink(actor.ID), "⚡ Follow %s (requires approval)", actor.PreferredUsername)
 		} else if errors.Is(err, sql.ErrNoRows) {
 			w.Linkf("/users/follow/"+idLink(actor.ID), "⚡ Follow %s", actor.PreferredUsername)
 		} else if err != nil {
 			r.Log.Warn("Failed to check if user is followed", "actor", actor.ID, "error", err)
-		} else if accepted.Valid && accepted.Int32 == 0 {
+		} else if accepted.Valid && !accepted.Bool {
 			w.Linkf("/users/unfollow/"+idLink(actor.ID), "🔌 Unfollow %s (rejected)", actor.PreferredUsername)
 		} else {
 			w.Linkf("/users/unfollow/"+idLink(actor.ID), "🔌 Unfollow %s", actor.PreferredUsername)

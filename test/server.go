@@ -18,12 +18,12 @@ package test
 
 import (
 	"bytes"
-	"context"
 	"database/sql"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
-	"os"
+	"testing"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
@@ -33,150 +33,125 @@ import (
 	"github.com/dimkr/tootik/front/user"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/inbox"
-	"github.com/dimkr/tootik/migrations"
-	"github.com/dimkr/tootik/sqlite"
+	"github.com/dimkr/tootik/test/deps"
 )
 
 const domain = "localhost.localdomain:8443"
 
 type server struct {
+	t            *testing.T
 	cfg          *cfg.Config
-	db           *sql.DB
-	dbPath       string
+	dbw          *sql.DB
+	resolver     *fed.Resolver
 	handler      front.Handler
 	inbox        *inbox.Inbox
 	queue        *inbox.Queue
 	Alice        *ap.Actor
 	Bob          *ap.Actor
 	Carol        *ap.Actor
+	AppActor     *ap.Actor
 	AppActorKeys [3]httpsig.Key
 }
 
-func (s *server) Shutdown() {
-	s.db.Close()
-	os.Remove(s.dbPath)
-}
+func newTestServer(t *testing.T) *server {
+	t.Parallel()
 
-func newTestServer() *server {
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	if err != nil {
-		panic(err)
-	}
-	f.Close()
-
-	path := f.Name()
-
-	db, err := sql.Open(sqlite.DriverName, path+"?"+sqlite.JournalModeWAL)
-	if err != nil {
-		panic(err)
-	}
+	db := deps.NewDatabase(t)
 
 	var cfg cfg.Config
 	cfg.FillDefaults()
 	cfg.DisableIntegrityProofs = true
 
-	if err := migrations.Run(context.Background(), domain, db); err != nil {
-		panic(err)
+	alice, _, err := user.Create(t.Context(), domain, db.DBW, &cfg, "alice", nil)
+	if err != nil {
+		t.Fatalf("Failed to create alice: %v", err)
 	}
 
-	alice, _, err := user.Create(context.Background(), domain, db, &cfg, "alice", nil)
+	bob, _, err := user.Create(t.Context(), domain, db.DBW, &cfg, "bob", nil)
 	if err != nil {
-		panic(err)
+		t.Fatalf("Failed to create bob: %v", err)
 	}
 
-	bob, _, err := user.Create(context.Background(), domain, db, &cfg, "bob", nil)
+	carol, _, err := user.Create(t.Context(), domain, db.DBW, &cfg, "carol", nil)
 	if err != nil {
-		panic(err)
+		t.Fatalf("Failed to create carol: %v", err)
 	}
 
-	carol, _, err := user.Create(context.Background(), domain, db, &cfg, "carol", nil)
+	appActor, appActorKeys, err := user.CreateApplicationActor(t.Context(), domain, db.DBW, &cfg)
 	if err != nil {
-		panic(err)
-	}
-
-	_, appActorKeys, err := user.CreateApplicationActor(context.Background(), domain, db, &cfg)
-	if err != nil {
-		panic(err)
+		t.Fatalf("Failed to create the application actor: %v", err)
 	}
 
 	localInbox := &inbox.Inbox{
 		Domain: domain,
 		Config: &cfg,
-		DB:     db,
+		DBW:    db.DBW,
 	}
 
-	resolver := fed.NewResolver(nil, domain, &cfg, &http.Client{}, db)
+	resolver := fed.NewResolver(nil, domain, &cfg, &http.Client{}, db.DBW)
 
 	queue := &inbox.Queue{
 		Domain:   domain,
 		Config:   &cfg,
-		DB:       db,
+		DBW:      db.DBW,
 		Inbox:    localInbox,
 		Resolver: resolver,
 		Keys:     appActorKeys,
 	}
 
-	handler, err := front.NewHandler(domain, &cfg, resolver, db, localInbox)
+	handler, err := front.NewHandler(domain, &cfg, resolver, db.DB, db.DBW, localInbox)
 	if err != nil {
-		panic(err)
+		t.Fatalf("Failed to create a handler: %v", err)
 	}
 
 	return &server{
+		t:            t,
 		cfg:          &cfg,
-		dbPath:       path,
-		db:           db,
+		dbw:          db.DBW,
+		resolver:     resolver,
 		handler:      handler,
 		inbox:        localInbox,
 		queue:        queue,
 		Alice:        alice,
 		Bob:          bob,
 		Carol:        carol,
+		AppActor:     appActor,
 		AppActorKeys: appActorKeys,
 	}
+}
+
+func (s *server) handle(u *url.URL, user *ap.Actor, body io.Reader) string {
+	r := front.Request{
+		Context: s.t.Context(),
+		URL:     u,
+		Log:     slog.Default(),
+		Body:    body,
+		User:    user,
+	}
+
+	var buf bytes.Buffer
+	w := gmi.Wrap(&buf)
+	s.handler.Handle(&r, w)
+	w.Flush()
+
+	return buf.String()
 }
 
 func (s *server) Handle(request string, user *ap.Actor) string {
 	u, err := url.Parse(request)
 	if err != nil {
-		panic(err)
+		s.t.Fatalf("Failed to parse %s: %v", request, err)
 	}
 
-	var buf bytes.Buffer
-	w := gmi.Wrap(&buf)
-	s.handler.Handle(
-		&front.Request{
-			Context: context.Background(),
-			URL:     u,
-			Log:     slog.Default(),
-			User:    user,
-		},
-		w,
-	)
-	w.Flush()
-
-	return buf.String()
+	return s.handle(u, user, nil)
 }
 
 func (s *server) Upload(request string, user *ap.Actor, body []byte) string {
 	u, err := url.Parse(request)
 	if err != nil {
-		panic(err)
+		s.t.Fatalf("Failed to parse %s: %v", request, err)
 	}
 	u.Scheme = "titan"
 
-	var buf bytes.Buffer
-	w := gmi.Wrap(&buf)
-	s.handler.Handle(
-		&front.Request{
-			Context: context.Background(),
-			URL:     u,
-			Log:     slog.Default(),
-			Body:    bytes.NewBuffer(body),
-			User:    user,
-		},
-		w,
-	)
-	w.Flush()
-
-	return buf.String()
+	return s.handle(u, user, bytes.NewBuffer(body))
 }

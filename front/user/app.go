@@ -37,7 +37,7 @@ func CreateApplicationActor(ctx context.Context, domain string, db *sql.DB, cfg 
 	var rsaPrivKeyDer, ed25519Seed, mldsa44Seed []byte
 	if err := db.QueryRowContext(
 		ctx,
-		`select json(actor), rsaprivkey, ed25519seed, mldsa44seed from persons where actor->>'$.preferredUsername' = 'actor' and host = ?`,
+		`select actor, rsaprivkey, ed25519seed, mldsa44seed from persons where actor->>'preferredUsername' = 'actor' and host = $1`,
 		domain,
 	).Scan(
 		&actor,

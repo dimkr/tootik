@@ -36,7 +36,6 @@ import (
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/buildinfo"
 	"github.com/dimkr/tootik/cfg"
-	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/data"
 	"github.com/dimkr/tootik/fed"
 	"github.com/dimkr/tootik/front"
@@ -48,7 +47,7 @@ import (
 	"github.com/dimkr/tootik/migrations"
 	"github.com/dimkr/tootik/outbox"
 	"github.com/dimkr/tootik/proof"
-	"github.com/dimkr/tootik/sqlite"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 const (
@@ -62,7 +61,8 @@ const (
 var (
 	domain        = flag.String("domain", "tootik.invalid", "Domain name")
 	logLevel      = flag.Int("loglevel", int(slog.LevelInfo), "Logging verbosity")
-	dbPath        = flag.String("db", "db.sqlite3", "database path")
+	dbDSN         = flag.String("db", "postgres://localhost/tootik", "Primary database DSN")
+	replicaDSN    = flag.String("replica", "", "Read replica DSN (the primary if empty)")
 	gemCert       = flag.String("gemcert", "", "Gemini TLS certificate")
 	gemKey        = flag.String("gemkey", "", "Gemini TLS private key")
 	gemAddr       = flag.String("gemaddr", ":1965", "Gemini listening address")
@@ -147,13 +147,20 @@ func main() {
 		defer blockList.Close()
 	}
 
-	db, err := sql.Open(sqlite.DriverName, fmt.Sprintf("%s?%s", *dbPath, cfg.DatabaseOptions))
+	dbw, err := sql.Open("pgx", *dbDSN)
 	if err != nil {
 		panic(err)
 	}
-	defer db.Close()
+	defer dbw.Close()
 
-	db.SetMaxOpenConns(cfg.MaxDatabaseConnections)
+	db := dbw
+	if *replicaDSN != "" {
+		db, err = sql.Open("pgx", *replicaDSN)
+		if err != nil {
+			panic(err)
+		}
+		defer db.Close()
+	}
 
 	slog.Debug("Starting", "version", buildinfo.Version, "cfg", &cfg)
 
@@ -170,7 +177,7 @@ func main() {
 			return http.ErrUseLastResponse
 		},
 	}
-	resolver := fed.NewResolver(blockList, *domain, &cfg, &client, db)
+	resolver := fed.NewResolver(blockList, *domain, &cfg, &client, dbw)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -188,11 +195,11 @@ func main() {
 		}
 	})
 
-	if err := migrations.Run(ctx, *domain, db); err != nil {
+	if err := migrations.Run(ctx, *domain, dbw); err != nil {
 		panic(err)
 	}
 
-	appActor, appActorKeys, err := user.CreateApplicationActor(ctx, *domain, db, &cfg)
+	appActor, appActorKeys, err := user.CreateApplicationActor(ctx, *domain, dbw, &cfg)
 	if err != nil {
 		panic(err)
 	}
@@ -200,12 +207,12 @@ func main() {
 	localInbox := &inbox.Inbox{
 		Domain: *domain,
 		Config: &cfg,
-		DB:     db,
+		DBW:    dbw,
 	}
 
 	switch cmd {
 	case "shell":
-		handler, err := front.NewHandler(*domain, &cfg, resolver, db, localInbox)
+		handler, err := front.NewHandler(*domain, &cfg, resolver, db, dbw, localInbox)
 		if err != nil {
 			panic(err)
 		}
@@ -222,7 +229,7 @@ func main() {
 		return
 
 	case "add-community":
-		_, _, err := user.CreatePortable(ctx, *domain, db, &cfg, flag.Arg(1), ap.Group, nil)
+		_, _, err := user.CreatePortable(ctx, *domain, dbw, &cfg, flag.Arg(1), ap.Group, nil)
 		if err != nil {
 			panic(err)
 		}
@@ -234,7 +241,7 @@ func main() {
 			panic(err)
 		}
 
-		tx, err := db.BeginTx(ctx, nil)
+		tx, err := dbw.BeginTx(ctx, nil)
 		if err != nil {
 			panic(err)
 		}
@@ -244,7 +251,7 @@ func main() {
 		var ed25519Seed, mldsa44Seed []byte
 		if err := tx.QueryRowContext(
 			ctx,
-			`select json(actor), ed25519seed, mldsa44seed from persons where ed25519seed is not null and actor->>'$.preferredUsername' = ?`,
+			`select actor, ed25519seed, mldsa44seed from persons where ed25519seed is not null and actor->>'preferredUsername' = $1`,
 			flag.Arg(1),
 		).Scan(&actor, &ed25519Seed, &mldsa44Seed); err != nil {
 			panic(err)
@@ -274,7 +281,7 @@ func main() {
 			panic(err)
 		}
 
-		tx, err := db.BeginTx(ctx, nil)
+		tx, err := dbw.BeginTx(ctx, nil)
 		if err != nil {
 			panic(err)
 		}
@@ -286,7 +293,7 @@ func main() {
 		var ed25519Seed, mldsa44Seed []byte
 		if err := tx.QueryRowContext(
 			ctx,
-			`select json(actor), ed25519seed, mldsa44seed from persons where ed25519seed is not null and actor->>'$.preferredUsername' = ?`,
+			`select actor, ed25519seed, mldsa44seed from persons where ed25519seed is not null and actor->>'preferredUsername' = $1`,
 			userName,
 		).Scan(&actor, &ed25519Seed, &mldsa44Seed); err != nil {
 			panic(err)
@@ -294,9 +301,9 @@ func main() {
 
 		if _, err := tx.ExecContext(
 			ctx,
-			"insert into icons(name, buf) values($1, $2) on conflict(name) do update set buf = $2",
-			userName,
-			danger.String(resized),
+			"insert into icons(cid, buf) values($1, $2) on conflict(cid) do update set buf = $2",
+			ap.Canonical(actor.ID),
+			resized,
 		); err != nil {
 			panic(err)
 		}
@@ -318,7 +325,7 @@ func main() {
 		return
 	}
 
-	handler, err := front.NewHandler(*domain, &cfg, resolver, db, localInbox)
+	handler, err := front.NewHandler(*domain, &cfg, resolver, db, dbw, localInbox)
 	if err != nil {
 		panic(err)
 	}
@@ -335,6 +342,7 @@ func main() {
 				Domain:       *domain,
 				Config:       &cfg,
 				DB:           db,
+				DBW:          dbw,
 				AppActor:     appActor,
 				AppActorKeys: appActorKeys,
 				Resolver:     resolver,
@@ -350,7 +358,7 @@ func main() {
 			&gemini.Listener{
 				Domain:   *domain,
 				Config:   &cfg,
-				DB:       db,
+				DBW:      dbw,
 				Handler:  handler,
 				Addr:     *gemAddr,
 				CertPath: *gemCert,
@@ -377,7 +385,7 @@ func main() {
 			&inbox.Queue{
 				Domain:   *domain,
 				Config:   &cfg,
-				DB:       db,
+				DBW:      dbw,
 				Inbox:    localInbox,
 				Resolver: resolver,
 				Keys:     appActorKeys,
@@ -388,7 +396,7 @@ func main() {
 			&fed.Queue{
 				Domain:   *domain,
 				Config:   &cfg,
-				DB:       db,
+				DBW:      dbw,
 				Resolver: resolver,
 			},
 		},
@@ -414,7 +422,7 @@ func main() {
 			&inbox.FeedUpdater{
 				Domain: *domain,
 				Config: &cfg,
-				DB:     db,
+				DBW:    dbw,
 			},
 		},
 		{
@@ -422,7 +430,7 @@ func main() {
 			pollResultsUpdateInterval,
 			&outbox.Poller{
 				Domain: *domain,
-				DB:     db,
+				DBW:    dbw,
 				Inbox:  localInbox,
 			},
 		},
@@ -431,7 +439,7 @@ func main() {
 			followMoveInterval,
 			&outbox.Mover{
 				Domain:   *domain,
-				DB:       db,
+				DBW:      dbw,
 				Inbox:    localInbox,
 				Resolver: resolver,
 				Keys:     appActorKeys,
@@ -443,7 +451,7 @@ func main() {
 			&fed.Syncer{
 				Domain:   *domain,
 				Config:   &cfg,
-				DB:       db,
+				DBW:      dbw,
 				Resolver: resolver,
 				Keys:     appActorKeys,
 				Inbox:    localInbox,
@@ -453,7 +461,7 @@ func main() {
 			"deleter",
 			deleterInterval,
 			&outbox.Deleter{
-				DB:    db,
+				DBW:   dbw,
 				Inbox: localInbox,
 			},
 		},
@@ -463,7 +471,7 @@ func main() {
 			&data.GarbageCollector{
 				Domain: *domain,
 				Config: &cfg,
-				DB:     db,
+				DBW:    dbw,
 			},
 		},
 	} {

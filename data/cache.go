@@ -31,7 +31,7 @@ var _ autocert.Cache = Cache[struct{}]{}
 //
 // It satisfies [autocert.Cache].
 type Cache[T any] struct {
-	DB interface {
+	DBW interface {
 		QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 		ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 	}
@@ -39,9 +39,9 @@ type Cache[T any] struct {
 
 func (c Cache[T]) Get(ctx context.Context, key string) ([]byte, error) {
 	var data []byte
-	if err := c.DB.QueryRowContext(
+	if err := c.DBW.QueryRowContext(
 		ctx,
-		`select data from cache where module = ? || '.' || ? and key = ?`,
+		`select data from cache where module = $1 || '.' || $2 and key = $3`,
 		reflect.TypeFor[T]().PkgPath(),
 		reflect.TypeFor[T]().Name(),
 		key,
@@ -55,7 +55,7 @@ func (c Cache[T]) Get(ctx context.Context, key string) ([]byte, error) {
 }
 
 func (c Cache[T]) Put(ctx context.Context, key string, data []byte) error {
-	_, err := c.DB.ExecContext(
+	_, err := c.DBW.ExecContext(
 		ctx,
 		`
 		insert into cache
@@ -73,9 +73,9 @@ func (c Cache[T]) Put(ctx context.Context, key string, data []byte) error {
 }
 
 func (c Cache[T]) Delete(ctx context.Context, key string) error {
-	_, err := c.DB.ExecContext(
+	_, err := c.DBW.ExecContext(
 		ctx,
-		`delete from cache where module = ? || '.' || ? and key = ?`,
+		`delete from cache where module = $1 || '.' || $2 and key = $3`,
 		reflect.TypeFor[T]().PkgPath(),
 		reflect.TypeFor[T]().Name(),
 		key,

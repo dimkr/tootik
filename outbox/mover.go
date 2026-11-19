@@ -30,7 +30,7 @@ import (
 
 type Mover struct {
 	Domain   string
-	DB       *sql.DB
+	DBW      *sql.DB
 	Resolver ap.Resolver
 	Keys     [3]httpsig.Key
 	Inbox    ap.Inbox
@@ -41,12 +41,12 @@ func (m *Mover) updatedMoveTargets(ctx context.Context, prefix string) error {
 		OldID, NewID string
 	}](
 		ctx,
-		m.DB,
+		m.DBW,
 		func(err error) bool {
 			slog.Error("Failed to scan moved actor", "error", err)
 			return true
 		},
-		`select oldid, newid from (select old.id as oldid, new.id as newid, old.updated as oldupdated from persons old join persons new on old.actor->>'$.movedTo' = new.id and not exists (select 1 from json_each(new.actor->'$.alsoKnownAs') where value = old.id) and old.updated > new.updated where old.actor->>'$.movedTo' is not null union all select old.id, old.actor->>'$.movedTo', old.updated from persons old where old.actor->>'$.movedTo' is not null and not exists (select 1 from persons new where new.id = old.actor->>'$.movedTo')) where exists (select 1 from follows where followed = oldid and follower like ? and accepted = 1 and insertednano < oldupdated)`,
+		`select oldid, newid from (select old.id as oldid, new.id as newid, old.updated as oldupdated from persons old join persons new on old.actor->>'movedTo' = new.id and not coalesce(new.actor->'alsoKnownAs' ? old.id, false) and old.updated > new.updated where old.actor->>'movedTo' is not null union all select old.id, old.actor->>'movedTo', old.updated from persons old where old.actor->>'movedTo' is not null and not exists (select 1 from persons new where new.id = old.actor->>'movedTo')) where exists (select 1 from follows where followed = oldid and follower ilike $1 and accepted and inserted < oldupdated)`,
 		prefix,
 	)
 	if err != nil {
@@ -86,19 +86,19 @@ func (m *Mover) Run(ctx context.Context) error {
 		OnlyRemove                bool
 	}](
 		ctx,
-		m.DB,
+		m.DBW,
 		func(err error) bool {
 			slog.Error("Failed to scan follow to move", "error", err)
 			return true
 		},
 		`
-			select json(persons.actor), persons.ed25519seed, persons.mldsa44seed, old.id, new.id, follows.id, new.id = follows.follower or exists (select 1 from follows where follower = persons.id and followed = new.id) from
+			select persons.actor, persons.ed25519seed, persons.mldsa44seed, old.id, new.id, follows.id, new.id = follows.follower or exists (select 1 from follows where follower = persons.id and followed = new.id) from
 			persons old
 			join
 			persons new
 			on
-				old.actor->>'$.movedTo' = new.id and
-				exists (select 1 from json_each(new.actor->'$.alsoKnownAs') where value = old.id)
+				old.actor->>'movedTo' = new.id and
+				new.actor->'alsoKnownAs' ? old.id
 			join follows
 			on
 				follows.followed = old.id
@@ -106,9 +106,9 @@ func (m *Mover) Run(ctx context.Context) error {
 			on
 				persons.id = follows.follower
 			where
-				old.actor->>'$.movedTo' is not null and
-				follows.follower like ? and
-				follows.accepted = 1
+				old.actor->>'movedTo' is not null and
+				follows.follower ilike $1 and
+				follows.accepted
 		`,
 		prefix,
 	)

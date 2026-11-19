@@ -38,7 +38,7 @@ type sender struct {
 	Domain string
 	Config *cfg.Config
 	client Client
-	DB     *sql.DB
+	DBW    *sql.DB
 }
 
 var userAgent = "tootik/" + buildinfo.Version
@@ -61,7 +61,7 @@ func (s *sender) send(keys [3]httpsig.Key, req *http.Request, body []byte) (*htt
 
 	capabilities := ap.CavageDraftSignatures
 
-	if err := s.DB.QueryRowContext(req.Context(), `select capabilities from servers where host = ?`, req.URL.Host).Scan(&capabilities); errors.Is(err, sql.ErrNoRows) {
+	if err := s.DBW.QueryRowContext(req.Context(), `select capabilities from servers where host = $1`, req.URL.Host).Scan(&capabilities); errors.Is(err, sql.ErrNoRows) {
 		slog.Debug("Server capabilities are unknown", "url", urlString)
 	} else if err != nil {
 		return nil, fmt.Errorf("failed to query server capabilities for %s: %w", req.URL.Host, err)
@@ -130,9 +130,9 @@ func (s *sender) send(keys [3]httpsig.Key, req *http.Request, body []byte) (*htt
 
 	// other servers may ignore the signature if the request includes a valid integrity proof
 	if !ap.GatewayURLRegex.MatchString(urlString) {
-		if _, err = s.DB.ExecContext(
+		if _, err = s.DBW.ExecContext(
 			req.Context(),
-			`INSERT INTO servers (host, capabilities) VALUES ($1, $2) ON CONFLICT(host) DO UPDATE SET capabilities = capabilities | $2, updated = UNIXEPOCH() WHERE capabilities | $2 != capabilities`,
+			`INSERT INTO servers (host, capabilities) VALUES ($1, $2) ON CONFLICT(host) DO UPDATE SET capabilities = servers.capabilities | $2, updated = now() WHERE servers.capabilities | $2 != servers.capabilities`,
 			req.URL.Host,
 			capabilities,
 		); err != nil {

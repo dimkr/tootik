@@ -21,15 +21,10 @@ import (
 	"math"
 	"regexp"
 	"time"
-
-	"github.com/dimkr/tootik/sqlite"
 )
 
 // Config represents a tootik configuration file.
 type Config struct {
-	DatabaseOptions        string
-	MaxDatabaseConnections int
-
 	RequireRegistration                bool
 	RequireInvitation                  bool
 	MaxInvitationsPerUser              *int
@@ -126,7 +121,6 @@ type Config struct {
 	NotesTTL          time.Duration
 	InvisiblePostsTTL time.Duration
 	DeliveryTTL       time.Duration
-	ActorTTL          time.Duration
 	FeedTTL           time.Duration
 	HistoryTTL        time.Duration
 
@@ -148,14 +142,6 @@ type Config struct {
 
 // FillDefaults replaces missing or invalid settings with defaults.
 func (c *Config) FillDefaults() {
-	if c.DatabaseOptions == "" {
-		c.DatabaseOptions = sqlite.DefaultOptions
-	}
-
-	if c.MaxDatabaseConnections == 0 {
-		c.MaxDatabaseConnections = 32
-	}
-
 	if c.MaxInvitationsPerUser == nil {
 		c.MaxInvitationsPerUser = new(5)
 	}
@@ -433,10 +419,6 @@ func (c *Config) FillDefaults() {
 
 	if c.DeliveryTTL <= 0 {
 		c.DeliveryTTL = time.Hour * 24 * 7
-	}
-
-	if c.ActorTTL <= 0 {
-		c.ActorTTL = time.Hour * 24 * 7
 	}
 
 	if c.FeedTTL <= 0 {

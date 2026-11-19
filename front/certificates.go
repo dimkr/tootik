@@ -30,19 +30,19 @@ func (h *Handler) certificates(w text.Writer, r *Request, args ...string) {
 	}
 
 	rows, err := dbx.QueryCollectIgnore[struct {
-		Inserted, Expires int64
+		Inserted, Expires time.Time
 		Hash              string
-		Approved          int
+		Approved          bool
 	}](
 		r.Context,
-		h.DB,
+		h.DBW,
 		func(err error) bool {
 			r.Log.Warn("Failed to fetch certificate", "user", r.User.PreferredUsername, "error", err)
 			return true
 		},
 		`
 		select inserted, expires, hash, approved from certificates
-		where user = ?
+		where "user" = $1
 		order by inserted
 		`,
 		r.User.PreferredUsername,
@@ -62,10 +62,10 @@ func (h *Handler) certificates(w text.Writer, r *Request, args ...string) {
 		}
 
 		w.Item("SHA-256: " + row.Hash)
-		w.Item("Added: " + time.Unix(row.Inserted, 0).Format(time.DateOnly))
-		w.Item("Expires: " + time.Unix(row.Expires, 0).Format(time.DateOnly))
+		w.Item("Added: " + row.Inserted.Format(time.DateOnly))
+		w.Item("Expires: " + row.Expires.Format(time.DateOnly))
 
-		if row.Approved == 0 {
+		if !row.Approved {
 			w.Link("/users/certificates/approve/"+row.Hash, "🟢 Approve")
 			w.Link("/users/certificates/revoke/"+row.Hash, "🔴 Deny")
 		} else {

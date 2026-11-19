@@ -66,7 +66,7 @@ func (inbox *Inbox) unfollow(ctx context.Context, follower *ap.Actor, key httpsi
 		return err
 	}
 
-	tx, err := inbox.DB.BeginTx(ctx, nil)
+	tx, err := inbox.DBW.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func (inbox *Inbox) unfollow(ctx context.Context, follower *ap.Actor, key httpsi
 	// mark the matching Follow as received
 	if _, err := tx.ExecContext(
 		ctx,
-		`UPDATE outbox SET sent = 1 WHERE activity->>'$.object.id' = ? and activity->>'$.type' = 'Follow'`,
+		`UPDATE outbox SET sent = true WHERE activity->'object'->>'id' = $1 and activity->>'type' = 'Follow'`,
 		followID,
 	); err != nil {
 		return err
@@ -83,10 +83,10 @@ func (inbox *Inbox) unfollow(ctx context.Context, follower *ap.Actor, key httpsi
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
+		`INSERT INTO outbox (activity, sender, inserted) VALUES ($1, $2, $3)`,
 		s,
 		follower.ID,
-		time.Now().UnixNano(),
+		time.Now(),
 	); err != nil {
 		return err
 	}

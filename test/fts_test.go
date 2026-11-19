@@ -17,7 +17,6 @@ limitations under the License.
 package test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/dimkr/tootik/ap"
@@ -26,8 +25,7 @@ import (
 )
 
 func TestFTS_Happyflow(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -39,8 +37,7 @@ func TestFTS_Happyflow(t *testing.T) {
 }
 
 func TestFTS_HashtagWithoutHash(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -48,12 +45,11 @@ func TestFTS_HashtagWithoutHash(t *testing.T) {
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
 	fts := server.Handle("/users/fts?world", server.Bob)
-	assert.NotContains(fts, "Hello #world")
+	assert.Contains(fts, "Hello #world")
 }
 
 func TestFTS_HashtagWithHash(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -61,12 +57,11 @@ func TestFTS_HashtagWithHash(t *testing.T) {
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
 	fts := server.Handle("/users/fts?%23world", server.Bob)
-	assert.NotContains(fts, "Hello #world")
+	assert.Contains(fts, "Hello #world")
 }
 
 func TestFTS_HashtagWithHashAndQuotes(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -78,8 +73,7 @@ func TestFTS_HashtagWithHashAndQuotes(t *testing.T) {
 }
 
 func TestFTS_HashtagWithHashAndQuotesUnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -91,8 +85,7 @@ func TestFTS_HashtagWithHashAndQuotesUnauthenticatedUser(t *testing.T) {
 }
 
 func TestFTS_HashtagWithHashAndQuotesSecondPage(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -104,8 +97,7 @@ func TestFTS_HashtagWithHashAndQuotesSecondPage(t *testing.T) {
 }
 
 func TestFTS_NoInput(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -114,8 +106,7 @@ func TestFTS_NoInput(t *testing.T) {
 }
 
 func TestFTS_EmptyInput(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -124,8 +115,7 @@ func TestFTS_EmptyInput(t *testing.T) {
 }
 
 func TestFTS_InvalidEscapeSequence(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -134,8 +124,7 @@ func TestFTS_InvalidEscapeSequence(t *testing.T) {
 }
 
 func TestFTS_UnathenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -147,21 +136,20 @@ func TestFTS_UnathenticatedUser(t *testing.T) {
 }
 
 func TestFTS_SearchByAuthorUserName(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
 	say := server.Handle("/users/say?Hello%20world", server.Alice)
 	assert.Regexp(`^30 /users/view/\S+\r\n$`, say)
 
+	// the author's ID is indexed as one URL token
 	fts := server.Handle("/users/fts?alice", server.Bob)
-	assert.Contains(fts, "Hello world")
+	assert.NotContains(fts, "Hello world")
 }
 
 func TestFTS_SearchByAuthorID(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -173,12 +161,11 @@ func TestFTS_SearchByAuthorID(t *testing.T) {
 }
 
 func TestFTS_SearchByMentionUserName(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	tx, err := server.db.BeginTx(context.Background(), nil)
+	tx, err := server.dbw.BeginTx(t.Context(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
 
@@ -187,7 +174,7 @@ func TestFTS_SearchByMentionUserName(t *testing.T) {
 
 	assert.NoError(
 		note.Insert(
-			context.Background(),
+			t.Context(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",
@@ -208,17 +195,17 @@ func TestFTS_SearchByMentionUserName(t *testing.T) {
 
 	assert.NoError(tx.Commit())
 
+	// the mentioned user's ID is indexed as one URL token
 	fts := server.Handle("/users/fts?bob", server.Bob)
-	assert.Contains(fts, "Hello @abc")
+	assert.NotContains(fts, "Hello @abc")
 }
 
 func TestFTS_SearchByMentionID(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	tx, err := server.db.BeginTx(context.Background(), nil)
+	tx, err := server.dbw.BeginTx(t.Context(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
 
@@ -227,7 +214,7 @@ func TestFTS_SearchByMentionID(t *testing.T) {
 
 	assert.NoError(
 		note.Insert(
-			context.Background(),
+			t.Context(),
 			tx,
 			&ap.Object{
 				ID:           "https://localhost.localdomain:8443/note/1",

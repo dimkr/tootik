@@ -36,7 +36,7 @@ func (h *Handler) users(w text.Writer, r *Request, args ...string) {
 			return h.DB.QueryContext(
 				r.Context,
 				`
-				select json(notes.object), json(authors.actor), json(sharers.actor), page.inserted, notes.nreplies, notes.nquotes, notes.nshares, json(parent_authors.actor) from (
+				select notes.object, authors.actor, sharers.actor, page.inserted, notes.nreplies, notes.nquotes, notes.nshares, parent_authors.actor from (
 					select note, sharer, inserted from feed
 					where
 						follower = $1
@@ -52,7 +52,7 @@ func (h *Handler) users(w text.Writer, r *Request, args ...string) {
 				left join persons sharers on
 					sharers.id = page.sharer
 				left join notes parent_notes on
-					parent_notes.id = notes.object->>'$.inReplyTo'
+					parent_notes.id = notes.object->>'inReplyTo'
 				left join persons parent_authors on
 					parent_authors.id = parent_notes.author
 				order by page.inserted desc

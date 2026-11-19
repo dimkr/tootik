@@ -23,8 +23,7 @@ import (
 )
 
 func TestStatus_NewInstance(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -33,8 +32,7 @@ func TestStatus_NewInstance(t *testing.T) {
 }
 
 func TestStatus_WithPosts(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

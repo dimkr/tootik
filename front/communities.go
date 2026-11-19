@@ -26,7 +26,7 @@ import (
 func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
 	rows, err := dbx.QueryCollectIgnore[struct {
 		ID, Username string
-		Last         int64
+		Last         time.Time
 	}](
 		r.Context,
 		h.DB,
@@ -42,7 +42,7 @@ func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
 				persons.id = shares.by
 			where
 				persons.host = $1 and
-				persons.actor->>'$.type' = 'Group'
+				persons.actor->>'type' = 'Group'
 			union all
 			select persons.id, persons.actor->>'preferredUsername' as username, notes.inserted from notes
 			join persons
@@ -50,10 +50,11 @@ func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
 				persons.id = notes.author
 			where
 				persons.host = $1 and
-				persons.actor->>'$.type' = 'Group'
+				persons.actor->>'type' = 'Group'
 		) u
 		group by
-			u.id
+			u.id,
+			u.username
 		order by
 			max(u.inserted) desc
 		`,
@@ -75,9 +76,9 @@ func (h *Handler) communities(w text.Writer, r *Request, args ...string) {
 
 	for _, row := range rows {
 		if r.User == nil {
-			w.Linkf("/outbox/"+idLink(row.ID), "%s %s", time.Unix(row.Last, 0).Format(time.DateOnly), row.Username)
+			w.Linkf("/outbox/"+idLink(row.ID), "%s %s", row.Last.Format(time.DateOnly), row.Username)
 		} else {
-			w.Linkf("/users/outbox/"+idLink(row.ID), "%s %s", time.Unix(row.Last, 0).Format(time.DateOnly), row.Username)
+			w.Linkf("/users/outbox/"+idLink(row.ID), "%s %s", row.Last.Format(time.DateOnly), row.Username)
 		}
 	}
 }

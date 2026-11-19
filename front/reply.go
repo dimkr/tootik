@@ -33,32 +33,32 @@ func (h *Handler) replyOrQuote(w text.Writer, r *Request, args []string, quote b
 	arg := args[1]
 
 	var note ap.Object
-	if err := h.DB.QueryRowContext(
+	if err := h.DBW.QueryRowContext(
 		r.Context,
 		`
-		select json(notes.object) from notes
+		select notes.object from notes
 		join persons on persons.id = notes.author
 		where
 			(notes.id = 'https://' || $1 or notes.slug = $1) and
-			notes.deleted = 0 and
+			not notes.deleted and
 			(
-				notes.public = 1 or
+				notes.public or
 				notes.author = $2 or
 				$2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-				(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $2)) or
-				(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $2)) or
+				(notes.to2 is not null and notes.object->'to' ? $2) or
+				(notes.cc2 is not null and notes.object->'cc' ? $2) or
 				exists (
 					select 1 from (
-						select persons.id, persons.actor->>'$.followers' as followers, persons.actor->>'$.type' as type from persons
+						select persons.id, persons.actor->>'followers' as followers, persons.actor->>'type' as type from persons
 						join follows on follows.followed = persons.id
 						where
-							follows.accepted = 1 and
+							follows.accepted and
 							follows.follower = $2
 						) follows
 						where
 							follows.followers in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = follows.followers)) or
-							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = follows.followers)) or
+							(notes.to2 is not null and notes.object->'to' ? follows.followers) or
+							(notes.cc2 is not null and notes.object->'cc' ? follows.followers) or
 							(follows.type = 'Group' and exists (select 1 from shares where shares.by = follows.id and shares.note = notes.id))
 				)
 			)

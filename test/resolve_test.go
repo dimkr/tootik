@@ -25,8 +25,7 @@ import (
 )
 
 func TestResolve_LocalUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -35,8 +34,7 @@ func TestResolve_LocalUser(t *testing.T) {
 }
 
 func TestResolve_LocalUserByNameOnly(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -45,8 +43,7 @@ func TestResolve_LocalUserByNameOnly(t *testing.T) {
 }
 
 func TestResolve_NoSuchLocalUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -55,8 +52,7 @@ func TestResolve_NoSuchLocalUser(t *testing.T) {
 }
 
 func TestResolve_NoSuchLocalUserByNameOnly(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -65,8 +61,7 @@ func TestResolve_NoSuchLocalUserByNameOnly(t *testing.T) {
 }
 
 func TestResolve_NoSuchFederatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -75,8 +70,7 @@ func TestResolve_NoSuchFederatedUser(t *testing.T) {
 }
 
 func TestResolve_NoInput(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -85,8 +79,7 @@ func TestResolve_NoInput(t *testing.T) {
 }
 
 func TestResolve_InvalidEscapeSequence(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -95,8 +88,7 @@ func TestResolve_InvalidEscapeSequence(t *testing.T) {
 }
 
 func TestResolve_InvalidInputFormat(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -105,8 +97,7 @@ func TestResolve_InvalidInputFormat(t *testing.T) {
 }
 
 func TestResolve_UnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

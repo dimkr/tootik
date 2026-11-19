@@ -19,12 +19,16 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"slices"
 )
 
 type t struct {
-	ctx     context.Context
-	tempDir string
+	ctx      context.Context
+	cleanups *[]func()
 }
+
+func (t) Helper() {}
 
 func (t) Parallel() {}
 
@@ -36,8 +40,14 @@ func (t t) Context() context.Context {
 	return t.ctx
 }
 
-func (t t) TempDir() string {
-	return t.tempDir
+func (t t) Cleanup(f func()) {
+	*t.cleanups = append(*t.cleanups, f)
+}
+
+func (t t) runCleanups() {
+	for _, f := range slices.Backward(*t.cleanups) {
+		f()
+	}
 }
 
 func (t) Fatal(args ...any) {
@@ -46,4 +56,8 @@ func (t) Fatal(args ...any) {
 
 func (t) Fatalf(format string, args ...any) {
 	panic(fmt.Sprintf(format, args...))
+}
+
+func (t) Errorf(format string, args ...any) {
+	fmt.Fprintf(os.Stderr, format+"\n", args...)
 }

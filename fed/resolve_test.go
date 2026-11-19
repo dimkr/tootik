@@ -19,11 +19,9 @@ package fed
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"errors"
 	"io"
 	"net/http"
-	"os"
 	"sync"
 	"testing"
 
@@ -31,8 +29,7 @@ import (
 	"github.com/dimkr/tootik/cfg"
 	"github.com/dimkr/tootik/front/user"
 	"github.com/dimkr/tootik/inbox/note"
-	"github.com/dimkr/tootik/migrations"
-	"github.com/dimkr/tootik/sqlite"
+	"github.com/dimkr/tootik/test/deps"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -74,15 +71,10 @@ func (c *testClient) Do(r *http.Request) (*http.Response, error) {
 func TestResolve_LocalActor(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -92,14 +84,12 @@ func TestResolve_LocalActor(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	app, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	app, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, app.ID, 0)
+	actor, err := resolver.ResolveID(t.Context(), key, app.ID, 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -110,15 +100,10 @@ func TestResolve_LocalActor(t *testing.T) {
 func TestResolve_LocalActorDoesNotExist(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -128,29 +113,22 @@ func TestResolve_LocalActorDoesNotExist(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.ResolveID(context.Background(), key, "https://localhost.localdomain/user/doesnotexist", 0)
+	_, err = resolver.ResolveID(t.Context(), key, "https://localhost.localdomain/user/doesnotexist", 0)
 	assert.True(errors.Is(err, ErrNoLocalActor))
 }
 
 func TestResolve_FederatedInstanceActor(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -209,14 +187,12 @@ func TestResolve_FederatedInstanceActor(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", ap.InstanceActor)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", ap.InstanceActor)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -227,15 +203,10 @@ func TestResolve_FederatedInstanceActor(t *testing.T) {
 func TestResolve_FederatedActorInvalidURL(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -245,29 +216,22 @@ func TestResolve_FederatedActorInvalidURL(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan%zz", 0)
+	_, err = resolver.ResolveID(t.Context(), key, "https://0.0.0.0/user/dan%zz", 0)
 	assert.Error(err)
 }
 
 func TestResolve_FederatedActorInvalidScheme(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -277,29 +241,22 @@ func TestResolve_FederatedActorInvalidScheme(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.ResolveID(context.Background(), key, "http://0.0.0.0/user/dan", 0)
+	_, err = resolver.ResolveID(t.Context(), key, "http://0.0.0.0/user/dan", 0)
 	assert.True(errors.Is(err, ErrInvalidScheme))
 }
 
 func TestResolve_FederatedActorFirstTime(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -358,14 +315,12 @@ func TestResolve_FederatedActorFirstTime(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -376,15 +331,10 @@ func TestResolve_FederatedActorFirstTime(t *testing.T) {
 func TestResolve_FederatedActorFirstTimeOffline(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -394,14 +344,12 @@ func TestResolve_FederatedActorFirstTimeOffline(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", ap.Offline)
+	_, err = resolver.ResolveID(t.Context(), key, "https://0.0.0.0/user/dan", ap.Offline)
 	assert.True(errors.Is(err, ErrActorNotCached))
 	assert.Empty(client.Data)
 }
@@ -409,15 +357,10 @@ func TestResolve_FederatedActorFirstTimeOffline(t *testing.T) {
 func TestResolve_FederatedActorFirstTimeCancelled(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -427,18 +370,16 @@ func TestResolve_FederatedActorFirstTimeCancelled(t *testing.T) {
 
 	client := newTestClient(map[string]testResponse{})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
 	for i := range resolver.locks {
-		assert.NoError(resolver.locks[i].Lock(context.Background()))
+		assert.NoError(resolver.locks[i].Lock(t.Context()))
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
 	_, err = resolver.ResolveID(ctx, key, "https://0.0.0.0/user/dan", 0)
@@ -449,15 +390,10 @@ func TestResolve_FederatedActorFirstTimeCancelled(t *testing.T) {
 func TestResolve_FederatedActorFirstTimeInvalidWebFingerLink(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -521,14 +457,12 @@ func TestResolve_FederatedActorFirstTimeInvalidWebFingerLink(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -539,15 +473,10 @@ func TestResolve_FederatedActorFirstTimeInvalidWebFingerLink(t *testing.T) {
 func TestResolve_FederatedActorFirstTimeActorIDMismatch(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -606,14 +535,12 @@ func TestResolve_FederatedActorFirstTimeActorIDMismatch(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	_, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.Error(err)
 	assert.Empty(client.Data)
 }
@@ -621,15 +548,10 @@ func TestResolve_FederatedActorFirstTimeActorIDMismatch(t *testing.T) {
 func TestResolve_FederatedActorCached(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -688,21 +610,19 @@ func TestResolve_FederatedActorCached(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	actor, err = resolver.ResolveID(t.Context(), key, "https://0.0.0.0/user/dan", 0)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -712,15 +632,10 @@ func TestResolve_FederatedActorCached(t *testing.T) {
 func TestResolve_FederatedActorCachedInvalidActorHost(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -754,14 +669,12 @@ func TestResolve_FederatedActorCachedInvalidActorHost(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	_, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrInvalidHost))
 	assert.Empty(client.Data)
 }
@@ -770,15 +683,10 @@ func TestResolve_FederatedActorCachedInvalidActorHost(t *testing.T) {
 func TestResolve_FederatedActorCachedActorHostWithPort(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -812,14 +720,13 @@ func TestResolve_FederatedActorCachedActorHostWithPort(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
 
-	_, key, err := user.CreateNobody(context.Background(), "localhost.localdomain", db,&cfg)
+	_, key, err := user.CreateNobody(t.Context(), "localhost.localdomain", db,&cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	_, err = resolver.ResolveID(t.Context(), key, "https://0.0.0.0/user/dan", 0)
 	assert.True(errors.Is(err, ErrInvalidHost))
 	assert.Empty(client.Data)
 }
@@ -828,15 +735,10 @@ func TestResolve_FederatedActorCachedActorHostWithPort(t *testing.T) {
 func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -895,21 +797,19 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://tootik.0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://tootik.0.0.0.0/inbox/dan", actor.Inbox)
 
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
+	_, err = db.Exec(`update persons set updated = now() - interval '7 days', fetched = now() - interval '7 hours' where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
@@ -963,7 +863,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -974,15 +874,10 @@ func TestResolve_FederatedActorCachedActorHostSubdomain(t *testing.T) {
 func TestResolve_FederatedActorCachedActorHostSubdomainFetchedRecently(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -1041,14 +936,12 @@ func TestResolve_FederatedActorCachedActorHostSubdomainFetchedRecently(t *testin
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -1057,7 +950,7 @@ func TestResolve_FederatedActorCachedActorHostSubdomainFetchedRecently(t *testin
 
 	client.Data = map[string]testResponse{}
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://tootik.0.0.0.0/user/dan", 0)
+	actor, err = resolver.ResolveID(t.Context(), key, "https://tootik.0.0.0.0/user/dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -1068,15 +961,10 @@ func TestResolve_FederatedActorCachedActorHostSubdomainFetchedRecently(t *testin
 func TestResolve_FederatedActorCachedActorIDChanged(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -1135,21 +1023,19 @@ func TestResolve_FederatedActorCachedActorIDChanged(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
+	_, err = db.Exec(`update persons set updated = now() - interval '7 days', fetched = now() - interval '7 hours' where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
@@ -1178,7 +1064,7 @@ func TestResolve_FederatedActorCachedActorIDChanged(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -1189,15 +1075,10 @@ func TestResolve_FederatedActorCachedActorIDChanged(t *testing.T) {
 func TestResolve_FederatedActorCachedButBlocked(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -1256,21 +1137,19 @@ func TestResolve_FederatedActorCachedButBlocked(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -1280,22 +1159,17 @@ func TestResolve_FederatedActorCachedButBlocked(t *testing.T) {
 		"0.0.0.0": {},
 	}
 
-	_, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan", 0)
+	_, err = resolver.ResolveID(t.Context(), key, "https://0.0.0.0/user/dan", 0)
 	assert.True(errors.Is(err, ErrBlockedDomain))
 }
 
 func TestResolve_FederatedActorOldCache(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -1354,21 +1228,19 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
+	_, err = db.Exec(`update persons set updated = now() - interval '7 days', fetched = now() - interval '7 hours' where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
@@ -1422,14 +1294,14 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan123", actor.Inbox)
 
-	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -1439,15 +1311,10 @@ func TestResolve_FederatedActorOldCache(t *testing.T) {
 func TestResolve_FederatedActorOldCacheWasSuspended(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -1507,18 +1374,16 @@ func TestResolve_FederatedActorOldCacheWasSuspended(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	_, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrSuspendedActor))
 	assert.Empty(client.Data)
 
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
+	_, err = db.Exec(`update persons set updated = now() - interval '7 days', fetched = now() - interval '7 hours' where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
@@ -1574,14 +1439,14 @@ func TestResolve_FederatedActorOldCacheWasSuspended(t *testing.T) {
 		},
 	}
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan123", actor.Inbox)
 
-	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -1591,15 +1456,10 @@ func TestResolve_FederatedActorOldCacheWasSuspended(t *testing.T) {
 func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -1657,18 +1517,16 @@ func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	_, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrYoungActor))
 	assert.Empty(client.Data)
 
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
+	_, err = db.Exec(`update persons set updated = now() - interval '7 days', fetched = now() - interval '7 hours' where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
@@ -1723,14 +1581,14 @@ func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 		},
 	}
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan123", actor.Inbox)
 
-	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -1740,15 +1598,10 @@ func TestResolve_FederatedActorOldCacheWasNew(t *testing.T) {
 func TestResolve_FederatedActorOldCacheUpdateFailed(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -1806,18 +1659,16 @@ func TestResolve_FederatedActorOldCacheUpdateFailed(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	_, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrYoungActor))
 	assert.Empty(client.Data)
 
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
+	_, err = db.Exec(`update persons set updated = now() - interval '7 days', fetched = now() - interval '7 hours' where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
@@ -1852,11 +1703,11 @@ func TestResolve_FederatedActorOldCacheUpdateFailed(t *testing.T) {
 		},
 	}
 
-	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	_, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrYoungActor))
 	assert.Empty(client.Data)
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -1866,15 +1717,10 @@ func TestResolve_FederatedActorOldCacheUpdateFailed(t *testing.T) {
 func TestResolve_FederatedActorOldCacheStillNew(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -1932,18 +1778,16 @@ func TestResolve_FederatedActorOldCacheStillNew(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	_, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrYoungActor))
 	assert.Empty(client.Data)
 
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
+	_, err = db.Exec(`update persons set updated = now() - interval '7 days', fetched = now() - interval '7 hours' where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
@@ -1997,7 +1841,7 @@ func TestResolve_FederatedActorOldCacheStillNew(t *testing.T) {
 		},
 	}
 
-	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	_, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrYoungActor))
 	assert.Empty(client.Data)
 }
@@ -2005,15 +1849,10 @@ func TestResolve_FederatedActorOldCacheStillNew(t *testing.T) {
 func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -2072,21 +1911,19 @@ func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
+	_, err = db.Exec(`update persons set updated = now() - interval '7 days', fetched = now() - interval '7 hours' where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
@@ -2141,7 +1978,7 @@ func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
 		},
 	}
 
-	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	_, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrYoungActor))
 	assert.Empty(client.Data)
 }
@@ -2149,15 +1986,10 @@ func TestResolve_FederatedActorOldCacheWasOld(t *testing.T) {
 func TestResolve_FederatedActorOldCacheWasNewNowUnknown(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -2216,18 +2048,16 @@ func TestResolve_FederatedActorOldCacheWasNewNowUnknown(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	_, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrYoungActor))
 	assert.Empty(client.Data)
 
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
+	_, err = db.Exec(`update persons set updated = now() - interval '7 days', fetched = now() - interval '7 hours' where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
@@ -2281,7 +2111,7 @@ func TestResolve_FederatedActorOldCacheWasNewNowUnknown(t *testing.T) {
 		},
 	}
 
-	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	_, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrYoungActor))
 	assert.Empty(client.Data)
 }
@@ -2289,15 +2119,10 @@ func TestResolve_FederatedActorOldCacheWasNewNowUnknown(t *testing.T) {
 func TestResolve_FederatedActorOldCacheFetchedRecently(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -2356,24 +2181,22 @@ func TestResolve_FederatedActorOldCacheFetchedRecently(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*5 where id = 'https://0.0.0.0/user/dan'`)
+	_, err = db.Exec(`update persons set updated = now() - interval '7 days', fetched = now() - interval '5 hours' where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
-	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -2383,15 +2206,10 @@ func TestResolve_FederatedActorOldCacheFetchedRecently(t *testing.T) {
 func TestResolve_FederatedActorOldCacheButOffline(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -2450,24 +2268,22 @@ func TestResolve_FederatedActorOldCacheButOffline(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
+	_, err = db.Exec(`update persons set updated = now() - interval '7 days', fetched = now() - interval '7 hours' where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
-	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", ap.Offline)
+	actor, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", ap.Offline)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -2477,15 +2293,10 @@ func TestResolve_FederatedActorOldCacheButOffline(t *testing.T) {
 func TestResolve_FederatedActorOldCacheExpiredDomain(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -2544,41 +2355,34 @@ func TestResolve_FederatedActorOldCacheExpiredDomain(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.Resolve(context.Background(), key, "invalid.invalid", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "invalid.invalid", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://invalid.invalid/user/dan", actor.ID)
 	assert.Equal("https://invalid.invalid/inbox/dan", actor.Inbox)
 
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*60, fetched = unixepoch() - 60*60*60 where id = 'https://invalid.invalid/user/dan'`)
+	_, err = db.Exec(`update persons set updated = now() - interval '60 days', fetched = now() - interval '60 hours' where id = 'https://invalid.invalid/user/dan'`)
 	assert.NoError(err)
 
 	resolver.client = &http.Client{}
 
-	_, err = resolver.Resolve(context.Background(), key, "invalid.invalid", "dan", 0)
+	_, err = resolver.Resolve(t.Context(), key, "invalid.invalid", "dan", 0)
 	assert.Error(err)
 }
 
 func TestResolve_FederatedActorOldCacheInvalidID(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -2612,14 +2416,12 @@ func TestResolve_FederatedActorOldCacheInvalidID(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	_, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrInvalidID))
 	assert.Empty(client.Data)
 }
@@ -2627,15 +2429,10 @@ func TestResolve_FederatedActorOldCacheInvalidID(t *testing.T) {
 func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -2694,21 +2491,19 @@ func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
+	_, err = db.Exec(`update persons set updated = now() - interval '7 days', fetched = now() - interval '7 hours' where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
@@ -2720,7 +2515,7 @@ func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -2732,15 +2527,10 @@ func TestResolve_FederatedActorOldCacheInvalidWebFingerResponse(t *testing.T) {
 func TestResolve_FederatedActorOldCacheBigWebFingerResponse(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -2799,21 +2589,19 @@ func TestResolve_FederatedActorOldCacheBigWebFingerResponse(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
+	_, err = db.Exec(`update persons set updated = now() - interval '7 days', fetched = now() - interval '7 hours' where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
@@ -2844,7 +2632,7 @@ func TestResolve_FederatedActorOldCacheBigWebFingerResponse(t *testing.T) {
 
 	cfg.MaxResponseBodySize = 1
 
-	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -2855,15 +2643,10 @@ func TestResolve_FederatedActorOldCacheBigWebFingerResponse(t *testing.T) {
 func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -2922,21 +2705,19 @@ func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
+	_, err = db.Exec(`update persons set updated = now() - interval '7 days', fetched = now() - interval '7 hours' where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
@@ -2971,7 +2752,7 @@ func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -2982,15 +2763,10 @@ func TestResolve_FederatedActorOldCacheInvalidActor(t *testing.T) {
 func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -3049,21 +2825,19 @@ func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
+	_, err = db.Exec(`update persons set updated = now() - interval '7 days', fetched = now() - interval '7 hours' where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
@@ -3119,7 +2893,7 @@ func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 
 	cfg.MaxResponseBodySize = 419
 
-	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -3130,15 +2904,10 @@ func TestResolve_FederatedActorOldCacheBigActor(t *testing.T) {
 func TestResolve_FederatedActorFirstTimeThroughKey(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -3168,21 +2937,19 @@ func TestResolve_FederatedActorFirstTimeThroughKey(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan#main-key", 0)
+	actor, err := resolver.ResolveID(t.Context(), key, "https://0.0.0.0/user/dan#main-key", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
+	_, err = db.Exec(`update persons set updated = now() - interval '7 days', fetched = now() - interval '7 hours' where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
@@ -3213,14 +2980,14 @@ func TestResolve_FederatedActorFirstTimeThroughKey(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.ResolveID(context.Background(), key, "https://0.0.0.0/user/dan#main-key", 0)
+	actor, err = resolver.ResolveID(t.Context(), key, "https://0.0.0.0/user/dan#main-key", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -3230,15 +2997,10 @@ func TestResolve_FederatedActorFirstTimeThroughKey(t *testing.T) {
 func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -3297,21 +3059,19 @@ func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
+	_, err = db.Exec(`update persons set updated = now() - interval '7 days', fetched = now() - interval '7 hours' where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
@@ -3340,14 +3100,14 @@ func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -3357,15 +3117,10 @@ func TestResolve_FederatedActorNoProfileLink(t *testing.T) {
 func TestResolve_FederatedActorOldCacheWebFingerError(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -3424,21 +3179,19 @@ func TestResolve_FederatedActorOldCacheWebFingerError(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
+	_, err = db.Exec(`update persons set updated = now() - interval '7 days', fetched = now() - interval '7 hours' where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
@@ -3447,14 +3200,14 @@ func TestResolve_FederatedActorOldCacheWebFingerError(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -3464,15 +3217,10 @@ func TestResolve_FederatedActorOldCacheWebFingerError(t *testing.T) {
 func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -3531,21 +3279,19 @@ func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
+	_, err = db.Exec(`update persons set updated = now() - interval '7 days', fetched = now() - interval '7 hours' where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
@@ -3577,14 +3323,14 @@ func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
@@ -3594,15 +3340,10 @@ func TestResolve_FederatedActorOldCacheActorError(t *testing.T) {
 func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -3647,6 +3388,8 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 					"inbox": "https://0.0.0.0/inbox/dan",
 					"outbox": "https://0.0.0.0/outbox/dan",
 					"preferredUsername": "dan",
+					"name": "Dan",
+					"summary": "<p>Hello</p>",
 					"followers": "https://0.0.0.0/followers/dan",
 					"endpoints": {
 						"sharedInbox": "https://0.0.0.0/inbox/nobody"
@@ -3661,18 +3404,16 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
-	tx, err := db.BeginTx(context.Background(), nil)
+	tx, err := db.BeginTx(t.Context(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
 
 	assert.NoError(
 		note.Insert(
-			context.Background(),
+			t.Context(),
 			tx,
 			&ap.Object{
 				ID:           "https://0.0.0.0/note/1",
@@ -3687,14 +3428,14 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/user/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/user/dan'`)
+	_, err = db.Exec(`update persons set updated = now() - interval '7 days', fetched = now() - interval '7 hours' where id = 'https://0.0.0.0/user/dan'`)
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
@@ -3723,27 +3464,22 @@ func TestResolve_FederatedActorOldCacheActorDeleted(t *testing.T) {
 		},
 	}
 
-	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	_, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrActorGone))
 	assert.Empty(client.Data)
 
-	var ok int
-	assert.NoError(db.QueryRow(`select not exists (select 1 from notes where author = 'https://0.0.0.0/user/dan' and deleted = 0) and not exists (select 1 from persons where id = 'https://0.0.0.0/user/dan')`).Scan(&ok))
-	assert.Equal(1, ok)
+	var ok bool
+	assert.NoError(db.QueryRow(`select not exists (select 1 from notes where author = 'https://0.0.0.0/user/dan' and not deleted) and exists (select 1 from persons where id = 'https://0.0.0.0/user/dan' and actor->>'preferredUsername' = 'dan' and not actor ?| array['name', 'summary', 'icon', 'image', 'attachment'])`).Scan(&ok))
+	assert.True(ok)
 }
 
 func TestResolve_FederatedActorFirstTimeWrongID(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -3802,14 +3538,12 @@ func TestResolve_FederatedActorFirstTimeWrongID(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -3820,15 +3554,10 @@ func TestResolve_FederatedActorFirstTimeWrongID(t *testing.T) {
 func TestResolve_FederatedActorFirstTimeDeleted(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -3862,18 +3591,16 @@ func TestResolve_FederatedActorFirstTimeDeleted(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
-	tx, err := db.BeginTx(context.Background(), nil)
+	tx, err := db.BeginTx(t.Context(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
 
 	assert.NoError(
 		note.Insert(
-			context.Background(),
+			t.Context(),
 			tx,
 			&ap.Object{
 				ID:           "https://0.0.0.0/note/1",
@@ -3888,27 +3615,22 @@ func TestResolve_FederatedActorFirstTimeDeleted(t *testing.T) {
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	_, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrActorGone))
 	assert.Empty(client.Data)
 
-	var ok int
-	assert.NoError(db.QueryRow(`select exists (select 1 from notes where author = 'https://0.0.0.0/user/dan' and deleted = 0) and not exists (select 1 from persons where id = 'https://0.0.0.0/user/dan')`).Scan(&ok))
-	assert.Equal(1, ok)
+	var ok bool
+	assert.NoError(db.QueryRow(`select exists (select 1 from notes where author = 'https://0.0.0.0/user/dan' and not deleted) and not exists (select 1 from persons where id = 'https://0.0.0.0/user/dan')`).Scan(&ok))
+	assert.True(ok)
 }
 
 func TestResolve_FederatedActorFirstTimeTooYoung(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -3966,14 +3688,12 @@ func TestResolve_FederatedActorFirstTimeTooYoung(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	_, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrYoungActor))
 	assert.Empty(client.Data)
 }
@@ -3981,15 +3701,10 @@ func TestResolve_FederatedActorFirstTimeTooYoung(t *testing.T) {
 func TestResolve_FederatedActorFirstTimeSuspended(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -4049,14 +3764,12 @@ func TestResolve_FederatedActorFirstTimeSuspended(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	_, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	_, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.True(errors.Is(err, ErrSuspendedActor))
 	assert.Empty(client.Data)
 }
@@ -4064,15 +3777,10 @@ func TestResolve_FederatedActorFirstTimeSuspended(t *testing.T) {
 func TestResolve_FederatedActorWrongIDCached(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -4131,21 +3839,19 @@ func TestResolve_FederatedActorWrongIDCached(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/users/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/users/dan", actor.ID)
@@ -4155,15 +3861,10 @@ func TestResolve_FederatedActorWrongIDCached(t *testing.T) {
 func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -4222,21 +3923,19 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/users/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 `)
+	_, err = db.Exec(`update persons set updated = now() - interval '7 days', fetched = now() - interval '7 hours' `)
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
@@ -4290,7 +3989,7 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
@@ -4301,15 +4000,10 @@ func TestResolve_FederatedActorWrongIDCachedOldCache(t *testing.T) {
 func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 	assert := assert.New(t)
 
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	assert.NoError(err)
-	f.Close()
+	t.Parallel()
 
-	path := f.Name()
-	defer os.Remove(path)
-
-	db, err := sql.Open(sqlite.DriverName, sqlite.Scheme+path+"?"+sqlite.JournalModeWAL)
-	assert.NoError(err)
+	db := deps.NewDatabase(t).DBW
+	var err error
 
 	blockList := BlockList{}
 
@@ -4368,21 +4062,19 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 		},
 	})
 
-	assert.NoError(migrations.Run(context.Background(), "localhost.localdomain", db))
-
-	_, key, err := user.CreateApplicationActor(context.Background(), "localhost.localdomain", db, &cfg)
+	_, key, err := user.CreateApplicationActor(t.Context(), "localhost.localdomain", db, &cfg)
 	assert.NoError(err)
 
 	resolver := NewResolver(&blockList, "localhost.localdomain", &cfg, &client, db)
 
-	actor, err := resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err := resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/users/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan", actor.Inbox)
 
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/users/dan'`)
+	_, err = db.Exec(`update persons set updated = now() - interval '7 days', fetched = now() - interval '7 hours' where id = 'https://0.0.0.0/users/dan'`)
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
@@ -4436,20 +4128,20 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 	assert.Empty(client.Data)
 
 	assert.Equal("https://0.0.0.0/users/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan123", actor.Inbox)
 
-	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/users/dan", actor.ID)
 	assert.Equal("https://0.0.0.0/inbox/dan123", actor.Inbox)
 
-	_, err = db.Exec(`update persons set updated = unixepoch() - 60*60*24*7, fetched = unixepoch() - 60*60*7 where id = 'https://0.0.0.0/users/dan'`)
+	_, err = db.Exec(`update persons set updated = now() - interval '7 days', fetched = now() - interval '7 hours' where id = 'https://0.0.0.0/users/dan'`)
 	assert.NoError(err)
 
 	client.Data = map[string]testResponse{
@@ -4503,7 +4195,7 @@ func TestResolve_FederatedActorWrongIDOldCache(t *testing.T) {
 		},
 	}
 
-	actor, err = resolver.Resolve(context.Background(), key, "0.0.0.0", "dan", 0)
+	actor, err = resolver.Resolve(t.Context(), key, "0.0.0.0", "dan", 0)
 	assert.NoError(err)
 
 	assert.Equal("https://0.0.0.0/users/dan", actor.ID)

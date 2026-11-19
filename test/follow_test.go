@@ -17,7 +17,6 @@ limitations under the License.
 package test
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -27,15 +26,14 @@ import (
 )
 
 func TestFollow_PostToFollowers(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
@@ -48,7 +46,7 @@ func TestFollow_PostToFollowers(t *testing.T) {
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello world")
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users = server.Handle("/users", server.Alice)
 	assert.NotContains(users, "No posts.")
@@ -56,12 +54,11 @@ func TestFollow_PostToFollowers(t *testing.T) {
 }
 
 func TestFollow_PostToFollowersBeforeFollow(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
@@ -77,7 +74,7 @@ func TestFollow_PostToFollowersBeforeFollow(t *testing.T) {
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello world")
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users = server.Handle("/users", server.Alice)
 	assert.NotContains(users, "No posts.")
@@ -85,12 +82,11 @@ func TestFollow_PostToFollowersBeforeFollow(t *testing.T) {
 }
 
 func TestFollow_DMUnfollowFollow(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
@@ -106,7 +102,7 @@ func TestFollow_DMUnfollowFollow(t *testing.T) {
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello @alice@localhost.localdomain:8443")
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users = server.Handle("/users", server.Alice)
 	assert.NotContains(users, "No posts.")
@@ -115,7 +111,7 @@ func TestFollow_DMUnfollowFollow(t *testing.T) {
 	unfollow := server.Handle("/users/unfollow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), unfollow)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users = server.Handle("/users", server.Alice)
 	assert.NotContains(users, "No posts.")
@@ -123,12 +119,11 @@ func TestFollow_DMUnfollowFollow(t *testing.T) {
 }
 
 func TestFollow_DMUnfollowBeforeFeedUpdate(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
@@ -147,7 +142,7 @@ func TestFollow_DMUnfollowBeforeFeedUpdate(t *testing.T) {
 	unfollow := server.Handle("/users/unfollow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), unfollow)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users = server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
@@ -155,15 +150,14 @@ func TestFollow_DMUnfollowBeforeFeedUpdate(t *testing.T) {
 }
 
 func TestFollow_PublicPost(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
@@ -176,7 +170,7 @@ func TestFollow_PublicPost(t *testing.T) {
 	assert.Contains(users, "No posts.")
 	assert.NotContains(users, "Hello world")
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users = server.Handle("/users", server.Alice)
 	assert.NotContains(users, "No posts.")
@@ -184,15 +178,14 @@ func TestFollow_PublicPost(t *testing.T) {
 }
 
 func TestFollow_Mutual(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
 	follow := server.Handle("/users/follow/"+strings.TrimPrefix(server.Bob.ID, "https://"), server.Alice)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Bob.ID, "https://")), follow)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users := server.Handle("/users", server.Alice)
 	assert.Contains(users, "No posts.")
@@ -216,7 +209,7 @@ func TestFollow_Mutual(t *testing.T) {
 	users = server.Handle("/users", server.Bob)
 	assert.NotContains(users, "Hello world")
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users = server.Handle("/users", server.Alice)
 	assert.Contains(users, "Hello Alice")
@@ -227,15 +220,14 @@ func TestFollow_Mutual(t *testing.T) {
 	follow = server.Handle("/users/follow/"+strings.TrimPrefix(server.Alice.ID, "https://"), server.Bob)
 	assert.Equal(fmt.Sprintf("30 /users/outbox/%s\r\n", strings.TrimPrefix(server.Alice.ID, "https://")), follow)
 
-	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DB: server.db}).Run(context.Background()))
+	assert.NoError((inbox.FeedUpdater{Domain: domain, Config: server.cfg, DBW: server.dbw}).Run(t.Context()))
 
 	users = server.Handle("/users", server.Bob)
 	assert.Contains(users, "Hello world")
 }
 
 func TestFollow_AlreadyFollowing(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -247,8 +239,7 @@ func TestFollow_AlreadyFollowing(t *testing.T) {
 }
 
 func TestFollow_NoSuchUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -257,8 +248,7 @@ func TestFollow_NoSuchUser(t *testing.T) {
 }
 
 func TestFollow_UnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

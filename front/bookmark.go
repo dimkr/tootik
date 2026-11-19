@@ -31,7 +31,7 @@ func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
 
 	arg := args[1]
 
-	tx, err := h.DB.BeginTx(r.Context, nil)
+	tx, err := h.DBW.BeginTx(r.Context, nil)
 	if err != nil {
 		r.Log.Warn("Failed to insert bookmark", "error", err)
 		w.Error()
@@ -46,14 +46,14 @@ func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
 			select notes.id from notes
 			where
 				(notes.id = 'https://' || $1 or notes.slug = $1) and
-				notes.deleted = 0 and
+				not notes.deleted and
 				(
 					notes.author = $2 or
-					notes.public = 1 or
-					exists (select 1 from json_each(notes.object->'$.to') where exists (select 1 from follows join persons on persons.id = follows.followed where follows.follower = $2 and follows.followed = notes.author and follows.accepted = 1 and (notes.author = value or persons.actor->>'$.followers' = value))) or
-					exists (select 1 from json_each(notes.object->'$.cc') where exists (select 1 from follows join persons on persons.id = follows.followed where follows.follower = $2 and follows.followed = notes.author and follows.accepted = 1 and (notes.author = value or persons.actor->>'$.followers' = value))) or
-					exists (select 1 from json_each(notes.object->'$.to') where value = $2) or
-					exists (select 1 from json_each(notes.object->'$.cc') where value = $2)
+					notes.public or
+					exists (select 1 from follows join persons on persons.id = follows.followed where follows.follower = $2 and follows.followed = notes.author and follows.accepted and notes.object->'to' ?| array[notes.author, persons.actor->>'followers']) or
+					exists (select 1 from follows join persons on persons.id = follows.followed where follows.follower = $2 and follows.followed = notes.author and follows.accepted and notes.object->'cc' ?| array[notes.author, persons.actor->>'followers']) or
+					notes.object->'to' ? $2 or
+					notes.object->'cc' ? $2
 				)
 				
 		)`,
@@ -72,8 +72,8 @@ func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
 	now := time.Now()
 
 	var count int
-	var last sql.NullInt64
-	if err := tx.QueryRowContext(r.Context, `select count(*), max(inserted) from bookmarks where by = ?`, r.User.ID).Scan(&count, &last); err != nil {
+	var last sql.NullTime
+	if err := tx.QueryRowContext(r.Context, `select count(*), max(inserted) from bookmarks where "by" = $1`, r.User.ID).Scan(&count, &last); err != nil {
 		r.Log.Warn("Failed to check if bookmark needs to be throttled", "error", err)
 		w.Error()
 		return
@@ -86,7 +86,7 @@ func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
 	}
 
 	if last.Valid {
-		t := time.Unix(last.Int64, 0)
+		t := last.Time
 		if now.Sub(t) < h.Config.MinBookmarkInterval {
 			r.Log.Warn("User is bookmarking too frequently")
 			w.Status(40, "Please wait before bookmarking")
@@ -94,7 +94,7 @@ func (h *Handler) bookmark(w text.Writer, r *Request, args ...string) {
 		}
 	}
 
-	if _, err := tx.ExecContext(r.Context, `insert into bookmarks(note, by) values(?, ?)`, postID.String, r.User.ID); err != nil {
+	if _, err := tx.ExecContext(r.Context, `insert into bookmarks(note, "by") values($1, $2)`, postID.String, r.User.ID); err != nil {
 		r.Log.Warn("Failed to insert bookmark", "error", err)
 		w.Error()
 		return

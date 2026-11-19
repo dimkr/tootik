@@ -76,15 +76,15 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	var lastRegister sql.NullInt64
-	if err := h.DB.QueryRowContext(r.Context, `select max(inserted) from certificates`).Scan(&lastRegister); err != nil {
+	var lastRegister sql.NullTime
+	if err := h.DBW.QueryRowContext(r.Context, `select max(inserted) from certificates`).Scan(&lastRegister); err != nil {
 		r.Log.Warn("Failed to check last registration time", "name", userName, "error", err)
 		w.Error()
 		return
 	}
 
 	if lastRegister.Valid {
-		elapsed := time.Since(time.Unix(lastRegister.Int64, 0))
+		elapsed := time.Since(lastRegister.Time)
 		if elapsed < h.Config.RegistrationInterval {
 			w.Statusf(40, "Registration is closed for %s", (h.Config.RegistrationInterval - elapsed).Truncate(time.Second).String())
 			return
@@ -104,14 +104,14 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 			return
 		}
 
-		if _, _, err := user.Create(r.Context, h.Domain, h.DB, h.Config, userName, clientCert); err != nil {
+		if _, _, err := user.Create(r.Context, h.Domain, h.DBW, h.Config, userName, clientCert); err != nil {
 			r.Log.Warn("Failed to create new user", "name", userName, "error", err)
 			w.Status(40, "Failed to create new user")
 			return
 		}
 
 	case "generate":
-		if _, _, err := user.CreatePortable(r.Context, h.Domain, h.DB, h.Config, userName, ap.Person, clientCert); err != nil {
+		if _, _, err := user.CreatePortable(r.Context, h.Domain, h.DBW, h.Config, userName, ap.Person, clientCert); err != nil {
 			r.Log.Warn("Failed to create new portable user", "name", userName, "error", err)
 			w.Status(40, "Failed to create new user")
 			return
@@ -127,7 +127,7 @@ func (h *Handler) register(w text.Writer, r *Request, args ...string) {
 
 		switch key.(type) {
 		case ed25519.PrivateKey, *mldsa.PrivateKey:
-			if _, _, err := user.CreatePortableWithKey(r.Context, h.Domain, h.DB, h.Config, userName, ap.Person, clientCert, key); err != nil {
+			if _, _, err := user.CreatePortableWithKey(r.Context, h.Domain, h.DBW, h.Config, userName, ap.Person, clientCert, key); err != nil {
 				r.Log.Warn("Failed to create new portable user", "name", userName, "error", err)
 				w.Status(40, "Failed to create new user")
 				return

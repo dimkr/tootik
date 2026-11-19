@@ -61,7 +61,7 @@ func (inbox *Inbox) updateNote(ctx context.Context, actor *ap.Actor, key httpsig
 		return err
 	}
 
-	tx, err := inbox.DB.BeginTx(ctx, nil)
+	tx, err := inbox.DBW.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -69,10 +69,10 @@ func (inbox *Inbox) updateNote(ctx context.Context, actor *ap.Actor, key httpsig
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
+		`INSERT INTO outbox (activity, sender, inserted) VALUES ($1, $2, $3)`,
 		s,
 		note.AttributedTo,
-		time.Now().UnixNano(),
+		time.Now(),
 	); err != nil {
 		return err
 	}
@@ -134,7 +134,7 @@ func (inbox *Inbox) updateActor(ctx context.Context, tx *sql.Tx, actor *ap.Actor
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`UPDATE persons SET actor = JSONB(?) WHERE id = ?`,
+		`UPDATE persons SET actor = $1 WHERE id = $2`,
 		actor,
 		actor.ID,
 	); err != nil {
@@ -143,10 +143,10 @@ func (inbox *Inbox) updateActor(ctx context.Context, tx *sql.Tx, actor *ap.Actor
 
 	_, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
+		`INSERT INTO outbox (activity, sender, inserted) VALUES ($1, $2, $3)`,
 		update,
 		actor.ID,
-		time.Now().UnixNano(),
+		time.Now(),
 	)
 	return err
 }
@@ -162,7 +162,7 @@ func (inbox *Inbox) UpdateActorTx(ctx context.Context, tx *sql.Tx, actor *ap.Act
 
 // UpdateActor queues an Update activity for delivery.
 func (inbox *Inbox) UpdateActor(ctx context.Context, actor *ap.Actor, key httpsig.Key) error {
-	tx, err := inbox.DB.BeginTx(ctx, nil)
+	tx, err := inbox.DBW.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to update %s: %w", actor.ID, err)
 	}

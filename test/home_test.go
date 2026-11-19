@@ -23,8 +23,7 @@ import (
 )
 
 func TestHome_AuthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -33,8 +32,7 @@ func TestHome_AuthenticatedUser(t *testing.T) {
 }
 
 func TestHome_UnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 FROM golang:1.27-alpine AS build
-RUN apk add --no-cache gcc musl-dev openssl
+RUN apk add --no-cache openssl
 COPY go.mod /src/
 COPY go.sum /src/
 WORKDIR /src
@@ -22,9 +22,8 @@ COPY migrations /src/migrations
 RUN go generate ./migrations
 COPY . /src
 RUN go vet ./...
-RUN go test ./... -failfast -vet off -tags fts5
 ARG TOOTIK_VERSION=?
-RUN go build -ldflags "-X github.com/dimkr/tootik/buildinfo.Version=$TOOTIK_VERSION" -tags fts5 ./cmd/tootik
+RUN go build -ldflags "-X github.com/dimkr/tootik/buildinfo.Version=$TOOTIK_VERSION" ./cmd/tootik
 
 FROM alpine
 RUN apk add --no-cache ca-certificates openssl

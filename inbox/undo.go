@@ -58,7 +58,7 @@ func (inbox *Inbox) undo(ctx context.Context, actor *ap.Actor, key httpsig.Key, 
 		return err
 	}
 
-	tx, err := inbox.DB.BeginTx(ctx, nil)
+	tx, err := inbox.DBW.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -66,10 +66,10 @@ func (inbox *Inbox) undo(ctx context.Context, actor *ap.Actor, key httpsig.Key, 
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
+		`INSERT INTO outbox (activity, sender, inserted) VALUES ($1, $2, $3)`,
 		s,
 		activity.Actor,
-		time.Now().UnixNano(),
+		time.Now(),
 	); err != nil {
 		return err
 	}

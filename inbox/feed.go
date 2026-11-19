@@ -19,6 +19,7 @@ package inbox
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/dimkr/tootik/cfg"
 )
@@ -26,23 +27,23 @@ import (
 type FeedUpdater struct {
 	Domain string
 	Config *cfg.Config
-	DB     *sql.DB
+	DBW    *sql.DB
 }
 
 func (u FeedUpdater) Run(ctx context.Context) error {
-	since := int64(0)
-	var ts sql.NullInt64
-	if err := u.DB.QueryRowContext(ctx, `select max(inserted) from feed where follower != author and (sharer is null or follower != sharer)`).Scan(&ts); err != nil {
+	var since time.Time
+	var ts sql.NullTime
+	if err := u.DBW.QueryRowContext(ctx, `select max(inserted) from feed where follower != author and (sharer is null or follower != sharer)`).Scan(&ts); err != nil {
 		return err
 	} else if ts.Valid {
-		since = ts.Int64
+		since = ts.Time
 	}
 
-	if _, err := u.DB.ExecContext(
+	if _, err := u.DBW.ExecContext(
 		ctx,
 		`
 			insert into feed(follower, note, author, sharer, mention, inserted)
-			select follows.follower, notes.id as note, notes.author, null as sharer, (exists (select 1 from json_each(notes.object->'$.to') where value = follows.follower) or exists (select 1 from json_each(notes.object->'$.cc') where value = follows.follower)) as mention, notes.inserted from
+			select follows.follower, notes.id as note, notes.author, null as sharer, coalesce(notes.object->'to' ? follows.follower or notes.object->'cc' ? follows.follower, false) as mention, notes.inserted from
 			follows
 			join
 			persons
@@ -53,16 +54,16 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 			on
 				notes.author = follows.followed and
 				(
-					notes.public = 1 or
-					persons.actor->>'$.followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+					notes.public or
+					persons.actor->>'followers' in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
 					follows.follower in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers' or value = follows.follower)) or
-					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers' or value = follows.follower))
+					(notes.to2 is not null and notes.object->'to' ?| array[persons.actor->>'followers', follows.follower]) or
+					(notes.cc2 is not null and notes.object->'cc' ?| array[persons.actor->>'followers', follows.follower])
 				)
 			where
-				follows.follower >= 'https://' || $1 || '/' and
-				follows.follower < 'https://' || $1 || '0' and
-				follows.accepted = 1 and
+				follows.follower >= ('https://' || $1 || '/') COLLATE "C" and
+				follows.follower < ('https://' || $1 || '0') COLLATE "C" and
+				follows.accepted and
 				(
 					notes.inserted > $2 or
 					(
@@ -71,16 +72,16 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 					)
 				)
 			union
-			select myposts.author as follower, notes.id as note, notes.author, null as sharer, 0 as mention, notes.inserted from
+			select myposts.author as follower, notes.id as note, notes.author, null as sharer, false as mention, notes.inserted from
 			notes myposts
 			join
 			notes
 			on
-				notes.object->>'$.inReplyTo' = myposts.id
+				notes.object->>'inReplyTo' = myposts.id
 			where
 				notes.author != myposts.author and
-				myposts.author >= 'https://' || $1 || '/' and
-				myposts.author < 'https://' || $1 || '0' and
+				myposts.author >= ('https://' || $1 || '/') COLLATE "C" and
+				myposts.author < ('https://' || $1 || '0') COLLATE "C" and
 				(
 					notes.inserted > $2 or
 					(
@@ -89,7 +90,7 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 					)
 				)
 			union all
-			select follows.follower, notes.id as note, notes.author, follows.followed as sharer, 0 as mention, shares.inserted from
+			select follows.follower, notes.id as note, notes.author, follows.followed as sharer, false as mention, shares.inserted from
 			follows
 			join
 			shares
@@ -100,10 +101,10 @@ func (u FeedUpdater) Run(ctx context.Context) error {
 			on
 				notes.id = shares.note
 			where
-				notes.public = 1 and
-				follows.follower >= 'https://' || $1 || '/' and
-				follows.follower < 'https://' || $1 || '0' and
-				follows.accepted = 1 and
+				notes.public and
+				follows.follower >= ('https://' || $1 || '/') COLLATE "C" and
+				follows.follower < ('https://' || $1 || '0') COLLATE "C" and
+				follows.accepted and
 				(
 					shares.inserted > $2 or
 					(

@@ -34,39 +34,39 @@ func (inbox *Inbox) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Obj
 	if err := tx.QueryRowContext(
 		ctx,
 		`
-			select json(actor), ed25519seed, mldsa44seed from
+			select actor, ed25519seed, mldsa44seed from
 			(
 				select persons.actor, ed25519seed, mldsa44seed, 1 as rank
 				from persons
 				join notes
 				on
-					notes.object->>'$.audience' = persons.id
+					notes.object->>'audience' = persons.id
 				where
 					notes.id = $1 and
 					persons.host = $2 and
-					persons.actor->>'$.type' = 'Group'
+					persons.actor->>'type' = 'Group'
 				union all
 				select persons.actor, ed25519seed, mldsa44seed, 2 as rank
 				from persons
 				join notes
 				on
-					exists (select 1 from json_each(notes.object->'$.to') where value = persons.id)
+					notes.object->'to' ? persons.id
 				where
 					notes.id = $1 and
-					notes.object->>'$.audience' is null and
+					notes.object->>'audience' is null and
 					persons.host = $2 and
-					persons.actor->>'$.type' = 'Group'
+					persons.actor->>'type' = 'Group'
 				union all
 				select persons.actor, ed25519seed, mldsa44seed, 3 as rank
 				from persons
 				join notes
 				on
-					exists (select 1 from json_each(notes.object->'$.cc') where value = persons.id)
+					notes.object->'cc' ? persons.id
 				where
 					notes.id = $1 and
-					notes.object->>'$.audience' is null and
+					notes.object->>'audience' is null and
 					persons.host = $2 and
-					persons.actor->>'$.type' = 'Group'
+					persons.actor->>'type' = 'Group'
 				order by rank
 				limit 1
 			)
@@ -79,12 +79,12 @@ func (inbox *Inbox) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Obj
 		return false, err
 	}
 
-	var following int
-	if err := tx.QueryRowContext(ctx, `select exists (select 1 from follows where follower = ? and followed = ? and accepted = 1)`, note.AttributedTo, group.ID).Scan(&following); err != nil {
+	var following bool
+	if err := tx.QueryRowContext(ctx, `select exists (select 1 from follows where follower = $1 and followed = $2 and accepted)`, note.AttributedTo, group.ID).Scan(&following); err != nil {
 		return true, err
 	}
 
-	if following == 0 {
+	if !following {
 		return true, nil
 	}
 
@@ -92,10 +92,10 @@ func (inbox *Inbox) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Obj
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`insert into outbox(activity, sender, inserted) values(jsonb(?), ?, ?)`,
+		`insert into outbox(activity, sender, inserted) values($1, $2, $3)`,
 		rawActivity,
 		group.ID,
-		time.Now().UnixNano(),
+		time.Now(),
 	); err != nil {
 		return true, err
 	}
@@ -111,7 +111,7 @@ func (inbox *Inbox) forwardToGroup(ctx context.Context, tx *sql.Tx, note *ap.Obj
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`update notes set object = jsonb_set(object, '$.audience', $1) where id = $2`,
+		`update notes set object = jsonb_set(object, '{audience}', to_jsonb($1::text)) where id = $2`,
 		group.ID,
 		note.ID,
 	); err != nil {
@@ -138,7 +138,7 @@ func (inbox *Inbox) forwardActivity(ctx context.Context, tx *sql.Tx, note *ap.Ob
 	var threadStarterID string
 
 	var depth int
-	if err := tx.QueryRowContext(ctx, `with recursive thread(id, author, parent, depth) as (select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, 1 as depth from notes where id = $1 union all select notes.id, notes.author, notes.object->>'$.inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent where t.depth <= $2) select id, author, depth from thread order by depth desc limit 1`, note.ID, inbox.Config.MaxForwardingDepth+1).Scan(&firstPostID, &threadStarterID, &depth); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := tx.QueryRowContext(ctx, `with recursive thread(id, author, parent, depth) as (select notes.id, notes.author, notes.object->>'inReplyTo' as parent, 1 as depth from notes where id = $1 union all select notes.id, notes.author, notes.object->>'inReplyTo' as parent, t.depth + 1 from thread t join notes on notes.id = t.parent where t.depth <= $2) select id, author, depth from thread order by depth desc limit 1`, note.ID, inbox.Config.MaxForwardingDepth+1).Scan(&firstPostID, &threadStarterID, &depth); err != nil && errors.Is(err, sql.ErrNoRows) {
 		slog.Info("Failed to find thread for post", "activity", activity.ID, "note", note.ID)
 		return nil
 	} else if err != nil {
@@ -162,28 +162,28 @@ func (inbox *Inbox) forwardActivity(ctx context.Context, tx *sql.Tx, note *ap.Ob
 		return nil
 	}
 
-	if err := tx.QueryRowContext(ctx, `select id from persons where cid = ? and ed25519seed is not null`, ap.Canonical(threadStarterID)).Scan(&threadStarterID); errors.Is(err, sql.ErrNoRows) {
+	if err := tx.QueryRowContext(ctx, `select id from persons where cid = $1 and ed25519seed is not null`, ap.Canonical(threadStarterID)).Scan(&threadStarterID); errors.Is(err, sql.ErrNoRows) {
 		slog.Debug("Thread starter is federated", "activity", activity.ID, "note", note.ID)
 		return nil
 	} else if err != nil {
 		return err
 	}
 
-	var shouldForward int
-	if err := tx.QueryRowContext(ctx, `select exists (select 1 from notes join persons on persons.id = notes.author and (notes.public = 1 or exists (select 1 from json_each(notes.object->'$.to') where value = persons.actor->>'$.followers') or exists (select 1 from json_each(notes.object->'$.cc') where value = persons.actor->>'$.followers')) where notes.id = ?)`, firstPostID).Scan(&shouldForward); err != nil {
+	var shouldForward bool
+	if err := tx.QueryRowContext(ctx, `select exists (select 1 from notes join persons on persons.id = notes.author and (notes.public or notes.object->'to' ? (persons.actor->>'followers') or notes.object->'cc' ? (persons.actor->>'followers')) where notes.id = $1)`, firstPostID).Scan(&shouldForward); err != nil {
 		return err
 	}
-	if shouldForward == 0 {
+	if !shouldForward {
 		slog.Debug("Activity does not need to be forwarded", "activity", activity.ID, "note", note.ID)
 		return nil
 	}
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT OR IGNORE INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
+		`INSERT INTO outbox (activity, sender, inserted) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
 		rawActivity,
 		threadStarterID,
-		time.Now().UnixNano(),
+		time.Now(),
 	); err != nil {
 		return err
 	}

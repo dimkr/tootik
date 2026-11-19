@@ -47,7 +47,7 @@ This makes tootik lightweight, private and accessible:
 * Anonymity: you authenticate using a TLS client certificate and don't have to share your email address or real name.
 * No promoted content, tracking or analytics: social networking, with the slow and non-commercial vibe of the small internet.
 * It's a single static executable, making it easy to [set up your own instance](SETUP.md) and update it later.
-* All instance data is stored in a single file, a [sqlite](https://sqlite.org/) database that is easy to backup and restore.
+* All instance data is stored in a [PostgreSQL](https://www.postgresql.org/) database; read-only pages can be served from a streaming read replica.
 * It's lightweight: a <=$5/mo VPS or a SBC is more than enough for a small instance.
 * It implements the subset of ActivityPub required for its feature set but not more, to stay small, reliable and maintainable.
 * It's written from scratch (not forked from some other project) in two languages ([Go](https://go.dev/) and SQL), making the codebase suitable for educational purposes and easy to hack on.
@@ -88,20 +88,21 @@ You can join an [existing instance](gemini://didkey.000090000.xyz) or [set up yo
 
 ## Interactive Demo
 
+The demo runs PostgreSQL in Docker containers.
+
 	go generate ./migrations
-	go run -tags fts5 ./cmd/demo
+	go run ./cmd/demo
 
 ## Database Drivers
 
-tootik supports three `database/sql` drivers:
-* [`github.com/mattn/go-sqlite3`](https://github.com/mattn/go-sqlite3), enabled when `CGO_ENABLED=1` or `-tags sqlite_mattn`
-* [`modernc.org/sqlite`](https://gitlab.com/cznic/sqlite), enabled when `CGO_ENABLED=0` or `-tags sqlite_modernc`
-* [`github.com/ncruces/go-sqlite3/driver`](https://github.com/ncruces/go-sqlite3), enabled when `-tags sqlite_ncruces`
+tootik stores its data in PostgreSQL through [pgx](https://github.com/jackc/pgx). Tests start a PostgreSQL primary and a streaming read replica in Docker, using [Testcontainers](https://golang.testcontainers.org/).
+
+tootik-client stores its client certificates in a local SQLite database, using [`modernc.org/sqlite`](https://gitlab.com/cznic/sqlite).
 
 ## Building
 
 	go generate ./migrations
-	go build ./cmd/tootik -tags fts5
+	go build ./cmd/tootik
 
 To build a static executable:
 

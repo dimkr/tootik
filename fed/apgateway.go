@@ -30,6 +30,7 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
+	"time"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/danger"
@@ -45,7 +46,7 @@ var apGatewayPathRegex = regexp.MustCompile(`\/.well-known\/apgateway\/(did:key:
 func (l *Listener) handleApGatewayInboxPost(w http.ResponseWriter, r *http.Request, did string) {
 	var actor ap.Actor
 	var rsaPrivKeyDer, ed25519Seed, mldsa44Seed []byte
-	if err := l.DB.QueryRowContext(r.Context(), `select json(actor), rsaprivkey, ed25519seed, mldsa44seed from persons where cid = 'ap://' || ? || '/actor' and ed25519seed is not null`, did).Scan(&actor, &rsaPrivKeyDer, &ed25519Seed, &mldsa44Seed); errors.Is(err, sql.ErrNoRows) {
+	if err := l.DBW.QueryRowContext(r.Context(), `select actor, rsaprivkey, ed25519seed, mldsa44seed from persons where cid = 'ap://' || $1 || '/actor' and ed25519seed is not null`, did).Scan(&actor, &rsaPrivKeyDer, &ed25519Seed, &mldsa44Seed); errors.Is(err, sql.ErrNoRows) {
 		slog.Debug("Receiving user does not exist", "did", did)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -139,9 +140,9 @@ func (l *Listener) handleApGatewayOutboxPost(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if _, err = l.DB.ExecContext(
+	if _, err = l.DBW.ExecContext(
 		r.Context(),
-		`INSERT OR IGNORE INTO inbox (path, sender, raw) VALUES (?, ?, ?)`,
+		`INSERT INTO inbox (path, sender, raw) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
 		r.URL.Path,
 		activity.Actor,
 		danger.String(rawActivity),
@@ -168,7 +169,7 @@ func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Reques
 	var inbox string
 	if err := l.DB.QueryRowContext(
 		r.Context(),
-		`select actor->>'$.inbox' from persons where cid = 'ap://' || ? || '/actor' and ed25519seed is not null`,
+		`select actor->>'inbox' from persons where cid = 'ap://' || $1 || '/actor' and ed25519seed is not null`,
 		did,
 	).Scan(&inbox); errors.Is(err, sql.ErrNoRows) {
 		slog.Warn("Inbox does not exist", "did", did)
@@ -193,13 +194,13 @@ func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Reques
 		rows, err := l.DB.QueryContext(
 			r.Context(),
 			`
-			select json(activity), inserted from history
-			where (public = 1 or path = substr($1, 8 + instr(substr($1, 9), '/'))) and inserted <= $2
+			select activity, inserted from history
+			where (public or path = substr($1, 8 + strpos(substr($1, 9), '/'))) and inserted <= $2
 			order by inserted desc
 			limit $3
 			`,
 			inbox,
-			until,
+			time.Unix(0, until),
 			l.Config.InboxPageSize,
 		)
 		if err != nil {
@@ -210,9 +211,9 @@ func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Reques
 		defer rows.Close()
 
 		count := 0
-		var earliest int64
+		var earliest time.Time
 		for rows.Next() {
-			var inserted int64
+			var inserted time.Time
 			if err := rows.Scan((*[]byte)(&items[count]), &inserted); err != nil {
 				slog.Warn("Failed to scan activity", "did", did, "until", until, "error", err)
 				continue
@@ -242,12 +243,12 @@ func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Reques
 			OrderedItems: items[:count],
 		}
 
-		var next sql.NullInt64
+		var next sql.NullTime
 		if err := l.DB.QueryRowContext(
 			r.Context(),
 			`
 			select max(inserted) from history
-			where (public = 1 or path = substr($1, 8 + instr(substr($1, 9), '/'))) and inserted < $2
+			where (public or path = substr($1, 8 + strpos(substr($1, 9), '/'))) and inserted < $2
 			`,
 			inbox,
 			earliest,
@@ -256,7 +257,7 @@ func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Reques
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		} else if next.Valid {
-			page.Next = fmt.Sprintf("%s?%d", inbox, next.Int64)
+			page.Next = fmt.Sprintf("%s?%d", inbox, next.Time.UnixNano())
 		}
 
 		j, err := json.Marshal(page)
@@ -274,13 +275,13 @@ func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	var latest sql.NullInt64
+	var latest sql.NullTime
 	var count int64
 	if err := l.DB.QueryRowContext(
 		r.Context(),
 		`
 		select max(inserted), count(*) from history
-		where public = 1 or path = substr($1, 8 + instr(substr($1, 9), '/'))
+		where public or path = substr($1, 8 + strpos(substr($1, 9), '/'))
 		`,
 		inbox,
 	).Scan(&latest, &count); err != nil {
@@ -297,7 +298,7 @@ func (l *Listener) handleApGatewayInboxGet(w http.ResponseWriter, r *http.Reques
 	}
 
 	if latest.Valid {
-		collection.First = fmt.Sprintf("%s?%d", inbox, latest.Int64)
+		collection.First = fmt.Sprintf("%s?%d", inbox, latest.Time.UnixNano())
 	}
 
 	j, err := json.Marshal(collection)
@@ -325,7 +326,7 @@ func (l *Listener) handleApGatewayContext(w http.ResponseWriter, r *http.Request
 	var ed25519Seed, mldsa44Seed []byte
 	if err := l.DB.QueryRowContext(
 		r.Context(),
-		`select notes.id, notes.author, json(persons.actor), persons.ed25519seed, persons.mldsa44seed from notes join persons on persons.id = notes.author where notes.object->>'$.context' = ? and notes.object->>'$.inReplyTo' is null and persons.ed25519seed is not null`,
+		`select notes.id, notes.author, persons.actor, persons.ed25519seed, persons.mldsa44seed from notes join persons on persons.id = notes.author where notes.object->>'context' = $1 and notes.object->>'inReplyTo' is null and persons.ed25519seed is not null`,
 		contextID,
 	).Scan(&postID, &collection.AttributedTo, &author, &ed25519Seed, &mldsa44Seed); errors.Is(err, sql.ErrNoRows) {
 		slog.Warn("Context does not exist", "id", contextID)
@@ -351,11 +352,11 @@ func (l *Listener) handleApGatewayContext(w http.ResponseWriter, r *http.Request
 		`
 		with recursive thread(id, inserted, depth) as (
 			select notes.id, notes.inserted, 1 as depth from notes
-			where notes.object->>'$.inReplyTo' = ?
+			where notes.object->>'inReplyTo' = $1
 			union all
 			select notes.id, notes.inserted, t.depth + 1 from thread t
-			join notes on notes.object->>'$.inReplyTo' = t.id
-			where notes.public = 1
+			join notes on notes.object->>'inReplyTo' = t.id
+			where notes.public
 		)
 		select id from thread order by inserted, depth
 		`,
@@ -412,7 +413,7 @@ func (l *Listener) handleApGatewayOutboxGet(w http.ResponseWriter, r *http.Reque
 	var outbox string
 	if err := l.DB.QueryRowContext(
 		r.Context(),
-		`select actor->>'$.outbox' from persons where cid = ? and ed25519seed is not null`,
+		`select actor->>'outbox' from persons where cid = $1 and ed25519seed is not null`,
 		actorCID,
 	).Scan(&outbox); errors.Is(err, sql.ErrNoRows) {
 		slog.Warn("Outbox does not exist", "did", did)
@@ -437,13 +438,13 @@ func (l *Listener) handleApGatewayOutboxGet(w http.ResponseWriter, r *http.Reque
 		rows, err := l.DB.QueryContext(
 			r.Context(),
 			`
-			select json(activity), inserted from outbox
-			where activity->>'$.actor' in (select id from persons where cid = ?) and inserted <= $2
+			select activity, inserted from outbox
+			where activity->>'actor' in (select id from persons where cid = $1) and inserted <= $2
 			order by inserted desc
 			limit $3
 			`,
 			actorCID,
-			until,
+			time.Unix(0, until),
 			l.Config.OutboxPageSize,
 		)
 		if err != nil {
@@ -454,9 +455,9 @@ func (l *Listener) handleApGatewayOutboxGet(w http.ResponseWriter, r *http.Reque
 		defer rows.Close()
 
 		count := 0
-		var earliest int64
+		var earliest time.Time
 		for rows.Next() {
-			var inserted int64
+			var inserted time.Time
 			if err := rows.Scan((*[]byte)(&items[count]), &inserted); err != nil {
 				slog.Warn("Failed to scan activity", "did", did, "until", until, "error", err)
 				continue
@@ -486,12 +487,12 @@ func (l *Listener) handleApGatewayOutboxGet(w http.ResponseWriter, r *http.Reque
 			OrderedItems: items[:count],
 		}
 
-		var next sql.NullInt64
+		var next sql.NullTime
 		if err := l.DB.QueryRowContext(
 			r.Context(),
 			`
 			select max(inserted) from outbox
-			where activity->>'$.actor' in (select id from persons where cid = ?) and inserted < $2
+			where activity->>'actor' in (select id from persons where cid = $1) and inserted < $2
 			`,
 			actorCID,
 			earliest,
@@ -500,7 +501,7 @@ func (l *Listener) handleApGatewayOutboxGet(w http.ResponseWriter, r *http.Reque
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		} else if next.Valid {
-			page.Next = fmt.Sprintf("%s?%d", outbox, next.Int64)
+			page.Next = fmt.Sprintf("%s?%d", outbox, next.Time.UnixNano())
 		}
 
 		j, err := json.Marshal(page)
@@ -518,13 +519,13 @@ func (l *Listener) handleApGatewayOutboxGet(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	var latest sql.NullInt64
+	var latest sql.NullTime
 	var count int64
 	if err := l.DB.QueryRowContext(
 		r.Context(),
 		`
 		select max(inserted), count(*) from outbox
-		where activity->>'$.actor' in (select id from persons where cid = ?)
+		where activity->>'actor' in (select id from persons where cid = $1)
 		`,
 		actorCID,
 	).Scan(&latest, &count); err != nil {
@@ -541,7 +542,7 @@ func (l *Listener) handleApGatewayOutboxGet(w http.ResponseWriter, r *http.Reque
 	}
 
 	if latest.Valid {
-		collection.First = fmt.Sprintf("%s?%d", outbox, latest.Int64)
+		collection.First = fmt.Sprintf("%s?%d", outbox, latest.Time.UnixNano())
 	}
 
 	j, err := json.Marshal(collection)
@@ -578,7 +579,7 @@ func (l *Listener) fetchFollowersByHost(
 
 	rows, err := l.DB.QueryContext(
 		r.Context(),
-		`SELECT follower FROM follows WHERE followed = 'https://' || ? || '/.well-known/apgateway/' || ? || '/actor' AND follower LIKE 'https://' || ? || '/%' AND accepted = 1 ORDER BY insertednano DESC, follower`,
+		`SELECT follower FROM follows WHERE followed = 'https://' || $1 || '/.well-known/apgateway/' || $2 || '/actor' AND follower ilike 'https://' || $3 || '/%' AND accepted ORDER BY inserted DESC, follower`,
 		l.Domain,
 		did,
 		u.Host,
@@ -613,7 +614,7 @@ func (l *Listener) fetchSenderFollowers(
 	var actor ap.Actor
 	if err := l.DB.QueryRowContext(
 		r.Context(),
-		`select json(actor) from persons where cid = 'ap://' || ? || '/actor' and ed25519seed is not null`,
+		`select actor from persons where cid = 'ap://' || $1 || '/actor' and ed25519seed is not null`,
 		did,
 	).Scan(&actor); errors.Is(err, sql.ErrNoRows) {
 		slog.Warn("Denying followers request for non-existing user", "did", did)
@@ -627,7 +628,7 @@ func (l *Listener) fetchSenderFollowers(
 
 	rows, err := l.DB.QueryContext(
 		r.Context(),
-		`SELECT follower FROM follows WHERE followed = 'https://' || ? || '/.well-known/apgateway/' || ? || '/actor' AND accepted = 1 ORDER BY insertednano DESC, follower`,
+		`SELECT follower FROM follows WHERE followed = 'https://' || $1 || '/.well-known/apgateway/' || $2 || '/actor' AND accepted ORDER BY inserted DESC, follower`,
 		l.Domain,
 		did,
 	)
@@ -704,16 +705,16 @@ func (l *Listener) handleAPGatewayGetObject(w http.ResponseWriter, r *http.Reque
 		`
 		select raw from
 		(
-			select json(actor) as raw from persons
+			select actor as raw from persons
 			where cid = $1 and ed25519seed is not null
 			union all
-			select json(notes.object) as raw from notes
+			select notes.object as raw from notes
 			join persons on notes.author = persons.id
-			where notes.cid = $1 and notes.deleted = 0 and notes.public = 1 and persons.ed25519seed is not null
+			where notes.cid = $1 and not notes.deleted and notes.public and persons.ed25519seed is not null
 			union all
-			select json(outbox.activity) as raw from outbox
-			join persons on outbox.activity->>'$.actor' = persons.id
-			where outbox.cid = $1 and (exists (select 1 from json_each(outbox.activity->'$.cc') where value = $2) or exists (select 1 from json_each(outbox.activity->'$.to') where value = $2)) and persons.ed25519seed is not null
+			select outbox.activity as raw from outbox
+			join persons on outbox.activity->>'actor' = persons.id
+			where outbox.cid = $1 and (outbox.activity->'cc' ? $2 or outbox.activity->'to' ? $2) and persons.ed25519seed is not null
 		)
 		limit 1
 		`,

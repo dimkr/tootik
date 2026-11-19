@@ -43,7 +43,7 @@ import (
 type Queue struct {
 	Domain   string
 	Config   *cfg.Config
-	DB       *sql.DB
+	DBW      *sql.DB
 	Resolver *Resolver
 }
 
@@ -99,30 +99,30 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 		RsaPrivKeyDer, Ed25519Seed, MLDSA44Seed []byte
 	}](
 		ctx,
-		q.DB,
+		q.DBW,
 		q.Config.DeliveryBatchSize,
 		func(err error) bool {
 			slog.Error("Failed to fetch post to deliver", "error", err)
 			return true
 		},
-		`select outbox.attempts, json(outbox.activity) as x, json(outbox.activity) as y, json(persons.actor), persons.rsaprivkey, persons.ed25519seed, persons.mldsa44seed from
+		`select outbox.attempts, outbox.activity as x, outbox.activity as y, persons.actor, persons.rsaprivkey, persons.ed25519seed, persons.mldsa44seed from
 		outbox
 		join persons
 		on
 			persons.id = outbox.sender
 		where
-			outbox.sent = 0 and
+			not outbox.sent and
 			(
 				outbox.attempts = 0 or
 				(
-					outbox.attempts < ? and
-					outbox.last <= unixepoch() - ?
+					outbox.attempts < $1 and
+					outbox.last <= now() - make_interval(secs => $2)
 				)
 			)
 		order by
 			outbox.attempts asc,
 			outbox.last asc
-		limit ?`,
+		limit $3`,
 		q.Config.MaxDeliveryAttempts,
 		q.Config.DeliveryRetryInterval,
 		q.Config.DeliveryBatchSize,
@@ -188,9 +188,9 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			{ID: row.Actor.AssertionMethod[1].ID, PrivateKey: mldsa44Priv},
 		}
 
-		if _, err := q.DB.ExecContext(
+		if _, err := q.DBW.ExecContext(
 			ctx,
-			`update outbox set last = unixepoch(), attempts = ? where cid = ? and sender = ?`,
+			`update outbox set last = now(), attempts = $1 where cid = $2 and sender = $3`,
 			row.DeliveryAttempts+1,
 			ap.Canonical(row.Activity.ID),
 			row.Actor.ID,
@@ -239,9 +239,9 @@ func (q *Queue) ProcessBatch(ctx context.Context) (int, error) {
 			continue
 		}
 
-		if _, err := q.DB.ExecContext(
+		if _, err := q.DBW.ExecContext(
 			ctx,
-			`update outbox set sent = 1 where cid = ? and sender = ?`,
+			`update outbox set sent = true where cid = $1 and sender = $2`,
 			ap.Canonical(job.Activity.ID),
 			job.Sender.ID,
 		); err != nil {
@@ -281,10 +281,10 @@ func (q *Queue) consume(ctx context.Context, requests <-chan *deliveryTask, even
 			tried[task.Job.Activity.ID] = map[string]struct{}{task.Request.Host: {}}
 		}
 
-		var delivered int
-		if err := q.DB.QueryRowContext(
+		var delivered bool
+		if err := q.DBW.QueryRowContext(
 			ctx,
-			`select exists (select 1 from deliveries where activity = ? and host = ?)`,
+			`select exists (select 1 from deliveries where activity = $1 and host = $2)`,
 			ap.Canonical(task.Job.Activity.ID),
 			task.Request.Host,
 		).Scan(&delivered); err != nil {
@@ -293,7 +293,7 @@ func (q *Queue) consume(ctx context.Context, requests <-chan *deliveryTask, even
 			continue
 		}
 
-		if delivered == 1 {
+		if delivered {
 			slog.Info("Skipping recipient", "inbox", task.Inbox, "activity", task.Job.Activity.ID)
 			continue
 		}
@@ -311,9 +311,9 @@ func (q *Queue) consume(ctx context.Context, requests <-chan *deliveryTask, even
 			continue
 		}
 
-		if _, err := q.DB.ExecContext(
+		if _, err := q.DBW.ExecContext(
 			ctx,
-			`insert into deliveries(activity, host) values (?, ?)`,
+			`insert into deliveries(activity, host) values ($1, $2)`,
 			ap.Canonical(task.Job.Activity.ID),
 			task.Request.Host,
 		); err != nil {
@@ -348,7 +348,7 @@ func (q *Queue) queueTask(
 	req.Header.Set("Content-Length", contentLength)
 
 	if followers != nil {
-		if digest, err := followers.Digest(ctx, q.DB, q.Domain, job.Sender, req.URL.Host); err == nil {
+		if digest, err := followers.Digest(ctx, q.DBW, q.Domain, job.Sender, req.URL.Host); err == nil {
 			req.Header.Set("Collection-Synchronization", digest)
 		} else {
 			slog.Warn("Failed to digest followers", "inbox", inbox, "activity", job.Activity.ID, "inbox", inbox, "error", err)
@@ -407,12 +407,12 @@ func (q *Queue) queueTasks(
 	if wideDelivery {
 		inboxes, err := dbx.QueryCollectIgnore[string](
 			ctx,
-			q.DB,
+			q.DBW,
 			func(err error) bool {
 				slog.Warn("Skipped an inbox", "activity", job.Activity.ID, "error", err)
 				return true
 			},
-			`select distinct coalesce(persons.actor->>'$.endpoints.sharedInbox', persons.actor->>'$.inbox') as inbox from persons join follows on follows.follower = persons.id where follows.followed = ? and follows.accepted = 1 and follows.follower not like ? and persons.ed25519seed is null order by persons.actor->>'$.endpoints.sharedInbox' is not null desc, inbox`,
+			`select inbox from (select coalesce(persons.actor->'endpoints'->>'sharedInbox', persons.actor->>'inbox') as inbox, bool_or(persons.actor->'endpoints'->>'sharedInbox' is not null) as shared from persons join follows on follows.follower = persons.id where follows.followed = $1 and follows.accepted and follows.follower not ilike $2 and persons.ed25519seed is null group by inbox) inboxes order by shared desc, inbox`,
 			job.Sender.ID,
 			fmt.Sprintf("https://%s/%%", activityID.Host),
 		)

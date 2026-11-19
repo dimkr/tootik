@@ -17,24 +17,23 @@ limitations under the License.
 package test
 
 import (
-	"context"
 	"fmt"
-	"github.com/dimkr/tootik/ap"
 	"strings"
 	"testing"
+
+	"github.com/dimkr/tootik/ap"
 
 	"github.com/dimkr/tootik/outbox"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestPoll_TwoOptions(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err := server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
@@ -43,14 +42,14 @@ func TestPoll_TwoOptions(t *testing.T) {
 
 	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":4}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":6}}],"votersCount":10,"endTime":"2099-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		poll,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -62,13 +61,12 @@ func TestPoll_TwoOptions(t *testing.T) {
 }
 
 func TestPoll_TwoOptionsZeroVotes(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err := server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
@@ -77,14 +75,14 @@ func TestPoll_TwoOptionsZeroVotes(t *testing.T) {
 
 	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":0}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":6}}],"votersCount":6,"endTime":"2099-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		poll,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -96,13 +94,12 @@ func TestPoll_TwoOptionsZeroVotes(t *testing.T) {
 }
 
 func TestPoll_TwoOptionsOnlyZeroVotes(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err := server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
@@ -111,14 +108,14 @@ func TestPoll_TwoOptionsOnlyZeroVotes(t *testing.T) {
 
 	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":0}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":0}}],"votersCount":0,"endTime":"2099-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		poll,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -130,13 +127,12 @@ func TestPoll_TwoOptionsOnlyZeroVotes(t *testing.T) {
 }
 
 func TestPoll_OneOption(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err := server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
@@ -145,14 +141,14 @@ func TestPoll_OneOption(t *testing.T) {
 
 	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":4}}],"votersCount":4,"endTime":"2099-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		poll,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -163,13 +159,12 @@ func TestPoll_OneOption(t *testing.T) {
 }
 
 func TestPoll_Vote(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err := server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
@@ -178,14 +173,14 @@ func TestPoll_Vote(t *testing.T) {
 
 	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":4}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":6}}],"votersCount":10,"endTime":"2099-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		poll,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -198,19 +193,18 @@ func TestPoll_Vote(t *testing.T) {
 	assert.Contains(strings.Split(view, "\n"), "4 █████▎   vanilla")
 	assert.Contains(strings.Split(view, "\n"), "6 ████████ chocolate")
 
-	var valid int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'$.actor' = $1 and activity->>'$.object.attributedTo' = $1 and activity->>'$.object.type' = 'Note' and activity->>'$.object.inReplyTo' = 'https://127.0.0.1/poll/1' and activity->>'$.object.name' = 'vanilla' and activity->>'$.object.content' is null)`, server.Alice.ID).Scan(&valid))
-	assert.Equal(1, valid)
+	var valid bool
+	assert.NoError(server.dbw.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'actor' = $1 and activity->'object'->>'attributedTo' = $1 and activity->'object'->>'type' = 'Note' and activity->'object'->>'inReplyTo' = 'https://127.0.0.1/poll/1' and activity->'object'->>'name' = 'vanilla' and activity->'object'->>'content' is null)`, server.Alice.ID).Scan(&valid))
+	assert.True(valid)
 }
 
 func TestPoll_VoteClosedPoll(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err := server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
@@ -219,33 +213,32 @@ func TestPoll_VoteClosedPoll(t *testing.T) {
 
 	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":4}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":6}}],"closed":"2020-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		poll,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
 	reply := server.Handle("/users/reply/127.0.0.1/poll/1?vanilla", server.Alice)
 	assert.Equal("40 Cannot vote in a closed poll\r\n", reply)
 
-	var valid int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'$.actor' = $1 and activity->>'$.object.attributedTo' = $1 and activity->>'$.object.type' = 'Note' and activity->>'$.object.inReplyTo' = 'https://127.0.0.1/poll/1' and activity->>'$.object.name' = 'vanilla' and activity->>'$.object.content' is null)`, server.Alice.ID).Scan(&valid))
-	assert.Equal(0, valid)
+	var valid bool
+	assert.NoError(server.dbw.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'actor' = $1 and activity->'object'->>'attributedTo' = $1 and activity->'object'->>'type' = 'Note' and activity->'object'->>'inReplyTo' = 'https://127.0.0.1/poll/1' and activity->'object'->>'name' = 'vanilla' and activity->'object'->>'content' is null)`, server.Alice.ID).Scan(&valid))
+	assert.False(valid)
 }
 
 func TestPoll_VoteEndedPoll(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err := server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
@@ -254,33 +247,32 @@ func TestPoll_VoteEndedPoll(t *testing.T) {
 
 	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":4}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":6}}],"votersCount":10,"endTime":"2020-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		poll,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
 	reply := server.Handle("/users/reply/127.0.0.1/poll/1?vanilla", server.Alice)
 	assert.Equal("40 Cannot vote in a closed poll\r\n", reply)
 
-	var valid int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'$.actor' = $1 and activity->>'$.object.attributedTo' = $1 and activity->>'$.object.type' = 'Note' and activity->>'$.object.inReplyTo' = 'https://127.0.0.1/poll/1' and activity->>'$.object.name' = 'vanilla' and activity->>'$.object.content' is null)`, server.Alice.ID).Scan(&valid))
-	assert.Equal(0, valid)
+	var valid bool
+	assert.NoError(server.dbw.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'actor' = $1 and activity->'object'->>'attributedTo' = $1 and activity->'object'->>'type' = 'Note' and activity->'object'->>'inReplyTo' = 'https://127.0.0.1/poll/1' and activity->'object'->>'name' = 'vanilla' and activity->'object'->>'content' is null)`, server.Alice.ID).Scan(&valid))
+	assert.False(valid)
 }
 
 func TestPoll_Reply(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err := server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
@@ -289,14 +281,14 @@ func TestPoll_Reply(t *testing.T) {
 
 	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":4}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":6}}],"votersCount":10,"endTime":"2099-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		poll,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -309,19 +301,18 @@ func TestPoll_Reply(t *testing.T) {
 	assert.Contains(strings.Split(view, "\n"), "4 █████▎   vanilla")
 	assert.Contains(strings.Split(view, "\n"), "6 ████████ chocolate")
 
-	var valid int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'$.actor' = $1 and activity->>'$.object.attributedTo' = $1 and activity->>'$.object.type' = 'Note' and activity->>'$.object.inReplyTo' = 'https://127.0.0.1/poll/1' and activity->>'$.object.name' is null and activity->>'$.object.content' = 'strawberry')`, server.Alice.ID).Scan(&valid))
-	assert.Equal(1, valid)
+	var valid bool
+	assert.NoError(server.dbw.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'actor' = $1 and activity->'object'->>'attributedTo' = $1 and activity->'object'->>'type' = 'Note' and activity->'object'->>'inReplyTo' = 'https://127.0.0.1/poll/1' and activity->'object'->>'name' is null and activity->'object'->>'content' = 'strawberry')`, server.Alice.ID).Scan(&valid))
+	assert.True(valid)
 }
 
 func TestPoll_ReplyClosedPoll(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err := server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
@@ -330,14 +321,14 @@ func TestPoll_ReplyClosedPoll(t *testing.T) {
 
 	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":4}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":6}}],"votersCount":10,"endTime":"2099-10-01T05:35:36Z","closed":"2020-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		poll,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -350,19 +341,18 @@ func TestPoll_ReplyClosedPoll(t *testing.T) {
 	assert.Contains(strings.Split(view, "\n"), "4 █████▎   vanilla")
 	assert.Contains(strings.Split(view, "\n"), "6 ████████ chocolate")
 
-	var valid int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'$.actor' = $1 and activity->>'$.object.attributedTo' = $1 and activity->>'$.object.type' = 'Note' and activity->>'$.object.inReplyTo' = 'https://127.0.0.1/poll/1' and activity->>'$.object.name' is null and activity->>'$.object.content' = 'strawberry')`, server.Alice.ID).Scan(&valid))
-	assert.Equal(1, valid)
+	var valid bool
+	assert.NoError(server.dbw.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'actor' = $1 and activity->'object'->>'attributedTo' = $1 and activity->'object'->>'type' = 'Note' and activity->'object'->>'inReplyTo' = 'https://127.0.0.1/poll/1' and activity->'object'->>'name' is null and activity->'object'->>'content' = 'strawberry')`, server.Alice.ID).Scan(&valid))
+	assert.True(valid)
 }
 
 func TestPoll_EditVote(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err := server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
@@ -371,14 +361,14 @@ func TestPoll_EditVote(t *testing.T) {
 
 	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":4}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":6}}],"votersCount":10,"endTime":"2099-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		poll,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -391,22 +381,21 @@ func TestPoll_EditVote(t *testing.T) {
 	assert.Contains(strings.Split(view, "\n"), "4 █████▎   vanilla")
 	assert.Contains(strings.Split(view, "\n"), "6 ████████ chocolate")
 
-	var valid int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'$.actor' = $1 and activity->>'$.object.attributedTo' = $1 and activity->>'$.object.type' = 'Note' and activity->>'$.object.inReplyTo' = 'https://127.0.0.1/poll/1' and activity->>'$.object.name' = 'vanilla' and activity->>'$.object.content' is null)`, server.Alice.ID).Scan(&valid))
-	assert.Equal(1, valid)
+	var valid bool
+	assert.NoError(server.dbw.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'actor' = $1 and activity->'object'->>'attributedTo' = $1 and activity->'object'->>'type' = 'Note' and activity->'object'->>'inReplyTo' = 'https://127.0.0.1/poll/1' and activity->'object'->>'name' = 'vanilla' and activity->'object'->>'content' is null)`, server.Alice.ID).Scan(&valid))
+	assert.True(valid)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?chocolate", reply[15:len(reply)-2]), server.Alice)
 	assert.Equal("40 Cannot edit votes\r\n", edit)
 }
 
 func TestPoll_DeleteReply(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err := server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
@@ -415,14 +404,14 @@ func TestPoll_DeleteReply(t *testing.T) {
 
 	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":4}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":6}}],"votersCount":10,"endTime":"2099-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		poll,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -435,22 +424,21 @@ func TestPoll_DeleteReply(t *testing.T) {
 	assert.Contains(strings.Split(view, "\n"), "4 █████▎   vanilla")
 	assert.Contains(strings.Split(view, "\n"), "6 ████████ chocolate")
 
-	var valid int
-	assert.NoError(server.db.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'$.actor' = $1 and activity->>'$.object.attributedTo' = $1 and activity->>'$.object.type' = 'Note' and activity->>'$.object.inReplyTo' = 'https://127.0.0.1/poll/1' and activity->>'$.object.name' is null and activity->>'$.object.content' = 'strawberry')`, server.Alice.ID).Scan(&valid))
-	assert.Equal(1, valid)
+	var valid bool
+	assert.NoError(server.dbw.QueryRow(`select exists (select 1 from outbox where sender = $1 and activity->>'actor' = $1 and activity->'object'->>'attributedTo' = $1 and activity->'object'->>'type' = 'Note' and activity->'object'->>'inReplyTo' = 'https://127.0.0.1/poll/1' and activity->'object'->>'name' is null and activity->'object'->>'content' = 'strawberry')`, server.Alice.ID).Scan(&valid))
+	assert.True(valid)
 
 	edit := server.Handle(fmt.Sprintf("/users/edit/%s?chocolate", reply[15:len(reply)-2]), server.Alice)
 	assert.Regexp(`^40 Please wait for \S+\r\n$`, edit)
 }
 
 func TestPoll_Update(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err := server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
@@ -459,14 +447,14 @@ func TestPoll_Update(t *testing.T) {
 
 	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":4}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":6}}],"votersCount":10,"endTime":"2099-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		poll,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -478,14 +466,14 @@ func TestPoll_Update(t *testing.T) {
 
 	update := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/update/1","type":"Update","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":8}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":10}}],"votersCount":18,"endTime":"2099-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		update,
 	)
 	assert.NoError(err)
 
-	n, err = server.queue.ProcessBatch(context.Background())
+	n, err = server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -497,13 +485,12 @@ func TestPoll_Update(t *testing.T) {
 }
 
 func TestPoll_OldUpdate(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err := server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
@@ -512,14 +499,14 @@ func TestPoll_OldUpdate(t *testing.T) {
 
 	poll := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/create/1","type":"Create","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":4}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":6}}],"votersCount":10,"endTime":"2099-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		poll,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -531,14 +518,14 @@ func TestPoll_OldUpdate(t *testing.T) {
 
 	update := `{"@context":["https://www.w3.org/ns/activitystreams"],"id":"https://127.0.0.1/update/1","type":"Update","actor":"https://127.0.0.1/user/dan","object":{"id":"https://127.0.0.1/poll/1","type":"Question","attributedTo":"https://127.0.0.1/user/dan","content":"vanilla or chocolate?","oneOf":[{"type":"Note","name":"vanilla","replies":{"type":"Collection","totalItems":8}},{"type":"Note","name":"chocolate","replies":{"type":"Collection","totalItems":10}}],"votersCount":18,"endTime":"2099-10-01T05:35:36Z","updated":"2020-10-01T05:35:36Z","to":["https://www.w3.org/ns/activitystreams#Public"]},"to":["https://www.w3.org/ns/activitystreams#Public"]}`
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		update,
 	)
 	assert.NoError(err)
 
-	n, err = server.queue.ProcessBatch(context.Background())
+	n, err = server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
@@ -550,8 +537,7 @@ func TestPoll_OldUpdate(t *testing.T) {
 }
 
 func TestPoll_Local3Options(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -566,8 +552,7 @@ func TestPoll_Local3Options(t *testing.T) {
 }
 
 func TestPoll_Local5Options(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -584,8 +569,7 @@ func TestPoll_Local5Options(t *testing.T) {
 }
 
 func TestPoll_Local1Option(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -594,8 +578,7 @@ func TestPoll_Local1Option(t *testing.T) {
 }
 
 func TestPoll_Local6Options(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -604,8 +587,7 @@ func TestPoll_Local6Options(t *testing.T) {
 }
 
 func TestPoll_LocalEmptyOption(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -614,8 +596,7 @@ func TestPoll_LocalEmptyOption(t *testing.T) {
 }
 
 func TestPoll_LocalOptionWithLink(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -630,8 +611,7 @@ func TestPoll_LocalOptionWithLink(t *testing.T) {
 }
 
 func TestPoll_Local3OptionsAnd2Votes(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -654,10 +634,10 @@ func TestPoll_Local3OptionsAnd2Votes(t *testing.T) {
 
 	poller := outbox.Poller{
 		Domain: domain,
-		DB:     server.db,
+		DBW:    server.dbw,
 		Inbox:  server.inbox,
 	}
-	assert.NoError(poller.Run(context.Background()))
+	assert.NoError(poller.Run(t.Context()))
 
 	view = server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
@@ -669,8 +649,7 @@ func TestPoll_Local3OptionsAnd2Votes(t *testing.T) {
 }
 
 func TestPoll_Local3OptionsAnd2VotesAndDeletedVote(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -696,10 +675,10 @@ func TestPoll_Local3OptionsAnd2VotesAndDeletedVote(t *testing.T) {
 
 	poller := outbox.Poller{
 		Domain: domain,
-		DB:     server.db,
+		DBW:    server.dbw,
 		Inbox:  server.inbox,
 	}
-	assert.NoError(poller.Run(context.Background()))
+	assert.NoError(poller.Run(t.Context()))
 
 	view = server.Handle(say[3:len(say)-2], server.Bob)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
@@ -711,8 +690,7 @@ func TestPoll_Local3OptionsAnd2VotesAndDeletedVote(t *testing.T) {
 }
 
 func TestPoll_LocalVoteVisibilityFollowers(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -733,10 +711,10 @@ func TestPoll_LocalVoteVisibilityFollowers(t *testing.T) {
 
 	poller := outbox.Poller{
 		Domain: domain,
-		DB:     server.db,
+		DBW:    server.dbw,
 		Inbox:  server.inbox,
 	}
-	assert.NoError(poller.Run(context.Background()))
+	assert.NoError(poller.Run(t.Context()))
 
 	view := server.Handle(whisper[3:len(whisper)-2], server.Alice)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
@@ -773,8 +751,7 @@ func TestPoll_LocalVoteVisibilityFollowers(t *testing.T) {
 }
 
 func TestPoll_LocalVoteVisibilityPublic(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -789,10 +766,10 @@ func TestPoll_LocalVoteVisibilityPublic(t *testing.T) {
 
 	poller := outbox.Poller{
 		Domain: domain,
-		DB:     server.db,
+		DBW:    server.dbw,
 		Inbox:  server.inbox,
 	}
-	assert.NoError(poller.Run(context.Background()))
+	assert.NoError(poller.Run(t.Context()))
 
 	view := server.Handle(say[3:len(say)-2], server.Alice)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")
@@ -834,8 +811,7 @@ func TestPoll_LocalVoteVisibilityPublic(t *testing.T) {
 }
 
 func TestPoll_LocalSelfVote(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -851,10 +827,10 @@ func TestPoll_LocalSelfVote(t *testing.T) {
 
 	poller := outbox.Poller{
 		Domain: domain,
-		DB:     server.db,
+		DBW:    server.dbw,
 		Inbox:  server.inbox,
 	}
-	assert.NoError(poller.Run(context.Background()))
+	assert.NoError(poller.Run(t.Context()))
 
 	view := server.Handle("/view/"+say[15:len(say)-2], nil)
 	assert.Contains(view, "So, polls on Station are pretty cool, right?")

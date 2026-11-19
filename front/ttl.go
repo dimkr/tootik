@@ -35,9 +35,9 @@ func (h *Handler) ttl(w text.Writer, r *Request, args ...string) {
 	var ttl sql.NullInt32
 
 	if r.URL.RawQuery == "" {
-		if err := h.DB.QueryRowContext(
+		if err := h.DBW.QueryRowContext(
 			r.Context,
-			`select ttl from persons where id = ?`,
+			`select ttl from persons where id = $1`,
 			r.User.ID,
 		).Scan(&ttl); err != nil {
 			r.Log.Warn("Failed to fetch TTL", "error", err)
@@ -66,9 +66,9 @@ func (h *Handler) ttl(w text.Writer, r *Request, args ...string) {
 		}
 
 		if days > 0 {
-			if _, err := h.DB.ExecContext(
+			if _, err := h.DBW.ExecContext(
 				r.Context,
-				`update persons set ttl = ? where id = ?`,
+				`update persons set ttl = $1 where id = $2`,
 				days,
 				r.User.ID,
 			); err != nil {
@@ -79,9 +79,9 @@ func (h *Handler) ttl(w text.Writer, r *Request, args ...string) {
 
 			ttl.Valid = true
 			ttl.Int32 = int32(days)
-		} else if _, err := h.DB.ExecContext(
+		} else if _, err := h.DBW.ExecContext(
 			r.Context,
-			`update persons set ttl = null where id = ?`,
+			`update persons set ttl = null where id = $1`,
 			r.User.ID,
 		); err != nil {
 			r.Log.Error("Failed to clear TTL", "error", err)

@@ -41,9 +41,9 @@ func (h *Handler) Shell(ctx context.Context, user, domain string) error {
 
 	var actor ap.Actor
 	var rsaPrivKeyDer, ed25519Seed, mldsa44Seed []byte
-	if err := h.DB.QueryRowContext(
+	if err := h.DBW.QueryRowContext(
 		ctx,
-		`select json(actor), rsaprivkey, ed25519seed, mldsa44seed from persons where actor->>'$.preferredUsername' = ? and ed25519seed is not null`,
+		`select actor, rsaprivkey, ed25519seed, mldsa44seed from persons where actor->>'preferredUsername' = $1 and ed25519seed is not null`,
 		user,
 	).Scan(&actor, &rsaPrivKeyDer, &ed25519Seed, &mldsa44Seed); err != nil {
 		panic(err)

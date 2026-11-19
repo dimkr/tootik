@@ -233,16 +233,12 @@ func main() {
 
 	slog.SetDefault(slog.New(slog.DiscardHandler))
 
-	tempDir, err := os.MkdirTemp("", "tootik-demo-*")
-	if err != nil {
-		panic(err)
-	}
-	defer os.RemoveAll(tempDir)
-
 	keyPairs := generateKeypairs()
 
-	cl := seed(t{tempDir: tempDir, ctx: ctx}, keyPairs)
-	defer cl.Stop()
+	demo := t{ctx: ctx, cleanups: &[]func(){}}
+	defer demo.runCleanups()
+
+	cl := seed(demo, keyPairs)
 
 	if err := cl["pizza.example"].Frontend.Handler.Shell(
 		ctx,

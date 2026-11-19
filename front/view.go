@@ -46,53 +46,67 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 	var author ap.Actor
 	var group sql.Null[ap.Actor]
 
-	if r.User == nil {
-		err = h.DB.QueryRowContext(
-			r.Context,
-			`
-			select json(notes.object), json(persons.actor), json(groups.actor) from notes
-			join persons on persons.id = notes.author
-			left join (select id, actor from persons where actor->>'$.type' = 'Group') groups on exists (select 1 from shares where shares.by = groups.id and shares.note = notes.id)
-			where
-				(notes.id = 'https://' || $1 or notes.slug = $1) and
-				notes.public = 1
-			`,
-			arg,
-		).Scan(&note, &author, &group)
-	} else {
-		err = h.DB.QueryRowContext(
-			r.Context,
-			`
-			select json(notes.object), json(persons.actor), json(groups.actor) from notes
-			join persons on persons.id = notes.author
-			left join (select id, actor from persons where actor->>'$.type' = 'Group') groups on exists (select 1 from shares where shares.by = groups.id and shares.note = notes.id)
-			where
-				(notes.id = 'https://' || $1 or notes.slug = $1) and
-				(
-					notes.public = 1 or
-					notes.author = $2 or
-					$2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-					(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = $2)) or
-					(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = $2)) or
-					exists (
-						select 1 from (
-							select persons.id, persons.actor->>'$.followers' as followers, persons.actor->>'$.type' as type from persons
-							join follows on follows.followed = persons.id
+	lookup := func(db *sql.DB) error {
+		note = ap.Object{}
+		author = ap.Actor{}
+		var err error
+		if r.User == nil {
+			err = db.QueryRowContext(
+				r.Context,
+				`
+				select notes.object, persons.actor, groups.actor from notes
+				join persons on persons.id = notes.author
+				left join (select id, actor from persons where actor->>'type' = 'Group') groups on exists (select 1 from shares where shares.by = groups.id and shares.note = notes.id)
+				where
+					(notes.id = 'https://' || $1 or notes.slug = $1) and
+					notes.public
+				`,
+				arg,
+			).Scan(&note, &author, &group)
+		} else {
+			err = db.QueryRowContext(
+				r.Context,
+				`
+				select notes.object, persons.actor, groups.actor from notes
+				join persons on persons.id = notes.author
+				left join (select id, actor from persons where actor->>'type' = 'Group') groups on exists (select 1 from shares where shares.by = groups.id and shares.note = notes.id)
+				where
+					(notes.id = 'https://' || $1 or notes.slug = $1) and
+					(
+						notes.public or
+						notes.author = $2 or
+						$2 in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+						(notes.to2 is not null and notes.object->'to' ? $2) or
+						(notes.cc2 is not null and notes.object->'cc' ? $2) or
+						exists (
+							select 1 from (
+								select persons.id, persons.actor->>'followers' as followers, persons.actor->>'type' as type from persons
+								join follows on follows.followed = persons.id
+								where
+									follows.follower = $2 and
+									follows.accepted
+							) follows
 							where
-								follows.follower = $2 and
-								follows.accepted = 1
-						) follows
-						where
-							follows.followers in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
-							(notes.to2 is not null and exists (select 1 from json_each(notes.object->'$.to') where value = follows.followers)) or
-							(notes.cc2 is not null and exists (select 1 from json_each(notes.object->'$.cc') where value = follows.followers)) or
-							(follows.type = 'Group' and exists (select 1 from shares where shares.by = follows.id and shares.note = notes.id))
+								follows.followers in (notes.cc0, notes.to0, notes.cc1, notes.to1, notes.cc2, notes.to2) or
+								(notes.to2 is not null and notes.object->'to' ? follows.followers) or
+								(notes.cc2 is not null and notes.object->'cc' ? follows.followers) or
+								(follows.type = 'Group' and exists (select 1 from shares where shares.by = follows.id and shares.note = notes.id))
+						)
 					)
-				)
-			`,
-			arg,
-			r.User.ID,
-		).Scan(&note, &author, &group)
+				`,
+				arg,
+				r.User.ID,
+			).Scan(&note, &author, &group)
+		}
+		return err
+	}
+
+	db := h.DB
+	err = lookup(db)
+	if r.User != nil && (errors.Is(err, sql.ErrNoRows) || (err == nil && ap.Canonical(note.AttributedTo) == ap.Canonical(r.User.ID))) {
+		// the user's own posts are read from the primary, so they're visible immediately after posting or editing
+		db = h.DBW
+		err = lookup(db)
 	}
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Info("Post was not found", "post", arg)
@@ -120,28 +134,28 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 				Depth  int
 			}](
 				r.Context,
-				h.DB,
+				db,
 				`
-				select json(note), json(author), max_depth from
+				select note, author, max_depth from
 				(
 					with recursive thread(id, note, author, depth) as (
 						select notes.id, notes.object as note, persons.actor as author, 1 as depth
 						from notes
 						join persons on persons.id = notes.author
-						where notes.id = ?
+						where notes.id = $1
 						union all
 						select notes.id, notes.object as note, persons.actor as author, 0 as depth
 						from notes
 						join persons on persons.id = notes.author
-						where notes.object->>'$.context' = ? and notes.object->>'$.inReplyTo' is null
+						where notes.object->>'context' = $2 and notes.object->>'inReplyTo' is null
 						union all
 						select notes.id, notes.object as note, persons.actor as author, t.depth + 1
 						from thread t
-						join notes on notes.id = t.note->>'$.inReplyTo'
+						join notes on notes.id = t.note->>'inReplyTo'
 						join persons on persons.id = notes.author
 					)
-					select note, author, max(depth) as max_depth from thread group by id order by note->'$.inReplyTo' is null desc, max_depth limit ?
-				)
+					select note, author, max(depth) as max_depth from thread group by id, note, author order by note->'inReplyTo' is null desc, max_depth limit $3
+				) context
 				order by max_depth desc
 				`,
 				note.InReplyTo,
@@ -229,7 +243,7 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 
 		for mentionID := range mentionedUsers.Keys() {
 			var mentionUserName string
-			if err := h.DB.QueryRowContext(r.Context, `select actor->>'$.preferredUsername' from persons where id = ?`, mentionID).Scan(&mentionUserName); err != nil && errors.Is(err, sql.ErrNoRows) {
+			if err := db.QueryRowContext(r.Context, `select actor->>'preferredUsername' from persons where id = $1`, mentionID).Scan(&mentionUserName); err != nil && errors.Is(err, sql.ErrNoRows) {
 				r.Log.Warn("Mentioned user is unknown", "mention", mentionID)
 				continue
 			} else if err != nil {
@@ -252,64 +266,70 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			var rows *sql.Rows
 			var err error
 			if r.User == nil {
-				rows, err = h.DB.QueryContext(
+				rows, err = db.QueryContext(
 					r.Context,
 					`select id, username from
+				(
+					select distinct on (id) id, username, rank, inserted from
 					(
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 1 as rank from shares
+						select persons.id, persons.actor->>'preferredUsername' as username, shares.inserted, 1 as rank from shares
 						join notes on notes.id = shares.note
 						join persons on persons.id = shares.by
-						where shares.note = $1 and persons.actor->>'$.type' = 'Group'
+						where shares.note = $1 and persons.actor->>'type' = 'Group'
 						union all
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 2 as rank from shares
+						select persons.id, persons.actor->>'preferredUsername' as username, shares.inserted, 2 as rank from shares
 						join notes on notes.id = shares.note
 						join persons on persons.id = shares.by
 						where shares.note = $1
 						union all
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 3 as rank from shares
+						select persons.id, persons.actor->>'preferredUsername' as username, shares.inserted, 3 as rank from shares
 						join persons on persons.id = shares.by
 						where shares.note = $1 and persons.host = $2
 						union all
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 4 as rank from shares
+						select persons.id, persons.actor->>'preferredUsername' as username, shares.inserted, 4 as rank from shares
 						join persons on persons.id = shares.by
 						where shares.note = $1 and persons.host != $2
-					)
-					group by id
-					order by min(rank), inserted limit $3`,
+					) candidates
+					order by id, rank, inserted
+				) best
+				order by rank, inserted limit $3`,
 					note.ID,
 					h.Domain,
 					h.Config.SharesPerPost,
 				)
 			} else {
-				rows, err = h.DB.QueryContext(
+				rows, err = db.QueryContext(
 					r.Context,
 					`select id, username from
+				(
+					select distinct on (id) id, username, rank, inserted from
 					(
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 1 as rank from shares
+						select persons.id, persons.actor->>'preferredUsername' as username, shares.inserted, 1 as rank from shares
 						join notes on notes.id = shares.note
 						join persons on persons.id = shares.by
-						where shares.note = $1 and persons.actor->>'$.type' = 'Group'
+						where shares.note = $1 and persons.actor->>'type' = 'Group'
 						union all
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 2 as rank from shares
+						select persons.id, persons.actor->>'preferredUsername' as username, shares.inserted, 2 as rank from shares
 						join notes on notes.id = shares.note
 						join persons on persons.id = shares.by
 						where shares.note = $1
 						union all
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 3 as rank from shares
+						select persons.id, persons.actor->>'preferredUsername' as username, shares.inserted, 3 as rank from shares
 						join follows on follows.followed = shares.by
 						join persons on persons.id = follows.followed
-						where shares.note = $1 and follows.follower = $2 and follows.accepted = 1
+						where shares.note = $1 and follows.follower = $2 and follows.accepted
 						union all
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 4 as rank from shares
+						select persons.id, persons.actor->>'preferredUsername' as username, shares.inserted, 4 as rank from shares
 						join persons on persons.id = shares.by
 						where shares.note = $1 and persons.host = $3
 						union all
-						select persons.id, persons.actor->>'$.preferredUsername' as username, shares.inserted, 5 as rank from shares
+						select persons.id, persons.actor->>'preferredUsername' as username, shares.inserted, 5 as rank from shares
 						join persons on persons.id = shares.by
 						where shares.note = $1 and persons.host != $3
-					)
-					group by id
-					order by min(rank), inserted limit $4`,
+					) candidates
+					order by id, rank, inserted
+				) best
+				order by rank, inserted limit $4`,
 					note.ID,
 					r.User.ID,
 					h.Domain,
@@ -343,17 +363,17 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			QuoteID, Quoter string
 		}](
 			r.Context,
-			h.DB,
+			db,
 			func(err error) bool {
 				r.Log.Warn("Failed to scan quoter", "error", err)
 				return true
 			},
 			`
-			select notes.id, persons.actor->>'$.preferredUsername' from
+			select notes.id, persons.actor->>'preferredUsername' from
 			notes join persons on persons.id = notes.author
-			where notes.object->>'$.quote' = ?
+			where notes.object->>'quote' = $1
 			order by notes.inserted desc
-			limit ?
+			limit $2
 			`,
 			note.ID,
 			h.Config.QuotesPerPost,
@@ -404,15 +424,15 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		}
 
 		for tag := range hashtags.Values() {
-			var exists int
-			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from hashtags where hashtag = ? and note != ?)`, tag, note.ID).Scan(&exists); err != nil {
+			var exists bool
+			if err := db.QueryRowContext(r.Context, `select exists (select 1 from hashtags where hashtag = $1 and note != $2)`, tag, note.ID).Scan(&exists); err != nil {
 				r.Log.Warn("Failed to check if hashtag is used by other posts", "note", note.ID, "hashtag", tag)
 				continue
 			}
 
-			if exists == 1 && r.User == nil {
+			if exists && r.User == nil {
 				w.Linkf("/hashtag/"+tag, "Posts tagged #%s", tag)
-			} else if exists == 1 {
+			} else if exists {
 				w.Linkf("/users/hashtag/"+tag, "Posts tagged #%s", tag)
 			}
 		}
@@ -435,10 +455,10 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		}
 
 		if r.User != nil && note.IsPublic() && ap.Canonical(note.AttributedTo) != ap.Canonical(r.User.ID) {
-			var shared int
-			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from shares where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&shared); err != nil {
+			var shared bool
+			if err := h.DBW.QueryRowContext(r.Context, `select exists (select 1 from shares where note = $1 and "by" = $2)`, note.ID, r.User.ID).Scan(&shared); err != nil {
 				r.Log.Warn("Failed to check if post is shared", "id", note.ID, "error", err)
-			} else if shared == 0 {
+			} else if !shared {
 				w.Link("/users/share/"+arg, "🔁 Share")
 			} else {
 				w.Link("/users/unshare/"+arg, "🔄️ Unshare")
@@ -446,10 +466,10 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 		}
 
 		if r.User != nil {
-			var bookmarked int
-			if err := h.DB.QueryRowContext(r.Context, `select exists (select 1 from bookmarks where note = ? and by = ?)`, note.ID, r.User.ID).Scan(&bookmarked); err != nil {
+			var bookmarked bool
+			if err := h.DBW.QueryRowContext(r.Context, `select exists (select 1 from bookmarks where note = $1 and "by" = $2)`, note.ID, r.User.ID).Scan(&bookmarked); err != nil {
 				r.Log.Warn("Failed to check if post is bookmarked", "id", note.ID, "error", err)
-			} else if bookmarked == 0 {
+			} else if !bookmarked {
 				w.Link("/users/bookmark/"+arg, "🔖 Bookmark")
 			} else {
 				w.Link("/users/unbookmark/"+arg, "🔖 Unbookmark")
@@ -499,12 +519,12 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 
 			var quote ap.Object
 			var quoteAuthor string
-			if err := h.DB.QueryRowContext(
+			if err := db.QueryRowContext(
 				r.Context,
 				`
-				select json(notes.object), persons.actor->>'$.preferredUsername' from notes
+				select notes.object, persons.actor->>'preferredUsername' from notes
 				join persons on persons.id = notes.author
-				where notes.id = ?
+				where notes.id = $1
 				`,
 				note.Quote,
 			).Scan(&quote, &quoteAuthor); errors.Is(err, sql.ErrNoRows) {
@@ -538,14 +558,14 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 	var replies *sql.Rows
 	var count int
 	if r.User == nil {
-		replies, err = h.DB.QueryContext(
+		replies, err = db.QueryContext(
 			r.Context,
 			`
-			select json(replies.object), json(persons.actor), null as sharer, replies.inserted, replies.nreplies, replies.nquotes, replies.nshares, null from notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
+			select replies.object, persons.actor, null as sharer, replies.inserted, replies.nreplies, replies.nquotes, replies.nshares, null from notes join notes replies on replies.object->>'inReplyTo' = notes.id
 			left join persons on persons.id = replies.author
 			where
 				notes.id = $1 and
-				replies.public = 1
+				replies.public
 			order by replies.inserted desc limit $2 offset $3
 			`,
 			note.ID,
@@ -553,31 +573,31 @@ func (h *Handler) view(w text.Writer, r *Request, args ...string) {
 			offset,
 		)
 	} else {
-		replies, err = h.DB.QueryContext(
+		replies, err = db.QueryContext(
 			r.Context,
 			`
-			select json(replies.object), json(persons.actor), null as sharer, replies.inserted, replies.nreplies, replies.nquotes, replies.nshares, null from
-			notes join notes replies on replies.object->>'$.inReplyTo' = notes.id
+			select replies.object, persons.actor, null as sharer, replies.inserted, replies.nreplies, replies.nquotes, replies.nshares, null from
+			notes join notes replies on replies.object->>'inReplyTo' = notes.id
 			left join persons on persons.id = replies.author
 			where
 				notes.id = $1 and
 				(
-					replies.public = 1 or
+					replies.public or
 					replies.author = $2 or
 					$2 in (replies.cc0, replies.to0, replies.cc1, replies.to1, replies.cc2, replies.to2) or
-					(replies.to2 is not null and exists (select 1 from json_each(replies.object->'$.to') where value = $2)) or
-					(replies.cc2 is not null and exists (select 1 from json_each(replies.object->'$.cc') where value = $2)) or
+					(replies.to2 is not null and replies.object->'to' ? $2) or
+					(replies.cc2 is not null and replies.object->'cc' ? $2) or
 					exists (
 						select 1 from persons
 						join follows on follows.followed = persons.id
 						where
 							follows.follower = $2 and
-							follows.accepted = 1 and
+							follows.accepted and
 							(
-								persons.actor->>'$.followers' in (replies.cc0, replies.to0, replies.cc1, replies.to1, replies.cc2, replies.to2) or
-								(notes.to2 is not null and exists (select 1 from json_each(replies.object->'$.to') where value = persons.actor->>'$.followers')) or
-								(notes.cc2 is not null and exists (select 1 from json_each(replies.object->'$.cc') where value = persons.actor->>'$.followers')) or
-								(persons.actor->>'$.type' = 'Group' and exists (select 1 from shares where shares.by = persons.id and shares.note = replies.id))
+								persons.actor->>'followers' in (replies.cc0, replies.to0, replies.cc1, replies.to1, replies.cc2, replies.to2) or
+								(notes.to2 is not null and replies.object->'to' ? (persons.actor->>'followers')) or
+								(notes.cc2 is not null and replies.object->'cc' ? (persons.actor->>'followers')) or
+								(persons.actor->>'type' = 'Group' and exists (select 1 from shares where shares.by = persons.id and shares.note = replies.id))
 							)
 					)
 				)

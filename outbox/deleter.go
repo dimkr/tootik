@@ -29,7 +29,7 @@ import (
 const batchSize = 512
 
 type Deleter struct {
-	DB    *sql.DB
+	DBW   *sql.DB
 	Inbox ap.Inbox
 }
 
@@ -41,17 +41,17 @@ func (d *Deleter) undoShares(ctx context.Context) (bool, error) {
 		Share       ap.Activity
 	}](
 		ctx,
-		d.DB,
+		d.DBW,
 		`
-		select json(persons.actor), persons.ed25519seed, persons.mldsa44seed, json(outbox.activity) from persons
+		select persons.actor, persons.ed25519seed, persons.mldsa44seed, outbox.activity from persons
 		join shares on shares.by = persons.id
-		join outbox on outbox.activity->>'$.actor' = shares.by and outbox.activity->>'$.object' = shares.note
+		join outbox on outbox.activity->>'actor' = shares.by and outbox.activity->>'object' = shares.note
 		where
 			persons.ttl is not null and
-			shares.inserted <= unixepoch() - (persons.ttl * 24 * 60 * 60) and
-			outbox.activity->>'$.type' = 'Announce'
+			shares.inserted <= now() - make_interval(days => persons.ttl) and
+			outbox.activity->>'type' = 'Announce'
 		order by shares.inserted
-		limit ?
+		limit $1
 		`,
 		batchSize,
 	)
@@ -89,17 +89,17 @@ func (d *Deleter) deletePosts(ctx context.Context) (bool, error) {
 		Note        ap.Object
 	}](
 		ctx,
-		d.DB,
+		d.DBW,
 		`
-		select json(persons.actor), persons.ed25519seed, persons.mldsa44seed, json(notes.object) from persons
+		select persons.actor, persons.ed25519seed, persons.mldsa44seed, notes.object from persons
 		join notes on notes.author = persons.id
 		where
 			persons.ttl is not null and
-			notes.inserted <= unixepoch() - (persons.ttl * 24 * 60 * 60) and
-			notes.deleted = 0 and
+			notes.inserted <= now() - make_interval(days => persons.ttl) and
+			not notes.deleted and
 			not exists (select 1 from bookmarks where bookmarks.by = persons.id and bookmarks.note = notes.id)
 		order by notes.inserted
-		limit ?
+		limit $1
 		`,
 		batchSize,
 	)

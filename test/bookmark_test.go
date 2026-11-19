@@ -25,8 +25,7 @@ import (
 )
 
 func TestBookmark_HappyFlow(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -65,8 +64,7 @@ func TestBookmark_HappyFlow(t *testing.T) {
 }
 
 func TestBookmark_Throttling(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -89,8 +87,7 @@ func TestBookmark_Throttling(t *testing.T) {
 }
 
 func TestBookmark_Limit(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -116,8 +113,7 @@ func TestBookmark_Limit(t *testing.T) {
 }
 
 func TestBookmark_TwoBookmarks(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -142,8 +138,7 @@ func TestBookmark_TwoBookmarks(t *testing.T) {
 }
 
 func TestBookmark_Twice(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -174,8 +169,7 @@ func TestBookmark_Twice(t *testing.T) {
 }
 
 func TestBookmark_ToFollowers(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -207,8 +201,7 @@ func TestBookmark_ToFollowers(t *testing.T) {
 }
 
 func TestBookmark_DM(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

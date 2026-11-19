@@ -25,8 +25,7 @@ import (
 )
 
 func TestHashtag_PublicPost(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -41,8 +40,7 @@ func TestHashtag_PublicPost(t *testing.T) {
 }
 
 func TestHashtag_PublicPostUnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -57,8 +55,7 @@ func TestHashtag_PublicPostUnauthenticatedUser(t *testing.T) {
 }
 
 func TestHashtag_ExclamationMark(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -73,8 +70,7 @@ func TestHashtag_ExclamationMark(t *testing.T) {
 }
 
 func TestHashtag_Beginning(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -89,8 +85,7 @@ func TestHashtag_Beginning(t *testing.T) {
 }
 
 func TestHashtag_Multiple(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -108,8 +103,7 @@ func TestHashtag_Multiple(t *testing.T) {
 }
 
 func TestHashtag_CaseSensitivity(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -124,8 +118,7 @@ func TestHashtag_CaseSensitivity(t *testing.T) {
 }
 
 func TestHashtag_PostToFollowers(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -143,8 +136,7 @@ func TestHashtag_PostToFollowers(t *testing.T) {
 }
 
 func TestHashtag_BigOffset(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -159,8 +151,7 @@ func TestHashtag_BigOffset(t *testing.T) {
 }
 
 func TestHashtag_BigOffsetUnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -175,8 +166,7 @@ func TestHashtag_BigOffsetUnauthenticatedUser(t *testing.T) {
 }
 
 func TestHashtag_InvalidOffset(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -191,8 +181,7 @@ func TestHashtag_InvalidOffset(t *testing.T) {
 }
 
 func TestHashtag_EmptyHashtag(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -201,8 +190,7 @@ func TestHashtag_EmptyHashtag(t *testing.T) {
 }
 
 func TestHashtag_EmptyHashtagUnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

@@ -25,8 +25,7 @@ import (
 )
 
 func TestName_Throttled(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -35,8 +34,7 @@ func TestName_Throttled(t *testing.T) {
 }
 
 func TestName_HappyFlow(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -50,8 +48,7 @@ func TestName_HappyFlow(t *testing.T) {
 }
 
 func TestName_TooLong(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -62,8 +59,7 @@ func TestName_TooLong(t *testing.T) {
 }
 
 func TestName_MultiLine(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

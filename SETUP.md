@@ -38,18 +38,19 @@ If you already have a HTTPS certificate that you wish to use, place the certific
 curl -L https://github.com/gardenfence/blocklist/raw/main/gardenfence-mastodon.csv > /tootik-cfg/gardenfence-mastodon.csv
 ```
 
-5. Create an unprivileged user and a separate directory for the tootik database, then download tootik and run it:
+5. Install PostgreSQL, create a database named `tootik` owned by a role named `tootik`, then create an unprivileged user, download tootik and run it:
 
 ```
-mkdir /tootik-data
 useradd -mr tootik
-chown -R tootik:tootik /tootik-cfg /tootik-data
+chown -R tootik:tootik /tootik-cfg
 curl -L https://github.com/dimkr/tootik/releases/latest/download/tootik-$(case `uname -m` in x86_64) echo amd64;; aarch64) echo arm64;; i686) echo 386;; armv7l) echo arm;; esac) -o /usr/local/bin/tootik
 chmod 755 /usr/local/bin/tootik
-tootik -domain $domain -blocklist /tootik-cfg/gardenfence-mastodon.csv -db /tootik-data/db.sqlite3
+tootik -domain $domain -blocklist /tootik-cfg/gardenfence-mastodon.csv -db postgres:///tootik?host=/run/postgresql
 ```
 
 To enable more verbose logging, add `-loglevel -4`.
+
+To serve read-only pages from a PostgreSQL streaming read replica, add `-replica` followed by the replica's DSN.
 
 **tootik writes logs to stderr. Keep this shell open for troubleshooting purposes, and continue in another.**
 
@@ -101,7 +102,7 @@ Description=tootik
 After=network.target
 
 [Service]
-ExecStart=tootik -domain $domain -blocklist /tootik-cfg/gardenfence-mastodon.csv -db /tootik-data/db.sqlite3 -cfg /tootik-cfg/cfg.json
+ExecStart=tootik -domain $domain -blocklist /tootik-cfg/gardenfence-mastodon.csv -db postgres:///tootik?host=/run/postgresql -cfg /tootik-cfg/cfg.json
 User=tootik
 Group=tootik
 AmbientCapabilities=CAP_NET_BIND_SERVICE
@@ -183,23 +184,23 @@ systemctl start tootik
 To add a community, then set its bio and avatar:
 
 ```
-tootik -domain $domain -db /tootik-data/db.sqlite3 add-community fountainpens
+tootik -domain $domain -db postgres:///tootik?host=/run/postgresql add-community fountainpens
 # put bio in /tmp/bio.txt
-tootik -domain $domain -db /tootik-data/db.sqlite3 set-bio fountainpens /tmp/bio.txt
+tootik -domain $domain -db postgres:///tootik?host=/run/postgresql set-bio fountainpens /tmp/bio.txt
 # put avatar in /tmp/avatar.png
-tootik -domain $domain -db /tootik-data/db.sqlite3 set-avatar fountainpens /tmp/avatar.png
+tootik -domain $domain -db postgres:///tootik?host=/run/postgresql set-avatar fountainpens /tmp/avatar.png
 ```
 
 To run an interactive shell:
 
 ```
-tootik -domain $domain -db /tootik-data/db.sqlite3 shell
+tootik -domain $domain -db postgres:///tootik?host=/run/postgresql shell
 ```
 
 To run an interactive shell on behalf of a user named `alice`:
 
 ```
-tootik -domain $domain -db /tootik-data/db.sqlite3 shell alice
+tootik -domain $domain -db postgres:///tootik?host=/run/postgresql shell alice
 ```
 
 ## Running behind a reverse proxy

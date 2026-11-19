@@ -48,7 +48,7 @@ func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
 		},
 		`
 			select hashtag from (
-				select hashtag, max(inserted)/86400 as last, count(distinct author) as authors, count(distinct follower) as followers, count(distinct id) as posts from (
+				select hashtag, date_trunc('day', max(inserted), 'UTC') as last, count(distinct author) as authors, count(distinct follower) as followers, count(distinct id) as posts from (
 					select hashtags.hashtag, notes.id, notes.author, notes.inserted, follows.follower from
 					hashtags
 					join notes
@@ -58,9 +58,9 @@ func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
 					on
 						follows.followed = notes.author
 					where
-						follows.accepted = 1 and
-						follows.follower like ? and
-						notes.inserted > unixepoch()-60*60*24*7
+						follows.accepted and
+						follows.follower ilike $1 and
+						notes.inserted > now() - interval '7 days'
 				)
 				group by
 					hashtag
@@ -93,14 +93,14 @@ func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
 		},
 		`
 			select hashtag from (
-				select hashtag, max(inserted)/86400 as last, count(distinct author) as authors, count(*) as posts from (
+				select hashtag, date_trunc('day', max(inserted), 'UTC') as last, count(distinct author) as authors, count(*) as posts from (
 					select hashtags.hashtag, notes.author, notes.inserted from
 					hashtags
 					join notes
 					on
 						notes.id = hashtags.note
 					where
-						inserted > unixepoch()-60*60*24*7
+						inserted > now() - interval '7 days'
 				)
 				group by
 					hashtag
@@ -136,23 +136,23 @@ func (h *Handler) hashtags(w text.Writer, r *Request, args ...string) {
 		},
 		h.DB,
 		`
-		select strftime('%Y-%m-%d', datetime(day*86400, 'unixepoch')) || ' #' || hashtag, authors from (
-			select notes.inserted/86400 as day, hashtags.hashtag, count(distinct notes.author) authors from
-			hashtags
-			join notes
-			on
-				notes.id = hashtags.note
-			where
-				inserted > (unixepoch()/86400-6)*86400
-			group by
-				day,
-				hashtag
+		select to_char(day at time zone 'UTC', 'YYYY-MM-DD') || ' #' || hashtag, authors from (
+			select distinct on (day) day, hashtag, authors from (
+				select date_trunc('day', notes.inserted, 'UTC') as day, hashtags.hashtag, count(distinct notes.author) authors from
+				hashtags
+				join notes
+				on
+					notes.id = hashtags.note
+				where
+					inserted > date_trunc('day', now(), 'UTC') - interval '6 days'
+				group by
+					day,
+					hashtag
+			) daily
 			order by
 				day,
 				authors desc
-		)
-		group by
-			day
+		) top
 		order by
 			day desc
 		`,

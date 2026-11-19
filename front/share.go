@@ -29,8 +29,9 @@ import (
 func (h *Handler) shouldThrottleShare(r *Request) (bool, error) {
 	now := time.Now()
 
-	var today, last sql.NullInt64
-	if err := h.DB.QueryRowContext(r.Context, `select count(*), max(inserted) from outbox where activity->>'$.actor' = $1 and sender = $1 and (activity->>'$.type' = 'Announce' or activity->>'$.type' = 'Undo') and inserted > $2`, r.User.ID, now.Add(-24*time.Hour).UnixNano()).Scan(&today, &last); err != nil {
+	var today sql.NullInt64
+	var last sql.NullTime
+	if err := h.DBW.QueryRowContext(r.Context, `select count(*), max(inserted) from outbox where activity->>'actor' = $1 and sender = $1 and (activity->>'type' = 'Announce' or activity->>'type' = 'Undo') and inserted > $2`, r.User.ID, now.Add(-24*time.Hour)).Scan(&today, &last); err != nil {
 		return false, err
 	}
 
@@ -38,7 +39,7 @@ func (h *Handler) shouldThrottleShare(r *Request) (bool, error) {
 		return false, nil
 	}
 
-	t := time.Unix(0, last.Int64)
+	t := last.Time
 	interval := max(1, time.Duration(today.Int64/h.Config.ShareThrottleFactor)) * h.Config.ShareThrottleUnit
 	return now.Sub(t) < interval, nil
 }
@@ -52,7 +53,7 @@ func (h *Handler) share(w text.Writer, r *Request, args ...string) {
 	arg := args[1]
 
 	var note ap.Object
-	if err := h.DB.QueryRowContext(r.Context, `select json(object) from notes where (id = 'https://' || $1 or slug = $1) and deleted = 0 and public = 1 and author != $2 and not exists (select 1 from shares where note = notes.id and by = $2)`, arg, r.User.ID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
+	if err := h.DBW.QueryRowContext(r.Context, `select object from notes where (id = 'https://' || $1 or slug = $1) and not deleted and public and author != $2 and not exists (select 1 from shares where note = notes.id and "by" = $2)`, arg, r.User.ID).Scan(&note); err != nil && errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Attempted to share non-existing post", "post", arg, "error", err)
 		w.Error()
 		return
@@ -72,7 +73,7 @@ func (h *Handler) share(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	tx, err := h.DB.BeginTx(r.Context, nil)
+	tx, err := h.DBW.BeginTx(r.Context, nil)
 	if err != nil {
 		r.Log.Warn("Failed to share post", "post", note.ID, "error", err)
 		w.Error()

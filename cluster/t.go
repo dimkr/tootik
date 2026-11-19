@@ -20,10 +20,12 @@ import "context"
 
 // T is the subset of [testing.T] that's actually used by this package.
 type T interface {
+	Helper()
 	Parallel()
 	Name() string
 	Context() context.Context
-	TempDir() string
 	Fatal(args ...any)
 	Fatalf(format string, args ...any)
+	Errorf(format string, args ...any)
+	Cleanup(func())
 }

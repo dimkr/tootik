@@ -116,7 +116,7 @@ func seed(t cluster.T, keyPairs map[string]tls.Certificate) cluster.Cluster {
 	ivan := cl["pizza.example"].Register(keyPairs["ivan"]).OK()
 	judy := cl["sushi.example"].Register(keyPairs["judy"]).OK()
 
-	if _, _, err := user.CreatePortable(t.Context(), "forum.example", cl["forum.example"].DB, cl["forum.example"].Config, "noodles", ap.Group, nil); err != nil {
+	if _, _, err := user.CreatePortable(t.Context(), "forum.example", cl["forum.example"].DBW, cl["forum.example"].Config, "noodles", ap.Group, nil); err != nil {
 		t.Fatalf("Failed to create noodles group: %v", err)
 	}
 
@@ -337,7 +337,7 @@ func seed(t cluster.T, keyPairs map[string]tls.Certificate) cluster.Cluster {
 	for d, server := range cl {
 		poller := outbox.Poller{
 			Domain: d,
-			DB:     server.DB,
+			DBW:    server.DBW,
 			Inbox:  server.Inbox,
 		}
 		if err := poller.Run(t.Context()); err != nil {

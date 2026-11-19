@@ -28,11 +28,11 @@ func (h *Handler) revoke(w text.Writer, r *Request, args ...string) {
 
 	r.Log.Info("Revoking certificate", "user", r.User.PreferredUsername, "hash", hash)
 
-	if res, err := h.DB.ExecContext(
+	if res, err := h.DBW.ExecContext(
 		r.Context,
 		`
 		delete from certificates
-		where user = $1 and hash = $2 and exists (select 1 from certificates others where others.user = $1 and others.hash != $2 and others.approved = 1)
+		where "user" = $1 and hash = $2 and exists (select 1 from certificates others where others.user = $1 and others.hash != $2 and others.approved)
 		`,
 		r.User.PreferredUsername,
 		hash,

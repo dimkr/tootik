@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/dimkr/tootik/ap"
-	"github.com/dimkr/tootik/danger"
 	"github.com/dimkr/tootik/front/text"
 	"github.com/dimkr/tootik/icon"
 )
@@ -106,7 +105,7 @@ func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	tx, err := h.DB.BeginTx(r.Context, nil)
+	tx, err := h.DBW.BeginTx(r.Context, nil)
 	if err != nil {
 		r.Log.Warn("Failed to set avatar", "error", err)
 		w.Error()
@@ -118,7 +117,7 @@ func (h *Handler) uploadAvatar(w text.Writer, r *Request, args ...string) {
 		r.Context,
 		"insert into icons(cid, buf) values($1, $2) on conflict(cid) do update set buf = $2",
 		ap.Canonical(r.User.ID),
-		danger.String(resized),
+		resized,
 	); err != nil {
 		r.Log.Error("Failed to set avatar", "error", err)
 		w.Error()

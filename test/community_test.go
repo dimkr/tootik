@@ -17,7 +17,6 @@ limitations under the License.
 package test
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -29,41 +28,40 @@ import (
 )
 
 func TestCommunity_NewThread(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`update persons set actor = jsonb_set(actor, '$.type', 'Group') where id = $1`,
+	_, err := server.dbw.Exec(
+		`update persons set actor = jsonb_set(actor, '{type}', '"Group"') where id = $1`,
 		server.Alice.ID,
 	)
 	assert.NoError(err)
 
-	_, err = server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err = server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
-	tx, err := server.db.BeginTx(t.Context(), nil)
+	tx, err := server.dbw.BeginTx(t.Context(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
 
 	_, err = tx.Exec(
-		`insert into follows (id, follower, followed, insertednano) values (?, ?, ?, ?)`,
+		`insert into follows (id, follower, followed, inserted) values ($1, $2, $3, $4)`,
 		"https://127.0.0.1/follow/1",
 		"https://127.0.0.1/user/dan",
 		server.Alice.ID,
-		time.Now().UnixNano(),
+		time.Now(),
 	)
 	assert.NoError(err)
 
 	assert.NoError(
 		server.inbox.AcceptFollow(
-			context.Background(),
+			t.Context(),
 			server.Alice,
 			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
@@ -83,50 +81,49 @@ func TestCommunity_NewThread(t *testing.T) {
 	id := say[15 : len(say)-2]
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity->>'$.type' = 'Create' and activity->>'$.object.id' = 'https://' || ? and activity->>'$.actor' = ? and sender = ?`, id, server.Bob.ID, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.dbw.QueryRow(`select count(*) from outbox where activity->>'type' = 'Create' and activity->'object'->>'id' = 'https://' || $1 and activity->>'actor' = $2 and sender = $3`, id, server.Bob.ID, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 
 	var shared int
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity->>'$.type' = 'Announce' and activity->>'$.actor' = $1 and activity->>'$.object' = 'https://' || $2 and sender = $1`, server.Alice.ID, id).Scan(&shared))
+	assert.NoError(server.dbw.QueryRow(`select count(*) from outbox where activity->>'type' = 'Announce' and activity->>'actor' = $1 and activity->>'object' = 'https://' || $2 and sender = $1`, server.Alice.ID, id).Scan(&shared))
 	assert.Equal(1, shared)
 }
 
 func TestCommunity_NewThreadNotFollowing(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`update persons set actor = jsonb_set(actor, '$.type', 'Group') where id = $1`,
+	_, err := server.dbw.Exec(
+		`update persons set actor = jsonb_set(actor, '{type}', '"Group"') where id = $1`,
 		server.Alice.ID,
 	)
 	assert.NoError(err)
 
-	_, err = server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err = server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
-	tx, err := server.db.BeginTx(t.Context(), nil)
+	tx, err := server.dbw.BeginTx(t.Context(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
 
 	_, err = tx.Exec(
-		`insert into follows (id, follower, followed, insertednano) values (?, ?, ?, ?)`,
+		`insert into follows (id, follower, followed, inserted) values ($1, $2, $3, $4)`,
 		"https://127.0.0.1/follow/1",
 		"https://127.0.0.1/user/dan",
 		server.Alice.ID,
-		time.Now().UnixNano(),
+		time.Now(),
 	)
 	assert.NoError(err)
 
 	assert.NoError(
 		server.inbox.AcceptFollow(
-			context.Background(),
+			t.Context(),
 			server.Alice,
 			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
@@ -143,50 +140,49 @@ func TestCommunity_NewThreadNotFollowing(t *testing.T) {
 	id := say[15 : len(say)-2]
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity->>'$.type' = 'Create' and activity->>'$.object.id' = 'https://' || ? and activity->>'$.actor' = ? and sender = ?`, id, server.Bob.ID, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.dbw.QueryRow(`select count(*) from outbox where activity->>'type' = 'Create' and activity->'object'->>'id' = 'https://' || $1 and activity->>'actor' = $2 and sender = $3`, id, server.Bob.ID, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(0, forwarded)
 
 	var shared int
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity->>'$.type' = 'Announce' and activity->>'$.actor' = $1 and activity->>'$.object' = 'https://' || $2 and sender = $1`, server.Alice.ID, id).Scan(&shared))
+	assert.NoError(server.dbw.QueryRow(`select count(*) from outbox where activity->>'type' = 'Announce' and activity->>'actor' = $1 and activity->>'object' = 'https://' || $2 and sender = $1`, server.Alice.ID, id).Scan(&shared))
 	assert.Equal(0, shared)
 }
 
 func TestCommunity_NewThreadNotPublic(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`update persons set actor = jsonb_set(actor, '$.type', 'Group') where id = $1`,
+	_, err := server.dbw.Exec(
+		`update persons set actor = jsonb_set(actor, '{type}', '"Group"') where id = $1`,
 		server.Alice.ID,
 	)
 	assert.NoError(err)
 
-	_, err = server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err = server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
-	tx, err := server.db.BeginTx(t.Context(), nil)
+	tx, err := server.dbw.BeginTx(t.Context(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
 
 	_, err = tx.Exec(
-		`insert into follows (id, follower, followed, insertednano) values (?, ?, ?, ?)`,
+		`insert into follows (id, follower, followed, inserted) values ($1, $2, $3, $4)`,
 		"https://127.0.0.1/follow/1",
 		"https://127.0.0.1/user/dan",
 		server.Alice.ID,
-		time.Now().UnixNano(),
+		time.Now(),
 	)
 	assert.NoError(err)
 
 	assert.NoError(
 		server.inbox.AcceptFollow(
-			context.Background(),
+			t.Context(),
 			server.Alice,
 			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
@@ -206,50 +202,49 @@ func TestCommunity_NewThreadNotPublic(t *testing.T) {
 	id := whisper[15 : len(whisper)-2]
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity->>'$.type' = 'Create' and activity->>'$.object.id' = 'https://' || ? and activity->>'$.actor' = ? and sender = ?`, id, server.Bob.ID, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.dbw.QueryRow(`select count(*) from outbox where activity->>'type' = 'Create' and activity->'object'->>'id' = 'https://' || $1 and activity->>'actor' = $2 and sender = $3`, id, server.Bob.ID, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(0, forwarded)
 
 	var shared int
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity->>'$.type' = 'Announce' and activity->>'$.actor' = $1 and activity->>'$.object' = 'https://' || $2 and sender = $1`, server.Alice.ID, id).Scan(&shared))
+	assert.NoError(server.dbw.QueryRow(`select count(*) from outbox where activity->>'type' = 'Announce' and activity->>'actor' = $1 and activity->>'object' = 'https://' || $2 and sender = $1`, server.Alice.ID, id).Scan(&shared))
 	assert.Equal(0, shared)
 }
 
 func TestCommunity_ReplyInThread(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`update persons set actor = jsonb_set(actor, '$.type', 'Group') where id = $1`,
+	_, err := server.dbw.Exec(
+		`update persons set actor = jsonb_set(actor, '{type}', '"Group"') where id = $1`,
 		server.Alice.ID,
 	)
 	assert.NoError(err)
 
-	_, err = server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err = server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
-	tx, err := server.db.BeginTx(t.Context(), nil)
+	tx, err := server.dbw.BeginTx(t.Context(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
 
 	_, err = tx.Exec(
-		`insert into follows (id, follower, followed, insertednano) values (?, ?, ?, ?)`,
+		`insert into follows (id, follower, followed, inserted) values ($1, $2, $3, $4)`,
 		"https://127.0.0.1/follow/1",
 		"https://127.0.0.1/user/dan",
 		server.Alice.ID,
-		time.Now().UnixNano(),
+		time.Now(),
 	)
 	assert.NoError(err)
 
 	assert.NoError(
 		server.inbox.AcceptFollow(
-			context.Background(),
+			t.Context(),
 			server.Alice,
 			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
@@ -287,40 +282,39 @@ func TestCommunity_ReplyInThread(t *testing.T) {
 		},
 	}
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		&reply,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity = jsonb(?) and sender = ?`, &reply, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.dbw.QueryRow(`select count(*) from outbox where activity = $1::jsonb and sender = $2`, &reply, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 
 	var shared int
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity->>'$.type' = 'Announce' and activity->>'$.actor' = $1 and activity->>'$.object' = 'https://127.0.0.1/note/1' and sender = $1`, server.Alice.ID).Scan(&shared))
+	assert.NoError(server.dbw.QueryRow(`select count(*) from outbox where activity->>'type' = 'Announce' and activity->>'actor' = $1 and activity->>'object' = 'https://127.0.0.1/note/1' and sender = $1`, server.Alice.ID).Scan(&shared))
 	assert.Equal(1, shared)
 }
 
 func TestCommunity_ReplyInThreadAuthorNotFollowing(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`update persons set actor = jsonb_set(actor, '$.type', 'Group') where id = $1`,
+	_, err := server.dbw.Exec(
+		`update persons set actor = jsonb_set(actor, '{type}', '"Group"') where id = $1`,
 		server.Alice.ID,
 	)
 	assert.NoError(err)
 
-	_, err = server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err = server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
@@ -351,62 +345,61 @@ func TestCommunity_ReplyInThreadAuthorNotFollowing(t *testing.T) {
 		},
 	}
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		&reply,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity = jsonb(?) and sender = ?`, &reply, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.dbw.QueryRow(`select count(*) from outbox where activity = $1::jsonb and sender = $2`, &reply, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(0, forwarded)
 
 	var shared int
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity->>'$.type' = 'Announce' and activity->>'$.actor' = $1 and activity->>'$.object' = 'https://127.0.0.1/note/1' and sender = $1`, server.Alice.ID).Scan(&shared))
+	assert.NoError(server.dbw.QueryRow(`select count(*) from outbox where activity->>'type' = 'Announce' and activity->>'actor' = $1 and activity->>'object' = 'https://127.0.0.1/note/1' and sender = $1`, server.Alice.ID).Scan(&shared))
 	assert.Equal(0, shared)
 }
 
 func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`update persons set actor = jsonb_set(actor, '$.type', 'Group') where id = $1`,
+	_, err := server.dbw.Exec(
+		`update persons set actor = jsonb_set(actor, '{type}', '"Group"') where id = $1`,
 		server.Alice.ID,
 	)
 	assert.NoError(err)
 
-	_, err = server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err = server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
-	tx, err := server.db.BeginTx(t.Context(), nil)
+	tx, err := server.dbw.BeginTx(t.Context(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
 
 	_, err = tx.Exec(
-		`insert into follows (id, follower, followed, insertednano) values (?, ?, ?, ?)`,
+		`insert into follows (id, follower, followed, inserted) values ($1, $2, $3, $4)`,
 		"https://127.0.0.1/follow/1",
 		"https://127.0.0.1/user/dan",
 		server.Alice.ID,
-		time.Now().UnixNano(),
+		time.Now(),
 	)
 	assert.NoError(err)
 
 	assert.NoError(
 		server.inbox.AcceptFollow(
-			context.Background(),
+			t.Context(),
 			server.Alice,
 			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
@@ -417,8 +410,8 @@ func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
 
 	assert.NoError(tx.Commit())
 
-	_, err = server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err = server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/erin"),
 		"https://127.0.0.1/user/erin",
 		`{"type":"Person","preferredUsername":"erin"}`,
@@ -449,62 +442,61 @@ func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
 		},
 	}
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/erin",
 		&reply,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity = jsonb(?) and sender = ?`, &reply, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.dbw.QueryRow(`select count(*) from outbox where activity = $1::jsonb and sender = $2`, &reply, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 
 	var shared int
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity->>'$.type' = 'Announce' and activity->>'$.actor' = $1 and activity->>'$.object' = 'https://127.0.0.1/note/1' and sender = $1`, server.Alice.ID).Scan(&shared))
+	assert.NoError(server.dbw.QueryRow(`select count(*) from outbox where activity->>'type' = 'Announce' and activity->>'actor' = $1 and activity->>'object' = 'https://127.0.0.1/note/1' and sender = $1`, server.Alice.ID).Scan(&shared))
 	assert.Equal(1, shared)
 }
 
 func TestCommunity_DuplicateReplyInThread(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`update persons set actor = jsonb_set(actor, '$.type', 'Group') where id = $1`,
+	_, err := server.dbw.Exec(
+		`update persons set actor = jsonb_set(actor, '{type}', '"Group"') where id = $1`,
 		server.Alice.ID,
 	)
 	assert.NoError(err)
 
-	_, err = server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err = server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
-	tx, err := server.db.BeginTx(t.Context(), nil)
+	tx, err := server.dbw.BeginTx(t.Context(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
 
 	_, err = tx.Exec(
-		`insert into follows (id, follower, followed, insertednano) values (?, ?, ?, ?)`,
+		`insert into follows (id, follower, followed, inserted) values ($1, $2, $3, $4)`,
 		"https://127.0.0.1/follow/1",
 		"https://127.0.0.1/user/dan",
 		server.Alice.ID,
-		time.Now().UnixNano(),
+		time.Now(),
 	)
 	assert.NoError(err)
 
 	assert.NoError(
 		server.inbox.AcceptFollow(
-			context.Background(),
+			t.Context(),
 			server.Alice,
 			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
@@ -542,73 +534,72 @@ func TestCommunity_DuplicateReplyInThread(t *testing.T) {
 		},
 	}
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		&reply,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		&reply,
 	)
 	assert.NoError(err)
 
-	n, err = server.queue.ProcessBatch(context.Background())
+	n, err = server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity = jsonb(?) and sender = ?`, &reply, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.dbw.QueryRow(`select count(*) from outbox where activity = $1::jsonb and sender = $2`, &reply, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 
 	var shared int
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity->>'$.type' = 'Announce' and activity->>'$.actor' = $1 and activity->>'$.object' = 'https://127.0.0.1/note/1' and sender = $1`, server.Alice.ID).Scan(&shared))
+	assert.NoError(server.dbw.QueryRow(`select count(*) from outbox where activity->>'type' = 'Announce' and activity->>'actor' = $1 and activity->>'object' = 'https://127.0.0.1/note/1' and sender = $1`, server.Alice.ID).Scan(&shared))
 	assert.Equal(1, shared)
 }
 
 func TestCommunity_EditedReplyInThread(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`update persons set actor = jsonb_set(actor, '$.type', 'Group') where id = $1`,
+	_, err := server.dbw.Exec(
+		`update persons set actor = jsonb_set(actor, '{type}', '"Group"') where id = $1`,
 		server.Alice.ID,
 	)
 	assert.NoError(err)
 
-	_, err = server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err = server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
-	tx, err := server.db.BeginTx(t.Context(), nil)
+	tx, err := server.dbw.BeginTx(t.Context(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
 
 	_, err = tx.Exec(
-		`insert into follows (id, follower, followed, insertednano) values (?, ?, ?, ?)`,
+		`insert into follows (id, follower, followed, inserted) values ($1, $2, $3, $4)`,
 		"https://127.0.0.1/follow/1",
 		"https://127.0.0.1/user/dan",
 		server.Alice.ID,
-		time.Now().UnixNano(),
+		time.Now(),
 	)
 	assert.NoError(err)
 
 	assert.NoError(
 		server.inbox.AcceptFollow(
-			context.Background(),
+			t.Context(),
 			server.Alice,
 			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
@@ -647,23 +638,23 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 		},
 	}
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		&reply,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity->>'$.type' = 'Create' and activity->>'$.object.id' = 'https://' || ? and activity->>'$.actor' = ? and sender = ?`, id, server.Bob.ID, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.dbw.QueryRow(`select count(*) from outbox where activity->>'type' = 'Create' and activity->'object'->>'id' = 'https://' || $1 and activity->>'actor' = $2 and sender = $3`, id, server.Bob.ID, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 
 	var shared int
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity->>'$.type' = 'Announce' and activity->>'$.actor' = $1 and activity->>'$.object' = 'https://' || $2 and sender = $1`, server.Alice.ID, id).Scan(&shared))
+	assert.NoError(server.dbw.QueryRow(`select count(*) from outbox where activity->>'type' = 'Announce' and activity->>'actor' = $1 and activity->>'object' = 'https://' || $2 and sender = $1`, server.Alice.ID, id).Scan(&shared))
 	assert.Equal(1, shared)
 
 	update := ap.Activity{
@@ -683,57 +674,56 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 		},
 	}
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		&update,
 	)
 	assert.NoError(err)
 
-	n, err = server.queue.ProcessBatch(context.Background())
+	n, err = server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity = jsonb(?) and sender = ?`, &update, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.dbw.QueryRow(`select count(*) from outbox where activity = $1::jsonb and sender = $2`, &update, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 }
 
 func TestCommunity_UnknownEditedReplyInThread(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`update persons set actor = jsonb_set(actor, '$.type', 'Group') where id = $1`,
+	_, err := server.dbw.Exec(
+		`update persons set actor = jsonb_set(actor, '{type}', '"Group"') where id = $1`,
 		server.Alice.ID,
 	)
 	assert.NoError(err)
 
-	_, err = server.db.Exec(
-		`insert into persons (slug, id, actor) values (?, ?, jsonb(?))`,
+	_, err = server.dbw.Exec(
+		`insert into persons (slug, id, actor) values ($1, $2, $3)`,
 		ap.Slug("https://127.0.0.1/user/dan"),
 		"https://127.0.0.1/user/dan",
 		`{"type":"Person","preferredUsername":"dan"}`,
 	)
 	assert.NoError(err)
 
-	tx, err := server.db.BeginTx(t.Context(), nil)
+	tx, err := server.dbw.BeginTx(t.Context(), nil)
 	assert.NoError(err)
 	defer tx.Rollback()
 
 	_, err = tx.Exec(
-		`insert into follows (id, follower, followed, insertednano) values (?, ?, ?, ?)`,
+		`insert into follows (id, follower, followed, inserted) values ($1, $2, $3, $4)`,
 		"https://127.0.0.1/follow/1",
 		"https://127.0.0.1/user/dan",
 		server.Alice.ID,
-		time.Now().UnixNano(),
+		time.Now(),
 	)
 	assert.NoError(err)
 
 	assert.NoError(
 		server.inbox.AcceptFollow(
-			context.Background(),
+			t.Context(),
 			server.Alice,
 			httpsig.Key{},
 			"https://127.0.0.1/user/dan",
@@ -771,22 +761,22 @@ func TestCommunity_UnknownEditedReplyInThread(t *testing.T) {
 		},
 	}
 
-	_, err = server.db.Exec(
-		`insert into inbox (sender, activity, raw) values ($1, jsonb($2), $2)`,
+	_, err = server.dbw.Exec(
+		`insert into inbox (sender, raw) values ($1, $2)`,
 		"https://127.0.0.1/user/dan",
 		&update,
 	)
 	assert.NoError(err)
 
-	n, err := server.queue.ProcessBatch(context.Background())
+	n, err := server.queue.ProcessBatch(t.Context())
 	assert.NoError(err)
 	assert.Equal(1, n)
 
 	var forwarded int
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity->>'$.type' = 'Update' and activity->>'$.object.id' = 'https://127.0.0.1/note/1' and activity->>'$.actor' = 'https://127.0.0.1/user/dan' and sender = ?`, server.Alice.ID).Scan(&forwarded))
+	assert.NoError(server.dbw.QueryRow(`select count(*) from outbox where activity->>'type' = 'Update' and activity->'object'->>'id' = 'https://127.0.0.1/note/1' and activity->>'actor' = 'https://127.0.0.1/user/dan' and sender = $1`, server.Alice.ID).Scan(&forwarded))
 	assert.Equal(1, forwarded)
 
 	var shared int
-	assert.NoError(server.db.QueryRow(`select count(*) from outbox where activity->>'$.type' = 'Announce' and activity->>'$.object' = 'https://127.0.0.1/note/1' and sender = ?`, server.Alice.ID).Scan(&shared))
+	assert.NoError(server.dbw.QueryRow(`select count(*) from outbox where activity->>'type' = 'Announce' and activity->>'object' = 'https://127.0.0.1/note/1' and sender = $1`, server.Alice.ID).Scan(&shared))
 	assert.Equal(1, shared)
 }

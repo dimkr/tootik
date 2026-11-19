@@ -36,7 +36,7 @@ var ErrDeliveryQueueFull = errors.New("delivery queue is full")
 
 func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, post *ap.Object, author *ap.Actor, key httpsig.Key) error {
 	var queueSize int
-	if err := inbox.DB.QueryRowContext(ctx, `select count(distinct cid) from outbox where sent = 0 and attempts < ?`, cfg.MaxDeliveryAttempts).Scan(&queueSize); err != nil {
+	if err := inbox.DBW.QueryRowContext(ctx, `select count(distinct cid) from outbox where not sent and attempts < $1`, cfg.MaxDeliveryAttempts).Scan(&queueSize); err != nil {
 		return fmt.Errorf("failed to query delivery queue size: %w", err)
 	}
 
@@ -74,7 +74,7 @@ func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, post *ap.Object
 		return err
 	}
 
-	tx, err := inbox.DB.BeginTx(ctx, nil)
+	tx, err := inbox.DBW.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -82,10 +82,10 @@ func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, post *ap.Object
 
 	if _, err = tx.ExecContext(
 		ctx,
-		`insert into outbox (activity, sender, inserted) values (jsonb(?),?,?)`,
+		`insert into outbox (activity, sender, inserted) values ($1,$2,$3)`,
 		s,
 		author.ID,
-		time.Now().UnixNano(),
+		time.Now(),
 	); err != nil {
 		return err
 	}
@@ -103,7 +103,7 @@ func (inbox *Inbox) create(ctx context.Context, cfg *cfg.Config, post *ap.Object
 		return err
 	}
 
-	if _, err = tx.ExecContext(ctx, `insert into feed(follower, note, author, inserted) values($1, $2, $1, unixepoch())`, author.ID, post.ID); err != nil {
+	if _, err = tx.ExecContext(ctx, `insert into feed(follower, note, author, inserted) values($1, $2, $1, now())`, author.ID, post.ID); err != nil {
 		return err
 	}
 

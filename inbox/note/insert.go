@@ -58,27 +58,22 @@ func Flatten(note *ap.Object) string {
 
 // Insert inserts a post.
 func Insert(ctx context.Context, tx *sql.Tx, note *ap.Object) error {
-	public := 0
-	if note.IsPublic() {
-		public = 1
-	}
-
 	var pk int64
 	if err := tx.QueryRowContext(
 		ctx,
-		`INSERT INTO notes (slug, id, author, object, public) VALUES (?, ?, ?, JSONB(?), ?) RETURNING pk`,
+		`INSERT INTO notes (slug, id, author, object, public) VALUES ($1, $2, $3, $4, $5) RETURNING pk`,
 		ap.Slug(note.ID),
 		note.ID,
 		note.AttributedTo,
 		&note,
-		public,
+		note.IsPublic(),
 	).Scan(&pk); err != nil {
 		return fmt.Errorf("failed to insert note %s: %w", note.ID, err)
 	}
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO notesfts (rowid, content) VALUES(?,?)`,
+		`INSERT INTO notesfts (rowid, content) VALUES($1, to_tsvector('simple', $2))`,
 		pk,
 		Flatten(note),
 	); err != nil {

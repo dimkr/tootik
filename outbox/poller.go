@@ -31,7 +31,7 @@ import (
 
 type Poller struct {
 	Domain string
-	DB     *sql.DB
+	DBW    *sql.DB
 	Inbox  ap.Inbox
 }
 
@@ -47,7 +47,7 @@ func (p *Poller) Run(ctx context.Context) error {
 		MLDSA44Seed []byte
 	}](
 		ctx,
-		p.DB,
+		p.DBW,
 		func(err error) bool {
 			slog.Warn("Failed to scan poll result", "error", err)
 			return true
@@ -58,37 +58,37 @@ func (p *Poller) Run(ctx context.Context) error {
 			from notes
 			join persons on persons.id = notes.author
 			where
-				notes.object->>'$.type' = 'Question'
-				and notes.id >= 'https://' || $1 || '/'
-				and notes.id < 'https://' || $1 || '0'
-				and notes.deleted = 0
-				and notes.object->>'$.closed' is null
+				notes.object->>'type' = 'Question'
+				and notes.id >= ('https://' || $1 || '/') COLLATE "C"
+				and notes.id < ('https://' || $1 || '0') COLLATE "C"
+				and not notes.deleted
+				and notes.object->>'closed' is null
 		)
 		select
 			polls.id,
-			anyof.value->>'$.name',
+			anyof.value->>'name',
 			coalesce(option_counts.count, 0),
 			coalesce(voter_counts.count, 0),
-			json(polls.object),
-			json(polls.author),
+			polls.object,
+			polls.author,
 			polls.ed25519seed,
 			polls.mldsa44seed
 		from polls
-		join json_each(polls.object->'$.anyOf') as anyof
+		cross join jsonb_array_elements(polls.object->'anyOf') as anyof(value)
 		left join (
-			select polls.id as poll, votes.object->>'$.name' as name, count(distinct voters.cid) as count
+			select polls.id as poll, votes.object->>'name' as name, count(distinct voters.cid) as count
 			from notes votes
-			join polls on votes.object->>'$.inReplyTo' = polls.id
+			join polls on votes.object->>'inReplyTo' = polls.id
 			join persons voters on voters.id = votes.author
-			where votes.deleted = 0
+			where not votes.deleted
 			group by poll, name
-		) option_counts on option_counts.poll = polls.id and option_counts.name = anyof.value->>'$.name'
+		) option_counts on option_counts.poll = polls.id and option_counts.name = anyof.value->>'name'
 		left join (
 			select polls.id as poll, count(distinct voters.cid) as count
 			from notes votes
-			join polls on votes.object->>'$.inReplyTo' = polls.id
+			join polls on votes.object->>'inReplyTo' = polls.id
 			join persons voters on voters.id = votes.author
-			where votes.deleted = 0
+			where not votes.deleted
 			group by poll
 		) voter_counts on voter_counts.poll = polls.id
 		`,

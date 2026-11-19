@@ -33,7 +33,7 @@ func (h *Handler) follow(w text.Writer, r *Request, args ...string) {
 	arg := args[1]
 
 	var followed string
-	if err := h.DB.QueryRowContext(r.Context, `select id from persons where id = 'https://' || $1 or slug = $1`, arg).Scan(&followed); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := h.DBW.QueryRowContext(r.Context, `select id from persons where id = 'https://' || $1 or slug = $1`, arg).Scan(&followed); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Failed to check if user exists", "followed", arg, "error", err)
 		w.Error()
 		return
@@ -46,7 +46,7 @@ func (h *Handler) follow(w text.Writer, r *Request, args ...string) {
 	}
 
 	var follows int
-	if err := h.DB.QueryRowContext(r.Context, `select count(*) from follows where follower = ?`, r.User.ID).Scan(&follows); err != nil {
+	if err := h.DBW.QueryRowContext(r.Context, `select count(*) from follows where follower = $1`, r.User.ID).Scan(&follows); err != nil {
 		r.Log.Warn("Failed to count follows", "error", err)
 		w.Error()
 		return
@@ -57,12 +57,12 @@ func (h *Handler) follow(w text.Writer, r *Request, args ...string) {
 		return
 	}
 
-	var accepted sql.NullInt32
-	if err := h.DB.QueryRowContext(r.Context, `select accepted from follows where follower = ? and followed = ?`, r.User.ID, followed).Scan(&accepted); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	var accepted sql.NullBool
+	if err := h.DBW.QueryRowContext(r.Context, `select accepted from follows where follower = $1 and followed = $2`, r.User.ID, followed).Scan(&accepted); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Failed to check if user is already followed", "followed", followed, "error", err)
 		w.Error()
 		return
-	} else if err == nil && accepted.Valid && accepted.Int32 == 1 {
+	} else if err == nil && accepted.Valid && accepted.Bool {
 		w.Statusf(40, "Already following %s", followed)
 		return
 	} else if err == nil && !accepted.Valid {

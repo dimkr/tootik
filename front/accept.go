@@ -32,7 +32,7 @@ func (h *Handler) accept(w text.Writer, r *Request, args ...string) {
 
 	arg := args[1]
 
-	tx, err := h.DB.BeginTx(r.Context, nil)
+	tx, err := h.DBW.BeginTx(r.Context, nil)
 	if err != nil {
 		r.Log.Warn("Failed to accept follow request", "follower", arg, "error", err)
 		w.Error()

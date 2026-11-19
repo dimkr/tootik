@@ -17,9 +17,7 @@ limitations under the License.
 package test
 
 import (
-	"context"
 	"crypto/tls"
-	"database/sql"
 	"fmt"
 	"io"
 	"net"
@@ -35,8 +33,7 @@ import (
 	"github.com/dimkr/tootik/front/gemini"
 	"github.com/dimkr/tootik/front/user"
 	"github.com/dimkr/tootik/inbox"
-	"github.com/dimkr/tootik/migrations"
-	"github.com/dimkr/tootik/sqlite"
+	"github.com/dimkr/tootik/test/deps"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -130,15 +127,14 @@ f7Kgs5SdkJkcanCS3Ibes8Tsm+ChRANCAASHeVcvjBZvyo7QoERqFtJWHE+KtxAJ
 func TestRegister_RedirectNoCertificate(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
-	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open(sqlite.DriverName, dbPath)
-	assert.NoError(err)
+	t.Parallel()
+
+	database := deps.NewDatabase(t)
+	db := database.DBW
+	var err error
 
 	var cfg cfg.Config
 	cfg.FillDefaults()
-
-	assert.NoError(migrations.Run(context.Background(), domain, db))
 
 	serverKeyPair, err := tls.X509KeyPair([]byte(serverCert), []byte(serverKey))
 	assert.NoError(err)
@@ -185,16 +181,16 @@ func TestRegister_RedirectNoCertificate(t *testing.T) {
 	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users\r\n"))
 	assert.NoError(err)
 
-	handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, &inbox.Inbox{})
+	handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), database.DB, db, &inbox.Inbox{})
 	assert.NoError(err)
 
 	l := gemini.Listener{
 		Domain:  domain,
 		Config:  &cfg,
 		Handler: handler,
-		DB:      db,
+		DBW:     db,
 	}
-	l.Handle(context.Background(), tlsWriter)
+	l.Handle(t.Context(), tlsWriter)
 
 	tlsWriter.Close()
 
@@ -207,17 +203,16 @@ func TestRegister_RedirectNoCertificate(t *testing.T) {
 func TestRegister_InvitationRequired(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
-	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open(sqlite.DriverName, dbPath)
-	assert.NoError(err)
+	t.Parallel()
+
+	database := deps.NewDatabase(t)
+	db := database.DBW
+	var err error
 
 	var cfg cfg.Config
 	cfg.FillDefaults()
 
 	cfg.RequireInvitation = true
-
-	assert.NoError(migrations.Run(context.Background(), domain, db))
 
 	serverKeyPair, err := tls.X509KeyPair([]byte(serverCert), []byte(serverKey))
 	assert.NoError(err)
@@ -267,16 +262,16 @@ func TestRegister_InvitationRequired(t *testing.T) {
 	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users\r\n"))
 	assert.NoError(err)
 
-	handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, &inbox.Inbox{})
+	handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), database.DB, db, &inbox.Inbox{})
 	assert.NoError(err)
 
 	l := gemini.Listener{
 		Domain:  domain,
 		Config:  &cfg,
 		Handler: handler,
-		DB:      db,
+		DBW:     db,
 	}
-	l.Handle(context.Background(), tlsWriter)
+	l.Handle(t.Context(), tlsWriter)
 
 	tlsWriter.Close()
 
@@ -289,17 +284,16 @@ func TestRegister_InvitationRequired(t *testing.T) {
 func TestRegister_InvitationPrompt(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
-	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open(sqlite.DriverName, dbPath)
-	assert.NoError(err)
+	t.Parallel()
+
+	database := deps.NewDatabase(t)
+	db := database.DBW
+	var err error
 
 	var cfg cfg.Config
 	cfg.FillDefaults()
 
 	cfg.RequireInvitation = true
-
-	assert.NoError(migrations.Run(context.Background(), domain, db))
 
 	serverKeyPair, err := tls.X509KeyPair([]byte(serverCert), []byte(serverKey))
 	assert.NoError(err)
@@ -349,16 +343,16 @@ func TestRegister_InvitationPrompt(t *testing.T) {
 	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/invitations/accept\r\n"))
 	assert.NoError(err)
 
-	handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, &inbox.Inbox{})
+	handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), database.DB, db, &inbox.Inbox{})
 	assert.NoError(err)
 
 	l := gemini.Listener{
 		Domain:  domain,
 		Config:  &cfg,
 		Handler: handler,
-		DB:      db,
+		DBW:     db,
 	}
-	l.Handle(context.Background(), tlsWriter)
+	l.Handle(t.Context(), tlsWriter)
 
 	tlsWriter.Close()
 
@@ -371,17 +365,16 @@ func TestRegister_InvitationPrompt(t *testing.T) {
 func TestRegister_InvalidInvitationCode(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
-	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open(sqlite.DriverName, dbPath)
-	assert.NoError(err)
+	t.Parallel()
+
+	database := deps.NewDatabase(t)
+	db := database.DBW
+	var err error
 
 	var cfg cfg.Config
 	cfg.FillDefaults()
 
 	cfg.RequireInvitation = true
-
-	assert.NoError(migrations.Run(context.Background(), domain, db))
 
 	serverKeyPair, err := tls.X509KeyPair([]byte(serverCert), []byte(serverKey))
 	assert.NoError(err)
@@ -431,16 +424,16 @@ func TestRegister_InvalidInvitationCode(t *testing.T) {
 	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/invitations/accept?abc\r\n"))
 	assert.NoError(err)
 
-	handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, &inbox.Inbox{})
+	handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), database.DB, db, &inbox.Inbox{})
 	assert.NoError(err)
 
 	l := gemini.Listener{
 		Domain:  domain,
 		Config:  &cfg,
 		Handler: handler,
-		DB:      db,
+		DBW:     db,
 	}
-	l.Handle(context.Background(), tlsWriter)
+	l.Handle(t.Context(), tlsWriter)
 
 	tlsWriter.Close()
 
@@ -453,15 +446,14 @@ func TestRegister_InvalidInvitationCode(t *testing.T) {
 func TestRegister_Redirect(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
-	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open(sqlite.DriverName, dbPath)
-	assert.NoError(err)
+	t.Parallel()
+
+	database := deps.NewDatabase(t)
+	db := database.DBW
+	var err error
 
 	var cfg cfg.Config
 	cfg.FillDefaults()
-
-	assert.NoError(migrations.Run(context.Background(), domain, db))
 
 	serverKeyPair, err := tls.X509KeyPair([]byte(serverCert), []byte(serverKey))
 	assert.NoError(err)
@@ -511,16 +503,16 @@ func TestRegister_Redirect(t *testing.T) {
 	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users\r\n"))
 	assert.NoError(err)
 
-	handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, &inbox.Inbox{})
+	handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), database.DB, db, &inbox.Inbox{})
 	assert.NoError(err)
 
 	l := gemini.Listener{
 		Domain:  domain,
 		Config:  &cfg,
 		Handler: handler,
-		DB:      db,
+		DBW:     db,
 	}
-	l.Handle(context.Background(), tlsWriter)
+	l.Handle(t.Context(), tlsWriter)
 
 	tlsWriter.Close()
 
@@ -533,15 +525,14 @@ func TestRegister_Redirect(t *testing.T) {
 func TestRegister_NoCertificate(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
-	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open(sqlite.DriverName, dbPath)
-	assert.NoError(err)
+	t.Parallel()
+
+	database := deps.NewDatabase(t)
+	db := database.DBW
+	var err error
 
 	var cfg cfg.Config
 	cfg.FillDefaults()
-
-	assert.NoError(migrations.Run(context.Background(), domain, db))
 
 	serverKeyPair, err := tls.X509KeyPair([]byte(serverCert), []byte(serverKey))
 	assert.NoError(err)
@@ -588,16 +579,16 @@ func TestRegister_NoCertificate(t *testing.T) {
 	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register?generate\r\n"))
 	assert.NoError(err)
 
-	handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, &inbox.Inbox{})
+	handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), database.DB, db, &inbox.Inbox{})
 	assert.NoError(err)
 
 	l := gemini.Listener{
 		Domain:  domain,
 		Config:  &cfg,
 		Handler: handler,
-		DB:      db,
+		DBW:     db,
 	}
-	l.Handle(context.Background(), tlsWriter)
+	l.Handle(t.Context(), tlsWriter)
 
 	tlsWriter.Close()
 
@@ -610,15 +601,14 @@ func TestRegister_NoCertificate(t *testing.T) {
 func TestRegister_HappyFlow(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
-	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open(sqlite.DriverName, dbPath)
-	assert.NoError(err)
+	t.Parallel()
+
+	database := deps.NewDatabase(t)
+	db := database.DBW
+	var err error
 
 	var cfg cfg.Config
 	cfg.FillDefaults()
-
-	assert.NoError(migrations.Run(context.Background(), domain, db))
 
 	serverKeyPair, err := tls.X509KeyPair([]byte(serverCert), []byte(serverKey))
 	assert.NoError(err)
@@ -668,16 +658,16 @@ func TestRegister_HappyFlow(t *testing.T) {
 	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register?generate\r\n"))
 	assert.NoError(err)
 
-	handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, &inbox.Inbox{})
+	handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), database.DB, db, &inbox.Inbox{})
 	assert.NoError(err)
 
 	l := gemini.Listener{
 		Domain:  domain,
 		Config:  &cfg,
 		Handler: handler,
-		DB:      db,
+		DBW:     db,
 	}
-	l.Handle(context.Background(), tlsWriter)
+	l.Handle(t.Context(), tlsWriter)
 
 	tlsWriter.Close()
 
@@ -690,16 +680,15 @@ func TestRegister_HappyFlow(t *testing.T) {
 func TestRegister_AlreadyRegistered(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
-	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open(sqlite.DriverName, dbPath)
-	assert.NoError(err)
+	t.Parallel()
+
+	database := deps.NewDatabase(t)
+	db := database.DBW
+	var err error
 
 	var cfg cfg.Config
 	cfg.FillDefaults()
 	cfg.RegistrationInterval = 0
-
-	assert.NoError(migrations.Run(context.Background(), domain, db))
 
 	serverKeyPair, err := tls.X509KeyPair([]byte(serverCert), []byte(serverKey))
 	assert.NoError(err)
@@ -749,19 +738,19 @@ func TestRegister_AlreadyRegistered(t *testing.T) {
 	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register?generate\r\n"))
 	assert.NoError(err)
 
-	_, _, err = user.Create(context.Background(), domain, db, &cfg, "erin", erinKeyPair.Leaf)
+	_, _, err = user.Create(t.Context(), domain, db, &cfg, "erin", erinKeyPair.Leaf)
 	assert.NoError(err)
 
-	handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, &inbox.Inbox{})
+	handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), database.DB, db, &inbox.Inbox{})
 	assert.NoError(err)
 
 	l := gemini.Listener{
 		Domain:  domain,
 		Config:  &cfg,
 		Handler: handler,
-		DB:      db,
+		DBW:     db,
 	}
-	l.Handle(context.Background(), tlsWriter)
+	l.Handle(t.Context(), tlsWriter)
 
 	tlsWriter.Close()
 
@@ -774,16 +763,15 @@ func TestRegister_AlreadyRegistered(t *testing.T) {
 func TestRegister_Twice(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
-	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open(sqlite.DriverName, dbPath)
-	assert.NoError(err)
+	t.Parallel()
+
+	database := deps.NewDatabase(t)
+	db := database.DBW
+	var err error
 
 	var cfg cfg.Config
 	cfg.FillDefaults()
 	cfg.RegistrationInterval = 0
-
-	assert.NoError(migrations.Run(context.Background(), domain, db))
 
 	serverKeyPair, err := tls.X509KeyPair([]byte(serverCert), []byte(serverKey))
 	assert.NoError(err)
@@ -838,16 +826,16 @@ func TestRegister_Twice(t *testing.T) {
 		_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register?generate\r\n"))
 		assert.NoError(err)
 
-		handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, &inbox.Inbox{})
+		handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), database.DB, db, &inbox.Inbox{})
 		assert.NoError(err)
 
 		l := gemini.Listener{
 			Domain:  domain,
 			Config:  &cfg,
 			Handler: handler,
-			DB:      db,
+			DBW:     db,
 		}
-		l.Handle(context.Background(), tlsWriter)
+		l.Handle(t.Context(), tlsWriter)
 
 		tlsWriter.Close()
 
@@ -861,15 +849,14 @@ func TestRegister_Twice(t *testing.T) {
 func TestRegister_Throttling(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
-	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open(sqlite.DriverName, dbPath)
-	assert.NoError(err)
+	t.Parallel()
+
+	database := deps.NewDatabase(t)
+	db := database.DBW
+	var err error
 
 	var cfg cfg.Config
 	cfg.FillDefaults()
-
-	assert.NoError(migrations.Run(context.Background(), domain, db))
 
 	serverKeyPair, err := tls.X509KeyPair([]byte(serverCert), []byte(serverKey))
 	assert.NoError(err)
@@ -934,16 +921,16 @@ func TestRegister_Throttling(t *testing.T) {
 		_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register?generate\r\n"))
 		assert.NoError(err)
 
-		handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, &inbox.Inbox{})
+		handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), database.DB, db, &inbox.Inbox{})
 		assert.NoError(err)
 
 		l := gemini.Listener{
 			Domain:  domain,
 			Config:  &cfg,
 			Handler: handler,
-			DB:      db,
+			DBW:     db,
 		}
-		l.Handle(context.Background(), tlsWriter)
+		l.Handle(t.Context(), tlsWriter)
 
 		tlsWriter.Close()
 
@@ -957,15 +944,14 @@ func TestRegister_Throttling(t *testing.T) {
 func TestRegister_Throttling30Minutes(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
-	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open(sqlite.DriverName, dbPath)
-	assert.NoError(err)
+	t.Parallel()
+
+	database := deps.NewDatabase(t)
+	db := database.DBW
+	var err error
 
 	var cfg cfg.Config
 	cfg.FillDefaults()
-
-	assert.NoError(migrations.Run(context.Background(), domain, db))
 
 	serverKeyPair, err := tls.X509KeyPair([]byte(serverCert), []byte(serverKey))
 	assert.NoError(err)
@@ -1030,16 +1016,16 @@ func TestRegister_Throttling30Minutes(t *testing.T) {
 		_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register?generate\r\n"))
 		assert.NoError(err)
 
-		handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, &inbox.Inbox{})
+		handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), database.DB, db, &inbox.Inbox{})
 		assert.NoError(err)
 
 		l := gemini.Listener{
 			Domain:  domain,
 			Config:  &cfg,
 			Handler: handler,
-			DB:      db,
+			DBW:     db,
 		}
-		l.Handle(context.Background(), tlsWriter)
+		l.Handle(t.Context(), tlsWriter)
 
 		tlsWriter.Close()
 
@@ -1048,7 +1034,7 @@ func TestRegister_Throttling30Minutes(t *testing.T) {
 
 		assert.Regexp(data.pattern, string(resp))
 
-		_, err = db.Exec(`update certificates set inserted = unixepoch() - 1800`)
+		_, err = db.Exec(`update certificates set inserted = now() - interval '1800 seconds'`)
 		assert.NoError(err)
 	}
 }
@@ -1056,15 +1042,14 @@ func TestRegister_Throttling30Minutes(t *testing.T) {
 func TestRegister_Throttling1Hour(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
-	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open(sqlite.DriverName, dbPath)
-	assert.NoError(err)
+	t.Parallel()
+
+	database := deps.NewDatabase(t)
+	db := database.DBW
+	var err error
 
 	var cfg cfg.Config
 	cfg.FillDefaults()
-
-	assert.NoError(migrations.Run(context.Background(), domain, db))
 
 	serverKeyPair, err := tls.X509KeyPair([]byte(serverCert), []byte(serverKey))
 	assert.NoError(err)
@@ -1129,16 +1114,16 @@ func TestRegister_Throttling1Hour(t *testing.T) {
 		_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register?generate\r\n"))
 		assert.NoError(err)
 
-		handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, &inbox.Inbox{})
+		handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), database.DB, db, &inbox.Inbox{})
 		assert.NoError(err)
 
 		l := gemini.Listener{
 			Domain:  domain,
 			Config:  &cfg,
 			Handler: handler,
-			DB:      db,
+			DBW:     db,
 		}
-		l.Handle(context.Background(), tlsWriter)
+		l.Handle(t.Context(), tlsWriter)
 
 		tlsWriter.Close()
 
@@ -1147,7 +1132,7 @@ func TestRegister_Throttling1Hour(t *testing.T) {
 
 		assert.Regexp(data.pattern, string(resp))
 
-		_, err = db.Exec(`update certificates set inserted = unixepoch() - 3600`)
+		_, err = db.Exec(`update certificates set inserted = now() - interval '3600 seconds'`)
 		assert.NoError(err)
 	}
 }
@@ -1155,16 +1140,15 @@ func TestRegister_Throttling1Hour(t *testing.T) {
 func TestRegister_TwoCertificates(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
-	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open(sqlite.DriverName, dbPath)
-	assert.NoError(err)
+	t.Parallel()
+
+	database := deps.NewDatabase(t)
+	db := database.DBW
+	var err error
 
 	var cfg cfg.Config
 	cfg.FillDefaults()
 	cfg.RegistrationInterval = 0
-
-	assert.NoError(migrations.Run(context.Background(), domain, db))
 
 	serverKeyPair, err := tls.X509KeyPair([]byte(serverCert), []byte(serverKey))
 	assert.NoError(err)
@@ -1244,16 +1228,16 @@ func TestRegister_TwoCertificates(t *testing.T) {
 		_, err = tlsReader.Write([]byte(data.url))
 		assert.NoError(err)
 
-		handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, &inbox.Inbox{})
+		handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), database.DB, db, &inbox.Inbox{})
 		assert.NoError(err)
 
 		l := gemini.Listener{
 			Domain:  domain,
 			Config:  &cfg,
 			Handler: handler,
-			DB:      db,
+			DBW:     db,
 		}
-		l.Handle(context.Background(), tlsWriter)
+		l.Handle(t.Context(), tlsWriter)
 
 		tlsWriter.Close()
 
@@ -1267,16 +1251,15 @@ func TestRegister_TwoCertificates(t *testing.T) {
 func TestRegister_ForbiddenUserName(t *testing.T) {
 	assert := assert.New(t)
 
-	dbPath := fmt.Sprintf("%s/tmp/%s.sqlite3?%s", sqlite.Scheme, t.Name(), sqlite.JournalModeWAL)
-	defer os.Remove(fmt.Sprintf("/tmp/%s.sqlite3", t.Name()))
-	db, err := sql.Open(sqlite.DriverName, dbPath)
-	assert.NoError(err)
+	t.Parallel()
+
+	database := deps.NewDatabase(t)
+	db := database.DBW
+	var err error
 
 	var cfg cfg.Config
 	cfg.FillDefaults()
 	cfg.CompiledForbiddenUserNameRegex = regexp.MustCompile(`^(root|localhost|erin.*|ip6-.*|.*(admin|tootik).*)$`)
-
-	assert.NoError(migrations.Run(context.Background(), domain, db))
 
 	serverKeyPair, err := tls.X509KeyPair([]byte(serverCert), []byte(serverKey))
 	assert.NoError(err)
@@ -1326,16 +1309,16 @@ func TestRegister_ForbiddenUserName(t *testing.T) {
 	_, err = tlsReader.Write([]byte("gemini://localhost.localdomain:8965/users/register?generate\r\n"))
 	assert.NoError(err)
 
-	handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), db, &inbox.Inbox{})
+	handler, err := front.NewHandler(domain, &cfg, fed.NewResolver(nil, domain, &cfg, &http.Client{}, db), database.DB, db, &inbox.Inbox{})
 	assert.NoError(err)
 
 	l := gemini.Listener{
 		Domain:  domain,
 		Config:  &cfg,
 		Handler: handler,
-		DB:      db,
+		DBW:     db,
 	}
-	l.Handle(context.Background(), tlsWriter)
+	l.Handle(t.Context(), tlsWriter)
 
 	tlsWriter.Close()
 

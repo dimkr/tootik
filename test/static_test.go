@@ -24,8 +24,7 @@ import (
 )
 
 func TestHelpUnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -34,8 +33,7 @@ func TestHelpUnauthenticatedUser(t *testing.T) {
 }
 
 func TestHelpAuthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

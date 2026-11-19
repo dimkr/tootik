@@ -63,21 +63,21 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 	}
 
 	rows, err := dbx.QueryCollectIgnore[struct {
-		Inserted int64
+		Inserted time.Time
 		Follower ap.Actor
-		Accepted sql.NullInt32
+		Accepted sql.NullBool
 	}](
 		r.Context,
-		h.DB,
+		h.DBW,
 		func(err error) bool {
 			r.Log.Warn("Failed to list a follow request", "error", err)
 			return true
 		},
 		`
-		select follows.insertednano, json(persons.actor), follows.accepted from follows
+		select follows.inserted, persons.actor, follows.accepted from follows
 		join persons on persons.id = follows.follower
-		where follows.followed = $1 and (accepted is null or accepted = 1)
-		order by follows.insertednano desc
+		where follows.followed = $1 and (accepted is null or accepted)
+		order by follows.inserted desc
 		`,
 		r.User.ID,
 	)
@@ -103,14 +103,14 @@ func (h *Handler) followers(w text.Writer, r *Request, args ...string) {
 			w.Linkf(
 				"/users/outbox/"+param,
 				"%s %s",
-				time.Unix(0, row.Inserted).Format(time.DateOnly),
+				row.Inserted.Format(time.DateOnly),
 				h.getActorDisplayName(&row.Follower),
 			)
 
-			if !row.Accepted.Valid || row.Accepted.Int32 == 0 {
+			if !row.Accepted.Valid || !row.Accepted.Bool {
 				w.Link("/users/followers/accept/"+param, "🟢 Accept")
 			}
-			if !row.Accepted.Valid || row.Accepted.Int32 == 1 {
+			if !row.Accepted.Valid || row.Accepted.Bool {
 				w.Link("/users/followers/reject/"+param, "🔴 Reject")
 			}
 		}

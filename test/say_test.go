@@ -24,8 +24,7 @@ import (
 )
 
 func TestSay_HappyFlow(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -43,8 +42,7 @@ func TestSay_HappyFlow(t *testing.T) {
 }
 
 func TestSay_Throttling(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

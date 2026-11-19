@@ -108,17 +108,17 @@ func (l *Listener) addNodeInfo(mux *http.ServeMux) error {
 					(
 						select count(*) from
 						(
-							select distinct author from notes where inserted > unixepoch()-60*60*24*182.5 and host = $1
+							select distinct author from notes where inserted > now() - interval '182.5 days' and host = $1
 							union all
-							select distinct id from persons where host = $1 and exists (select 1 from shares where shares.inserted > unixepoch()-60*60*24*182.5 and shares.by = persons.id)
+							select distinct id from persons where host = $1 and exists (select 1 from shares where shares.inserted > now() - interval '182.5 days' and shares.by = persons.id)
 						)
 					),
 					(
 						select count(*) from
 						(
-							select distinct author from notes where inserted > unixepoch()-60*60*24*30 and host = $1
+							select distinct author from notes where inserted > now() - interval '30 days' and host = $1
 							union all
-							select distinct id from persons where host = $1 and exists (select 1 from shares where shares.inserted > unixepoch()-60*60*24*30 and shares.by = persons.id)
+							select distinct id from persons where host = $1 and exists (select 1 from shares where shares.inserted > now() - interval '30 days' and shares.by = persons.id)
 						)
 					),
 					(select count(*) from notes where host = $1)

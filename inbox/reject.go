@@ -64,10 +64,10 @@ func (inbox *Inbox) reject(ctx context.Context, followed *ap.Actor, key httpsig.
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
+		`INSERT INTO outbox (activity, sender, inserted) VALUES ($1, $2, $3)`,
 		s,
 		followed.ID,
-		time.Now().UnixNano(),
+		time.Now(),
 	); err != nil {
 		return err
 	}

@@ -17,7 +17,6 @@ limitations under the License.
 package cluster
 
 import (
-	"context"
 	"crypto/tls"
 	"database/sql"
 	"fmt"
@@ -25,8 +24,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -38,15 +35,14 @@ import (
 	"github.com/dimkr/tootik/front/user"
 	"github.com/dimkr/tootik/httpsig"
 	"github.com/dimkr/tootik/inbox"
-	"github.com/dimkr/tootik/migrations"
-	"github.com/dimkr/tootik/sqlite"
+	"github.com/dimkr/tootik/test/deps"
 )
 
 type Server struct {
 	Test         T
 	Domain       string
 	Config       *cfg.Config
-	DB           *sql.DB
+	DBW          *sql.DB
 	Resolver     *fed.Resolver
 	AppActorKeys [3]httpsig.Key
 	Frontend     gemini.Listener
@@ -57,7 +53,6 @@ type Server struct {
 	Outgoing     *fed.Queue
 
 	serverKeyPair tls.Certificate
-	dbPath        string
 }
 
 const (
@@ -65,9 +60,6 @@ const (
 )
 
 var (
-	migrationsCache = map[string][]byte{}
-	migrationsLock  sync.Mutex
-
 	/*
 	   openssl ecparam -name prime256v1 -genkey -out /tmp/ec.pem
 	   openssl req -new -x509 -key /tmp/ec.pem -sha256 -nodes -subj "/CN=localhost.localdomain:8965" -out cert.pem -keyout key.pem -days 3650
@@ -91,50 +83,6 @@ GrFYie4rnLsQuvc+vZ5i9+7tdp/xAaNsZDEve7YnN21o0J8/M3jUSTZk
 -----END PRIVATE KEY-----`
 )
 
-func createDB(ctx context.Context, domain, path string, cfg *cfg.Config) (*sql.DB, error) {
-	migrationsLock.Lock()
-
-	cache, ok := migrationsCache[domain]
-	if ok {
-		migrationsLock.Unlock()
-
-		if err := os.WriteFile(path, cache, 0o600); err != nil {
-			return nil, err
-		}
-	} else {
-		defer migrationsLock.Unlock()
-	}
-
-	db, err := sql.Open(sqlite.DriverName, fmt.Sprintf("%s%s?%s", sqlite.Scheme, path, cfg.DatabaseOptions))
-	if ok {
-		return db, err
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	db.SetMaxOpenConns(1)
-
-	if err := migrations.Run(ctx, domain, db); err != nil {
-		db.Close()
-		return nil, err
-	}
-
-	if _, err := db.ExecContext(ctx, `PRAGMA wal_checkpoint`); err != nil {
-		db.Close()
-		return nil, err
-	}
-
-	buf, err := os.ReadFile(path)
-	if err != nil {
-		db.Close()
-		return nil, err
-	}
-
-	migrationsCache[domain] = buf
-	return db, err
-}
-
 func NewServer(t T, domain string, client fed.Client) *Server {
 	var cfg cfg.Config
 
@@ -154,16 +102,11 @@ func NewServer(t T, domain string, client fed.Client) *Server {
 	cfg.RFC9421Threshold = 0.5
 	cfg.EnableNonPortableActorRegistration = true
 
-	dbPath := filepath.Join(t.TempDir(), domain+".sqlite3")
+	db := deps.NewDatabase(t)
 
-	db, err := createDB(t.Context(), domain, dbPath, &cfg)
-	if err != nil {
-		t.Fatalf("Failed to create database: %v", err)
-	}
+	resolver := fed.NewResolver(nil, domain, &cfg, client, db.DBW)
 
-	resolver := fed.NewResolver(nil, domain, &cfg, client, db)
-
-	appActor, appActorKeys, err := user.CreateApplicationActor(t.Context(), domain, db, &cfg)
+	appActor, appActorKeys, err := user.CreateApplicationActor(t.Context(), domain, db.DBW, &cfg)
 	if err != nil {
 		t.Fatalf("Failed to create the application actor: %v", err)
 	}
@@ -171,12 +114,12 @@ func NewServer(t T, domain string, client fed.Client) *Server {
 	localInbox := &inbox.Inbox{
 		Domain: domain,
 		Config: &cfg,
-		DB:     db,
+		DBW:    db.DBW,
 	}
 
 	cache := &sync.Map{}
 
-	handler, err := front.NewHandlerWithCache(domain, &cfg, resolver, db, localInbox, cache)
+	handler, err := front.NewHandlerWithCache(domain, &cfg, resolver, db.DB, db.DBW, localInbox, cache)
 	if err != nil {
 		t.Fatalf("Failed to run create a Handler: %v", err)
 	}
@@ -189,7 +132,8 @@ func NewServer(t T, domain string, client fed.Client) *Server {
 	backend, err := (&fed.Listener{
 		Domain:       domain,
 		Config:       &cfg,
-		DB:           db,
+		DB:           db.DB,
+		DBW:          db.DBW,
 		AppActor:     appActor,
 		AppActorKeys: appActorKeys,
 		Resolver:     resolver,
@@ -202,13 +146,13 @@ func NewServer(t T, domain string, client fed.Client) *Server {
 		Test:         t,
 		Domain:       domain,
 		Config:       &cfg,
-		DB:           db,
+		DBW:          db.DBW,
 		Resolver:     resolver,
 		AppActorKeys: appActorKeys,
 		Frontend: gemini.Listener{
 			Domain:  domain,
 			Config:  &cfg,
-			DB:      db,
+			DBW:     db.DBW,
 			Handler: handler,
 		},
 		Cache:   cache,
@@ -217,7 +161,7 @@ func NewServer(t T, domain string, client fed.Client) *Server {
 		Incoming: &inbox.Queue{
 			Domain:   domain,
 			Config:   &cfg,
-			DB:       db,
+			DBW:      db.DBW,
 			Inbox:    localInbox,
 			Resolver: resolver,
 			Keys:     appActorKeys,
@@ -225,17 +169,11 @@ func NewServer(t T, domain string, client fed.Client) *Server {
 		Outgoing: &fed.Queue{
 			Domain:   domain,
 			Config:   &cfg,
-			DB:       db,
+			DBW:      db.DBW,
 			Resolver: resolver,
 		},
 		serverKeyPair: serverKeyPair,
-		dbPath:        dbPath,
 	}
-}
-
-func (s *Server) Stop() {
-	s.DB.Close()
-	os.Remove(s.dbPath)
 }
 
 func (s *Server) handle(cert tls.Certificate, path, input string, redirects int) Page {

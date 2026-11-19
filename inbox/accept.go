@@ -67,10 +67,10 @@ func (inbox *Inbox) accept(
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO outbox (activity, sender, inserted) VALUES (JSONB(?), ?, ?)`,
+		`INSERT INTO outbox (activity, sender, inserted) VALUES ($1, $2, $3)`,
 		s,
 		actor.ID,
-		time.Now().UnixNano(),
+		time.Now(),
 	); err != nil {
 		return nil, "", err
 	}

@@ -27,8 +27,7 @@ import (
 var avatar = []byte("\x47\x49\x46\x38\x37\x61\x10\x00\x10\x00\xf0\x00\x00\x00\x00\x00\xff\x00\x00\x2c\x00\x00\x00\x00\x10\x00\x10\x00\x00\x02\x1e\x8c\x8f\xa9\xab\xe0\x0f\x1d\x8a\x14\xcc\x0a\x2f\x96\x67\x3f\xbd\x81\x98\x58\x91\x94\x19\xa1\x59\xe7\x59\xcc\x0b\x2b\x05\x00\x3b")
 
 func TestAvatar_HappyFlow(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -37,8 +36,7 @@ func TestAvatar_HappyFlow(t *testing.T) {
 }
 
 func TestAvatar_NewUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -47,8 +45,7 @@ func TestAvatar_NewUser(t *testing.T) {
 }
 
 func TestAvatar_ChangedRecently(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -58,8 +55,7 @@ func TestAvatar_ChangedRecently(t *testing.T) {
 }
 
 func TestAvatar_HappyFlowSizeFirst(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -68,8 +64,7 @@ func TestAvatar_HappyFlowSizeFirst(t *testing.T) {
 }
 
 func TestAvatar_InvalidSize(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -78,8 +73,7 @@ func TestAvatar_InvalidSize(t *testing.T) {
 }
 
 func TestAvatar_InvalidType(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -88,8 +82,7 @@ func TestAvatar_InvalidType(t *testing.T) {
 }
 
 func TestAvatar_NoSize(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -98,8 +91,7 @@ func TestAvatar_NoSize(t *testing.T) {
 }
 
 func TestAvatar_NoType(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -108,8 +100,7 @@ func TestAvatar_NoType(t *testing.T) {
 }
 
 func TestAvatar_InvalidImage(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -118,8 +109,7 @@ func TestAvatar_InvalidImage(t *testing.T) {
 }
 
 func TestAvatar_TooSmallSize(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -128,8 +118,7 @@ func TestAvatar_TooSmallSize(t *testing.T) {
 }
 
 func TestAvatar_TooBigSize(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -138,8 +127,7 @@ func TestAvatar_TooBigSize(t *testing.T) {
 }
 
 func TestAvatar_SizeLimit(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -149,8 +137,7 @@ func TestAvatar_SizeLimit(t *testing.T) {
 }
 
 func TestAvatar_ExactlySizeLimit(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

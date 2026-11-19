@@ -328,7 +328,7 @@ func (h *Handler) PrintNotes(w text.Writer, r *Request, rows *sql.Rows, printPar
 	scanned, err := dbx.CollectRows[struct {
 		Note                    ap.Object
 		Author, Sharer          sql.Null[ap.Actor]
-		Published               int64
+		Published               time.Time
 		Replies, Quotes, Shares int64
 		ParentAuthor            sql.Null[ap.Actor]
 	}](
@@ -357,7 +357,7 @@ func (h *Handler) PrintNotes(w text.Writer, r *Request, rows *sql.Rows, printPar
 			continue
 		}
 
-		currentDay := row.Published / (60 * 60 * 24)
+		currentDay := row.Published.Unix() / (60 * 60 * 24)
 
 		if count > 0 && printDaySeparators && currentDay != lastDay {
 			w.Separator()
@@ -372,7 +372,7 @@ func (h *Handler) PrintNotes(w text.Writer, r *Request, rows *sql.Rows, printPar
 				&row.Note,
 				&row.Author.V,
 				&row.Sharer.V,
-				time.Unix(row.Published, 0),
+				row.Published,
 				printParentAuthor,
 				row.ParentAuthor,
 				row.Replies,
@@ -386,7 +386,7 @@ func (h *Handler) PrintNotes(w text.Writer, r *Request, rows *sql.Rows, printPar
 				&row.Note,
 				&row.Author.V,
 				nil,
-				time.Unix(row.Published, 0),
+				row.Published,
 				printParentAuthor,
 				row.ParentAuthor,
 				row.Replies,

@@ -28,11 +28,11 @@ func (h *Handler) approve(w text.Writer, r *Request, args ...string) {
 
 	r.Log.Info("Approving certificate", "user", r.User.PreferredUsername, "hash", hash)
 
-	if res, err := h.DB.ExecContext(
+	if res, err := h.DBW.ExecContext(
 		r.Context,
 		`
-		update certificates set approved = 1
-		where user = ? and hash = ? and approved = 0
+		update certificates set approved = true
+		where "user" = $1 and hash = $2 and not approved
 		`,
 		r.User.PreferredUsername,
 		hash,

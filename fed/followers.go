@@ -44,7 +44,7 @@ type partialFollowers map[string]map[string]string
 type Syncer struct {
 	Domain   string
 	Config   *cfg.Config
-	DB       *sql.DB
+	DBW      *sql.DB
 	Resolver *Resolver
 	Keys     [3]httpsig.Key
 	Inbox    ap.Inbox
@@ -71,7 +71,7 @@ func fetchFollowers(ctx context.Context, db *sql.DB, followed, host string) (ap.
 			return false
 		},
 		db,
-		`SELECT follower FROM follows WHERE followed = $1 AND follower >= 'https://' || $2 || '/' AND follower < 'https://' || $2 || '0' AND accepted = 1`,
+		`SELECT follower FROM follows WHERE followed = $1 AND follower >= ('https://' || $2 || '/') COLLATE "C" AND follower < ('https://' || $2 || '0') COLLATE "C" AND accepted`,
 		followed,
 		host,
 	); err != nil {
@@ -96,7 +96,7 @@ func digestFollowers(ctx context.Context, db *sql.DB, followed, host string) (st
 			return false
 		},
 		db,
-		`SELECT follower FROM follows WHERE followed = $1 AND follower >= 'https://' || $2 || '/' AND follower < 'https://' || $2 || '0' AND accepted = 1`,
+		`SELECT follower FROM follows WHERE followed = $1 AND follower >= ('https://' || $2 || '/') COLLATE "C" AND follower < ('https://' || $2 || '0') COLLATE "C" AND accepted`,
 		followed,
 		host,
 	); err != nil {
@@ -159,7 +159,7 @@ func (l *Listener) handleFollowers(w http.ResponseWriter, r *http.Request) {
 			return false
 		},
 		l.DB,
-		`SELECT follower FROM follows WHERE followed = 'https://' || ? || '/user/' || ? AND follower LIKE 'https://' || ? || '/%' AND accepted = 1`,
+		`SELECT follower FROM follows WHERE followed = 'https://' || $1 || '/user/' || $2 AND follower ilike 'https://' || $3 || '/%' AND accepted`,
 		l.Domain,
 		name,
 		u.Host,
@@ -228,9 +228,9 @@ func (l *Listener) saveFollowersDigest(ctx context.Context, sender *ap.Actor, he
 		return errors.New("partial collection host does not match actor")
 	}
 
-	if _, err := l.DB.ExecContext(
+	if _, err := l.DBW.ExecContext(
 		ctx,
-		`INSERT INTO follows_sync(actor, url, digest) VALUES($1, $2, $3) ON CONFLICT(actor) DO UPDATE SET url = $2, digest = $3, changed = CASE WHEN digest = $3 THEN changed ELSE UNIXEPOCH() END`,
+		`INSERT INTO follows_sync(actor, url, digest) VALUES($1, $2, $3) ON CONFLICT(actor) DO UPDATE SET url = $2, digest = $3, changed = CASE WHEN follows_sync.digest = $3 THEN follows_sync.changed ELSE now() END`,
 		sender.ID,
 		partial,
 		digest,
@@ -293,7 +293,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 
 		if _, err := db.ExecContext(
 			ctx,
-			`UPDATE follows SET accepted = NULL WHERE follower = ? AND followed = ?`,
+			`UPDATE follows SET accepted = NULL WHERE follower = $1 AND followed = $2`,
 			follower,
 			d.Followed,
 		); err != nil {
@@ -316,7 +316,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 
 		var actor ap.Actor
 		var ed25519Seed, mldsa44Seed []byte
-		if err := db.QueryRowContext(ctx, `SELECT JSON(persons.actor), persons.ed25519seed, persons.mldsa44seed FROM persons WHERE id = ? AND persons.ed25519seed IS NOT NULL`, follower).Scan(&actor, &ed25519Seed, &mldsa44Seed); errors.Is(err, sql.ErrNoRows) {
+		if err := db.QueryRowContext(ctx, `SELECT persons.actor, persons.ed25519seed, persons.mldsa44seed FROM persons WHERE id = $1 AND persons.ed25519seed IS NOT NULL`, follower).Scan(&actor, &ed25519Seed, &mldsa44Seed); errors.Is(err, sql.ErrNoRows) {
 			slog.Info("Follower does not exist", "followed", d.Followed, "follower", follower)
 			continue
 		} else if err != nil {
@@ -325,7 +325,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 		}
 
 		var followID string
-		if err := db.QueryRowContext(ctx, `SELECT id FROM follows WHERE follower = ? AND followed = ?`, follower, d.Followed).Scan(&followID); err != nil && errors.Is(err, sql.ErrNoRows) {
+		if err := db.QueryRowContext(ctx, `SELECT id FROM follows WHERE follower = $1 AND followed = $2`, follower, d.Followed).Scan(&followID); err != nil && errors.Is(err, sql.ErrNoRows) {
 			followID = d.Inbox.NewID(actor.ID, "follow")
 			slog.Warn("Using fake follow ID to remove unknown remote follow", "followed", d.Followed, "follower", follower, "id", followID)
 		} else if err != nil {
@@ -342,7 +342,7 @@ func (d *followersDigest) Sync(ctx context.Context, domain string, cfg *cfg.Conf
 }
 
 func (s *Syncer) ProcessBatch(ctx context.Context) (int, error) {
-	if _, err := s.DB.ExecContext(ctx, `DELETE FROM follows_sync WHERE NOT EXISTS (SELECT 1 FROM persons WHERE persons.id = follows_sync.actor)`); err != nil {
+	if _, err := s.DBW.ExecContext(ctx, `DELETE FROM follows_sync WHERE NOT EXISTS (SELECT 1 FROM persons WHERE persons.id = follows_sync.actor)`); err != nil {
 		return 0, err
 	}
 
@@ -364,20 +364,20 @@ func (s *Syncer) ProcessBatch(ctx context.Context) (int, error) {
 			slog.Error("Failed to scan digest", "error", err)
 			return true
 		},
-		s.DB,
+		s.DBW,
 		`SELECT actor, url, digest FROM follows_sync WHERE changed <= $1 ORDER BY changed LIMIT $2`,
-		time.Now().Add(-s.Config.FollowersSyncInterval).Unix(),
+		time.Now().Add(-s.Config.FollowersSyncInterval),
 		s.Config.FollowersSyncBatchSize,
 	); err != nil {
 		return 0, fmt.Errorf("failed to fetch followers to sync: %w", err)
 	}
 
 	for _, job := range jobs {
-		if err := job.Sync(ctx, s.Domain, s.Config, s.DB, s.Resolver, s.Keys); err != nil {
+		if err := job.Sync(ctx, s.Domain, s.Config, s.DBW, s.Resolver, s.Keys); err != nil {
 			slog.Warn("Failed to sync followers", "actor", job.Followed, "error", err)
 		}
 
-		if _, err := s.DB.ExecContext(ctx, `UPDATE follows_sync SET changed = UNIXEPOCH() WHERE actor = ?`, job.Followed); err != nil {
+		if _, err := s.DBW.ExecContext(ctx, `UPDATE follows_sync SET changed = now() WHERE actor = $1`, job.Followed); err != nil {
 			return 0, fmt.Errorf("failed to update last sync time for %s: %w", job.Followed, err)
 		}
 	}

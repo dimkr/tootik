@@ -47,7 +47,7 @@ func applyMigration(ctx context.Context, domain string, db *sql.DB, m migration)
 		return fmt.Errorf("failed to apply %s: %w", m.ID, err)
 	}
 
-	if _, err := tx.ExecContext(ctx, `insert into migrations(id) values (?)`, m.ID); err != nil {
+	if _, err := tx.ExecContext(ctx, `insert into migrations(id) values ($1)`, m.ID); err != nil {
 		return fmt.Errorf("failed to record %s: %w", m.ID, err)
 	}
 
@@ -60,13 +60,13 @@ func applyMigration(ctx context.Context, domain string, db *sql.DB, m migration)
 
 // Run runs all migrations.
 func Run(ctx context.Context, domain string, db *sql.DB) error {
-	if _, err := db.ExecContext(ctx, `create table if not exists migrations(id string not null primary key, applied integer default (unixepoch()))`); err != nil {
+	if _, err := db.ExecContext(ctx, `create table if not exists migrations(id text not null primary key, applied timestamptz not null default now())`); err != nil {
 		return err
 	}
 
 	for _, m := range migrations {
 		var applied string
-		if err := db.QueryRowContext(ctx, `select datetime(applied, 'unixepoch') from migrations where id = ?`, m.ID).Scan(&applied); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		if err := db.QueryRowContext(ctx, `select applied::text from migrations where id = $1`, m.ID).Scan(&applied); err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("failed to check if %s is applied: %w", m.ID, err)
 		} else if err == nil {
 			slog.Debug("Skipping migration", "id", m.ID, "applied", applied)

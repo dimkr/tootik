@@ -26,13 +26,12 @@ import (
 )
 
 func TestCommunities_OneCommunity(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
-	_, err := server.db.Exec(
-		`update persons set actor = jsonb_set(actor, '$.type', 'Group') where id = $1`,
+	_, err := server.dbw.Exec(
+		`update persons set actor = jsonb_set(actor, '{type}', '"Group"') where id = $1`,
 		server.Alice.ID,
 	)
 	assert.NoError(err)

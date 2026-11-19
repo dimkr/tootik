@@ -35,7 +35,7 @@ func (h *Handler) doEdit(w text.Writer, r *Request, args []string, readInput inp
 	arg := args[1]
 
 	var note ap.Object
-	if err := h.DB.QueryRowContext(r.Context, `select json(object) from notes where (id = 'https://' || $1 or slug = $1) and deleted = 0 and author in (select id from persons where cid = $2)`, arg, ap.Canonical(r.User.ID)).Scan(&note); errors.Is(err, sql.ErrNoRows) {
+	if err := h.DBW.QueryRowContext(r.Context, `select object from notes where (id = 'https://' || $1 or slug = $1) and not deleted and author in (select id from persons where cid = $2)`, arg, ap.Canonical(r.User.ID)).Scan(&note); errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Attempted to edit non-existing post", "post", arg, "error", err)
 		w.Error()
 		return
@@ -52,7 +52,7 @@ func (h *Handler) doEdit(w text.Writer, r *Request, args []string, readInput inp
 	}
 
 	var edits int
-	if err := h.DB.QueryRowContext(r.Context, `select count(*) from outbox where activity->>'$.object.id' = ? and sender = ? and (activity->>'$.type' = 'Update' or activity->>'$.type' = 'Create')`, note.ID, r.User.ID).Scan(&edits); err != nil {
+	if err := h.DBW.QueryRowContext(r.Context, `select count(*) from outbox where activity->'object'->>'id' = $1 and sender = $2 and (activity->>'type' = 'Update' or activity->>'type' = 'Create')`, note.ID, r.User.ID).Scan(&edits); err != nil {
 		r.Log.Warn("Failed to count post edits", "post", note.ID, "error", err)
 		w.Error()
 		return
@@ -77,7 +77,7 @@ func (h *Handler) doEdit(w text.Writer, r *Request, args []string, readInput inp
 	}
 
 	var parent ap.Object
-	if err := h.DB.QueryRowContext(r.Context, `select json(object) from notes where cid = ?`, ap.Canonical(note.InReplyTo)).Scan(&parent); errors.Is(err, sql.ErrNoRows) {
+	if err := h.DBW.QueryRowContext(r.Context, `select object from notes where cid = $1`, ap.Canonical(note.InReplyTo)).Scan(&parent); errors.Is(err, sql.ErrNoRows) {
 		r.Log.Warn("Parent post does not exist", "parent", note.InReplyTo)
 	} else if err != nil {
 		r.Log.Warn("Failed to fetch parent post", "parent", note.InReplyTo, "error", err)
