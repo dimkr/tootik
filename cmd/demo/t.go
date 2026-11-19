@@ -19,31 +19,43 @@ package main
 import (
 	"context"
 	"fmt"
+	"slices"
 )
 
 type t struct {
-	ctx     context.Context
-	tempDir string
+	ctx      context.Context
+	tempDir  string
+	cleanups []func()
 }
 
-func (t) Parallel() {}
+func (*t) Parallel() {}
 
-func (t) Name() string {
+func (*t) Name() string {
 	return "demo"
 }
 
-func (t t) Context() context.Context {
+func (t *t) Context() context.Context {
 	return t.ctx
 }
 
-func (t t) TempDir() string {
+func (t *t) TempDir() string {
 	return t.tempDir
 }
 
-func (t) Fatal(args ...any) {
+func (*t) Fatal(args ...any) {
 	panic(fmt.Sprint(args...))
 }
 
-func (t) Fatalf(format string, args ...any) {
+func (*t) Fatalf(format string, args ...any) {
 	panic(fmt.Sprintf(format, args...))
+}
+
+func (t *t) Cleanup(f func()) {
+	t.cleanups = append(t.cleanups, f)
+}
+
+func (t *t) cleanup() {
+	for _, f := range slices.Backward(t.cleanups) {
+		f()
+	}
 }

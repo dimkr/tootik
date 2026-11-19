@@ -57,7 +57,6 @@ type Server struct {
 	Outgoing     *fed.Queue
 
 	serverKeyPair tls.Certificate
-	dbPath        string
 }
 
 const (
@@ -91,7 +90,7 @@ GrFYie4rnLsQuvc+vZ5i9+7tdp/xAaNsZDEve7YnN21o0J8/M3jUSTZk
 -----END PRIVATE KEY-----`
 )
 
-func createDB(ctx context.Context, domain, path string, cfg *cfg.Config) (*sql.DB, error) {
+func createDB(ctx context.Context, t T, domain, path string, cfg *cfg.Config) (*sql.DB, error) {
 	migrationsLock.Lock()
 
 	cache, ok := migrationsCache[domain]
@@ -106,28 +105,29 @@ func createDB(ctx context.Context, domain, path string, cfg *cfg.Config) (*sql.D
 	}
 
 	db, err := sql.Open(sqlite.DriverName, fmt.Sprintf("%s%s?%s", sqlite.Scheme, path, cfg.DatabaseOptions))
-	if ok {
-		return db, err
-	}
 	if err != nil {
 		return nil, err
+	}
+	t.Cleanup(func() {
+		db.Close()
+	})
+
+	if ok {
+		return db, nil
 	}
 
 	db.SetMaxOpenConns(1)
 
 	if err := migrations.Run(ctx, domain, db); err != nil {
-		db.Close()
 		return nil, err
 	}
 
 	if _, err := db.ExecContext(ctx, `PRAGMA wal_checkpoint`); err != nil {
-		db.Close()
 		return nil, err
 	}
 
 	buf, err := os.ReadFile(path)
 	if err != nil {
-		db.Close()
 		return nil, err
 	}
 
@@ -156,7 +156,7 @@ func NewServer(t T, domain string, client fed.Client) *Server {
 
 	dbPath := filepath.Join(t.TempDir(), domain+".sqlite3")
 
-	db, err := createDB(t.Context(), domain, dbPath, &cfg)
+	db, err := createDB(t.Context(), t, domain, dbPath, &cfg)
 	if err != nil {
 		t.Fatalf("Failed to create database: %v", err)
 	}
@@ -229,13 +229,7 @@ func NewServer(t T, domain string, client fed.Client) *Server {
 			Resolver: resolver,
 		},
 		serverKeyPair: serverKeyPair,
-		dbPath:        dbPath,
 	}
-}
-
-func (s *Server) Stop() {
-	s.DB.Close()
-	os.Remove(s.dbPath)
 }
 
 func (s *Server) handle(cert tls.Certificate, path, input string, redirects int) Page {

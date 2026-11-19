@@ -26,7 +26,6 @@ import (
 
 func TestMention_ResolvedOP(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -60,7 +59,6 @@ func TestMention_ResolvedOP(t *testing.T) {
 
 func TestMention_ResolvedParticipant(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -99,7 +97,6 @@ func TestMention_ResolvedParticipant(t *testing.T) {
 
 func TestMention_AmbiguousOPAndFollowed(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	cluster["b.localdomain"].Register(aliceKeypair).OK()
@@ -138,7 +135,6 @@ func TestMention_AmbiguousOPAndFollowed(t *testing.T) {
 
 func TestMention_ResolvedOPAndFollowed(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	cluster["b.localdomain"].Register(aliceKeypair).OK()
@@ -177,7 +173,6 @@ func TestMention_ResolvedOPAndFollowed(t *testing.T) {
 
 func TestMention_ResolvedFollow(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -196,7 +191,6 @@ func TestMention_ResolvedFollow(t *testing.T) {
 
 func TestMention_ResolvedUserAndHost(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -220,7 +214,6 @@ func TestMention_ResolvedUserAndHost(t *testing.T) {
 
 func TestMention_AmbiguousFollowedAndGroup(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -247,7 +240,6 @@ func TestMention_AmbiguousFollowedAndGroup(t *testing.T) {
 
 func TestMention_AmbiguousGroupAndFollowed(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -275,7 +267,6 @@ func TestMention_AmbiguousGroupAndFollowed(t *testing.T) {
 
 func TestMention_AmbiguousGroupAndGroup(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -306,7 +297,6 @@ func TestMention_AmbiguousGroupAndGroup(t *testing.T) {
 
 func TestMention_Unresolved(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 
@@ -318,7 +308,6 @@ func TestMention_Unresolved(t *testing.T) {
 
 func TestMention_AmbiguousTwoFollows(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -342,7 +331,6 @@ func TestMention_AmbiguousTwoFollows(t *testing.T) {
 
 func TestMention_AmbiguousFollowAndOP(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	cluster["b.localdomain"].Register(aliceKeypair).OK()
@@ -381,7 +369,6 @@ func TestMention_AmbiguousFollowAndOP(t *testing.T) {
 
 func TestMention_AmbiguousFollowAndLocal(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	cluster["a.localdomain"].Register(bobKeypair).OK()

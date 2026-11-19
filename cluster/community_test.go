@@ -26,7 +26,6 @@ import (
 
 func TestCluster_PostInCommunity(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "g.localdomain")
-	defer cluster.Stop()
 
 	if _, _, err := user.CreatePortable(t.Context(), "g.localdomain", cluster["g.localdomain"].DB, cluster["g.localdomain"].Config, "stuff", ap.Group, nil); err != nil {
 		t.Fatal("Failed to create community")
@@ -92,7 +91,6 @@ func TestCluster_PostInCommunity(t *testing.T) {
 
 func TestCluster_ReplyInCommunity(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "g.localdomain")
-	defer cluster.Stop()
 
 	if _, _, err := user.CreatePortable(t.Context(), "g.localdomain", cluster["g.localdomain"].DB, cluster["g.localdomain"].Config, "stuff", ap.Group, nil); err != nil {
 		t.Fatal("Failed to create community")

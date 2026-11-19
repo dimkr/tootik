@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,7 +26,6 @@ import (
 
 func TestCluster_FollowersSyncMissingRemoteFollow(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -86,7 +85,6 @@ func TestCluster_FollowersSyncMissingRemoteFollow(t *testing.T) {
 
 func TestCluster_FollowersSyncMissingLocalFollow(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -146,7 +144,6 @@ func TestCluster_FollowersSyncMissingLocalFollow(t *testing.T) {
 
 func TestCluster_FollowersSyncMissingRemoteFollowPortableActor(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
@@ -214,7 +211,6 @@ func TestCluster_FollowersSyncMissingRemoteFollowPortableActor(t *testing.T) {
 
 func TestCluster_FollowersSyncMissingLocalFollowPortableActor(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
