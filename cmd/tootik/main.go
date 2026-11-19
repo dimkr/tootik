@@ -294,8 +294,8 @@ func main() {
 
 		if _, err := tx.ExecContext(
 			ctx,
-			"insert into icons(name, buf) values($1, $2) on conflict(name) do update set buf = $2",
-			userName,
+			"insert into icons(cid, buf) values($1, $2) on conflict(cid) do update set buf = $2",
+			ap.Canonical(actor.ID),
 			danger.String(resized),
 		); err != nil {
 			panic(err)
