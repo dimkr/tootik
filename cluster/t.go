@@ -24,6 +24,7 @@ type T interface {
 	Name() string
 	Context() context.Context
 	TempDir() string
+	Cleanup(func())
 	Fatal(args ...any)
 	Fatalf(format string, args ...any)
 }

@@ -25,7 +25,6 @@ import (
 
 func TestCluster_MovedAccount(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -83,7 +82,6 @@ func TestCluster_MovedAccount(t *testing.T) {
 
 func TestCluster_DeletedInstance(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()

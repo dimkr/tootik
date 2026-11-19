@@ -80,10 +80,3 @@ func (c Cluster) Settle(t T) {
 		server.Cache.Clear()
 	}
 }
-
-// Stop stops all servers in the cluster.
-func (c Cluster) Stop() {
-	for _, s := range c {
-		s.Stop()
-	}
-}

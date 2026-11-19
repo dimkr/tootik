@@ -36,7 +36,6 @@ import (
 
 func TestCluster_ReplyForwardingPortableActors(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].RegisterPortable(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].RegisterPortable(bobKeypair).OK()
@@ -101,7 +100,6 @@ func TestCluster_ReplyForwardingPortableActors(t *testing.T) {
 
 func TestCluster_Gateways(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
@@ -189,7 +187,6 @@ func TestCluster_Gateways(t *testing.T) {
 
 func TestCluster_ForwardedLegacyReply(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	cluster["b.localdomain"].Config.MLDSA44Threshold = 1
 	cluster["b.localdomain"].Config.RFC9421Threshold = 1
@@ -227,7 +224,6 @@ func TestCluster_ForwardedLegacyReply(t *testing.T) {
 
 func TestCluster_ClientSideSigningInboxHappyFlow(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
@@ -315,7 +311,6 @@ func TestCluster_ClientSideSigningInboxHappyFlow(t *testing.T) {
 
 func TestCluster_MLDSA44ClientSideSigningInboxHappyFlow(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	priv, err := mldsa.GenerateKey(mldsa.MLDSA44())
 	if err != nil {
@@ -403,7 +398,6 @@ func TestCluster_MLDSA44ClientSideSigningInboxHappyFlow(t *testing.T) {
 
 func TestCluster_ClientSideSigningOutboxHappyFlow(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
@@ -491,7 +485,6 @@ func TestCluster_ClientSideSigningOutboxHappyFlow(t *testing.T) {
 
 func TestCluster_ClientSideSigningOutboxWrongOutbox(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
@@ -579,7 +572,6 @@ func TestCluster_ClientSideSigningOutboxWrongOutbox(t *testing.T) {
 
 func TestCluster_ClientSideSigningOutboxUnsupportedActivity(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
@@ -660,7 +652,6 @@ func TestCluster_ClientSideSigningOutboxUnsupportedActivity(t *testing.T) {
 
 func TestCluster_ClientSideSigningOutboxNotActivity(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
@@ -719,7 +710,6 @@ func TestCluster_ClientSideSigningOutboxNotActivity(t *testing.T) {
 
 func TestCluster_ClientSideSigningOutboxInvalidActivity(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
@@ -807,7 +797,6 @@ func TestCluster_ClientSideSigningOutboxInvalidActivity(t *testing.T) {
 
 func TestCluster_ClientSideSigningOutboxNoProof(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
@@ -890,7 +879,6 @@ func TestCluster_ClientSideSigningOutboxNoProof(t *testing.T) {
 
 func TestCluster_ClientSideSigningOutboxInvalidVerificationMethod(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
@@ -980,7 +968,6 @@ func TestCluster_ClientSideSigningOutboxInvalidVerificationMethod(t *testing.T) 
 
 func TestCluster_ClientSideSigningOutboxInvalidProof(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
@@ -1070,7 +1057,6 @@ func TestCluster_ClientSideSigningOutboxInvalidProof(t *testing.T) {
 
 func TestCluster_InboxFetchHappyFlow(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
@@ -1173,7 +1159,6 @@ func TestCluster_InboxFetchHappyFlow(t *testing.T) {
 
 func TestCluster_MLDSA44InboxFetchHappyFlow(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	priv, err := mldsa.GenerateKey(mldsa.MLDSA44())
 	if err != nil {
@@ -1276,7 +1261,6 @@ func TestCluster_MLDSA44InboxFetchHappyFlow(t *testing.T) {
 
 func TestCluster_InboxFetchInvalidSignature(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
@@ -1344,7 +1328,6 @@ func TestCluster_InboxFetchInvalidSignature(t *testing.T) {
 
 func TestCluster_InboxFetchNotOwner(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain")
-	defer cluster.Stop()
 
 	alicePub, alicePriv, err := ed25519.GenerateKey(nil)
 	if err != nil {
@@ -1411,7 +1394,6 @@ func TestCluster_InboxFetchNotOwner(t *testing.T) {
 
 func TestCluster_InboxFetchNotRegistered(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	_, alicePriv, err := ed25519.GenerateKey(nil)
 	if err != nil {
@@ -1477,7 +1459,6 @@ func TestCluster_InboxFetchNotRegistered(t *testing.T) {
 
 func TestCluster_OutboxImport(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
@@ -1607,7 +1588,6 @@ func TestCluster_OutboxImport(t *testing.T) {
 
 func TestCluster_MLDSA44OutboxImport(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	priv, err := mldsa.GenerateKey(mldsa.MLDSA44())
 	if err != nil {
@@ -1737,7 +1717,6 @@ func TestCluster_MLDSA44OutboxImport(t *testing.T) {
 
 func TestCluster_ClientSideSigningFollowersHappyFlow(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	alicePub, alicePriv, err := ed25519.GenerateKey(nil)
 	aliceDID := "did:key:" + data.EncodeEd25519PublicKey(alicePub)
@@ -1891,7 +1870,6 @@ func TestCluster_ClientSideSigningFollowersHappyFlow(t *testing.T) {
 
 func TestCluster_MLDSA44ClientSideSigningFollowersHappyFlow(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	alicePriv, err := mldsa.GenerateKey(mldsa.MLDSA44())
 	aliceDID := "did:key:" + data.EncodeMLDSA44PublicKey(alicePriv.PublicKey())
@@ -2045,7 +2023,6 @@ func TestCluster_MLDSA44ClientSideSigningFollowersHappyFlow(t *testing.T) {
 
 func TestCluster_ClientSideSigningFollowersMissingCollection(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	_, alicePriv, err := ed25519.GenerateKey(nil)
 	cluster["a.localdomain"].Handle(aliceKeypair, "/users/register?"+data.EncodeEd25519PrivateKey(alicePriv)).OK()
@@ -2086,7 +2063,6 @@ func TestCluster_ClientSideSigningFollowersMissingCollection(t *testing.T) {
 
 func TestCluster_ClientSideSigningFollowersWrongCollection(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alicePub, alicePriv, err := ed25519.GenerateKey(nil)
 	aliceDID := "did:key:" + data.EncodeEd25519PublicKey(alicePub)

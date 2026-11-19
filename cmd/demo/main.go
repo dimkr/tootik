@@ -241,8 +241,10 @@ func main() {
 
 	keyPairs := generateKeypairs()
 
-	cl := seed(t{tempDir: tempDir, ctx: ctx}, keyPairs)
-	defer cl.Stop()
+	t := &t{tempDir: tempDir, ctx: ctx}
+	defer t.cleanup()
+
+	cl := seed(t, keyPairs)
 
 	if err := cl["pizza.example"].Frontend.Handler.Shell(
 		ctx,

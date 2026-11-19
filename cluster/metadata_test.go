@@ -24,7 +24,6 @@ import (
 
 func TestMetadata_Whitespace(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -52,7 +51,6 @@ func TestMetadata_Whitespace(t *testing.T) {
 
 func TestMetadata_LineBreak(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -72,7 +70,6 @@ func TestMetadata_LineBreak(t *testing.T) {
 
 func TestMetadata_Link(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -90,7 +87,6 @@ func TestMetadata_Link(t *testing.T) {
 
 func TestMetadata_HTML(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -108,7 +104,6 @@ func TestMetadata_HTML(t *testing.T) {
 
 func TestMetadata_Equals(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -126,7 +121,6 @@ func TestMetadata_Equals(t *testing.T) {
 
 func TestMetadata_Add(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -149,7 +143,6 @@ func TestMetadata_Add(t *testing.T) {
 
 func TestMetadata_Maximum(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
@@ -182,7 +175,6 @@ func TestMetadata_Maximum(t *testing.T) {
 
 func TestMetadata_Remove(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()

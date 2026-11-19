@@ -24,7 +24,6 @@ import (
 
 func TestCluster_ShareUnshare(t *testing.T) {
 	cluster := NewCluster(t, "a.localdomain", "b.localdomain", "c.localdomain")
-	defer cluster.Stop()
 
 	alice := cluster["a.localdomain"].Register(aliceKeypair).OK()
 	bob := cluster["b.localdomain"].Register(bobKeypair).OK()
