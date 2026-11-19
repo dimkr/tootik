@@ -23,7 +23,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"os"
+	"path/filepath"
+	"testing"
 
 	"github.com/dimkr/tootik/ap"
 	"github.com/dimkr/tootik/cfg"
@@ -42,7 +43,6 @@ const domain = "localhost.localdomain:8443"
 type server struct {
 	cfg          *cfg.Config
 	db           *sql.DB
-	dbPath       string
 	handler      front.Handler
 	inbox        *inbox.Inbox
 	queue        *inbox.Queue
@@ -52,24 +52,16 @@ type server struct {
 	AppActorKeys [3]httpsig.Key
 }
 
-func (s *server) Shutdown() {
-	s.db.Close()
-	os.Remove(s.dbPath)
-}
-
-func newTestServer() *server {
-	f, err := os.CreateTemp("", "tootik-*.sqlite3")
-	if err != nil {
-		panic(err)
-	}
-	f.Close()
-
-	path := f.Name()
+func newTestServer(t *testing.T) *server {
+	path := filepath.Join(t.TempDir(), "tootik.sqlite3")
 
 	db, err := sql.Open(sqlite.DriverName, path+"?"+sqlite.JournalModeWAL)
 	if err != nil {
 		panic(err)
 	}
+	t.Cleanup(func() {
+		db.Close()
+	})
 
 	var cfg cfg.Config
 	cfg.FillDefaults()
@@ -123,7 +115,6 @@ func newTestServer() *server {
 
 	return &server{
 		cfg:          &cfg,
-		dbPath:       path,
 		db:           db,
 		handler:      handler,
 		inbox:        localInbox,

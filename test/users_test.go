@@ -29,8 +29,7 @@ import (
 )
 
 func TestUsers_NoPosts(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -41,8 +40,7 @@ func TestUsers_NoPosts(t *testing.T) {
 }
 
 func TestUsers_UnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -53,8 +51,7 @@ func TestUsers_UnauthenticatedUser(t *testing.T) {
 }
 
 func TestUsers_DM(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -71,8 +68,7 @@ func TestUsers_DM(t *testing.T) {
 }
 
 func TestUsers_DMNotFollowing(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -92,8 +88,7 @@ func TestUsers_DMNotFollowing(t *testing.T) {
 }
 
 func TestUsers_PostToFollowers(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -110,8 +105,7 @@ func TestUsers_PostToFollowers(t *testing.T) {
 }
 
 func TestUsers_PostToFollowersNotFollowing(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -125,8 +119,7 @@ func TestUsers_PostToFollowersNotFollowing(t *testing.T) {
 }
 
 func TestUsers_PublicPost(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -143,8 +136,7 @@ func TestUsers_PublicPost(t *testing.T) {
 }
 
 func TestUsers_PublicPostNotFollowing(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -158,8 +150,7 @@ func TestUsers_PublicPostNotFollowing(t *testing.T) {
 }
 
 func TestUsers_PublicPostShared(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -203,8 +194,7 @@ func TestUsers_PublicPostShared(t *testing.T) {
 }
 
 func TestUsers_PublicPostSharedNotFollowing(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

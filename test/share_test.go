@@ -25,8 +25,7 @@ import (
 )
 
 func TestShare_PublicPost(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -46,8 +45,7 @@ func TestShare_PublicPost(t *testing.T) {
 }
 
 func TestShare_Throttling(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -69,8 +67,7 @@ func TestShare_Throttling(t *testing.T) {
 }
 
 func TestShare_UnshareThrottling(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -87,8 +84,7 @@ func TestShare_UnshareThrottling(t *testing.T) {
 }
 
 func TestShare_PostToFollowers(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -102,8 +98,7 @@ func TestShare_PostToFollowers(t *testing.T) {
 }
 
 func TestShare_Twice(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -126,8 +121,7 @@ func TestShare_Twice(t *testing.T) {
 }
 
 func TestShare_Unshare(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -156,8 +150,7 @@ func TestShare_Unshare(t *testing.T) {
 }
 
 func TestShare_ShareAfterUnshare(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

@@ -28,8 +28,7 @@ import (
 )
 
 func TestPoll_TwoOptions(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -62,8 +61,7 @@ func TestPoll_TwoOptions(t *testing.T) {
 }
 
 func TestPoll_TwoOptionsZeroVotes(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -96,8 +94,7 @@ func TestPoll_TwoOptionsZeroVotes(t *testing.T) {
 }
 
 func TestPoll_TwoOptionsOnlyZeroVotes(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -130,8 +127,7 @@ func TestPoll_TwoOptionsOnlyZeroVotes(t *testing.T) {
 }
 
 func TestPoll_OneOption(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -163,8 +159,7 @@ func TestPoll_OneOption(t *testing.T) {
 }
 
 func TestPoll_Vote(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -204,8 +199,7 @@ func TestPoll_Vote(t *testing.T) {
 }
 
 func TestPoll_VoteClosedPoll(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -239,8 +233,7 @@ func TestPoll_VoteClosedPoll(t *testing.T) {
 }
 
 func TestPoll_VoteEndedPoll(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -274,8 +267,7 @@ func TestPoll_VoteEndedPoll(t *testing.T) {
 }
 
 func TestPoll_Reply(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -315,8 +307,7 @@ func TestPoll_Reply(t *testing.T) {
 }
 
 func TestPoll_ReplyClosedPoll(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -356,8 +347,7 @@ func TestPoll_ReplyClosedPoll(t *testing.T) {
 }
 
 func TestPoll_EditVote(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -400,8 +390,7 @@ func TestPoll_EditVote(t *testing.T) {
 }
 
 func TestPoll_DeleteReply(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -444,8 +433,7 @@ func TestPoll_DeleteReply(t *testing.T) {
 }
 
 func TestPoll_Update(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -497,8 +485,7 @@ func TestPoll_Update(t *testing.T) {
 }
 
 func TestPoll_OldUpdate(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -550,8 +537,7 @@ func TestPoll_OldUpdate(t *testing.T) {
 }
 
 func TestPoll_Local3Options(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -566,8 +552,7 @@ func TestPoll_Local3Options(t *testing.T) {
 }
 
 func TestPoll_Local5Options(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -584,8 +569,7 @@ func TestPoll_Local5Options(t *testing.T) {
 }
 
 func TestPoll_Local1Option(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -594,8 +578,7 @@ func TestPoll_Local1Option(t *testing.T) {
 }
 
 func TestPoll_Local6Options(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -604,8 +587,7 @@ func TestPoll_Local6Options(t *testing.T) {
 }
 
 func TestPoll_LocalEmptyOption(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -614,8 +596,7 @@ func TestPoll_LocalEmptyOption(t *testing.T) {
 }
 
 func TestPoll_LocalOptionWithLink(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -630,8 +611,7 @@ func TestPoll_LocalOptionWithLink(t *testing.T) {
 }
 
 func TestPoll_Local3OptionsAnd2Votes(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -669,8 +649,7 @@ func TestPoll_Local3OptionsAnd2Votes(t *testing.T) {
 }
 
 func TestPoll_Local3OptionsAnd2VotesAndDeletedVote(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -711,8 +690,7 @@ func TestPoll_Local3OptionsAnd2VotesAndDeletedVote(t *testing.T) {
 }
 
 func TestPoll_LocalVoteVisibilityFollowers(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -773,8 +751,7 @@ func TestPoll_LocalVoteVisibilityFollowers(t *testing.T) {
 }
 
 func TestPoll_LocalVoteVisibilityPublic(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -834,8 +811,7 @@ func TestPoll_LocalVoteVisibilityPublic(t *testing.T) {
 }
 
 func TestPoll_LocalSelfVote(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

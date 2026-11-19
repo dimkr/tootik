@@ -27,8 +27,7 @@ import (
 )
 
 func TestReply_AuthorNotFollowed(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -59,8 +58,7 @@ func TestReply_AuthorNotFollowed(t *testing.T) {
 }
 
 func TestReply_AuthorFollowed(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -94,8 +92,7 @@ func TestReply_AuthorFollowed(t *testing.T) {
 }
 
 func TestReply_PostToFollowers(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -129,8 +126,7 @@ func TestReply_PostToFollowers(t *testing.T) {
 }
 
 func TestReply_PostToFollowersNotFollowing(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -160,8 +156,7 @@ func TestReply_PostToFollowersNotFollowing(t *testing.T) {
 }
 
 func TestReply_PostToFollowersUnfollowedBeforeReply(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -198,8 +193,7 @@ func TestReply_PostToFollowersUnfollowedBeforeReply(t *testing.T) {
 }
 
 func TestReply_PostToFollowersUnfollowedAfterReply(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -235,8 +229,7 @@ func TestReply_PostToFollowersUnfollowedAfterReply(t *testing.T) {
 }
 
 func TestReply_SelfReply(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -273,8 +266,7 @@ func TestReply_SelfReply(t *testing.T) {
 }
 
 func TestReply_ReplyToPublicPostByFollowedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -309,8 +301,7 @@ func TestReply_ReplyToPublicPostByFollowedUser(t *testing.T) {
 }
 
 func TestReply_ReplyToPublicPostByNotFollowedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -342,8 +333,7 @@ func TestReply_ReplyToPublicPostByNotFollowedUser(t *testing.T) {
 }
 
 func TestReply_DM(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -383,8 +373,7 @@ func TestReply_DM(t *testing.T) {
 }
 
 func TestReply_DMUnfollowed(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -427,8 +416,7 @@ func TestReply_DMUnfollowed(t *testing.T) {
 }
 
 func TestReply_DMUnfollowedBeforeFeedUpdate(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -469,8 +457,7 @@ func TestReply_DMUnfollowedBeforeFeedUpdate(t *testing.T) {
 }
 
 func TestReply_DMToAnotherUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -510,8 +497,7 @@ func TestReply_DMToAnotherUser(t *testing.T) {
 }
 
 func TestReply_NoSuchPost(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

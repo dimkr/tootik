@@ -27,8 +27,7 @@ import (
 )
 
 func TestView_NoReplies(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -42,8 +41,7 @@ func TestView_NoReplies(t *testing.T) {
 }
 
 func TestView_OneReply(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -61,8 +59,7 @@ func TestView_OneReply(t *testing.T) {
 }
 
 func TestView_TwoReplies(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -84,8 +81,7 @@ func TestView_TwoReplies(t *testing.T) {
 }
 
 func TestView_TwoRepliesBigOffset(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -107,8 +103,7 @@ func TestView_TwoRepliesBigOffset(t *testing.T) {
 }
 
 func TestView_TwoRepliesBigOffsetUnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -130,8 +125,7 @@ func TestView_TwoRepliesBigOffsetUnauthenticatedUser(t *testing.T) {
 }
 
 func TestView_TwoRepliesUnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -153,8 +147,7 @@ func TestView_TwoRepliesUnauthenticatedUser(t *testing.T) {
 }
 
 func TestView_OneReplyPostDeleted(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -180,8 +173,7 @@ func TestView_OneReplyPostDeleted(t *testing.T) {
 }
 
 func TestView_OneReplyPostNotDeleted(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -204,8 +196,7 @@ func TestView_OneReplyPostNotDeleted(t *testing.T) {
 }
 
 func TestView_OneReplyPostNotDeletedUnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -228,8 +219,7 @@ func TestView_OneReplyPostNotDeletedUnauthenticatedUser(t *testing.T) {
 }
 
 func TestView_OneReplyPostDeletedUnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -255,8 +245,7 @@ func TestView_OneReplyPostDeletedUnauthenticatedUser(t *testing.T) {
 }
 
 func TestView_OneReplyReplyDeleted(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -282,8 +271,7 @@ func TestView_OneReplyReplyDeleted(t *testing.T) {
 }
 
 func TestView_NoSuchPost(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -292,8 +280,7 @@ func TestView_NoSuchPost(t *testing.T) {
 }
 
 func TestView_InvalidOffset(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -302,8 +289,7 @@ func TestView_InvalidOffset(t *testing.T) {
 }
 
 func TestView_Update(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -353,8 +339,7 @@ func TestView_Update(t *testing.T) {
 }
 
 func TestView_OldUpdate(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -404,8 +389,7 @@ func TestView_OldUpdate(t *testing.T) {
 }
 
 func TestView_PostToFollowers(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -422,8 +406,7 @@ func TestView_PostToFollowers(t *testing.T) {
 }
 
 func TestView_PostToFollowersPostBeforeFollow(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -440,8 +423,7 @@ func TestView_PostToFollowersPostBeforeFollow(t *testing.T) {
 }
 
 func TestView_PostToFollowersUnfollow(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -464,8 +446,7 @@ func TestView_PostToFollowersUnfollow(t *testing.T) {
 }
 
 func TestView_PostToFollowersNotFollowing(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -479,8 +460,7 @@ func TestView_PostToFollowersNotFollowing(t *testing.T) {
 }
 
 func TestView_PostToFollowersWithReply(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -504,8 +484,7 @@ func TestView_PostToFollowersWithReply(t *testing.T) {
 }
 
 func TestView_PostInGroupPublicAndGroupFollowed(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -549,8 +528,7 @@ func TestView_PostInGroupPublicAndGroupFollowed(t *testing.T) {
 }
 
 func TestView_PostInGroupNotPublicAndGroupFollowed(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -594,8 +572,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowed(t *testing.T) {
 }
 
 func TestView_PostInGroupNotPublicAndGroupFollowedButNotAccepted(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -636,8 +613,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedButNotAccepted(t *testing.T) {
 }
 
 func TestView_PostInGroupNotPublicAndAuthorFollowed(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -681,8 +657,7 @@ func TestView_PostInGroupNotPublicAndAuthorFollowed(t *testing.T) {
 }
 
 func TestView_PostInGroupNotPublicAndAuthorFollowedButNotAccepted(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -723,8 +698,7 @@ func TestView_PostInGroupNotPublicAndAuthorFollowedButNotAccepted(t *testing.T) 
 }
 
 func TestView_PostInGroupNotPublicAndGroupFollowedWithReply(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -786,8 +760,7 @@ func TestView_PostInGroupNotPublicAndGroupFollowedWithReply(t *testing.T) {
 }
 
 func TestView_PostInGroupNotPublicAndGroupFollowedWithPrivateReply(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,8 +24,7 @@ import (
 )
 
 func TestHashtags_NoHashtags(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -40,8 +39,7 @@ func TestHashtags_NoHashtags(t *testing.T) {
 }
 
 func TestHashtags_OneHashtagOneAuthor(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -56,8 +54,7 @@ func TestHashtags_OneHashtagOneAuthor(t *testing.T) {
 }
 
 func TestHashtags_OneHashtagTwoAuthors(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -78,8 +75,7 @@ func TestHashtags_OneHashtagTwoAuthors(t *testing.T) {
 }
 
 func TestHashtags_OneHashtagTwoAuthorsCaseSensitivity(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -100,8 +96,7 @@ func TestHashtags_OneHashtagTwoAuthorsCaseSensitivity(t *testing.T) {
 }
 
 func TestHashtags_TwoHashtagsOneAuthor(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -123,8 +118,7 @@ func TestHashtags_TwoHashtagsOneAuthor(t *testing.T) {
 }
 
 func TestHashtags_OneHashtagTwoAuthorsUnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

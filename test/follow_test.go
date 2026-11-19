@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,8 +27,7 @@ import (
 )
 
 func TestFollow_PostToFollowers(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -56,8 +55,7 @@ func TestFollow_PostToFollowers(t *testing.T) {
 }
 
 func TestFollow_PostToFollowersBeforeFollow(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -85,8 +83,7 @@ func TestFollow_PostToFollowersBeforeFollow(t *testing.T) {
 }
 
 func TestFollow_DMUnfollowFollow(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -123,8 +120,7 @@ func TestFollow_DMUnfollowFollow(t *testing.T) {
 }
 
 func TestFollow_DMUnfollowBeforeFeedUpdate(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -155,8 +151,7 @@ func TestFollow_DMUnfollowBeforeFeedUpdate(t *testing.T) {
 }
 
 func TestFollow_PublicPost(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -184,8 +179,7 @@ func TestFollow_PublicPost(t *testing.T) {
 }
 
 func TestFollow_Mutual(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -234,8 +228,7 @@ func TestFollow_Mutual(t *testing.T) {
 }
 
 func TestFollow_AlreadyFollowing(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -247,8 +240,7 @@ func TestFollow_AlreadyFollowing(t *testing.T) {
 }
 
 func TestFollow_NoSuchUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -257,8 +249,7 @@ func TestFollow_NoSuchUser(t *testing.T) {
 }
 
 func TestFollow_UnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

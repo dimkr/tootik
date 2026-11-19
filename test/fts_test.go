@@ -1,5 +1,5 @@
 /*
-Copyright 2024, 2025 Dima Krasner
+Copyright 2024 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,8 +26,7 @@ import (
 )
 
 func TestFTS_Happyflow(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -39,8 +38,7 @@ func TestFTS_Happyflow(t *testing.T) {
 }
 
 func TestFTS_HashtagWithoutHash(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -52,8 +50,7 @@ func TestFTS_HashtagWithoutHash(t *testing.T) {
 }
 
 func TestFTS_HashtagWithHash(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -65,8 +62,7 @@ func TestFTS_HashtagWithHash(t *testing.T) {
 }
 
 func TestFTS_HashtagWithHashAndQuotes(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -78,8 +74,7 @@ func TestFTS_HashtagWithHashAndQuotes(t *testing.T) {
 }
 
 func TestFTS_HashtagWithHashAndQuotesUnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -91,8 +86,7 @@ func TestFTS_HashtagWithHashAndQuotesUnauthenticatedUser(t *testing.T) {
 }
 
 func TestFTS_HashtagWithHashAndQuotesSecondPage(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -104,8 +98,7 @@ func TestFTS_HashtagWithHashAndQuotesSecondPage(t *testing.T) {
 }
 
 func TestFTS_NoInput(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -114,8 +107,7 @@ func TestFTS_NoInput(t *testing.T) {
 }
 
 func TestFTS_EmptyInput(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -124,8 +116,7 @@ func TestFTS_EmptyInput(t *testing.T) {
 }
 
 func TestFTS_InvalidEscapeSequence(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -134,8 +125,7 @@ func TestFTS_InvalidEscapeSequence(t *testing.T) {
 }
 
 func TestFTS_UnathenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -147,8 +137,7 @@ func TestFTS_UnathenticatedUser(t *testing.T) {
 }
 
 func TestFTS_SearchByAuthorUserName(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -160,8 +149,7 @@ func TestFTS_SearchByAuthorUserName(t *testing.T) {
 }
 
 func TestFTS_SearchByAuthorID(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -173,8 +161,7 @@ func TestFTS_SearchByAuthorID(t *testing.T) {
 }
 
 func TestFTS_SearchByMentionUserName(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -213,8 +200,7 @@ func TestFTS_SearchByMentionUserName(t *testing.T) {
 }
 
 func TestFTS_SearchByMentionID(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

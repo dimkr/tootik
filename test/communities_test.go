@@ -26,8 +26,7 @@ import (
 )
 
 func TestCommunities_OneCommunity(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

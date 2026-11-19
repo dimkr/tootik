@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,8 +23,7 @@ import (
 )
 
 func TestDM_HappyFlow(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -44,8 +43,7 @@ func TestDM_HappyFlow(t *testing.T) {
 }
 
 func TestDM_UnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -59,8 +57,7 @@ func TestDM_UnauthenticatedUser(t *testing.T) {
 }
 
 func TestDM_Loopback(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -69,8 +66,7 @@ func TestDM_Loopback(t *testing.T) {
 }
 
 func TestDM_TwoMentions(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -90,8 +86,7 @@ func TestDM_TwoMentions(t *testing.T) {
 }
 
 func TestDM_TwoMentionsOneLoopback(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -111,8 +106,7 @@ func TestDM_TwoMentionsOneLoopback(t *testing.T) {
 }
 
 func TestDM_TooManyRecipients(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	server.cfg.MaxRecipients = 1
 
@@ -123,8 +117,7 @@ func TestDM_TooManyRecipients(t *testing.T) {
 }
 
 func TestDM_MaxRecipients(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	server.cfg.MaxRecipients = 2
 

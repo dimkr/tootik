@@ -29,8 +29,7 @@ import (
 )
 
 func TestCommunity_NewThread(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -92,8 +91,7 @@ func TestCommunity_NewThread(t *testing.T) {
 }
 
 func TestCommunity_NewThreadNotFollowing(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -152,8 +150,7 @@ func TestCommunity_NewThreadNotFollowing(t *testing.T) {
 }
 
 func TestCommunity_NewThreadNotPublic(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -215,8 +212,7 @@ func TestCommunity_NewThreadNotPublic(t *testing.T) {
 }
 
 func TestCommunity_ReplyInThread(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -308,8 +304,7 @@ func TestCommunity_ReplyInThread(t *testing.T) {
 }
 
 func TestCommunity_ReplyInThreadAuthorNotFollowing(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -372,8 +367,7 @@ func TestCommunity_ReplyInThreadAuthorNotFollowing(t *testing.T) {
 }
 
 func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -470,8 +464,7 @@ func TestCommunity_ReplyInThreadSenderNotFollowing(t *testing.T) {
 }
 
 func TestCommunity_DuplicateReplyInThread(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -574,8 +567,7 @@ func TestCommunity_DuplicateReplyInThread(t *testing.T) {
 }
 
 func TestCommunity_EditedReplyInThread(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -699,8 +691,7 @@ func TestCommunity_EditedReplyInThread(t *testing.T) {
 }
 
 func TestCommunity_UnknownEditedReplyInThread(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

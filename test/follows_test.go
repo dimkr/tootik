@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,8 +28,7 @@ import (
 )
 
 func TestFollows_NoFollows(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -40,8 +39,7 @@ func TestFollows_NoFollows(t *testing.T) {
 }
 
 func TestFollows_TwoInactive(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -65,8 +63,7 @@ func TestFollows_TwoInactive(t *testing.T) {
 }
 
 func TestFollows_OneActiveOneInactive(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -93,8 +90,7 @@ func TestFollows_OneActiveOneInactive(t *testing.T) {
 }
 
 func TestFollows_UnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

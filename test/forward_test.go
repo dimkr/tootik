@@ -30,8 +30,7 @@ import (
 )
 
 func TestForward_ReplyToPostByFollower(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -96,8 +95,7 @@ func TestForward_ReplyToPostByFollower(t *testing.T) {
 }
 
 func TestForward_ReplyToPublicPost(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -166,8 +164,7 @@ func TestForward_ReplyToPublicPost(t *testing.T) {
 }
 
 func TestForward_LocalReplyToLocalPublicPost(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -208,8 +205,7 @@ func TestForward_LocalReplyToLocalPublicPost(t *testing.T) {
 }
 
 func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -289,8 +285,7 @@ func TestForward_ReplyToReplyToPostByFollower(t *testing.T) {
 }
 
 func TestForward_ReplyToUnknownPost(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -355,8 +350,7 @@ func TestForward_ReplyToUnknownPost(t *testing.T) {
 }
 
 func TestForward_ReplyToDM(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -421,8 +415,7 @@ func TestForward_ReplyToDM(t *testing.T) {
 }
 
 func TestForward_NotFollowingAuthor(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -476,8 +469,7 @@ func TestForward_NotFollowingAuthor(t *testing.T) {
 }
 
 func TestForward_NotReplyToLocalPost(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -542,8 +534,7 @@ func TestForward_NotReplyToLocalPost(t *testing.T) {
 }
 
 func TestForward_ReplyToFederatedPost(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -597,8 +588,7 @@ func TestForward_ReplyToFederatedPost(t *testing.T) {
 }
 
 func TestForward_MaxDepth(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -708,8 +698,7 @@ func TestForward_MaxDepth(t *testing.T) {
 }
 
 func TestForward_MaxDepthPlusOne(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -834,8 +823,7 @@ func TestForward_MaxDepthPlusOne(t *testing.T) {
 }
 
 func TestForward_ReplyToLocalPostByLocalFollower(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -876,8 +864,7 @@ func TestForward_ReplyToLocalPostByLocalFollower(t *testing.T) {
 }
 
 func TestForward_EditedReplyToLocalPostByLocalFollower(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -925,8 +912,7 @@ func TestForward_EditedReplyToLocalPostByLocalFollower(t *testing.T) {
 }
 
 func TestForward_DeletedReplyToLocalPostByLocalFollower(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -974,8 +960,7 @@ func TestForward_DeletedReplyToLocalPostByLocalFollower(t *testing.T) {
 }
 
 func TestForward_EditedReplyToPublicPost(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -1075,8 +1060,7 @@ func TestForward_EditedReplyToPublicPost(t *testing.T) {
 }
 
 func TestForward_ResentEditedReplyToPublicPost(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -1187,8 +1171,7 @@ func TestForward_ResentEditedReplyToPublicPost(t *testing.T) {
 }
 
 func TestForward_DeletedReplyToPublicPost(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -1266,8 +1249,7 @@ func TestForward_DeletedReplyToPublicPost(t *testing.T) {
 }
 
 func TestForward_DeletedDeletedReplyToPublicPost(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

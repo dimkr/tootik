@@ -24,8 +24,7 @@ import (
 )
 
 func TestDelete_HappyFlow(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -45,8 +44,7 @@ func TestDelete_HappyFlow(t *testing.T) {
 }
 
 func TestDelete_NotAuthor(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -66,8 +64,7 @@ func TestDelete_NotAuthor(t *testing.T) {
 }
 
 func TestDelete_NoSuchPost(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -76,8 +73,7 @@ func TestDelete_NoSuchPost(t *testing.T) {
 }
 
 func TestDelete_UnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -97,8 +93,7 @@ func TestDelete_UnauthenticatedUser(t *testing.T) {
 }
 
 func TestDelete_WithReply(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -132,8 +127,7 @@ func TestDelete_WithReply(t *testing.T) {
 }
 
 func TestDelete_WithReplyPostDeletedFirst(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

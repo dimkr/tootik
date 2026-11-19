@@ -1,5 +1,5 @@
 /*
-Copyright 2023 - 2025 Dima Krasner
+Copyright 2023 - 2026 Dima Krasner
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,8 +29,7 @@ import (
 )
 
 func TestEdit_Throttling(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -63,8 +62,7 @@ func TestEdit_Throttling(t *testing.T) {
 }
 
 func TestEdit_HappyFlow(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -111,8 +109,7 @@ func TestEdit_HappyFlow(t *testing.T) {
 }
 
 func TestEdit_EmptyContent(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -148,8 +145,7 @@ func TestEdit_EmptyContent(t *testing.T) {
 }
 
 func TestEdit_LongContent(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -185,8 +181,7 @@ func TestEdit_LongContent(t *testing.T) {
 }
 
 func TestEdit_InvalidEscapeSequence(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -222,8 +217,7 @@ func TestEdit_InvalidEscapeSequence(t *testing.T) {
 }
 
 func TestEdit_NoSuchPost(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -254,8 +248,7 @@ func TestEdit_NoSuchPost(t *testing.T) {
 }
 
 func TestEdit_UnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -288,8 +281,7 @@ func TestEdit_UnauthenticatedUser(t *testing.T) {
 }
 
 func TestEdit_AddHashtag(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -318,8 +310,7 @@ func TestEdit_AddHashtag(t *testing.T) {
 }
 
 func TestEdit_RemoveHashtag(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -348,8 +339,7 @@ func TestEdit_RemoveHashtag(t *testing.T) {
 }
 
 func TestEdit_KeepHashtags(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -378,8 +368,7 @@ func TestEdit_KeepHashtags(t *testing.T) {
 }
 
 func TestEdit_AddMention(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -412,8 +401,7 @@ func TestEdit_AddMention(t *testing.T) {
 }
 
 func TestEdit_RemoveMention(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -446,8 +434,7 @@ func TestEdit_RemoveMention(t *testing.T) {
 }
 
 func TestEdit_KeepMention(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -480,8 +467,7 @@ func TestEdit_KeepMention(t *testing.T) {
 }
 
 func TestEdit_PollAddOption(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -531,8 +517,7 @@ func TestEdit_PollAddOption(t *testing.T) {
 }
 
 func TestEdit_RemoveQuestion(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

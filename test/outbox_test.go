@@ -27,8 +27,7 @@ import (
 )
 
 func TestOutbox_NonExistingUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -37,8 +36,7 @@ func TestOutbox_NonExistingUser(t *testing.T) {
 }
 
 func TestOutbox_InvalidOffset(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -50,8 +48,7 @@ func TestOutbox_InvalidOffset(t *testing.T) {
 }
 
 func TestOutbox_PublicPost(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -63,8 +60,7 @@ func TestOutbox_PublicPost(t *testing.T) {
 }
 
 func TestOutbox_PublicPostUnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -76,8 +72,7 @@ func TestOutbox_PublicPostUnauthenticatedUser(t *testing.T) {
 }
 
 func TestOutbox_PublicPostSelf(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -89,8 +84,7 @@ func TestOutbox_PublicPostSelf(t *testing.T) {
 }
 
 func TestOutbox_PostToFollowers(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -105,8 +99,7 @@ func TestOutbox_PostToFollowers(t *testing.T) {
 }
 
 func TestOutbox_PostToFollowersNotFollowing(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -119,8 +112,7 @@ func TestOutbox_PostToFollowersNotFollowing(t *testing.T) {
 }
 
 func TestOutbox_PostToFollowersUnauthentictedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -133,8 +125,7 @@ func TestOutbox_PostToFollowersUnauthentictedUser(t *testing.T) {
 }
 
 func TestOutbox_PostToFollowersSelf(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -146,8 +137,7 @@ func TestOutbox_PostToFollowersSelf(t *testing.T) {
 }
 
 func TestOutbox_DM(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -162,8 +152,7 @@ func TestOutbox_DM(t *testing.T) {
 }
 
 func TestOutbox_DMSelf(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -178,8 +167,7 @@ func TestOutbox_DMSelf(t *testing.T) {
 }
 
 func TestOutbox_DMNotRecipient(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -195,8 +183,7 @@ func TestOutbox_DMNotRecipient(t *testing.T) {
 }
 
 func TestOutbox_UnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -212,8 +199,7 @@ func TestOutbox_UnauthenticatedUser(t *testing.T) {
 }
 
 func TestOutbox_PublicPostInGroup(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -250,8 +236,7 @@ func TestOutbox_PublicPostInGroup(t *testing.T) {
 }
 
 func TestOutbox_PublicPostInGroupUnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -287,8 +272,7 @@ func TestOutbox_PublicPostInGroupUnauthenticatedUser(t *testing.T) {
 }
 
 func TestOutbox_PublicPostInGroupAudienceSetByUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -338,8 +322,7 @@ func TestOutbox_PublicPostInGroupAudienceSetByUser(t *testing.T) {
 }
 
 func TestOutbox_PublicPostInGroupAudienceSetByGroup(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -389,8 +372,7 @@ func TestOutbox_PublicPostInGroupAudienceSetByGroup(t *testing.T) {
 }
 
 func TestOutbox_PublicPostInGroupDeletedByUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -440,8 +422,7 @@ func TestOutbox_PublicPostInGroupDeletedByUser(t *testing.T) {
 }
 
 func TestOutbox_PublicPostInGroupDeletedByAnotherUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -499,8 +480,7 @@ func TestOutbox_PublicPostInGroupDeletedByAnotherUser(t *testing.T) {
 }
 
 func TestOutbox_PublicPostInGroupDeletedByGroup(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -550,8 +530,7 @@ func TestOutbox_PublicPostInGroupDeletedByGroup(t *testing.T) {
 }
 
 func TestOutbox_PublicPostInGroupForwardedDelete(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -609,8 +588,7 @@ func TestOutbox_PublicPostInGroupForwardedDelete(t *testing.T) {
 }
 
 func TestOutbox_PublicPostInGroupEditedByUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -660,8 +638,7 @@ func TestOutbox_PublicPostInGroupEditedByUser(t *testing.T) {
 }
 
 func TestOutbox_PostToFollowersInGroup(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -703,8 +680,7 @@ func TestOutbox_PostToFollowersInGroup(t *testing.T) {
 }
 
 func TestOutbox_PostToFollowersInGroupNotFollowingGroup(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -746,8 +722,7 @@ func TestOutbox_PostToFollowersInGroupNotFollowingGroup(t *testing.T) {
 }
 
 func TestOutbox_PostToFollowersInGroupNotAccepted(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -786,8 +761,7 @@ func TestOutbox_PostToFollowersInGroupNotAccepted(t *testing.T) {
 }
 
 func TestOutbox_PostToFollowersInGroupFollowingAuthor(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -829,8 +803,7 @@ func TestOutbox_PostToFollowersInGroupFollowingAuthor(t *testing.T) {
 }
 
 func TestOutbox_PostToFollowersInGroupUnauthenticatedUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -872,8 +845,7 @@ func TestOutbox_PostToFollowersInGroupUnauthenticatedUser(t *testing.T) {
 }
 
 func TestOutbox_DMInGroupNotFollowingGroup(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -915,8 +887,7 @@ func TestOutbox_DMInGroupNotFollowingGroup(t *testing.T) {
 }
 
 func TestOutbox_DMInGroupAnotherUser(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 

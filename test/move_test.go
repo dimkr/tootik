@@ -31,8 +31,7 @@ import (
 )
 
 func TestMove_FederatedToFederated(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -81,8 +80,7 @@ func TestMove_FederatedToFederated(t *testing.T) {
 }
 
 func TestMove_FederatedToFederatedTwoAccounts(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -131,8 +129,7 @@ func TestMove_FederatedToFederatedTwoAccounts(t *testing.T) {
 }
 
 func TestMove_FederatedToFederatedNotLinked(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -181,8 +178,7 @@ func TestMove_FederatedToFederatedNotLinked(t *testing.T) {
 }
 
 func TestMove_FederatedToLocal(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -223,8 +219,7 @@ func TestMove_FederatedToLocal(t *testing.T) {
 }
 
 func TestMove_FederatedToLocalLinked(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -268,8 +263,7 @@ func TestMove_FederatedToLocalLinked(t *testing.T) {
 }
 
 func TestMove_FollowingBoth(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -327,8 +321,7 @@ func TestMove_FollowingBoth(t *testing.T) {
 }
 
 func TestMove_LocalToLocalAliasThrottled(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -337,8 +330,7 @@ func TestMove_LocalToLocalAliasThrottled(t *testing.T) {
 }
 
 func TestMove_LocalToLocal(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -381,8 +373,7 @@ func TestMove_LocalToLocal(t *testing.T) {
 }
 
 func TestMove_LocalToLocalNoFollowers(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -416,8 +407,7 @@ func TestMove_LocalToLocalNoFollowers(t *testing.T) {
 }
 
 func TestMove_LocalToFederated(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -465,8 +455,7 @@ func TestMove_LocalToFederated(t *testing.T) {
 }
 
 func TestMove_LocalToFederatedNoSourceToTargetAlias(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -494,8 +483,7 @@ func TestMove_LocalToFederatedNoSourceToTargetAlias(t *testing.T) {
 }
 
 func TestMove_LocalToFederatedNoTargetToSourceAlias(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
@@ -528,8 +516,7 @@ func TestMove_LocalToFederatedNoTargetToSourceAlias(t *testing.T) {
 }
 
 func TestMove_LocalToFederatedAlreadyMoved(t *testing.T) {
-	server := newTestServer()
-	defer server.Shutdown()
+	server := newTestServer(t)
 
 	assert := assert.New(t)
 
